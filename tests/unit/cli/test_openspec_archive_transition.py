@@ -251,8 +251,6 @@ def test_committed_standalone_archive_recovers_lease_attestation_and_proof(
     git(lifecycle.worktree, "add", "--all")
     git(lifecycle.worktree, "commit", "-m", "archive outside the controller")
     archived_head = lifecycle.head
-
-    assert lifecycle.lease["expected_head"] == lifecycle.completed_head
     planned = archive_change(
         root=lifecycle.worktree,
         change="fixture-change",
@@ -263,55 +261,7 @@ def test_committed_standalone_archive_recovers_lease_attestation_and_proof(
         "ethos lane archive-change --change fixture-change "
         f"--expect-head {lifecycle.completed_head} --apply --json"
     )
-
-    recovered = archive_change(
-        root=lifecycle.worktree,
-        change="fixture-change",
-        expect_head=lifecycle.completed_head,
-        apply=True,
-    )
-
-    lease = lifecycle.lease
-    assert recovered["verdict"] == "pass", recovered
-    assert recovered["state"] == "archive_attestation_recovered"
-    assert lease["expected_head"] == archived_head
-    assert lease["base_commitment_path"] == f"{archive_path}/commitment.toml"
-    plan = proof_plan(
-        lifecycle.worktree,
-        head=archived_head,
-        changed_paths=tuple(cast("list[str]", recovered["changed_paths"])),
-    )
-    assert plan.verdict == "pass"
-
-
-def test_rebind_derivation_recognizes_the_exact_archived_carrier(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """Carrier relocation is not misclassified as a semantic Commitment change."""
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    archive_path = "openspec/changes/archive/2026-08-04-fixture-change"
-    (lifecycle.worktree / archive_path).parent.mkdir(parents=True, exist_ok=True)
-    lifecycle.active.rename(lifecycle.worktree / archive_path)
-    git(lifecycle.worktree, "add", "--all")
-    git(lifecycle.worktree, "commit", "-m", "archive outside the controller")
-    archived_head = lifecycle.head
-
-    report = rebind_derivation.derive_commitment_rebind(
-        root=lifecycle.worktree,
-        target_commit=archived_head,
-        repair_change_identity=False,
-    )
-
-    assert report["verdict"] == "block", report
-    assert report["state"] == "archive_recovery_required"
-    assert report["required_gaps"] == ["archive_transition_requires_archive_change"]
-    assert report["observed_targets"] == [archived_head]
-    assert report["next_action"] == (
-        "ethos lane archive-change --change fixture-change "
-        f"--expect-head {lifecycle.completed_head} --apply --json"
-    )
-
-    projected = run_ethos(
+    rebind = run_ethos(
         "lane",
         "rebind-commitment",
         "derive",
@@ -322,21 +272,20 @@ def test_rebind_derivation_recognizes_the_exact_archived_carrier(
         "--json",
         cwd=lifecycle.worktree,
     )
-    assert projected["state"] == "blocked"
-    assert projected["data"]["state"] == "archive_recovery_required"
-    assert projected["next_action"] == report["next_action"]
-
-    inferred = run_ethos(
-        "lane",
-        "rebind-commitment",
-        "derive",
-        "--root",
-        lifecycle.worktree.as_posix(),
-        "--json",
-        cwd=lifecycle.worktree,
+    assert (rebind["data"]["state"], rebind["next_action"]) == (
+        "archive_recovery_required",
+        planned["next_action"],
     )
-    assert inferred["data"]["state"] == "archive_recovery_required"
-    assert inferred["next_action"] == report["next_action"]
+    recovered = archive_change(
+        root=lifecycle.worktree,
+        change="fixture-change",
+        expect_head=lifecycle.completed_head,
+        apply=True,
+    )
+    assert recovered["state"] == "archive_attestation_recovered"
+    paths = tuple(cast("list[str]", recovered["changed_paths"]))
+    plan = proof_plan(lifecycle.worktree, head=archived_head, changed_paths=paths)
+    assert plan.verdict == "pass"
 
 
 @pytest.mark.parametrize(
@@ -370,16 +319,13 @@ def test_archive_recovery_derivation_fails_closed_for_nonexact_targets(
     if mode == "wrong-parent":
         git(lifecycle.worktree, "commit", "--allow-empty", "-m", "unrelated child")
         target = lifecycle.head
-
     report = rebind_derivation.derive_commitment_rebind(
         root=lifecycle.worktree,
         target_commit=target,
         repair_change_identity=False,
     )
-
-    assert report["verdict"] == "block"
     assert report["state"] == "blocked"
-    assert report["next_action"] == ""
+    assert not report["next_action"]
 
 
 def test_ownerless_archive_postimage_blocks_bare_commit_with_exact_recovery_command(

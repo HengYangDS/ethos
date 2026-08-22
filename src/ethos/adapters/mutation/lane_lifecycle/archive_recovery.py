@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 from typing import NamedTuple
 
 import ethos.adapters.openspec.cli as openspec_cli
@@ -43,45 +44,49 @@ class ArchiveRecovery(NamedTuple):
     lease: dict[str, object]
 
 
+class ArchiveTransitionObservation(NamedTuple):
+    """Closed classification of one possible committed archive transition."""
+
+    state: Literal["absent", "invalid", "exact"]
+    facts: ArchiveRecovery | None = None
+
+
+def observe_bound_archive_transition(
+    root: Path,
+    *,
+    lease: dict[str, object],
+    head: str = "",
+) -> ArchiveTransitionObservation:
+    """Observe one Lease-bound target through the sole archive classifier."""
+    target = head or current_tracked_head(root)
+    try:
+        change = load_lease_bound_commitment(root, lease=lease).id.removeprefix("change:")
+    except (OSError, TypeError, ValueError):
+        return ArchiveTransitionObservation("absent")
+    return observe_archive_transition(
+        root,
+        head=target,
+        lease=lease,
+        change=change,
+        expect_head=str(lease.get("expected_head") or ""),
+    )
+
+
 def archive_recovery_next_action(root: Path, gap: str, *, target_head: str = "") -> str:
     """Return one exact public continuation for a committed archive Lease gap."""
     if not gap.startswith("lease_head_stale:"):
         return ""
     branch = git_stdout(root, "branch", "--show-current")
     lease = leases_by_branch(root).get(branch, {})
-    expected_head = str(lease.get("expected_head") or "")
     head = current_tracked_head(root)
     if target_head and target_head != head:
         return ""
-    try:
-        change = load_lease_bound_commitment(root, lease=lease).id.removeprefix("change:")
-    except (OSError, TypeError, ValueError):
-        return ""
-    facts = _committed_archive_facts(
-        root,
-        head=head,
-        lease=lease,
-        change=change,
-        expect_head=expected_head,
-    )
-    return archive_recovery_command(change, expected_head) if facts is not None else ""
-
-
-def archive_transition_candidate(root: Path, *, lease: dict[str, object], head: str) -> bool:
-    """Return whether a target attempts to move the bound carrier into the archive."""
-    old_head = str(lease.get("expected_head") or "")
-    try:
-        change = load_lease_bound_commitment(root, lease=lease).id.removeprefix("change:")
-    except ValueError:
-        return False
-    if git_stdout(root, "rev-parse", f"{head}^") != old_head:
-        return False
-    changed = git_stdout(
-        root, "diff", "--name-only", "--diff-filter=ACMRTD", old_head, head
-    ).splitlines()
-    source = f"openspec/changes/{change}/commitment.toml"
-    return not git_stdout(root, "rev-parse", f"{head}:{source}") and any(
-        valid_archive_carrier(path, change) for path in changed
+    observation = observe_bound_archive_transition(root, lease=lease, head=head)
+    facts = observation.facts
+    return (
+        archive_recovery_command(facts.change, str(lease.get("expected_head") or ""))
+        if observation.state == "exact" and facts is not None
+        else ""
     )
 
 
@@ -268,14 +273,15 @@ def archive_attestation_recovery(
     apply: bool,
 ) -> dict[str, object] | None:
     """Finish the Lease and Attestation for one exact committed archive."""
-    facts = _committed_archive_facts(
+    observation = observe_archive_transition(
         root,
         head=head,
         lease=lease,
         change=change,
         expect_head=expect_head,
     )
-    if facts is None:
+    facts = observation.facts
+    if observation.state != "exact" or facts is None:
         return None
     previous_head = facts.previous_head
     changed = facts.changed_paths
@@ -377,27 +383,32 @@ def archive_attestation_recovery(
     return outcome or _recover_archive_receipt(root, branch, head, facts, apply=apply)
 
 
-def _committed_archive_facts(
+def observe_archive_transition(
     root: Path,
     *,
     head: str,
     lease: dict[str, object],
     change: str,
     expect_head: str,
-) -> ArchiveRecovery | None:
-    """Recognize one exact direct-child archive post-image from Git facts."""
+) -> ArchiveTransitionObservation:
+    """Classify one target as absent, invalid, or an exact archive post-image."""
     previous_head = git_stdout(root, "rev-parse", f"{head}^")
-    stale_lease = lease.get("expected_head") == expect_head and head != expect_head
-    if stale_lease and previous_head != expect_head:
-        return None
     changed = tuple(
         git_stdout(
             root, "diff", "--name-only", "--diff-filter=ACMRTD", previous_head, head
         ).splitlines()
     )
+    carriers = tuple(path for path in changed if valid_archive_carrier(path, change))
+    source = f"openspec/changes/{change}/commitment.toml"
+    if git_stdout(root, "rev-parse", f"{head}:{source}") or not carriers:
+        return ArchiveTransitionObservation("absent")
+    stale_lease = lease.get("expected_head") == expect_head and head != expect_head
+    if stale_lease and previous_head != expect_head:
+        return ArchiveTransitionObservation("invalid")
     ownerless = not lease
-    carrier = next((path for path in changed if valid_archive_carrier(path, change)), "")
-    carrier = carrier if stale_lease or ownerless else str(lease.get("base_commitment_path") or "")
+    carrier = (
+        carriers[0] if stale_lease or ownerless else str(lease.get("base_commitment_path") or "")
+    )
     archive_path = carrier.removesuffix("/commitment.toml")
     if not (
         valid_archive_carrier(f"{archive_path}/commitment.toml", change)
@@ -406,8 +417,10 @@ def _committed_archive_facts(
         )
         and exact_archive_paths(root, head, archive_path, changed)
     ):
-        return None
-    return ArchiveRecovery(change, previous_head, archive_path, changed, lease)
+        return ArchiveTransitionObservation("invalid")
+    return ArchiveTransitionObservation(
+        "exact", ArchiveRecovery(change, previous_head, archive_path, changed, lease)
+    )
 
 
 def _recover_archive_receipt(

@@ -191,6 +191,11 @@ def closeout_resolution(
             f"ethos publish --expect-head {candidate_head} "
             f"--root {repo.resolve().as_posix()} --json"
         )
+    elif "candidate_diverged_from_accepted" in gaps:
+        next_action = (
+            "ethos lane candidate --refresh-from-accepted --apply --authorize "
+            f"--expect-head {accepted_head} --root {repo.resolve().as_posix()} --json"
+        )
     else:
         next_action = closeout_apply_command(
             repo,

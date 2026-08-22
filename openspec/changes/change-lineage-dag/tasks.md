@@ -28,7 +28,7 @@
 
 - [x] 3.1 Run strict OpenSpec validation plus focused Ruff, type, architecture,
   fresh-lane, rollover, recovery, and generation tests.
-- [ ] 3.2 Run the complete applicable proof and verify current HEAD/tree and
+- [x] 3.2 Run the complete applicable proof and verify current HEAD/tree and
   artifacts.
 - [ ] 3.3 Archive through the public lifecycle, rerun required post-archive
   proof, land exact CAS, project the accepted runtime, and retire this lane.

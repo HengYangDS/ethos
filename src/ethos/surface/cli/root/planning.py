@@ -23,6 +23,7 @@ from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
 from ethos.contracts.skill.activation import compile_skill_activation
+from ethos.domain.land.closeout import closeout_command_from_status
 from ethos.domain.plan import matching_rule_gates
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -210,6 +211,7 @@ def plan(
         and not rule_validation_gaps
         and skill_activation.verdict == "pass"
     )
+    closeout_action = closeout_command_from_status(repo, status_payload)
     result = EthosResult(
         command="plan",
         verdict="pass" if ok else "block" if required_gaps else "unknown",
@@ -222,12 +224,15 @@ def plan(
             "required_skill_count": len(skill_activation.skills),
         },
         required_gaps=required_gaps,
-        next_action="ethos prove --json"
-        if ok
-        else (
-            "repair .ethos/rules.toml and rerun ethos plan --json"
-            if rule_validation_gaps
-            else "repair the selected Commitment carrier"
+        next_action=closeout_action
+        or (
+            "ethos prove --json"
+            if ok
+            else (
+                "repair .ethos/rules.toml and rerun ethos plan --json"
+                if rule_validation_gaps
+                else "repair the selected Commitment carrier"
+            )
         ),
         data={
             "changed_paths": list(paths),

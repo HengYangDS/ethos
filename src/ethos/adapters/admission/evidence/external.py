@@ -50,6 +50,8 @@ class IndependentVerificationProvider:
     allowed_signers: Path
     namespace: str
     implementation_digest: str
+    issuer: str
+    key_id: str
 
 
 def _is_protected_from_current_identity(path: Path) -> bool:
@@ -105,11 +107,17 @@ def load_independent_verification_provider(
     allowed_signers = _absolute_path(signature_table.get("allowed_signers"))
     namespace = signature_table.get("namespace")
     implementation_digest = _sha256(signature_table.get("implementation_digest"))
+    issuer = signature_table.get("issuer")
+    key_id = signature_table.get("key_id")
     if (
         receipt_store is None
         or allowed_signers is None
         or not isinstance(namespace, str)
         or not namespace
+        or not isinstance(issuer, str)
+        or not issuer
+        or not isinstance(key_id, str)
+        or not key_id
         or not implementation_digest
         or not receipt_store.is_dir()
         or not allowed_signers.is_file()
@@ -123,6 +131,8 @@ def load_independent_verification_provider(
             allowed_signers=allowed_signers.resolve(),
             namespace=namespace,
             implementation_digest=implementation_digest,
+            issuer=issuer,
+            key_id=key_id,
         ),
         [],
     )
@@ -268,6 +278,8 @@ def _receipt_validation_gaps(
         "proof_floor_digest",
         "policy_digest",
         "implementation_digest",
+        "issuer",
+        "key_id",
     ):
         expected = str(request.get(field) or "")
         if expected and getattr(receipt, field) != expected:

@@ -290,6 +290,50 @@ def validated_plan_attestation(
     return plan, attestation
 
 
+def accepted_closeout_attestation(
+    root: Path,
+    *,
+    accepted_ref: str,
+    candidate_ref: str,
+    candidate_head: str,
+) -> tuple[TransitionPlan, Attestation] | None:
+    """Return the sole valid exact effect that admitted one accepted HEAD."""
+    try:
+        _root_identity, attestations = read_attestation_set(root)
+    except ValueError as error:
+        message = "accepted_closeout_effect_invalid"
+        raise ValueError(message) from error
+    matches: list[tuple[TransitionPlan, Attestation]] = []
+    for attestation in attestations:
+        if attestation.predicate != "effect:git-ref-update":
+            continue
+        try:
+            plan = plan_from_attestation(attestation)
+            effect = git_effect_from_plan(plan)
+            update = effect.updates.get(accepted_ref)
+            validate(
+                root,
+                effect,
+                attestation,
+                issuer=attestation.verifier,
+                plan=plan,
+                current_postconditions=False,
+            )
+        except ValueError:
+            continue
+        if (
+            plan.policy.get("transition") == "candidate.accept"
+            and update is not None
+            and update.desired == candidate_head
+            and effect.assertions.get(candidate_ref) == candidate_head
+        ):
+            matches.append((plan, attestation))
+    if len(matches) > 1:
+        message = "accepted_closeout_effect_ambiguous"
+        raise ValueError(message)
+    return matches[0] if matches else None
+
+
 def recover_plan(
     root: Path,
     *,

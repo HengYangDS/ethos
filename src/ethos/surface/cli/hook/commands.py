@@ -21,6 +21,7 @@ from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
+from ethos.domain.land.closeout import closeout_apply_command
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app as root_app
@@ -33,7 +34,6 @@ _app = App(name="hook", help="Hook admission and guard reports.", show=False)
 root_app.command(_app)
 
 _LANE_PREWRITE_ACTION = "ethos lane prewrite <path>"
-_HEAD_BOUND_PROOF_ACTION = "ethos prove --execute --expect-head <head>"
 _ADMISSION_OPTIONS = Group("Admission")
 _PUSH_OPTIONS = Group("Push")
 
@@ -162,6 +162,16 @@ def pre_push(
         remote_head=options.remote_head,
         remote_name=options.remote,
     )
+    required_gaps = tuple(string_sequence(report.get("required_gaps")))
+    next_action = str(report.get("next_action") or "")
+    if "accepted_closeout_effect_not_attested" in required_gaps:
+        next_action = closeout_apply_command(
+            repo,
+            accepted_head=options.remote_head,
+            candidate_head=pushed_head,
+        )
+    elif report_verdict(report) != "pass" and not next_action:
+        next_action = f"ethos status --root {repo.resolve().as_posix()} --json"
     result = _report_result(
         "hook pre-push",
         report,
@@ -171,9 +181,7 @@ def pre_push(
             "remote": str(report.get("remote_name", options.remote)),
             "decision": _decision_action(report),
         },
-        lambda verdict: (
-            str(report.get("next_action") or _HEAD_BOUND_PROOF_ACTION) if verdict != "pass" else ""
-        ),
+        lambda verdict: next_action if verdict != "pass" else "",
     )
     emit(result, json_output=options.json_output, enforce=True)
 

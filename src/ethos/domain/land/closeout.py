@@ -11,17 +11,214 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from pydantic import BaseModel
+from pydantic import ConfigDict
+
 import ethos
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.status
+from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.value import JsonObject
+from ethos.contracts.verdict import Verdict
+from ethos.normalization.coercion import string_mapping
+from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from ethos.contracts.admission import AdmissionDecision
-    from ethos.contracts.verdict import Verdict
+
+
+class CloseoutCoordinates(BaseModel):
+    """Exact repository coordinates for one transient accepted closeout."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    root: str
+    accepted_ref: str
+    accepted_head: str
+    candidate_ref: str
+    candidate_head: str
+    candidate_tree: str
+
+
+class CloseoutProof(BaseModel):
+    """The exact proof plane selected for one closeout subject."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    plane: str
+    attestation_id: str
+    repository_attestation_id: str
+    external_receipt: JsonObject
+
+
+class CloseoutEffect(BaseModel):
+    """The applied exact-effect identity, absent before mutation."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    attestation_id: str
+
+
+class CloseoutResolution(BaseModel):
+    """One immutable read model shared by closeout and its projections."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    coordinates: CloseoutCoordinates
+    proof: CloseoutProof
+    effect: CloseoutEffect
+    repository_audit: JsonObject
+    openspec_lifecycle: JsonObject
+    control_replacement: JsonObject
+    accepted_update: JsonObject
+    verdict: Verdict
+    required_gaps: tuple[str, ...]
+    next_action: str
+
+
+def closeout_apply_command(
+    root: Path,
+    *,
+    accepted_head: str,
+    candidate_head: str,
+    receipt_path: Path | None = None,
+    status: dict[str, object] | None = None,
+) -> str:
+    """Render the sole exact public accepted-closeout command."""
+    observed = status or workspace_status(root, include_foreign_path_scope=False)
+    accepted_root = accepted_worktree_root(observed.get("worktrees"), root).resolve()
+    receipt = (
+        f" --independent-verification-receipt {receipt_path.resolve().as_posix()}"
+        if receipt_path is not None
+        else ""
+    )
+    return (
+        "ethos land --closeout --apply --authorize "
+        f"--expect-head {accepted_head} --candidate-head {candidate_head}{receipt} "
+        f"--root {accepted_root.as_posix()} --json"
+    )
+
+
+def closeout_command_from_status(root: Path, status: dict[str, object]) -> str:
+    """Return the exact closeout command when an accepted candidate is pending."""
+    policy = load_branch_role_policy(root)
+    if status.get("role") != policy.role_for_branch(policy.accepted_branch):
+        return ""
+    accepted_head = str(status.get("head") or "")
+    candidate_head = str(string_mapping(status.get("candidate")).get("head") or "")
+    if (
+        not accepted_head
+        or not candidate_head
+        or accepted_head == candidate_head
+        or not git_adapter.is_ancestor(root, accepted_head, candidate_head)
+    ):
+        return ""
+    return closeout_apply_command(
+        root,
+        accepted_head=accepted_head,
+        candidate_head=candidate_head,
+        status=status,
+    )
+
+
+def closeout_receipt_path(repo: Path, control_replacement: dict[str, object]) -> Path | None:
+    """Derive the content-addressed external receipt location for one request."""
+    verification = string_mapping(control_replacement.get("independent_verification"))
+    if verification.get("receipt"):
+        return None
+    request = string_mapping(control_replacement.get("verification_request"))
+    if not request or "independent_verification_receipt_required" not in string_sequence(
+        control_replacement.get("required_gaps")
+    ):
+        return None
+    common_dir = git_adapter.git_common_dir(repo)
+    if not common_dir:
+        return None
+    return (
+        Path(common_dir)
+        / "ethos"
+        / "receipts"
+        / "independent-verification"
+        / f"{canonical_json_digest(request)}.json"
+    )
+
+
+def closeout_resolution(
+    *,
+    repo: Path,
+    accepted_head: str,
+    candidate_head: str,
+    audit_root: Path,
+    audit: dict[str, object],
+    lifecycle: dict[str, object],
+    control_replacement: dict[str, object],
+    update: dict[str, object],
+    verdict: Verdict,
+    gaps: tuple[str, ...],
+    apply: bool,
+    receipt_path: Path | None = None,
+) -> CloseoutResolution:
+    """Resolve one exact closeout subject, proof, effect, and continuation."""
+    policy = load_branch_role_policy(repo)
+    proof_report = proof_admission_report(
+        audit_root,
+        candidate_head,
+        repository_transition=True,
+    )
+    proof = string_mapping(proof_report.get("attestation"))
+    verification = string_mapping(control_replacement.get("independent_verification"))
+    receipt = string_mapping(verification.get("receipt"))
+    external_plane = bool(receipt)
+    attestation = string_mapping(update.get("attestation"))
+    coordinates = CloseoutCoordinates(
+        root=repo.resolve().as_posix(),
+        accepted_ref=f"refs/heads/{policy.accepted_branch}",
+        accepted_head=accepted_head,
+        candidate_ref=f"refs/heads/{policy.candidate_branch}",
+        candidate_head=candidate_head,
+        candidate_tree=git_adapter.current_tree(audit_root, candidate_head),
+    )
+    expected_receipt = receipt_path or closeout_receipt_path(repo, control_replacement)
+    if verdict == "pass" and apply and candidate_head == accepted_head:
+        next_action = "ethos publish"
+    elif verdict == "pass" and apply:
+        next_action = (
+            f"ethos publish --expect-head {candidate_head} "
+            f"--root {repo.resolve().as_posix()} --json"
+        )
+    else:
+        next_action = closeout_apply_command(
+            repo,
+            accepted_head=accepted_head,
+            candidate_head=candidate_head,
+            receipt_path=expected_receipt,
+        )
+    return CloseoutResolution(
+        coordinates=coordinates,
+        proof=CloseoutProof(
+            plane="external" if external_plane else "local",
+            attestation_id=(
+                str(receipt.get("payload_digest") or "")
+                if external_plane
+                else str(proof.get("id") or "")
+            ),
+            repository_attestation_id=str(proof.get("id") or ""),
+            external_receipt=receipt,
+        ),
+        effect=CloseoutEffect(attestation_id=str(attestation.get("id") or "")),
+        repository_audit=audit,
+        openspec_lifecycle=lifecycle,
+        control_replacement=control_replacement,
+        accepted_update=update,
+        verdict=verdict,
+        required_gaps=gaps,
+        next_action=next_action,
+    )
 
 
 def closeout_audit_root(repo: Path, decision: AdmissionDecision) -> Path:
@@ -66,21 +263,23 @@ def closeout_bootstrap_package(
     repo: Path,
     audit_root: Path,
     required_gaps: tuple[str, ...],
+    accepted_head: str,
+    candidate_head: str,
+    receipt_path: Path | None = None,
 ) -> dict[str, object]:
     """Build the closeout bootstrap package (command to run against accepted_root)."""
     status = workspace_status(repo, include_foreign_path_scope=False)
     accepted_root = accepted_worktree_root(status.get("worktrees"), repo).resolve()
     policy = load_branch_role_policy(accepted_root)
     candidate = status.get("candidate") if isinstance(status.get("candidate"), dict) else {}
-    accepted_head = git_adapter.current_tracked_head(accepted_root)
-    expect_head = accepted_head or "<HEAD>"
-    command = (
-        "ethos land --closeout --apply --authorize "
-        f"--expect-head {expect_head} --root {accepted_root.as_posix()} --json"
+    command = closeout_apply_command(
+        accepted_root,
+        accepted_head=accepted_head,
+        candidate_head=candidate_head,
+        receipt_path=receipt_path,
     )
     runner_binding = runner_binding_report(accepted_root=accepted_root, audit_root=audit_root)
     candidate_data = cast("dict[str, object]", candidate)
-    candidate_head = str(candidate_data.get("head") or "")
     candidate_path = str(candidate_data.get("worktree_path") or "")
     already_current = bool(accepted_head and candidate_head == accepted_head)
     proof_target_root = Path(candidate_path).resolve() if candidate_path else audit_root.resolve()
@@ -116,7 +315,11 @@ def closeout_bootstrap_package(
         "independent_verification": {
             "required": "independent_verification_receipt_required" in required_gaps,
             "proof_floor_id": "ethos:control-replacement:v1",
-            "receipt_option": "--independent-verification-receipt <absolute-path>",
+            "receipt_option": (
+                f"--independent-verification-receipt {receipt_path.resolve().as_posix()}"
+                if receipt_path is not None
+                else ""
+            ),
             "trust_boundary": "protected-provider",
             "mints_authority": False,
         },
@@ -164,35 +367,6 @@ def land_next_action(
         )
     if "proof_not_proven" in gaps:
         return f"ethos prove --execute --expect-head {current_head} --json"
-    return "ethos prove --json"
-
-
-def closeout_next_action(
-    *,
-    verdict: Verdict,
-    gaps: tuple[str, ...],
-    current_head: str,
-    candidate_current: bool = False,
-) -> str:
-    """Derive the recommended next command after accepted-root closeout."""
-    if verdict == "pass" and candidate_current:
-        return "ethos publish"
-    if verdict == "pass":
-        return (
-            "ethos lane retire landed --branch <work-branch> "
-            "--expect-head <work-lane-head> --apply --authorize --json"
-        )
-    if "candidate_diverged_from_accepted" in gaps:
-        return (
-            "ethos lane candidate --refresh-from-accepted "
-            f"--apply --authorize --expect-head {current_head} --json"
-        )
-    if "independent_verification_receipt_required" in gaps:
-        return (
-            "obtain the signed receipt described by "
-            "data.control_replacement.verification_request, then rerun ethos land --closeout "
-            "--independent-verification-receipt <absolute-path> --json"
-        )
     return "ethos prove --json"
 
 

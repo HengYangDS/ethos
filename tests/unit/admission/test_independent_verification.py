@@ -57,6 +57,8 @@ def _provider(root: Path) -> IndependentVerificationProvider:
         allowed_signers=root / "allowed-signers",
         namespace="ethos-independent-verification",
         implementation_digest="e" * 64,
+        issuer="provider:example",
+        key_id="provider:example",
     )
 
 
@@ -169,7 +171,8 @@ def _write_provider_config(root: Path, provider: IndependentVerificationProvider
     config.write_text(
         f'[receipt_store]\nroot = "{provider.receipt_store}"\n[signature]\n'
         f'allowed_signers = "{provider.allowed_signers}"\nnamespace = "{provider.namespace}"\n'
-        f'implementation_digest = "{provider.implementation_digest}"\n',
+        f'implementation_digest = "{provider.implementation_digest}"\n'
+        f'issuer = "{provider.issuer}"\nkey_id = "{provider.key_id}"\n',
         encoding="utf-8",
     )
     return config

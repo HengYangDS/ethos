@@ -60,6 +60,8 @@ def _trusted_receipt(
         allowed_signers=tmp_path / "allowed-signers",
         namespace="ethos-independent-verification",
         implementation_digest="e" * 64,
+        issuer="provider:example",
+        key_id="provider:example",
     )
     monkeypatch.setattr(
         replacement, "load_independent_verification_provider", lambda _path: (provider, [])
@@ -219,6 +221,36 @@ def test_receipt_and_proof_negative_matrix_fails_closed(
     assert _report(candidate, accepted, head, outside)["required_gaps"] == [
         "independent_verification_receipt_outside_store"
     ]
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"commit": "0" * 40},
+        {"tree": "0" * 40},
+        {"action": "release"},
+        {"proof_floor_id": "ethos:wrong:v1"},
+        {"policy_digest": "0" * 64},
+        {"implementation_digest": "0" * 64},
+        {"issuer": "provider:wrong"},
+        {"key_id": "provider:wrong"},
+    ],
+)
+def test_external_receipt_identity_mismatch_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    updates: dict[str, object],
+) -> None:
+    candidate, accepted, head = _control_change(tmp_path)
+    seed_executed_proof(candidate, head)
+    request = cast("dict[str, object]", _report(candidate, accepted, head)["verification_request"])
+    path = _trusted_receipt(tmp_path, monkeypatch, request, **updates)
+
+    report = _report(candidate, accepted, head, path)
+
+    assert report["verdict"] == "block"
+    assert report["mints_authority"] is False
+    assert report["required_gaps"]
 
 
 @pytest.mark.parametrize(

@@ -638,7 +638,13 @@ def test_archive_lease_recovery_dry_run_projects_the_exact_retry_command(
     }
     monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
     monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {BRANCH: stale_lease})
-    monkeypatch.setattr(recovery, "git_stdout", lambda *_args: f"{ARCHIVE_PATH}/commitment.toml")
+    monkeypatch.setattr(
+        recovery,
+        "git_stdout",
+        lambda _root, *args: (
+            HEAD if args == ("rev-parse", f"{NEW_HEAD}^") else f"{ARCHIVE_PATH}/commitment.toml"
+        ),
+    )
     monkeypatch.setattr(recovery, "exact_carrier_relocation", lambda *_args: True)
     monkeypatch.setattr(recovery, "exact_archive_paths", lambda *_args: True)
 

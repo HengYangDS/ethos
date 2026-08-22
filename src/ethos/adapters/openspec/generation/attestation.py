@@ -32,6 +32,8 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import repository_path_matches
+from ethos.repository.openspec.identifiers import active_change_commitment
+from ethos.repository.openspec.identifiers import parse_change_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -56,7 +58,9 @@ def start_effect_authority(
     statement, before, output, claim, result, freshness = components
     previous_head = str(before.get("head") or "")
     start_head = str(output.get("head") or "")
+    attested_predecessors = output.get("predecessors")
     change = commitment.id.removeprefix("change:")
+    active_carrier = active_change_commitment(change)
     old, new, current = (
         _generation(before.get("lease")),
         _generation(output.get("lease")),
@@ -70,6 +74,7 @@ def start_effect_authority(
         started is not None
         and started.id == commitment.id
         and attestation.commitment_digest == started.digest()
+        and attested_predecessors == list(started.predecessors)
         and statement.get("repository") == repository_id
         and claim == {"operation": "openspec.change.start", "effect": attestation.effect_digest}
         and result in (native_effect_result("applied"), native_effect_result("prepared"))
@@ -84,17 +89,19 @@ def start_effect_authority(
         and new.get("expected_tree") == current_tree(root, start_head)
         and current.get("expected_head") == head
         and current.get("expected_tree") == current_tree(root, head)
-        and current.get("base_commitment_path") == f"openspec/changes/{change}/commitment.toml"
+        and current.get("base_commitment_path") == active_carrier
         and old.get("expected_head") == previous_head
         and old.get("expected_tree") == current_tree(root, previous_head)
-        and commitment.predecessors == (str(old.get("base_commitment_digest")),)
+        and str(old.get("base_commitment_digest")) in commitment.predecessors
         and all(
             old.get(name) == new.get(name)
             for name in ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
         )
         and old.get("epoch") == new.get("epoch", 0) - 1
-        and str(old.get("base_commitment_path") or "").startswith("openspec/changes/archive/")
-        and new.get("base_commitment_path") == f"openspec/changes/{change}/commitment.toml"
+        and (parsed := parse_change_commitment(str(old.get("base_commitment_path") or "")))
+        is not None
+        and parsed[1] is not None
+        and new.get("base_commitment_path") == active_carrier
         and git_stdout(root, "rev-parse", f"{start_head}^") == previous_head
         and is_ancestor(root, start_head, head)
         and freshness.get("subject")
@@ -158,8 +165,9 @@ def prepare_start_effect(
         before={"head": previous_head, "lease": old},
         after={
             "tree": target_tree,
-            "commitment_path": f"openspec/changes/{change}/commitment.toml",
+            "commitment_path": active_change_commitment(change),
             "commitment_digest": commitment.digest(),
+            "predecessors": list(commitment.predecessors),
         },
     )
     expected = issue_native_effect(
@@ -212,7 +220,11 @@ def committed_start_attestation(
             command=command,
             subject=subject,
             before={"head": previous_head, "lease": dict(old_generation)},
-            after={"head": head, "lease": dict(new_generation)},
+            after={
+                "head": head,
+                "lease": dict(new_generation),
+                "predecessors": list(commitment.predecessors),
+            },
         ),
         state="prepared",
         commitment_digest=commitment.digest(),
@@ -238,13 +250,16 @@ def recoverable_start_effect(
     """Recognize a committed start awaiting Lease or Attestation completion."""
     head = current_tracked_head(root)
     start_head = first_parent_successor(root, previous_head, head)
-    carrier = f"openspec/changes/{change}/commitment.toml"
+    carrier = active_change_commitment(change)
     if (
         not start_head
         or lease.get("lease_state") != "valid"
         or lease.get("holder_ref") != os.environ.get("ETHOS_ACTOR", "").strip()
         or lease.get("expected_head") not in {previous_head, head}
-        or not str(lease.get("base_commitment_path") or "").startswith("openspec/changes/archive/")
+        or not (
+            (parsed := parse_change_commitment(str(lease.get("base_commitment_path") or "")))
+            and parsed[1] is not None
+        )
         or git_stdout(root, "status", "--short")
     ):
         return None
@@ -291,7 +306,7 @@ def recognized_start_effect(
 ) -> Attestation | None:
     """Return the unique authoritative Attestation for an already completed start."""
     head = current_tracked_head(root)
-    carrier = f"openspec/changes/{change}/commitment.toml"
+    carrier = active_change_commitment(change)
     if (
         lease.get("lease_state") != "valid"
         or lease.get("holder_ref") != os.environ.get("ETHOS_ACTOR", "").strip()
@@ -308,6 +323,15 @@ def recognized_start_effect(
         if start_effect_authority(root, item, head, repository.id, commitment, lease)
     ]
     return validated[0] if len(validated) == 1 else None
+
+
+def attested_start_predecessor(attestation: Attestation) -> str:
+    """Return the exact predecessor digest carried by a valid start Attestation."""
+    components = native_effect_components(attestation, "effect:openspec-change-start")
+    if components is None:
+        return ""
+    old = _generation(components[1].get("lease"))
+    return str(old.get("base_commitment_digest") or "") if old else ""
 
 
 def _prepared_old_generation(

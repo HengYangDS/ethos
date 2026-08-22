@@ -36,7 +36,7 @@ def load_command_groups(argv: list[str]) -> None:
     for module in selected:
         importlib.import_module(module)
         if module == _COMMAND_MODULES["lane"]:
-            importlib.import_module("ethos.surface.cli.lane.change")
+            importlib.import_module("ethos.surface.cli.lane.successor_change")
             importlib.import_module("ethos.surface.cli.lane.commit_signer")
             importlib.import_module("ethos.surface.cli.lane.rebind")
             importlib.import_module("ethos.surface.cli.lane.lease")

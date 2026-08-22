@@ -1,0 +1,113 @@
+"""Compile and recognize OpenSpec successor Commitment lineage."""
+
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING
+
+from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import first_parent_successor
+from ethos.contracts.change_lineage.predecessor_set import canonical_predecessor_set
+from ethos.contracts.change_lineage.predecessor_set import predecessor_set_matches
+from ethos.contracts.semantic import Commitment
+from ethos.repository.openspec.identifiers import active_change_commitment
+from ethos.repository.openspec.identifiers import active_change_scope
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def successor_commitment(
+    root: Path,
+    *,
+    change: str,
+    intent: str,
+    scope: tuple[str, ...],
+    predecessor: Commitment,
+    predecessors: tuple[str, ...],
+    selected_attestations: tuple[str, ...],
+) -> Commitment:
+    """Construct one bounded successor Change Commitment."""
+    return Commitment(
+        schema_version=2,
+        id=f"change:{change}",
+        intent=intent.strip(),
+        subjects=(load_repository_commitment(root).id,),
+        scope=_successor_scope(change, scope),
+        invariants=(),
+        acceptance=(),
+        risks=(),
+        authority_refs=(),
+        predecessors=canonical_predecessor_set(
+            current=predecessor.digest(),
+            additional=predecessors,
+        ),
+        selected_attestations=selected_attestations,
+        dependencies=(),
+        hypotheses=(),
+        falsifiers=(),
+        experiment_protocols=(),
+    )
+
+
+def committed_successor_mismatch(
+    root: Path,
+    *,
+    change: str,
+    previous_head: str,
+    current_predecessor: str,
+    intent: str,
+    scope: tuple[str, ...],
+    predecessors: tuple[str, ...],
+    selected_attestations: tuple[str, ...],
+) -> bool:
+    """Return whether a committed successor differs from the requested semantics."""
+    head = current_tracked_head(root)
+    successor = first_parent_successor(root, previous_head, head)
+    if not successor:
+        return False
+    carrier = active_change_commitment(change)
+    try:
+        started = load_commitment(
+            root,
+            carrier=carrier,
+            change_id=change,
+            tree_ref=successor,
+        )
+    except ValueError:
+        return False
+    try:
+        current = load_commitment(
+            root,
+            carrier=carrier,
+            change_id=change,
+            tree_ref=head,
+        )
+    except ValueError:
+        return True
+    return (
+        current.digest() != started.digest()
+        or started.intent != intent.strip()
+        or started.scope != _successor_scope(change, scope)
+        or not predecessor_set_matches(
+            actual=started.predecessors,
+            current=current_predecessor,
+            additional=predecessors,
+        )
+        or started.selected_attestations != tuple(sorted(set(selected_attestations)))
+    )
+
+
+def _successor_scope(change: str, scope: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            {active_change_scope(change), *scope},
+            key=lambda value: json.dumps(
+                value,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode(),
+        )
+    )

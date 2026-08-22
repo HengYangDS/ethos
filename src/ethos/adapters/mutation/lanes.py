@@ -14,6 +14,9 @@ from ethos.adapters.mutation.lane_start_carrier import LaneStartContext
 from ethos.adapters.mutation.lane_start_carrier import create_lane_start_carrier
 from ethos.adapters.mutation.lane_start_receipt import runner_bootstrap
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
+from ethos.adapters.openspec.change_lineage.predecessor_resolution import (
+    resolve_predecessor_commitments,
+)
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import ref_head
@@ -35,6 +38,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.semantic import load_commitment_file
+from ethos.repository.openspec.identifiers import active_change_commitment
 
 
 def slug(name: str) -> str:
@@ -95,6 +99,7 @@ def start_work_lane(
         return admission_block
     source, commitment_block = lane_start_commitment(
         repo,
+        candidate_head=str(candidate["head"]),
         name=name,
         branch=branch,
         target=target,
@@ -266,6 +271,7 @@ def lane_start_target(
 def lane_start_commitment(
     repo: Path,
     *,
+    candidate_head: str,
     name: str,
     branch: str,
     target: Path,
@@ -281,6 +287,8 @@ def lane_start_commitment(
         return blocked_commitment(branch, target, "lane_start_intent_ambiguous")
     if commitment_path is not None:
         return fresh_lane_start_commitment(
+            repo=repo,
+            candidate_head=candidate_head,
             name=name,
             branch=branch,
             target=target,
@@ -299,6 +307,8 @@ def lane_start_commitment(
 
 def fresh_lane_start_commitment(
     *,
+    repo: Path,
+    candidate_head: str,
     name: str,
     branch: str,
     target: Path,
@@ -315,17 +325,31 @@ def fresh_lane_start_commitment(
         return blocked_commitment(branch, target, "lane_start_commitment_invalid")
     if commitment.id != f"change:{change_id}":
         return blocked_commitment(branch, target, "lane_start_commitment_identity_mismatch")
-    if commitment.predecessors or commitment.selected_attestations or commitment.dependencies:
+    if commitment.selected_attestations:
         return blocked_commitment(
             branch,
             target,
-            "lane_start_successor_commitment_requires_start_change",
+            "lane_start_selected_attestations_require_start_change",
         )
+    if commitment.dependencies:
+        return blocked_commitment(
+            branch,
+            target,
+            "lane_start_dependencies_require_start_change",
+        )
+    try:
+        resolve_predecessor_commitments(
+            repo,
+            tree_ref=candidate_head,
+            predecessors=commitment.predecessors,
+        )
+    except ValueError as error:
+        return blocked_commitment(branch, target, str(error))
     return (
         (
             commitment_path.resolve(),
             change_id,
-            f"openspec/changes/{change_id}/commitment.toml",
+            active_change_commitment(change_id),
             commitment.digest(),
             "",
             "",

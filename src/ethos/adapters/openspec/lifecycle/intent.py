@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import UTC
 from datetime import datetime
@@ -13,14 +12,11 @@ from typing import Any
 from markdown_it import MarkdownIt
 
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_repository_commitment
-from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import first_parent_successor
-from ethos.contracts.semantic import Commitment
 
 if TYPE_CHECKING:
     from markdown_it.token import Token
+
+    from ethos.contracts.semantic import Commitment
 
 _REQUIREMENT = re.compile(r"^### Requirement: (.+)$", re.MULTILINE)
 _SCENARIO = re.compile(r"^#### Scenario: (.+)$", re.MULTILINE)
@@ -216,76 +212,6 @@ def _open_questions(root: Path, values: object) -> list[str]:
     return _section_items(root, values, "Open Questions")
 
 
-def successor_commitment(
-    root: Path,
-    *,
-    change: str,
-    intent: str,
-    scope: tuple[str, ...],
-    predecessor: Commitment,
-    selected_attestations: tuple[str, ...],
-) -> Commitment:
-    """Construct one bounded successor Change Commitment."""
-    bounded = _successor_scope(change, scope)
-    return Commitment(
-        schema_version=2,
-        id=f"change:{change}",
-        intent=intent.strip(),
-        subjects=(load_repository_commitment(root).id,),
-        scope=bounded,
-        invariants=(),
-        acceptance=(),
-        risks=(),
-        authority_refs=(),
-        predecessors=(predecessor.digest(),),
-        selected_attestations=selected_attestations,
-        dependencies=(),
-        hypotheses=(),
-        falsifiers=(),
-        experiment_protocols=(),
-    )
-
-
-def committed_successor_mismatch(
-    root: Path,
-    *,
-    change: str,
-    previous_head: str,
-    intent: str,
-    scope: tuple[str, ...],
-    selected_attestations: tuple[str, ...],
-) -> bool:
-    """Return whether a committed successor differs from the requested semantics."""
-    head = current_tracked_head(root)
-    successor = first_parent_successor(root, previous_head, head)
-    if not successor:
-        return False
-    try:
-        started = load_commitment(
-            root,
-            carrier=f"openspec/changes/{change}/commitment.toml",
-            change_id=change,
-            tree_ref=successor,
-        )
-    except ValueError:
-        return False
-    try:
-        current = load_commitment(
-            root,
-            carrier=f"openspec/changes/{change}/commitment.toml",
-            change_id=change,
-            tree_ref=head,
-        )
-    except ValueError:
-        return True
-    return (
-        current.digest() != started.digest()
-        or started.intent != intent.strip()
-        or started.scope != _successor_scope(change, scope)
-        or started.selected_attestations != tuple(sorted(set(selected_attestations)))
-    )
-
-
 def selected_input_gaps(
     root: Path,
     change: str,
@@ -333,12 +259,3 @@ def selected_input_gaps(
         if not valid:
             gaps.append(f"selected_attestation_disposition_invalid:{identity}")
     return selected_root, gaps
-
-
-def _successor_scope(change: str, scope: tuple[str, ...]) -> tuple[str, ...]:
-    return tuple(
-        sorted(
-            {f"openspec/changes/{change}/**", *scope},
-            key=lambda value: json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode(),
-        )
-    )

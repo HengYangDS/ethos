@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
-import re
 from collections.abc import Mapping
-from datetime import date
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -25,18 +23,15 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Commitment
+from ethos.repository.openspec.identifiers import OPEN_SPEC_ARCHIVE_ROOT
+from ethos.repository.openspec.identifiers import active_change_commitment
+from ethos.repository.openspec.identifiers import archived_change_commitment_matches
+from ethos.repository.openspec.identifiers import change_root_from_commitment
+from ethos.repository.openspec.identifiers import parse_change_commitment
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
-
-ARCHIVE_COMMITMENT = re.compile(
-    r"^openspec/changes/archive/(20\d{2}-\d{2}-\d{2})-"
-    r"([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/commitment\.toml$"
-)
-ACTIVE_COMMITMENT = re.compile(
-    r"^openspec/changes/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/commitment\.toml$"
-)
 
 
 def archive_context(
@@ -94,7 +89,7 @@ def _ownerless_archive_context(
             values = plan.facts.get("values")
             generation = values.get("lease_generation") if isinstance(values, Mapping) else None
             commitment = Commitment.model_validate(plan.commitment, strict=False)
-            carrier = f"openspec/changes/{commitment.id.removeprefix('change:')}/commitment.toml"
+            carrier = active_change_commitment(commitment.id.removeprefix("change:"))
             update = effect.updates.get(f"refs/heads/{branch}")
             if not isinstance(generation, Mapping):
                 continue
@@ -153,11 +148,11 @@ def archive_binding(
 ) -> tuple[str, str, str] | None:
     """Resolve active, staged, or committed archive carrier authority."""
     carrier = str(lease.get("base_commitment_path") or "")
-    if valid_archive_carrier(carrier, change):
+    if archived_change_commitment_matches(carrier, change):
         return bound_archive_binding(root, head=head, change=change, carrier=carrier)
     try:
         tree = run_git(root, "write-tree", env=environment).stdout.strip()
-        active = f"openspec/changes/{change}/commitment.toml"
+        active = active_change_commitment(change)
         head_tree = current_tree(root, head, environment=environment)
         commitments = active_commitments(root, tree, environment=environment)
         if tree != head_tree and carrier == active and carrier in commitments:
@@ -188,9 +183,9 @@ def archive_binding(
     except ValueError:
         return None
     target_carrier = target["base_commitment_path"]
-    if not valid_archive_carrier(target_carrier, change) or commitment_binding_mismatch(
-        target, lease
-    ):
+    if not archived_change_commitment_matches(
+        target_carrier, change
+    ) or commitment_binding_mismatch(target, lease):
         return None
     return "archive_transition", target["expected_tree"], target_carrier
 
@@ -205,7 +200,7 @@ def staged_archive_carrier(
     environment: Mapping[str, str] | None = None,
 ) -> str:
     """Return the sole exact staged archive commitment carrier."""
-    active = f"openspec/changes/{change}/commitment.toml"
+    active = active_change_commitment(change)
 
     def object_id(specification: str) -> str:
         result = run_git(root, "rev-parse", specification, check=False, env=environment)
@@ -221,7 +216,7 @@ def staged_archive_carrier(
         "--name-only",
         tree,
         "--",
-        "openspec/changes/archive",
+        OPEN_SPEC_ARCHIVE_ROOT,
         check=False,
         env=environment,
     )
@@ -259,7 +254,7 @@ def _archive_candidate_matches(
     object_id: Callable[[str], str],
     environment: Mapping[str, str] | None,
 ) -> bool:
-    if not valid_archive_carrier(carrier, change):
+    if not archived_change_commitment_matches(carrier, change):
         return False
     try:
         target = exact_commitment_fields(
@@ -275,7 +270,7 @@ def _archive_candidate_matches(
         return False
     if object_id(f"{head}:{carrier}") != object_id(f"{tree}:{carrier}"):
         return True
-    archive = carrier.removesuffix("/commitment.toml")
+    archive = change_root_from_commitment(carrier)
     previous_tree = object_id(f"{head}:{archive}")
     preserved = collision_preservation_path(archive, previous_tree, head)
     return bool(previous_tree and object_id(f"{tree}:{preserved}") == previous_tree)
@@ -285,7 +280,7 @@ def bound_archive_binding(
     root: Path, *, head: str, change: str, carrier: str
 ) -> tuple[str, str, str] | None:
     """Recognize an archive carrier already bound by the current Lease."""
-    source = f"openspec/changes/{change}/commitment.toml"
+    source = active_change_commitment(change)
     if not git_stdout(root, "rev-parse", f"{head}:{source}"):
         return "post_archive_closeout", current_tree(root, head), carrier
     for revision in git_stdout(root, "rev-list", head, "--", source, carrier).splitlines():
@@ -310,18 +305,6 @@ def exact_carrier_relocation(
     )
 
 
-def valid_archive_carrier(carrier: str, change: str) -> bool:
-    """Return whether a carrier has the exact dated archive identity."""
-    match = ARCHIVE_COMMITMENT.fullmatch(carrier)
-    if match is None or match[2] != change:
-        return False
-    try:
-        date.fromisoformat(match[1])
-    except ValueError:
-        return False
-    return True
-
-
 def active_commitments(
     root: Path,
     tree: str,
@@ -342,7 +325,11 @@ def active_commitments(
     )
     if listed.returncode:
         return ("unreadable",)
-    return tuple(path for path in listed.stdout.splitlines() if ACTIVE_COMMITMENT.fullmatch(path))
+    return tuple(
+        path
+        for path in listed.stdout.splitlines()
+        if (parsed := parse_change_commitment(path)) is not None and parsed[1] is None
+    )
 
 
 def collision_preservation_path(path: str, tree: str, head: str) -> str:

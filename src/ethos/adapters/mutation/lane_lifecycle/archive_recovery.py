@@ -17,7 +17,6 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_tran
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_binding import exact_carrier_relocation
-from ethos.adapters.openspec.lifecycle.archive_binding import valid_archive_carrier
 from ethos.adapters.openspec.lifecycle.archive_effect import exact_archive_paths
 from ethos.adapters.openspec.lifecycle.archive_effect import issue_archive_effect
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -26,6 +25,10 @@ from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.repository.openspec.identifiers import active_change_commitment
+from ethos.repository.openspec.identifiers import active_change_root
+from ethos.repository.openspec.identifiers import archived_change_commitment_matches
+from ethos.repository.openspec.identifiers import change_root_from_commitment
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -398,8 +401,8 @@ def observe_archive_transition(
             root, "diff", "--name-only", "--diff-filter=ACMRTD", previous_head, head
         ).splitlines()
     )
-    carriers = tuple(path for path in changed if valid_archive_carrier(path, change))
-    source = f"openspec/changes/{change}/commitment.toml"
+    carriers = tuple(path for path in changed if archived_change_commitment_matches(path, change))
+    source = active_change_commitment(change)
     if git_stdout(root, "rev-parse", f"{head}:{source}") or not carriers:
         return ArchiveTransitionObservation("absent")
     stale_lease = lease.get("expected_head") == expect_head and head != expect_head
@@ -409,11 +412,11 @@ def observe_archive_transition(
     carrier = (
         carriers[0] if stale_lease or ownerless else str(lease.get("base_commitment_path") or "")
     )
-    archive_path = carrier.removesuffix("/commitment.toml")
+    archive_path = change_root_from_commitment(carrier)
     if not (
-        valid_archive_carrier(f"{archive_path}/commitment.toml", change)
+        archived_change_commitment_matches(carrier, change)
         and exact_carrier_relocation(
-            root, previous_head, head, f"openspec/changes/{change}", archive_path
+            root, previous_head, head, active_change_root(change), archive_path
         )
         and exact_archive_paths(root, head, archive_path, changed)
     ):

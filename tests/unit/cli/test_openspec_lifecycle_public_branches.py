@@ -227,9 +227,7 @@ def test_archive_context_and_binding_fail_closed_on_role_lease_and_commitment_er
     ) == ("completion_transition", "index-tree", "openspec/changes/change/commitment.toml")
 
 
-def test_archive_binding_helpers_reject_unreadable_ambiguous_and_invalid_dates(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_archive_binding_helpers_reject_unreadable_tree(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(binding, "run_git", lambda *_a, **_k: _result(returncode=1))
     with pytest.raises(ValueError, match="openspec_archive_tree_unreadable"):
         binding.staged_archive_carrier(
@@ -240,9 +238,6 @@ def test_archive_binding_helpers_reject_unreadable_ambiguous_and_invalid_dates(
             change="change",
         )
     assert binding.active_commitments(tmp_path, "tree") == ("unreadable",)
-    assert not binding.valid_archive_carrier(
-        "openspec/changes/archive/2026-99-99-change/commitment.toml", "change"
-    )
 
 
 def test_bound_archive_history_and_exact_relocation_preserve_semantic_identity(

@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.openspec.lifecycle.archive_binding import ARCHIVE_COMMITMENT
 from ethos.adapters.openspec.lifecycle.archive_binding import active_commitments
 from ethos.adapters.openspec.lifecycle.archive_binding import archive_binding
 from ethos.adapters.openspec.lifecycle.archive_binding import archive_context
@@ -19,6 +18,10 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.normalization.coercion import repository_path_matches
+from ethos.repository.openspec.identifiers import active_change_commitment
+from ethos.repository.openspec.identifiers import active_change_root
+from ethos.repository.openspec.identifiers import change_root_from_commitment
+from ethos.repository.openspec.identifiers import parse_change_commitment
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
@@ -160,8 +163,8 @@ def archive_postimage_scope_report(
         )
         return observed.stdout.strip() if observed.returncode == 0 else ""
 
-    active_root = f"openspec/changes/{change}"
-    archive_root = carrier.removesuffix("/commitment.toml")
+    active_root = active_change_root(change)
+    archive_root = change_root_from_commitment(carrier)
     source_tree = git_stdout(root, "rev-parse", f"{head}:{active_root}")
     archive_tree = object_id(f"{tree}:{archive_root}")
     previous_archive_tree = git_stdout(root, "rev-parse", f"{head}:{archive_root}")
@@ -241,7 +244,7 @@ def preserved_archive_binding(
     tree: str,
     carrier: str,
 ) -> tuple[bool, tuple[str, str] | None]:
-    archive = carrier.removesuffix("/commitment.toml")
+    archive = change_root_from_commitment(carrier)
     archive_tree = git_stdout(root, "rev-parse", f"{head}:{archive}")
     if not archive_tree:
         return True, None
@@ -266,11 +269,11 @@ def _post_archive_preservation_binding(
     carrier: str,
 ) -> tuple[bool, tuple[str, str] | None]:
     """Validate collision preservation at the exact archive commit in history."""
-    source = carrier.removesuffix("/commitment.toml")
-    match = ARCHIVE_COMMITMENT.fullmatch(carrier)
-    if match is None:
+    parsed = parse_change_commitment(carrier)
+    if parsed is None or parsed[1] is None:
         return False, None
-    active = f"openspec/changes/{match[2]}/commitment.toml"
+    source = change_root_from_commitment(carrier)
+    active = active_change_commitment(parsed[0])
     revisions = git_stdout(root, "rev-list", head, "--", active, carrier).splitlines()
     for revision in revisions:
         parents = run_git(root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
@@ -359,7 +362,7 @@ def _scope_report(
         "changes": [
             {
                 "name": change,
-                "path": carrier.removesuffix("/commitment.toml"),
+                "path": change_root_from_commitment(carrier),
                 "scope": list(commitment.scope),
             }
         ],
@@ -382,8 +385,8 @@ def _archive_authority_path(
     """Map an official archive output to the active artifact that authorized it."""
     if state not in {"archive_transition", "post_archive_closeout"}:
         return path
-    active_root = f"openspec/changes/{change}"
-    archive_root = carrier.removesuffix("/commitment.toml")
+    active_root = active_change_root(change)
+    archive_root = change_root_from_commitment(carrier)
     if path == archive_root or path.startswith(f"{archive_root}/"):
         return active_root + path.removeprefix(archive_root)
     canonical_prefix = "openspec/specs/"

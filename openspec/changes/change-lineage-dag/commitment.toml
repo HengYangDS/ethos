@@ -22,7 +22,6 @@ scope = [
   "src/ethos/adapters/openspec/lifecycle/intent.py",
   "src/ethos/adapters/repo/commitment.py",
   "src/ethos/contracts/change_lineage/**",
-  "src/ethos/repository/openspec/carriers.py",
   "src/ethos/repository/openspec/identifiers.py",
   "src/ethos/surface/cli/application.py",
   "src/ethos/surface/cli/lane/change.py",

@@ -234,7 +234,7 @@ def test_land_closeout_reports_actionable_candidate_divergence(tmp_path: Path) -
     assert payload["required_gaps"] == ["candidate_diverged_from_accepted"]
     assert payload["next_action"] == (
         "ethos lane candidate --refresh-from-accepted --apply --authorize "
-        f"--expect-head {accepted_head} --json"
+        f"--expect-head {accepted_head} --root {repo.resolve().as_posix()} --json"
     )
     assert payload["continuation"] == "await-user"
     assert payload["user_decision_required"] is True

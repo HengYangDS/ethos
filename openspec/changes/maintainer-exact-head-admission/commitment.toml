@@ -60,13 +60,7 @@ predecessors = [
   "d4573611dc5b8e8afee12720f2a26efdddec7e0651df6d0060cc2a24ecca4e6d",
 ]
 selected_attestations = []
+dependencies = []
 hypotheses = []
 falsifiers = []
 experiment_protocols = []
-
-[[dependencies]]
-kind = "dependency:requires"
-target = "change:accepted-runtime-currentness"
-
-[dependencies.attributes]
-strength = 1

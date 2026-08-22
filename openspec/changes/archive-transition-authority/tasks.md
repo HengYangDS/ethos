@@ -27,6 +27,6 @@
 - [x] 3.2 Run affected suites, Ruff, format, ty, strict OpenSpec, and repository
   reference closure.
 - [x] 3.3 Run the applicable full suite and coverage at the frozen candidate.
-- [ ] 3.4 Verify that the implementation is ready for public proof, archive,
+- [x] 3.4 Verify that the implementation is ready for public proof, archive,
   candidate/accepted land, accepted runtime verification, and lane retirement;
   leave those later lifecycle effects to their own exact-head Attestations.

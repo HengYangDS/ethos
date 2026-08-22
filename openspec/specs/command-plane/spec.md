@@ -137,61 +137,6 @@ transition.
 - **THEN** proof directs the operator to `ethos lane status --json`
 - **AND** it does not infer archive recovery or adoption authority.
 
-### Requirement: Self OpenSpec Lifecycle Mode
-ETHOS CLI SHALL expose OpenSpec lifecycle review through the public ETHOS
-command plane.
-
-#### Scenario: OpenSpec lifecycle is audited
-- **WHEN** `ethos openspec --lifecycle --json` runs
-- **THEN** the CLI reports official OpenSpec validation and ETHOS lifecycle
-  carrier readiness in one result envelope
-
-### Requirement: ETHOS OpenSpec adapter remains under one command plane
-ETHOS SHALL expose OpenSpec governance health through `ethos openspec --json`
-and `ethos openspec --lifecycle --json` while keeping the public workflow
-centered on `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
-`ethos publish`.
-
-#### Scenario: OpenSpec adapter composes official and ETHOS checks
-- **WHEN** `ethos openspec --lifecycle --json` runs
-- **THEN** the payload includes official OpenSpec doctor, status, and strict
-  validation results
-- **AND** it includes ETHOS lifecycle carrier review for proposal, design,
-  tasks, delta specs, capability profiles, Commitment validity, evidence refs, and
-  live-spec diff guards
-
-#### Scenario: OpenSpec adapter does not become a second public command plane
-- **WHEN** ETHOS reports OpenSpec governance gaps
-- **THEN** the next action enters through an `ethos ...` command
-- **AND** raw OpenSpec CLI commands remain adapter implementation detail or
-  maintainer reference rather than the adopter first-hour workflow
-
-#### Scenario: Lifecycle semantics use OpenSpec as carrier
-- **WHEN** lifecycle or transition semantics are changed
-- **THEN** an OpenSpec change carrier records the intent and deltas
-- **AND** official OpenSpec validation remains carrier validation rather than runtime authority
-
-### Requirement: Explain Command Projects Invalid-State Signals
-
-ETHOS SHALL expose `ethos explain` as a read-only invalid-state taxonomy
-projection for governance gaps and advisory signals.
-
-#### Scenario: Explain accepts advisory signals without required-gap overclaim
-
-- **WHEN** `ethos explain <signal> --json` runs for a non-blocking advisory signal
-- **THEN** the payload keeps the original string as `gap` for the stable result contract
-- **AND** the payload also exposes the original string as `signal`
-- **AND** the payload classifies the signal into an invalid-state category
-- **AND** the payload wording does not claim every explained signal is a required gap
-- **AND** the taxonomy projection does not become a lifecycle command
-
-#### Scenario: Explain help and docs use gap-or-signal language
-
-- **WHEN** a human or agent reads `ethos explain --help` or the command-plane reference
-- **THEN** the command is described as explaining a governance gap or advisory signal
-- **AND** docs show `ethos explain <gap-or-signal>` rather than a required-gap-only surface
-- **AND** the command remains a read-only projection, not a lifecycle command
-
 ### Requirement: Governed transition commands fail closed on blocking verdicts
 
 ETHOS transition commands that gate proof, land, or publish SHALL expose blocking
@@ -235,17 +180,19 @@ expected HEAD.
 
 ### Requirement: Semantic Lane Lifecycle Groups
 
-ETHOS SHALL group lease, handoff, exceptional resolution, and retirement under
-semantic nested command families.
+ETHOS SHALL group Lease, handoff, retirement, archive, and successor-Change
+transitions under the single `ethos lane` command family.
 
-#### Scenario: retirement commands are grouped
+#### Scenario: Lane lifecycle commands are grouped
 
-- **WHEN** maintainers inspect the Lane command plane
-- **THEN** bounded retirement commands are `ethos lane retire landed`,
-  `ethos lane retire superseded`, `ethos lane retire unbound`, and
-  `ethos lane retire reconcile-ref-absent`
-- **AND** lease lifecycle is under `ethos lane lease`, handoff under
-  `ethos lane handoff`, and exceptional judgment under `ethos lane resolution`.
+- **WHEN** maintainers inspect `ethos lane --help`
+- **THEN** linked retirement is exposed by `ethos lane retire landed` and
+  `ethos lane retire superseded`
+- **AND** exact absorbed unbound-ref retirement is exposed only by
+  `ethos lane retire absorbed-ref`
+- **AND** Lease lifecycle, handoff, archive, and successor creation remain under
+  `ethos lane lease`, `ethos lane handoff`, `ethos lane archive-change`, and
+  `ethos lane start-change` respectively.
 
 ### Requirement: Candidate ref movement is proof-bound
 
@@ -281,44 +228,6 @@ publication as separate facts, using current state vocabulary only.
 - **AND** `remote_push` is `not_performed`
 - **AND** hosted CI success is not claimed
 - **AND** the payload does not expose retired publish-state vocabulary
-
-### Requirement: OpenSpec archive query uses logical Change IDs
-
-ETHOS SHALL expose an explicit read-only archive query that accepts a date-free
-lower-kebab logical OpenSpec Change ID beginning with a letter, and resolves
-exactly one `YYYY-MM-DD-<logical-id>` archived carrier under
-`openspec/changes/archive` without mutating historical archives. A terminal
-`YYYYMMDD` segment is not part of a logical Change ID.
-
-#### Scenario: Logical archive ID resolves uniquely
-
-- **WHEN** `ethos openspec --archive-id <logical-id> --json` receives a valid
-  logical ID with exactly one matching `YYYY-MM-DD-<logical-id>` archive
-- **THEN** it reports `state=resolved` and the relative archive carrier path
-- **AND** it does not invoke an active Change status lookup or archive mutation
-
-#### Scenario: Archive query fails closed
-
-- **WHEN** an archive query receives an invalid logical ID, an archive directory
-  name, no matching archive, or more than one matching archive
-- **THEN** it reports a distinct required gap for that condition
-- **AND** it does not choose an archive by date or mutate an archive
-
-#### Scenario: Numeric or temporal logical IDs are rejected
-
-- **WHEN** an archive query receives a numeric-leading ID, terminal-date ID,
-  archive directory name, absent ID, or ambiguous logical ID
-- **THEN** ETHOS SHALL reject it as an invalid logical Change ID
-- **AND** it SHALL require the date-free logical ID rather than an alias, redirect, or fallback lookup.
-
-### Requirement: Active Change selection excludes archive directory names
-ETHOS SHALL keep `ethos openspec --change` scoped to active logical Change IDs.
-
-#### Scenario: Archive directory is passed to active selector
-- **WHEN** `ethos openspec --change` receives the exact name of an archived
-  `YYYY-MM-DD-<logical-id>` directory
-- **THEN** it reports `openspec_active_change_identifier_is_archive_directory:<name>`
-- **AND** it does not treat the archived carrier as an active Change
 
 ### Requirement: Commitment rebind coordinates are publicly derived
 

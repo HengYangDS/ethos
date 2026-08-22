@@ -6,9 +6,13 @@ import ast
 import re
 import shlex
 import warnings
+from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.commands import command_executables
 from ethos.repository.policy.references.commands import normalize_command
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 _SUBPROCESS_CALLS = {"run", "Popen", "check_call", "check_output"}
 
@@ -30,6 +34,14 @@ def python_trees(text: str) -> tuple[ast.AST, ...]:
         return tuple(trees)
 
 
+def complete_python_tree(text: str) -> ast.AST | None:
+    """Parse one complete Python carrier without fragment fallback."""
+    try:
+        return _parse_without_syntax_warnings(text)
+    except SyntaxError:
+        return None
+
+
 def _parse_without_syntax_warnings(text: str) -> ast.AST:
     """Treat warning-producing snippets as invalid partial Python syntax."""
     with warnings.catch_warnings():
@@ -37,20 +49,14 @@ def _parse_without_syntax_warnings(text: str) -> ast.AST:
         return ast.parse(text)
 
 
-def import_roots(tree: ast.AST) -> set[str]:
-    """Return top-level package names imported by an AST."""
-    roots = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            roots.update(alias.name.split(".")[0] for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            roots.add(node.module.split(".")[0])
-    return roots
-
-
-def runtime_inputs(tree: ast.AST) -> set[str]:
-    """Return explicitly read environment inputs."""
-    inputs = set()
+def python_references(
+    tree: ast.AST,
+    npm_scripts: dict[str, set[str]],
+) -> tuple[set[str], set[str], set[str]]:
+    """Extract imports, executables, and runtime inputs in one AST traversal."""
+    imports: set[str] = set()
+    executables: set[str] = set()
+    inputs: set[str] = set()
     constants = {
         target.id: value
         for node in ast.walk(tree)
@@ -60,34 +66,19 @@ def runtime_inputs(tree: ast.AST) -> set[str]:
         and (value := _string(node.value))
     }
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or not node.args:
-            continue
-        owner = node.func.value if isinstance(node.func, ast.Attribute) else None
-        name = node.func.attr if isinstance(node.func, ast.Attribute) else ""
-        value = _string(node.args[0]) or (
-            constants.get(node.args[0].id, "") if isinstance(node.args[0], ast.Name) else ""
-        )
-        if _is_environment_read(owner, name):
-            inputs.add(value)
-    return inputs - {""}
-
-
-def _is_environment_read(owner: ast.AST | None, name: str) -> bool:
-    return (isinstance(owner, ast.Name) and owner.id == "os" and name == "getenv") or (
-        isinstance(owner, ast.Attribute)
-        and isinstance(owner.value, ast.Name)
-        and owner.value.id == "os"
-        and owner.attr == "environ"
-        and name == "get"
-    )
-
-
-def python_executables(tree: ast.AST, npm_scripts: dict[str, set[str]]) -> set[str]:
-    """Extract executable identities from Python syntax."""
-    executables = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
+        if isinstance(node, ast.Import):
+            imports.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
             executables.update(_call_executables(node, npm_scripts))
+            owner = node.func.value if isinstance(node.func, ast.Attribute) else None
+            name = node.func.attr if isinstance(node.func, ast.Attribute) else ""
+            value = _string(node.args[0]) if node.args else ""
+            if not value and node.args and isinstance(node.args[0], ast.Name):
+                value = constants.get(node.args[0].id, "")
+            if value and _is_environment_read(owner, name):
+                inputs.add(value)
         elif isinstance(node, ast.Assign) and len(node.targets) == 1:
             target = node.targets[0]
             if (
@@ -98,7 +89,17 @@ def python_executables(tree: ast.AST, npm_scripts: dict[str, set[str]]) -> set[s
                 executables.update(
                     command_executables(_literal_command_tokens(node.value), npm_scripts)
                 )
-    return executables
+    return imports, executables, inputs
+
+
+def _is_environment_read(owner: ast.AST | None, name: str) -> bool:
+    return (isinstance(owner, ast.Name) and owner.id == "os" and name == "getenv") or (
+        isinstance(owner, ast.Attribute)
+        and isinstance(owner.value, ast.Name)
+        and owner.value.id == "os"
+        and owner.attr == "environ"
+        and name == "get"
+    )
 
 
 def _call_executables(node: ast.Call, npm_scripts: dict[str, set[str]]) -> set[str]:
@@ -143,14 +144,23 @@ def _string(node: ast.AST) -> str:
     return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else ""
 
 
-def cyclopts_prefixes(files: dict[str, str]) -> dict[tuple[str, str], str]:
+def cyclopts_prefixes(
+    files: dict[str, str],
+    *,
+    parsed_files: Mapping[str, ast.AST | None] | None = None,
+) -> dict[tuple[str, str], str]:
     """Discover command prefixes declared by Cyclopts application trees."""
     applications: dict[tuple[str, str], str] = {}
     modules: dict[str, tuple[ast.AST, dict[str, tuple[str, str]]]] = {}
     for path, text in files.items():
         if "App(" not in text:
             continue
-        trees = python_trees(text)
+        tree = parsed_files.get(path) if parsed_files is not None else None
+        trees = (
+            (tree,)
+            if tree is not None
+            else (() if parsed_files is not None else python_trees(text))
+        )
         if not trees:
             continue
         tree = trees[0]
@@ -277,15 +287,19 @@ def import_module(path: str, node: ast.ImportFrom) -> str:
     return ".".join((*package, *((node.module or "").split("."))))
 
 
-def cyclopts_commands(path: str, tree: ast.AST, prefixes: dict[tuple[str, str], str]) -> set[str]:
-    """Extract normalized Cyclopts command identities from a Python AST."""
+def cyclopts_command_owners(
+    path: str,
+    tree: ast.AST,
+    prefixes: dict[tuple[str, str], str],
+) -> dict[str, set[str]]:
+    """Return command identities with their exact defining symbols."""
     imported = {
         alias.asname or alias.name: (import_module(path, node), alias.name)
         for node in ast.walk(tree)
         if isinstance(node, ast.ImportFrom)
         for alias in node.names
     }
-    commands = set()
+    owners: dict[str, set[str]] = {}
     for node in ast.walk(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
@@ -296,11 +310,10 @@ def cyclopts_commands(path: str, tree: ast.AST, prefixes: dict[tuple[str, str], 
             if not prefix:
                 candidates = {value for (_, name), value in prefixes.items() if name == owner}
                 prefix = candidates.pop() if len(candidates) == 1 else ""
-            commands.update(
-                normalize_command(" ".join(part for part in (prefix, name) if part))
-                for name in names
-            )
-    return commands
+            for name in names:
+                command = normalize_command(" ".join(part for part in (prefix, name) if part))
+                owners.setdefault(command, set()).add(f"{path}:{node.name}")
+    return owners
 
 
 def _command_names(decorator: ast.AST, function_name: str) -> tuple[str, tuple[str, ...]]:

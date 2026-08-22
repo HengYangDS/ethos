@@ -214,7 +214,6 @@ def design_integrity_report(
     required_gaps = list(dict.fromkeys(gaps))
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
-        "semantic_equivalence": "not_evaluated",
         "references": sorted(references),
         "required_gaps": required_gaps,
     }

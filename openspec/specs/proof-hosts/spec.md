@@ -14,15 +14,6 @@ runtime semantic packages.
 - **THEN** it contains proof fixtures and sample helpers rather than runtime
   command semantics
 
-### Requirement: Shadow Parity Evidence
-ETHOS SHALL require tracked shadow parity evidence before declaring adopter or
-generic migration parity closed.
-
-#### Scenario: Parity gaps are checked
-- **WHEN** `ethos parity gaps --adopter <name> --json` runs
-- **THEN** tracked shadow evidence must name verified capabilities and report
-  no required gaps before migrated or split parity rows are closed
-
 ### Requirement: Product Migration Closure Proof
 ETHOS SHALL prove product migration closure through conformance tests, local
 build smoke, npm launcher smoke, OpenSpec validation, parity evidence, and

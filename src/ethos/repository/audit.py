@@ -12,7 +12,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.repository.context import repository_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
-from ethos.repository.policy.references.closure import repository_product_reference_gaps
+from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 
@@ -131,11 +131,8 @@ def repository_audit(
         if not (root / "openspec" / "specs" / family / "spec.md").exists()
     ]
     schema_report = schema_validation_report(root)
-    reference_gaps = repository_product_reference_gaps(root)
-    reference_ownership = {
-        "verdict": observation_verdict(ok=not reference_gaps),
-        "required_gaps": reference_gaps,
-    }
+    system_contracts = system_contracts_report(root)
+    semantic_closure = repository_semantic_closure(root, system_contracts=system_contracts)
     design_integrity = design_integrity_report(root, tracked_documents=tracked_documents)
     if openspec_mode == "shape":
         openspec = openspec_shape or {}
@@ -152,10 +149,12 @@ def repository_audit(
     design_integrity_gaps = [
         str(gap) for gap in cast("list[str]", design_integrity["required_gaps"])
     ]
+    semantic_closure_gaps = [
+        str(gap) for gap in cast("list[str]", semantic_closure["required_gaps"])
+    ]
     openspec_gaps = [str(gap) for gap in cast("list[str]", openspec["required_gaps"])]
     playbook_report = playbooks_report(root, mode="v2-strict")
     playbook_gaps = [str(gap) for gap in cast("list[str]", playbook_report["required_gaps"])]
-    system_contracts = system_contracts_report(root)
     system_contract_gaps = [
         str(gap) for gap in cast("list[str]", system_contracts["required_gaps"])
     ]
@@ -188,20 +187,22 @@ def repository_audit(
         "verdict": observation_verdict(ok=not write_admission_gaps),
         "required_gaps": write_admission_gaps,
     }
-    gaps = (
-        docs_missing
-        + docs_without_front_matter
-        + schemas_missing
-        + release_files_missing
-        + [f"playbook_projection_missing:{path}" for path in playbooks_missing]
-        + [f"openspec_capability_missing:{path}" for path in openspec_capability_missing]
-        + schema_gaps
-        + reference_gaps
-        + design_integrity_gaps
-        + openspec_gaps
-        + playbook_gaps
-        + system_contract_gaps
-        + write_admission_gaps
+    gaps = list(
+        dict.fromkeys(
+            docs_missing
+            + docs_without_front_matter
+            + schemas_missing
+            + release_files_missing
+            + [f"playbook_projection_missing:{path}" for path in playbooks_missing]
+            + [f"openspec_capability_missing:{path}" for path in openspec_capability_missing]
+            + schema_gaps
+            + semantic_closure_gaps
+            + design_integrity_gaps
+            + openspec_gaps
+            + playbook_gaps
+            + system_contract_gaps
+            + write_admission_gaps
+        )
     )
     return {
         "verdict": reduce_verdicts(
@@ -210,7 +211,7 @@ def repository_audit(
             report_verdict(release_files),
             report_verdict(playbooks),
             report_verdict(openspec_capabilities),
-            report_verdict(reference_ownership),
+            report_verdict(semantic_closure),
             report_verdict(design_integrity),
             report_verdict(openspec),
             report_verdict(system_contracts),
@@ -223,7 +224,7 @@ def repository_audit(
         "release_files": release_files,
         "playbooks": playbooks,
         "openspec_capabilities": openspec_capabilities,
-        "reference_ownership": reference_ownership,
+        "semantic_closure": semantic_closure,
         "design_integrity": design_integrity,
         "openspec": openspec,
         "system_contracts": system_contracts,

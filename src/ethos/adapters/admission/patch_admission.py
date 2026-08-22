@@ -10,6 +10,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.policy.references.closure import product_reference_gaps
+from ethos.repository.policy.references.declarations import command_owner_sources_from_files
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.observation import product_references_from_files
 
@@ -60,12 +61,14 @@ def patch_admission(
         )
     references: dict[str, set[str]] = {}
     if not reason:
-        baseline_references = _baseline_product_references(root, baseline_head)
+        baseline_files = _baseline_reference_files(root, baseline_head)
+        baseline_references = native_owned_references_from_files(baseline_files)
         try:
             references = _patch_references(
                 root,
                 patch,
                 changes,
+                context_files=baseline_files,
                 declared_commands=baseline_references["command"],
             )
         except (OSError, UnicodeError, ValueError):
@@ -90,14 +93,13 @@ def _patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> b
     return run_git(root, *command, stdin=patch, text=True, check=False).returncode == 0
 
 
-def _baseline_product_references(root: Path, head: str) -> dict[str, frozenset[str]]:
+def _baseline_reference_files(root: Path, head: str) -> dict[str, str]:
     paths = git_stdout(root, "ls-tree", "-r", "--name-only", head).splitlines()
-    files = {
+    return {
         path: git_stdout(root, "show", f"{head}:{path}")
         for path in paths
         if path.endswith(_OWNER_SUFFIXES)
     }
-    return native_owned_references_from_files(files)
 
 
 def _unified_patch_changes(patch: str) -> tuple[list[dict[str, object]], str]:
@@ -178,6 +180,7 @@ def _patch_references(
     patch: str,
     changes: list[dict[str, object]],
     *,
+    context_files: dict[str, str],
     declared_commands: tuple[str, ...] | frozenset[str] = (),
 ) -> dict[str, set[str]]:
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
@@ -210,9 +213,11 @@ def _patch_references(
             target = workspace / relative
             if target.is_file():
                 files[path] = target.read_text(encoding="utf-8")
-        return product_references_from_files(
+        references = product_references_from_files(
             files,
-            root=root,
+            context_files=context_files,
             declared_commands=declared_commands,
             include_declarations=False,
         )
+        references["command"].update(command_owner_sources_from_files(files))
+        return references

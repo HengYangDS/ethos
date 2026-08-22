@@ -12,7 +12,7 @@ import pytest
 from ethos.contracts.admission import ethos_command_is_readonly
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
-from ethos.repository.policy.references.closure import repository_product_reference_gaps
+from ethos.repository.policy.references.closure import repository_semantic_closure
 from tests.support.architecture import isolated_path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -32,7 +32,8 @@ def test_current_product_boundary_reports_close_without_unowned_references() -> 
     reports = (product_boundary_report(ROOT), contributor_policy_report(ROOT))
 
     assert all(report["verdict"] == "pass" for report in reports), reports
-    assert repository_product_reference_gaps(ROOT) == []
+    closure = repository_semantic_closure(ROOT)
+    assert closure["verdict"] == "pass", closure["required_gaps"]
 
 
 def test_npm_launcher_prefers_the_bound_source_checkout(tmp_path: Path) -> None:

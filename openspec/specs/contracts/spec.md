@@ -97,7 +97,7 @@ algorithm, quality rules, and capability classes.
 - **GIVEN** a skill package manifest declares included files and an expected
   digest
 - **WHEN** the package contents no longer match that digest
-- **THEN** `ethos playbooks check --mode v2-strict --json` reports a required
+- **THEN** `ethos prove --gate playbooks-v2 --json` reports a required
   package digest gap
 
 #### Scenario: unsafe package paths are rejected

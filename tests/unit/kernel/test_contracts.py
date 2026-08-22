@@ -185,6 +185,71 @@ def test_system_contracts_report_fails_closed_for_every_carrier_state(tmp_path: 
     assert load_system_contract(tmp_path, "formats") == {"schema": "schemas/formats.json"}
 
 
+def test_system_contracts_report_owns_declaration_identity_uniqueness(tmp_path: Path) -> None:
+    """One system contract owner distinguishes duplicate and conflicting identities."""
+    system = tmp_path / "system"
+    schemas = tmp_path / "schemas"
+    system.mkdir()
+    schemas.mkdir()
+    schema = schemas / "permissive.json"
+    schema.write_text(json.dumps({"type": "object"}), encoding="utf-8")
+    for name in SYSTEM_CONTRACTS:
+        (system / f"{name}.toml").write_text(
+            "schema = 'schemas/permissive.json'\n",
+            encoding="utf-8",
+        )
+    (system / "tools.toml").write_text(
+        """schema = "schemas/permissive.json"
+
+[[tool]]
+concern = "lint"
+tool = "ruff"
+
+[[tool]]
+concern = "lint"
+tool = "ruff"
+""",
+        encoding="utf-8",
+    )
+    (system / "surfaces.toml").write_text(
+        """schema = "schemas/permissive.json"
+
+[[surface]]
+name = "cli"
+carrier = "first"
+
+[[surface]]
+name = "cli"
+carrier = "second"
+""",
+        encoding="utf-8",
+    )
+
+    report = system_contracts_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert report["declaration_issues"] == [
+        {
+            "category": "conflict",
+            "relation": "owner",
+            "kind": "surface",
+            "identity": "cli",
+            "sources": ["system/surfaces.toml"],
+        },
+        {
+            "category": "duplicate",
+            "relation": "owner",
+            "kind": "tool",
+            "identity": "lint",
+            "sources": ["system/tools.toml"],
+        },
+    ]
+    assert report["required_gaps"] == [
+        "semantic_owner_conflict:surface:cli:system/surfaces.toml",
+        "semantic_owner_duplicate:tool:lint:system/tools.toml",
+    ]
+
+
 def test_system_contract_schema_validation_accepts_a_matching_document(tmp_path: Path) -> None:
     schema = tmp_path / "schema.json"
     schema.write_text(json.dumps({"type": "object", "required": ["id"]}), encoding="utf-8")

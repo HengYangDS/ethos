@@ -13,23 +13,20 @@ from ethos.repository.policy.references.observation import normalized_distributi
 from ethos.repository.policy.references.observation import npm_script_commands
 from ethos.repository.policy.references.observation import package_json_references
 from ethos.repository.policy.references.observation import pyproject_references
-from ethos.repository.policy.references.observation import repository_reference_files
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
-
-def native_owned_references(root: Path) -> dict[str, frozenset[str]]:
-    """Compile admitted identities from native declarations, never consumers."""
-    return native_owned_references_from_files(repository_reference_files(root))
+    from ast import AST
+    from collections.abc import Mapping
 
 
 def native_owned_references_from_files(
     files: dict[str, str],
+    *,
+    command_owners: dict[str, frozenset[str]] | None = None,
 ) -> dict[str, frozenset[str]]:
     """Compile the positive closure from package, command, tool, and profile owners."""
     owned = {kind: set() for kind in REFERENCE_KINDS}
-    npm_scripts = npm_script_commands(files, root=None)
+    npm_scripts = npm_script_commands(files)
     mappings, first_party = _python_import_owners(files)
     before = set(owned["distribution"])
     for text in declaration_files(files, "python-project").values():
@@ -42,11 +39,43 @@ def native_owned_references_from_files(
     for text in declaration_files(files, "node-package").values():
         package_json_references(text, npm_scripts, owned, declarations=True)
     owned["import"].update(first_party)
-    _declared_commands(files, owned)
+    owned["command"].update(command_owners or command_owner_sources_from_files(files))
     _declared_gates(files, npm_scripts, owned)
     _declared_tools(files, owned)
     _declared_profiles(files, owned)
     return {kind: frozenset(owned[kind]) for kind in REFERENCE_KINDS}
+
+
+def command_owner_sources_from_files(
+    files: dict[str, str],
+    *,
+    parsed_files: Mapping[str, AST | None] | None = None,
+) -> dict[str, frozenset[str]]:
+    """Return each command identity with every exact defining symbol."""
+    sources = {
+        path: text
+        for path, text in declaration_files(files, "commands").items()
+        if "App(" in text or ".command" in text
+    }
+    prefixes = python_references.cyclopts_prefixes(sources, parsed_files=parsed_files)
+    owners: dict[str, set[str]] = {}
+    module_paths = {python_references.module_name(path): path for path in sources}
+    for (module, variable), command in prefixes.items():
+        if command and (path := module_paths.get(module)):
+            owners.setdefault(command, set()).add(f"{path}:{variable}")
+    for path, text in sources.items():
+        tree = parsed_files.get(path) if parsed_files is not None else None
+        trees = (
+            (tree,)
+            if tree is not None
+            else (() if parsed_files is not None else python_references.python_trees(text))
+        )
+        for tree in trees:
+            for command, symbols in python_references.cyclopts_command_owners(
+                path, tree, prefixes
+            ).items():
+                owners.setdefault(command, set()).update(symbols)
+    return {command: frozenset(symbols) for command, symbols in owners.items()}
 
 
 def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, str], set[str]]:
@@ -60,15 +89,6 @@ def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, str], set[st
             if separator and distribution and module:
                 mappings[normalized_distribution(distribution)] = module
     return mappings, first_party
-
-
-def _declared_commands(files: dict[str, str], owned: dict[str, set[str]]) -> None:
-    sources = declaration_files(files, "commands")
-    prefixes = python_references.cyclopts_prefixes(sources)
-    owned["command"].update(prefixes.values())
-    for path, text in sources.items():
-        for tree in python_references.python_trees(text):
-            owned["command"].update(python_references.cyclopts_commands(path, tree, prefixes))
 
 
 def _declared_gates(

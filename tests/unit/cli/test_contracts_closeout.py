@@ -4,8 +4,13 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+import pytest
+
+from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
@@ -105,10 +110,26 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
     assert payload["state"] == "accepted_validated"
     assert payload["required_gaps"] == []
     expected_action = (
-        "ethos lane retire landed --branch <work-branch> "
-        "--expect-head <work-lane-head> --apply --authorize --json"
+        f"ethos publish --expect-head {candidate_head} --root {repo.resolve().as_posix()} --json"
     )
     assert payload["next_action"] == expected_action
+    assert "<" not in payload["next_action"]
+    resolution = payload["data"]["closeout_resolution"]
+    assert resolution["coordinates"] == {
+        "root": repo.resolve().as_posix(),
+        "accepted_ref": "refs/heads/dev",
+        "accepted_head": accepted_head,
+        "candidate_ref": "refs/heads/candidate/dev",
+        "candidate_head": candidate_head,
+        "candidate_tree": git(candidate, "rev-parse", f"{candidate_head}^{{tree}}"),
+    }
+    assert resolution["proof"]["plane"] == "local"
+    assert resolution["proof"]["attestation_id"]
+    assert resolution["proof"]["repository_attestation_id"] == resolution["proof"]["attestation_id"]
+    assert (
+        resolution["effect"]["attestation_id"]
+        == payload["data"]["accepted_update"]["attestation"]["id"]
+    )
     assert payload["user_decision_required"] is True
     assert payload["continuation"] == "await-user"
     accepted_update = payload["data"]["accepted_update"]
@@ -134,6 +155,138 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
     assert attestation["mints_authority"] is False
     assert git(repo, "rev-parse", "dev") == candidate_head
     assert git(repo, "rev-parse", "HEAD") == candidate_head
+    push = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/dev",
+        pushed_head=candidate_head,
+        remote_head=accepted_head,
+    )
+    assert push["verdict"] == "pass"
+    assert push["accepted_closeout_effect"]["attestation_id"] == attestation["id"]
+
+
+def test_accepted_closeout_rejects_multiple_valid_effect_histories(tmp_path: Path) -> None:
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
+    _add_archived_proof(candidate, candidate_head)
+    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
+    first = Attestation.model_validate(payload["data"]["accepted_update"]["attestation"])
+    second = Attestation.issue(
+        first.model_dump(mode="python", exclude={"id"})
+        | {"verifier": "agent:test:case:other-closeout"}
+    )
+    record_attestations(repo, (second,))
+
+    with pytest.raises(ValueError, match="accepted_closeout_effect_ambiguous"):
+        accepted_closeout_attestation(
+            repo,
+            accepted_ref="refs/heads/dev",
+            candidate_ref="refs/heads/candidate/dev",
+            candidate_head=candidate_head,
+        )
+
+
+def test_pre_push_consumes_closeout_effect_without_local_ref_equality(tmp_path: Path) -> None:
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
+    _add_archived_proof(candidate, candidate_head)
+    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
+    assert payload["verdict"] == "pass"
+    git(repo, "update-ref", "refs/heads/dev", accepted_head, candidate_head)
+
+    push = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/dev",
+        pushed_head=candidate_head,
+        remote_head=accepted_head,
+    )
+
+    assert push["verdict"] == "pass"
+    assert push["required_gaps"] == []
+
+
+def test_status_plan_and_closeout_share_exact_apply_command(tmp_path: Path) -> None:
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
+    _add_archived_proof(candidate, candidate_head)
+
+    closeout = _closeout(repo)
+    status = run_ethos("status", "--json", cwd=repo)
+    plan = run_ethos("plan", "--json", cwd=repo)
+
+    expected = (
+        "ethos land --closeout --apply --authorize "
+        f"--expect-head {accepted_head} --candidate-head {candidate_head} "
+        f"--root {repo.resolve().as_posix()} --json"
+    )
+    assert closeout["next_action"] == expected
+    assert status["next_action"] == expected
+    assert plan["next_action"] == expected
+    assert all("<" not in payload["next_action"] for payload in (closeout, status, plan))
+
+
+def test_plan_preserves_exact_closeout_action_when_current_model_is_gapped(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
+    _add_archived_proof(candidate, candidate_head)
+    monkeypatch.setattr(
+        "ethos.surface.cli.root.planning.openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "required_gaps": ["model_gap"],
+            "intent_context": {},
+        },
+    )
+
+    payload = run_ethos("plan", "--json", cwd=repo)
+
+    assert payload["verdict"] == "block"
+    assert payload["required_gaps"] == ["model_gap"]
+    assert payload["next_action"] == (
+        "ethos land --closeout --apply --authorize "
+        f"--expect-head {accepted_head} --candidate-head {candidate_head} "
+        f"--root {repo.resolve().as_posix()} --json"
+    )
+
+
+def test_land_closeout_rejects_stale_candidate_coordinate(tmp_path: Path) -> None:
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
+    _add_archived_proof(candidate, candidate_head)
+    stale_candidate_head = "0" * 40
+
+    payload = _closeout(
+        repo,
+        "--apply",
+        "--authorize",
+        "--candidate-head",
+        stale_candidate_head,
+        expect_head=accepted_head,
+        blocked=True,
+    )
+
+    assert payload["verdict"] == "block"
+    assert payload["required_gaps"] == ["candidate_head_expectation_mismatch"]
+    assert payload["data"]["accepted_update"] == {}
+    assert payload["next_action"] == (
+        "ethos land --closeout --apply --authorize "
+        f"--expect-head {accepted_head} --candidate-head {candidate_head} "
+        f"--root {repo.resolve().as_posix()} --json"
+    )
+    assert git(repo, "rev-parse", "dev") == accepted_head
+
+
+def test_zero_forge_closeout_uses_local_proof_plane(tmp_path: Path) -> None:
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
+    (candidate / ".ethos" / "release.toml").unlink(missing_ok=True)
+    git(candidate, "add", ".ethos/release.toml")
+    git(candidate, "commit", "-m", "select local-only publication")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    _add_archived_proof(candidate, candidate_head)
+
+    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
+
+    assert payload["verdict"] == "pass"
+    assert payload["data"]["closeout_resolution"]["proof"]["plane"] == "local"
+    assert payload["data"]["closeout_resolution"]["proof"]["external_receipt"] == {}
+    assert git(repo, "rev-parse", "dev") == candidate_head
 
 
 def test_land_closeout_defers_control_replacement_without_signed_receipt(tmp_path: Path) -> None:
@@ -178,9 +331,13 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(tmp_pat
     verification = bootstrap["independent_verification"]
     assert verification["required"] is True
     assert verification["proof_floor_id"] == "ethos:control-replacement:v1"
-    assert verification["receipt_option"] == "--independent-verification-receipt <absolute-path>"
     assert verification["trust_boundary"] == "protected-provider"
     assert verification["mints_authority"] is False
+    assert "<" not in payload["next_action"]
+    assert payload["next_action"].startswith("ethos land --closeout")
+    assert f"--expect-head {git(repo, 'rev-parse', 'HEAD')}" in payload["next_action"]
+    assert f"--candidate-head {candidate_head}" in payload["next_action"]
+    assert f"--root {repo.resolve().as_posix()}" in payload["next_action"]
     assert git(repo, "rev-parse", "HEAD") != candidate_head
 
 

@@ -20,9 +20,9 @@ cas/intent-consumed-once|independent|1PI|r|dev|base|c1|block|consume
 push/accepted/off-train-blocks|offtrain||p|dev|base|work|block|~accepted_advance_not_candidate_validated
 push/accepted/non-head-blocks|independent|1P2|p|dev|base|c1|block|~accepted_ref_move_not_candidate_head
 push/accepted/rollback-blocks|independent|1P2|p|dev|c2|c1|block|~accepted_ref_move_not_fast_forward
-push/protected/local-ref-mismatch-blocks|independent|1P|p|dev|base|c1|block|~push_to_protected_role_not_proven:local_ref_mismatch:dev
-push/protected/local-closeout-passes|independent|1PA|p|dev|base|c1|pass|=
-push/protected/target-role-governs|fixture||p|dev|base|c1|pass|=
+push/protected/proof-without-closeout-blocks|independent|1P|p|dev|base|c1|block|=accepted_closeout_effect_not_attested
+push/protected/local-ref-equality-without-closeout-blocks|independent|1PA|p|dev|base|c1|block|=accepted_closeout_effect_not_attested
+push/protected/target-role-governs|fixture||p|dev|base|c1|block|=accepted_closeout_effect_not_attested
 push/work-lane/remote-publication-blocks|independent|W|p|work/x|base|work|block|=publication_ref_unavailable:branch:work_lane:refs/heads/work/x
 """
 

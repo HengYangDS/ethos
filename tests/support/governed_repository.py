@@ -17,11 +17,14 @@ import tomli_w
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
+from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -30,6 +33,8 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.profile import RepositoryProfileDeclaration
@@ -157,6 +162,41 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
                 os.environ["ETHOS_ACTOR"] = original
         assert report["state"] == "lease_ref_advanced"
     return head
+
+
+def apply_accepted_closeout_effect(repo: Path, *, accepted_before: str, candidate_head: str) -> str:
+    """Apply and attest the exact candidate-to-accepted ref transition for a fixture."""
+    policy = load_branch_role_policy(repo)
+    install_hook_launchers(repo)
+    proof, gaps = proof_for_repository_transition(repo, candidate_head)
+    assert proof is not None, gaps
+    effect = GitEffect(
+        updates={
+            f"refs/heads/{policy.accepted_branch}": GitRefUpdate(
+                expected=accepted_before,
+                desired=candidate_head,
+            )
+        },
+        assertions={f"refs/heads/{policy.candidate_branch}": candidate_head},
+    )
+    commitment = load_repository_commitment(repo, tree_ref=candidate_head)
+    plan = compile_observed_git_effect(
+        repo,
+        commitment,
+        effect,
+        head=git(repo, "rev-parse", "HEAD"),
+        prior_attestations={"proof": proof.model_dump(mode="json")},
+        policy={
+            "operation": "candidate.accept",
+            "release_branch": policy.release_branch,
+            "accepted_branch": policy.accepted_branch,
+            "candidate_branch": policy.candidate_branch,
+            "release_mirror": policy.release_mirror,
+            "repository_prestate": "present",
+        },
+        values={"candidate_worktree_path": repo.resolve().as_posix()},
+    )
+    return execute_git_effect(repo, plan, issuer="agent:test:case:accepted-closeout").id
 
 
 def git(root: Path, *args: str) -> str:

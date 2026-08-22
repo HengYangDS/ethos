@@ -12,6 +12,7 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.domain.land.closeout import closeout_command_from_status
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.normalization.coercion import string_sequence
@@ -99,6 +100,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     }
     compact_coordination = data["coordination"]
     verdict = reduce_verdicts(report_verdict(validation), required_gaps=gaps)
+    closeout_action = closeout_command_from_status(repo, observed)
     result = EthosResult(
         command="status",
         verdict=verdict,
@@ -124,7 +126,8 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
         },
         diagnostics=(validation,),
         required_gaps=gaps,
-        next_action=(
+        next_action=closeout_action
+        or (
             "repair the selected Commitment scope for the uncovered current-generation paths"
             if any(item.state == "uncovered" for item in generation_scope.attributions)
             else str(

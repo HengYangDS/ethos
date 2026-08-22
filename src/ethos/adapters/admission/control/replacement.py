@@ -183,7 +183,12 @@ def _verification_report(
     return independent_verification_report(
         root=root,
         policy=policy,
-        request={**request, "implementation_digest": provider.implementation_digest},
+        request={
+            **request,
+            "implementation_digest": provider.implementation_digest,
+            "issuer": provider.issuer,
+            "key_id": provider.key_id,
+        },
         receipt_path=receipt_path,
         signature_verifier=lambda receipt: verify_independent_receipt_signature(receipt, provider),
     )

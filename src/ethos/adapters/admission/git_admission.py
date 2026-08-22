@@ -19,11 +19,13 @@ from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
@@ -204,23 +206,44 @@ def push_admission_report(
             "next_action": "",
         }
     )
-    proof_gap_list = list(cast("list[str]", proof_admission["required_gaps"]))
+    reported_proof_gaps = list(cast("list[str]", proof_admission["required_gaps"]))
+    proof_gap_list = (
+        [gap for gap in reported_proof_gaps if gap.startswith("repository_commitment_")]
+        if branch == policy.accepted_branch
+        else reported_proof_gaps
+    )
     base["proof_admission"] = proof_admission
     topology_gaps = (
         accepted_advance_gaps(repo, policy, old_value=remote_head, new_value=pushed_head)
         if branch == policy.accepted_branch
         else []
     )
-    local_protected_head = (
-        git_stdout(repo, "rev-parse", "--verify", "--quiet", branch)
-        if branch in policy.protected_branches
-        else ""
-    )
-    local_closeout_gaps = (
-        []
-        if branch not in policy.protected_branches or local_protected_head == pushed_head
-        else [f"push_to_protected_role_not_proven:local_ref_mismatch:{branch}"]
-    )
+    accepted_closeout: dict[str, object] = {}
+    closeout_gaps: list[str] = []
+    if branch == policy.accepted_branch:
+        try:
+            closeout = accepted_closeout_attestation(
+                repo,
+                accepted_ref=target_ref,
+                candidate_ref=f"refs/heads/{policy.candidate_branch}",
+                candidate_head=pushed_head,
+            )
+        except ValueError as error:
+            closeout_gaps.append(str(error))
+        else:
+            if closeout is None:
+                closeout_gaps.append("accepted_closeout_effect_not_attested")
+            else:
+                plan, attestation = closeout
+                accepted_closeout = {
+                    "attestation_id": attestation.id,
+                    "plan_digest": plan.digest,
+                    "accepted_ref": target_ref,
+                    "accepted_before": git_effect_from_plan(plan).updates[target_ref].expected,
+                    "remote_head": remote_head,
+                    "candidate_head": pushed_head,
+                }
+    base["accepted_closeout_effect"] = accepted_closeout
     gaps = list(
         dict.fromkeys(
             (
@@ -228,7 +251,7 @@ def push_admission_report(
                 *identity_gaps,
                 *proof_gap_list,
                 *topology_gaps,
-                *local_closeout_gaps,
+                *closeout_gaps,
             )
         )
     )
@@ -243,7 +266,7 @@ def push_admission_report(
         else "publication_remote_target_unknown"
         if any(gap.startswith("publication_remote_target_unknown:") for gap in ref_gaps)
         else "push_to_protected_role_not_proven"
-        if proof_gap_list or topology_gaps or local_closeout_gaps
+        if proof_gap_list or topology_gaps or closeout_gaps
         else "pushed_commit_identity_not_allowed"
     )
     return _verdict(base, "block", "blocked", "block", reason, gaps)

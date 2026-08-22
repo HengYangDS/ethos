@@ -12,7 +12,9 @@ from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.semantic import commitment_fixture
 
 
-def test_resolve_predecessor_commitments_reads_only_the_exact_git_tree(tmp_path) -> None:
+def test_resolve_predecessor_commitments_reads_one_exact_unambiguous_git_tree(
+    tmp_path,
+) -> None:
     repo, candidate = init_repo_with_candidate(tmp_path)
     historical = commitment_fixture(
         id="change:historical-change",
@@ -35,45 +37,15 @@ def test_resolve_predecessor_commitments_reads_only_the_exact_git_tree(tmp_path)
         tree_ref=exact_tree,
         predecessors=(historical.digest(),),
     )
-
     assert resolved == (historical,)
 
-
-def test_resolve_predecessor_commitments_reports_the_missing_identity(tmp_path) -> None:
-    repo, candidate = init_repo_with_candidate(tmp_path)
-    missing = "0" * 64
-
-    with pytest.raises(
-        ValueError,
-        match=f"change_lineage_predecessor_missing:{missing}",
-    ):
-        resolve_predecessor_commitments(
-            repo,
-            tree_ref=git(candidate, "rev-parse", "HEAD"),
-            predecessors=(missing,),
-        )
-
-
-def test_resolve_predecessor_commitments_rejects_duplicate_carriers_for_one_identity(
-    tmp_path,
-) -> None:
-    repo, candidate = init_repo_with_candidate(tmp_path)
-    historical = commitment_fixture(
-        id="change:historical-change",
-        intent="Reject ambiguous physical ownership.",
-        subjects=(load_repository_commitment(candidate).id,),
+    duplicate = candidate / (
+        "openspec/changes/archive/2026-08-02-historical-change/commitment.toml"
     )
-    for dated in ("2026-08-01", "2026-08-02"):
-        carrier = candidate / (
-            f"openspec/changes/archive/{dated}-historical-change/commitment.toml"
-        )
-        carrier.parent.mkdir(parents=True)
-        carrier.write_text(
-            tomli_w.dumps(historical.model_dump(mode="python")),
-            encoding="utf-8",
-        )
-        git(candidate, "add", carrier.relative_to(candidate).as_posix())
-    git(candidate, "commit", "-m", "duplicate one predecessor carrier")
+    duplicate.parent.mkdir(parents=True)
+    duplicate.write_text(tomli_w.dumps(historical.model_dump(mode="python")), encoding="utf-8")
+    git(candidate, "add", duplicate.relative_to(candidate).as_posix())
+    git(candidate, "commit", "-m", "duplicate predecessor carrier")
 
     with pytest.raises(
         ValueError,

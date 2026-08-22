@@ -13,7 +13,8 @@
 
 - [x] 2.1 Add exact-tree Commitment digest resolution to one OpenSpec
   `change_lineage` observation owner without a cache, index, or history ledger;
-  keep pure predecessor-set invariants in `contracts.change_lineage`.
+  reuse Commitment's canonical digest-set invariant and delete the redundant
+  `contracts.change_lineage` owner.
 - [x] 2.2 Extend the public `start-change` command with repeatable predecessor
   input and mandatorily include the current Lease-bound Commitment.
 - [x] 2.3 Admit fresh lane Commitments only after every predecessor resolves in

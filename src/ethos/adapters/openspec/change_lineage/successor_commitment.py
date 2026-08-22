@@ -9,8 +9,6 @@ from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import first_parent_successor
-from ethos.contracts.change_lineage.predecessor_set import canonical_predecessor_set
-from ethos.contracts.change_lineage.predecessor_set import predecessor_set_matches
 from ethos.contracts.semantic import Commitment
 from ethos.repository.openspec.identifiers import active_change_commitment
 from ethos.repository.openspec.identifiers import active_change_scope
@@ -40,7 +38,7 @@ def successor_commitment(
         acceptance=(),
         risks=(),
         authority_refs=(),
-        predecessors=canonical_predecessor_set(
+        predecessors=_canonical_predecessors(
             current=predecessor.digest(),
             additional=predecessors,
         ),
@@ -91,13 +89,33 @@ def committed_successor_mismatch(
         current.digest() != started.digest()
         or started.intent != intent.strip()
         or started.scope != _successor_scope(change, scope)
-        or not predecessor_set_matches(
-            actual=started.predecessors,
+        or started.predecessors
+        != _canonical_predecessors(
             current=current_predecessor,
             additional=predecessors,
         )
         or started.selected_attestations != tuple(sorted(set(selected_attestations)))
     )
+
+
+def _canonical_predecessors(
+    *,
+    current: str,
+    additional: tuple[str, ...],
+) -> tuple[str, ...]:
+    for digest in (current, *additional):
+        try:
+            Commitment.validate_digest_set((digest,))
+        except ValueError as error:
+            message = f"change_lineage_predecessor_invalid:{digest}"
+            raise ValueError(message) from error
+    if len(additional) != len(set(additional)):
+        message = "change_lineage_predecessor_duplicate"
+        raise ValueError(message)
+    if current in additional:
+        message = "change_lineage_current_predecessor_redeclared"
+        raise ValueError(message)
+    return Commitment.validate_digest_set(tuple(sorted((current, *additional))))
 
 
 def _successor_scope(change: str, scope: tuple[str, ...]) -> tuple[str, ...]:

@@ -47,10 +47,12 @@ second authority.
 
 The OpenSpec `change_lineage` adapter builds the finite set of valid active and
 archived Commitment carriers in one exact tree and resolves digest membership
-there. The pure `contracts.change_lineage` package owns only predecessor-set
-invariants. Fresh lane start and in-lane rollover consume those typed owners;
-they do not reimplement graph rules. Mutable filesystem scans, cache databases,
-and branch-wide history search are not authoritative inputs.
+there. `Commitment` itself remains the sole owner of canonical digest-set
+validation; the adapter adds only the request-specific rule that the current
+Lease-bound Commitment is mandatory and cannot be repeated explicitly. Fresh
+lane start and in-lane rollover consume those owners rather than introducing a
+second collection algebra. Mutable filesystem scans, cache databases, and
+branch-wide history search are not authoritative inputs.
 
 Alternative rejected: each lifecycle command implements its own carrier scan.
 That would let producer, recovery, and verifier disagree about the same edge.
@@ -94,7 +96,7 @@ order.
 
 | Requirement | Task | Proof |
 | --- | --- | --- |
-| `contracts:Commitment v2 identity is explicit and bounded` | `2.1` | canonical predecessor-set, fork/join, and malformed/duplicate identity tests |
+| `contracts:Commitment v2 identity is explicit and bounded` | `2.1` | existing Commitment digest-set validation plus public fork/join and ambiguous-request tests |
 | `command-plane:Start Change accepts explicit predecessor identities` | `2.2` | public CLI multi-predecessor rollover test |
 | `repository-governance:Change creation resolves lineage before effects` | `2.3` | fresh lane unresolved-predecessor no-effect test |
 | `repository-governance:Change start recovery preserves exact lineage` | `2.4` | prepared/recovery predecessor-set drift test |

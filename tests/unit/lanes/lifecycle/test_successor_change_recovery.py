@@ -145,6 +145,16 @@ def _branch_status(_root: Path, *args: str, **_kwargs: object) -> str:
     return ""
 
 
+def _observe_new_head(monkeypatch: pytest.MonkeyPatch) -> None:
+    for module in (successor_change, generation_attestation):
+        monkeypatch.setattr(module, "current_tracked_head", lambda _root: NEW_HEAD)
+    monkeypatch.setattr(
+        generation_attestation,
+        "git_stdout",
+        lambda _root, *args: HEAD if args[:2] == ("rev-parse", f"{NEW_HEAD}^") else "",
+    )
+
+
 def _prepare_recovery(
     monkeypatch: pytest.MonkeyPatch,
     root: Path,
@@ -491,13 +501,7 @@ def test_start_change_public_reader_skips_corrupt_receipt_and_invalid_target(
     store = tmp_path / "attestations"
     store.mkdir()
     (store / "corrupt.json").write_text("not-json", encoding="utf-8")
-    monkeypatch.setattr(successor_change, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(generation_attestation, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(
-        generation_attestation,
-        "git_stdout",
-        lambda _root, *args: HEAD if args[:2] == ("rev-parse", f"{NEW_HEAD}^") else "",
-    )
+    _observe_new_head(monkeypatch)
     monkeypatch.setattr(
         generation_attestation,
         "exact_commitment_fields",
@@ -525,13 +529,7 @@ def test_start_change_public_reader_recognizes_exact_receipt(
         previous_head=HEAD,
         head=NEW_HEAD,
     )
-    monkeypatch.setattr(successor_change, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(generation_attestation, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(
-        generation_attestation,
-        "git_stdout",
-        lambda _root, *args: HEAD if args[:2] == ("rev-parse", f"{NEW_HEAD}^") else "",
-    )
+    _observe_new_head(monkeypatch)
     monkeypatch.setattr(
         successor_change,
         "work_lane_transition_gaps",

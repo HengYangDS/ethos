@@ -38,7 +38,7 @@ scope = [
   "tests/unit/lanes/lifecycle/test_change_rollover_public_recovery.py",
   "tests/unit/lanes/lifecycle/test_successor_change_recovery.py",
   "tests/unit/lanes/test_fresh_lane_start.py",
-  "tests/unit/repository/openspec/test_carriers.py",
+  "tests/unit/repository/openspec/test_identifiers.py",
 ]
 invariants = [
   "change_lineage_is_derived_from_immutable_commitments_without_a_second_graph_store",

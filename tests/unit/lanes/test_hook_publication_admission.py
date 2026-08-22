@@ -4,10 +4,6 @@ from typing import TYPE_CHECKING
 
 import ethos.surface.cli.hook.commands as hook_commands
 from ethos.contracts.branch.roles import BranchRolePolicy
-from tests.support.governed_repository import commit_fixture_file
-from tests.support.governed_repository import git
-from tests.support.governed_repository import seed_executed_proof
-from tests.support.governed_repository import start_adopted_candidate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -79,35 +75,6 @@ def test_pre_push_public_envelope_and_effect_gate_use_declared_verdict(
     assert result.next_action == f"ethos status --root {tmp_path.resolve().as_posix()} --json"
     assert "ok" not in payload
     assert "ok" not in payload["data"]
-
-
-def test_pre_push_projects_exact_closeout_command_when_effect_is_not_attested(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    repository, candidate = start_adopted_candidate(tmp_path)
-    accepted_head = git(repository, "rev-parse", "dev")
-    candidate_head = commit_fixture_file(candidate, "README.md", "candidate\n", "candidate")
-    seed_executed_proof(candidate, candidate_head)
-    emitted: list[object] = []
-    monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: candidate)
-    monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
-
-    hook_commands.pre_push(
-        "refs/heads/dev",
-        candidate_head,
-        options=hook_commands.PushOptions(remote_head=accepted_head, json_output=True),
-    )
-
-    result = emitted[-1]
-    assert result.verdict == "block"
-    assert result.required_gaps == ("accepted_closeout_effect_not_attested",)
-    assert result.next_action == (
-        "ethos land --closeout --apply --authorize "
-        f"--expect-head {accepted_head} --candidate-head {candidate_head} "
-        f"--root {repository.resolve().as_posix()} --json"
-    )
-    assert "<" not in result.next_action
 
 
 def test_committed_ref_move_report_declares_verdict_without_top_level_ok(

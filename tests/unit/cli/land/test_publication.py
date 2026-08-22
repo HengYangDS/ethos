@@ -20,7 +20,7 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import adopt_and_commit
-from tests.support.governed_repository import apply_accepted_closeout_effect
+from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -730,7 +730,7 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(tmp_path: Path) -> 
     git(repo, "commit", "-m", "feat: prepare accepted projection")
     head = git(repo, "rev-parse", "HEAD")
     seed_executed_proof(repo, head)
-    apply_accepted_closeout_effect(repo, accepted_before=old, candidate_head=head)
+    apply_accepted_closeout(repo, old, head)
     git(repo, "update-ref", "refs/heads/main", head)
 
     dry_run = run_ethos(

@@ -17,11 +17,13 @@ scope = [
   "src/ethos/adapters/openspec/lifecycle/intent.py",
   "src/ethos/adapters/repo/change_lineage/**",
   "src/ethos/adapters/repo/commitment.py",
+  "src/ethos/contracts/change_lineage/**",
   "src/ethos/surface/cli/lane/change.py",
   "tests/architecture/test_product_design_contract.py",
   "tests/unit/adapters/repo/change_lineage/**",
   "tests/unit/cli/openspec/test_generation_observation.py",
   "tests/unit/cli/test_openspec_change_rollover.py",
+  "tests/unit/contracts/change_lineage/**",
   "tests/unit/lanes/test_fresh_lane_start.py",
 ]
 invariants = [

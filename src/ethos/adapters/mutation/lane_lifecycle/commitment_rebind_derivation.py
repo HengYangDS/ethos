@@ -11,6 +11,8 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.adapters.mutation.lane_lifecycle.archive_recovery import archive_recovery_next_action
+from ethos.adapters.mutation.lane_lifecycle.archive_recovery import archive_transition_candidate
 from ethos.adapters.repo.commitment import changed_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -73,6 +75,25 @@ def derive_commitment_rebind(
     )
     if actor_gap:
         return _blocked(branch, actor_gap)
+    archive_action = archive_recovery_next_action(
+        repo,
+        f"lease_head_stale:{branch}",
+        target_head=target_commit,
+    )
+    if archive_action:
+        return _blocked(
+            branch,
+            "archive_transition_requires_archive_change",
+            observed_targets=[target_commit],
+            next_action=archive_action,
+            state="archive_recovery_required",
+        )
+    if target_commit and archive_transition_candidate(repo, lease=lease, head=target_commit):
+        return _blocked(
+            branch,
+            "archive_transition_invalid",
+            observed_targets=[target_commit],
+        )
     return _derive_exact_rebind(
         repo,
         branch=branch,
@@ -286,14 +307,16 @@ def _blocked(
     gap: str,
     *,
     observed_targets: list[str] | None = None,
+    next_action: str = "",
+    state: str = "blocked",
 ) -> dict[str, object]:
     return {
         "verdict": "block",
-        "state": "blocked",
+        "state": state,
         "branch": branch,
         "request": {},
         "receipt": {},
         "observed_targets": observed_targets or [],
         "required_gaps": [gap],
-        "next_action": "",
+        "next_action": next_action,
     }

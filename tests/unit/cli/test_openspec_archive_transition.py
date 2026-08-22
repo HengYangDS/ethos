@@ -10,6 +10,7 @@ from typing import cast
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive_change as archive_owner
+import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation as rebind_derivation
 import ethos.adapters.openspec.cli as openspec_cli
 import ethos.adapters.openspec.lifecycle.archive_effect as archive_effect
 from ethos.adapters.admission.git_admission import hook_admission_report
@@ -25,6 +26,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import HookAdmissionRequest
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
@@ -236,6 +238,148 @@ def test_archive_change_finalizes_an_exact_official_postimage(
     assert (lifecycle.branch in leases_by_branch(lifecycle.worktree)) is not ownerless
     assert git(lifecycle.worktree, "status", "--short") == ""
     assert not any(args and args[0] == "archive" for args in invocations)
+
+
+def test_committed_standalone_archive_recovers_lease_attestation_and_proof(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """One exact committed archive remains recoverable after controller loss."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    archive_path = "openspec/changes/archive/2026-08-04-fixture-change"
+    (lifecycle.worktree / archive_path).parent.mkdir(parents=True, exist_ok=True)
+    lifecycle.active.rename(lifecycle.worktree / archive_path)
+    git(lifecycle.worktree, "add", "--all")
+    git(lifecycle.worktree, "commit", "-m", "archive outside the controller")
+    archived_head = lifecycle.head
+
+    assert lifecycle.lease["expected_head"] == lifecycle.completed_head
+    planned = archive_change(
+        root=lifecycle.worktree,
+        change="fixture-change",
+        expect_head=lifecycle.completed_head,
+    )
+    assert planned["state"] == "ready_to_recover_archive_lease", planned
+    assert planned["next_action"] == (
+        "ethos lane archive-change --change fixture-change "
+        f"--expect-head {lifecycle.completed_head} --apply --json"
+    )
+
+    recovered = archive_change(
+        root=lifecycle.worktree,
+        change="fixture-change",
+        expect_head=lifecycle.completed_head,
+        apply=True,
+    )
+
+    lease = lifecycle.lease
+    assert recovered["verdict"] == "pass", recovered
+    assert recovered["state"] == "archive_attestation_recovered"
+    assert lease["expected_head"] == archived_head
+    assert lease["base_commitment_path"] == f"{archive_path}/commitment.toml"
+    plan = proof_plan(
+        lifecycle.worktree,
+        head=archived_head,
+        changed_paths=tuple(cast("list[str]", recovered["changed_paths"])),
+    )
+    assert plan.verdict == "pass"
+
+
+def test_rebind_derivation_recognizes_the_exact_archived_carrier(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Carrier relocation is not misclassified as a semantic Commitment change."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    archive_path = "openspec/changes/archive/2026-08-04-fixture-change"
+    (lifecycle.worktree / archive_path).parent.mkdir(parents=True, exist_ok=True)
+    lifecycle.active.rename(lifecycle.worktree / archive_path)
+    git(lifecycle.worktree, "add", "--all")
+    git(lifecycle.worktree, "commit", "-m", "archive outside the controller")
+    archived_head = lifecycle.head
+
+    report = rebind_derivation.derive_commitment_rebind(
+        root=lifecycle.worktree,
+        target_commit=archived_head,
+        repair_change_identity=False,
+    )
+
+    assert report["verdict"] == "block", report
+    assert report["state"] == "archive_recovery_required"
+    assert report["required_gaps"] == ["archive_transition_requires_archive_change"]
+    assert report["observed_targets"] == [archived_head]
+    assert report["next_action"] == (
+        "ethos lane archive-change --change fixture-change "
+        f"--expect-head {lifecycle.completed_head} --apply --json"
+    )
+
+    projected = run_ethos(
+        "lane",
+        "rebind-commitment",
+        "derive",
+        "--root",
+        lifecycle.worktree.as_posix(),
+        "--target-commit",
+        archived_head,
+        "--json",
+        cwd=lifecycle.worktree,
+    )
+    assert projected["state"] == "blocked"
+    assert projected["data"]["state"] == "archive_recovery_required"
+    assert projected["next_action"] == report["next_action"]
+
+    inferred = run_ethos(
+        "lane",
+        "rebind-commitment",
+        "derive",
+        "--root",
+        lifecycle.worktree.as_posix(),
+        "--json",
+        cwd=lifecycle.worktree,
+    )
+    assert inferred["data"]["state"] == "archive_recovery_required"
+    assert inferred["next_action"] == report["next_action"]
+
+
+@pytest.mark.parametrize(
+    "mode", ["wrong-parent", "skipped-lease-parent", "semantic-drift", "ambiguous"]
+)
+def test_archive_recovery_derivation_fails_closed_for_nonexact_targets(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: str
+) -> None:
+    """Only one direct, byte-identical carrier relocation routes to archive recovery."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    if mode == "skipped-lease-parent":
+        git(lifecycle.worktree, "commit", "--allow-empty", "-m", "unobserved intermediate")
+    archive_path = lifecycle.worktree / "openspec/changes/archive/2026-08-04-fixture-change"
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    lifecycle.active.rename(archive_path)
+    if mode == "semantic-drift":
+        commitment = archive_path / "commitment.toml"
+        commitment.write_text(
+            commitment.read_text(encoding="utf-8").replace(
+                "Exercise the governed fixture lifecycle.", "Drift the archived intent."
+            ),
+            encoding="utf-8",
+        )
+    elif mode == "ambiguous":
+        duplicate = lifecycle.worktree / "openspec/changes/archive/2026-08-05-fixture-change"
+        duplicate.parent.mkdir(parents=True, exist_ok=True)
+        duplicate.write_bytes((archive_path / "commitment.toml").read_bytes())
+    git(lifecycle.worktree, "add", "--all")
+    git(lifecycle.worktree, "commit", "-m", "nonexact archive transition")
+    target = lifecycle.head
+    if mode == "wrong-parent":
+        git(lifecycle.worktree, "commit", "--allow-empty", "-m", "unrelated child")
+        target = lifecycle.head
+
+    report = rebind_derivation.derive_commitment_rebind(
+        root=lifecycle.worktree,
+        target_commit=target,
+        repair_change_identity=False,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["state"] == "blocked"
+    assert report["next_action"] == ""
 
 
 def test_ownerless_archive_postimage_blocks_bare_commit_with_exact_recovery_command(

@@ -21,6 +21,7 @@ from ethos.adapters.openspec.lifecycle.archive_effect import exact_archive_paths
 from ethos.adapters.openspec.lifecycle.archive_effect import issue_archive_effect
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestation_once
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -40,6 +41,48 @@ class ArchiveRecovery(NamedTuple):
     archive_path: str
     changed_paths: tuple[str, ...]
     lease: dict[str, object]
+
+
+def archive_recovery_next_action(root: Path, gap: str, *, target_head: str = "") -> str:
+    """Return one exact public continuation for a committed archive Lease gap."""
+    if not gap.startswith("lease_head_stale:"):
+        return ""
+    branch = git_stdout(root, "branch", "--show-current")
+    lease = leases_by_branch(root).get(branch, {})
+    expected_head = str(lease.get("expected_head") or "")
+    head = current_tracked_head(root)
+    if target_head and target_head != head:
+        return ""
+    try:
+        change = load_lease_bound_commitment(root, lease=lease).id.removeprefix("change:")
+    except (OSError, TypeError, ValueError):
+        return ""
+    facts = _committed_archive_facts(
+        root,
+        head=head,
+        lease=lease,
+        change=change,
+        expect_head=expected_head,
+    )
+    return archive_recovery_command(change, expected_head) if facts is not None else ""
+
+
+def archive_transition_candidate(root: Path, *, lease: dict[str, object], head: str) -> bool:
+    """Return whether a target attempts to move the bound carrier into the archive."""
+    old_head = str(lease.get("expected_head") or "")
+    try:
+        change = load_lease_bound_commitment(root, lease=lease).id.removeprefix("change:")
+    except ValueError:
+        return False
+    if git_stdout(root, "rev-parse", f"{head}^") != old_head:
+        return False
+    changed = git_stdout(
+        root, "diff", "--name-only", "--diff-filter=ACMRTD", old_head, head
+    ).splitlines()
+    source = f"openspec/changes/{change}/commitment.toml"
+    return not git_stdout(root, "rev-parse", f"{head}:{source}") and any(
+        valid_archive_carrier(path, change) for path in changed
+    )
 
 
 def archive_preflight_report(
@@ -225,26 +268,20 @@ def archive_attestation_recovery(
     apply: bool,
 ) -> dict[str, object] | None:
     """Finish the Lease and Attestation for one exact committed archive."""
-    previous_head = git_stdout(root, "rev-parse", f"{head}^")
-    changed = tuple(
-        git_stdout(
-            root, "diff", "--name-only", "--diff-filter=ACMRTD", previous_head, head
-        ).splitlines()
+    facts = _committed_archive_facts(
+        root,
+        head=head,
+        lease=lease,
+        change=change,
+        expect_head=expect_head,
     )
+    if facts is None:
+        return None
+    previous_head = facts.previous_head
+    changed = facts.changed_paths
     stale_lease = lease.get("expected_head") == expect_head and head != expect_head
     ownerless = not lease
-    carrier = next((path for path in changed if valid_archive_carrier(path, change)), "")
-    carrier = carrier if stale_lease or ownerless else str(lease.get("base_commitment_path") or "")
-    archive_path = carrier.removesuffix("/commitment.toml")
-    if not (
-        valid_archive_carrier(f"{archive_path}/commitment.toml", change)
-        and exact_carrier_relocation(
-            root, previous_head, head, f"openspec/changes/{change}", archive_path
-        )
-        and exact_archive_paths(root, head, archive_path, changed)
-    ):
-        return None
-    facts = ArchiveRecovery(change, previous_head, archive_path, changed, lease)
+    archive_path = facts.archive_path
     outcome: dict[str, object] | None = None
     if ownerless:
         command = archive_recovery_command(change, head)
@@ -338,6 +375,39 @@ def archive_attestation_recovery(
     ):
         return None
     return outcome or _recover_archive_receipt(root, branch, head, facts, apply=apply)
+
+
+def _committed_archive_facts(
+    root: Path,
+    *,
+    head: str,
+    lease: dict[str, object],
+    change: str,
+    expect_head: str,
+) -> ArchiveRecovery | None:
+    """Recognize one exact direct-child archive post-image from Git facts."""
+    previous_head = git_stdout(root, "rev-parse", f"{head}^")
+    if lease and previous_head != expect_head:
+        return None
+    changed = tuple(
+        git_stdout(
+            root, "diff", "--name-only", "--diff-filter=ACMRTD", previous_head, head
+        ).splitlines()
+    )
+    stale_lease = lease.get("expected_head") == expect_head and head != expect_head
+    ownerless = not lease
+    carrier = next((path for path in changed if valid_archive_carrier(path, change)), "")
+    carrier = carrier if stale_lease or ownerless else str(lease.get("base_commitment_path") or "")
+    archive_path = carrier.removesuffix("/commitment.toml")
+    if not (
+        valid_archive_carrier(f"{archive_path}/commitment.toml", change)
+        and exact_carrier_relocation(
+            root, previous_head, head, f"openspec/changes/{change}", archive_path
+        )
+        and exact_archive_paths(root, head, archive_path, changed)
+    ):
+        return None
+    return ArchiveRecovery(change, previous_head, archive_path, changed, lease)
 
 
 def _recover_archive_receipt(

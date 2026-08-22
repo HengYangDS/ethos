@@ -205,54 +205,7 @@ def test_start_work_lane_dry_run_validates_required_and_bound_commitment(tmp_pat
     assert not target.exists()
 
 
-def test_fresh_lane_accepts_predecessors_resolved_from_the_exact_candidate_tree(
-    tmp_path: Path,
-) -> None:
-    repo, candidate = init_repo_with_candidate(tmp_path)
-    related = commitment_fixture(
-        id="change:historical-change",
-        intent="Preserve one immutable historical predecessor.",
-        subjects=(load_repository_commitment(candidate).id,),
-    )
-    historical = "openspec/changes/archive/2026-08-01-historical-change/commitment.toml"
-    historical_path = candidate / historical
-    historical_path.parent.mkdir(parents=True)
-    historical_path.write_text(
-        tomli_w.dumps(related.model_dump(mode="python")),
-        encoding="utf-8",
-    )
-    git(candidate, "add", historical)
-    git(candidate, "commit", "-m", "record historical Change")
-    predecessor = load_commitment(
-        candidate,
-        carrier=historical,
-        change_id="historical-change",
-    ).digest()
-    target = tmp_path / "repo-work-fresh-change"
-    commitment = _fresh_commitment(
-        repo,
-        tmp_path / "commitment.toml",
-        predecessors=(predecessor,),
-    )
-
-    report = start_work_lane(
-        root=repo,
-        name="fresh-change",
-        commitment_path=commitment,
-        path=target,
-        holder_ref=_HOLDER,
-    )
-
-    assert (report["verdict"], report["state"], report["required_gaps"]) == (
-        "pass",
-        "planned",
-        [],
-    )
-    assert ref_head(repo, "work/fresh-change") == ""
-    assert not target.exists()
-
-
-def test_fresh_lane_allows_independent_successors_from_one_predecessor(
+def test_fresh_lane_allows_independent_successors_and_blocks_missing_predecessors(
     tmp_path: Path,
 ) -> None:
     repo, candidate = init_repo_with_candidate(tmp_path)
@@ -276,7 +229,12 @@ def test_fresh_lane_allows_independent_successors_from_one_predecessor(
         change_id="shared-predecessor",
     ).digest()
 
-    reports = tuple(
+    cases = (
+        ("first-successor", "src/first/**", predecessor),
+        ("second-successor", "src/second/**", predecessor),
+        ("missing-predecessor", "src/missing/**", "0" * 64),
+    )
+    reports = [
         start_work_lane(
             root=repo,
             name=change,
@@ -285,51 +243,23 @@ def test_fresh_lane_allows_independent_successors_from_one_predecessor(
                 tmp_path / f"{change}.toml",
                 change,
                 scope=(scope,),
-                predecessors=(predecessor,),
+                predecessors=(selected_predecessor,),
             ),
             path=tmp_path / f"repo-work-{change}",
             holder_ref=f"agent:test:case:{change}",
+            apply=change == "missing-predecessor",
         )
-        for change, scope in (
-            ("first-successor", "src/first/**"),
-            ("second-successor", "src/second/**"),
-        )
-    )
+        for change, scope, selected_predecessor in cases
+    ]
 
-    assert [(report["verdict"], report["state"]) for report in reports] == [
+    assert [(report["verdict"], report["state"]) for report in reports[:2]] == [
         ("pass", "planned"),
         ("pass", "planned"),
     ], reports
-    assert ref_head(repo, "work/first-successor") == ""
-    assert ref_head(repo, "work/second-successor") == ""
-    assert not (tmp_path / "repo-work-first-successor").exists()
-    assert not (tmp_path / "repo-work-second-successor").exists()
-
-
-def test_fresh_lane_rejects_an_unresolved_predecessor_before_any_effect(
-    tmp_path: Path,
-) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    target = tmp_path / "repo-work-fresh-change"
-    missing = "0" * 64
-    commitment = _fresh_commitment(
-        repo,
-        tmp_path / "commitment.toml",
-        predecessors=(missing,),
-    )
-
-    report = start_work_lane(
-        root=repo,
-        name="fresh-change",
-        commitment_path=commitment,
-        path=target,
-        holder_ref=_HOLDER,
-        apply=True,
-    )
-
-    assert report["required_gaps"] == [f"change_lineage_predecessor_missing:{missing}"]
-    assert ref_head(repo, "work/fresh-change") == ""
-    assert not target.exists()
+    assert reports[2]["required_gaps"] == [f"change_lineage_predecessor_missing:{'0' * 64}"]
+    for change, _scope, _predecessor in cases:
+        assert ref_head(repo, f"work/{change}") == ""
+        assert not (tmp_path / f"repo-work-{change}").exists()
 
 
 @pytest.mark.parametrize(

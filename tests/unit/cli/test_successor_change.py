@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import subprocess
 import tomllib
 from datetime import UTC
@@ -30,6 +29,7 @@ from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.openspec_lifecycle import OpenSpecLifecycle
 from tests.support.openspec_lifecycle import completed_lifecycle
+from tests.support.semantic import attestation_fixture
 from tests.support.semantic import commitment_fixture
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -37,6 +37,9 @@ from tools.ci.toolchain.environment import ProjectRuntime
 ROOT = Path(__file__).resolve().parents[3]
 RUNTIME = ProjectRuntime.discover(ROOT)
 TAPLO = ROOT / "node_modules/@taplo/cli/dist/cli.js"
+CHANGE = "hosted-verification-fix"
+INTENT = "Repair hosted verification."
+SCOPE = ("tests/**",)
 
 
 def _archived_lane(
@@ -54,68 +57,64 @@ def _selection_pair(
     *,
     valid_until: datetime | None = None,
 ) -> tuple[Attestation, Attestation]:
-    occurrence = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "observation:feedback",
-            "verifier": "agent:test:intent-promotion",
-            "subject": f"input:occurrence:{change}",
-            "issued_at": datetime(2026, 8, 15, tzinfo=UTC),
-            "valid_from": None,
-            "valid_until": None,
-            "verdict": "pass",
-            "payload": {"kind": "input:feedback", "body": {"occurrence": {"ordinal": 1}}},
-            "relations": (),
-            "advisories": (),
-            "evidence_refs": (f"evidence:test:{change}",),
-            "commitment_digest": None,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": None,
-            "mints_authority": False,
-        }
+    issued_at = datetime(2026, 8, 15, tzinfo=UTC)
+    occurrence = attestation_fixture(
+        predicate="observation:feedback",
+        verifier="agent:test:intent-promotion",
+        subject=f"input:occurrence:{change}",
+        issued_at=issued_at,
+        payload_kind="input:feedback",
+        payload_body={"occurrence": {"ordinal": 1}},
+        evidence_refs=(f"evidence:test:{change}",),
     )
     owner = f"change:{change}"
-    selection = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "selection:input",
-            "verifier": "agent:test:intent-promotion",
-            "subject": occurrence.id,
-            "issued_at": datetime(2026, 8, 15, tzinfo=UTC),
-            "valid_from": None,
-            "valid_until": valid_until,
-            "verdict": "pass",
-            "payload": {
-                "kind": "selection:disposition",
-                "body": {"disposition": "semantic-owner", "owner": owner},
+    selection = attestation_fixture(
+        predicate="selection:input",
+        verifier="agent:test:intent-promotion",
+        subject=occurrence.id,
+        issued_at=issued_at,
+        valid_until=valid_until,
+        payload_kind="selection:disposition",
+        payload_body={"disposition": "semantic-owner", "owner": owner},
+        relations=(
+            {
+                "kind": "relation:disposes",
+                "target_kind": "semantic:attestation",
+                "target_id": occurrence.id,
+                "attributes": {},
             },
-            "relations": (
-                {
-                    "kind": "relation:disposes",
-                    "target_kind": "semantic:attestation",
-                    "target_id": occurrence.id,
-                    "attributes": {},
-                },
-                {
-                    "kind": "relation:selected-for",
-                    "target_kind": "semantic:commitment",
-                    "target_id": owner,
-                    "attributes": {},
-                },
-            ),
-            "advisories": (),
-            "evidence_refs": (occurrence.id,),
-            "commitment_digest": None,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": None,
-            "mints_authority": False,
-        }
+            {
+                "kind": "relation:selected-for",
+                "target_kind": "semantic:commitment",
+                "target_id": owner,
+                "attributes": {},
+            },
+        ),
+        evidence_refs=(occurrence.id,),
     )
     return occurrence, selection
+
+
+def _start(
+    worktree: Path,
+    head: str,
+    *,
+    intent: str = INTENT,
+    predecessors: tuple[str, ...] = (),
+    selected_attestations: tuple[str, ...] = (),
+    expected_overlay_digest: str = "",
+) -> dict[str, object]:
+    return start_change(
+        root=worktree,
+        change=CHANGE,
+        intent=intent,
+        scope=SCOPE,
+        expect_head=head,
+        predecessors=predecessors,
+        selected_attestations=selected_attestations,
+        expected_overlay_digest=expected_overlay_digest,
+        apply=True,
+    )
 
 
 def test_start_change_rolls_an_archived_owned_lane_to_a_new_commitment(
@@ -129,14 +128,20 @@ def test_start_change_rolls_an_archived_owned_lane_to_a_new_commitment(
         lifecycle.lease,
     )
     archived_head = current_tracked_head(worktree)
+    occurrence, selection = _selection_pair(CHANGE)
+    record_attestations(worktree, (occurrence, selection))
 
-    report = start_change(
-        root=worktree,
-        change="hosted-verification-fix",
+    report = _start(
+        worktree,
+        archived_head,
         intent="Repair hosted verification without reopening archived work.",
-        scope=("tests/**",),
-        expect_head=archived_head,
-        apply=True,
+        selected_attestations=(selection.id,),
+    )
+    recognized = _start(
+        worktree,
+        archived_head,
+        intent="Repair hosted verification without reopening archived work.",
+        selected_attestations=(selection.id,),
     )
 
     current = current_tracked_head(worktree)
@@ -165,13 +170,31 @@ def test_start_change_rolls_an_archived_owned_lane_to_a_new_commitment(
         "risks": [],
         "authority_refs": [],
         "predecessors": [load_lease_bound_commitment(worktree, lease=previous_lease).digest()],
-        "selected_attestations": [],
+        "selected_attestations": [selection.id],
         "dependencies": [],
         "hypotheses": [],
         "falsifiers": [],
         "experiment_protocols": [],
     }
     assert "repository:self" not in commitment_text
+    assert recognized["state"] == "recognized"
+    assert report["attestation"] == recognized["attestation"]
+    _root, selected = read_attestation_set(worktree)
+    valid = next(item for item in selected if item.predicate == "effect:openspec-change-start")
+    forged = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id"}) | {"verifier": "agent:forged"}
+    )
+    git(worktree, "update-ref", "-d", ATTESTATION_SET_REF)
+    record_attestations(worktree, (forged,))
+    assert (
+        _start(
+            worktree,
+            archived_head,
+            intent="Repair hosted verification without reopening archived work.",
+            selected_attestations=(selection.id,),
+        )["state"]
+        == "blocked"
+    )
     assert (
         subprocess.run(
             (
@@ -243,70 +266,36 @@ def test_start_change_cli_joins_the_current_and_additional_predecessors(
     assert recognized["data"]["predecessors"] == expected_predecessors
     assert committed["predecessors"] == expected_predecessors
     assert payload["data"]["predecessors"] == committed["predecessors"]
+    for intent, predecessors in (
+        ("A different intent must not reuse the committed generation.", (related.digest(),)),
+        (INTENT, ()),
+    ):
+        drifted = _start(worktree, archived_head, intent=intent, predecessors=predecessors)
+        assert drifted["required_gaps"] == ["openspec_change_request_mismatch"]
 
 
-@pytest.mark.parametrize("mode", ["duplicate", "current"])
 def test_start_change_rejects_ambiguous_predecessor_input_before_mutation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    mode: str,
 ) -> None:
     lifecycle = _archived_lane(tmp_path, monkeypatch)
     worktree = lifecycle.worktree
     archived_head = current_tracked_head(worktree)
     current = load_lease_bound_commitment(worktree, lease=lifecycle.lease).digest()
-    predecessor = current if mode == "current" else "a" * 64
-    requested = (predecessor,) if mode == "current" else (predecessor, predecessor)
-
-    report = start_change(
-        root=worktree,
-        change="hosted-verification-fix",
-        intent="Reject ambiguous lineage input.",
-        scope=("tests/**",),
-        predecessors=requested,
-        expect_head=archived_head,
-        apply=True,
-    )
-
-    expected = (
-        "change_lineage_current_predecessor_redeclared"
-        if mode == "current"
-        else "change_lineage_predecessor_duplicate"
-    )
-    assert report["required_gaps"] == [expected]
+    for requested, expected in (
+        ((current,), "change_lineage_current_predecessor_redeclared"),
+        (("a" * 64,) * 2, "change_lineage_predecessor_duplicate"),
+        (("invalid",), "change_lineage_predecessor_invalid:invalid"),
+    ):
+        report = _start(
+            worktree,
+            archived_head,
+            intent="Reject ambiguous lineage input.",
+            predecessors=requested,
+        )
+        assert report["required_gaps"] == [expected]
     assert current_tracked_head(worktree) == archived_head
     assert not (worktree / "openspec/changes/hosted-verification-fix").exists()
-
-
-def test_start_change_binds_only_selected_input_disposed_to_the_successor(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    lifecycle = _archived_lane(tmp_path, monkeypatch)
-    worktree = lifecycle.worktree
-    archived_head = current_tracked_head(worktree)
-    predecessor_digest = load_lease_bound_commitment(worktree, lease=lifecycle.lease).digest()
-    occurrence, selection = _selection_pair("hosted-verification-fix")
-    record_attestations(worktree, (occurrence, selection))
-
-    report = start_change(
-        root=worktree,
-        change="hosted-verification-fix",
-        intent="Repair hosted verification.",
-        scope=("tests/**",),
-        expect_head=archived_head,
-        selected_attestations=(selection.id,),
-        apply=True,
-    )
-
-    assert report["verdict"] == "pass", report
-    carrier = tomllib.loads(
-        (worktree / "openspec/changes/hosted-verification-fix/commitment.toml").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert carrier["selected_attestations"] == [selection.id]
-    assert carrier["predecessors"] == [predecessor_digest]
 
 
 def test_start_change_apply_preserves_selected_set_addition_after_preflight(
@@ -402,14 +391,10 @@ def test_start_change_rejects_an_unselected_or_wrongly_disposed_input(
     worktree = lifecycle.worktree
     archived_head = current_tracked_head(worktree)
 
-    report = start_change(
-        root=worktree,
-        change="hosted-verification-fix",
-        intent="Repair hosted verification.",
-        scope=("tests/**",),
-        expect_head=archived_head,
+    report = _start(
+        worktree,
+        archived_head,
         selected_attestations=("f" * 64,),
-        apply=True,
     )
 
     assert report["verdict"] == "block"
@@ -461,45 +446,12 @@ def test_start_change_rejects_a_different_holder_without_mutation(
     archived_head = current_tracked_head(worktree)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:different")
 
-    report = start_change(
-        root=worktree,
-        change="hosted-verification-fix",
-        intent="Repair hosted verification.",
-        scope=("tests/**",),
-        expect_head=archived_head,
-        apply=True,
-    )
+    report = _start(worktree, archived_head)
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["lease_actor_mismatch"]
     assert current_tracked_head(worktree) == archived_head
     assert not (worktree / "openspec/changes/hosted-verification-fix").exists()
-
-
-def test_start_change_rejects_a_dirty_overlay_without_an_exact_digest(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    worktree = _archived_lane(tmp_path, monkeypatch).worktree
-    archived_head = current_tracked_head(worktree)
-    target = worktree / "tests/governance/test_repository.py"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("forward fix\n", encoding="utf-8")
-    git(worktree, "add", target.relative_to(worktree).as_posix())
-
-    report = start_change(
-        root=worktree,
-        change="hosted-verification-fix",
-        intent="Repair hosted verification.",
-        scope=("tests/**",),
-        expect_head=archived_head,
-        apply=True,
-    )
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["openspec_change_overlay_digest_required"]
-    assert current_tracked_head(worktree) == archived_head
-    assert git(worktree, "status", "--short")
 
 
 def test_start_change_cli_commits_an_exact_scope_bound_staged_overlay(
@@ -517,6 +469,9 @@ def test_start_change_cli_commits_an_exact_scope_bound_staged_overlay(
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("def test_forward_fix():\n    assert True\n", encoding="utf-8")
     git(worktree, "add", target.relative_to(worktree).as_posix())
+    blocked = _start(worktree, archived_head)
+    assert blocked["required_gaps"] == ["openspec_change_overlay_digest_required"]
+    assert current_tracked_head(worktree) == archived_head
 
     payload = run_ethos(
         *_start_change_arguments(
@@ -552,23 +507,6 @@ def test_start_change_cli_rejects_an_unsafe_scope_before_official_mutation(
     assert payload["required_gaps"] == ["openspec_change_commitment_invalid"]
     assert current_tracked_head(worktree) == archived_head
     assert not (worktree / "openspec/changes/hosted-verification-fix").exists()
-
-
-def test_start_change_cli_recognizes_the_same_committed_generation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    worktree = _archived_lane(tmp_path, monkeypatch).worktree
-    archived_head = current_tracked_head(worktree)
-    arguments = _start_change_arguments(worktree, archived_head)
-
-    started = run_ethos(*arguments, cwd=worktree)
-    recognized = run_ethos(*arguments, cwd=worktree)
-
-    assert started["state"] == "started"
-    assert recognized["state"] == "recognized"
-    assert started["data"]["attestation"] == recognized["data"]["attestation"]
-    assert os.environ["ETHOS_ACTOR"] == "agent:test:case:agent-test"
 
 
 @pytest.mark.parametrize(
@@ -649,108 +587,6 @@ def test_start_change_recovery_requires_later_commits_to_remain_in_scope(
         assert lease_head == recovered["head"]
     else:
         assert lease_head == archived_head
-
-
-def test_start_change_rejects_request_drift_for_an_existing_generation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    worktree = _archived_lane(tmp_path, monkeypatch).worktree
-    archived_head = current_tracked_head(worktree)
-    started = run_ethos(*_start_change_arguments(worktree, archived_head), cwd=worktree)
-
-    drifted = start_change(
-        root=worktree,
-        change="hosted-verification-fix",
-        intent="A different intent must not reuse the committed generation.",
-        scope=("tests/**",),
-        expect_head=archived_head,
-        apply=True,
-    )
-
-    assert started["state"] == "started"
-    assert drifted["verdict"] == "block"
-    assert drifted["required_gaps"] == ["openspec_change_request_mismatch"]
-
-
-def test_start_change_recovery_rejects_predecessor_set_drift(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    lifecycle = _archived_lane(tmp_path, monkeypatch)
-    worktree = lifecycle.worktree
-    related = commitment_fixture(
-        id="change:related-change",
-        intent="Preserve one independently governed predecessor.",
-        subjects=(load_repository_commitment(worktree).id,),
-    )
-    archived_head = commit_fixture_file(
-        worktree,
-        "openspec/changes/archive/2026-08-01-related-change/commitment.toml",
-        tomli_w.dumps(related.model_dump(mode="python")),
-        "record related predecessor",
-    )
-    started = start_change(
-        root=worktree,
-        change="hosted-verification-fix",
-        intent="Repair hosted verification.",
-        scope=("tests/**",),
-        predecessors=(related.digest(),),
-        expect_head=archived_head,
-        apply=True,
-    )
-
-    drifted = start_change(
-        root=worktree,
-        change="hosted-verification-fix",
-        intent="Repair hosted verification.",
-        scope=("tests/**",),
-        predecessors=(),
-        expect_head=archived_head,
-        apply=True,
-    )
-
-    assert started["state"] == "started"
-    assert drifted["verdict"] == "block"
-    assert drifted["required_gaps"] == ["openspec_change_request_mismatch"]
-
-
-def test_start_change_does_not_recognize_a_forged_selected_member(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    worktree = _archived_lane(tmp_path, monkeypatch).worktree
-    archived_head = current_tracked_head(worktree)
-    arguments = _start_change_arguments(worktree, archived_head)
-
-    def commit_without_product_hooks(
-        root: Path,
-        *,
-        previous: str,
-        message: str,
-        **_kwargs: object,
-    ) -> dict[str, object]:
-        assert current_tracked_head(root) == previous
-        git(root, "commit", "-m", message)
-        return {"verdict": "pass", "error": ""}
-
-    monkeypatch.setattr(
-        successor_change,
-        "commit_git_worktree",
-        commit_without_product_hooks,
-    )
-    started = run_ethos(*arguments, cwd=worktree)
-    assert started["state"] == "started"
-    _root, selected = read_attestation_set(worktree)
-    valid = next(item for item in selected if item.predicate == "effect:openspec-change-start")
-    payload = valid.model_dump(mode="python", exclude={"id"}) | {"verifier": "agent:forged"}
-    forged = Attestation.issue(payload)
-    git(worktree, "update-ref", "-d", ATTESTATION_SET_REF)
-    record_attestations(worktree, (forged,))
-
-    repeated = run_ethos_blocked(*arguments, cwd=worktree)
-
-    assert repeated["state"] == "blocked"
 
 
 def _start_change_arguments(

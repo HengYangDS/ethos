@@ -60,6 +60,12 @@ An obsolete tracked carrier requires an explicit public successor migration
 with exact CAS. This atom only makes the defect precise and early; it does not
 introduce dual-reading or mutate adopters.
 
+## Requirement To Task To Proof
+
+| Requirement | Task | Proof |
+| --- | --- | --- |
+| `repository-governance:Repository Commitment admission is precise and pre-effect` | `1.2`, `2.1`, `2.2`, `2.3`, `3.1`, `3.2`, `3.3` | strict repository-reader classification tests, real fresh-lane dry-run/apply parity and zero-residue tests, plus plan/proof/publication producer-to-consumer contracts |
+
 ## Risks / Trade-offs
 
 - **Risk: downstream tests depend on the old misleading missing string.**

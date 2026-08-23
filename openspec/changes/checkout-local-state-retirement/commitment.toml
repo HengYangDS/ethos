@@ -44,6 +44,7 @@ scope = [
   "tests/unit/cli/test_hook_runtime.py",
   "tests/unit/cli/test_proof_command.py",
   "tests/unit/cli/test_refresh_archive_public_coverage.py",
+  "tests/unit/cli/test_terminal_command_surface.py",
   "tests/unit/lanes/lease/test_lease_storage_boundaries.py",
   "tests/unit/lanes/lifecycle/test_successor_change_recovery.py",
   "tests/unit/lanes/test_hook_admission.py",

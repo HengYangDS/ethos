@@ -15,7 +15,7 @@
   selected owners; prove repository-wide reference closure.
 - [x] **5. Focused proof.** Run format before lint, then supply-chain inventory,
   configuration, CI projection, release, and OpenSpec strict validation gates.
-- [ ] **6. Terminal proof and closeout.** Freeze the candidate, repeat current
+- [x] **6. Terminal proof and closeout.** Freeze the candidate, repeat current
   stable resolution, run full HEAD-bound proof and release compatibility once,
   archive through the public lifecycle, land by exact CAS, and verify accepted
   package/runtime projection.

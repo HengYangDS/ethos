@@ -26,7 +26,7 @@ trap 'rm -rf "${scan_parent}"' EXIT
 # Secret scanning is a source-quality gate over tracked files, not a host-state
 # audit over ignored caches or generated local evidence. Materialize the Git
 # tracked file set into an isolated mirror and scan that mirror as a regular
-# directory so untracked `.cache/`, `build/`, and `.ethos/state/` residue cannot
+# directory so untracked `.cache/` and `build/` residue cannot
 # create false quality failures while tracked secrets still fail deterministically.
 "${UV_PROJECT_ENVIRONMENT}/bin/python" - "${repo_root}" "${scan_root}" <<'PY'
 from __future__ import annotations

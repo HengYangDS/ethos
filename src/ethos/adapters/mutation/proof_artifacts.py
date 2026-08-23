@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.repository.policy.gates import canonical_gate_command
@@ -24,13 +23,11 @@ _ARTIFACT_CONTENT_MISMATCH = "proof_attestation_artifact_content_mismatch"
 _ARTIFACT_INVALID = "proof_attestation_artifact_invalid"
 _CHECK_INVALID = "proof_attestation_check_invalid"
 _CHECKS_REQUIRED = "proof_attestation_checks_required"
-_DEFAULT_PROOF_ARTIFACT_ROOT = Path(".ethos") / "state"
 
 
 def proof_artifact_root(root: Path) -> Path:
     """Return the ignored root containing only digest-bound proof artifacts."""
-    common = git_common_dir(root)
-    return local_state_root(root) if common else root / _DEFAULT_PROOF_ARTIFACT_ROOT
+    return local_state_root(root)
 
 
 def _decode_artifact(payload: bytes, head: object) -> tuple[dict[str, Any], ...]:

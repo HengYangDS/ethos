@@ -67,9 +67,9 @@ Start read-only with `ethos adopt --json`. Review the exact one-file binding
 plan, apply only when conflicts are empty and rollback is clear, then use the
 five-command loop above.
 
-If an older ETHOS runtime placed untracked files under `.ethos/state/`, use
-`ethos migrate-local-state --root <accepted-root> --json` and apply the returned
-exact-head, plan-digest-bound transition. Do not move SQLite files manually.
+Tracked `.ethos/` files declare repository bindings only. Mutable coordination,
+runtime state, and content-addressed local evidence live exclusively under the
+repository's Git common directory.
 
 ## Human And Agent Discovery
 

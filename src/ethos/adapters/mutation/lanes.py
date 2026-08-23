@@ -14,7 +14,6 @@ from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.lane_start_carrier import LaneStartContext
 from ethos.adapters.mutation.lane_start_carrier import create_lane_start_carrier
 from ethos.adapters.mutation.lane_start_receipt import runner_bootstrap
-from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.openspec.change_lineage.predecessor_resolution import (
     resolve_predecessor_commitments,
 )
@@ -134,15 +133,7 @@ def start_work_lane(
         return blocked_lane_start(branch, target, str(error))
     if not apply:
         return planned_lane_start(branch=branch, target=target)
-    guard = local_state_mutation_guard(repo)
-    if guard["required_gaps"]:
-        commitment_block = blocked_lane_start(
-            branch,
-            target,
-            *cast("list[str]", guard["required_gaps"]),
-            next_action=guard["next_action"],
-        )
-    return commitment_block or _create_started_lane(
+    return _create_started_lane(
         repo=repo,
         policy=policy,
         branch=branch,

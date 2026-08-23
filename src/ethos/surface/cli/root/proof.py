@@ -17,7 +17,6 @@ from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import run_gate_waves
 from ethos.adapters.mutation.lane_lifecycle.archive_recovery import archive_recovery_next_action
-from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
@@ -66,30 +65,6 @@ class _ProofOptions:
 
 
 _DEFAULT_PROOF_OPTIONS = _ProofOptions()
-
-
-def _emit_state_migration_block(
-    repo: Path,
-    *,
-    execute: bool,
-    json_output: bool,
-) -> bool:
-    if not execute:
-        return False
-    guard = local_state_mutation_guard(repo)
-    if not guard["required_gaps"]:
-        return False
-    emit(
-        EthosResult(
-            command="prove",
-            verdict="block",
-            state="gapped",
-            required_gaps=tuple(cast("list[str]", guard["required_gaps"])),
-            next_action=str(guard["next_action"]),
-        ),
-        json_output=json_output,
-    )
-    return True
 
 
 def proof_scope_binding(scope: str) -> dict[str, object]:
@@ -390,12 +365,6 @@ def prove(
     """Produce proof readiness or one executed generic proof Attestation."""
     repo = resolve_root(root)
     if _emit_host_gate_observation(repo=repo, options=options, json_output=json_output):
-        return
-    if _emit_state_migration_block(
-        repo,
-        execute=options.execute,
-        json_output=json_output,
-    ):
         return
     current_head, audit, generation_scope, openspec_lifecycle = _proof_context(repo, options)
     changed_paths = generation_scope.paths

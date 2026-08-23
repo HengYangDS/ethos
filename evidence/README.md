@@ -17,8 +17,8 @@ directory convention. A promoted record must preserve the command, scope,
 verifier, digest, HEAD, and bounded verdict in an Attestation. `docs/evidence/`
 may present curated summaries but is not a proof root.
 
-Runtime caches (`.cache/local-state/`, `.ethos/state/`,
-`build/runtime/tool-cache/`, `build/runtime/work/`) and local artifacts
+Runtime caches (`.cache/local-state/`, `build/runtime/tool-cache/`,
+`build/runtime/work/`) and local artifacts
 (`build/artifacts/`) are outside the promotion path. They are deleted or
 regenerated, not summarized as proof.
 

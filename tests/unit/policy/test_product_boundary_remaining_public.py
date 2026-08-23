@@ -16,13 +16,12 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def test_release_history_public_inventory_rejects_state_cache_and_skipped_directories(
+def test_release_history_public_inventory_skips_dependency_directories(
     tmp_path: Path,
 ) -> None:
     visible = tmp_path / "docs/history/record.md"
-    state = tmp_path / ".ethos/state/record.md"
     skipped = tmp_path / "docs/history/node_modules/record.md"
-    for path in (visible, state, skipped):
+    for path in (visible, skipped):
         _write(path, "record\n")
 
     assert release_visible_historical_files(tmp_path) == [visible]

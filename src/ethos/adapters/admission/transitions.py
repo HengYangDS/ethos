@@ -10,7 +10,6 @@ from typing import cast
 from ethos.adapters.admission.commitment_rebind_transition import commitment_rebind_gap
 from ethos.adapters.admission.commitment_rebind_transition import commitment_rebind_operation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
-from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.remediation.guidance import commitment_rebind_remediation
 from ethos.adapters.openspec.lifecycle.archive_effect import lease_bound_archive_transition_fields
 from ethos.adapters.openspec.lifecycle.archive_effect import prepared_archive_ref_authority
@@ -22,7 +21,6 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import observe_lease
-from ethos.adapters.store.state.schema import observed_state_database
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitRefUpdate
@@ -64,7 +62,6 @@ def work_lane_ref_transition_report(
         else ""
     )
     early = _early_transition_report(
-        repo=repo,
         phase=phase,
         ref_name=ref_name,
         old_value=old_value,
@@ -73,7 +70,7 @@ def work_lane_ref_transition_report(
     )
     if early is not None:
         return early
-    observation = observe_lease(observed_state_database(repo), branch)
+    observation = observe_lease(state_database(repo), branch)
     lease = {} if observation.state == "missing" else observation.record()
     update = GitRefUpdate(expected=old_value, desired=new_value)
     if not lease:
@@ -182,7 +179,6 @@ def work_lane_ref_transition_report(
 
 def _early_transition_report(
     *,
-    repo: Path,
     phase: str,
     ref_name: str,
     old_value: str,
@@ -191,15 +187,7 @@ def _early_transition_report(
 ) -> dict[str, object] | None:
     if immediate_reason:
         return _admit(phase, ref_name, old_value, new_value, immediate_reason)
-    guard: dict[str, object] = (
-        local_state_mutation_guard(repo) if phase == "prepared" else {"required_gaps": []}
-    )
-    gaps = cast("list[str]", guard["required_gaps"])
-    if not gaps:
-        return None
-    return _report(phase, ref_name, old_value, new_value, {}, gaps) | {
-        "next_action": guard["next_action"]
-    }
+    return None
 
 
 def _advance_ref_lease(

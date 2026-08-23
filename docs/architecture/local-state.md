@@ -23,20 +23,9 @@ receipts are under `<git-common-dir>/ethos/attestations/`. This state is a
 projection over current repository facts, not a source of truth or a substitute
 for Git, OpenSpec, or tracked records.
 
-Repositories created by an older runtime may contain misplaced untracked state
-under `.ethos/state/`. Inspect and move only the exact observed files through the
-public, digest-bound transition:
-
-```bash
-ethos migrate-local-state --root <accepted-root> --json
-ethos migrate-local-state --root <accepted-root> --apply --authorize \
-  --expect-head <accepted-head> --expect-plan-digest <plan-digest> --json
-```
-
-The command preserves tracked `.ethos/state` control files, verifies every
-runtime file by SHA-256, stages below the Git common directory, and compensates
-the source if verification or final placement fails. It never requires manual
-SQLite edits or a checkout-local ignore rule.
+Tracked `.ethos/` paths are repository declarations, never mutable runtime
+storage. All state readers and writers resolve the same Git-common owner; a
+linked worktree cannot introduce a parallel state authority.
 
 Use the public reader to inspect the current repository boundary:
 

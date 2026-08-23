@@ -11,7 +11,22 @@ if ! command -v git >/dev/null 2>&1 || ! ldconfig -p 2>/dev/null | grep -q 'liba
   apt-get install -y --no-install-recommends git libatomic1
 fi
 
-required_uv="0.12.2"
+required_uv="$(
+  python3 - <<'PY_VERSION'
+import re
+import tomllib
+from pathlib import Path
+
+project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+requirement = next(
+    value for value in project["dependency-groups"]["dev"] if value.startswith("uv>=")
+)
+match = re.fullmatch(r"uv>=(\d+\.\d+\.\d+)", requirement)
+if match is None:
+    raise SystemExit("pyproject.toml must declare one exact uv minimum")
+print(match.group(1))
+PY_VERSION
+)"
 actual_uv="$(uv --version | awk '{print $2}')"
 if [[ "${actual_uv}" != "${required_uv}" ]]; then
   printf 'uv version mismatch: expected %s, observed %s\n' "${required_uv}" "${actual_uv}" >&2

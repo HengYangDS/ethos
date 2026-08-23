@@ -8,7 +8,19 @@ if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
     uv run --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
 fi
 
-version="1.50.0"
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+policy_path="${repo_root}/.config/release/supply-chain.toml"
+read -r version linux_amd64_sha256 linux_arm64_sha256 < <(
+  python - "${policy_path}" <<'PY_POLICY'
+import sys
+import tomllib
+from pathlib import Path
+
+policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+checksums = policy["archive_sha256"]
+print(policy["version"], checksums["linux_amd64"], checksums["linux_arm64"])
+PY_POLICY
+)
 if command -v syft >/dev/null 2>&1 \
   && [[ "$(syft version -o json | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "${version}" ]]; then
   exit 0
@@ -21,11 +33,11 @@ fi
 case "$(uname -m)" in
   x86_64 | amd64)
     arch="amd64"
-    sha256="bf7b29ff57f06da30918266a0e1c2885a8f99784798d1bdb1628886aa015d788"
+    sha256="${linux_amd64_sha256}"
     ;;
   aarch64 | arm64)
     arch="arm64"
-    sha256="887c57cbcc2d0e8c5c110a4571a3fc7150058b24d74f993ee4663516e5c8ce86"
+    sha256="${linux_arm64_sha256}"
     ;;
   *)
     echo "unsupported syft architecture: $(uname -m)" >&2

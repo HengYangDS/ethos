@@ -53,7 +53,7 @@ HEAD-bound receipt lives at `build/evidence/local-install/smoke.json`. This
 local proof does not assert registry delivery, remote publication, or hosted
 runner success.
 
-The supply-chain owner runs only after the Python wheel exists. Syft `1.50.0`
+The supply-chain owner runs only after the Python wheel exists. The policy-owned Syft release
 generates SPDX 2.3 JSON for that exact artifact and the receipt binds its SHA-256,
 the SBOM SHA-256, HEAD, and generator version. It deliberately makes no local
 provenance, signature, SLSA-level, hosted-CI, or publication claim.

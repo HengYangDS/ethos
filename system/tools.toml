@@ -60,8 +60,10 @@ gate = "uv run --frozen --offline python -m nox -s lint"
 [[tool]]
 concern = "links"
 tool = "lychee"
-config = ".config/checks/lychee/"
+config = ".config/checks/lychee/lychee.toml + .config/checks/lychee/supply.toml"
+checksums = ".config/checks/lychee/supply.toml#archive_sha256"
 executables = ["lychee"]
+runtime_inputs = ["tools/ci/scripts/install-lychee.sh"]
 profile = "product"
 gate = "ethos prove --gate markdown-links; hosted: ethos prove --gate external-links"
 
@@ -165,7 +167,6 @@ gate = "uv run --frozen --offline python -m nox -s config_quality"
 concern = "ci_tool_supply"
 tool = "curl + cached CI artifact installers"
 config = "tools/ci/scripts/download-file.sh"
-checksums = "pinned installer SHA-256 values"
 executables = [
   "apt-get",
   "bash",
@@ -188,13 +189,14 @@ executables = [
 ]
 artifacts = "build/runtime/tool-cache/ci-tools/"
 profile = "product"
-gate = "tools/ci/scripts/install-gitleaks.sh and tools/ci/scripts/install-node.sh"
 
 [[tool]]
 concern = "node_runtime_compatibility"
 tool = "node + npm"
 config = ".config/checks/node/runtime.toml"
+checksums = ".config/checks/node/runtime.toml#archive_sha256"
 executables = ["node", "npm", "npx"]
+runtime_inputs = ["tools/ci/scripts/install-node.sh"]
 profile = "distribution"
 gate = "tools/ci/scripts/run-node-compatibility.sh"
 
@@ -261,8 +263,10 @@ gate = "uv run --frozen --offline python -m nox -s shell_lint"
 [[tool]]
 concern = "secrets"
 tool = "gitleaks"
-config = ".gitleaks.toml"
+config = ".gitleaks.toml + .config/checks/secrets/supply.toml"
+checksums = ".config/checks/secrets/supply.toml#archive_sha256"
 executables = ["gitleaks"]
+runtime_inputs = ["tools/ci/scripts/install-gitleaks.sh"]
 profile = "product"
 gate = "tools/ci/scripts/run-secrets-scan.sh"
 
@@ -278,7 +282,9 @@ profile = "security"
 concern = "sbom"
 tool = "syft"
 config = ".config/release/supply-chain.toml"
+checksums = ".config/release/supply-chain.toml#archive_sha256"
 executables = ["syft"]
+runtime_inputs = ["tools/ci/scripts/install-syft.sh"]
 artifacts = "build/evidence/release/"
 gate = "uv run --frozen --offline python -m nox -s supply_chain"
 profile = "release"
@@ -295,7 +301,9 @@ profile = "provider"
 concern = "github_workflow_syntax"
 tool = "actionlint"
 config = ".config/checks/github/actionlint.toml"
+checksums = ".config/checks/github/actionlint.toml#tool.archive_sha256"
 executables = ["actionlint"]
+runtime_inputs = ["tools/ci/scripts/run-actionlint.sh"]
 gate = "tools/ci/scripts/run-actionlint.sh"
 profile = "provider"
 

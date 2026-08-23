@@ -30,7 +30,7 @@ projection = ".gitlab-ci.yml"
 emulator_tool = "gitlab-ci-local"
 emulator_event = "pipeline"
 emulator_job = "ethos:carrier-quality"
-emulator_image = "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75"
+emulator_image = "ghcr.io/astral-sh/uv:0.12.5-python3.14-trixie-slim@sha256:dc360d7e5f968c682e8b59e83027a315a0232dead15cb9dfe3e707a12ba390e1"
 emulator_timeout_seconds = 1800
 provider_specific_owner_scripts = { "tools/ci/scripts/run-node-compatibility.sh" = "GitLab owns the explicit Node compatibility matrix; GitHub package proof covers the canonical npm artifact once." }
 forbidden_log_patterns = [

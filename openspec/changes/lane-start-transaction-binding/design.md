@@ -64,7 +64,7 @@ introduce dual-reading or mutate adopters.
 
 | Requirement | Task | Proof |
 | --- | --- | --- |
-| `repository-governance:Repository Commitment admission is precise and pre-effect` | `1.2`, `2.1`, `2.2`, `2.3`, `3.1`, `3.2`, `3.3` | strict repository-reader classification tests, real fresh-lane dry-run/apply parity and zero-residue tests, plus plan/proof/publication producer-to-consumer contracts |
+| `repository-governance:Repository Commitment admission is precise and pre-effect` | `3` | strict repository-reader classification tests, real fresh-lane dry-run/apply parity and zero-residue tests, plus plan/proof/publication producer-to-consumer contracts |
 
 ## Risks / Trade-offs
 

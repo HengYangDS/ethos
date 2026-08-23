@@ -10,7 +10,7 @@
     "test:npm": "npm pack --dry-run --workspace @agentic-workflow/ethos"
   },
   "dependencies": {
-    "@fission-ai/openspec": "1.9.0"
+    "@fission-ai/openspec": "1.10.0"
   },
   "devDependencies": {
     "@taplo/cli": "0.7.0",

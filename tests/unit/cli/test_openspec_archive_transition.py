@@ -126,7 +126,7 @@ def test_archive_change_owns_official_archive_commit_and_lease_transition(
     assert report["head"] == archived_head
     archive_path = cast("str", report["archive_path"])
     assert archive_path.endswith("-fixture-change")
-    assert report["tool_version"] == "1.9.0"
+    assert report["tool_version"] == "1.10.0"
     assert report["required_gaps"] == []
     assert_lifecycle_outcome(report, "committed", "not_required", "absent")
     assert len(prepared_effect_identities) == 1

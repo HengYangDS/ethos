@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.repository.policy.references.declarations as reference_declarations
-import ethos.repository.policy.references.observation as reference_observation
+import ethos.repository.policy.references.markdown as reference_markdown
 from ethos.repository.policy.references.closure import repository_semantic_closure
 
 if TYPE_CHECKING:
@@ -208,7 +208,7 @@ carrier = "{carrier}"
     _write(tmp_path, relative, content)
 
     if relative.endswith(".md"):
-        monkeypatch.setattr(reference_observation, "markdown_tokens", lambda _text: None)
+        monkeypatch.setattr(reference_markdown, "markdown_tokens", lambda _text: None)
 
     report = repository_semantic_closure(tmp_path)
 

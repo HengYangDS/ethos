@@ -27,7 +27,7 @@
 
 - [x] 3.1 Run strict OpenSpec validation plus focused format, Ruff, type,
   architecture, repository-policy, and audit tests.
-- [ ] 3.2 Run the complete applicable proof and verify current HEAD/tree and
+- [x] 3.2 Run the complete applicable proof and verify current HEAD/tree and
   semantic-closure evidence.
 - [ ] 3.3 Archive through the public lifecycle, rerun post-archive proof, land
   exact CAS, project the accepted runtime, and retire this lane.

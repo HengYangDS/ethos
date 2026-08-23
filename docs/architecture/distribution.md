@@ -37,8 +37,8 @@ Node runtime ownership remains layered rather than mechanically unified:
 - A maintainer host runtime is owned by host software
   supply chain, not by this repository.
 - `.config/checks/node/runtime.toml` owns the exact releases used to prove the
-  npm launcher and the pinned Linux archive SHA-256 values. The current set is
-  the latest LTS Node 24.19.0 and latest stable Node 26.7.0.
+  npm launcher and the pinned Linux archive SHA-256 values. The declared set
+  contains the selected current LTS and stable release lines.
 - The Python distribution declares one platform Node payload solely to execute
   its bundled OpenSpec package without a global Node or PATH fallback. That
   payload owns no repository Node matrix, package workflow, or policy.
@@ -46,8 +46,8 @@ Node runtime ownership remains layered rather than mechanically unified:
   against that policy before extraction.
 - Hosted npm compatibility jobs select one exact declared release and execute
   `tools/ci/scripts/run-node-compatibility.sh`.
-- Hosted packaging uses Node 26.7.0; the matrix separately proves the latest
-  Node 24 LTS without preserving a future-promotion state.
+- Hosted packaging uses the policy default; the matrix separately proves every
+  declared compatibility release without preserving a future-promotion state.
 - IDE-, desktop-, and application-managed Node runtimes remain owned by those
   applications and are not repository mutation targets.
 

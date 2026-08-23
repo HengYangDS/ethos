@@ -32,7 +32,7 @@ configuration plane, not a truth center.
 - `.config/checks/deptry/policy.toml` owns dependency hygiene policy; `tools/ci/scripts/run-dependency-hygiene.sh` runs `deptry` per Python distribution so package metadata is checked without treating the workspace root as a runtime package.
 - `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `uv run --frozen --offline python -m nox -s schemas` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
 - `.config/checks/security/audit.toml` owns the Python vulnerability audit boundary. `tools/ci/scripts/run-python-vulnerability-audit.sh` runs native `uv audit --frozen` against `uv.lock` and records OSV-backed local owner-gate evidence; image/package scanning, hosted CI success, and remote publication remain explicitly unclaimed.
-- The root `.gitleaks.toml` owns secret-scanning policy (gitleaks resolves its config from a git-discoverable location, so it stays at the root); `tools/ci/scripts/run-secrets-scan.sh` installs the pinned binary via `install-gitleaks.sh` and runs the scan. `.config/checks/secrets/README.md` records the ownership boundary.
+- The root `.gitleaks.toml` owns secret-scanning policy (gitleaks resolves its config from a git-discoverable location, so it stays at the root); `.config/checks/secrets/supply.toml` owns its downloaded binary identity and digests. `tools/ci/scripts/run-secrets-scan.sh` installs that declared binary via `install-gitleaks.sh` and runs the scan.
 - `tools/ci/repository_hygiene.py`, invoked through the `repository_hygiene` Nox session, owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, merge-conflict markers, and the zero-suppression invariant.
 - `.config/ci/templates/hosted/` owns provider CI template sources.
   `.github/workflows/ci.yml` and `.gitlab-ci.yml` are checked projections over
@@ -44,6 +44,9 @@ configuration plane, not a truth center.
   `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate and
   falls back to the pinned upstream GitHub release binary when no local
   `actionlint` is installed.
+- `.config/checks/lychee/lychee.toml` owns link-check behavior while
+  `.config/checks/lychee/supply.toml` owns the downloaded binary identity and
+  archive digests used by hosted runners.
 - `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; the `hosted_observation` Nox session records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
 - `.config/checks/format/selection.toml` owns fail-closed executable-carrier
   admission and file-format boundary checks; `uv run --frozen --offline python -m nox -s format_selection`
@@ -53,7 +56,7 @@ configuration plane, not a truth center.
   diagram is review aid, not architecture truth.
 - `.config/checks/local-state/audit.toml` owns local/generated state boundary
   checks. Runtime state remains ignored unless promoted into reviewed evidence.
-- `.config/release/supply-chain.toml` binds Syft `1.50.0` to the exact built
+- `.config/release/supply-chain.toml` binds the Syft version and archive checksums to the exact built
   wheel and SPDX 2.3 JSON output. Provenance and signing remain provider release
   concerns until real hosted receipts exist.
 - `tools/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is

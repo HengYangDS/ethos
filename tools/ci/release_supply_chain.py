@@ -56,7 +56,7 @@ def run(session: nox.Session) -> None:
     output, sbom = (ROOT / str(policy[key]) for key in ("output", "sbom"))
     output.parent.mkdir(parents=True, exist_ok=True)
     sbom.parent.mkdir(parents=True, exist_ok=True)
-    executable = _syft(str(policy["tool_version"]))
+    executable = _syft(str(policy["version"]))
     run_command(
         ROOT,
         (
@@ -85,7 +85,7 @@ def run(session: nox.Session) -> None:
             "sha256": _digest(sbom),
             "format": "SPDX-2.3",
         },
-        "generator": {"tool": "syft", "version": policy["tool_version"]},
+        "generator": {"tool": "syft", "version": policy["version"]},
         "not_claimed": [
             "provenance",
             "signature",

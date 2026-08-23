@@ -8,7 +8,7 @@
   and real archive compatibility through focused tests.
 - [x] **4.** Record the full supply-chain freshness inventory that determines
   the bounded successor Changes without claiming those upgrades here.
-- [ ] **5.** Restore public exact-target recovery for a canonical formatting
+- [x] **5.** Restore public exact-target recovery for a canonical formatting
   change whose Commitment bytes change while its semantic digest is stable.
 
 | Outcome | Task | Evidence |

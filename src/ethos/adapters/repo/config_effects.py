@@ -42,13 +42,43 @@ def set_local_config(root: Path, values: dict[str, str]) -> Attestation:
     )
 
 
-def set_worktree_config(root: Path, values: dict[str, str]) -> None:
-    """Set one exact worktree-local Git configuration projection."""
-    completed = run_git(root, "config", "extensions.worktreeConfig", "true", check=False)
-    if completed.returncode:
-        raise ValueError(completed.stderr.strip() or "git_config_effect_failed")
-    _set_values(root, values, scope="worktree")
-    if _values(root, values, scope="worktree") != values:
+def set_common_config(root: Path, values: dict[str, str]) -> None:
+    """Set one exact Git-common configuration projection."""
+    replace_config_values(root, {key: (value,) for key, value in values.items()}, scope="local")
+
+
+def unset_worktree_config(root: Path, keys: tuple[str, ...]) -> None:
+    """Remove owned worktree-local projections and prove their absence."""
+    replace_config_values(root, dict.fromkeys(keys, ()), scope="worktree")
+
+
+def config_values(root: Path, keys: tuple[str, ...], *, scope: str) -> dict[str, tuple[str, ...]]:
+    """Observe all values for exact Git configuration keys."""
+    result: dict[str, tuple[str, ...]] = {}
+    for key in keys:
+        completed = run_git(root, "config", f"--{scope}", "--get-all", key, check=False)
+        if completed.returncode not in {0, 1}:
+            raise ValueError(completed.stderr.strip() or "git_config_observation_failed")
+        result[key] = tuple(completed.stdout.splitlines()) if completed.returncode == 0 else ()
+    return result
+
+
+def replace_config_values(
+    root: Path,
+    values: dict[str, tuple[str, ...]],
+    *,
+    scope: str,
+) -> None:
+    """Replace exact Git configuration values and prove the postcondition."""
+    for key, expected in values.items():
+        removed = run_git(root, "config", f"--{scope}", "--unset-all", key, check=False)
+        if removed.returncode not in {0, 5}:
+            raise ValueError(removed.stderr.strip() or "git_config_effect_failed")
+        for value in expected:
+            added = run_git(root, "config", f"--{scope}", "--add", key, value, check=False)
+            if added.returncode:
+                raise ValueError(added.stderr.strip() or "git_config_effect_failed")
+    if config_values(root, tuple(values), scope=scope) != values:
         message = "git_config_effect_postcondition_failed"
         raise ValueError(message)
 

@@ -10,9 +10,9 @@ from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook_runtime import execute_hook
-from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos.adapters.store.state.schema import state_database
 from tests.support.governed_repository import git

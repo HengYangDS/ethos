@@ -44,6 +44,12 @@ inspection surface. It reports installed and expected source commit/tree,
 currentness, stable gaps, and the complete `ethos hook install` repair command;
 status does not derive a parallel runtime verdict.
 
+`ethos hook install --root <linked-worktree> --json` is one repository-family
+repair operation. It activates one immutable generation in repository-common
+Git config, removes owned worktree-local activation overrides, post-observes
+every linked worktree, and reports exact checked, repaired, retained, and
+removed paths. Unknown consumers block cleanup rather than being guessed away.
+
 The normal repository loop is:
 
 ```text

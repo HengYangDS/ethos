@@ -1,6 +1,7 @@
 """Hook command group — hook-time write admission and hook installation."""
 
 import pathlib
+import shlex
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -16,8 +17,8 @@ from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook_runtime import execute_hook
-from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
@@ -266,15 +267,24 @@ def install(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Install worktree-local Git hook launchers bound to this exact ETHOS runtime."""
+    """Converge the repository-family hook runtime through Git-common activation."""
     repo = resolve_root(root)
     try:
         runtime = install_hook_launchers(repo)
     except (OSError, ValueError) as error:
         gaps = (f"hook_install_failed:{error}",)
-        runtime = {"hooks_path": "", "python": "", "scripts": []}
+        runtime = {
+            "hooks_path": "",
+            "python": "",
+            "scripts": [],
+            "linked_worktrees": [],
+            "generation_cleanup": {"checked": [], "removed": [], "retained": []},
+        }
     else:
         gaps = ()
+    linked = runtime.get("linked_worktrees", [])
+    cleanup = runtime.get("generation_cleanup")
+    removed = cleanup.get("removed", []) if isinstance(cleanup, dict) else []
     result = EthosResult(
         command="hook install",
         verdict="block" if gaps else "pass",
@@ -284,9 +294,18 @@ def install(
             "python": runtime["python"],
             "wired": not gaps,
             "pack_refs_disabled": not gaps,
+            "linked_worktrees_checked": len(linked),
+            "linked_worktrees_repaired": sum(
+                item.get("state") == "repaired" for item in linked if isinstance(item, dict)
+            ),
+            "generated_paths_removed": len(removed),
         },
         required_gaps=gaps,
-        next_action=("git commit — portable admission hooks are active" if not gaps else ""),
+        next_action=(
+            ""
+            if not gaps
+            else f"ethos hook install --root {shlex.quote(repo.resolve().as_posix())} --json"
+        ),
         data=runtime,
     )
     emit(result, json_output=json_output, enforce=True)

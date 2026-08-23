@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import cast
 
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.config_effects import set_worktree_config
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.worktree_effects import add_worktree
@@ -90,10 +89,6 @@ def recover_worktree(control_root: Path, lane: dict[str, object]) -> dict[str, o
             target,
             branch=str(lane["branch"]),
             head=str(lane["head"]),
-        )
-        set_worktree_config(
-            target,
-            {"core.hooksPath": hooks["hooks_path"], "gc.packRefs": "false"},
         )
     except (KeyError, OSError, ValueError) as error:
         detail = str(error).strip() or error.__class__.__name__

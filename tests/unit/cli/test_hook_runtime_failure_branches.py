@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.hook_runtime as runtime
 
 
@@ -48,7 +49,7 @@ def _candidate_runtime(
 def test_install_rejects_nonexistent_and_relative_python(tmp_path: Path) -> None:
     for python in (Path("python"), tmp_path / "missing-python"):
         with pytest.raises(ValueError, match="hook_runtime_python_invalid"):
-            runtime.install_hook_launchers(tmp_path, python=python)
+            hook_activation.install_hook_launchers(tmp_path, python=python)
 
 
 def test_reference_transition_policy_failure_is_blocked(

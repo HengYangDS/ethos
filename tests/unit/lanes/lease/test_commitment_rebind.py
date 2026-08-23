@@ -23,7 +23,7 @@ from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
-from ethos.adapters.repo.hook_runtime import install_hook_launchers
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
@@ -130,8 +130,14 @@ def _bind_fixture_commitment(
     old_head = git(
         worktree, "commit-tree", index, "-p", old_head, "-m", "bind minimal fixture commitment"
     )
-    git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
-    git(worktree, "update-ref", f"refs/heads/{branch}", old_head)
+    git(
+        worktree,
+        "-c",
+        "core.hooksPath=/dev/null",
+        "update-ref",
+        f"refs/heads/{branch}",
+        old_head,
+    )
     git(worktree, "reset", "--hard", old_head)
     install_hook_launchers(worktree)
     binding = exact_commitment_fields(worktree, head=old_head, carrier=carrier.as_posix())
@@ -233,10 +239,11 @@ def _case(
     if carrier_mode == "archive-active":
         archived = Path("openspec/changes/archive/2026-08-06-fixture-change/commitment.toml")
         (worktree / archived).parent.mkdir(parents=True)
-        git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
         git(worktree, "mv", carrier.as_posix(), archived.as_posix())
         git(
             worktree,
+            "-c",
+            "core.hooksPath=/dev/null",
             "commit",
             "-m",
             "archive fixture commitment",
@@ -453,7 +460,7 @@ def test_rebind_checkpoint_matrix(
         interrupted = case.execute()
         assert interrupted["required_gaps"] == ["git_effect_cas_rejected"]
         assert git(case.worktree, "rev-parse", "HEAD") == case.request.expect_head
-        git(case.worktree, "config", "--worktree", "core.hooksPath", original.as_posix())
+        git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
         report = case.execute()
         assert report["state"] == "applied"
         case.assert_terminal(report)
@@ -484,9 +491,10 @@ def test_rebind_rejects_unattested_partial_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
     git(
         case.worktree,
+        "-c",
+        "core.hooksPath=/dev/null",
         "update-ref",
         f"refs/heads/{case.branch}",
         case.request.target_commit,
@@ -547,9 +555,10 @@ def test_partial_rebind_recovery_matrix(
 ) -> None:
     case = _case(tmp_path, monkeypatch)
     if lease_state == "missing-evidence":
-        git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
         git(
             case.worktree,
+            "-c",
+            "core.hooksPath=/dev/null",
             "update-ref",
             f"refs/heads/{case.branch}",
             case.request.target_commit,

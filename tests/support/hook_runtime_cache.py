@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import shutil
-import subprocess
 import sys
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.hook_runtime_install as hook_runtime_install
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
 
 if TYPE_CHECKING:
     import pytest
@@ -21,54 +22,86 @@ if TYPE_CHECKING:
 
 def install_session_hook_runtime_cache(monkeypatch: pytest.MonkeyPatch, cache_root: Path) -> None:
     """Reuse package bytes while retaining one runtime directory per Git common-dir."""
-    source = Path(hook_runtime.__file__).resolve().parents[4]
+    source = Path(hook_runtime_install.__file__).resolve().parents[4]
     cache_root = cache_root.resolve()
     if cache_root == source or cache_root.is_relative_to(source):
         message = "test_hook_runtime_cache_inside_repository"
         raise ValueError(message)
-    cache_key = _cache_key(source, Path(sys.executable))
-    templates = cache_root / cache_key
+    templates = cache_root / _cache_key(source)
     wheel_lock = threading.Lock()
-    original_materialize = hook_runtime.materialize_hook_runtime
+    runtime_lock = threading.Lock()
+    runtime_template: Path | None = None
+    original_materialize = hook_runtime_install.materialize_hook_runtime
     original_wheel = hook_runtime_install.resolve_runtime_wheel
 
-    def cached_materialize(repo: Path, source_python: Path) -> Path:
-        if source_python.resolve() != Path(sys.executable).resolve():
-            return original_materialize(repo, source_python)
+    def cached_wheel(source_root: Path, wheel_dir: Path) -> Path:
+        if source_root.resolve() != source:
+            return original_wheel(source_root, wheel_dir)
         cache_wheels = templates / "wheel"
+        with wheel_lock:
+            wheel = next(cache_wheels.glob("*.whl"), None)
+            if wheel is None:
+                built = original_wheel(source_root, templates / "wheel-build")
+                cache_wheels.mkdir(parents=True, exist_ok=True)
+                wheel = cache_wheels / built.name
+                temporary = wheel.with_suffix(f"{wheel.suffix}.tmp")
+                shutil.copy2(built, temporary)
+                temporary.replace(wheel)
+        wheel_dir.mkdir(parents=True, exist_ok=True)
+        destination = wheel_dir / wheel.name
+        shutil.copy2(wheel, destination)
+        return destination
 
-        def cached_wheel(source: Path, wheel_dir: Path) -> Path:
-            with wheel_lock:
-                wheel = next(cache_wheels.glob("*.whl"), None)
-                if wheel is None:
-                    built = original_wheel(source, templates / "wheel-build")
-                    cache_wheels.mkdir(parents=True, exist_ok=True)
-                    wheel = cache_wheels / built.name
-                    temporary = wheel.with_suffix(f"{wheel.suffix}.tmp")
-                    shutil.copy2(built, temporary)
-                    temporary.replace(wheel)
-            wheel_dir.mkdir(parents=True, exist_ok=True)
-            destination = wheel_dir / wheel.name
-            shutil.copy2(wheel, destination)
-            return destination
-
-        with monkeypatch.context() as local:
-            local.setattr(hook_runtime_install, "resolve_runtime_wheel", cached_wheel)
+    def cached_materialize(repo: Path, source_python: Path) -> Path:
+        nonlocal runtime_template
+        canonical_source = Path(hook_runtime_install.__file__).resolve().parents[4]
+        common = Path(git_common_dir(repo))
+        if (common / "ethos").is_symlink():
             return original_materialize(repo, source_python)
+        if source_python.resolve() != Path(sys.executable).resolve() or canonical_source != source:
+            return original_materialize(repo, source_python)
+        with runtime_lock:
+            if runtime_template is None:
+                built = original_materialize(repo, source_python).parent
+                runtime_template = templates / "runtime" / built.name
+                runtime_template.parent.mkdir(parents=True, exist_ok=True)
+                _clone_tree(built, runtime_template)
+            target = common / "ethos" / "runtime" / runtime_template.name
+            if not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                _clone_tree(runtime_template, target)
+                manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+                hook_runtime_install.finalize_runtime(
+                    target,
+                    str(manifest["runtime_digest"]),
+                    str(manifest["wheel_sha256"]),
+                    str(manifest["python_abi"]),
+                    RuntimeSourceIdentity(
+                        commit=str(manifest["source_commit"]),
+                        tree=str(manifest["source_tree"]),
+                    ),
+                )
+            return target / "venv"
 
-    monkeypatch.setattr(hook_runtime, "materialize_hook_runtime", cached_materialize)
+    monkeypatch.setattr(hook_runtime_install, "resolve_runtime_wheel", cached_wheel)
+    monkeypatch.setattr(hook_runtime_install, "materialize_hook_runtime", cached_materialize)
 
 
-def _cache_key(root: Path, python: Path) -> str:
-    completed = subprocess.run(
-        (python.as_posix(), "-I", "-c", "import sys; print(sys.implementation.cache_tag or '')"),
-        capture_output=True,
-        check=True,
-        text=True,
-    )
+def _clone_tree(source: Path, target: Path) -> None:
+    """Clone one immutable runtime tree without duplicating its physical bytes."""
+    shutil.copytree(source, target, copy_function=os.link)
+    mutable = [target / "manifest.json"]
+    scripts = target / "venv" / ("Scripts" if os.name == "nt" else "bin")
+    mutable.append(scripts / ("ethos.exe" if os.name == "nt" else "ethos"))
+    for path in mutable:
+        detached = path.with_name(f".{path.name}.detached")
+        shutil.copy2(path, detached)
+        detached.replace(path)
+
+
+def _cache_key(root: Path) -> str:
     payload = {
         "platform": platform.system().lower(),
-        "python_abi": completed.stdout.strip(),
         "source_digest": _source_digest(root),
     }
     return hashlib.sha256(

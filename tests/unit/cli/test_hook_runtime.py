@@ -11,9 +11,11 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.hook_runtime_install as runtime_install
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
@@ -21,7 +23,6 @@ from ethos.adapters.repo.hook.binding import runtime_locator
 from ethos.adapters.repo.hook.source_identity import expected_runtime_source
 from ethos.adapters.repo.hook.source_identity import runtime_source_identity
 from ethos.adapters.repo.hook_runtime import execute_hook
-from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.contracts.branch.roles import BranchRolePolicy
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
@@ -85,6 +86,33 @@ def _materialize_runtime_case(
 
     monkeypatch.setattr(runtime_install, "_copy_installed_runtime", copy_runtime)
     return repo, runtime_install.materialize_hook_runtime(repo, source_python)
+
+
+def _linked_runtime_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Path, Path, Path]:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: venv)
+    (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
+    assert _git(repo, "add", "tracked.txt").returncode == 0
+    assert (
+        _git(
+            repo,
+            "-c",
+            "user.name=test",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "base",
+        ).returncode
+        == 0
+    )
+    linked = tmp_path / "linked"
+    assert _git(repo, "worktree", "add", "-q", "-b", "work/linked", linked).returncode == 0
+    common = Path(git_common_dir(repo))
+    return repo, linked, venv, common / "ethos" / "hooks"
 
 
 def test_hook_binding_rejects_an_intact_runtime_from_an_older_source_identity(
@@ -417,6 +445,177 @@ def test_hook_binding_follows_the_exact_configured_generation(
     assert observed["required_gaps"] == []
 
 
+def test_hook_install_converges_every_linked_worktree_on_one_common_activation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, linked, _venv, generations = _linked_runtime_case(tmp_path, monkeypatch)
+    root_stale = runtime_install.materialize_hook_launchers(
+        generations,
+        "../../runtime/" + "a" * 64 + "/venv/bin/python",
+    )
+    linked_stale = runtime_install.materialize_hook_launchers(
+        generations,
+        "../../runtime/" + "b" * 64 + "/venv/bin/python",
+    )
+    assert _git(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
+    assert (
+        _git(repo, "config", "--worktree", "core.hooksPath", root_stale.as_posix()).returncode == 0
+    )
+    assert _git(repo, "config", "--worktree", "gc.packRefs", "true").returncode == 0
+    assert (
+        _git(
+            linked,
+            "config",
+            "--worktree",
+            "core.hooksPath",
+            linked_stale.as_posix(),
+        ).returncode
+        == 0
+    )
+    assert _git(linked, "config", "--worktree", "gc.packRefs", "true").returncode == 0
+
+    installed = install_hook_launchers(linked)
+
+    expected = installed["hooks_path"]
+    assert installed["linked_worktrees"] == [
+        {"path": repo.as_posix(), "state": "repaired"},
+        {"path": linked.as_posix(), "state": "repaired"},
+    ]
+    assert (
+        _git(repo, "config", "--local", "--path", "--get", "core.hooksPath").stdout.strip()
+        == expected
+    )
+    assert _git(repo, "config", "--local", "--get", "gc.packRefs").stdout.strip() == "false"
+    for worktree in (repo, linked):
+        assert (
+            _git(worktree, "config", "--path", "--get", "core.hooksPath").stdout.strip() == expected
+        )
+        assert _git(worktree, "config", "--get", "gc.packRefs").stdout.strip() == "false"
+        assert _git(worktree, "config", "--worktree", "--get", "core.hooksPath").returncode == 1
+        assert _git(worktree, "config", "--worktree", "--get", "gc.packRefs").returncode == 1
+        assert hook_runtime_binding(worktree)["required_gaps"] == []
+
+
+def test_hook_install_removes_only_unreferenced_generated_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: venv)
+    common = Path(git_common_dir(repo))
+    hooks_root = common / "ethos" / "hooks"
+    runtime_root = common / "ethos" / "runtime"
+    retained_digest = "a" * 64
+    removed_digest = "b" * 64
+    retained_runtime = runtime_root / retained_digest
+    removed_runtime = runtime_root / removed_digest
+    retained_runtime.mkdir(parents=True)
+    removed_runtime.mkdir()
+    retained_hooks = runtime_install.materialize_hook_launchers(
+        hooks_root,
+        f"../../runtime/{retained_digest}/venv/bin/python",
+    )
+    removed_hooks = runtime_install.materialize_hook_launchers(
+        hooks_root,
+        f"../../runtime/{removed_digest}/venv/bin/python",
+    )
+    operations = common / "ethos" / "operations"
+    operations.mkdir()
+    (operations / "consumer.json").write_text(
+        json.dumps({"runtime": retained_runtime.as_posix()}),
+        encoding="utf-8",
+    )
+
+    installed = install_hook_launchers(repo)
+
+    cleanup = installed["generation_cleanup"]
+    assert cleanup["removed"] == sorted(
+        [retained_hooks.as_posix(), removed_hooks.as_posix(), removed_runtime.as_posix()]
+    )
+    assert retained_runtime.as_posix() in cleanup["retained"]
+    assert retained_hooks.as_posix() not in cleanup["retained"]
+    assert not removed_hooks.exists()
+    assert not removed_runtime.exists()
+    assert retained_runtime.is_dir()
+    assert not retained_hooks.exists()
+
+
+def test_hook_install_blocks_cleanup_when_an_active_consumer_is_unreadable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: venv)
+    common = Path(git_common_dir(repo))
+    hooks_root = common / "ethos" / "hooks"
+    stale = runtime_install.materialize_hook_launchers(
+        hooks_root,
+        "../../runtime/" + "a" * 64 + "/venv/bin/python",
+    )
+    operations = common / "ethos" / "operations"
+    operations.mkdir()
+    (operations / "unknown").symlink_to(tmp_path / "missing-consumer")
+
+    with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
+        install_hook_launchers(repo)
+
+    assert stale.is_dir()
+
+
+def test_hook_install_retires_unreferenced_legacy_hook_directories(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: venv)
+    common = Path(git_common_dir(repo))
+    legacy = common / "ethos-hooks"
+    digest_legacy = common / ("ethos-hooks-" + "a" * 64)
+    unrelated = common / "ethos-hooks-manual"
+    for path in (legacy, digest_legacy, unrelated):
+        path.mkdir()
+
+    installed = install_hook_launchers(repo)
+
+    removed = installed["generation_cleanup"]["removed"]
+    assert legacy.as_posix() in removed
+    assert digest_legacy.as_posix() in removed
+    assert not legacy.exists()
+    assert not digest_legacy.exists()
+    assert unrelated.is_dir()
+
+
+def test_hook_install_rolls_back_when_linked_worktree_config_is_unreadable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, linked, _venv, hooks_root = _linked_runtime_case(tmp_path, monkeypatch)
+    stale = runtime_install.materialize_hook_launchers(
+        hooks_root,
+        "../../runtime/" + "a" * 64 + "/venv/bin/python",
+    )
+    assert _git(repo, "config", "--local", "core.hooksPath", stale.as_posix()).returncode == 0
+    real_values = hook_activation.config_effects.config_values
+
+    def unreadable(root_path: Path, keys: tuple[str, ...], *, scope: str):
+        if root_path == linked and scope == "worktree":
+            message = "git_config_observation_failed"
+            raise ValueError(message)
+        return real_values(root_path, keys, scope=scope)
+
+    monkeypatch.setattr(hook_activation.config_effects, "config_values", unreadable)
+
+    with pytest.raises(ValueError, match="git_config_observation_failed"):
+        install_hook_launchers(repo)
+
+    assert (
+        _git(repo, "config", "--local", "--path", "--get", "core.hooksPath").stdout.strip()
+        == stale.as_posix()
+    )
+    assert stale.is_dir()
+
+
 def test_hook_binding_rejects_a_configured_path_outside_the_common_generation_root(
     tmp_path: Path,
 ) -> None:
@@ -533,35 +732,60 @@ def test_hook_binding_reports_non_utf8_launcher_as_drift(
 def test_hook_activation_failure_keeps_the_old_generation_configured(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    root = Path(git_common_dir(repo)) / "ethos" / "hooks"
-    old = runtime_install.materialize_hook_launchers(
+    repo, linked, _venv, root = _linked_runtime_case(tmp_path, monkeypatch)
+    old_common = runtime_install.materialize_hook_launchers(
         root, "../../runtime/" + "a" * 64 + "/venv/bin/python"
     )
+    old_root = runtime_install.materialize_hook_launchers(
+        root, "../../runtime/" + "b" * 64 + "/venv/bin/python"
+    )
+    old_linked = runtime_install.materialize_hook_launchers(
+        root, "../../runtime/" + "c" * 64 + "/venv/bin/python"
+    )
     assert _git(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
-    assert _git(repo, "config", "--worktree", "core.hooksPath", old.as_posix()).returncode == 0
-    fake_venv = Path(git_common_dir(repo)) / "ethos" / "runtime" / ("b" * 64) / "venv"
-    monkeypatch.setattr(hook_runtime, "materialize_hook_runtime", lambda *_args: fake_venv)
-    real_set = hook_runtime.set_worktree_config
+    assert _git(repo, "config", "--local", "core.hooksPath", old_common.as_posix()).returncode == 0
+    assert _git(repo, "config", "--local", "gc.packRefs", "true").returncode == 0
+    assert _git(repo, "config", "--worktree", "core.hooksPath", old_root.as_posix()).returncode == 0
+    assert _git(repo, "config", "--worktree", "gc.packRefs", "true").returncode == 0
+    assert (
+        _git(linked, "config", "--worktree", "core.hooksPath", old_linked.as_posix()).returncode
+        == 0
+    )
+    assert _git(linked, "config", "--worktree", "gc.packRefs", "true").returncode == 0
+    fake_venv = Path(git_common_dir(repo)) / "ethos" / "runtime" / ("d" * 64) / "venv"
+    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: fake_venv)
+    real_unset = hook_activation.config_effects.unset_worktree_config
+    failed = False
 
-    def fail_activation(root_path: Path, values: dict[str, str]) -> None:
-        if "core.hooksPath" in values:
+    def fail_activation(root_path: Path, keys: tuple[str, ...]) -> None:
+        nonlocal failed
+        if root_path == linked and not failed:
+            failed = True
             message = "activation failed"
             raise ValueError(message)
-        real_set(root_path, values)
+        real_unset(root_path, keys)
 
-    monkeypatch.setattr(hook_runtime, "set_worktree_config", fail_activation)
+    monkeypatch.setattr(hook_activation.config_effects, "unset_worktree_config", fail_activation)
 
     with pytest.raises(ValueError, match="activation failed"):
         install_hook_launchers(repo)
 
     assert (
-        _git(repo, "config", "--path", "--get", "core.hooksPath").stdout.strip() == old.as_posix()
+        _git(repo, "config", "--local", "--path", "--get", "core.hooksPath").stdout.strip()
+        == old_common.as_posix()
     )
-    assert old.is_dir()
-    assert len(tuple(root.iterdir())) == 2
+    assert _git(repo, "config", "--local", "--get", "gc.packRefs").stdout.strip() == "true"
+    assert (
+        _git(repo, "config", "--worktree", "--path", "--get", "core.hooksPath").stdout.strip()
+        == old_root.as_posix()
+    )
+    assert _git(repo, "config", "--worktree", "--get", "gc.packRefs").stdout.strip() == "true"
+    assert (
+        _git(linked, "config", "--worktree", "--path", "--get", "core.hooksPath").stdout.strip()
+        == old_linked.as_posix()
+    )
+    assert _git(linked, "config", "--worktree", "--get", "gc.packRefs").stdout.strip() == "true"
+    assert {old_common, old_root, old_linked} <= set(root.iterdir())
 
 
 def test_hook_activation_rejects_a_non_current_post_observation(
@@ -575,8 +799,8 @@ def test_hook_activation_rejects_a_non_current_post_observation(
     runtime.mkdir(parents=True)
     hooks = Path(git_common_dir(repo)) / "ethos/hooks" / ("b" * 64)
     hooks.mkdir(parents=True)
-    monkeypatch.setattr(hook_runtime, "materialize_hook_runtime", lambda *_args: runtime)
-    monkeypatch.setattr(hook_runtime, "materialize_hook_launchers", lambda *_args: hooks)
+    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: runtime)
+    monkeypatch.setattr(runtime_install, "materialize_hook_launchers", lambda *_args: hooks)
     monkeypatch.setattr(
         hook_runtime,
         "hook_runtime_binding",

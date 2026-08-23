@@ -114,9 +114,8 @@ def canonical_utc_time(value: datetime) -> str:
     """Project one UTC datetime into the sole canonical ``Z`` representation."""
     if value.tzinfo is None or value.utcoffset() != UTC.utcoffset(value):
         raise ValueError(_ATTESTATION_VALIDITY_INVALID)
-    utc = value.astimezone(UTC)
-    fraction = f".{utc.microsecond:06d}".rstrip("0") if utc.microsecond else ""
-    return utc.strftime(f"%Y-%m-%dT%H:%M:%S{fraction}Z")
+    fraction = f".{value.microsecond:06d}".rstrip("0") if value.microsecond else ""
+    return value.strftime(f"%Y-%m-%dT%H:%M:%S{fraction}Z")
 
 
 def _validate_canonical_time(value: object) -> object:

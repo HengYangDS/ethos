@@ -352,11 +352,35 @@ branch as ready for another closeout mutation.
 - **GIVEN** Git's files ref backend can represent `pack-refs` with transactions
   indistinguishable from accepted branch creation or deletion
 - **WHEN** `ethos hook install` arms the reference-transaction guard
-- **THEN** it writes local `gc.packRefs=false` and blocks installation if that
+- **THEN** it writes repository-common `gc.packRefs=false` and blocks installation if that
   maintenance policy cannot be recorded
+- **AND** it removes worktree-local `gc.packRefs` and `core.hooksPath` overrides
+  so every linked worktree inherits the same activation
 - **AND** the hook applies its existing fail-closed admission to every raw
   accepted transaction rather than guessing that a physical ref rewrite is safe
 - **AND** a manual `pack-refs` is not classified as an authorized closeout.
+
+### Requirement: Git-common hook runtime activation is singular
+
+ETHOS SHALL maintain one effective hook/runtime activation per Git common
+directory. A linked worktree SHALL NOT retain a parallel worktree-local
+activation owner.
+
+#### Scenario: One install converges all linked worktrees
+
+- **GIVEN** linked worktrees resolve different generated hook generations
+- **WHEN** `ethos hook install --root <any-linked-worktree> --json` succeeds
+- **THEN** repository-common Git config owns the effective `core.hooksPath`
+- **AND** every linked worktree resolves the same current runtime source identity
+- **AND** owned worktree-local activation overrides are absent.
+
+#### Scenario: Cleanup preserves every observed consumer
+
+- **WHEN** hook/runtime cleanup evaluates generated generations
+- **THEN** it removes only generations absent from effective config, launchers,
+  live process commands, and in-flight operation records
+- **AND** it reports exact retained and removed paths
+- **AND** an unreadable consumer source blocks deletion.
 
 ### Requirement: OpenSpec Lifecycle Contract Review
 

@@ -32,7 +32,7 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import stage_git_paths
 from ethos.adapters.repo.git_signing import commit_metadata
 from ethos.adapters.repo.git_signing import create_git_commit
-from ethos.adapters.repo.hook_runtime import install_hook_launchers
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation

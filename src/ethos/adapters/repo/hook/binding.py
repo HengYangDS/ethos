@@ -7,6 +7,7 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import NotRequired
 from typing import TypedDict
 
 from ethos.adapters.repo.git import git_common_dir
@@ -39,6 +40,9 @@ class HookRuntimeBinding(TypedDict):
     python: str
     scripts: list[str]
     required_gaps: list[str]
+    generation_cleanup: NotRequired[dict[str, list[str]]]
+    legacy_runtime_locator: NotRequired[dict[str, object]]
+    linked_worktrees: NotRequired[list[dict[str, str]]]
 
 
 def hook_launcher(runtime: str, name: str) -> str:
@@ -63,6 +67,25 @@ def runtime_locator(venv: Path) -> str:
     digest = venv.parent.name
     executable = "Scripts/python.exe" if os.name == "nt" else "bin/python"
     return f"../../runtime/{digest}/venv/{executable}"
+
+
+def launcher_runtime_generation(hooks: Path, runtime_root: Path) -> Path:
+    """Return the exact generated runtime referenced by one launcher generation."""
+    launcher = hooks / "pre-commit"
+    try:
+        content = launcher.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        message = "hook_runtime_consumers_unknown"
+        raise ValueError(message) from error
+    match = _RUNTIME_IN_LAUNCHER.search(content)
+    if match is None:
+        message = "hook_runtime_consumers_unknown"
+        raise ValueError(message)
+    runtime = runtime_root / match["digest"]
+    if runtime.is_symlink() or not runtime.is_dir():
+        message = "hook_runtime_consumers_unknown"
+        raise ValueError(message)
+    return runtime
 
 
 def hook_generation_digest(launchers: dict[str, str]) -> str:
@@ -220,9 +243,7 @@ def _sha256(path: Path) -> str:
 
 
 def _configured_hooks_path(root: Path) -> Path | None:
-    completed = run_git(
-        root, "config", "--worktree", "--path", "--get", "core.hooksPath", check=False
-    )
+    completed = run_git(root, "config", "--path", "--get", "core.hooksPath", check=False)
     if completed.returncode or not completed.stdout.strip():
         return None
     configured = Path(completed.stdout.strip())

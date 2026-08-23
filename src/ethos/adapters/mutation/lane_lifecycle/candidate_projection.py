@@ -15,7 +15,7 @@ from ethos.adapters.repo.git_effect_observation import compile_observed_git_effe
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
-from ethos.adapters.repo.hook_runtime import install_hook_launchers
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT

@@ -12,7 +12,7 @@ from ethos.adapters.repo.commitment import RepositoryCommitmentObservation
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
-from ethos.adapters.repo.hook_runtime import install_hook_launchers
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.plan import GitRefUpdate

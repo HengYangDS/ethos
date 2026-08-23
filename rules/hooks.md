@@ -24,6 +24,13 @@ Purpose: place guards at the earliest useful failure point.
 Git hooks are fallback. The mandatory choke point for the accepted-root bypass
 is the pre-tool hook.
 
+`ethos hook install` owns one activation per Git common directory. It MUST write
+the effective hook path and ref-storage policy to repository-common Git config,
+remove the corresponding worktree-local overrides from every linked worktree,
+and post-observe one shared generation before returning PASS. Cleanup MUST
+derive a keep set from current config, launchers, live processes, and in-flight
+operation records; any unreadable consumer blocks deletion.
+
 Failure placement is monotonic: declarations and schemas reject invalid shape;
 context and pre-tool hooks reject invalid target or scope before a write-capable
 tool is invoked; pre-run hooks reject an inadmissible mutation command before

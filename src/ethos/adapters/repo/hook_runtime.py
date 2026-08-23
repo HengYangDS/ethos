@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 from typing import IO
 from typing import Literal
-from typing import cast
 
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
@@ -17,15 +16,9 @@ from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
-from ethos.adapters.repo.config_effects import set_worktree_config
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.hook.binding import HookRuntimeBinding
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
-from ethos.adapters.repo.hook.binding import runtime_locator
-from ethos.adapters.repo.hook_runtime_install import materialize_hook_launchers
-from ethos.adapters.repo.hook_runtime_install import materialize_hook_runtime
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -34,39 +27,6 @@ from ethos.contracts.verdict import report_verdict
 
 HookName = Literal["pre-commit", "pre-push", "reference-transaction"]
 _ZERO_OIDS = {"0" * 40, "0" * 64}
-
-
-def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRuntimeBinding:
-    """Install common-dir launchers bound to an exact package runtime."""
-    repo = root.resolve()
-    source_python = Path(sys.executable) if python is None else python
-    if not source_python.is_absolute() or not source_python.is_file():
-        message = "hook_runtime_python_invalid"
-        raise ValueError(message)
-    runtime = materialize_hook_runtime(repo, source_python)
-    hooks = materialize_hook_launchers(
-        Path(git_common_dir(repo)) / "ethos" / "hooks", runtime_locator(runtime)
-    )
-    set_worktree_config(repo, {"gc.packRefs": "false"})
-    set_worktree_config(repo, {"core.hooksPath": hooks.as_posix()})
-    binding = hook_runtime_binding(repo)
-    if binding["hooks_path"] != hooks.as_posix():
-        message = "hook_runtime_activation_drift"
-        raise ValueError(message)
-    if binding["required_gaps"]:
-        message = "hook_runtime_activation_invalid:" + ",".join(binding["required_gaps"])
-        raise ValueError(message)
-    common = Path(git_common_dir(repo))
-    legacy = common / "ethos-runtime-python"
-    present = legacy.exists() or legacy.is_symlink()
-    if present:
-        legacy.unlink()
-    cast("dict[str, object]", binding)["legacy_runtime_locator"] = {
-        "path": legacy.as_posix(),
-        "state": "retired" if present else "absent",
-        "removed": present,
-    }
-    return binding
 
 
 def execute_hook(

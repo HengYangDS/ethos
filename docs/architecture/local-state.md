@@ -23,6 +23,15 @@ receipts are under `<git-common-dir>/ethos/attestations/`. This state is a
 projection over current repository facts, not a source of truth or a substitute
 for Git, OpenSpec, or tracked records.
 
+Immutable hook runtimes and generated launchers are also common-dir projections:
+`<git-common-dir>/ethos/runtime/<digest>/` and
+`<git-common-dir>/ethos/hooks/<digest>/`. Repository-common Git config owns the
+single effective `core.hooksPath` and `gc.packRefs=false` activation. Linked
+worktrees inherit that activation; worktree-local values for those keys are
+invalid parallel owners and `ethos hook install` removes them. Generated
+generations are retired only after current config, launchers, live processes,
+and in-flight operation records prove that no consumer remains.
+
 Tracked `.ethos/` paths are repository declarations, never mutable runtime
 storage. All state readers and writers resolve the same Git-common owner; a
 linked worktree cannot introduce a parallel state authority.

@@ -1,0 +1,56 @@
+schema_version = 2
+id = "change:supply-chain-convergence"
+intent = "Converge every ETHOS-controlled build, test, runtime, CI, release, and security dependency to its latest stable release through one complete inventory and one authoritative projection model."
+subjects = ["repository:ethos"]
+scope = [
+  ".config/checks/**",
+  ".config/ci/**",
+  ".github/workflows/**",
+  ".gitlab-ci.yml",
+  ".pre-commit-config.yaml",
+  "docs/architecture/**",
+  "docs/governance/**",
+  "docs/reference/**",
+  "openspec/changes/supply-chain-convergence/**",
+  "openspec/specs/**",
+  "package-lock.json",
+  "package.json",
+  "pyproject.toml",
+  "ruff.toml",
+  "system/gates.toml",
+  "system/tools.toml",
+  "tests/architecture/**",
+  "tests/unit/cli/test_hook_runtime.py",
+  "tests/unit/gates/**",
+  "tests/unit/release/**",
+  "tools/ci/**",
+  "uv.lock",
+]
+invariants = [
+  "every_controlled_external_component_has_one_semantic_version_owner",
+  "historical_evidence_and_archived_changes_remain_immutable",
+  "latest_stable_claims_are_resolved_from_current_authoritative_upstreams",
+  "locks_hashes_digests_and_provider_files_are_derived_or_checked_projections",
+  "upgrades_do_not_create_a_second_supply_chain_ledger_or_runtime_authority",
+]
+acceptance = [
+  "all_integrity_pins_and_provider_projections_match_their_unique_owner",
+  "machine_inventory_covers_all_controlled_supply_chain_surfaces_without_orphans",
+  "offline_build_test_hook_and_release_paths_pass_on_the_exact_head",
+  "python_node_actions_images_runtimes_and_downloaded_tools_resolve_latest_stable_versions",
+]
+risks = [
+  "simultaneous_toolchain_changes_can_expose_hidden_projection_or_cache_coupling",
+  "upstream_stable_releases_may_change_behavior_or_platform_artifacts",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "rules/evidence.md",
+  "user_instruction",
+]
+predecessors = ["1de82482ba885085c77ddd3315ca404d9c28a2fb483e23c60fc27b4a1b17e2fc"]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

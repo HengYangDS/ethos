@@ -1,0 +1,29 @@
+schema_version = 2
+id = "change:lane-start-transaction-binding"
+intent = "Make fresh Work Lane creation validate and materialize one repository-bound Commitment with dry-run/apply parity and truthful compensation receipts."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "openspec/changes/lane-start-transaction-binding/**",
+  "src/ethos/adapters/mutation/lane_start_carrier.py",
+  "src/ethos/adapters/mutation/lane_start_rollback.py",
+  "src/ethos/adapters/mutation/lanes.py",
+  "src/ethos/surface/cli/lane/lifecycle.py",
+  "tests/unit/adapters/mutation/test_lanes_public_fail_closed.py",
+  "tests/unit/lanes/test_fresh_lane_start.py",
+  "tests/unit/lanes/test_lane_start_carrier_failure_branches.py",
+  "tests/unit/lanes/test_lane_start_rollback.py",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+predecessors = [
+  "f6e02b4a2a97e8f96ecc4129e122d0e11df389b714422d4406aa07f83e2e458f",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

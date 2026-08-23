@@ -24,6 +24,7 @@ scope = [
   "tests/unit/lanes/test_hook_admission.py",
   "tests/unit/lanes/test_lane_start_carrier_fail_closed.py",
   "tests/unit/lanes/test_lane_start_carrier_failure_branches.py",
+  "tests/unit/lanes/test_lane_start_carrier_remaining_branches.py",
   "tests/unit/lanes/test_lane_start_rollback.py",
   "tests/unit/mutation/test_accepted_failure_matrix.py",
   "tests/unit/mutation/test_git_effect.py",

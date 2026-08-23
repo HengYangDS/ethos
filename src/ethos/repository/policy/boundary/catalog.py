@@ -54,7 +54,6 @@ HISTORICAL_SURFACE_PREFIXES = (
 )
 RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES = HISTORICAL_SURFACE_PREFIXES
 SKIPPED_PRODUCT_DIR_PARTS = {
-    ".ethos/state",
     ".git",
     ".mypy_cache",
     ".pytest_cache",

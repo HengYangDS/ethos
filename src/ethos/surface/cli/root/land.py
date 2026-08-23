@@ -4,7 +4,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
-from typing import cast
 
 from cyclopts import Parameter
 
@@ -17,7 +16,6 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.landing import apply_candidate_to_accepted
 from ethos.adapters.mutation.landing import apply_land_to_candidate
 from ethos.adapters.mutation.landing import candidate_transition_readiness
-from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.openspec.profile import active_change_names
 from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -62,31 +60,6 @@ class _LandOptions:
 
 
 _DEFAULT_LAND_OPTIONS = _LandOptions()
-
-
-def _emit_state_migration_block(
-    repo: Path,
-    *,
-    apply: bool,
-    json_output: bool,
-) -> bool:
-    if not apply:
-        return False
-    guard = local_state_mutation_guard(repo)
-    if not guard["required_gaps"]:
-        return False
-    emit(
-        EthosResult(
-            command="land",
-            verdict="block",
-            state="blocked",
-            required_gaps=tuple(cast("list[str]", guard["required_gaps"])),
-            next_action=str(guard["next_action"]),
-        ),
-        json_output=json_output,
-        enforce=True,
-    )
-    return True
 
 
 def _closeout_result(
@@ -485,8 +458,6 @@ def land(
             json_output=json_output,
             enforce=options.apply,
         )
-        return
-    if _emit_state_migration_block(repo, apply=options.apply, json_output=json_output):
         return
     current_head = git.current_head(repo)
     command = "closeout" if options.closeout else "land"

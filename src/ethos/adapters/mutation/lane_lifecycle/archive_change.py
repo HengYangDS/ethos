@@ -17,7 +17,6 @@ from ethos.adapters.mutation.lane_lifecycle.archive_recovery import finish_archi
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_effect_outcome
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_transition_gaps
-from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
@@ -153,13 +152,8 @@ def _archive_active_change(
             collision = archive_collision(repo, head, change)
         except ValueError as error:
             gaps = [str(error)]
-    guard = local_state_mutation_guard(repo) if apply and not gaps else {"required_gaps": []}
-    if guard["required_gaps"]:
-        gaps = ["local_state_migration_required"]
     if gaps or not apply:
         next_action = "ethos lane status --json" if gaps else archive_recovery_command(change, head)
-        if guard["required_gaps"]:
-            next_action = str(guard["next_action"])
         return lifecycle_report(
             branch,
             head,
@@ -244,19 +238,6 @@ def _finalize_existing_archive(
     apply: bool,
     ownerless: bool = False,
 ) -> dict[str, object]:
-    guard = local_state_mutation_guard(repo) if apply else {"required_gaps": []}
-    if guard["required_gaps"]:
-        return lifecycle_report(
-            branch,
-            head,
-            "blocked",
-            ["local_state_migration_required"],
-            change=change,
-            **lifecycle_effect_outcome(
-                kind="zero_effect",
-                next_action=str(guard["next_action"]),
-            ),
-        )
     if apply:
         return _commit_archive_postimage(
             repo,

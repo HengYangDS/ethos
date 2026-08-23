@@ -100,10 +100,6 @@ prefix = ".cache/local-state"
 boundary = "host-local runtime state, leases, locks, executions, sessions"
 
 [[allowed_prefix]]
-prefix = ".ethos/state"
-boundary = "native ETHOS local runtime state, leases, locks, executions, sessions"
-
-[[allowed_prefix]]
 prefix = "build/runtime/tool-cache"
 boundary = "ignored tool runtime caches keyed by tool name"
 
@@ -220,7 +216,6 @@ required_gap_prefix = "generated_artifact_source_drift"
 id = "runtime_cache"
 homes = [
   ".cache/local-state",
-  ".ethos/state",
   "build/runtime/tool-cache",
   ".venv",
   "build/runtime/work",

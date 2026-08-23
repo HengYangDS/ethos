@@ -37,9 +37,7 @@ def generated_artifact_gate_report(root: Path) -> dict[str, Any]:
         for home in lifecycle.homes
     )
     completed = _git(root, "ls-files", "--", *homes)
-    tracked = tuple(
-        path for path in completed.stdout.splitlines() if path and path != ".ethos/state/.gitignore"
-    )
+    tracked = tuple(path for path in completed.stdout.splitlines() if path)
     return generated_artifact_topology_report(
         root,
         ignored_local_paths=ignored,

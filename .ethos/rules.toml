@@ -20,7 +20,6 @@ machine_output = "JSON"
 local_state = "SQLite"
 
 [artifacts]
-state_path = ".ethos/state/state.sqlite"
 state_tracked_truth = false
 durable_evidence_roots = ["evidence", "evidence/claims"]
 generated_outputs_tracked_truth = false

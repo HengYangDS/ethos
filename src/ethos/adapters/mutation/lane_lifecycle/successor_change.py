@@ -15,7 +15,6 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import advance_commit
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import change_overlay_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_transition_gaps
-from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.openspec.change_lineage.predecessor_resolution import (
     resolve_predecessor_commitments,
 )
@@ -118,9 +117,6 @@ def start_change(
         if existing is not None:
             return existing
         gaps, overlay, selected_set_root = _preflight(repo, request)
-        guard = local_state_mutation_guard(repo) if apply and not gaps else {"required_gaps": []}
-        if guard["required_gaps"]:
-            gaps = cast("list[str]", guard["required_gaps"])
         if gaps or not apply:
             return lifecycle_report(
                 branch,
@@ -129,7 +125,6 @@ def start_change(
                 gaps,
                 change=change,
                 overlay=overlay,
-                **({"next_action": guard["next_action"]} if guard["required_gaps"] else {}),
             )
         return _apply(repo, request, overlay, selected_set_root)
     except (OSError, TypeError, ValueError) as error:
@@ -213,9 +208,6 @@ def _recover(
     request: _StartRequest,
     recovery: tuple[dict[str, object], tuple[str, ...], str],
 ) -> dict[str, object] | None:
-    guard = local_state_mutation_guard(root) if request.apply else {"required_gaps": []}
-    if guard["required_gaps"]:
-        return None
     if not request.apply:
         return lifecycle_report(
             request.branch,

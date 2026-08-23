@@ -2,8 +2,6 @@
 .idea/
 __pycache__/
 *.py[cod]
-.ethos/state/*
-!.ethos/state/.gitignore
 build/
 # Semantic ignored generated homes under build/.
 build/runtime/tool-cache/uv/

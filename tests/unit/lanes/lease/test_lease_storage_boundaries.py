@@ -167,39 +167,19 @@ def test_takeover_storage_rechecks_generation_binding(tmp_path, updates, gap: st
     assert observe_lease(database, "work/example").record() == acquired
 
 
-def test_public_operations_project_state_migration_and_storage_failures(
+def test_public_operations_project_storage_failures(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     fixture = start_adopted_work_lane(tmp_path, name="lease-boundary", holder_ref=SOURCE)
-    database = state_database(fixture.worktree)
-    current = observe_lease(database, "work/lease-boundary").record()
+    current = observe_lease(state_database(fixture.worktree), "work/lease-boundary").record()
     monkeypatch.setenv("ETHOS_ACTOR", SOURCE)
-    request = _operation(current)
-    monkeypatch.setattr(
-        lease_lifecycle,
-        "local_state_mutation_guard",
-        lambda _repo: {
-            "required_gaps": ["local_state_migration_required"],
-            "next_action": "migrate",
-        },
-    )
-
-    blocked = execute_lease_operation(root=fixture.worktree, request=request)
-
-    assert blocked["required_gaps"] == ["local_state_migration_required"]
-    assert blocked["next_action"] == "migrate"
-
-    monkeypatch.setattr(
-        lease_lifecycle,
-        "local_state_mutation_guard",
-        lambda _repo: {"required_gaps": []},
-    )
     monkeypatch.setattr(
         lease_lifecycle,
         "apply_lease_operation",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(sqlite3.OperationalError("locked")),
     )
-    failed = execute_lease_operation(root=fixture.worktree, request=request)
+
+    failed = execute_lease_operation(root=fixture.worktree, request=_operation(current))
 
     assert failed["verdict"] == "block"
     assert failed["required_gaps"] == ["locked"]
@@ -265,7 +245,7 @@ def test_resume_public_boundary_distinguishes_valid_and_expired_rows(
     assert renewed["required_gaps"] == ["work_lane_lease_expired:work/resume-boundary"]
 
 
-def test_public_takeover_projects_migration_and_transition_failures(
+def test_public_takeover_projects_transition_failures(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     fixture = start_adopted_work_lane(tmp_path, name="takeover-boundary", holder_ref=SOURCE)
@@ -297,23 +277,6 @@ def test_public_takeover_projects_migration_and_transition_failures(
     request = request.model_copy(update={"authorization": authorization})
     record_attestations(fixture.worktree, (authorization,))
     monkeypatch.setenv("ETHOS_ACTOR", TARGET)
-    monkeypatch.setattr(
-        lease_lifecycle,
-        "local_state_mutation_guard",
-        lambda _repo: {
-            "required_gaps": ["local_state_migration_required"],
-            "next_action": "migrate",
-        },
-    )
-
-    blocked = execute_lease_takeover(root=fixture.worktree, request=request)
-
-    assert blocked["required_gaps"] == ["local_state_migration_required"]
-    monkeypatch.setattr(
-        lease_lifecycle,
-        "local_state_mutation_guard",
-        lambda _repo: {"required_gaps": []},
-    )
     monkeypatch.setattr(
         lease_lifecycle,
         "takeover_lease",

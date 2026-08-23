@@ -137,7 +137,6 @@ def _arrange(
     }
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: repo)
     monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
-    monkeypatch.setattr(proof_cli, "_emit_state_migration_block", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(
         proof_cli,
         "_proof_context",
@@ -338,28 +337,6 @@ def test_prove_emits_the_issuance_gap_without_a_second_result(
     assert emitted[0].required_gaps == ("proof_binding_invalid",)
 
 
-def test_prove_execute_stops_at_the_exact_local_state_migration(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    emitted = []
-    monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
-    monkeypatch.setattr(
-        proof_cli,
-        "local_state_mutation_guard",
-        lambda _root: {
-            "required_gaps": ["local_state_migration_required"],
-            "next_action": "ethos migrate-local-state --apply --authorize",
-        },
-    )
-    monkeypatch.setattr(proof_cli, "emit", lambda result, **_kwargs: emitted.append(result))
-
-    proof_cli.prove(_options(execute=True), root=tmp_path, json_output=True)
-
-    assert emitted[-1].required_gaps == ("local_state_migration_required",)
-    assert emitted[-1].next_action == "ethos migrate-local-state --apply --authorize"
-
-
 @pytest.mark.parametrize("invalid", [False, True])
 def test_resolve_generation_uses_the_shared_active_carrier_selector(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, invalid: bool
@@ -419,7 +396,6 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
     }
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
-    monkeypatch.setattr(proof_cli, "_emit_state_migration_block", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(proof_cli.git, "current_head", lambda _root: "a" * 40)
     monkeypatch.setattr(proof_cli.status_domain, "audit_for_root", lambda *_args, **_kwargs: audit)
     monkeypatch.setattr(proof_cli, "resolve_generation", lambda *_args, **_kwargs: binding)

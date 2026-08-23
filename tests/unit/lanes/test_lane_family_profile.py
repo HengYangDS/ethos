@@ -128,7 +128,9 @@ def test_profile_admission_claims(
     gap: str,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    (repo / ".ethos/workspace.toml").write_text(workspace, encoding="utf-8")
+    workspace_path = repo / ".ethos/workspace.toml"
+    workspace_path.parent.mkdir(parents=True)
+    workspace_path.write_text(workspace, encoding="utf-8")
     report = start_work_lane(
         root=repo,
         name="feature",
@@ -144,7 +146,9 @@ def test_canonical_sibling_profile_uses_date_bound_identity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    (repo / ".ethos/workspace.toml").write_text(
+    workspace_path = repo / ".ethos/workspace.toml"
+    workspace_path.parent.mkdir(parents=True)
+    workspace_path.write_text(
         "[branch_roles]\ncanonical_sibling_worktrees = true\n",
         encoding="utf-8",
     )

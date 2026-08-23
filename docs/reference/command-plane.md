@@ -34,11 +34,10 @@ ETHOS exposes exactly these public roots:
 | `ethos publish --ref <full-ref> --probe-remote --apply --authorize --expect-head <head> --json` | Derive and consume the same full-ref publication request. | Uses the same receipt-bound exact-CAS executor as explicit receipt apply. |
 | `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers. | Rechecks the local object, trust binding, and all peers before the first push; returns attested peer-local partial effects if a later peer fails. |
 | `ethos adopt --root <repo> --json` | Plan adoption for one repository. | Applying requires explicit authorization and an expected head. |
-| `ethos migrate-local-state --root <repo> --json` | Inspect misplaced legacy checkout state. | Applying requires authorization, exact HEAD, and the reviewed plan digest. |
 
-The public root anchors are `status`, `plan`, `prove`, `land`, `publish`,
-`adopt`, and the bounded recovery transition `migrate-local-state`. No reader,
-report, provider, or historical projection adds another public root.
+The public root anchors are `status`, `plan`, `prove`, `land`, `publish`, and
+`adopt`. No reader, report, provider, or historical projection adds another
+public root.
 
 `status.data.hook_runtime` is the single hook-runtime
 inspection surface. It reports installed and expected source commit/tree,

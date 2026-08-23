@@ -278,11 +278,6 @@ def test_start_change_public_recovery_dry_run_and_finish_failure_are_closed(
 
     monkeypatch.setattr(
         successor_change,
-        "local_state_mutation_guard",
-        lambda _root: {"required_gaps": []},
-    )
-    monkeypatch.setattr(
-        successor_change,
         "rebind_lease_commitment",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("commitment_rebind_failed")),
     )
@@ -321,51 +316,6 @@ def test_prepared_recovery_rejects_current_lease_tree_not_bound_to_head(
 
     assert report["required_gaps"] == ["openspec_change_start_attestation_collision"]
     assert report["state"] == "repair_required"
-
-
-def test_start_change_recovery_guard_falls_back_to_public_preflight(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    lease = _lease(expected_head=NEW_HEAD, expected_tree=NEW_TREE)
-    _prepare_recovery(monkeypatch, tmp_path, lease)
-    monkeypatch.setattr(successor_change, "git_stdout", _branch_status)
-    monkeypatch.setattr(generation_attestation, "git_stdout", _branch_status)
-    monkeypatch.setattr(
-        successor_change,
-        "local_state_mutation_guard",
-        lambda _root: {
-            "required_gaps": ["local_state_migration_required"],
-            "next_action": "ethos state migrate --json",
-        },
-    )
-    monkeypatch.setattr(
-        successor_change,
-        "work_lane_transition_gaps",
-        lambda *_args, **_kwargs: ["preflight_would_have_run"],
-    )
-
-    report = _start(tmp_path, apply=True)
-
-    assert report["required_gaps"] == ["preflight_would_have_run"]
-
-
-def test_start_change_apply_guard_replaces_public_preflight_authority_gaps(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _common(monkeypatch)
-    monkeypatch.setattr(
-        successor_change,
-        "local_state_mutation_guard",
-        lambda _root: {
-            "required_gaps": ["local_state_authority_mismatch"],
-            "next_action": "ethos state reconcile --json",
-        },
-    )
-
-    report = _start(tmp_path, apply=True)
-
-    assert report["required_gaps"] == ["local_state_authority_mismatch"]
-    assert report["next_action"] == "ethos state reconcile --json"
 
 
 @pytest.mark.parametrize(
@@ -429,11 +379,6 @@ def test_start_change_public_apply_compensates_partial_creation(
     case: str,
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(
-        successor_change,
-        "local_state_mutation_guard",
-        lambda _root: {"required_gaps": []},
-    )
     calls = iter((("list", "--json"), ("new", "change", CHANGE, "--json")))
     change_root = tmp_path / f"openspec/changes/{CHANGE}"
     monkeypatch.setattr(

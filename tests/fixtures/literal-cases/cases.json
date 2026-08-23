@@ -493,12 +493,11 @@
           "prove",
           "land",
           "publish",
-          "adopt",
-          "migrate-local-state"
+          "adopt"
         ],
         "type": "tuple"
       },
-      "value_sha256": "5481784be1042500d366a564b7eb59c93387e7f22bf9ed0fc568b8e54045b6f1"
+      "value_sha256": "72b947e9778497dbba502f2d0436a3ede5170fc24be66fe0df19bd718966214a"
     },
     {
       "id": "cli.test_terminal_command_surface:assign:RETIRED_ROOT_COMMANDS:1",
@@ -524,11 +523,12 @@
           "campaign",
           "parity",
           "quality",
-          "playbooks"
+          "playbooks",
+          "migrate-local-state"
         ],
         "type": "tuple"
       },
-      "value_sha256": "cc7fdf54ed602cef31df87c63a3df01ce50a44e7cebe1dd8a73b7554dc03e97b"
+      "value_sha256": "f6d91e39783a2b5b0e587c427708327562ad4ad4f84972a6600d81e8290c132d"
     },
     {
       "id": "cli.test_terminal_command_surface:parametrize:test_retired_claim_lane_surface_is_rejected_by_cyclopts:2",

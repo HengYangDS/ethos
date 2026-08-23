@@ -391,8 +391,14 @@ def proof_for_repository_transition(
 
 def proof_gaps(root: Path, head: str) -> list[str]:
     """Return fail-closed proof Attestation gaps for one exact HEAD."""
+    try:
+        store = proof_artifact_root(root)
+    except ValueError as error:
+        if str(error) == "git_common_directory_unavailable":
+            return ["attestation_set_repository_invalid"]
+        raise
     _attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=proof_artifact_root(root)
+        root, head, store=store
     )
     return gaps
 

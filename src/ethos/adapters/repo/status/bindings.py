@@ -10,7 +10,7 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import lease_observations
-from ethos.adapters.store.state.schema import observed_state_database
+from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -259,7 +259,7 @@ def leases_by_branch(
 ) -> dict[str, dict[str, object]]:
     """Load strict Lease observations without collapsing unknown to missing."""
     leases: dict[str, dict[str, object]] = {}
-    for observation in lease_observations(observed_state_database(current_path)):
+    for observation in lease_observations(state_database(current_path)):
         record = observation.record()
         record["commitment_binding"] = _lease_commitment_binding(
             current_path,

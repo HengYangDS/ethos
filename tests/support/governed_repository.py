@@ -212,10 +212,8 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     git(path, "init", "--object-format=" + object_format, "-b", "dev")
     git(path, "config", "commit.gpgsign", "false")
     git(path, "config", "core.hooksPath", ".git/test-hooks")
-    (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
+    (path / ".gitignore").write_text("", encoding="utf-8")
     (path / "README.md").write_text("# sample\n", encoding="utf-8")
-    (path / ".ethos" / "state").mkdir(parents=True)
-    (path / ".ethos" / "state" / ".gitignore").write_text("*\n!.gitignore\n", encoding="utf-8")
     commit_fixture(path, "init")
     return path
 
@@ -466,6 +464,7 @@ def write_role_policy(
 ) -> None:
     """Write and commit a branch-role policy fixture."""
     workspace_path = repo / ".ethos" / "workspace.toml"
+    workspace_path.parent.mkdir(parents=True, exist_ok=True)
     workspace_path.write_text(
         render_branch_policy(
             release_branch=release_branch,

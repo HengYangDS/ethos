@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
@@ -636,7 +635,6 @@ def test_identity_failure_state_matrix(monkeypatch: pytest.MonkeyPatch, tmp_path
 
 
 def test_proof_artifact_root_uses_only_digest_bound_artifact_paths(tmp_path: Path) -> None:
-    assert proof_artifact_root(tmp_path) == tmp_path / ".ethos/state"
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     observed_common = Path(git(repo, "rev-parse", "--git-common-dir"))
@@ -645,8 +643,6 @@ def test_proof_artifact_root_uses_only_digest_bound_artifact_paths(tmp_path: Pat
     )
     assert state_database(repo) == common / "ethos/state.sqlite"
     assert proof_artifact_root(repo) == common / "ethos"
-    assert state_database(repo) != repo / ".ethos/state/state.sqlite"
-    assert proof_artifact_root(repo) != repo / ".ethos/state"
     head = git(repo, "rev-parse", "HEAD")
     attestation = _proof_for_head(repo, head)
     selected = persist_proof_attestation(repo, attestation)
@@ -658,16 +654,12 @@ def test_proof_artifact_root_uses_only_digest_bound_artifact_paths(tmp_path: Pat
         path.relative_to(proof_artifact_root(repo)).as_posix()
         for path in proof_artifact_root(repo).rglob("*.json")
     ) == [artifact["path"]]
-    assert not (repo / f".ethos/state/proof/{head}.json").exists()
 
 
 def test_attestation_validity_matrix(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")
-    legacy = repo / f".ethos/state/proof/{head}.json"
-    legacy.parent.mkdir(parents=True)
-    legacy.write_text(json.dumps({"head": head, "state": "proven"}), encoding="utf-8")
     assert proof_attestation(repo, head) is None
     assert proof_gaps(repo, head) == ["proof_not_proven"]
     gate = resolve_gate_policy(repo, tree_ref=head).gate_ids[0]

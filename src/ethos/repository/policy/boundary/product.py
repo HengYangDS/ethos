@@ -70,8 +70,6 @@ def declared_product_surface_roots(root: Path) -> tuple[str, ...]:
 
 def _is_text_product_file(path: Path, *, root: Path, surfaces: tuple[str, ...]) -> bool:
     rel = path.relative_to(root).as_posix()
-    if rel == ".ethos/state" or rel.startswith(".ethos/state/"):
-        return False
     if any(rel.startswith(prefix) for prefix in HISTORICAL_SURFACE_PREFIXES):
         return False
     if any(part in SKIPPED_PRODUCT_DIR_PARTS for part in path.relative_to(root).parts):
@@ -100,8 +98,6 @@ def product_surface_files(root: Path) -> list[Path]:
 
 def _is_text_release_visible_historical_file(path: Path, *, root: Path) -> bool:
     rel = path.relative_to(root).as_posix()
-    if rel == ".ethos/state" or rel.startswith(".ethos/state/"):
-        return False
     if any(part in SKIPPED_PRODUCT_DIR_PARTS for part in path.relative_to(root).parts):
         return False
     if not (path.is_file() and (path.suffix in TEXT_SUFFIXES or path.name in TEXT_FILENAMES)):
@@ -301,7 +297,6 @@ def product_boundary_report(root: Path) -> dict[str, object]:
             "release_visible_historical_surface_prefixes": list(
                 RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES
             ),
-            "local_state_surface_prefixes": [".ethos/state/"],
             "package_metadata_files": list(PACKAGE_METADATA_FILES),
             "distribution_manifest_files": list(DISTRIBUTION_MANIFEST_FILES),
             "distribution_boundary": (

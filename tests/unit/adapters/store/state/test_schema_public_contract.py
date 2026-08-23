@@ -127,30 +127,3 @@ def test_state_schema_rejects_columns_hidden_behind_canonical_catalog_sql() -> N
 
         with pytest.raises(RuntimeError, match="state_schema_lease_table_definition_mismatch"):
             schema.validate_current_lease_schema(connection)
-
-
-def test_observed_state_database_ignores_checkout_local_legacy_state(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    common = tmp_path / ".git"
-    current = common / "ethos/state.sqlite"
-    legacy = tmp_path / ".ethos/state/state.sqlite"
-    monkeypatch.setattr(schema, "git_common_dir", lambda _root: common.as_posix())
-    legacy.parent.mkdir(parents=True)
-    legacy.write_bytes(b"legacy")
-
-    assert schema.observed_state_database(tmp_path) == current
-
-    current.parent.mkdir(parents=True)
-    current.write_bytes(b"current")
-    assert schema.observed_state_database(tmp_path) == current
-
-
-def test_observed_state_database_returns_current_when_common_directory_disappears(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    current = tmp_path / "state.sqlite"
-    monkeypatch.setattr(schema, "state_database", lambda _root: current)
-    monkeypatch.setattr(schema, "git_common_dir", lambda _root: "")
-
-    assert schema.observed_state_database(tmp_path) == current

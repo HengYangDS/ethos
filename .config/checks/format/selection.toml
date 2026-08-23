@@ -291,7 +291,7 @@ budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 [policy]
 forbid_tracked_extensions = [".pickle", ".pkl", ".joblib"]
 unregistered_extension = "block"
-jsonl_allowed_roots = ["build/", ".ethos/state/"]
+jsonl_allowed_roots = ["build/"]
 yaml_allowed_roots = [
   ".github/",
   ".gitlab-ci.yml",

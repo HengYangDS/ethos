@@ -72,7 +72,6 @@ def _stub_archive_public(
     monkeypatch: pytest.MonkeyPatch,
     root: Path,
     *,
-    guard: dict[str, object] | None = None,
     remaining: int = 0,
     result: dict[str, Any] | None = None,
     collision: bool = False,
@@ -99,11 +98,6 @@ def _stub_archive_public(
         archive,
         "openspec_governance_report",
         lambda *_args, **_kwargs: _completed_governance(remaining=remaining),
-    )
-    monkeypatch.setattr(
-        archive,
-        "local_state_mutation_guard",
-        lambda _root: guard or {"required_gaps": []},
     )
 
     def git_stdout(_root: Path, *args: str) -> str:
@@ -171,30 +165,6 @@ def _stub_archive_public(
         "lifecycle_commit_subject",
         lambda *_args, **_kwargs: "chore(openspec): archive fixture-change",
     )
-
-
-def test_archive_public_dry_run_and_local_state_guard(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _stub_archive_public(monkeypatch, tmp_path)
-    ready = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
-    assert ready["state"] == "ready_to_archive"
-    assert_lifecycle_outcome(
-        ready,
-        "zero_effect",
-        "not_required",
-        "absent",
-        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json",
-    )
-
-    _stub_archive_public(
-        monkeypatch,
-        tmp_path,
-        guard={"required_gaps": ["migration"], "next_action": "ethos state migrate"},
-    )
-    blocked = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
-    assert blocked["required_gaps"] == ["local_state_migration_required"]
-    assert blocked["next_action"] == "ethos state migrate"
 
 
 def test_archive_public_rejects_an_existing_collision_preservation(

@@ -81,48 +81,6 @@ def test_source_lane_start_invalid_root_and_repository_fail_closed(
     assert blocked["required_gaps"] == ["source_work_lane_invalid"]
 
 
-def test_start_work_lane_projects_state_recovery_action(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    policy = SimpleNamespace(
-        canonical_sibling_worktrees=False, work_branch=lambda name: f"work/{name}"
-    )
-    monkeypatch.setattr(lanes, "repository_root", Path)
-    monkeypatch.setattr(lanes, "load_branch_role_policy", lambda _repo: policy)
-    monkeypatch.setattr(
-        lanes,
-        "lane_start_target",
-        lambda *_args, **_kwargs: ("work/test", tmp_path / "target", None),
-    )
-    monkeypatch.setattr(
-        lanes, "admit_lane_start", lambda *_args, **_kwargs: ({"head": "abc"}, None)
-    )
-    monkeypatch.setattr(
-        lanes,
-        "lane_start_commitment",
-        lambda *_args, **_kwargs: ((tmp_path, "change", "carrier", "digest", "", ""), None),
-    )
-    monkeypatch.setattr(
-        lanes,
-        "local_state_mutation_guard",
-        lambda _repo: {
-            "required_gaps": ["local_state_migration_required"],
-            "next_action": "ethos migrate-local-state --apply",
-        },
-    )
-
-    report = lanes.start_work_lane(
-        root=tmp_path,
-        name="test",
-        commitment_path=tmp_path / "commitment.toml",
-        holder_ref="agent:test:case:owner",
-        apply=True,
-    )
-
-    assert report["required_gaps"] == ["local_state_migration_required"]
-    assert report["next_action"] == "ethos migrate-local-state --apply"
-
-
 def test_admit_lane_start_reports_carrier_collision(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -10,7 +10,6 @@ from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import ethos.adapters.mutation.local_state as local_state
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
@@ -127,6 +126,7 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     workspace = repo / ".ethos/workspace.toml"
+    workspace.parent.mkdir(parents=True)
     workspace.write_text('[branch_roles]\nrelease_mirror = "accepted_ff"\n', encoding="utf-8")
     hook = Path(str(hook_runtime_binding(repo)["hooks_path"])) / "reference-transaction"
 
@@ -154,14 +154,14 @@ def test_reference_transaction_hook_uses_the_candidate_project_environment() -> 
     assert '"ref-transaction",' in text
 
 
-def test_reference_transaction_does_not_inventory_git_common_runtime(
+def test_reference_transaction_reads_only_git_common_lease_state(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A prepared ref decision reads Lease state without walking runtime generations."""
     repo = init_git_repo(tmp_path / "repo")
     workspace = repo / ".ethos/workspace.toml"
+    workspace.parent.mkdir(parents=True)
     workspace.write_text(
         render_branch_policy(
             release_branch="main",
@@ -184,14 +184,6 @@ def test_reference_transaction_does_not_inventory_git_common_runtime(
         connection.commit()
     old = git(repo, "rev-parse", "work/x")
     new = git(repo, "commit-tree", git(repo, "rev-parse", "HEAD^{tree}"), "-p", old, "-m", "next")
-    monkeypatch.setattr(
-        local_state,
-        "_manifest",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            AssertionError("reference transaction inventoried local state")
-        ),
-    )
-
     status = execute_hook(
         repo,
         "reference-transaction",

@@ -8,6 +8,7 @@ import ethos.adapters.mutation.lane_retirement.absorbed as absorbed_retirement
 import ethos.adapters.repo.git_effect_attestation as git_effect_attestation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
+from ethos.adapters.repo.commitment import RepositoryCommitmentObservation
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -131,6 +132,34 @@ def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) ->
         transition["plan_digest"],
         transition["effect"],
     )
+
+
+def test_absorbed_ref_preserves_unsupported_repository_prestate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, source, accepted = _absorbed_ref(tmp_path)
+    monkeypatch.setattr(
+        absorbed_retirement,
+        "observe_repository_commitment",
+        lambda *_args, **_kwargs: RepositoryCommitmentObservation(
+            "unsupported_schema", ".ethos/commitment.toml"
+        ),
+    )
+
+    report = absorbed_retirement.retire_absorbed_ref(
+        root=repo,
+        branch="work/absorbed",
+        expect_head=source,
+        accepted_head=accepted,
+        authorize=True,
+        confirm_irreversible=True,
+        apply=False,
+    )
+
+    assert report["required_gaps"] == [
+        "repository_commitment_schema_unsupported:.ethos/commitment.toml"
+    ]
+    assert git(repo, "branch", "--list", "work/absorbed") == "work/absorbed"
 
 
 def test_absorbed_ref_recovers_exact_already_applied_committed_intent(

@@ -6,7 +6,7 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.commitment import observe_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_head
@@ -66,23 +66,19 @@ def resolve_git_effect_repository(
         *effect.assertions.values(),
     } - _ZERO_OIDS
     expected = {update.expected for update in effect.updates.values()}
-    try:
-        identities = set()
-        for revision in revisions:
-            try:
-                identities.add(
-                    load_repository_commitment(root, tree_ref=revision, environment=env).id
-                )
-            except ValueError as error:
-                if (
-                    allow_absent_prestate
-                    and revision in expected
-                    and str(error).startswith("repository_commitment_missing:")
-                ):
-                    continue
-                raise
-    except ValueError as error:
-        raise ValueError(_MISMATCH) from error
+    identities = set()
+    for revision in revisions:
+        observation = observe_repository_commitment(
+            root,
+            tree_ref=revision,
+            environment=env,
+        )
+        if observation.state == "valid":
+            identities.add(observation.require().id)
+        elif allow_absent_prestate and revision in expected and observation.state == "missing":
+            continue
+        else:
+            raise ValueError(observation.gap)
     if len(identities) != 1:
         raise ValueError(_MISMATCH)
     return identities.pop()

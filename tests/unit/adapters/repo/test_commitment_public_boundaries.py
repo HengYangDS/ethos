@@ -35,12 +35,30 @@ def test_commitment_carrier_malformed_paths_fail_closed(tmp_path: Path, carrier:
 
 
 def test_commitment_missing_malformed_and_canonical_public_boundaries(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="repository_commitment_missing"):
+    with pytest.raises(ValueError, match=r"repository_commitment_missing:\.ethos/commitment\.toml"):
         load_repository_commitment(tmp_path)
 
     write_repository_commitment(tmp_path)
-    (tmp_path / ".ethos/commitment.toml").write_bytes(b"\xff")
-    with pytest.raises(ValueError, match="repository_commitment_missing"):
+    carrier = tmp_path / ".ethos/commitment.toml"
+    carrier.write_bytes(b"\xff")
+    with pytest.raises(
+        ValueError, match=r"repository_commitment_unreadable:\.ethos/commitment\.toml"
+    ):
+        load_repository_commitment(tmp_path)
+
+    carrier.write_text('id = "repository:obsolete"\n', encoding="utf-8")
+    with pytest.raises(
+        ValueError, match=r"repository_commitment_schema_unsupported:\.ethos/commitment\.toml"
+    ):
+        load_repository_commitment(tmp_path)
+
+    carrier.write_text(
+        carrier.read_text(encoding="utf-8").replace(
+            'id = "repository:obsolete"', 'schema_version = 2\nid = "repository:obsolete"'
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=r"repository_commitment_invalid:\.ethos/commitment\.toml"):
         load_repository_commitment(tmp_path)
 
     repository_id = write_repository_commitment(tmp_path)

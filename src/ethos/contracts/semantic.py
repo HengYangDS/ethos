@@ -404,9 +404,14 @@ class Commitment(_CanonicalSemanticModel):
         return _canonical_json(self.identity_projection())
 
 
+def load_commitment_bytes(raw: bytes) -> Commitment:
+    """Load one strict Commitment from exact TOML bytes."""
+    return Commitment.model_validate(tomllib.loads(raw.decode("utf-8")))
+
+
 def load_commitment_file(path: Path) -> Commitment:
     """Load one strict Commitment TOML carrier."""
-    return Commitment.model_validate(tomllib.loads(path.read_text(encoding="utf-8")))
+    return load_commitment_bytes(path.read_bytes())
 
 
 class _AttestationPayload(_SemanticModel):

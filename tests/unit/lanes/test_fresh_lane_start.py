@@ -151,6 +151,41 @@ def test_start_work_lane_bootstraps_a_fresh_change_without_a_source_lane(
     assert git(target, "status", "--short") == ""
 
 
+def test_fresh_lane_materializes_the_prevalidated_commitment_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    target = tmp_path / "repo-work-fresh-change"
+    commitment = _fresh_commitment(repo, tmp_path / "commitment.toml")
+    expected = commitment.read_bytes()
+    openspec = _fake_openspec(tmp_path)
+    monkeypatch.setattr(
+        lane_start_carrier,
+        "openspec_base_command",
+        lambda: (openspec.as_posix(),),
+    )
+
+    def mutate_after_admission() -> None:
+        commitment.write_text("not toml =", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lanes.require_runtime_wheel_provenance",
+        mutate_after_admission,
+    )
+
+    report = start_work_lane(
+        root=repo,
+        name="fresh-change",
+        commitment_path=commitment,
+        path=target,
+        holder_ref=_HOLDER,
+        apply=True,
+    )
+
+    assert report["verdict"] == "pass"
+    assert (target / "openspec/changes/fresh-change/commitment.toml").read_bytes() == expected
+
+
 def test_start_work_lane_rejects_ambiguous_fresh_and_source_inputs(tmp_path: Path) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
@@ -333,6 +368,44 @@ def test_start_work_lane_dry_run_rejects_unproven_hook_runtime(
 
     assert report["required_gaps"] == ["hook_runtime_wheel_provenance_missing"]
     assert ref_head(repo, "work/fresh-change") == ""
+    assert not target.exists()
+
+
+def test_fresh_lane_invalid_repository_commitment_blocks_before_effects(tmp_path: Path) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    target = tmp_path / "repo-work-fresh-change"
+    commitment = _fresh_commitment(repo, tmp_path / "commitment.toml")
+    (repo / ".ethos/commitment.toml").write_text(
+        'id = "repository:obsolete"\n',
+        encoding="utf-8",
+    )
+    git(repo, "add", ".ethos/commitment.toml")
+    git(repo, "commit", "-m", "break repository commitment")
+    git(_candidate, "reset", "--hard", "dev")
+
+    dry_run = start_work_lane(
+        root=repo,
+        name="fresh-change",
+        commitment_path=commitment,
+        path=target,
+        holder_ref=_HOLDER,
+    )
+    applied = start_work_lane(
+        root=repo,
+        name="fresh-change",
+        commitment_path=commitment,
+        path=target,
+        holder_ref=_HOLDER,
+        apply=True,
+    )
+
+    expected = ["repository_commitment_schema_unsupported:.ethos/commitment.toml"]
+    assert dry_run["required_gaps"] == expected
+    assert applied["required_gaps"] == expected
+    assert applied.get("carrier_cleanup") is None
+    assert applied.get("lease_state") is None
+    assert ref_head(repo, "work/fresh-change") == ""
+    assert "work/fresh-change" not in leases_by_branch(repo)
     assert not target.exists()
 
 

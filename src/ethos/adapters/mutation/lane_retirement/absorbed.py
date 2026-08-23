@@ -10,6 +10,7 @@ from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.commitment import observe_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
@@ -221,13 +222,13 @@ def _admitted_retirement_plan(
     recovery_intent: dict[str, object],
 ) -> TransitionPlan:
     commitment = load_repository_commitment(repo)
-    try:
-        load_repository_commitment(repo, tree_ref=expect_head)
+    prestate = observe_repository_commitment(repo, tree_ref=expect_head)
+    if prestate.state == "valid":
         prestate_policy: dict[str, str] = {}
-    except ValueError as error:
-        if not str(error).startswith("repository_commitment_missing:"):
-            raise
+    elif prestate.state == "missing":
         prestate_policy = {"repository_prestate": "absent"}
+    else:
+        raise ValueError(prestate.gap)
     policy = {
         "operation": "lane.retire",
         "retirement_kind": "absorbed-ref",

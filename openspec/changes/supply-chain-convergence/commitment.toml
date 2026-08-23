@@ -3,8 +3,10 @@ id = "change:supply-chain-convergence"
 intent = "Converge every ETHOS-controlled build, test, runtime, CI, release, and security dependency to its latest stable release through one complete inventory and one authoritative projection model."
 subjects = ["repository:ethos"]
 scope = [
+  ".config/README.md",
   ".config/checks/**",
   ".config/ci/**",
+  ".config/release/**",
   ".github/workflows/**",
   ".gitlab-ci.yml",
   ".pre-commit-config.yaml",

@@ -14,6 +14,7 @@ scope = [
   "tests/unit/adapters/repo/test_commitment_public_boundaries.py",
   "tests/unit/cli/test_adopter_openspec_lifecycle.py",
   "tests/unit/cli/test_openspec_archive_transition.py",
+  "tests/unit/lanes/lease/test_commitment_rebind.py",
   "tests/unit/openspec/test_cli_public_reports.py",
 ]
 invariants = [

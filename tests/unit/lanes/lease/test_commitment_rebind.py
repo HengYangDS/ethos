@@ -200,6 +200,7 @@ def _case(
     repair_identity: bool = False,
     semantic_rename: bool = False,
     earlier_change: bool = False,
+    byte_only: bool = False,
 ) -> RebindCase:
     holder = "agent:test:case:commitment-rebind"
     fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
@@ -262,7 +263,9 @@ def _case(
         old=False,
         semantic_rename=semantic_rename,
     )
-    if not repair_identity:
+    if byte_only:
+        content += "\n"
+    elif not repair_identity:
         content = content.replace(
             "Exercise the governed fixture lifecycle.",
             "Rebind one changed governed fixture intent.",
@@ -687,6 +690,26 @@ def test_rebind_derive_emits_receipt_for_exact_target(
     assert dry_run["data"]["request_receipt"] == {
         key: cli_receipt[key] for key in ("path", "sha256")
     }
+
+
+def test_rebind_derive_accepts_exact_byte_only_commitment_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch, byte_only=True)
+
+    report = rebind_derivation.derive_commitment_rebind(
+        root=case.worktree,
+        target_commit=case.request.target_commit,
+        repair_change_identity=False,
+    )
+
+    assert (report["verdict"], report["state"]) == ("pass", "derived")
+    assert report["observed_targets"] == [case.request.target_commit]
+    assert report["request"]["new_commitment_digest"] == case.lease["base_commitment_digest"]
+    assert (
+        report["request"]["new_commitment_bytes_sha256"]
+        != case.lease["base_commitment_bytes_sha256"]
+    )
 
 
 def test_rebind_receipt_loader_rejects_untrusted_or_corrupt_carriers(

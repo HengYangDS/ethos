@@ -192,7 +192,7 @@ transitions under the single `ethos lane` command family.
   `ethos lane retire absorbed-ref`
 - **AND** Lease lifecycle, handoff, archive, and successor creation remain under
   `ethos lane lease`, `ethos lane handoff`, `ethos lane archive-change`, and
-  `ethos lane start-change` respectively.
+  `ethos lane start-change` respectively
 
 ### Requirement: Candidate ref movement is proof-bound
 

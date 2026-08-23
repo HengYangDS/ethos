@@ -299,7 +299,7 @@ def changed_commitment_fields(
     old_digest: str,
     allow_identity_repair: bool = False,
 ) -> dict[str, str]:
-    """Resolve the sole semantically changed Commitment carrier between two commits."""
+    """Resolve the sole byte-changed valid Commitment carrier between two commits."""
     changed = run_git(
         repo,
         "diff",
@@ -330,7 +330,7 @@ def changed_commitment_fields(
             commitment = load_commitment(repo, carrier=path, tree_ref=new_head)
         except ValueError:
             continue
-        if (commitment.id == commitment_id and commitment.digest() != old_digest) or (
+        if commitment.id == commitment_id or (
             allow_identity_repair
             and malformed_change_identity_repair_valid(
                 carrier=path,

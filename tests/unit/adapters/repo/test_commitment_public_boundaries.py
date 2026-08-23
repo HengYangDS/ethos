@@ -109,6 +109,31 @@ def test_commitment_changed_carrier_is_unique_and_readable(tmp_path: Path) -> No
         )
 
 
+def test_commitment_changed_carrier_accepts_byte_only_canonicalization(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    write_repository_commitment(repo)
+    carrier = write_change_commitment(repo, "canonicalize", scope=("src/**",))
+    old_head = _commit(repo, "old")
+    old = load_commitment(repo, carrier=carrier, tree_ref=old_head)
+    old_fields = exact_commitment_fields(repo, head=old_head, carrier=carrier)
+
+    path = repo / carrier
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    new_head = _commit(repo, "canonicalize bytes")
+
+    fields = changed_commitment_fields(
+        repo,
+        old_head=old_head,
+        new_head=new_head,
+        commitment_id=old.id,
+        old_digest=old.digest(),
+    )
+
+    assert fields["base_commitment_path"] == carrier
+    assert fields["base_commitment_digest"] == old.digest()
+    assert fields["base_commitment_bytes_sha256"] != old_fields["base_commitment_bytes_sha256"]
+
+
 def test_lease_bound_commitment_missing_and_canonical_coordinates(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     write_repository_commitment(repo)

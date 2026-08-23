@@ -23,6 +23,7 @@ scope = [
   "src/ethos/adapters/mutation/lane_lifecycle/successor_change.py",
   "src/ethos/adapters/mutation/lanes.py",
   "src/ethos/adapters/mutation/local_state.py",
+  "src/ethos/adapters/mutation/proof_artifacts.py",
   "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/adapters/repo/status/bindings.py",
   "src/ethos/adapters/store/state/schema.py",

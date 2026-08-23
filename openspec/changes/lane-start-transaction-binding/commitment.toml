@@ -9,9 +9,12 @@ scope = [
   "src/ethos/adapters/mutation/lane_start_carrier.py",
   "src/ethos/adapters/mutation/lane_start_rollback.py",
   "src/ethos/adapters/mutation/lanes.py",
+  "src/ethos/adapters/repo/commitment.py",
   "src/ethos/surface/cli/lane/lifecycle.py",
   "tests/unit/adapters/mutation/test_lanes_public_fail_closed.py",
+  "tests/unit/adapters/repo/test_commitment_public_boundaries.py",
   "tests/unit/lanes/test_fresh_lane_start.py",
+  "tests/unit/lanes/test_hook_admission.py",
   "tests/unit/lanes/test_lane_start_carrier_failure_branches.py",
   "tests/unit/lanes/test_lane_start_rollback.py",
 ]

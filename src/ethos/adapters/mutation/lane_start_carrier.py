@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
     from ethos.contracts.branch.roles import BranchRolePolicy
     from ethos.contracts.semantic import Attestation
+    from ethos.contracts.semantic import Commitment
 
 import ethos.adapters.mutation.lane_start_rollback as rollback
 from ethos.adapters.mutation.lane_start_receipt import started_lane_report
@@ -25,7 +26,6 @@ from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.repo.commit_message import lifecycle_commit_subject
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
@@ -54,10 +54,11 @@ class LaneStartContext(NamedTuple):
     branch: str
     target: Path
     holder_ref: str
-    base_commitment_digest: str
+    source_commitment: Commitment
+    source_commitment_bytes: bytes
+    repository_commitment: Commitment
     candidate: dict[str, object]
     source_root: Path
-    source_change_id: str
     source_commitment_path: str
     source_head: str
     source_branch: str
@@ -82,7 +83,7 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
             context.target,
             head=final_head,
             carrier=context.source_commitment_path,
-            change_id=context.source_change_id,
+            change_id=context.source_commitment.id.removeprefix("change:"),
         )
         issued_at = datetime.now(UTC)
         lease = context.acquire(
@@ -281,10 +282,10 @@ def prepare_lane_start_carrier(
         context.target,
         head=final_head,
         carrier=context.source_commitment_path,
-        change_id=context.source_change_id,
+        change_id=context.source_commitment.id.removeprefix("change:"),
     )
-    commitment = load_lease_bound_commitment(context.target, lease=coordinates)
-    repository = load_repository_commitment(context.target, tree_ref=final_head)
+    if coordinates["base_commitment_digest"] != context.source_commitment.digest():
+        return failed_process("source_change_carrier_materialization_mismatch"), final_head, None
     attestation = issue_native_effect(
         context.target,
         effect=NativeEffect(
@@ -292,15 +293,15 @@ def prepare_lane_start_carrier(
             operation="git.carrier.materialize",
             command=("git", "checkout/add", "write-tree", "commit-tree"),
             subject={
-                "change_id": context.source_change_id,
+                "change_id": context.source_commitment.id.removeprefix("change:"),
                 "carrier": context.source_commitment_path,
             },
             before={"head": candidate_head},
             after={"head": final_head},
         ),
         state="applied",
-        commitment_digest=commitment.digest(),
-        repository_id=repository.id,
+        commitment_digest=context.source_commitment.digest(),
+        repository_id=context.repository_commitment.id,
     )
     return None, final_head, attestation
 
@@ -349,7 +350,9 @@ def initialize_lane_carrier(
             tree=tree,
             parent=candidate_head,
             message=lifecycle_commit_subject(
-                context.target, "materialize", context.source_change_id
+                context.target,
+                "materialize",
+                context.source_commitment.id.removeprefix("change:"),
             ),
             environment=metadata,
             runner=context.run,
@@ -409,13 +412,13 @@ def materialize_fresh_carrier(
     created = run_json(
         context.target,
         command,
-        ("new", "change", context.source_change_id, "--json"),
+        ("new", "change", context.source_commitment.id.removeprefix("change:"), "--json"),
     )
     if created["exit_code"] or created["parse_error"]:
         return openspec_failure_process(created, "openspec_change_creation_failed"), ""
     target = context.target / context.source_commitment_path
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(context.source_root.read_bytes())
+    target.write_bytes(context.source_commitment_bytes)
     try:
         stage_git_paths(
             context.target,
@@ -427,12 +430,17 @@ def materialize_fresh_carrier(
     status = run_json(
         context.target,
         command,
-        ("status", "--change", context.source_change_id, "--json"),
+        (
+            "status",
+            "--change",
+            context.source_commitment.id.removeprefix("change:"),
+            "--json",
+        ),
     )
     if (
         status["exit_code"]
         or status["parse_error"]
-        or status["json"].get("changeName") != context.source_change_id
+        or status["json"].get("changeName") != context.source_commitment.id.removeprefix("change:")
     ):
         return failed_process("openspec_change_validation_failed"), ""
     tree = context.run(context.target, "write-tree", check=False)

@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 import ethos.adapters.mutation.lane_start_carrier as carrier
+from tests.support.semantic import commitment_fixture
 
 
 def _run_result(returncode: int = 0, stdout: str = "") -> subprocess.CompletedProcess[str]:
@@ -128,7 +129,11 @@ def test_initialize_reports_missing_metadata_and_empty_final_head(
     context = SimpleNamespace(
         candidate={"head": "a" * 40},
         source_head="",
-        source_change_id="example",
+        source_commitment=commitment_fixture(
+            id="change:example",
+            intent="Exercise lane initialization failure reporting.",
+            subjects=("repository:test",),
+        ),
         source_root=Path("/source"),
         source_branch="",
         repo=target,

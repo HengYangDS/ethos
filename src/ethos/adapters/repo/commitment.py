@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import tomllib
+from dataclasses import dataclass
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
+from typing import Literal
+
+from pydantic import ValidationError
 
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import current_tree
@@ -38,6 +42,15 @@ _TUPLE_FIELDS = {
     "hypotheses",
     "dependencies",
 }
+RepositoryCommitmentPresence = Literal["present", "missing", "unreadable"]
+RepositoryCommitmentState = Literal[
+    "valid",
+    "missing",
+    "unreadable",
+    "unsupported_schema",
+    "invalid",
+    "identity_mismatch",
+]
 
 
 def _relative_carrier(value: str) -> str:
@@ -60,6 +73,97 @@ def _normalized(payload: Mapping[str, object]) -> dict[str, object]:
         key: tuple(value) if key in _TUPLE_FIELDS and isinstance(value, list) else value
         for key, value in payload.items()
     }
+
+
+@dataclass(frozen=True, slots=True)
+class RepositoryCommitmentObservation:
+    """One exact repository Commitment observation with a closed state."""
+
+    state: RepositoryCommitmentState
+    carrier: str
+    commitment: Commitment | None = None
+
+    @property
+    def gap(self) -> str:
+        """Return the stable blocker for a non-valid observation."""
+        names = {
+            "missing": "missing",
+            "unreadable": "unreadable",
+            "unsupported_schema": "schema_unsupported",
+            "invalid": "invalid",
+            "identity_mismatch": "identity_mismatch",
+        }
+        return (
+            ""
+            if self.state == "valid"
+            else f"repository_commitment_{names[self.state]}:{self.carrier}"
+        )
+
+    def require(self) -> Commitment:
+        """Return the strict Commitment or raise the observation's stable blocker."""
+        if self.commitment is None:
+            raise ValueError(self.gap)
+        return self.commitment
+
+
+def _repository_commitment_bytes(
+    repo: Path,
+    *,
+    tree_ref: str | None,
+    environment: dict[str, str] | None,
+) -> tuple[bytes, RepositoryCommitmentPresence]:
+    if tree_ref is not None:
+        tree = run_git(
+            repo,
+            "rev-parse",
+            "--verify",
+            f"{tree_ref}^{{tree}}",
+            check=False,
+            env=environment,
+        )
+        if tree.returncode:
+            return b"", "unreadable"
+        completed = run_git(
+            repo,
+            "show",
+            f"{tree_ref}:{_REPOSITORY_COMMITMENT}",
+            check=False,
+            env=environment,
+            text=False,
+        )
+        return (completed.stdout, "present") if completed.returncode == 0 else (b"", "missing")
+    path = repo / _REPOSITORY_COMMITMENT
+    try:
+        return path.read_bytes(), "present"
+    except FileNotFoundError:
+        return b"", "missing"
+    except OSError:
+        return b"", "unreadable"
+
+
+def observe_repository_commitment(
+    repo: Path,
+    *,
+    tree_ref: str | None = None,
+    environment: dict[str, str] | None = None,
+) -> RepositoryCommitmentObservation:
+    """Observe one strict repository Commitment without collapsing its state."""
+    raw, presence = _repository_commitment_bytes(repo, tree_ref=tree_ref, environment=environment)
+    if presence != "present":
+        return RepositoryCommitmentObservation(presence, _REPOSITORY_COMMITMENT)
+    try:
+        payload = _normalized(tomllib.loads(raw.decode("utf-8")))
+    except (UnicodeError, tomllib.TOMLDecodeError):
+        return RepositoryCommitmentObservation("unreadable", _REPOSITORY_COMMITMENT)
+    if payload.get("schema_version") != 2:
+        return RepositoryCommitmentObservation("unsupported_schema", _REPOSITORY_COMMITMENT)
+    try:
+        commitment = Commitment.model_validate(payload)
+    except (TypeError, ValidationError, ValueError):
+        return RepositoryCommitmentObservation("invalid", _REPOSITORY_COMMITMENT)
+    if commitment.subjects != (commitment.id,) or not commitment.id.startswith("repository:"):
+        return RepositoryCommitmentObservation("identity_mismatch", _REPOSITORY_COMMITMENT)
+    return RepositoryCommitmentObservation("valid", _REPOSITORY_COMMITMENT, commitment)
 
 
 def _load(
@@ -90,20 +194,7 @@ def load_repository_commitment(
     environment: dict[str, str] | None = None,
 ) -> Commitment:
     """Load the stable repository identity Commitment."""
-    try:
-        commitment = _load(
-            repo,
-            _REPOSITORY_COMMITMENT,
-            tree_ref=tree_ref,
-            environment=environment,
-        )
-    except ValueError as exc:
-        message = f"repository_commitment_missing:{_REPOSITORY_COMMITMENT}"
-        raise ValueError(message) from exc
-    if commitment.subjects != (commitment.id,) or not commitment.id.startswith("repository:"):
-        msg = "repository_commitment_identity_mismatch"
-        raise ValueError(msg)
-    return commitment
+    return observe_repository_commitment(repo, tree_ref=tree_ref, environment=environment).require()
 
 
 def _selected_carrier(repo: Path, *, tree_ref: str | None, carrier: str | None) -> str:

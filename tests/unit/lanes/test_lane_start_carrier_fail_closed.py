@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.lane_start_carrier as carrier
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -99,14 +100,18 @@ def test_fresh_carrier_compensates_when_staging_rejects_generated_paths(
         (),
         {
             "target": tmp_path / "target",
-            "source_change_id": "change",
+            "source_commitment": commitment_fixture(
+                id="change:change",
+                intent="Exercise fresh carrier staging failure.",
+                subjects=("repository:test",),
+            ),
+            "source_commitment_bytes": b'id = "change:change"\n',
             "source_commitment_path": "openspec/changes/change/commitment.toml",
             "source_root": tmp_path / "commitment.toml",
             "run": staticmethod(lambda *_a, **_k: _result(0, "tree")),
         },
     )()
     context.target.mkdir()
-    context.source_root.write_text('id = "change:change"\n')
     monkeypatch.setattr(carrier, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
         carrier,

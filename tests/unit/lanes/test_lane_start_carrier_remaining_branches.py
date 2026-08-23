@@ -9,6 +9,7 @@ import pytest
 import ethos.adapters.mutation.lane_start_carrier as carrier
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -78,15 +79,18 @@ def test_source_carrier_rejects_post_write_tree_mismatch(
 
 
 def _fresh_context(tmp_path: Path) -> SimpleNamespace:
-    source = tmp_path / "commitment.toml"
-    source.write_text('id = "change:change"\n')
     target = tmp_path / "target"
     target.mkdir()
     return SimpleNamespace(
         target=target,
-        source_change_id="change",
+        source_commitment=commitment_fixture(
+            id="change:change",
+            intent="Exercise fresh carrier failure branches.",
+            subjects=("repository:test",),
+        ),
+        source_commitment_bytes=b'id = "change:change"\n',
         source_commitment_path="openspec/changes/change/commitment.toml",
-        source_root=source,
+        source_root=tmp_path / "commitment.toml",
         run=lambda *_a, **_k: _result(0, "tree\n"),
     )
 

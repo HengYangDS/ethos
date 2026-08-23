@@ -21,6 +21,7 @@ from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effect_attestation import records
+from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import commit_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
@@ -540,6 +541,31 @@ def test_repository_worktree_identity_matrix(tmp_path: Path, kind: str) -> None:
                 "repository"
             ]
             == identity
+        )
+
+
+def test_git_effect_repository_resolution_preserves_unsupported_schema(
+    tmp_path: Path,
+) -> None:
+    case = fixture(tmp_path)
+    carrier = case.repo / ".ethos/commitment.toml"
+    unsupported = commit_fixture_file(
+        case.repo,
+        str(carrier.relative_to(case.repo)),
+        'id = "repository:repo"\n',
+        "obsolete repository commitment",
+    )
+    git(case.repo, "reset", "--hard", case.old)
+    changed = effect(case.old, unsupported)
+
+    with pytest.raises(
+        ValueError,
+        match=r"repository_commitment_schema_unsupported:\.ethos/commitment\.toml",
+    ):
+        resolve_git_effect_repository(
+            case.repo,
+            changed,
+            {"head": case.old},
         )
 
 

@@ -1,0 +1,7 @@
+schema = "ethos-downloaded-tool-supply-v1"
+owner = "ethos-quality-gate-governance"
+tool = "lychee"
+version = "0.24.2"
+source = "github-release"
+release_owner = "lycheeverse/lychee"
+archive_sha256 = { linux_aarch64 = "91a7bd65685da41b90ccb9bc867a3d649a7818042dae04ff405e55a25bddee4c", linux_x86_64 = "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a" }

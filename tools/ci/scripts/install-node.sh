@@ -10,10 +10,32 @@
 # Kept outside .gitlab-ci.yml so CI stays a projection over reusable setup logic.
 set -euo pipefail
 
-version="${NODE_VERSION:-26.7.0}"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
 policy_path="${repo_root}/.config/checks/node/runtime.toml"
+
+if command -v python3 >/dev/null 2>&1; then
+  python_command="python3"
+elif command -v python >/dev/null 2>&1; then
+  python_command="python"
+else
+  echo "Python 3 is required to read ${policy_path}" >&2
+  exit 1
+fi
+
+version="${NODE_VERSION:-}"
+if [[ -z "${version}" ]]; then
+  version="$(
+    "${python_command}" - "${policy_path}" <<'PY_VERSION'
+import sys
+import tomllib
+from pathlib import Path
+
+policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(policy["default_version"])
+PY_VERSION
+  )"
+fi
 
 if command -v node >/dev/null 2>&1; then
   installed="$(node --version)"
@@ -39,15 +61,6 @@ case "$(uname -m)" in
     exit 1
     ;;
 esac
-
-if command -v python3 >/dev/null 2>&1; then
-  python_command="python3"
-elif command -v python >/dev/null 2>&1; then
-  python_command="python"
-else
-  echo "Python 3 is required to read ${policy_path}" >&2
-  exit 1
-fi
 
 archive_sha256="$(
   "${script_dir}/with-python-runtime.sh" -- \

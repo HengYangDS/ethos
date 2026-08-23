@@ -7,12 +7,33 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
 workflow=".github/workflows/ci.yml"
-version="${ACTIONLINT_VERSION:-1.7.7}"
-# Pinned SHA-256 values for the default version. Deliberate version changes must update this pin.
-ACTIONLINT_DARWIN_AMD64_SHA256="${ACTIONLINT_DARWIN_AMD64_SHA256:-28e5de5a05fc558474f638323d736d822fff183d2d492f0aecb2b73cc44584f5}"
-ACTIONLINT_DARWIN_ARM64_SHA256="${ACTIONLINT_DARWIN_ARM64_SHA256:-2693315b9093aeacb4ebd91a993fea54fc215057bf0da2659056b4bc033873db}"
-ACTIONLINT_LINUX_AMD64_SHA256="${ACTIONLINT_LINUX_AMD64_SHA256:-023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757}"
-ACTIONLINT_LINUX_ARM64_SHA256="${ACTIONLINT_LINUX_ARM64_SHA256:-401942f9c24ed71e4fe71b76c7d638f66d8633575c4016efd2977ce7c28317d0}"
+policy_path="${repo_root}/.config/checks/github/actionlint.toml"
+if command -v python3 >/dev/null 2>&1; then
+  python_command="python3"
+elif command -v python >/dev/null 2>&1; then
+  python_command="python"
+else
+  echo "Python 3 is required to read ${policy_path}" >&2
+  exit 1
+fi
+
+read -r version darwin_amd64_sha256 darwin_arm64_sha256 linux_amd64_sha256 linux_arm64_sha256 < <(
+  "${python_command}" - "${policy_path}" <<'PY_POLICY'
+import sys
+import tomllib
+from pathlib import Path
+
+tool = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))["tool"]
+checksums = tool["archive_sha256"]
+print(
+    tool["version"],
+    checksums["darwin_amd64"],
+    checksums["darwin_arm64"],
+    checksums["linux_amd64"],
+    checksums["linux_arm64"],
+)
+PY_POLICY
+)
 
 if [ ! -f "${workflow}" ]; then
   echo "GitHub workflow projection missing: ${workflow}" >&2
@@ -20,8 +41,10 @@ if [ ! -f "${workflow}" ]; then
 fi
 
 if command -v actionlint >/dev/null 2>&1; then
-  actionlint "${workflow}"
-  exit 0
+  if [[ "$(actionlint -version | head -n 1)" = "${version}" ]]; then
+    actionlint "${workflow}"
+    exit 0
+  fi
 fi
 
 if ! command -v curl >/dev/null 2>&1; then
@@ -51,10 +74,10 @@ case "$(uname -m)" in
 esac
 
 case "${os}-${arch}" in
-  darwin-amd64) archive_sha256="${ACTIONLINT_DARWIN_AMD64_SHA256}" ;;
-  darwin-arm64) archive_sha256="${ACTIONLINT_DARWIN_ARM64_SHA256}" ;;
-  linux-amd64) archive_sha256="${ACTIONLINT_LINUX_AMD64_SHA256}" ;;
-  linux-arm64) archive_sha256="${ACTIONLINT_LINUX_ARM64_SHA256}" ;;
+  darwin-amd64) archive_sha256="${darwin_amd64_sha256}" ;;
+  darwin-arm64) archive_sha256="${darwin_arm64_sha256}" ;;
+  linux-amd64) archive_sha256="${linux_amd64_sha256}" ;;
+  linux-arm64) archive_sha256="${linux_arm64_sha256}" ;;
   *)
     echo "Unsupported actionlint platform: ${os}-${arch}" >&2
     exit 1

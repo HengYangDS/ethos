@@ -9,11 +9,28 @@
 # Kept outside .gitlab-ci.yml so CI stays a projection over reusable setup logic.
 set -euo pipefail
 
-version="${GITLEAKS_VERSION:-8.30.1}"
-# Pinned upstream archive SHA-256 values for the default version. Override the
-# variables only when intentionally updating the pin and this script together.
-GITLEAKS_LINUX_X64_SHA256="${GITLEAKS_LINUX_X64_SHA256:-551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb}"
-GITLEAKS_LINUX_ARM64_SHA256="${GITLEAKS_LINUX_ARM64_SHA256:-e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080}"
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+policy_path="${repo_root}/.config/checks/secrets/supply.toml"
+if command -v python3 >/dev/null 2>&1; then
+  python_command="python3"
+elif command -v python >/dev/null 2>&1; then
+  python_command="python"
+else
+  echo "Python 3 is required to read ${policy_path}" >&2
+  exit 1
+fi
+
+read -r version linux_x64_sha256 linux_arm64_sha256 < <(
+  "${python_command}" - "${policy_path}" <<'PY_POLICY'
+import sys
+import tomllib
+from pathlib import Path
+
+policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+checksums = policy["archive_sha256"]
+print(policy["version"], checksums["linux_x64"], checksums["linux_arm64"])
+PY_POLICY
+)
 
 if command -v gitleaks >/dev/null 2>&1; then
   # Local developers (e.g. `brew install gitleaks`) already have it; skip the
@@ -35,11 +52,11 @@ fi
 case "$(uname -m)" in
   x86_64 | amd64)
     arch="x64"
-    archive_sha256="${GITLEAKS_LINUX_X64_SHA256}"
+    archive_sha256="${linux_x64_sha256}"
     ;;
   aarch64 | arm64)
     arch="arm64"
-    archive_sha256="${GITLEAKS_LINUX_ARM64_SHA256}"
+    archive_sha256="${linux_arm64_sha256}"
     ;;
   *)
     echo "Unsupported gitleaks architecture: $(uname -m)" >&2

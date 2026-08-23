@@ -43,7 +43,7 @@ def _locked_versions() -> dict[str, str]:
     }
 
 
-def _declaration_gaps() -> list[str]:
+def declaration_gaps() -> list[str]:
     gaps = []
     locked = _locked_versions()
     for requirement in _declared_requirements():
@@ -103,7 +103,7 @@ def run(session: nox.Session) -> None:
                 if findings
                 else ("pass", "passed", [])
             )
-    gaps.extend(_declaration_gaps())
+    gaps.extend(declaration_gaps())
     if gaps:
         verdict, state = "block", "declaration_invalid"
     payload = {

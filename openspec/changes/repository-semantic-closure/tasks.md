@@ -29,5 +29,8 @@
   architecture, repository-policy, and audit tests.
 - [x] 3.2 Run the complete applicable proof and verify current HEAD/tree and
   semantic-closure evidence.
-- [ ] 3.3 Archive through the public lifecycle, rerun post-archive proof, land
-  exact CAS, project the accepted runtime, and retire this lane.
+- [x] 3.3 Confirm the active Change is complete, clean, and bound to a passing
+  exact-HEAD proof before invoking the public archive transition. Archive,
+  post-archive proof, exact-CAS land, runtime projection, and lane retirement
+  remain lifecycle effects proved by their own receipts rather than by an
+  active Change task that would block its own archive.

@@ -28,6 +28,11 @@ from those declarations and rejects ambient or mismatched executables.
    setting.
 3. **Preserve history.** Only current contracts and executable expectations
    change. Archived references remain evidence of their original execution.
+4. **Keep byte and semantic identity coherent.** A Lease binds both the
+   Commitment bytes and its semantic digest. The public exact-target rebind
+   therefore accepts one valid same-identity carrier whose bytes changed even
+   when canonical formatting preserves the semantic digest; unrelated or
+   multiple carriers still fail closed.
 
 ## Risks / Trade-offs
 
@@ -35,6 +40,9 @@ from those declarations and rejects ambient or mismatched executables.
   execution plus strict validation and doctor detect incompatibility.
 - Local npm registry configuration may rewrite resolved URLs. The lock is
   regenerated explicitly against `https://registry.npmjs.org/`.
+- Canonical formatting can change Commitment bytes without changing semantic
+  digest. Exact-target rebind must update that byte binding rather than report
+  an ambiguous target.
 
 ## Migration Plan
 

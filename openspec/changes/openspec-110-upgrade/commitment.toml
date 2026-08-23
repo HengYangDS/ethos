@@ -10,27 +10,30 @@ scope = [
   "package-lock.json",
   "package.json",
   "src/ethos/adapters/openspec/cli.py",
+  "src/ethos/adapters/repo/commitment.py",
+  "tests/unit/adapters/repo/test_commitment_public_boundaries.py",
   "tests/unit/cli/test_adopter_openspec_lifecycle.py",
   "tests/unit/cli/test_openspec_archive_transition.py",
-  "tests/unit/openspec/test_cli_public_reports.py"
+  "tests/unit/openspec/test_cli_public_reports.py",
 ]
 invariants = [
   "current_contracts_and_runtime_resolve_one_exact_stable_openspec_version",
   "historical_archives_remain_immutable_historical_records",
-  "official_openspec_remains_the_sole_change_artifact_lifecycle_owner"
+  "official_openspec_remains_the_sole_change_artifact_lifecycle_owner",
 ]
 acceptance = [
+  "byte_only_canonical_commitment_rebind_accepts_one_exact_forward_target",
   "npm_lock_resolves_openspec_1_10_0_from_the_official_registry",
   "openspec_1_10_0_archive_contract_regressions_pass",
-  "openspec_1_10_0_strict_validation_and_doctor_pass"
+  "openspec_1_10_0_strict_validation_and_doctor_pass",
 ]
 risks = [
-  "official_1_10_payload_or_archive_behavior_may_differ_from_1_9"
+  "official_1_10_payload_or_archive_behavior_may_differ_from_1_9",
 ]
 authority_refs = [
   "docs/governance/product-design-contract.md",
   "docs/plans/terminal-governance-product-design.md",
-  "user_instruction"
+  "user_instruction",
 ]
 predecessors = ["550a07009499c59b4dc293f10f39b626e0c5bb33e113d96fd41a0894de0844d3"]
 selected_attestations = []

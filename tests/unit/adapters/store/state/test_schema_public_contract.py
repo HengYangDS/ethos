@@ -129,7 +129,7 @@ def test_state_schema_rejects_columns_hidden_behind_canonical_catalog_sql() -> N
             schema.validate_current_lease_schema(connection)
 
 
-def test_observed_state_database_prefers_current_then_nonempty_legacy(
+def test_observed_state_database_ignores_checkout_local_legacy_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     common = tmp_path / ".git"
@@ -139,7 +139,7 @@ def test_observed_state_database_prefers_current_then_nonempty_legacy(
     legacy.parent.mkdir(parents=True)
     legacy.write_bytes(b"legacy")
 
-    assert schema.observed_state_database(tmp_path) == legacy
+    assert schema.observed_state_database(tmp_path) == current
 
     current.parent.mkdir(parents=True)
     current.write_bytes(b"current")

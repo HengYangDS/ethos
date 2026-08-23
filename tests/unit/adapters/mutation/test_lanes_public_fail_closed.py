@@ -58,6 +58,7 @@ def test_source_lane_start_invalid_root_and_repository_fail_closed(
     )
     _source, blocked = lanes.source_lane_start_commitment(
         tmp_path,
+        candidate_head="head",
         branch="work/test",
         target=target,
         holder_ref="agent:test:case:owner",
@@ -70,6 +71,7 @@ def test_source_lane_start_invalid_root_and_repository_fail_closed(
     monkeypatch.setattr(lanes, "same_git_repository", lambda *_args: False)
     _source, blocked = lanes.source_lane_start_commitment(
         tmp_path,
+        candidate_head="head",
         branch="work/test",
         target=target,
         holder_ref="agent:test:case:owner",
@@ -174,12 +176,18 @@ def test_source_lane_start_maps_commitment_binding_failure(
     )
     monkeypatch.setattr(
         lanes,
+        "load_repository_commitment",
+        lambda *_args, **_kwargs: SimpleNamespace(id="repository:test"),
+    )
+    monkeypatch.setattr(
+        lanes,
         "load_lease_bound_commitment",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("lease_binding_invalid")),
     )
 
     _source, blocked = lanes.source_lane_start_commitment(
         tmp_path,
+        candidate_head="head",
         branch="work/test",
         target=target,
         holder_ref="agent:test:case:owner",

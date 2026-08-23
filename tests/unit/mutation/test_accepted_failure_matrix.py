@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.accepted as accepted
+from ethos.adapters.repo.commitment import RepositoryCommitmentObservation
 from ethos.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
@@ -44,7 +45,13 @@ def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     monkeypatch.setattr(accepted, "is_ancestor", lambda *_args: True)
     monkeypatch.setattr(accepted, "proof_for_repository_transition", lambda *_a: (_Proof(), []))
     monkeypatch.setattr(accepted, "sweep_stale_ref_intents", lambda *_args: [])
-    monkeypatch.setattr(accepted, "load_repository_commitment", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        accepted,
+        "observe_repository_commitment",
+        lambda *_args, **_kwargs: RepositoryCommitmentObservation(
+            "valid", ".ethos/commitment.toml", object()
+        ),
+    )
     monkeypatch.setattr(accepted, "worktree_sync_gap", lambda *_args: "")
     monkeypatch.setattr(accepted, "ref_worktree_paths", lambda *_args: ())
 
@@ -91,7 +98,6 @@ def test_candidate_promotion_preserves_exact_proof_gaps(
     monkeypatch.setattr(
         accepted, "proof_for_repository_transition", lambda *_a: (None, ["proof_head_stale"])
     )
-    monkeypatch.setattr(accepted, "load_repository_commitment", lambda *_a, **_k: object())
 
     report = _promote(tmp_path)
 
@@ -135,16 +141,17 @@ def test_candidate_promotion_reports_transition_and_git_effect_failures(
     _prime(monkeypatch)
     monkeypatch.setattr(
         accepted,
-        "load_repository_commitment",
+        "observe_repository_commitment",
         lambda _root, *, tree_ref: (
-            object()
+            RepositoryCommitmentObservation("valid", ".ethos/commitment.toml", object())
             if tree_ref == CANDIDATE
-            else (_ for _ in ()).throw(ValueError("commitment_invalid"))
+            else RepositoryCommitmentObservation("unsupported_schema", ".ethos/commitment.toml")
         ),
     )
     transition = _promote(tmp_path)
-    assert transition["required_gaps"] == ["accepted_transition_invalid"]
-    assert transition["stderr"] == "commitment_invalid"
+    expected = "repository_commitment_schema_unsupported:.ethos/commitment.toml"
+    assert transition["required_gaps"] == [expected]
+    assert transition["stderr"] == expected
 
     _prime(monkeypatch)
     monkeypatch.setattr(

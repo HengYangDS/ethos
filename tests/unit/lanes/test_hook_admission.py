@@ -521,6 +521,30 @@ def test_push_topology_and_proof_state_matrix(tmp_path: Path) -> None:
         assert any(gap in str(item) for item in report["required_gaps"])
 
 
+def test_push_admission_preserves_unsupported_repository_commitment(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    carrier = repo / ".ethos/commitment.toml"
+    carrier.write_text('id = "repository:obsolete"\n', encoding="utf-8")
+    git(repo, "add", ".ethos/commitment.toml")
+    git(repo, "commit", "-m", "record obsolete repository commitment")
+    head = git(repo, "rev-parse", "HEAD")
+
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/dev",
+        pushed_head=head,
+    )
+
+    assert report["proof_admission"]["required_gaps"] == [
+        "repository_commitment_schema_unsupported:.ethos/commitment.toml"
+    ]
+    assert (
+        "repository_commitment_schema_unsupported:.ethos/commitment.toml" in report["required_gaps"]
+    )
+    assert not any("repository_commitment_missing" in gap for gap in report["required_gaps"])
+
+
 @pytest.mark.parametrize(("author", "committer", "verdict"), _cases("identity_states"))
 def test_identity_state_matrix(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, author: str, committer: str, verdict: str

@@ -11,8 +11,8 @@ import pytest
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
-from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.contracts.branch.roles import BranchRolePolicy

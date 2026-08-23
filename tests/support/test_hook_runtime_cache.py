@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
-import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.hook_runtime_install as hook_runtime_install
 from tests.support.governed_repository import git
 from tests.support.hook_runtime_cache import install_session_hook_runtime_cache
@@ -28,26 +26,16 @@ def test_cache_reuses_package_bytes_but_keeps_repository_runtime_paths_isolated(
         wheel.write_text("immutable package bytes\n", encoding="utf-8")
         return wheel
 
-    def materialize(repo: Path, python: Path) -> Path:
-        wheel = hook_runtime_install.resolve_runtime_wheel(tmp_path, repo / "wheel")
-        runtime = repo / ".git/ethos/runtime/content-digest/venv"
-        runtime.mkdir(parents=True)
-        (runtime / "wheel-bytes.txt").write_bytes(wheel.read_bytes())
-        assert python == Path(sys.executable)
-        return runtime
-
     monkeypatch.setattr(hook_runtime_install, "resolve_runtime_wheel", build_wheel)
-    monkeypatch.setattr(hook_runtime, "materialize_hook_runtime", materialize)
     install_session_hook_runtime_cache(monkeypatch, tmp_path / "cache")
-    cached = hook_runtime.materialize_hook_runtime
-    first_repo = _git_repo(tmp_path / "first")
-    second_repo = _git_repo(tmp_path / "second")
-    first = cached(first_repo, Path(sys.executable))
-    second = cached(second_repo, Path(sys.executable))
+    cached = hook_runtime_install.resolve_runtime_wheel
+    source = Path(hook_runtime_install.__file__).resolve().parents[4]
+    first = cached(source, tmp_path / "first")
+    second = cached(source, tmp_path / "second")
 
     assert builds == 1
     assert first != second
-    assert (first / "wheel-bytes.txt").read_bytes() == (second / "wheel-bytes.txt").read_bytes()
+    assert first.read_bytes() == second.read_bytes()
     assert not first.samefile(second)
 
 

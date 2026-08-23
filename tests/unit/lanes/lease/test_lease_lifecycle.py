@@ -30,7 +30,7 @@ from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_la
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
-from ethos.adapters.repo.hook_runtime import install_hook_launchers
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref

@@ -5,12 +5,14 @@ subjects = [
   "repository:ethos",
 ]
 scope = [
+  ".config/checks/format/selection.toml",
   ".ethos/rules.toml",
   ".ethos/state/.gitignore",
   ".gitignore",
   "README.md",
   "docs/architecture/local-state.md",
   "docs/reference/command-plane.md",
+  "evidence/README.md",
   "openspec/changes/checkout-local-state-retirement/**",
   "openspec/specs/repository-governance/spec.md",
   "src/ethos/adapters/admission/transitions.py",
@@ -19,6 +21,7 @@ scope = [
   "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind.py",
   "src/ethos/adapters/mutation/lane_lifecycle/lease.py",
   "src/ethos/adapters/mutation/lane_lifecycle/successor_change.py",
+  "src/ethos/adapters/mutation/lanes.py",
   "src/ethos/adapters/mutation/local_state.py",
   "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/adapters/repo/status/bindings.py",
@@ -29,6 +32,7 @@ scope = [
   "src/ethos/surface/cli/root/adoption.py",
   "src/ethos/surface/cli/root/land.py",
   "src/ethos/surface/cli/root/proof.py",
+  "system/policies/generated-artifact-topology.toml",
   "tests/fixtures/literal-cases/cases.json",
   "tests/support/governed_repository.py",
   "tests/unit/adapters/mutation/test_lanes_public_fail_closed.py",
@@ -43,7 +47,9 @@ scope = [
   "tests/unit/lanes/lifecycle/test_successor_change_recovery.py",
   "tests/unit/lanes/test_hook_admission.py",
   "tests/unit/lanes/test_lane_family_profile.py",
+  "tests/unit/lanes/test_reference_transaction_hook_runtime.py",
   "tests/unit/policy/test_product_boundary_remaining_public.py",
+  "tools/ci/scripts/run-secrets-scan.sh",
 ]
 invariants = []
 acceptance = []

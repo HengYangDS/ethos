@@ -16,10 +16,12 @@ scope = [
   "src/ethos/adapters/repo/hook_runtime_install.py",
   "src/ethos/adapters/repo/runtime/**",
   "tests/architecture/test_local_install_smoke.py",
+  "tests/architecture/test_repository_semantic_closure.py",
   "tests/unit/cli/land/test_publication.py",
   "tests/unit/cli/test_hook_runtime.py",
   "tests/unit/cli/test_hook_runtime_failure_branches.py",
   "tests/unit/coverage_closure/test_hook_runtime_install_public_resolution.py",
+  "tests/unit/lanes/test_hook_admission.py",
   "tests/unit/lanes/test_reference_transaction_hook_runtime.py",
 ]
 invariants = [

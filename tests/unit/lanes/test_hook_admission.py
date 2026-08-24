@@ -536,7 +536,8 @@ def test_push_admission_preserves_unsupported_repository_commitment(tmp_path: Pa
     )
 
     assert report["proof_admission"]["required_gaps"] == [
-        "repository_commitment_schema_unsupported:.ethos/commitment.toml"
+        "repository_commitment_schema_unsupported:.ethos/commitment.toml",
+        "hook_runtime_current_missing",
     ]
     assert (
         "repository_commitment_schema_unsupported:.ethos/commitment.toml" in report["required_gaps"]

@@ -55,10 +55,10 @@ def install_session_hook_runtime_cache(monkeypatch: pytest.MonkeyPatch, cache_ro
     def cached_materialize(repo: Path, source_python: Path) -> Path:
         nonlocal runtime_template
         canonical_source = Path(hook_runtime_install.__file__).resolve().parents[4]
+        if source_python.resolve() != Path(sys.executable).resolve() or canonical_source != source:
+            return original_materialize(repo, source_python)
         common = Path(git_common_dir(repo))
         if (common / "ethos").is_symlink():
-            return original_materialize(repo, source_python)
-        if source_python.resolve() != Path(sys.executable).resolve() or canonical_source != source:
             return original_materialize(repo, source_python)
         with runtime_lock:
             if runtime_template is None:

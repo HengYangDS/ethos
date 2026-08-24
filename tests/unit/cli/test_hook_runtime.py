@@ -64,11 +64,6 @@ def _materialize_runtime_case(
     monkeypatch.setattr(runtime_install, "resolve_runtime_wheel", lambda *_args: wheel)
     monkeypatch.setattr(runtime_install, "_python_abi", lambda _python: "cpython-test")
     identity = source_identity or runtime_source_identity(Path(__file__).resolve().parents[3])
-    monkeypatch.setattr(
-        runtime_install,
-        "expected_runtime_source",
-        lambda *_args: (identity, None),
-    )
     monkeypatch.setattr(runtime_install, "wheel_source_identity", lambda *_args: identity)
 
     def copy_runtime(target: Path, _python: Path) -> None:
@@ -85,7 +80,11 @@ def _materialize_runtime_case(
         entrypoint.chmod(0o755)
 
     monkeypatch.setattr(runtime_install, "_copy_installed_runtime", copy_runtime)
-    return repo, runtime_install.materialize_hook_runtime(repo, source_python)
+    return repo, runtime_install.materialize_hook_runtime(
+        repo,
+        source_python,
+        expected_source=identity,
+    )
 
 
 def _linked_runtime_case(
@@ -93,7 +92,11 @@ def _linked_runtime_case(
     monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[Path, Path, Path, Path]:
     repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: venv)
+    monkeypatch.setattr(
+        runtime_install,
+        "materialize_hook_runtime",
+        lambda *_args, **_kwargs: venv,
+    )
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
     assert _git(repo, "add", "tracked.txt").returncode == 0
     assert (
@@ -266,7 +269,11 @@ def test_hook_runtime_manifest_rejects_every_binding_drift(
         manifest.write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
-        runtime_install.materialize_hook_runtime(repo, Path(sys.executable))
+        runtime_install.materialize_hook_runtime(
+            repo,
+            Path(sys.executable),
+            expected_source=expected_runtime_source(repo)[0],
+        )
 
 
 def test_hook_runtime_manifest_and_runtime_locator_bind_exact_package(
@@ -304,11 +311,6 @@ def test_hook_runtime_python_and_manifest_require_executable_bytes(
 ) -> None:
     assert _git(tmp_path, "init", "--quiet", "--initial-branch=dev").returncode == 0
     identity = runtime_install.RuntimeSourceIdentity(commit="e" * 40, tree="f" * 40)
-    monkeypatch.setattr(
-        runtime_install,
-        "expected_runtime_source",
-        lambda _repo: (identity, None),
-    )
     monkeypatch.setattr(runtime_install, "wheel_source_identity", lambda _wheel: identity)
     monkeypatch.setattr(
         runtime_install.subprocess,
@@ -316,7 +318,11 @@ def test_hook_runtime_python_and_manifest_require_executable_bytes(
         lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", "failed"),
     )
     with pytest.raises(ValueError, match="hook_runtime_python_abi_invalid"):
-        runtime_install.materialize_hook_runtime(tmp_path, tmp_path / "missing-python")
+        runtime_install.materialize_hook_runtime(
+            tmp_path,
+            tmp_path / "missing-python",
+            expected_source=identity,
+        )
 
 
 def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) -> None:
@@ -497,12 +503,56 @@ def test_hook_install_converges_every_linked_worktree_on_one_common_activation(
         assert hook_runtime_binding(worktree)["required_gaps"] == []
 
 
+def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, linked, venv, _generations = _linked_runtime_case(tmp_path, monkeypatch)
+    accepted_identity = runtime_source_identity(Path(__file__).resolve().parents[3])
+    source_selections: list[Path] = []
+    materialized_with: list[runtime_install.RuntimeSourceIdentity] = []
+    (linked / ".ethos").mkdir()
+    (linked / ".ethos/profile.toml").write_text('profile_id = "ethos"\n', encoding="utf-8")
+    (linked / ".ethos/workspace.toml").write_text(
+        '[branch_roles]\naccepted_branch = "dev"\n\n[branch_roles.transition]\nunknown = true\n',
+        encoding="utf-8",
+    )
+
+    def select_source(root: Path):
+        source_selections.append(root)
+        return accepted_identity, None
+
+    def materialize(
+        _root: Path,
+        _python: Path,
+        *,
+        expected_source: runtime_install.RuntimeSourceIdentity,
+    ) -> Path:
+        materialized_with.append(expected_source)
+        return venv
+
+    monkeypatch.setattr(hook_activation, "expected_runtime_source", select_source)
+    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", materialize)
+
+    installed = install_hook_launchers(repo)
+
+    assert source_selections == [repo]
+    assert materialized_with == [accepted_identity]
+    assert installed["expected_source_commit"] == accepted_identity.commit
+    assert installed["expected_source_tree"] == accepted_identity.tree
+    assert installed["required_gaps"] == []
+
+
 def test_hook_install_removes_only_unreferenced_generated_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: venv)
+    monkeypatch.setattr(
+        runtime_install,
+        "materialize_hook_runtime",
+        lambda *_args, **_kwargs: venv,
+    )
     common = Path(git_common_dir(repo))
     hooks_root = common / "ethos" / "hooks"
     runtime_root = common / "ethos" / "runtime"
@@ -546,7 +596,11 @@ def test_hook_install_blocks_cleanup_when_an_active_consumer_is_unreadable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: venv)
+    monkeypatch.setattr(
+        runtime_install,
+        "materialize_hook_runtime",
+        lambda *_args, **_kwargs: venv,
+    )
     common = Path(git_common_dir(repo))
     hooks_root = common / "ethos" / "hooks"
     stale = runtime_install.materialize_hook_launchers(
@@ -568,7 +622,11 @@ def test_hook_install_retires_unreferenced_legacy_hook_directories(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: venv)
+    monkeypatch.setattr(
+        runtime_install,
+        "materialize_hook_runtime",
+        lambda *_args, **_kwargs: venv,
+    )
     common = Path(git_common_dir(repo))
     legacy = common / "ethos-hooks"
     digest_legacy = common / ("ethos-hooks-" + "a" * 64)
@@ -693,7 +751,11 @@ def test_hook_runtime_rejects_a_symlinked_ethos_root_before_writing(tmp_path: Pa
     (common / "ethos").symlink_to(external, target_is_directory=True)
 
     with pytest.raises(ValueError, match="hook_runtime_root_invalid"):
-        runtime_install.materialize_hook_runtime(repo, Path(sys.executable))
+        runtime_install.materialize_hook_runtime(
+            repo,
+            Path(sys.executable),
+            expected_source=expected_runtime_source(repo)[0],
+        )
 
     assert not tuple(external.iterdir())
 
@@ -753,7 +815,11 @@ def test_hook_activation_failure_keeps_the_old_generation_configured(
     )
     assert _git(linked, "config", "--worktree", "gc.packRefs", "true").returncode == 0
     fake_venv = Path(git_common_dir(repo)) / "ethos" / "runtime" / ("d" * 64) / "venv"
-    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: fake_venv)
+    monkeypatch.setattr(
+        runtime_install,
+        "materialize_hook_runtime",
+        lambda *_args, **_kwargs: fake_venv,
+    )
     real_unset = hook_activation.config_effects.unset_worktree_config
     failed = False
 
@@ -799,7 +865,11 @@ def test_hook_activation_rejects_a_non_current_post_observation(
     runtime.mkdir(parents=True)
     hooks = Path(git_common_dir(repo)) / "ethos/hooks" / ("b" * 64)
     hooks.mkdir(parents=True)
-    monkeypatch.setattr(runtime_install, "materialize_hook_runtime", lambda *_args: runtime)
+    monkeypatch.setattr(
+        runtime_install,
+        "materialize_hook_runtime",
+        lambda *_args, **_kwargs: runtime,
+    )
     monkeypatch.setattr(runtime_install, "materialize_hook_launchers", lambda *_args: hooks)
     monkeypatch.setattr(
         hook_runtime,

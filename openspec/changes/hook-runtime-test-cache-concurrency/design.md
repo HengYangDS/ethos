@@ -9,7 +9,7 @@ construction and each roughly 284 MB repository clone serialized consumers.
 
 **Goals:**
 
-- Build and publish at most one valid template for a source/platform identity.
+- Build and publish at most one valid template for an exact source/platform identity.
 - Let independent repositories clone that immutable template concurrently.
 - Preserve one distinct runtime directory per Git common directory.
 - Reject incomplete, stale, or source-mismatched templates before reuse.
@@ -44,7 +44,8 @@ execution does not build one during test setup.
 
 ### Validate before reuse, project a thin runtime shell
 
-Use the production runtime validator before accepting a cached template. Give
+Use the production source identity as the cache key and the runtime validator
+before accepting a cached template. Give
 each repository an independent manifest, Python executable, command entrypoint,
 and virtual-environment metadata, then use Python's standard `.pth` mechanism
 to expose the run-level template's read-only `site-packages`. This avoids

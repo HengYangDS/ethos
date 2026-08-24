@@ -7,7 +7,7 @@ waiting on test infrastructure rather than exercising product behavior.
 
 ## What Changes
 
-- Share one content-addressed runtime-template cache across all workers in one
+- Share one source-identity-addressed runtime-template cache across all workers in one
   pytest run.
 - Build the template once in the pytest controller before xdist workers start;
   retain locked recovery for a missing template, but move each repository-local
@@ -34,5 +34,5 @@ None. Product behavior and public contracts are unchanged.
 ## Impact
 
 Only the pytest fixture bootstrap and its test support module change. The
-result reduces duplicate package/runtime construction and lock contention in
+result reduces duplicate runtime construction and lock contention in
 parallel unit and architecture tests without weakening production acceptance.

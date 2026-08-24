@@ -6,7 +6,7 @@
 ## 2. Runtime Cache
 
 - [x] 2.1 Derive one cache root shared by pytest-xdist workers and verify distinct worker base paths converge to it.
-- [x] 2.2 Publish wheel and runtime templates under cross-process locks and verify duplicate installers perform one expensive build.
+- [x] 2.2 Publish the source-bound runtime template under a cross-process lock and verify duplicate installers perform one expensive build.
 - [x] 2.3 Release the global runtime lock before repository-local cloning and verify independent repositories receive distinct valid runtime paths.
 - [x] 2.4 Validate templates before reuse and verify an invalid candidate is not selected.
 - [x] 2.5 Prove repository-local Python, entrypoint, manifest, and venv metadata remain isolated while a standard `.pth` projection shares only the controller-owned read-only `site-packages`; keep test subprocess bytecode writes disabled.

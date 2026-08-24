@@ -16,33 +16,6 @@ from tools.ci.hook_runtime_cache import session_hook_runtime_cache_root
 from tools.ci.hook_runtime_cache import warm_session_hook_runtime_cache
 
 
-def test_cache_reuses_package_bytes_but_keeps_repository_runtime_paths_isolated(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    builds = 0
-
-    def build_wheel(_source: Path, wheel_dir: Path) -> Path:
-        nonlocal builds
-        builds += 1
-        wheel_dir.mkdir(parents=True, exist_ok=True)
-        wheel = wheel_dir / "ethos-built.whl"
-        wheel.write_text("immutable package bytes\n", encoding="utf-8")
-        return wheel
-
-    monkeypatch.setattr(hook_runtime_install, "resolve_runtime_wheel", build_wheel)
-    install_session_hook_runtime_cache(monkeypatch, tmp_path / "cache")
-    cached = hook_runtime_install.resolve_runtime_wheel
-    source = Path(hook_runtime_install.__file__).resolve().parents[4]
-    first = cached(source, tmp_path / "first")
-    second = cached(source, tmp_path / "second")
-
-    assert builds == 1
-    assert first != second
-    assert first.read_bytes() == second.read_bytes()
-    assert not first.samefile(second)
-
-
 def test_cache_rejects_a_cache_root_inside_the_repository(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

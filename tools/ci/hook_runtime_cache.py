@@ -8,6 +8,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -26,6 +27,33 @@ def session_hook_runtime_cache_root(base: Path) -> Path:
     """Return one cache root shared by all xdist workers in a pytest run."""
     run_root = base.parent if base.name.startswith("popen-gw") else base
     return run_root / "ethos-hook-runtime-cache"
+
+
+def warm_session_hook_runtime_cache(
+    cache_root: Path,
+    *,
+    expected_source: RuntimeSourceIdentity,
+) -> None:
+    """Publish the shared template before pytest-xdist workers start."""
+    source = Path(hook_runtime_install.__file__).resolve().parents[4]
+    templates = _templates(cache_root, source)
+    with FileLock(templates / ".runtime.lock"):
+        if _runtime_template(templates, expected_source) is not None:
+            return
+        with tempfile.TemporaryDirectory(prefix="bootstrap-", dir=cache_root) as directory:
+            repo = Path(directory)
+            subprocess.run(
+                ("git", "init", "-q", "-b", "dev", repo.as_posix()),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            built = hook_runtime_install.materialize_hook_runtime(
+                repo,
+                Path(sys.executable),
+                expected_source=expected_source,
+            ).parent
+            _adopt_runtime_template(templates, built)
 
 
 def install_session_hook_runtime_cache(monkeypatch: pytest.MonkeyPatch, cache_root: Path) -> None:
@@ -130,9 +158,46 @@ def _publish_runtime_template(templates: Path, built: Path) -> Path:
     try:
         _clone_tree(built, staging)
         staging.rename(target)
+        _finalize_cached_template(target)
+    except (OSError, ValueError):
+        shutil.rmtree(target, ignore_errors=True)
+        raise
     finally:
         shutil.rmtree(staging, ignore_errors=True)
     return target
+
+
+def _adopt_runtime_template(templates: Path, built: Path) -> Path:
+    """Atomically move one controller-owned runtime into the shared cache."""
+    target = templates / "runtime" / built.name
+    if target.is_dir():
+        return target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    staging = target.parent / f".{built.name}-{uuid.uuid4().hex}"
+    built.rename(staging)
+    try:
+        staging.rename(target)
+        _finalize_cached_template(target)
+    except FileExistsError:
+        shutil.rmtree(staging)
+    except (OSError, ValueError):
+        shutil.rmtree(target, ignore_errors=True)
+        raise
+    return target
+
+
+def _finalize_cached_template(runtime: Path) -> None:
+    manifest = json.loads((runtime / "manifest.json").read_text(encoding="utf-8"))
+    hook_runtime_install.finalize_runtime(
+        runtime,
+        str(manifest["runtime_digest"]),
+        str(manifest["wheel_sha256"]),
+        str(manifest["python_abi"]),
+        RuntimeSourceIdentity(
+            commit=str(manifest["source_commit"]),
+            tree=str(manifest["source_tree"]),
+        ),
+    )
 
 
 def _runtime_template(

@@ -24,8 +24,8 @@ from pathlib import Path
 import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
 
-from tests.support.hook_runtime_cache import install_session_hook_runtime_cache
-from tests.support.hook_runtime_cache import session_hook_runtime_cache_root
+from tools.ci.hook_runtime_cache import install_session_hook_runtime_cache
+from tools.ci.hook_runtime_cache import session_hook_runtime_cache_root
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 set_hypothesis_home_dir(

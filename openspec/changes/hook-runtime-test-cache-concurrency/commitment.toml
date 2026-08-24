@@ -7,8 +7,8 @@ subjects = [
 scope = [
   "openspec/changes/hook-runtime-test-cache-concurrency/**",
   "tests/conftest.py",
-  "tests/support/hook_runtime_cache.py",
   "tests/support/test_hook_runtime_cache.py",
+  "tools/ci/hook_runtime_cache.py",
 ]
 invariants = [
   "cache_reuse_never_changes_production_runtime_installation_semantics",

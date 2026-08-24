@@ -184,6 +184,61 @@ def test_activation_compensation_reports_every_failed_restore(
         )
 
 
+def test_install_restores_runtime_selector_when_config_compensation_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    python = tmp_path / "python"
+    python.write_text("python", encoding="utf-8")
+    common = tmp_path / "common"
+    runtime_root = common / "ethos" / "runtime" / ("a" * 64)
+    runtime = runtime_root / "venv"
+    hooks = common / "ethos" / "hooks" / ("b" * 64)
+    source = RuntimeSourceIdentity(commit="c" * 40, tree="d" * 40)
+    restored: list[bytes | None] = []
+    monkeypatch.setattr(hook_activation, "expected_runtime_source", lambda _root: (source, None))
+    monkeypatch.setattr(
+        hook_activation.runtime_install,
+        "materialize_hook_runtime",
+        lambda *_args, **_kwargs: runtime,
+    )
+    monkeypatch.setattr(
+        hook_activation.runtime_install,
+        "materialize_hook_launchers",
+        lambda _root: hooks,
+    )
+    monkeypatch.setattr(hook_activation, "git_common_dir", lambda _root: common.as_posix())
+    monkeypatch.setattr(hook_activation, "_consumer_text", lambda *_args: "")
+    monkeypatch.setattr(hook_activation, "_linked_worktree_paths", lambda _root: ())
+    monkeypatch.setattr(
+        hook_activation.config_effects,
+        "config_values",
+        lambda *_args, **_kwargs: {"core.hooksPath": ()},
+    )
+    monkeypatch.setattr(hook_activation, "_runtime_selection_bytes", lambda _common: b"old\n")
+    monkeypatch.setattr(hook_activation, "activate_runtime", lambda *_args: None)
+    monkeypatch.setattr(hook_activation.config_effects, "set_common_config", lambda *_args: None)
+    monkeypatch.setattr(
+        hook_activation,
+        "_require_common_activation",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("activation failed")),
+    )
+    monkeypatch.setattr(
+        hook_activation,
+        "_restore_activation",
+        lambda *_args: (_ for _ in ()).throw(ValueError("config restore failed")),
+    )
+    monkeypatch.setattr(
+        hook_activation,
+        "restore_runtime_selection",
+        lambda _common, previous: restored.append(previous),
+    )
+
+    with pytest.raises(ValueError, match="hook_runtime_activation_compensation_failed"):
+        hook_activation.install_hook_launchers(tmp_path, python=python)
+
+    assert restored == [b"old\n"]
+
+
 def test_generation_inventory_rejects_ambiguous_roots(tmp_path: Path) -> None:
     missing = tmp_path / "missing"
     assert _generated_directories(missing) == ()
@@ -269,31 +324,11 @@ def test_generation_cleanup_proves_removed_and_retained_postconditions(
         _apply_generation_cleanup({"checked": (retained,), "removed": (), "retained": (retained,)})
 
 
-def test_hook_binding_primitives_reject_invalid_runtime_projections(tmp_path: Path) -> None:
+def test_hook_binding_primitives_reject_invalid_hook_projections() -> None:
     with pytest.raises(ValueError, match="hook_name_invalid"):
-        hook_binding.hook_launcher("../../runtime/" + "a" * 64 + "/venv/bin/python", "post")
-    with pytest.raises(ValueError, match="hook_runtime_locator_invalid"):
-        hook_binding.hook_launcher("/absolute/python", "pre-commit")
+        hook_binding.hook_launcher("post")
     with pytest.raises(ValueError, match="hook_launcher_projection_invalid"):
         hook_binding.hook_generation_digest({"pre-commit": "only"})
-
-    hooks = tmp_path / "hooks"
-    hooks.mkdir()
-    runtime_root = tmp_path / "runtime"
-    runtime_root.mkdir()
-    launcher = hooks / "pre-commit"
-    launcher.write_bytes(b"\xff")
-    with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
-        hook_binding.launcher_runtime_generation(hooks, runtime_root)
-    launcher.write_text("#!/bin/sh\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
-        hook_binding.launcher_runtime_generation(hooks, runtime_root)
-    launcher.write_text(
-        hook_binding.hook_launcher("../../runtime/" + "a" * 64 + "/venv/bin/python", "pre-commit"),
-        encoding="utf-8",
-    )
-    with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
-        hook_binding.launcher_runtime_generation(hooks, runtime_root)
 
 
 def test_hook_binding_reports_unavailable_source_and_generation_digest(
@@ -317,11 +352,7 @@ def test_hook_binding_reports_unavailable_source_and_generation_digest(
         ).returncode
         == 0
     )
-    monkeypatch.setattr(
-        hook_binding,
-        "_runtime_from_launcher",
-        lambda *_args: (None, None, "", "", None),
-    )
+    monkeypatch.setattr(hook_binding, "_selected_runtime", lambda *_args: (None, "runtime_current"))
     monkeypatch.setattr(
         hook_binding,
         "expected_runtime_source",
@@ -349,6 +380,7 @@ def test_config_effect_failures_report_the_exact_boundary(
 def test_reference_transition_policy_failure_is_blocked(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(runtime, "current_runtime", lambda _common: None)
     monkeypatch.setattr(
         runtime,
         "resolve_ref_move_policy",
@@ -368,6 +400,7 @@ def test_candidate_report_rejects_dirty_or_unbound_candidate(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    monkeypatch.setattr(runtime, "current_runtime", lambda _common: None)
     _candidate_runtime(monkeypatch, tmp_path, status="dirty\n")
     result = runtime.execute_hook(
         tmp_path,
@@ -395,6 +428,7 @@ def test_candidate_runner_requires_clean_binding_and_real_file(
     capsys: pytest.CaptureFixture[str],
     binding: dict[str, object],
 ) -> None:
+    monkeypatch.setattr(runtime, "current_runtime", lambda _common: None)
     _candidate_runtime(monkeypatch, tmp_path, status="")
     if binding["python"]:
         binding["python"] = str(tmp_path / str(binding["python"]))
@@ -417,6 +451,7 @@ def test_candidate_runner_requires_clean_binding_and_real_file(
 def test_execute_hook_converts_runtime_exception_to_json_gap(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    monkeypatch.setattr(runtime, "current_runtime", lambda _common: None)
     monkeypatch.setattr(
         runtime,
         "run_git",

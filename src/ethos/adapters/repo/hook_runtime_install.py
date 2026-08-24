@@ -25,6 +25,9 @@ from ethos.adapters.repo.hook.binding import hook_generation_digest
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
 from ethos.adapters.repo.hook.source_identity import wheel_source_identity
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.repo.runtime.selection import runtime_entrypoint
+from ethos.adapters.repo.runtime.selection import runtime_python
 from ethos.adapters.store.content_addressed import write_content_addressed
 
 
@@ -78,7 +81,7 @@ def materialize_hook_runtime(
                 )
             else:
                 _copy_installed_runtime(staging / "venv", source_python)
-            runtime_python = _venv_python(staging / "venv")
+            runtime_python_path = runtime_python(staging / "venv")
             if (source / "pyproject.toml").is_file():
                 requirements = work / "locked-requirements.txt"
                 _run_runtime_tool(
@@ -100,7 +103,7 @@ def materialize_hook_runtime(
                     "--offline",
                     "--no-deps",
                     "--python",
-                    runtime_python.as_posix(),
+                    runtime_python_path.as_posix(),
                     "--requirements",
                     requirements.as_posix(),
                     wheel.path.as_posix(),
@@ -111,7 +114,7 @@ def materialize_hook_runtime(
                 wheel.sha256,
                 python_abi,
                 wheel.source,
-                runtime_python,
+                runtime_python_path,
             )
             runtime_root.mkdir(parents=True, exist_ok=True)
             try:
@@ -270,10 +273,6 @@ def _runtime_digest(
     ).hexdigest()
 
 
-def _venv_python(venv: Path) -> Path:
-    return venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-
-
 def write_runtime_manifest(
     runtime: Path,
     digest: str,
@@ -285,7 +284,7 @@ def write_runtime_manifest(
     if not python.is_file():
         message = "hook_runtime_python_missing"
         raise ValueError(message)
-    entrypoint = _runtime_entrypoint(python.parent.parent)
+    entrypoint = runtime_entrypoint(python.parent.parent)
     if not entrypoint.is_file():
         message = "hook_runtime_entrypoint_missing"
         raise ValueError(message)
@@ -313,61 +312,20 @@ def require_runtime(
     python_abi: str,
     source_identity: RuntimeSourceIdentity,
 ) -> None:
-    manifest = runtime / "manifest.json"
-    python = _venv_python(runtime / "venv")
-    entrypoint = _runtime_entrypoint(runtime / "venv")
-    try:
-        payload = json.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        message = "hook_runtime_manifest_invalid"
-        raise ValueError(message) from error
-    files = payload.get("runtime_files")
-    expected = {
-        path.relative_to(runtime).as_posix(): _sha256(path)
-        for path in (python, entrypoint)
-        if path.is_file()
-    }
-    if (
-        payload.get("schema_version") != 2
-        or payload.get("runtime_digest") != digest
-        or payload.get("wheel_sha256") != wheel_sha256
-        or payload.get("python_abi") != python_abi
-        or payload.get("platform") != platform.system().lower()
-        or payload.get("source_commit") != source_identity.commit
-        or payload.get("source_tree") != source_identity.tree
-        or not isinstance(files, dict)
-        or expected.keys()
-        != {
-            python.relative_to(runtime).as_posix(),
-            entrypoint.relative_to(runtime).as_posix(),
-        }
-        or files != expected
-        or not _entrypoint_bound_to_final_runtime(entrypoint, python)
-    ):
-        message = "hook_runtime_manifest_invalid"
-        raise ValueError(message)
-
-
-def _runtime_entrypoint(venv: Path) -> Path:
-    directory = venv / ("Scripts" if os.name == "nt" else "bin")
-    return directory / ("ethos.exe" if os.name == "nt" else "ethos")
-
-
-def _entrypoint_bound_to_final_runtime(entrypoint: Path, python: Path) -> bool:
-    if os.name == "nt":
-        return entrypoint.is_file()
-    try:
-        first = entrypoint.read_text(encoding="utf-8").splitlines()[0]
-    except (OSError, UnicodeError, IndexError):
-        return False
-    return first == f"#!{python}"
+    require_selected_runtime(
+        runtime,
+        expected_source=source_identity,
+        expected_digest=digest,
+        expected_wheel_sha256=wheel_sha256,
+        expected_python_abi=python_abi,
+    )
 
 
 def _rewrite_runtime_entrypoint(runtime: Path) -> None:
     if os.name == "nt":
         return
-    entrypoint = _runtime_entrypoint(runtime / "venv")
-    python = _venv_python(runtime / "venv")
+    entrypoint = runtime_entrypoint(runtime / "venv")
+    python = runtime_python(runtime / "venv")
     try:
         lines = entrypoint.read_text(encoding="utf-8").splitlines(keepends=True)
     except (OSError, UnicodeError) as error:
@@ -389,11 +347,11 @@ def finalize_runtime(
     source_identity: RuntimeSourceIdentity,
 ) -> None:
     _rewrite_runtime_entrypoint(runtime)
-    python = _venv_python(runtime / "venv")
+    python = runtime_python(runtime / "venv")
     write_runtime_manifest(runtime, digest, wheel_sha256, python_abi, source_identity, python)
     require_runtime(runtime, digest, wheel_sha256, python_abi, source_identity)
     completed = subprocess.run(
-        (_runtime_entrypoint(runtime / "venv"), "--version"),
+        (runtime_entrypoint(runtime / "venv"), "--version"),
         capture_output=True,
         check=False,
         text=True,
@@ -403,22 +361,35 @@ def finalize_runtime(
         raise ValueError(message)
 
 
-def materialize_hook_launchers(generations: Path, locator: str) -> Path:
-    """Materialize one immutable content-addressed hook generation."""
+def materialize_hook_launchers(generations: Path) -> Path:
+    """Materialize or repair one immutable content-addressed hook generation."""
     if generations.parent.is_symlink() or generations.is_symlink():
         message = "hook_generation_root_invalid"
         raise ValueError(message)
-    expected = {name: hook_launcher(locator, name) for name in HOOK_NAMES}
+    expected = {name: hook_launcher(name) for name in HOOK_NAMES}
     digest = hook_generation_digest(expected)
     target = generations / digest
     if target.is_symlink():
         message = "hook_launcher_projection_invalid"
         raise ValueError(message)
     if target.is_dir():
-        _require_launcher_projection(target, expected)
+        try:
+            _require_launcher_projection(target, expected)
+        except ValueError:
+            return _replace_launcher_projection(generations, target, expected)
         return target
+    return _replace_launcher_projection(generations, target, expected)
+
+
+def _replace_launcher_projection(
+    generations: Path,
+    target: Path,
+    expected: dict[str, str],
+) -> Path:
+    """Atomically replace one missing or drifted generated hook projection."""
     generations.mkdir(parents=True, exist_ok=True)
-    staging = generations / f".generation-{digest[:12]}-{uuid.uuid4().hex}"
+    staging = generations / f".generation-{target.name[:12]}-{uuid.uuid4().hex}"
+    backup: Path | None = None
     try:
         staging.mkdir()
         for name, content in expected.items():
@@ -426,15 +397,37 @@ def materialize_hook_launchers(generations: Path, locator: str) -> Path:
             launcher.write_text(content, encoding="utf-8", newline="\n")
             launcher.chmod(0o755)
         _require_launcher_projection(staging, expected)
+        if target.is_dir():
+            backup = generations / f".replaced-{target.name[:12]}-{uuid.uuid4().hex}"
+            target.rename(backup)
         try:
             staging.rename(target)
         except OSError:
-            if not target.is_dir():
+            if backup is not None and not target.exists():
+                backup.rename(target)
+            elif not target.is_dir():
                 raise
         _require_launcher_projection(target, expected)
+    except (OSError, ValueError):
+        _restore_launcher_projection(target, backup)
+        raise
+    else:
+        if backup is not None:
+            shutil.rmtree(backup)
         return target
     finally:
         shutil.rmtree(staging, ignore_errors=True)
+
+
+def _restore_launcher_projection(target: Path, backup: Path | None) -> None:
+    """Restore the exact prior generated projection after replacement failure."""
+    if backup is None or not backup.is_dir():
+        return
+    if target.is_dir():
+        shutil.rmtree(target)
+    elif target.exists() or target.is_symlink():
+        target.unlink()
+    backup.rename(target)
 
 
 def _require_launcher_projection(hooks: Path, expected: dict[str, str]) -> None:

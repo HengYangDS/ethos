@@ -13,7 +13,7 @@ waiting on test infrastructure rather than exercising product behavior.
   repository-local clone outside the publication lock.
 - Validate every cached runtime template before reuse and retain
   inode-independent runtime trees under each fixture repository's Git common
-  directory.
+  directory, using native copy-on-write where the platform provides it.
 - Add focused tests for worker-root convergence, single-flight publication,
   repository isolation, and invalid-template rejection.
 - Do not change production runtime installation, package identity, governance

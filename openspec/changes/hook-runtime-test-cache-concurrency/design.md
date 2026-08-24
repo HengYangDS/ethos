@@ -45,14 +45,16 @@ the template into an inode-independent repository runtime outside the
 publication lock. This deliberately rejects hard-link clones: Python and
 installed tools may update metadata or bytecode below the environment, so
 sharing inodes across nominally isolated fixture repositories creates hidden
-cross-worker coupling. The standard library copy path remains portable and can
-use platform-native fast-copy support without changing that isolation model.
+cross-worker coupling. Darwin uses the native `cp -c` clonefile path so each
+repository receives independent inodes backed by copy-on-write storage; other
+platforms use the standard-library copy path. Both preserve the same isolation
+contract without a custom filesystem implementation.
 
 ## Risks / Trade-offs
 
-- **Repository-local copies retain filesystem cost** -> package construction is
-  still single-flight, while clone work is parallel and each runtime remains a
-  truthful isolation boundary.
+- **Repository-local copies retain filesystem cost where native CoW is
+  unavailable** -> package construction is still single-flight, clone work is
+  parallel, and each runtime remains a truthful isolation boundary.
 - **A builder dies before publication** -> the unique staging directory is
   removed best-effort; no incomplete target becomes selectable.
 - **A published template is corrupt** -> validation rejects it and a later

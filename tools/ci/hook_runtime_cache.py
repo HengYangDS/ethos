@@ -6,6 +6,7 @@ import hashlib
 import json
 import platform
 import shutil
+import subprocess
 import sys
 import uuid
 from pathlib import Path
@@ -162,6 +163,14 @@ def _runtime_template(
 
 def _clone_tree(source: Path, target: Path) -> None:
     """Clone one immutable runtime into an inode-independent repository tree."""
+    if platform.system() == "Darwin":
+        subprocess.run(
+            ("/bin/cp", "-cR", source.as_posix(), target.as_posix()),
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return
     shutil.copytree(source, target)
 
 

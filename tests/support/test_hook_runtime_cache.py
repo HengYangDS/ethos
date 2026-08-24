@@ -77,6 +77,9 @@ def test_independent_cache_installers_reuse_one_runtime_template(
         python.parent.mkdir(parents=True)
         python.write_bytes(b"python")
         (runtime / "venv/bin/ethos").write_bytes(b"ethos")
+        immutable = runtime / "venv/lib/immutable.py"
+        immutable.parent.mkdir(parents=True)
+        immutable.write_text("VALUE = 1\n", encoding="utf-8")
         (runtime / "manifest.json").write_text(
             '{"runtime_digest":"'
             + "c" * 64
@@ -119,6 +122,13 @@ def test_independent_cache_installers_reuse_one_runtime_template(
     assert outputs[0] != outputs[1]
     assert all((path / "bin/python").read_bytes() == b"python" for path in outputs)
     assert not (outputs[0] / "bin/python").samefile(outputs[1] / "bin/python")
+    assert not (outputs[0] / "bin/ethos").samefile(outputs[1] / "bin/ethos")
+    assert (
+        not outputs[0]
+        .parent.joinpath("manifest.json")
+        .samefile(outputs[1].parent / "manifest.json")
+    )
+    assert (outputs[0] / "lib/immutable.py").samefile(outputs[1] / "lib/immutable.py")
 
 
 def _git_repo(path: Path) -> Path:

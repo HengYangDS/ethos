@@ -110,6 +110,7 @@ def test_independent_cache_installers_reuse_one_runtime_template(
     assert builds == 1
     assert outputs[0] != outputs[1]
     assert all((path / "bin/python").read_bytes() == b"python" for path in outputs)
+    assert not (outputs[0] / "bin/python").samefile(outputs[1] / "bin/python")
 
 
 def _git_repo(path: Path) -> Path:

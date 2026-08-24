@@ -9,6 +9,7 @@
 - [x] 2.2 Publish wheel and runtime templates under cross-process locks and verify duplicate installers perform one expensive build.
 - [x] 2.3 Release the global runtime lock before repository-local cloning and verify independent repositories receive distinct valid runtime paths.
 - [x] 2.4 Validate templates before reuse and verify an invalid candidate is not selected.
+- [x] 2.5 Prove repository-local runtimes do not share inodes; remove the hard-link clone that coupled concurrent Python processes and caused xdist worker timeouts.
 
 ## 3. Verification And Closeout
 

@@ -150,71 +150,52 @@ def test_packaged_vector_derives_a_complete_strict_commitment(
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
-    root = ROOT
-    uv = Path(sys.executable).with_name("uv.exe" if os.name == "nt" else "uv")
     node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
     environment: dict[str, str] = {
         **os.environ,
+        "UV_CACHE_DIR": (tmp_path / "empty-uv-cache").as_posix(),
         "ETHOS_BUILD_NODE": (
             node_root / "bin" / ("node.exe" if os.name == "nt" else "node")
         ).as_posix(),
         "ETHOS_BUILD_NPM_CLI": (node_root / "lib/node_modules/npm/bin/npm-cli.js").as_posix(),
     }
     environment.pop("PYTHONPATH", None)
-    dist = tmp_path / "dist"
-    subprocess.run(
-        (uv.as_posix(), "build", "--offline", "--wheel", "--out-dir", dist.as_posix()),
-        cwd=root,
+    source_ethos = _venv_executable(Path(sys.executable).parent.parent, "ethos")
+    bootstrap_repo = tmp_path / "bootstrap-repo"
+    bootstrap_repo.mkdir()
+    assert _git(bootstrap_repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    bootstrap = _run(
+        source_ethos,
+        "hook",
+        "install",
+        "--root",
+        bootstrap_repo.as_posix(),
+        "--json",
         env=environment,
-        check=True,
-        text=True,
     )
-    wheel = next(dist.glob("ethos-*.whl"))
-    packaged_identity = runtime_install.wheel_source_identity(wheel)
-    assert packaged_identity == runtime_source_identity(root)
-    package_venv = tmp_path / "package-venv"
-    subprocess.run(
-        (
-            uv.as_posix(),
-            "venv",
-            "--relocatable",
-            "--python",
-            sys.executable,
-            package_venv.as_posix(),
-        ),
-        check=True,
-        text=True,
+    assert bootstrap.returncode == 0, bootstrap.stdout + bootstrap.stderr
+    bootstrap_report = json.loads(bootstrap.stdout)
+    assert bootstrap_report["verdict"] == "pass", bootstrap_report
+    package_python = Path(bootstrap_report["data"]["python"])
+    package_ethos = _venv_executable(package_python.parent.parent, "ethos")
+    _assert_runtime_excludes_development_dependencies(package_python)
+    packaged_identity = runtime_install.RuntimeSourceIdentity(
+        commit=bootstrap_report["data"]["source_commit"],
+        tree=bootstrap_report["data"]["source_tree"],
     )
-    package_python = _venv_executable(package_venv, "python")
-    subprocess.run(
-        (
-            uv.as_posix(),
-            "pip",
-            "install",
-            "--offline",
-            "--python",
-            package_python.as_posix(),
-            wheel.as_posix(),
-        ),
-        check=True,
-        text=True,
-    )
+    assert packaged_identity == runtime_source_identity(ROOT)
+
     repo = tmp_path / "repo"
     repo.mkdir()
     assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
 
-    installed = subprocess.run(
-        (
-            _venv_executable(package_venv, "ethos").as_posix(),
-            "hook",
-            "install",
-            "--root",
-            repo.as_posix(),
-            "--json",
-        ),
-        capture_output=True,
-        text=True,
-        check=False,
+    installed = _run(
+        package_ethos,
+        "hook",
+        "install",
+        "--root",
+        repo.as_posix(),
+        "--json",
         env=environment,
     )
 
@@ -228,7 +209,8 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     assert report["data"]["current"] is True
     assert report["data"]["next_action"] == ""
     runtime_python = Path(report["data"]["python"])
-    package_venv.rename(tmp_path / "retired-package-venv")
+    _assert_runtime_excludes_development_dependencies(runtime_python)
+    bootstrap_repo.rename(tmp_path / "retired-bootstrap-repo")
     runtime_ethos = _venv_executable(runtime_python.parent.parent, "ethos")
     git_executable = shutil.which("git")
     assert git_executable is not None
@@ -266,6 +248,67 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         capture_output=True,
         text=True,
         check=False,
+    )
+    assert version.returncode == 0, version.stderr
+    assert version.stdout.strip()
+
+
+def _assert_runtime_excludes_development_dependencies(python: Path) -> None:
+    probe = (
+        "import importlib.util; "
+        "assert importlib.util.find_spec('pytest') is None; "
+        "assert importlib.util.find_spec('ruff') is None"
+    )
+    observed = subprocess.run(
+        (
+            python.as_posix(),
+            "-I",
+            "-c",
+            probe,
+        ),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert observed.returncode == 0, observed.stdout + observed.stderr
+
+
+def test_source_checkout_hook_install_does_not_require_an_ambient_uv_cache(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    empty_cache = tmp_path / "empty-uv-cache"
+    source_ethos = _venv_executable(Path(sys.executable).parent.parent, "ethos")
+    environment = {**os.environ, "UV_CACHE_DIR": empty_cache.as_posix()}
+
+    installed = subprocess.run(
+        (
+            source_ethos.as_posix(),
+            "hook",
+            "install",
+            "--root",
+            repo.as_posix(),
+            "--json",
+        ),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=environment,
+    )
+
+    assert installed.returncode == 0, installed.stdout + installed.stderr
+    report = json.loads(installed.stdout)
+    assert report["verdict"] == "pass", report
+    runtime_python = Path(report["data"]["python"])
+    runtime_ethos = _venv_executable(runtime_python.parent.parent, "ethos")
+    version = subprocess.run(
+        (runtime_ethos.as_posix(), "--version"),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=environment,
     )
     assert version.returncode == 0, version.stderr
     assert version.stdout.strip()

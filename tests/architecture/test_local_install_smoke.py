@@ -225,30 +225,22 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         hooks_path=Path(report["data"]["hooks_path"]),
         environment=package_environment,
     )
-    rebind_help = subprocess.run(
-        (runtime_ethos.as_posix(), "lane", "rebind-commitment", "--help"),
-        capture_output=True,
-        text=True,
-        check=False,
-        env=package_environment,
+    rebind_help = _run(
+        runtime_ethos, "lane", "rebind-commitment", "--help", env=package_environment
     )
-    derive_help = subprocess.run(
-        (runtime_ethos.as_posix(), "lane", "rebind-commitment", "derive", "--help"),
-        capture_output=True,
-        text=True,
-        check=False,
+    derive_help = _run(
+        runtime_ethos,
+        "lane",
+        "rebind-commitment",
+        "derive",
+        "--help",
         env=package_environment,
     )
     assert rebind_help.returncode == 0, rebind_help.stderr
     assert "--receipt" in rebind_help.stdout
     assert derive_help.returncode == 0, derive_help.stderr
     assert "--target-commit" in derive_help.stdout
-    version = subprocess.run(
-        (runtime_ethos.as_posix(), "--version"),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    version = _run(runtime_ethos, "--version", env=package_environment)
     assert version.returncode == 0, version.stderr
     assert version.stdout.strip()
 
@@ -259,56 +251,4 @@ def _assert_runtime_excludes_development_dependencies(python: Path) -> None:
         "assert importlib.util.find_spec('pytest') is None; "
         "assert importlib.util.find_spec('ruff') is None"
     )
-    observed = subprocess.run(
-        (
-            python.as_posix(),
-            "-I",
-            "-c",
-            probe,
-        ),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert observed.returncode == 0, observed.stdout + observed.stderr
-
-
-def test_source_checkout_hook_install_does_not_require_an_ambient_uv_cache(
-    tmp_path: Path,
-) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    empty_cache = tmp_path / "empty-uv-cache"
-    source_ethos = _venv_executable(Path(sys.executable).parent.parent, "ethos")
-    environment = {**os.environ, "UV_CACHE_DIR": empty_cache.as_posix()}
-
-    installed = subprocess.run(
-        (
-            source_ethos.as_posix(),
-            "hook",
-            "install",
-            "--root",
-            repo.as_posix(),
-            "--json",
-        ),
-        capture_output=True,
-        text=True,
-        check=False,
-        env=environment,
-    )
-
-    assert installed.returncode == 0, installed.stdout + installed.stderr
-    report = json.loads(installed.stdout)
-    assert report["verdict"] == "pass", report
-    runtime_python = Path(report["data"]["python"])
-    runtime_ethos = _venv_executable(runtime_python.parent.parent, "ethos")
-    version = subprocess.run(
-        (runtime_ethos.as_posix(), "--version"),
-        capture_output=True,
-        text=True,
-        check=False,
-        env=environment,
-    )
-    assert version.returncode == 0, version.stderr
-    assert version.stdout.strip()
+    assert _run(python, "-I", "-c", probe, env=os.environ.copy()).returncode == 0

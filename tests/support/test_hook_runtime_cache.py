@@ -77,7 +77,7 @@ def test_independent_cache_installers_reuse_one_runtime_template(
         python.parent.mkdir(parents=True)
         python.write_bytes(b"python")
         (runtime / "venv/bin/ethos").write_bytes(b"ethos")
-        immutable = runtime / "venv/lib/immutable.py"
+        immutable = runtime / "venv/lib/python3.14/site-packages/immutable.py"
         immutable.parent.mkdir(parents=True)
         immutable.write_text("VALUE = 1\n", encoding="utf-8")
         (runtime / "manifest.json").write_text(
@@ -128,7 +128,13 @@ def test_independent_cache_installers_reuse_one_runtime_template(
         .parent.joinpath("manifest.json")
         .samefile(outputs[1].parent / "manifest.json")
     )
-    assert (outputs[0] / "lib/immutable.py").samefile(outputs[1] / "lib/immutable.py")
+    projections = tuple(
+        path / "lib/python3.14/site-packages/ethos-runtime-cache.pth" for path in outputs
+    )
+    assert all(path.is_file() for path in projections)
+    shared = tuple(Path(path.read_text(encoding="utf-8").strip()) for path in projections)
+    assert shared[0] == shared[1]
+    assert (shared[0] / "immutable.py").read_text(encoding="utf-8") == "VALUE = 1\n"
 
 
 def _git_repo(path: Path) -> Path:

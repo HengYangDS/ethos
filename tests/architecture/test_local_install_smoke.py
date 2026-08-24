@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -39,6 +41,43 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
         text=True,
         check=False,
     )
+
+
+def _run(executable: Path, *args: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        (executable.as_posix(), *args),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+
+def _prove_relocated_runtime(
+    *,
+    runtime_ethos: Path,
+    repo: Path,
+    hooks_path: Path,
+    environment: dict[str, str],
+) -> None:
+    """Prove status, repair, and proof stay executable after package relocation."""
+    status = _run(runtime_ethos, "status", "--root", repo.as_posix(), "--json", env=environment)
+    assert status.returncode == 0, status.stderr
+    assert json.loads(status.stdout)["data"]["hook_runtime"]["current"] is True
+    (hooks_path / "pre-push").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    stale_status = _run(
+        runtime_ethos, "status", "--root", repo.as_posix(), "--json", env=environment
+    )
+    repair = json.loads(stale_status.stdout)["data"]["hook_runtime"]["next_action"]
+    assert shlex.split(repair)[0] == runtime_ethos.as_posix()
+    repaired = subprocess.run(
+        shlex.split(repair), capture_output=True, text=True, check=False, env=environment
+    )
+    assert repaired.returncode == 0, repaired.stdout or repaired.stderr
+    assert json.loads(repaired.stdout)["verdict"] == "pass"
+    proof = _run(runtime_ethos, "prove", "--root", repo.as_posix(), "--json", env=environment)
+    assert proof.stdout, proof.stderr
+    assert json.loads(proof.stdout)["command"] == "prove"
 
 
 def test_package_gate_order_and_offline_contract_have_one_machine_owner() -> None:
@@ -191,19 +230,32 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     runtime_python = Path(report["data"]["python"])
     package_venv.rename(tmp_path / "retired-package-venv")
     runtime_ethos = _venv_executable(runtime_python.parent.parent, "ethos")
+    git_executable = shutil.which("git")
+    assert git_executable is not None
+    package_environment = {
+        **environment,
+        "PATH": os.pathsep.join((str(Path(git_executable).parent), "/usr/bin", "/bin")),
+    }
+    assert shutil.which("ethos", path=package_environment["PATH"]) is None
+    _prove_relocated_runtime(
+        runtime_ethos=runtime_ethos,
+        repo=repo,
+        hooks_path=Path(report["data"]["hooks_path"]),
+        environment=package_environment,
+    )
     rebind_help = subprocess.run(
         (runtime_ethos.as_posix(), "lane", "rebind-commitment", "--help"),
         capture_output=True,
         text=True,
         check=False,
-        env={key: value for key, value in environment.items() if key != "PYTHONPATH"},
+        env=package_environment,
     )
     derive_help = subprocess.run(
         (runtime_ethos.as_posix(), "lane", "rebind-commitment", "derive", "--help"),
         capture_output=True,
         text=True,
         check=False,
-        env={key: value for key, value in environment.items() if key != "PYTHONPATH"},
+        env=package_environment,
     )
     assert rebind_help.returncode == 0, rebind_help.stderr
     assert "--receipt" in rebind_help.stdout

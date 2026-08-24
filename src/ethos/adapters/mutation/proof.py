@@ -25,6 +25,8 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -419,7 +421,24 @@ def proof_admission_report(
             store=proof_artifact_root(root),
         )
     )
-    next_action = f"ethos prove --execute --expect-head {head} --json" if gaps else ""
+    next_action = ""
+    if gaps:
+        try:
+            next_action = runtime_command(
+                root,
+                "prove",
+                "--root",
+                root.resolve().as_posix(),
+                "--execute",
+                "--expect-head",
+                head,
+                "--json",
+            )
+        except ValueError as error:
+            runtime_gap = str(error) or error.__class__.__name__
+            if runtime_gap not in gaps:
+                gaps.append(runtime_gap)
+            next_action = hook_runtime_binding(root)["next_action"]
     if attestation is None:
         return {
             "verdict": "block",

@@ -137,7 +137,14 @@ branches, heads, `proof_target`, blocking gaps, exact command, and
 assistant runtime, or shell convention. The runner binding exposes the current
 runner module path, package path, source root, and whether that source root
 matches the accepted or audit root; mismatches are advisory signals, not a
-second truth store. Its mode is `maintainer_break_glass_local`: a current ETHOS
+second truth store. Repository-family execution instead selects one immutable
+package runtime through `<git-common-dir>/ethos/runtime/CURRENT`. Hook launchers
+and executable remediation resolve that same selector; historical launcher
+bytes and ambient `PATH` are not alternate authorities. Runtime activation
+validates the candidate before selection, post-observes the shared binding, and
+restores the exact prior selector plus Git configuration on failure.
+
+Its mode is `maintainer_break_glass_local`: a current ETHOS
 runner is allowed to execute the protected closeout with an explicit
 `--root <accepted-root>`, while remote push remains `deferred` and the candidate
 worktree is audited and proven before accepted-root movement.

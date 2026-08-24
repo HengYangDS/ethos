@@ -31,6 +31,13 @@ and post-observe one shared generation before returning PASS. Cleanup MUST
 derive a keep set from current config, launchers, live processes, and in-flight
 operation records; any unreadable consumer blocks deletion.
 
+The sole executable runtime selection is
+`<git-common-dir>/ethos/runtime/CURRENT`. It names one validated,
+content-addressed runtime. Generated launchers, hook execution, diagnosis, and
+proof remediation consume that selection; they do not embed another runtime
+identity or fall back to ambient `PATH`. Activation failure restores both Git
+configuration and the exact prior selector bytes before returning failure.
+
 Failure placement is monotonic: declarations and schemas reject invalid shape;
 context and pre-tool hooks reject invalid target or scope before a write-capable
 tool is invoked; pre-run hooks reject an inadmissible mutation command before

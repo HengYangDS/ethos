@@ -9,6 +9,7 @@ scope = [
   "src/ethos/adapters/repo/hook/activation.py",
   "src/ethos/adapters/repo/hook_runtime_install.py",
   "tests/unit/cli/test_hook_runtime.py",
+  "tests/unit/cli/test_hook_runtime_failure_branches.py",
   "tests/unit/coverage_closure/test_hook_runtime_install_public_resolution.py",
 ]
 invariants = [

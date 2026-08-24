@@ -15,5 +15,4 @@
 
 - [x] 3.1 Run format before lint, focused hook/runtime tests, strict OpenSpec
   validation, and changed proof readiness.
-- [ ] 3.2 Run the full applicable proof on the frozen HEAD, then archive, land,
-  close out, install the accepted runtime, and prove a second install idempotent.
+- [x] 3.2 Run the full applicable proof on the frozen implementation HEAD.

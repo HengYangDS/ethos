@@ -1,0 +1,46 @@
+schema_version = 2
+id = "change:quality-assurance-terminal-design"
+intent = "Replace the fragmented ETHOS quality system with one lean, declarative, tool-native, cross-platform, evidence-bound architecture and remove parallel policy, arbitrary thresholds, duplicated orchestration, and obsolete residue."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "**",
+]
+invariants = [
+  "ethos_owns_only_irreducible_product_and_governance_semantics",
+  "local_hooks_ci_release_and_proof_project_one_quality_graph",
+  "mature_native_tools_own_generic_analysis_and_formatting",
+  "no_parallel_policy_compatibility_surface_or_negative_residue_governance",
+  "one_semantic_owner_per_quality_obligation",
+  "quality_thresholds_are_evidence_calibrated",
+  "supported_platforms_and_python_versions_are_explicitly_proven",
+]
+acceptance = [
+  "changed_path_feedback_is_fast_and_full_head_bound_proof_is_authoritative",
+  "duplicate_configs_wrappers_and_custom_reimplementations_are_deleted",
+  "format_lint_types_tests_coverage_security_docs_links_supply_chain_and_architecture_are_closed",
+  "fresh_exact_head_full_proof_and_repository_residue_audit_pass",
+  "platform_and_python_matrix_evidence_is_nonduplicated",
+  "quality_failures_render_precise_agent_native_remediation",
+  "quality_responsibility_map_is_complete_mece_and_machine_readable",
+]
+risks = [
+  "breaking_quality_policy_cutover",
+  "overconstraint_without_product_value",
+  "previously_hidden_defects_become_blocking",
+  "toolchain_portability_drift",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "rules/evidence.md",
+  "rules/hooks.md",
+  "rules/mutation.md",
+  "user_instruction",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

@@ -172,15 +172,28 @@ def require_runtime_wheel_provenance() -> None:
 
 def resolve_runtime_wheel(source: Path, wheel_dir: Path) -> Path:
     if (source / "pyproject.toml").is_file():
-        wheel_dir.parent.mkdir(parents=True)
-        _run_runtime_tool(
-            source, "build", "--offline", "--wheel", "--out-dir", wheel_dir.as_posix()
-        )
-        wheels = tuple(wheel_dir.glob("ethos-*.whl"))
-        if len(wheels) == 1:
-            return wheels[0]
-        message = "hook_runtime_wheel_invalid"
-        raise ValueError(message)
+        wheel_dir.parent.mkdir(parents=True, exist_ok=True)
+        if wheel_dir.exists():
+            message = "hook_runtime_wheel_invalid"
+            raise ValueError(message)
+        staging = wheel_dir.parent / f".{wheel_dir.name}-{uuid.uuid4().hex}"
+        try:
+            _run_runtime_tool(
+                source,
+                "build",
+                "--offline",
+                "--wheel",
+                "--out-dir",
+                staging.as_posix(),
+            )
+            wheels = tuple(staging.glob("ethos-*.whl"))
+            if len(wheels) != 1:
+                message = "hook_runtime_wheel_invalid"
+                raise ValueError(message)
+            staging.rename(wheel_dir)
+            return wheel_dir / wheels[0].name
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
     try:
         metadata = distribution("ethos")
         payload = json.loads(metadata.read_text("direct_url.json") or "")

@@ -1,0 +1,55 @@
+schema_version = 2
+id = "change:package-runtime-authority"
+intent = "Make one Git-common-dir CURRENT selector bind hooks, package-only execution, diagnosis, repair, and exact-HEAD proof remediation to the same immutable ETHOS runtime without PATH dependence."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "docs/architecture/runner-and-mutation.md",
+  "openspec/changes/package-runtime-authority/**",
+  "openspec/specs/distribution/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "rules/hooks.md",
+  "src/ethos/adapters/mutation/proof.py",
+  "src/ethos/adapters/repo/hook/**",
+  "src/ethos/adapters/repo/hook_runtime.py",
+  "src/ethos/adapters/repo/hook_runtime_install.py",
+  "src/ethos/adapters/repo/runtime/**",
+  "tests/architecture/test_local_install_smoke.py",
+  "tests/unit/cli/land/test_publication.py",
+  "tests/unit/cli/test_hook_runtime.py",
+  "tests/unit/cli/test_hook_runtime_failure_branches.py",
+  "tests/unit/coverage_closure/test_hook_runtime_install_public_resolution.py",
+  "tests/unit/lanes/test_reference_transaction_hook_runtime.py",
+]
+invariants = [
+  "hooks_and_public_remediation_execute_the_same_selected_runtime",
+  "invalid_or_missing_current_runtime_fails_closed_before_governed_effect",
+  "one_git_common_dir_has_one_current_immutable_runtime",
+  "runtime_selection_and_repair_do_not_depend_on_ambient_path",
+]
+acceptance = [
+  "activation_atomically_selects_current_only_after_runtime_and_hook_validation",
+  "all_installed_hooks_resolve_the_current_runtime_and_share_one_generation",
+  "blocked_hook_output_contains_one_copyable_runtime_absolute_exact_head_command",
+  "current_manifest_or_selector_drift_is_diagnosed_and_repairable_without_ambient_ethos",
+  "legacy_direct_runtime_launchers_are_retired_by_one_consumer_aware_activation",
+]
+risks = [
+  "a_mutable_selector_can_weaken_content_addressing_if_not_exactly_validated",
+  "repair_commands_can_reinvoke_a_stale_runtime_if_selection_is_not_single_owner",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "rules/hooks.md",
+  "user_instruction",
+]
+predecessors = [
+  "3e8968165770ff16ce7221a4701baf79380fb98cea2673d659b5e43440b6a3e4",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

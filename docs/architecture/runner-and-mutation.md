@@ -143,6 +143,16 @@ and executable remediation resolve that same selector; historical launcher
 bytes and ambient `PATH` are not alternate authorities. Runtime activation
 validates the candidate before selection, post-observes the shared binding, and
 restores the exact prior selector plus Git configuration on failure.
+For a source checkout, `uv.lock` owns dependency resolution while the active
+lock-current project environment supplies already materialized build and
+platform bytes. Installation verifies that environment before a non-isolated
+wheel build, copies it, strictly prunes the copy to the hash-bound production
+closure, and installs the exact wheel. The uv cache remains a disposable
+acceleration layer, never a prerequisite or authority. A selected package-only
+runtime derives successors from its validated production closure and the exact
+wheel in the same Git-common `ethos/packages/<sha256>/` store. An
+installer-created `direct_url.json` may record a predecessor path, but that path
+is not runtime authority and need not remain present after relocation.
 
 Its mode is `maintainer_break_glass_local`: a current ETHOS
 runner is allowed to execute the protected closeout with an explicit

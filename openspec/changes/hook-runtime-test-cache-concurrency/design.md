@@ -33,10 +33,14 @@ and cannot survive as hidden authority across unrelated runs.
 
 ### Lock only publication
 
-Hold a `FileLock` while locating or constructing the shared template. Release
-it before cloning into a repository's Git common directory. Template
-publication uses a unique staging directory and atomic rename, so readers see
-either no template or a complete candidate.
+Build and publish the shared template in the pytest controller before xdist
+workers start and before per-test timeouts begin. Hold a `FileLock` while
+locating or constructing that template, then release it before workers clone
+into repository Git common directories. Template publication uses a unique
+staging directory, rebinding at its final cache path, and atomic rename, so
+readers see either no template or a complete path-valid candidate. Workers may
+recover a missing or rejected template under the same lock, but normal xdist
+execution does not build one during test setup.
 
 ### Validate before reuse, preserve runtime isolation
 
@@ -57,6 +61,9 @@ contract without a custom filesystem implementation.
   parallel, and each runtime remains a truthful isolation boundary.
 - **A builder dies before publication** -> the unique staging directory is
   removed best-effort; no incomplete target becomes selectable.
+- **A moved template retains its bootstrap shebang** -> publication finalizes
+  and validates the runtime at its final cache path before any worker can select
+  it.
 - **A published template is corrupt** -> validation rejects it and a later
   invocation rebuilds under the publication lock.
 

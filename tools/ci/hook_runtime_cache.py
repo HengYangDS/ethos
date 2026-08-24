@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import platform
 import shutil
 import sys
@@ -162,15 +161,8 @@ def _runtime_template(
 
 
 def _clone_tree(source: Path, target: Path) -> None:
-    """Clone one immutable runtime tree without duplicating its physical bytes."""
-    shutil.copytree(source, target, copy_function=os.link)
-    mutable = [target / "manifest.json"]
-    scripts = target / "venv" / ("Scripts" if os.name == "nt" else "bin")
-    mutable.append(scripts / ("ethos.exe" if os.name == "nt" else "ethos"))
-    for path in mutable:
-        detached = path.with_name(f".{path.name}.detached")
-        shutil.copy2(path, detached)
-        detached.replace(path)
+    """Clone one immutable runtime into an inode-independent repository tree."""
+    shutil.copytree(source, target)
 
 
 def _cache_key(root: Path) -> str:

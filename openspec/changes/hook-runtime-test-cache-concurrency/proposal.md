@@ -11,8 +11,9 @@ waiting on test infrastructure rather than exercising product behavior.
   pytest run.
 - Keep template construction single-flight across processes, but move each
   repository-local clone outside the publication lock.
-- Validate every cached runtime template before reuse and retain isolated
-  runtime paths under each fixture repository's Git common directory.
+- Validate every cached runtime template before reuse and retain
+  inode-independent runtime trees under each fixture repository's Git common
+  directory.
 - Add focused tests for worker-root convergence, single-flight publication,
   repository isolation, and invalid-template rejection.
 - Do not change production runtime installation, package identity, governance

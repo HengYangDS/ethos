@@ -38,17 +38,21 @@ it before cloning into a repository's Git common directory. Template
 publication uses a unique staging directory and atomic rename, so readers see
 either no template or a complete candidate.
 
-### Validate before reuse, detach mutable leaves
+### Validate before reuse, preserve runtime isolation
 
-Use the production runtime validator before accepting a cached template. Clone
-the immutable tree with hard links where supported, then detach the manifest
-and launcher files that repository finalization rewrites. This preserves byte
-reuse without allowing one fixture to mutate another fixture's runtime.
+Use the production runtime validator before accepting a cached template. Copy
+the template into an inode-independent repository runtime outside the
+publication lock. This deliberately rejects hard-link clones: Python and
+installed tools may update metadata or bytecode below the environment, so
+sharing inodes across nominally isolated fixture repositories creates hidden
+cross-worker coupling. The standard library copy path remains portable and can
+use platform-native fast-copy support without changing that isolation model.
 
 ## Risks / Trade-offs
 
-- **Hard links are unavailable or cross-device** -> the existing copy operation
-  fails visibly rather than silently falling back to a divergent cache model.
+- **Repository-local copies retain filesystem cost** -> package construction is
+  still single-flight, while clone work is parallel and each runtime remains a
+  truthful isolation boundary.
 - **A builder dies before publication** -> the unique staging directory is
   removed best-effort; no incomplete target becomes selectable.
 - **A published template is corrupt** -> validation rejects it and a later

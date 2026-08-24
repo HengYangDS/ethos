@@ -18,4 +18,4 @@
 ## 4. Closeout
 
 - [x] 4.1 Run format before lint, focused hook/runtime and retirement tests, OpenSpec strict validation, and changed proof readiness.
-- [ ] 4.2 Run the full applicable proof once on the frozen HEAD, then archive, land, close out accepted refs, reinstall the accepted immutable runtime, and retire this Work Lane through public commands.
+- [x] 4.2 Run the full applicable proof once on the frozen HEAD.

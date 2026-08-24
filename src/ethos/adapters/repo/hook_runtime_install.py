@@ -24,7 +24,6 @@ from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_generation_digest
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
-from ethos.adapters.repo.hook.source_identity import expected_runtime_source
 from ethos.adapters.repo.hook.source_identity import wheel_source_identity
 from ethos.adapters.store.content_addressed import write_content_addressed
 
@@ -36,9 +35,14 @@ class _RuntimeWheel:
     source: RuntimeSourceIdentity
 
 
-def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
+def materialize_hook_runtime(
+    repo: Path,
+    source_python: Path,
+    *,
+    expected_source: RuntimeSourceIdentity,
+) -> Path:
     """Build and atomically install one wheel-qualified common-dir runtime."""
-    source, expected_source_identity = _runtime_source(repo)
+    source = Path(__file__).resolve().parents[4]
     common = Path(git_common_dir(repo))
     ethos_root = common / "ethos"
     if ethos_root.is_symlink():
@@ -53,7 +57,7 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
             source,
             wheel_dir,
             common=common,
-            expected_source=expected_source_identity,
+            expected_source=expected_source,
         )
         digest = _runtime_digest(wheel.sha256, python_abi, wheel.source)
         target = runtime_root / digest
@@ -132,12 +136,6 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
         return target / "venv"
     finally:
         shutil.rmtree(work, ignore_errors=True)
-
-
-def _runtime_source(repo: Path) -> tuple[Path, RuntimeSourceIdentity]:
-    package_source = Path(__file__).resolve().parents[4]
-    expected_source_identity, _ = expected_runtime_source(repo)
-    return package_source, expected_source_identity
 
 
 def _runtime_wheel(

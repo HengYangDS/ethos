@@ -15,13 +15,9 @@ import ethos.adapters.repo.hook_runtime_install as install
 _SOURCE_IDENTITY = install.RuntimeSourceIdentity(commit="a" * 40, tree="b" * 40)
 
 
-def _bind_source_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        install,
-        "expected_runtime_source",
-        lambda _repo: (_SOURCE_IDENTITY, None),
-    )
+def _bind_source_identity(monkeypatch: pytest.MonkeyPatch) -> install.RuntimeSourceIdentity:
     monkeypatch.setattr(install, "wheel_source_identity", lambda _wheel: _SOURCE_IDENTITY)
+    return _SOURCE_IDENTITY
 
 
 def _completed(code: int, stdout: str = "", stderr: str = ""):
@@ -107,7 +103,11 @@ def test_installed_runtime_copy_rejects_python_outside_prefix(
     )
 
     with pytest.raises(ValueError, match="hook_runtime_python_prefix_invalid"):
-        install.materialize_hook_runtime(tmp_path / "repo", tmp_path / "foreign/python")
+        install.materialize_hook_runtime(
+            tmp_path / "repo",
+            tmp_path / "foreign/python",
+            expected_source=_SOURCE_IDENTITY,
+        )
 
 
 def test_runtime_tool_reports_missing_executable_and_stderr(
@@ -153,7 +153,9 @@ def test_python_abi_and_manifest_fail_closed(
     monkeypatch.setattr(sys, "prefix", prefix.as_posix())
     monkeypatch.setattr(install.subprocess, "run", lambda *_args, **_kwargs: _completed(1))
     with pytest.raises(ValueError, match="hook_runtime_python_abi_invalid"):
-        install.materialize_hook_runtime(tmp_path / "repo", source_python)
+        install.materialize_hook_runtime(
+            tmp_path / "repo", source_python, expected_source=_SOURCE_IDENTITY
+        )
 
     monkeypatch.setattr(
         install.subprocess,
@@ -166,7 +168,9 @@ def test_python_abi_and_manifest_fail_closed(
         lambda _source, target, **_kwargs: target.mkdir(parents=True),
     )
     with pytest.raises(ValueError, match="hook_runtime_python_missing"):
-        install.materialize_hook_runtime(tmp_path / "repo", source_python)
+        install.materialize_hook_runtime(
+            tmp_path / "repo", source_python, expected_source=_SOURCE_IDENTITY
+        )
 
 
 def test_materialize_installed_runtime_copies_exact_python_prefix(
@@ -200,7 +204,9 @@ def test_materialize_installed_runtime_copies_exact_python_prefix(
     )
     monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: wheel)
 
-    runtime = install.materialize_hook_runtime(tmp_path / "repo", python)
+    runtime = install.materialize_hook_runtime(
+        tmp_path / "repo", python, expected_source=_SOURCE_IDENTITY
+    )
 
     assert (runtime / "bin/python").read_bytes() == b"python"
     assert not (runtime / "bin/python").is_symlink()
@@ -247,7 +253,9 @@ def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
         lambda *_args, **_kwargs: _completed(0, stdout="ethos-test\n"),
     )
 
-    install.materialize_hook_runtime(tmp_path / "repo", source_python)
+    install.materialize_hook_runtime(
+        tmp_path / "repo", source_python, expected_source=_SOURCE_IDENTITY
+    )
     volatile_wheel.unlink()
 
     durable = common / "ethos/packages" / wheel_sha256 / volatile_wheel.name
@@ -281,7 +289,9 @@ def test_materialize_runtime_rejects_durable_wheel_digest_collision(
     monkeypatch.setattr(sys, "prefix", prefix.as_posix())
 
     with pytest.raises(ValueError, match="hook_runtime_wheel_digest_collision"):
-        install.materialize_hook_runtime(tmp_path / "repo", source_python)
+        install.materialize_hook_runtime(
+            tmp_path / "repo", source_python, expected_source=_SOURCE_IDENTITY
+        )
 
 
 def test_final_runtime_rejects_console_entrypoint_bound_to_staging(

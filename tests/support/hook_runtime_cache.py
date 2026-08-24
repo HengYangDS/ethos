@@ -30,7 +30,7 @@ def install_session_hook_runtime_cache(monkeypatch: pytest.MonkeyPatch, cache_ro
     templates = cache_root / _cache_key(source)
     wheel_lock = threading.Lock()
     runtime_lock = threading.Lock()
-    runtime_template: Path | None = None
+    runtime_templates: dict[RuntimeSourceIdentity, Path] = {}
     original_materialize = hook_runtime_install.materialize_hook_runtime
     original_wheel = hook_runtime_install.resolve_runtime_wheel
 
@@ -52,20 +52,38 @@ def install_session_hook_runtime_cache(monkeypatch: pytest.MonkeyPatch, cache_ro
         shutil.copy2(wheel, destination)
         return destination
 
-    def cached_materialize(repo: Path, source_python: Path) -> Path:
-        nonlocal runtime_template
+    def cached_materialize(
+        repo: Path,
+        source_python: Path,
+        *,
+        expected_source: RuntimeSourceIdentity,
+    ) -> Path:
         canonical_source = Path(hook_runtime_install.__file__).resolve().parents[4]
         if source_python.resolve() != Path(sys.executable).resolve() or canonical_source != source:
-            return original_materialize(repo, source_python)
+            return original_materialize(
+                repo,
+                source_python,
+                expected_source=expected_source,
+            )
         common = Path(git_common_dir(repo))
         if (common / "ethos").is_symlink():
-            return original_materialize(repo, source_python)
+            return original_materialize(
+                repo,
+                source_python,
+                expected_source=expected_source,
+            )
         with runtime_lock:
+            runtime_template = runtime_templates.get(expected_source)
             if runtime_template is None:
-                built = original_materialize(repo, source_python).parent
+                built = original_materialize(
+                    repo,
+                    source_python,
+                    expected_source=expected_source,
+                ).parent
                 runtime_template = templates / "runtime" / built.name
                 runtime_template.parent.mkdir(parents=True, exist_ok=True)
                 _clone_tree(built, runtime_template)
+                runtime_templates[expected_source] = runtime_template
             target = common / "ethos" / "runtime" / runtime_template.name
             if not target.exists():
                 target.parent.mkdir(parents=True, exist_ok=True)

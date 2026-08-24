@@ -17,6 +17,8 @@
 
 - [x] 4.1 Prove an isolated wheel installs, selects, moves/reopens, and executes public status/proof-repair commands with no source checkout or ambient `ethos`.
 - [ ] 4.2 Run format before lint, focused tests, type/static gates, strict OpenSpec validation, full proof and coverage; archive, land, install twice, and verify accepted runtime/hook identity plus read-only adopter diagnostics.
+  - Current evidence: format/lint/types PASS; strict change validation PASS; focused runtime/hook/publication/install set 122 PASS.
+  - Remaining: full suite, coverage, full strict validation, exact-HEAD proof, archive/land, accepted install twice, adopter read-only diagnostics.
 
 ## Requirement To Task To Proof
 

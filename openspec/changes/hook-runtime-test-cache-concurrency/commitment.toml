@@ -1,0 +1,25 @@
+schema_version = 2
+id = "change:hook-runtime-test-cache-concurrency"
+intent = "Eliminate duplicate immutable hook-runtime construction and lock serialization across pytest-xdist workers while preserving per-repository isolation."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "openspec/changes/hook-runtime-test-cache-concurrency/**",
+  "tests/conftest.py",
+  "tests/support/hook_runtime_cache.py",
+  "tests/support/test_hook_runtime_cache.py",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+predecessors = [
+  "527fc9bbfcb6960a1993a8963850f83050a93df21ca2a211e73a46649c6d6ed0",
+  "9a72068aedbdd43c3765a0d19637d0e3517ff0db344dc73c040b5aceb6343e23",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

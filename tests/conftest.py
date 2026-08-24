@@ -25,6 +25,7 @@ import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
 
 from tests.support.hook_runtime_cache import install_session_hook_runtime_cache
+from tests.support.hook_runtime_cache import session_hook_runtime_cache_root
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 set_hypothesis_home_dir(
@@ -43,7 +44,7 @@ def _cache_immutable_hook_runtime(tmp_path_factory: pytest.TempPathFactory) -> o
     with pytest.MonkeyPatch.context() as monkeypatch:
         install_session_hook_runtime_cache(
             monkeypatch,
-            tmp_path_factory.mktemp("ethos-hook-runtime-cache"),
+            session_hook_runtime_cache_root(tmp_path_factory.getbasetemp()),
         )
         yield
 

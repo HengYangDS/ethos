@@ -69,18 +69,7 @@ def materialize_hook_runtime(
             return target / "venv"
         staging = runtime_root / f".runtime-{digest[:12]}-{uuid.uuid4().hex}"
         try:
-            if (source / "pyproject.toml").is_file():
-                _run_runtime_tool(
-                    source,
-                    "venv",
-                    "--offline",
-                    "--relocatable",
-                    "--python",
-                    source_python.as_posix(),
-                    (staging / "venv").as_posix(),
-                )
-            else:
-                _copy_installed_runtime(staging / "venv", source_python)
+            _copy_installed_runtime(staging / "venv", source_python)
             runtime_python_path = runtime_python(staging / "venv")
             if (source / "pyproject.toml").is_file():
                 requirements = work / "locked-requirements.txt"
@@ -99,13 +88,22 @@ def materialize_hook_runtime(
                 _run_runtime_tool(
                     source,
                     "pip",
+                    "sync",
+                    "--offline",
+                    "--require-hashes",
+                    "--strict",
+                    "--python",
+                    runtime_python_path.as_posix(),
+                    requirements.as_posix(),
+                )
+                _run_runtime_tool(
+                    source,
+                    "pip",
                     "install",
                     "--offline",
                     "--no-deps",
                     "--python",
                     runtime_python_path.as_posix(),
-                    "--requirements",
-                    requirements.as_posix(),
                     wheel.path.as_posix(),
                 )
             write_runtime_manifest(
@@ -172,6 +170,7 @@ def require_runtime_wheel_provenance() -> None:
 
 def resolve_runtime_wheel(source: Path, wheel_dir: Path) -> Path:
     if (source / "pyproject.toml").is_file():
+        _run_runtime_tool(source, "sync", "--locked", "--offline", "--check", "--active")
         wheel_dir.parent.mkdir(parents=True, exist_ok=True)
         if wheel_dir.exists():
             message = "hook_runtime_wheel_invalid"
@@ -182,6 +181,7 @@ def resolve_runtime_wheel(source: Path, wheel_dir: Path) -> Path:
                 source,
                 "build",
                 "--offline",
+                "--no-build-isolation",
                 "--wheel",
                 "--out-dir",
                 staging.as_posix(),
@@ -194,6 +194,9 @@ def resolve_runtime_wheel(source: Path, wheel_dir: Path) -> Path:
             return wheel_dir / wheels[0].name
         finally:
             shutil.rmtree(staging, ignore_errors=True)
+    managed_wheel = _managed_runtime_wheel(source)
+    if managed_wheel is not None:
+        return managed_wheel
     try:
         metadata = distribution("ethos")
         payload = json.loads(metadata.read_text("direct_url.json") or "")
@@ -208,13 +211,40 @@ def resolve_runtime_wheel(source: Path, wheel_dir: Path) -> Path:
     return wheel
 
 
+def _managed_runtime_wheel(source: Path) -> Path | None:
+    """Resolve the wheel bound by the current Git-common immutable runtime."""
+    prefix = Path(sys.prefix)
+    runtime = prefix.parent
+    try:
+        source.resolve().relative_to(prefix.resolve())
+    except ValueError:
+        return None
+    if prefix.name != "venv" or runtime.parent.name != "runtime":
+        return None
+    selected = require_selected_runtime(runtime)
+    package_root = runtime.parent.parent / "packages" / selected.wheel_sha256
+    if package_root.is_symlink() or not package_root.is_dir():
+        message = "hook_runtime_wheel_provenance_missing"
+        raise ValueError(message)
+    wheels = tuple(
+        path
+        for path in package_root.glob("ethos-*.whl")
+        if path.is_file() and not path.is_symlink()
+    )
+    if len(wheels) != 1 or _sha256(wheels[0]) != selected.wheel_sha256:
+        message = "hook_runtime_wheel_provenance_missing"
+        raise ValueError(message)
+    return wheels[0]
+
+
 def _copy_installed_runtime(target: Path, source_python: Path) -> None:
     prefix = Path(sys.prefix)
     try:
         source_python.relative_to(prefix)
     except ValueError as error:
-        message = "hook_runtime_python_prefix_invalid"
-        raise ValueError(message) from error
+        if source_python.resolve() != Path(sys.executable).resolve():
+            message = "hook_runtime_python_prefix_invalid"
+            raise ValueError(message) from error
     # A virtual environment commonly links its interpreter back to the host
     # installation.  Preserving that link would make the supposedly immutable
     # runtime depend on (and permit writes through to) the host interpreter.
@@ -236,6 +266,7 @@ def _run_runtime_tool(source: Path, *args: str) -> None:
         check=False,
         env={
             **os.environ,
+            "VIRTUAL_ENV": Path(sys.prefix).as_posix(),
             "ETHOS_BUILD_NODE": (
                 node_root / "bin" / ("node.exe" if os.name == "nt" else "node")
             ).as_posix(),

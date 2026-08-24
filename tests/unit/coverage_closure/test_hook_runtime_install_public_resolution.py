@@ -38,15 +38,22 @@ def test_source_wheel_resolution_requires_exactly_one_output(
     uv.write_text("tool", encoding="utf-8")
     monkeypatch.setattr(sys, "executable", python.as_posix())
 
-    def build(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        wheel_dir.mkdir(parents=True, exist_ok=True)
-        for index in range(wheel_count):
-            (wheel_dir / f"ethos-{index}.whl").write_bytes(b"wheel")
+    commands: list[tuple[str, ...]] = []
+
+    def build(command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        if command[1] == "build":
+            output = Path(command[-1])
+            output.mkdir(parents=True, exist_ok=True)
+            for index in range(wheel_count):
+                (output / f"ethos-{index}.whl").write_bytes(b"wheel")
         return _completed(0)
 
     monkeypatch.setattr(install.subprocess, "run", build)
     with pytest.raises(ValueError, match="hook_runtime_wheel_invalid"):
         install.resolve_runtime_wheel(source, wheel_dir)
+    assert commands[0][1:] == ("sync", "--locked", "--offline", "--check", "--active")
+    assert "--no-build-isolation" in commands[1]
 
 
 def test_installed_wheel_resolution_rejects_missing_and_non_file_provenance(
@@ -80,6 +87,62 @@ def test_installed_wheel_resolution_accepts_exact_file_url(
     monkeypatch.setattr(install, "distribution", lambda _name: metadata)
 
     assert install.resolve_runtime_wheel(tmp_path / "installed", tmp_path / "unused") == wheel
+
+
+def test_managed_runtime_resolves_its_git_common_content_addressed_wheel(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    digest = "a" * 64
+    wheel_sha256 = hashlib.sha256(b"wheel").hexdigest()
+    runtime = tmp_path / "repo.git/ethos/runtime" / digest
+    source = runtime / "venv/lib/python3.14/site-packages"
+    source.mkdir(parents=True)
+    wheel = tmp_path / "repo.git/ethos/packages" / wheel_sha256 / "ethos-test.whl"
+    wheel.parent.mkdir(parents=True)
+    wheel.write_bytes(b"wheel")
+    monkeypatch.setattr(sys, "prefix", (runtime / "venv").as_posix())
+    monkeypatch.setattr(
+        install,
+        "require_selected_runtime",
+        lambda candidate: (
+            type("Selected", (), {"wheel_sha256": wheel_sha256})() if candidate == runtime else None
+        ),
+    )
+
+    assert install.resolve_runtime_wheel(source, tmp_path / "unused") == wheel
+
+
+def test_managed_runtime_rejects_missing_or_ambiguous_content_addressed_wheel(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    digest = "a" * 64
+    wheel_sha256 = hashlib.sha256(b"wheel").hexdigest()
+    runtime = tmp_path / "repo.git/ethos/runtime" / digest
+    source = runtime / "venv/lib/python3.14/site-packages"
+    source.mkdir(parents=True)
+    package_root = tmp_path / "repo.git/ethos/packages" / wheel_sha256
+    monkeypatch.setattr(sys, "prefix", (runtime / "venv").as_posix())
+    monkeypatch.setattr(
+        install,
+        "require_selected_runtime",
+        lambda candidate: (
+            type("Selected", (), {"wheel_sha256": wheel_sha256})() if candidate == runtime else None
+        ),
+    )
+
+    with pytest.raises(ValueError, match="hook_runtime_wheel_provenance_missing"):
+        install.resolve_runtime_wheel(source, tmp_path / "unused")
+
+    package_root.mkdir(parents=True)
+    (package_root / "ethos-drifted.whl").write_bytes(b"drifted")
+    with pytest.raises(ValueError, match="hook_runtime_wheel_provenance_missing"):
+        install.resolve_runtime_wheel(source, tmp_path / "unused")
+
+    (package_root / "ethos-drifted.whl").unlink()
+    for name in ("ethos-first.whl", "ethos-second.whl"):
+        (package_root / name).write_bytes(b"wheel")
+    with pytest.raises(ValueError, match="hook_runtime_wheel_provenance_missing"):
+        install.resolve_runtime_wheel(source, tmp_path / "unused")
 
 
 def test_installed_runtime_copy_rejects_python_outside_prefix(
@@ -135,13 +198,41 @@ def test_runtime_tool_reports_missing_executable_and_stderr(
     assert not failed_wheel.exists()
 
     def build(command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        output = Path(command[-1])
-        output.mkdir(parents=True)
-        (output / "ethos-retry.whl").write_bytes(b"wheel")
+        if command[1] == "build":
+            output = Path(command[-1])
+            output.mkdir(parents=True)
+            (output / "ethos-retry.whl").write_bytes(b"wheel")
         return _completed(0)
 
     monkeypatch.setattr(install.subprocess, "run", build)
     assert install.resolve_runtime_wheel(source, failed_wheel).parent == failed_wheel
+
+
+def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_writing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
+    python = tmp_path / "bin/python"
+    uv = python.with_name("uv")
+    uv.parent.mkdir(parents=True)
+    uv.write_text("tool", encoding="utf-8")
+    monkeypatch.setattr(sys, "executable", python.as_posix())
+    commands: list[tuple[str, ...]] = []
+
+    def reject(command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        return _completed(1, stderr="source environment drift")
+
+    monkeypatch.setattr(install.subprocess, "run", reject)
+    wheel_dir = tmp_path / "build/wheel"
+
+    with pytest.raises(ValueError, match="source environment drift"):
+        install.resolve_runtime_wheel(source, wheel_dir)
+
+    assert commands == [(uv.as_posix(), "sync", "--locked", "--offline", "--check", "--active")]
+    assert not wheel_dir.parent.exists()
 
 
 def test_python_abi_and_manifest_fail_closed(
@@ -240,22 +331,25 @@ def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
     source_python = tmp_path / "bin/python"
     source_python.parent.mkdir()
     source_python.write_bytes(b"python")
+    monkeypatch.setattr(sys, "prefix", tmp_path.as_posix())
     calls: list[tuple[str, tuple[str, ...]]] = []
     monkeypatch.setattr(install, "__file__", module.as_posix())
     monkeypatch.setattr(install, "git_common_dir", lambda _repo: common.as_posix())
     monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: volatile_wheel)
     monkeypatch.setattr(install, "_python_abi", lambda _python: "cpython-test")
 
+    def copy_runtime(_source: Path, target: Path, **_kwargs: object) -> None:
+        python = target / "bin/python"
+        python.parent.mkdir(parents=True)
+        python.write_bytes(b"python")
+        entrypoint = target / "bin/ethos"
+        entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
+        entrypoint.chmod(0o755)
+
+    monkeypatch.setattr(install.shutil, "copytree", copy_runtime)
+
     def run_runtime_tool(_source: Path, operation: str, *args: str) -> None:
         calls.append((operation, args))
-        if operation == "venv":
-            venv = Path(args[-1])
-            python = venv / "bin/python"
-            python.parent.mkdir(parents=True)
-            python.write_bytes(b"python")
-            entrypoint = venv / "bin/ethos"
-            entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
-            entrypoint.chmod(0o755)
 
     monkeypatch.setattr(install, "_run_runtime_tool", run_runtime_tool)
     monkeypatch.setattr(
@@ -270,8 +364,12 @@ def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
     volatile_wheel.unlink()
 
     durable = common / "ethos/packages" / wheel_sha256 / volatile_wheel.name
-    assert calls[1][1][:4] == ("--locked", "--offline", "--no-dev", "--no-emit-project")
-    assert {"--no-deps", "--requirements"} < set(calls[2][1])
+    assert calls[0][1][:4] == ("--locked", "--offline", "--no-dev", "--no-emit-project")
+    assert calls[1][0] == "pip"
+    assert calls[1][1][:3] == ("sync", "--offline", "--require-hashes")
+    assert "--strict" in calls[1][1]
+    assert calls[2][0] == "pip"
+    assert {"install", "--offline", "--no-deps"} < set(calls[2][1])
     assert Path(calls[2][1][-1]) == durable
     assert durable.read_bytes() == b"wheel"
 

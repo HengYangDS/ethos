@@ -6,10 +6,13 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.mutation.proof as proof_adapter
 import ethos.adapters.mutation.publication.attestation as publication_attestation
 import ethos.adapters.mutation.remote_publication as remote_publication
 import ethos.surface.cli.root.publish as publication_cli
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
@@ -646,11 +649,21 @@ def test_publish_and_pre_push_bind_the_same_exact_proof_attestation(tmp_path: Pa
 
 def test_publish_and_pre_push_report_the_same_exact_missing_proof_action(tmp_path: Path) -> None:
     repo, _remotes, head = _branch_publication_fixture(tmp_path)
+    install_hook_launchers(repo)
     attestation_root = git(repo, "rev-parse", "--verify", "refs/ethos/attestations-set")
     git(repo, "update-ref", "-d", "refs/ethos/attestations-set", attestation_root)
 
     payload = _branch_publication(repo, head, blocked=True)
-    action = f"ethos prove --execute --expect-head {head} --json"
+    action = runtime_command(
+        repo,
+        "prove",
+        "--root",
+        repo.as_posix(),
+        "--execute",
+        "--expect-head",
+        head,
+        "--json",
+    )
 
     assert payload["required_gaps"] == ["proof_not_proven"]
     assert payload["next_action"] == action
@@ -658,6 +671,37 @@ def test_publish_and_pre_push_report_the_same_exact_missing_proof_action(tmp_pat
     assert {report["next_action"] for report in payload["data"]["push_admission"].values()} == {
         action
     }
+
+
+def test_missing_selected_runtime_reports_hook_repair_instead_of_crashing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    monkeypatch.setattr(
+        proof_adapter,
+        "proof_for_repository_transition",
+        lambda _root, _head: (None, ["proof_not_proven"]),
+    )
+    monkeypatch.setattr(
+        proof_adapter,
+        "runtime_command",
+        lambda *_args: (_ for _ in ()).throw(ValueError("hook_runtime_current_missing")),
+    )
+    repair = f"/runtime/bin/ethos hook install --root {repo.as_posix()} --json"
+    monkeypatch.setattr(
+        proof_adapter,
+        "hook_runtime_binding",
+        lambda _root: {"next_action": repair},
+    )
+
+    report = proof_adapter.proof_admission_report(repo, head, repository_transition=True)
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["proof_not_proven", "hook_runtime_current_missing"]
+    assert report["next_action"] == repair
+    assert "hook install" in report["next_action"]
+    assert f"--root {repo.as_posix()}" in report["next_action"]
 
 
 def test_publish_branch_retry_records_one_terminal_attestation_after_interruption(

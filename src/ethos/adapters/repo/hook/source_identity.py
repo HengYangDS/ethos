@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import shlex
 import subprocess
 import tempfile
 import zipfile
@@ -92,15 +91,6 @@ def expected_runtime_source(root: Path) -> tuple[RuntimeSourceIdentity, Path | N
             _accepted_worktree(repo, policy.accepted_branch),
         )
     return runtime_source_identity(package_source), None
-
-
-def hook_runtime_repair_action(root: Path, source_root: Path | None) -> str:
-    """Render the one fully bound hook repair command for this repository."""
-    repo = root.resolve()
-    prefix = (
-        f"cd {shlex.quote(source_root.as_posix())} && uv run " if source_root is not None else ""
-    )
-    return f"{prefix}ethos hook install --root {shlex.quote(repo.as_posix())} --json"
 
 
 def _source_tree(root: Path) -> str:

@@ -16,9 +16,11 @@ from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -39,6 +41,7 @@ def execute_hook(
     """Execute one Git hook without shell-owned policy or PATH-selected ETHOS code."""
     repo = root.resolve()
     try:
+        current_runtime(Path(git_common_dir(repo)))
         if name == "pre-commit":
             reports = (_pre_commit(repo),)
         elif name == "pre-push":

@@ -15,9 +15,10 @@ from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HookRuntimeBinding
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
-from ethos.adapters.repo.hook.binding import launcher_runtime_generation
-from ethos.adapters.repo.hook.binding import runtime_locator
 from ethos.adapters.repo.hook.source_identity import expected_runtime_source
+from ethos.adapters.repo.runtime.selection import activate_runtime
+from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 
 _ACTIVATION_KEYS = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
 _WORKTREE_ACTIVATION_KEYS = ("core.hooksPath", "gc.packRefs")
@@ -38,40 +39,34 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
         expected_source=expected_source,
     )
     common = Path(git_common_dir(repo))
-    hooks = runtime_install.materialize_hook_launchers(
-        common / "ethos" / "hooks", runtime_locator(runtime)
-    )
+    hooks = runtime_install.materialize_hook_launchers(common / "ethos" / "hooks")
     _consumer_text(repo, common)
     linked = _linked_worktree_paths(repo)
     common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
+    current_before = _runtime_selection_bytes(common)
     worktrees_before: dict[Path, dict[str, tuple[str, ...]]] = {}
-    cleanup_plan: dict[str, tuple[Path, ...]] = {}
     try:
-        config_effects.set_common_config(repo, {"extensions.worktreeConfig": "true"})
-        worktrees_before = {
-            worktree: config_effects.config_values(
-                worktree, _WORKTREE_ACTIVATION_KEYS, scope="worktree"
-            )
-            for worktree in linked
-        }
-        config_effects.set_common_config(
+        binding, cleanup_plan = _activate_common_runtime(
             repo,
-            {"gc.packRefs": "false", "core.hooksPath": hooks.as_posix()},
+            common,
+            runtime.parent,
+            hooks,
+            linked,
+            worktrees_before,
+            expected_source=expected_source,
         )
-        for worktree in linked:
-            config_effects.unset_worktree_config(worktree, _WORKTREE_ACTIVATION_KEYS)
-        _require_common_activation(repo, linked, hooks, expected_source=expected_source)
-        cleanup_plan = _generation_cleanup_plan(repo, hooks, runtime.parent)
-    except (OSError, ValueError):
-        _restore_activation(repo, common_before, worktrees_before)
+    except (OSError, ValueError) as error:
+        try:
+            _restore_failed_activation(
+                repo,
+                common,
+                common_before,
+                worktrees_before,
+                current_before,
+            )
+        except ValueError as compensation_error:
+            raise compensation_error from error
         raise
-    binding = hook_runtime_binding(repo, expected_source=expected_source)
-    if binding["hooks_path"] != hooks.as_posix():
-        message = "hook_runtime_activation_drift"
-        raise ValueError(message)
-    if binding["required_gaps"]:
-        message = "hook_runtime_activation_invalid:" + ",".join(binding["required_gaps"])
-        raise ValueError(message)
     cleanup = _apply_generation_cleanup(cleanup_plan)
     legacy = common / "ethos-runtime-python"
     present = legacy.exists() or legacy.is_symlink()
@@ -96,6 +91,78 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
     ]
     cast("dict[str, object]", binding)["generation_cleanup"] = cleanup
     return binding
+
+
+def _activate_common_runtime(
+    repo: Path,
+    common: Path,
+    runtime: Path,
+    hooks: Path,
+    linked: tuple[Path, ...],
+    worktrees_before: dict[Path, dict[str, tuple[str, ...]]],
+    *,
+    expected_source: runtime_install.RuntimeSourceIdentity,
+) -> tuple[HookRuntimeBinding, dict[str, tuple[Path, ...]]]:
+    """Select and post-observe one common runtime/hook activation."""
+    activate_runtime(common, runtime)
+    config_effects.set_common_config(repo, {"extensions.worktreeConfig": "true"})
+    worktrees_before.update(
+        {
+            worktree: config_effects.config_values(
+                worktree, _WORKTREE_ACTIVATION_KEYS, scope="worktree"
+            )
+            for worktree in linked
+        }
+    )
+    config_effects.set_common_config(
+        repo,
+        {"gc.packRefs": "false", "core.hooksPath": hooks.as_posix()},
+    )
+    for worktree in linked:
+        config_effects.unset_worktree_config(worktree, _WORKTREE_ACTIVATION_KEYS)
+    _require_common_activation(repo, linked, hooks, expected_source=expected_source)
+    cleanup_plan = _generation_cleanup_plan(repo, hooks, runtime)
+    binding = hook_runtime_binding(repo, expected_source=expected_source)
+    if binding["hooks_path"] != hooks.as_posix():
+        message = "hook_runtime_activation_drift"
+        raise ValueError(message)
+    if binding["required_gaps"]:
+        message = "hook_runtime_activation_invalid:" + ",".join(binding["required_gaps"])
+        raise ValueError(message)
+    return binding, cleanup_plan
+
+
+def _restore_failed_activation(
+    repo: Path,
+    common: Path,
+    common_before: dict[str, tuple[str, ...]],
+    worktrees_before: dict[Path, dict[str, tuple[str, ...]]],
+    current_before: bytes | None,
+) -> None:
+    """Attempt every activation compensation and report the complete boundary."""
+    errors: list[str] = []
+    try:
+        _restore_activation(repo, common_before, worktrees_before)
+    except (OSError, ValueError) as error:
+        errors.append(str(error) or error.__class__.__name__)
+    try:
+        restore_runtime_selection(common, current_before)
+    except OSError as error:
+        errors.append(str(error) or error.__class__.__name__)
+    if errors:
+        message = "hook_runtime_activation_compensation_failed:" + ",".join(errors)
+        raise ValueError(message)
+
+
+def _runtime_selection_bytes(common: Path) -> bytes | None:
+    selector = common / "ethos" / "runtime" / "CURRENT"
+    try:
+        return selector.read_bytes()
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        message = "hook_runtime_current_invalid"
+        raise ValueError(message) from error
 
 
 def _linked_worktree_paths(root: Path) -> tuple[Path, ...]:
@@ -190,8 +257,7 @@ def _generation_cleanup_plan(
         if path.as_posix() in consumers or f"ethos/{path.parent.name}/{path.name}" in consumers
     }
     retained.update((hooks, runtime))
-    for retained_hooks in tuple(path for path in retained if path.parent == hooks_root):
-        retained.add(launcher_runtime_generation(retained_hooks, runtime_root))
+    retained.add(current_runtime(common).root)
     removable = tuple(sorted(set(candidates) - retained, key=lambda path: path.as_posix()))
     return {
         "checked": tuple(sorted(candidates, key=lambda path: path.as_posix())),

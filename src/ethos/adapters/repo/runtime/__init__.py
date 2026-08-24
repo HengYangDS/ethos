@@ -1,1 +1,1 @@
-"""Repository runtime binding semantic subpackage."""
+"""Repository runtime binding and immutable selection semantic subpackage."""

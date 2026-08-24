@@ -156,6 +156,7 @@ def test_reference_transaction_hook_uses_the_candidate_project_environment() -> 
 
 def test_reference_transaction_reads_only_git_common_lease_state(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A prepared ref decision reads Lease state without walking runtime generations."""
@@ -182,6 +183,10 @@ def test_reference_transaction_reads_only_git_common_lease_state(
         connection.execute("begin immediate")
         initialize_state_connection(connection)
         connection.commit()
+    monkeypatch.setattr(
+        "ethos.adapters.repo.hook_runtime.current_runtime",
+        lambda _common: None,
+    )
     old = git(repo, "rev-parse", "work/x")
     new = git(repo, "commit-tree", git(repo, "rev-parse", "HEAD^{tree}"), "-p", old, "-m", "next")
     status = execute_hook(

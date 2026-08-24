@@ -42,21 +42,22 @@ readers see either no template or a complete path-valid candidate. Workers may
 recover a missing or rejected template under the same lock, but normal xdist
 execution does not build one during test setup.
 
-### Validate before reuse, separate mutable leaves
+### Validate before reuse, project a thin runtime shell
 
-Use the production runtime validator before accepting a cached template. Clone
-the immutable package tree with filesystem hard links outside the publication
-lock, while giving every repository independent directories and independent
-copies of the runtime Python, command entrypoint, and manifest that product
-code or adversarial tests may mutate. Test subprocesses disable bytecode writes,
-so the remaining linked package files are read-only inputs rather than hidden
-cross-worker state.
+Use the production runtime validator before accepting a cached template. Give
+each repository an independent manifest, Python executable, command entrypoint,
+and virtual-environment metadata, then use Python's standard `.pth` mechanism
+to expose the run-level template's read-only `site-packages`. This avoids
+projecting roughly 9,000 package files into every fixture while preserving the
+repository-local paths and mutable leaves exercised by runtime tests. Test
+subprocesses disable bytecode writes, so the shared package directory remains a
+read-only input rather than hidden cross-worker state.
 
 ## Risks / Trade-offs
 
-- **A new runtime-mutating surface is introduced** -> it must be added to the
-  explicit mutable-leaf set and the isolation regression before the cache may
-  share its bytes.
+- **A new test mutates installed package contents** -> the cache contract must
+  either isolate that exact carrier or reject the test mode; shared
+  `site-packages` remain read-only by design.
 - **A builder dies before publication** -> the unique staging directory is
   removed best-effort; no incomplete target becomes selectable.
 - **A moved template retains its bootstrap shebang** -> publication finalizes

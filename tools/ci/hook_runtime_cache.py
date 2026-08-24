@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import platform
 import shutil
 import subprocess
@@ -114,7 +113,7 @@ def install_session_hook_runtime_cache(monkeypatch: pytest.MonkeyPatch, cache_ro
         target = common / "ethos" / "runtime" / runtime_template.name
         if not target.exists():
             target.parent.mkdir(parents=True, exist_ok=True)
-            _clone_tree(runtime_template, target)
+            _project_runtime_template(runtime_template, target)
             manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
             hook_runtime_install.finalize_runtime(
                 target,
@@ -157,7 +156,7 @@ def _publish_runtime_template(templates: Path, built: Path) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     staging = target.parent / f".{built.name}-{uuid.uuid4().hex}"
     try:
-        _clone_tree(built, staging)
+        shutil.copytree(built, staging)
         staging.rename(target)
         _finalize_cached_template(target)
     except (OSError, ValueError):
@@ -227,19 +226,39 @@ def _runtime_template(
     return None
 
 
-def _clone_tree(source: Path, target: Path) -> None:
-    """Reuse immutable bytes while detaching every runtime-owned mutable leaf."""
-    shutil.copytree(source, target, copy_function=os.link)
-    scripts = target / "venv" / ("Scripts" if os.name == "nt" else "bin")
-    mutable = (
-        target / "manifest.json",
-        scripts / ("ethos.exe" if os.name == "nt" else "ethos"),
-        scripts / ("python.exe" if os.name == "nt" else "python"),
+def _project_runtime_template(source: Path, target: Path) -> None:
+    """Create a small mutable venv shell over shared immutable site-packages."""
+    target.mkdir()
+    shutil.copy2(source / "manifest.json", target / "manifest.json")
+    source_venv, target_venv = source / "venv", target / "venv"
+    target_venv.mkdir()
+    source_site = _site_packages(source_venv)
+    shared_root = source_site.relative_to(source_venv).parts[0]
+    for child in source_venv.iterdir():
+        if child.name == shared_root:
+            continue
+        destination = target_venv / child.name
+        if child.is_dir():
+            shutil.copytree(child, destination)
+        else:
+            shutil.copy2(child, destination)
+    target_site = target_venv / source_site.relative_to(source_venv)
+    target_site.mkdir(parents=True)
+    (target_site / "ethos-runtime-cache.pth").write_text(
+        source_site.resolve().as_posix() + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
-    for path in mutable:
-        detached = path.with_name(f".{path.name}.detached")
-        shutil.copy2(path, detached)
-        detached.replace(path)
+
+
+def _site_packages(venv: Path) -> Path:
+    candidates = tuple(venv.glob("lib/python*/site-packages")) + tuple(
+        venv.glob("Lib/site-packages")
+    )
+    if len(candidates) != 1 or not candidates[0].is_dir():
+        message = "test_hook_runtime_site_packages_invalid"
+        raise ValueError(message)
+    return candidates[0]
 
 
 def _cache_key(root: Path) -> str:

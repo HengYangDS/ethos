@@ -24,6 +24,22 @@ def _completed(code: int, stdout: str = "", stderr: str = ""):
     return subprocess.CompletedProcess((), code, stdout, stderr)
 
 
+def _managed_runtime_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path]:
+    wheel_sha256 = hashlib.sha256(b"wheel").hexdigest()
+    runtime = tmp_path / "repo.git/ethos/runtime" / ("a" * 64)
+    source = runtime / "venv/lib/python3.14/site-packages"
+    source.mkdir(parents=True)
+    monkeypatch.setattr(sys, "prefix", (runtime / "venv").as_posix())
+    monkeypatch.setattr(
+        install,
+        "require_selected_runtime",
+        lambda candidate: (
+            type("Selected", (), {"wheel_sha256": wheel_sha256})() if candidate == runtime else None
+        ),
+    )
+    return source, tmp_path / "repo.git/ethos/packages" / wheel_sha256
+
+
 @pytest.mark.parametrize("wheel_count", [0, 2])
 def test_source_wheel_resolution_requires_exactly_one_output(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, wheel_count: int
@@ -92,22 +108,10 @@ def test_installed_wheel_resolution_accepts_exact_file_url(
 def test_managed_runtime_resolves_its_git_common_content_addressed_wheel(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    digest = "a" * 64
-    wheel_sha256 = hashlib.sha256(b"wheel").hexdigest()
-    runtime = tmp_path / "repo.git/ethos/runtime" / digest
-    source = runtime / "venv/lib/python3.14/site-packages"
-    source.mkdir(parents=True)
-    wheel = tmp_path / "repo.git/ethos/packages" / wheel_sha256 / "ethos-test.whl"
+    source, package_root = _managed_runtime_case(monkeypatch, tmp_path)
+    wheel = package_root / "ethos-test.whl"
     wheel.parent.mkdir(parents=True)
     wheel.write_bytes(b"wheel")
-    monkeypatch.setattr(sys, "prefix", (runtime / "venv").as_posix())
-    monkeypatch.setattr(
-        install,
-        "require_selected_runtime",
-        lambda candidate: (
-            type("Selected", (), {"wheel_sha256": wheel_sha256})() if candidate == runtime else None
-        ),
-    )
 
     assert install.resolve_runtime_wheel(source, tmp_path / "unused") == wheel
 
@@ -115,20 +119,7 @@ def test_managed_runtime_resolves_its_git_common_content_addressed_wheel(
 def test_managed_runtime_rejects_missing_or_ambiguous_content_addressed_wheel(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    digest = "a" * 64
-    wheel_sha256 = hashlib.sha256(b"wheel").hexdigest()
-    runtime = tmp_path / "repo.git/ethos/runtime" / digest
-    source = runtime / "venv/lib/python3.14/site-packages"
-    source.mkdir(parents=True)
-    package_root = tmp_path / "repo.git/ethos/packages" / wheel_sha256
-    monkeypatch.setattr(sys, "prefix", (runtime / "venv").as_posix())
-    monkeypatch.setattr(
-        install,
-        "require_selected_runtime",
-        lambda candidate: (
-            type("Selected", (), {"wheel_sha256": wheel_sha256})() if candidate == runtime else None
-        ),
-    )
+    source, package_root = _managed_runtime_case(monkeypatch, tmp_path)
 
     with pytest.raises(ValueError, match="hook_runtime_wheel_provenance_missing"):
         install.resolve_runtime_wheel(source, tmp_path / "unused")

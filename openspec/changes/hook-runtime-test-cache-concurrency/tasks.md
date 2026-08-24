@@ -10,6 +10,7 @@
 - [x] 2.3 Release the global runtime lock before repository-local cloning and verify independent repositories receive distinct valid runtime paths.
 - [x] 2.4 Validate templates before reuse and verify an invalid candidate is not selected.
 - [x] 2.5 Prove repository-local runtimes do not share inodes; replace the hard-link clone that coupled concurrent Python processes with native copy-on-write on Darwin and portable copies elsewhere.
+- [x] 2.6 Publish and validate the template in the pytest controller before xdist workers start; prove workers can install from it when their fallback builder is unavailable.
 
 ## 3. Verification And Closeout
 

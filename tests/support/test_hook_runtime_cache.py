@@ -13,6 +13,7 @@ from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
 from tests.support.governed_repository import git
 from tools.ci.hook_runtime_cache import install_session_hook_runtime_cache
 from tools.ci.hook_runtime_cache import session_hook_runtime_cache_root
+from tools.ci.hook_runtime_cache import warm_session_hook_runtime_cache
 
 
 def test_cache_reuses_package_bytes_but_keeps_repository_runtime_paths_isolated(
@@ -93,6 +94,13 @@ def test_independent_cache_installers_reuse_one_runtime_template(
     monkeypatch.setattr(hook_runtime_install, "materialize_hook_runtime", build_runtime)
     monkeypatch.setattr(hook_runtime_install, "require_runtime", lambda *_args: None)
     monkeypatch.setattr(hook_runtime_install, "finalize_runtime", lambda *_args: None)
+    warm_session_hook_runtime_cache(cache, expected_source=identity)
+
+    def reject_worker_build(*_args: object, **_kwargs: object) -> Path:
+        message = "worker attempted to build the shared runtime template"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(hook_runtime_install, "materialize_hook_runtime", reject_worker_build)
 
     outputs = []
     for name in ("first", "second"):

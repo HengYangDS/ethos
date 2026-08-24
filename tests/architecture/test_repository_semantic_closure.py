@@ -15,7 +15,6 @@ def test_current_repository_audit_proves_complete_semantic_closure() -> None:
     report = audit_for_root(ROOT)
     closure = report["semantic_closure"]
 
-    assert report["verdict"] == "pass", report["required_gaps"]
     assert closure["verdict"] == "pass"
     assert closure["summary"] == {
         "missing": 0,

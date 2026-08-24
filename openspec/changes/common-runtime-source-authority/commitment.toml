@@ -1,0 +1,23 @@
+schema_version = 2
+id = "change:common-runtime-source-authority"
+intent = "Bind repository-family hook activation to one accepted runtime source identity while treating linked worktrees only as projection consumers."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "openspec/changes/common-runtime-source-authority/**",
+  "src/ethos/adapters/repo/hook/activation.py",
+  "tests/unit/cli/test_hook_runtime.py",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+predecessors = [
+  "721d2fb38f8f031b9eff7fb030d5546ef7a753b75ac9ca810d8fcb441500312e",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

@@ -129,8 +129,19 @@ def test_runtime_tool_reports_missing_executable_and_stderr(
         "run",
         lambda *_args, **_kwargs: _completed(1, stderr="build failed"),
     )
+    failed_wheel = tmp_path / "failed" / "wheel"
     with pytest.raises(ValueError, match="build failed"):
-        install.resolve_runtime_wheel(source, tmp_path / "failed" / "wheel")
+        install.resolve_runtime_wheel(source, failed_wheel)
+    assert not failed_wheel.exists()
+
+    def build(command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        output = Path(command[-1])
+        output.mkdir(parents=True)
+        (output / "ethos-retry.whl").write_bytes(b"wheel")
+        return _completed(0)
+
+    monkeypatch.setattr(install.subprocess, "run", build)
+    assert install.resolve_runtime_wheel(source, failed_wheel).parent == failed_wheel
 
 
 def test_python_abi_and_manifest_fail_closed(

@@ -11,8 +11,8 @@ import pytest
 import ethos.adapters.repo.hook_runtime_install as hook_runtime_install
 from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
 from tests.support.governed_repository import git
-from tests.support.hook_runtime_cache import install_session_hook_runtime_cache
-from tests.support.hook_runtime_cache import session_hook_runtime_cache_root
+from tools.ci.hook_runtime_cache import install_session_hook_runtime_cache
+from tools.ci.hook_runtime_cache import session_hook_runtime_cache_root
 
 
 def test_cache_reuses_package_bytes_but_keeps_repository_runtime_paths_isolated(

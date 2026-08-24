@@ -13,8 +13,8 @@ waiting on test infrastructure rather than exercising product behavior.
   retain locked recovery for a missing template, but move each repository-local
   clone outside the publication lock.
 - Validate every cached runtime template before reuse and retain
-  inode-independent runtime trees under each fixture repository's Git common
-  directory, using native copy-on-write where the platform provides it.
+  repository-local mutable runtime leaves under each fixture repository's Git
+  common directory while sharing only immutable package bytes.
 - Add focused tests for worker-root convergence, controller publication,
   repository isolation, path-valid relocation, and invalid-template rejection.
 - Do not change production runtime installation, package identity, governance

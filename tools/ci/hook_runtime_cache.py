@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -227,16 +228,18 @@ def _runtime_template(
 
 
 def _clone_tree(source: Path, target: Path) -> None:
-    """Clone one immutable runtime into an inode-independent repository tree."""
-    if platform.system() == "Darwin":
-        subprocess.run(
-            ("/bin/cp", "-cR", source.as_posix(), target.as_posix()),
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return
-    shutil.copytree(source, target)
+    """Reuse immutable bytes while detaching every runtime-owned mutable leaf."""
+    shutil.copytree(source, target, copy_function=os.link)
+    scripts = target / "venv" / ("Scripts" if os.name == "nt" else "bin")
+    mutable = (
+        target / "manifest.json",
+        scripts / ("ethos.exe" if os.name == "nt" else "ethos"),
+        scripts / ("python.exe" if os.name == "nt" else "python"),
+    )
+    for path in mutable:
+        detached = path.with_name(f".{path.name}.detached")
+        shutil.copy2(path, detached)
+        detached.replace(path)
 
 
 def _cache_key(root: Path) -> str:

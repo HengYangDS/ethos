@@ -5,6 +5,7 @@ subjects = [
   "repository:ethos",
 ]
 scope = [
+  ".config/checks/format/selection.toml",
   "CHANGELOG.md",
   "VERSION",
   "distributions/npm/package.json",

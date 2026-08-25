@@ -3,7 +3,7 @@
   "$id": "https://ethos.local/schemas/projection-input.schema.json",
   "title": "Content-addressed Projection Input",
   "type": "object",
-  "required": ["schema", "title", "authority", "source", "semantics", "view", "digest"],
+  "required": ["schema", "title", "authority", "source", "documents", "semantics", "view", "digest"],
   "properties": {
     "schema": {"const": "projection.input/v1"},
     "title": {"type": "string", "minLength": 1},
@@ -42,6 +42,16 @@
           "minItems": 4,
           "items": {"$ref": "#/$defs/documentBinding"}
         }
+      },
+      "additionalProperties": false
+    },
+    "documents": {
+      "type": "object",
+      "required": ["copy", "view_profile", "quality_contract"],
+      "properties": {
+        "copy": {"type": "object"},
+        "view_profile": {"type": "object"},
+        "quality_contract": {"type": "string", "minLength": 1}
       },
       "additionalProperties": false
     },

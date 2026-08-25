@@ -175,6 +175,8 @@ def test_export_validates_the_projection_input_schema(tmp_path: Path) -> None:
 
     Draft202012Validator.check_schema(schema)
     Draft202012Validator(schema).validate(exported)
+    assert exported["documents"]["copy"]["title"] == "Fixture Terminal"
+    assert exported["documents"]["quality_contract"] == "schema: fixture.quality/v1\n"
 
 
 def test_export_fails_closed_on_stale_or_missing_exact_tree_sources(tmp_path: Path) -> None:

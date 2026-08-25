@@ -20,51 +20,76 @@ class OpenSpecRuntimeHook(BuildHookInterface):
 
     PLUGIN_NAME = "openspec-runtime"
 
+    def _cleanup_supply(self) -> None:
+        owned = self.__dict__.pop("_owned_supply", None)
+        if owned is not None:
+            owned.cleanup()
+
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         if version == "editable":
             return
+        self._cleanup_supply()
         root = Path(self.root)
-        supply = Path(tempfile.mkdtemp(prefix="ethos-openspec-supply-"))
-        identity = _source_identity(root)
-        identity_file = supply / "source-identity.json"
-        identity_file.write_text(
-            json.dumps(identity, sort_keys=True, separators=(",", ":")) + "\n",
-            encoding="utf-8",
-        )
-        if self.target_name == "sdist":
-            build_data["force_include"][str(identity_file)] = _SOURCE_IDENTITY_PATH.as_posix()
-            return
-        build_data["force_include"][str(identity_file)] = "ethos/data/build/source-identity.json"
-        for relative in ("package.json", "package-lock.json"):
-            shutil.copy2(root / relative, supply / relative)
-        node = os.environ.get("ETHOS_BUILD_NODE", "")
-        npm_cli = os.environ.get("ETHOS_BUILD_NPM_CLI", "")
-        if not node or not npm_cli:
-            message = "Nox must bind the package-local Node/npm runtime"
-            raise RuntimeError(message)
-        subprocess.run(
-            (
-                node,
-                npm_cli,
-                "ci",
-                "--omit=dev",
-                "--ignore-scripts",
-                "--offline",
-                "--workspaces=false",
-                "--no-audit",
-                "--no-fund",
-            ),
-            cwd=supply,
-            check=True,
-        )
-        build_data["force_include"][str(supply / "node_modules")] = (
-            "ethos/data/openspec-runtime/node_modules"
-        )
+        owned = tempfile.TemporaryDirectory(prefix="ethos-openspec-supply-")
+        supply = Path(owned.name)
+        self._owned_supply = owned
+        try:
+            identity = _source_identity(root)
+            identity_file = supply / "source-identity.json"
+            identity_file.write_text(
+                json.dumps(identity, sort_keys=True, separators=(",", ":")) + "\n",
+                encoding="utf-8",
+            )
+            if self.target_name == "sdist":
+                build_data["force_include"][str(identity_file)] = _SOURCE_IDENTITY_PATH.as_posix()
+                return
+            build_data["force_include"][str(identity_file)] = (
+                "ethos/data/build/source-identity.json"
+            )
+            for relative in ("package.json", "package-lock.json"):
+                shutil.copy2(root / relative, supply / relative)
+            node = os.environ.get("ETHOS_BUILD_NODE", "")
+            npm_cli = os.environ.get("ETHOS_BUILD_NPM_CLI", "")
+            if not node or not npm_cli:
+                _runtime_unavailable()
+            subprocess.run(
+                (
+                    node,
+                    npm_cli,
+                    "ci",
+                    "--omit=dev",
+                    "--ignore-scripts",
+                    "--offline",
+                    "--workspaces=false",
+                    "--no-audit",
+                    "--no-fund",
+                ),
+                cwd=supply,
+                check=True,
+            )
+            build_data["force_include"][str(supply / "node_modules")] = (
+                "ethos/data/openspec-runtime/node_modules"
+            )
+        except BaseException as error:
+            try:
+                self._cleanup_supply()
+            except OSError as cleanup_error:
+                error.add_note(f"OpenSpec supply cleanup failed: {cleanup_error}")
+            raise
+
+    def finalize(self, version: str, build_data: dict[str, Any], artifact_path: str) -> None:
+        del version, build_data, artifact_path
+        self._cleanup_supply()
 
 
 def get_build_hook() -> type[OpenSpecRuntimeHook]:
     """Expose the single custom hook class to Hatchling."""
     return OpenSpecRuntimeHook
+
+
+def _runtime_unavailable() -> None:
+    message = "Nox must bind the package-local Node/npm runtime"
+    raise RuntimeError(message)
 
 
 def _source_identity(root: Path) -> dict[str, object]:

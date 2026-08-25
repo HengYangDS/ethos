@@ -15,7 +15,7 @@ from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HookRuntimeBinding
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
-from ethos.adapters.repo.hook.source_identity import expected_runtime_source
+from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
@@ -32,11 +32,12 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
     if not source_python.is_absolute() or not source_python.is_file():
         message = "hook_runtime_python_invalid"
         raise ValueError(message)
-    expected_source, _ = expected_runtime_source(repo)
+    expected_build, build_source = expected_runtime_build(repo)
     runtime = runtime_install.materialize_hook_runtime(
         repo,
         source_python,
-        expected_source=expected_source,
+        expected_build=expected_build,
+        build_source=build_source,
     )
     common = Path(git_common_dir(repo))
     hooks = runtime_install.materialize_hook_launchers(common / "ethos" / "hooks")
@@ -53,7 +54,7 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
             hooks,
             linked,
             worktrees_before,
-            expected_source=expected_source,
+            expected_build=expected_build,
         )
     except (OSError, ValueError) as error:
         try:
@@ -101,7 +102,7 @@ def _activate_common_runtime(
     linked: tuple[Path, ...],
     worktrees_before: dict[Path, dict[str, tuple[str, ...]]],
     *,
-    expected_source: runtime_install.RuntimeSourceIdentity,
+    expected_build: runtime_install.BuildIdentity,
 ) -> tuple[HookRuntimeBinding, dict[str, tuple[Path, ...]]]:
     """Select and post-observe one common runtime/hook activation."""
     activate_runtime(common, runtime)
@@ -120,9 +121,9 @@ def _activate_common_runtime(
     )
     for worktree in linked:
         config_effects.unset_worktree_config(worktree, _WORKTREE_ACTIVATION_KEYS)
-    _require_common_activation(repo, linked, hooks, expected_source=expected_source)
+    _require_common_activation(repo, linked, hooks, expected_build=expected_build)
     cleanup_plan = _generation_cleanup_plan(repo, hooks, runtime)
-    binding = hook_runtime_binding(repo, expected_source=expected_source)
+    binding = hook_runtime_binding(repo, expected_build=expected_build)
     if binding["hooks_path"] != hooks.as_posix():
         message = "hook_runtime_activation_drift"
         raise ValueError(message)
@@ -194,7 +195,7 @@ def _require_common_activation(
     worktrees: tuple[Path, ...],
     hooks: Path,
     *,
-    expected_source: runtime_install.RuntimeSourceIdentity,
+    expected_build: runtime_install.BuildIdentity,
 ) -> None:
     if config_effects.config_values(
         root, _ACTIVATION_KEYS, scope="local"
@@ -208,7 +209,7 @@ def _require_common_activation(
         }:
             message = "hook_runtime_worktree_activation_drift"
             raise ValueError(message)
-        binding = hook_runtime_binding(worktree, expected_source=expected_source)
+        binding = hook_runtime_binding(worktree, expected_build=expected_build)
         if binding["hooks_path"] != hooks.as_posix():
             message = "hook_runtime_activation_drift"
             raise ValueError(message)

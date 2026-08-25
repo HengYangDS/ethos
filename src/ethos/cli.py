@@ -13,11 +13,15 @@ from ethos.surface.cli.application import load_command_groups
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.output import emit_git_execution_failure
 from ethos.surface.cli.output import emit_invalid_repository_profile
+from ethos.surface.cli.version import version_text
 
 
 def main() -> None:
     """Run the ETHOS CLI."""
     argv = sys.argv[1:]
+    if "--version" in argv:
+        sys.stdout.write(f"{version_text()}\n")
+        return
     try:
         load_command_groups(argv)
         app(dispatch_arguments(argv))

@@ -6,6 +6,8 @@ from typing import Any
 
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import close_verdict
+from ethos.repository.release.identity import product_version
+from ethos.repository.release.identity import projected_package_versions
 from ethos.repository.release.publication import publication_topology
 
 if TYPE_CHECKING:
@@ -38,53 +40,44 @@ def release_config(root: Path) -> dict[str, Any]:
     return _optional_toml(path) or {}
 
 
-def _runtime_files_identity(root: Path, workspace: dict[str, Any]) -> tuple[str, str] | None:
-    tools = workspace.get("tool")
-    candidates = (
-        [
-            (name, declaration)
-            for name, declaration in tools.items()
-            if isinstance(declaration, dict) and declaration.get("distribution") == "runtime-files"
-        ]
-        if isinstance(tools, dict)
-        else []
-    )
-    if len(candidates) != 1:
-        return None
-    name, declaration = candidates[0]
-    source = declaration.get("version-source")
-    if not isinstance(name, str) or not name or not isinstance(source, str) or not source:
-        return None
-    version_path = (root / source).resolve()
-    if not version_path.is_relative_to(root.resolve()) or not version_path.is_file():
-        return None
-    try:
-        version = version_path.read_text(encoding="utf-8").strip()
-    except (OSError, UnicodeDecodeError):
-        return None
-    return (name, version) if version else None
-
-
 def version_manifest(root: Path) -> dict[str, Any]:
     workspace = _optional_toml(root / "pyproject.toml") or {}
     project = workspace.get("project")
-    identity: tuple[str, str] | None = None
-    packages: dict[str, str] = {}
-    if isinstance(project, dict):
-        name, version = project.get("name"), project.get("version")
-        if isinstance(name, str) and name and isinstance(version, str) and version:
-            identity = (name, version)
-            packages[name] = version
-    identity = identity or _runtime_files_identity(root, workspace)
-    name, version = identity or (root.name, "")
+    name = str(project.get("name") or "") if isinstance(project, dict) else ""
+    dynamic = project.get("dynamic", []) if isinstance(project, dict) else []
+    valid_project = (
+        isinstance(project, dict)
+        and bool(name)
+        and project.get("version") is None
+        and isinstance(dynamic, list)
+        and "version" in dynamic
+    )
+    gaps = [] if valid_project else ["release_version_manifest_invalid"]
+    version = ""
+    if valid_project:
+        try:
+            version = product_version(root)
+        except ValueError as error:
+            gaps.append(str(error))
+        launcher_paths = (
+            root / "distributions/npm/package.json",
+            root / "package-lock.json",
+            root / "package.json",
+        )
+        if any(path.exists() for path in launcher_paths):
+            try:
+                projected_package_versions(root)
+            except ValueError as error:
+                gaps.append(str(error))
+    packages = {name: version} if name and version else {}
     return {
-        "name": name,
+        "name": name or root.name,
         "version": version,
         "tag": f"v{version}" if version else "",
         "packages": packages,
-        "all_package_versions_match": True,
+        "all_package_versions_match": not gaps,
         "mismatches": {},
-        "required_gaps": [] if identity else ["release_version_manifest_invalid"],
+        "required_gaps": list(dict.fromkeys(gaps)),
     }
 
 

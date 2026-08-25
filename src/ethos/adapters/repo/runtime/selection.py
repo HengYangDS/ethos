@@ -12,7 +12,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
+from ethos.adapters.repo.runtime.manifest import runtime_digest
+from ethos.adapters.repo.runtime.manifest import runtime_environment
+from ethos.adapters.repo.runtime.transition import require_runtime_identity_attested
+from ethos.repository.release.admission import accepted_release_candidate
+from ethos.repository.release.admission import accepted_runtime_candidate
+from ethos.repository.release.identity import BuildIdentity
+from ethos.repository.release.identity import load_build_identity_bytes
 
 _DIGEST_LENGTH = 64
 _HEX = frozenset("0123456789abcdef")
@@ -34,13 +40,17 @@ class SelectedRuntime:
     manifest: Path
     wheel_sha256: str
     python_abi: str
-    source: RuntimeSourceIdentity
+    python_version: str
+    python_implementation: str
+    dependency_lock_sha256: str
+    platform: str
+    build: BuildIdentity
 
 
 def current_runtime(
     common: Path,
     *,
-    expected_source: RuntimeSourceIdentity | None = None,
+    expected_build: BuildIdentity | None = None,
 ) -> SelectedRuntime:
     """Read and validate the canonical runtime selected by ``CURRENT``."""
     runtime_root = common.resolve() / "ethos" / "runtime"
@@ -58,7 +68,7 @@ def current_runtime(
     digest = text.removesuffix("\n")
     if raw != f"{digest}\n".encode() or not _valid_digest(digest):
         raise ValueError(_CURRENT_INVALID)
-    return require_selected_runtime(runtime_root / digest, expected_source=expected_source)
+    return require_selected_runtime(runtime_root / digest, expected_build=expected_build)
 
 
 def activate_runtime(common: Path, runtime: Path) -> SelectedRuntime:
@@ -71,6 +81,19 @@ def activate_runtime(common: Path, runtime: Path) -> SelectedRuntime:
     if candidate.parent != runtime_root:
         raise ValueError(_CURRENT_TARGET_INVALID)
     selected = require_selected_runtime(candidate)
+    release = accepted_release_candidate(
+        selected.build,
+        wheel_sha256=selected.wheel_sha256,
+    )
+    require_runtime_identity_attested(
+        common_root,
+        accepted_runtime_candidate(
+            release,
+            runtime_digest=selected.digest,
+            python_abi=selected.python_abi,
+            platform=platform.system().lower(),
+        ),
+    )
     runtime_root.mkdir(parents=True, exist_ok=True)
     staging = runtime_root / f".{_SELECTOR.lower()}-{uuid.uuid4().hex}"
     try:
@@ -78,7 +101,7 @@ def activate_runtime(common: Path, runtime: Path) -> SelectedRuntime:
         staging.replace(runtime_root / _SELECTOR)
     finally:
         staging.unlink(missing_ok=True)
-    return current_runtime(common_root, expected_source=selected.source)
+    return current_runtime(common_root, expected_build=selected.build)
 
 
 def restore_runtime_selection(common: Path, previous: bytes | None) -> None:
@@ -104,7 +127,7 @@ def runtime_command(root: Path, *arguments: str) -> str:
 def require_selected_runtime(
     runtime: Path,
     *,
-    expected_source: RuntimeSourceIdentity | None = None,
+    expected_build: BuildIdentity | None = None,
     expected_digest: str | None = None,
     expected_wheel_sha256: str | None = None,
     expected_python_abi: str | None = None,
@@ -118,11 +141,15 @@ def require_selected_runtime(
         payload = json.loads(manifest.read_text(encoding="utf-8"))
     except (OSError, TypeError, ValueError) as error:
         raise ValueError(_MANIFEST_INVALID) from error
-    python = runtime_python(runtime / "venv")
-    entrypoint = runtime_entrypoint(runtime / "venv")
-    source = _manifest_source(payload)
+    python = runtime_python(runtime / "python")
+    entrypoint = runtime_entrypoint(runtime / "python")
+    build = _manifest_build(payload)
     wheel = str(payload.get("wheel_sha256") or "")
     abi = str(payload.get("python_abi") or "")
+    python_version = str(payload.get("python_version") or "")
+    python_implementation = str(payload.get("python_implementation") or "")
+    dependency_lock_sha256 = str(payload.get("dependency_lock_sha256") or "")
+    platform_name = str(payload.get("platform") or "")
     files = payload.get("runtime_files")
     expected_files = {
         path.relative_to(runtime).as_posix(): _sha256(path)
@@ -130,14 +157,14 @@ def require_selected_runtime(
         if path.is_file()
     }
     if (
-        payload.get("schema_version") != 2
+        payload.get("schema_version") != 4
         or payload.get("runtime_digest") != digest
         or (expected_digest is not None and digest != expected_digest)
         or not _valid_digest(wheel)
         or not abi
-        or payload.get("platform") != platform.system().lower()
-        or source is None
-        or (expected_source is not None and source != expected_source)
+        or platform_name != platform.system().lower()
+        or build is None
+        or (expected_build is not None and build != expected_build)
         or (expected_wheel_sha256 is not None and wheel != expected_wheel_sha256)
         or (expected_python_abi is not None and abi != expected_python_abi)
         or not isinstance(files, dict)
@@ -150,6 +177,25 @@ def require_selected_runtime(
         or not _entrypoint_bound_to_runtime(entrypoint, python)
     ):
         raise ValueError(_MANIFEST_INVALID)
+    try:
+        environment = runtime_environment(
+            python_abi=abi,
+            python_version=python_version,
+            python_implementation=python_implementation,
+            dependency_lock_sha256=dependency_lock_sha256,
+            platform_name=platform_name,
+        )
+    except ValueError as error:
+        raise ValueError(_MANIFEST_INVALID) from error
+    if (
+        runtime_digest(
+            wheel_sha256=wheel,
+            build=build,
+            environment=environment,
+        )
+        != digest
+    ):
+        raise ValueError(_MANIFEST_INVALID)
     return SelectedRuntime(
         root=runtime,
         digest=digest,
@@ -158,19 +204,23 @@ def require_selected_runtime(
         manifest=manifest,
         wheel_sha256=wheel,
         python_abi=abi,
-        source=source,
+        python_version=python_version,
+        python_implementation=python_implementation,
+        dependency_lock_sha256=dependency_lock_sha256,
+        platform=platform_name,
+        build=build,
     )
 
 
-def runtime_entrypoint(venv: Path) -> Path:
-    """Return the platform entrypoint inside one runtime environment."""
-    directory = venv / ("Scripts" if os.name == "nt" else "bin")
+def runtime_entrypoint(interpreter_home: Path) -> Path:
+    """Return the ETHOS entrypoint inside one owned interpreter home."""
+    directory = interpreter_home / ("Scripts" if os.name == "nt" else "bin")
     return directory / ("ethos.exe" if os.name == "nt" else "ethos")
 
 
-def runtime_python(venv: Path) -> Path:
-    """Return the platform Python executable inside one runtime environment."""
-    return venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+def runtime_python(interpreter_home: Path) -> Path:
+    """Return the executable inside one owned interpreter home."""
+    return interpreter_home / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
 def _entrypoint_bound_to_runtime(entrypoint: Path, python: Path) -> bool:
@@ -182,12 +232,22 @@ def _entrypoint_bound_to_runtime(entrypoint: Path, python: Path) -> bool:
         return False
 
 
-def _manifest_source(payload: dict[str, object]) -> RuntimeSourceIdentity | None:
-    commit = str(payload.get("source_commit") or "")
-    tree = str(payload.get("source_tree") or "")
-    if not all(len(value) in {40, 64} and not set(value) - _HEX for value in (commit, tree)):
+def _manifest_build(payload: dict[str, object]) -> BuildIdentity | None:
+    projection = {
+        "schema_version": 1,
+        "product_version": payload.get("product_version"),
+        "distribution_version": payload.get("distribution_version"),
+        "source_commit": payload.get("source_commit"),
+        "source_tree": payload.get("source_tree"),
+        "channel": payload.get("channel"),
+        "acceptance_state": payload.get("acceptance_state"),
+    }
+    try:
+        return load_build_identity_bytes(
+            (json.dumps(projection, sort_keys=True, separators=(",", ":")) + "\n").encode()
+        )
+    except ValueError:
         return None
-    return RuntimeSourceIdentity(commit=commit, tree=tree)
 
 
 def _valid_digest(value: str) -> bool:

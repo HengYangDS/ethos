@@ -12,7 +12,7 @@ import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.hook.binding as hook_binding
 import ethos.adapters.repo.hook_runtime as runtime
-from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
+from ethos.repository.release.identity import BuildIdentity
 
 _activation_private = vars(hook_activation)
 _config_private = vars(config_effects)
@@ -77,18 +77,18 @@ def test_install_rejects_unavailable_source_authority_before_mutation(
     materialized = False
 
     def unavailable(_root: Path):
-        message = "hook_runtime_accepted_source_identity_unavailable"
+        message = "hook_runtime_accepted_build_identity_unavailable"
         raise ValueError(message)
 
     def materialize(*_args: object, **_kwargs: object) -> Path:
         nonlocal materialized
         materialized = True
-        return tmp_path / "runtime/venv"
+        return tmp_path / "runtime/python"
 
-    monkeypatch.setattr(hook_activation, "expected_runtime_source", unavailable)
+    monkeypatch.setattr(hook_activation, "expected_runtime_build", unavailable)
     monkeypatch.setattr(hook_activation.runtime_install, "materialize_hook_runtime", materialize)
 
-    with pytest.raises(ValueError, match="hook_runtime_accepted_source_identity_unavailable"):
+    with pytest.raises(ValueError, match="hook_runtime_accepted_build_identity_unavailable"):
         hook_activation.install_hook_launchers(tmp_path, python=python)
 
     assert materialized is False
@@ -119,7 +119,14 @@ def test_common_activation_postconditions_fail_closed(
     worktree = tmp_path / "linked"
     worktree.mkdir()
     hooks = tmp_path / "hooks"
-    source = RuntimeSourceIdentity(commit="a" * 40, tree="b" * 40)
+    source = BuildIdentity(
+        "0.2.0-alpha.1",
+        "0.2.0a1.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb",
+        "a" * 40,
+        "b" * 40,
+        "development",
+        "unaccepted",
+    )
     expected = _expected_common_activation(hooks)
     empty_worktree = {"core.hooksPath": (), "gc.packRefs": ()}
 
@@ -129,14 +136,14 @@ def test_common_activation_postconditions_fail_closed(
         lambda *_args, **_kwargs: {},
     )
     with pytest.raises(ValueError, match="hook_runtime_common_activation_drift"):
-        _require_common_activation(tmp_path, (worktree,), hooks, expected_source=source)
+        _require_common_activation(tmp_path, (worktree,), hooks, expected_build=source)
 
     def worktree_drift(root: Path, _keys: tuple[str, ...], *, scope: str):
         return expected if scope == "local" else {"core.hooksPath": (root.as_posix(),)}
 
     monkeypatch.setattr(hook_activation.config_effects, "config_values", worktree_drift)
     with pytest.raises(ValueError, match="hook_runtime_worktree_activation_drift"):
-        _require_common_activation(tmp_path, (worktree,), hooks, expected_source=source)
+        _require_common_activation(tmp_path, (worktree,), hooks, expected_build=source)
 
     monkeypatch.setattr(
         hook_activation.config_effects,
@@ -149,7 +156,7 @@ def test_common_activation_postconditions_fail_closed(
         lambda _root, **_kwargs: {"hooks_path": "wrong", "required_gaps": []},
     )
     with pytest.raises(ValueError, match="hook_runtime_activation_drift"):
-        _require_common_activation(tmp_path, (worktree,), hooks, expected_source=source)
+        _require_common_activation(tmp_path, (worktree,), hooks, expected_build=source)
 
     monkeypatch.setattr(
         hook_activation,
@@ -160,7 +167,7 @@ def test_common_activation_postconditions_fail_closed(
         },
     )
     with pytest.raises(ValueError, match="hook_runtime_activation_invalid:stale"):
-        _require_common_activation(tmp_path, (worktree,), hooks, expected_source=source)
+        _require_common_activation(tmp_path, (worktree,), hooks, expected_build=source)
 
 
 def test_activation_compensation_reports_every_failed_restore(
@@ -191,11 +198,18 @@ def test_install_restores_runtime_selector_when_config_compensation_fails(
     python.write_text("python", encoding="utf-8")
     common = tmp_path / "common"
     runtime_root = common / "ethos" / "runtime" / ("a" * 64)
-    runtime = runtime_root / "venv"
+    runtime = runtime_root / "python"
     hooks = common / "ethos" / "hooks" / ("b" * 64)
-    source = RuntimeSourceIdentity(commit="c" * 40, tree="d" * 40)
+    source = BuildIdentity(
+        "0.2.0-alpha.1",
+        "0.2.0a1.dev0+gcccccccccccc.tdddddddddddd",
+        "c" * 40,
+        "d" * 40,
+        "development",
+        "unaccepted",
+    )
     restored: list[bytes | None] = []
-    monkeypatch.setattr(hook_activation, "expected_runtime_source", lambda _root: (source, None))
+    monkeypatch.setattr(hook_activation, "expected_runtime_build", lambda _root: (source, None))
     monkeypatch.setattr(
         hook_activation.runtime_install,
         "materialize_hook_runtime",
@@ -355,13 +369,11 @@ def test_hook_binding_reports_unavailable_source_and_generation_digest(
     monkeypatch.setattr(hook_binding, "_selected_runtime", lambda *_args: (None, "runtime_current"))
     monkeypatch.setattr(
         hook_binding,
-        "expected_runtime_source",
+        "expected_runtime_build",
         lambda _repo: (_ for _ in ()).throw(ValueError("missing")),
     )
     report = hook_binding.hook_runtime_binding(repo)
-    assert (
-        "write_admission_not_armed:runtime_expected_source_unavailable" in report["required_gaps"]
-    )
+    assert "write_admission_not_armed:runtime_expected_build_unavailable" in report["required_gaps"]
 
 
 def test_config_effect_failures_report_the_exact_boundary(

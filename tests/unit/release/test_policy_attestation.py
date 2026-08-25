@@ -132,15 +132,15 @@ def _peer(
     return peer
 
 
-def test_release_inspection_reads_one_runtime_files_identity(tmp_path: Path) -> None:
-    _write(tmp_path, "pyproject.toml", _RUNTIME)
+def test_release_inspection_reads_the_product_version_authority(tmp_path: Path) -> None:
+    _write(tmp_path, "pyproject.toml", '[project]\nname = "sample"\ndynamic = ["version"]\n')
     _write(tmp_path, "VERSION", "1.2.3\n")
     _fields(
         version_manifest(tmp_path),
         name="sample",
         version="1.2.3",
         tag="v1.2.3",
-        packages={},
+        packages={"sample": "1.2.3"},
         required_gaps=[],
     )
 
@@ -172,10 +172,10 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
     )
     _fields(
         manifest,
-        version="0.1.0a2",
-        tag="v0.1.0a2",
+        version="0.2.0-alpha.1",
+        tag="v0.2.0-alpha.1",
         all_package_versions_match=True,
-        packages={"ethos": "0.1.0a2"},
+        packages={"ethos": "0.2.0-alpha.1"},
     )
     _fields(
         report,

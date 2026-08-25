@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-_SOURCE_IDENTITY_PATH = Path("src/ethos/data/build/source-identity.json")
+_BUILD_IDENTITY_PATH = Path("src/ethos/data/build/identity.json")
 
 
 class OpenSpecRuntimeHook(BuildHookInterface):
@@ -34,18 +35,15 @@ class OpenSpecRuntimeHook(BuildHookInterface):
         supply = Path(owned.name)
         self._owned_supply = owned
         try:
-            identity = _source_identity(root)
-            identity_file = supply / "source-identity.json"
-            identity_file.write_text(
-                json.dumps(identity, sort_keys=True, separators=(",", ":")) + "\n",
-                encoding="utf-8",
-            )
+            identity_bytes, distribution_version = _build_identity_payload(root)
+            if version not in {"standard", distribution_version}:
+                _distribution_identity_mismatch()
+            identity_file = supply / "identity.json"
+            identity_file.write_bytes(identity_bytes)
             if self.target_name == "sdist":
-                build_data["force_include"][str(identity_file)] = _SOURCE_IDENTITY_PATH.as_posix()
+                build_data["force_include"][str(identity_file)] = _BUILD_IDENTITY_PATH.as_posix()
                 return
-            build_data["force_include"][str(identity_file)] = (
-                "ethos/data/build/source-identity.json"
-            )
+            build_data["force_include"][str(identity_file)] = "ethos/data/build/identity.json"
             for relative in ("package.json", "package-lock.json"):
                 shutil.copy2(root / relative, supply / relative)
             node = os.environ.get("ETHOS_BUILD_NODE", "")
@@ -92,59 +90,22 @@ def _runtime_unavailable() -> None:
     raise RuntimeError(message)
 
 
-def _source_identity(root: Path) -> dict[str, object]:
-    observed = subprocess.run(
-        ("git", "rev-parse", "HEAD"),
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if observed.returncode:
-        return _carried_source_identity(root)
-    commit = observed.stdout.strip()
-    with tempfile.TemporaryDirectory(prefix="ethos-source-index-") as directory:
-        environment = {**os.environ, "GIT_INDEX_FILE": str(Path(directory) / "index")}
-        subprocess.run(("git", "read-tree", "HEAD"), cwd=root, env=environment, check=True)
-        subprocess.run(("git", "add", "-A"), cwd=root, env=environment, check=True)
-        tree = subprocess.run(
-            ("git", "write-tree"),
-            cwd=root,
-            env=environment,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-    identity: dict[str, object] = {
-        "schema_version": 1,
-        "source_commit": commit,
-        "source_tree": tree,
-    }
-    if not _valid_source_identity(identity):
-        message = "hook_runtime_build_source_identity_invalid"
-        raise RuntimeError(message)
-    return identity
-
-
-def _carried_source_identity(root: Path) -> dict[str, object]:
-    try:
-        identity = json.loads((root / _SOURCE_IDENTITY_PATH).read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, ValueError) as error:
-        message = "hook_runtime_build_source_identity_missing"
-        raise RuntimeError(message) from error
-    if _valid_source_identity(identity):
-        return identity
-    message = "hook_runtime_build_source_identity_invalid"
+def _distribution_identity_mismatch() -> None:
+    message = "package_build_distribution_identity_mismatch"
     raise RuntimeError(message)
 
 
-def _valid_source_identity(identity: object) -> bool:
-    if not isinstance(identity, dict) or identity.get("schema_version") != 1:
-        return False
-    values = (identity.get("source_commit"), identity.get("source_tree"))
-    return all(
-        isinstance(value, str)
-        and len(value) in {40, 64}
-        and not set(value) - set("0123456789abcdef")
-        for value in values
-    )
+def _build_identity_payload(root: Path) -> tuple[bytes, str]:
+    """Load the single identity owner from source without requiring ETHOS installed."""
+    source_root = root / "src"
+    source_path = source_root.as_posix()
+    inserted = source_path not in sys.path
+    if inserted:
+        sys.path.insert(0, source_path)
+    try:
+        identity_module = import_module("ethos.repository.release.identity")
+        identity = identity_module.build_input_identity(root)
+        return identity_module.build_identity_bytes(identity), identity.distribution_version
+    finally:
+        if inserted:
+            sys.path.remove(source_path)

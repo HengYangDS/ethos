@@ -23,6 +23,7 @@ scope = [
     "system/**",
     "tests/**",
     "tools/ci/**",
+    "uv.lock",
 ]
 invariants = []
 acceptance = []

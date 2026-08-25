@@ -164,7 +164,6 @@ def _nodes(
             "provenance": _provenance(
                 node.get("evidence"), known_sources, label=f"node {identity}"
             ),
-            "assertion": node,
         }
         owners[identity] = _disposition(
             identity, projected.get(identity), omitted.get(identity), kind="node"
@@ -201,7 +200,6 @@ def _relations(
                 "provenance": _provenance(
                     edge.get("source_ids"), known_sources, label=f"relation {identity}"
                 ),
-                "assertion": edge,
             }
         )
         owners[identity] = _disposition(

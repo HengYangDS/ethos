@@ -19,6 +19,19 @@ The output is a transport contract, not product authority. It explicitly sets
 renderer-neutral IR and artifacts, but cannot reinterpret omitted assertions or
 write into ETHOS.
 
+The terminal graph, view quotient, visible copy, and quality contract are new
+repository-owned product capabilities, not disposable test scaffolding or
+generated evidence. Direct measurement therefore counts every carrier. The
+accepted baseline measured 36,971 test ELOC and 88,981 global ELOC; this Change
+adds one exact-tree exporter, 174 test ELOC, and 2,005 structured-source ELOC.
+The explicit terminal allocation becomes 37,500 test ELOC and 92,000 global
+ELOC: the next 500-ELOC test boundary and next 1,000-ELOC global boundary above
+the fully counted capability, leaving bounded reserves of 355 and 455 ELOC.
+No carrier is reclassified, generated, minified, or excluded, and product,
+tool, other-Python, coverage, and per-file constraints remain independently
+blocking. Future exhaustion still requires deletion or another explicit product
+capability decision; unused allowance is not fungible authority.
+
 ## Rejected Alternatives
 
 - Keep the sibling model as authority: preserves a parallel semantic owner.

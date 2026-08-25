@@ -1,6 +1,5 @@
 {
   "name": "ethos-product-monorepo",
-  "version": "0.1.0-alpha.2",
   "private": true,
   "workspaces": [
     "distributions/npm"

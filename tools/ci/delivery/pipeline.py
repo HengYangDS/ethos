@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import shutil
+import tempfile
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.runtime.transition import materialize_release_wheel
+from ethos.repository.release.identity import source_build_identity
 from tools.ci.local_install_smoke import prepare_supply
 from tools.ci.local_install_smoke import run as run_install_smoke
 
@@ -37,17 +41,24 @@ class DeliveryPipeline:
 
     def build(self, session: nox.Session) -> None:
         """Materialize exactly one offline wheel through Hatchling and uv."""
-        session.run(
-            self.runtime.script("uv"),
-            "build",
-            "--offline",
-            "--wheel",
-            "--out-dir",
-            "build/artifacts/python",
-            "--clear",
-            "--no-create-gitignore",
-            env={"ETHOS_BUILD_NODE": str(self.node), "ETHOS_BUILD_NPM_CLI": str(self.npm_cli)},
-        )
+        work = Path("build/runtime/work")
+        work.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="ethos-wheel-build-", dir=work) as directory:
+            staging = Path(directory)
+            session.run(
+                self.runtime.script("uv"),
+                "build",
+                "--offline",
+                "--wheel",
+                "--out-dir",
+                str(staging),
+                "--no-create-gitignore",
+                env={
+                    "ETHOS_BUILD_NODE": str(self.node),
+                    "ETHOS_BUILD_NPM_CLI": str(self.npm_cli),
+                },
+            )
+            publish_built_wheel(Path.cwd(), staging, Path("build/artifacts/python"))
 
     def prepare_supply(self) -> None:
         """Materialize the frozen runtime dependency supply for offline proof."""
@@ -70,3 +81,40 @@ class DeliveryPipeline:
             "tests/architecture/test_portable_toolchain.py",
             "tests/architecture/test_local_install_smoke.py",
         )
+
+
+def publish_built_wheel(repo: Path, staging: Path, artifacts: Path) -> Path:
+    """Admit and project exactly one wheel built from the current source identity."""
+    wheels = tuple(path for path in staging.glob("ethos-*.whl") if path.is_file())
+    if len(wheels) != 1:
+        message = "release_wheel_output_invalid"
+        raise ValueError(message)
+    wheel = wheels[0]
+    durable = materialize_release_wheel(
+        repo,
+        wheel,
+        expected_build=source_build_identity(repo),
+        collision="release_wheel_digest_collision",
+    )
+    artifacts = artifacts.resolve()
+    artifacts.parent.mkdir(parents=True, exist_ok=True)
+    replacement = artifacts.parent / f".{artifacts.name}-replacement"
+    backup = artifacts.parent / f".{artifacts.name}-previous"
+    if replacement.exists():
+        shutil.rmtree(replacement)
+    replacement.mkdir()
+    shutil.copy2(durable.path, replacement / wheel.name)
+    if backup.exists():
+        shutil.rmtree(backup)
+    if artifacts.exists():
+        artifacts.rename(backup)
+    try:
+        replacement.rename(artifacts)
+    except OSError:
+        if backup.exists() and not artifacts.exists():
+            backup.rename(artifacts)
+        raise
+    finally:
+        shutil.rmtree(replacement, ignore_errors=True)
+    shutil.rmtree(backup, ignore_errors=True)
+    return artifacts / wheel.name

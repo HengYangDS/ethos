@@ -572,6 +572,75 @@ def test_publish_projects_one_signed_release_tag_through_the_full_ref_command(
         assert git(remote, "rev-parse", "refs/tags/v1.2.3^{tree}") == tree
 
 
+def test_publish_signed_accepted_tag_does_not_require_invoking_work_lane_authority(
+    tmp_path: Path,
+) -> None:
+    repo, remotes, accepted_head, tag, tree, _fingerprint, _anchor_sha256 = (
+        _signed_publication_fixture(tmp_path)
+    )
+    seed_executed_proof(repo, accepted_head)
+    git(repo, "checkout", "-b", "work/stale-invoker")
+    (repo / "invoker.txt").write_text("invoking checkout is not the release subject\n")
+    git(repo, "add", "invoker.txt")
+    git(repo, "commit", "-m", "test: create unrelated invoking checkout")
+
+    dry_run = run_ethos(
+        "publish",
+        "--ref",
+        "refs/tags/v1.2.3",
+        "--probe-remote",
+        "--expect-head",
+        accepted_head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert dry_run["state"] == "ready_to_publish"
+    assert dry_run["summary"]["source_head"] == accepted_head
+    assert dry_run["data"]["proof_admission"]["attestation"]["commit"] == accepted_head
+    assert dry_run["data"]["remote_effect"]["source"] == {
+        "kind": "annotated-tag",
+        "object_oid": tag,
+        "peeled_commit": accepted_head,
+        "tree_oid": tree,
+        "signature": dry_run["data"]["remote_effect"]["source"]["signature"],
+    }
+    assert all(
+        git(remote, "for-each-ref", "--format=%(objectname)", "refs/tags/v1.2.3") == ""
+        for remote in remotes.values()
+    )
+
+    applied = _receipt(repo, dry_run["data"]["request_receipt"], accepted_head)
+
+    assert applied["state"] == "published"
+    assert all(git(remote, "rev-parse", "refs/tags/v1.2.3") == tag for remote in remotes.values())
+
+
+def test_publish_rejects_signed_proven_tag_that_is_not_the_current_product_head(
+    tmp_path: Path,
+) -> None:
+    repo, _remotes, tagged_head, _tag, _tree, _fingerprint, _anchor_sha256 = (
+        _signed_publication_fixture(tmp_path)
+    )
+    seed_executed_proof(repo, tagged_head)
+    (repo / "accepted.txt").write_text("accepted advanced after the tag\n")
+    git(repo, "add", "accepted.txt")
+    git(repo, "commit", "-m", "test: advance accepted product head")
+
+    blocked = run_ethos_blocked(
+        "publish",
+        "--ref",
+        "refs/tags/v1.2.3",
+        "--probe-remote",
+        "--expect-head",
+        tagged_head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert blocked["required_gaps"] == ["release_publication_source_not_current"]
+
+
 def test_publish_uses_git_ref_grammar_as_the_positive_name_authority(
     tmp_path: Path,
 ) -> None:

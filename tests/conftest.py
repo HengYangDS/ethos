@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
 
-from ethos.adapters.repo.hook.source_identity import runtime_source_identity
+from ethos.repository.release.identity import source_build_identity
 from tools.ci.hook_runtime_cache import install_session_hook_runtime_cache
 from tools.ci.hook_runtime_cache import session_hook_runtime_cache_root
 from tools.ci.hook_runtime_cache import warm_session_hook_runtime_cache
@@ -49,7 +49,7 @@ def pytest_xdist_setupnodes(config: pytest.Config, specs: object) -> None:
     source = Path(__file__).resolve().parents[1]
     warm_session_hook_runtime_cache(
         session_hook_runtime_cache_root(Path(base)),
-        expected_source=runtime_source_identity(source),
+        expected_build=source_build_identity(source),
     )
 
 

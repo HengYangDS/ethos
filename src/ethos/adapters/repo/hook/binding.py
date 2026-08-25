@@ -7,16 +7,19 @@ import os
 import shlex
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import NotRequired
 from typing import TypedDict
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
-from ethos.adapters.repo.hook.source_identity import expected_runtime_source
+from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_command
+
+if TYPE_CHECKING:
+    from ethos.repository.release.identity import BuildIdentity
 
 HOOK_NAMES = ("pre-commit", "pre-push", "reference-transaction")
 
@@ -28,6 +31,10 @@ class HookRuntimeBinding(TypedDict):
     runtime_manifest_path: str
     runtime_digest: str
     wheel_sha256: str
+    product_version: str
+    distribution_version: str
+    channel: str
+    acceptance_state: str
     source_commit: str
     source_tree: str
     expected_source_commit: str
@@ -65,7 +72,7 @@ def hook_launcher(name: str) -> str:
         '[ "${#RUNTIME_DIGEST}" -eq 64 ] || exit 1\n'
         'RUNTIME="$RUNTIME_ROOT/$RUNTIME_DIGEST"\n'
         'if [ -L "$RUNTIME" ] || [ ! -d "$RUNTIME" ]; then exit 1; fi\n'
-        f'exec "$RUNTIME_ROOT/$RUNTIME_DIGEST/venv/{executable}" '
+        f'exec "$RUNTIME_ROOT/$RUNTIME_DIGEST/python/{executable}" '
         f'-I -m ethos.cli hook run {name} "$@"\n'
     )
 
@@ -85,7 +92,7 @@ def hook_generation_digest(launchers: dict[str, str]) -> str:
 def hook_runtime_binding(
     root: Path,
     *,
-    expected_source: RuntimeSourceIdentity | None = None,
+    expected_build: BuildIdentity | None = None,
 ) -> HookRuntimeBinding:
     """Observe the configured common-dir hooks and selected runtime."""
     repo = root.resolve()
@@ -101,17 +108,17 @@ def hook_runtime_binding(
         and not configured.is_symlink()
         and _valid_digest(configured.name)
     )
-    expected_source_identity, _source_root = _expected_source(repo, expected_source)
+    expected_build_identity, _source_root = _expected_build(repo, expected_build)
     selected, selection_gap = _selected_runtime(common)
     gaps: list[str] = []
     if not valid_generation:
         gaps.append("write_admission_not_armed:core.hooksPath")
     if selection_gap:
         gaps.append(f"write_admission_not_armed:{selection_gap}")
-    if expected_source_identity is None:
-        gaps.append("write_admission_not_armed:runtime_expected_source_unavailable")
-    elif selected is not None and selected.source != expected_source_identity:
-        gaps.append("write_admission_not_armed:runtime_source_stale")
+    if expected_build_identity is None:
+        gaps.append("write_admission_not_armed:runtime_expected_build_unavailable")
+    elif selected is not None and selected.build != expected_build_identity:
+        gaps.append("write_admission_not_armed:runtime_build_stale")
     gaps.extend(gap for name in HOOK_NAMES if (gap := _launcher_gap(hooks / name, name)))
     if valid_generation:
         expected_launchers = {name: hook_launcher(name) for name in HOOK_NAMES}
@@ -122,12 +129,18 @@ def hook_runtime_binding(
         "runtime_manifest_path": selected.manifest.as_posix() if selected else "",
         "runtime_digest": selected.digest if selected else "",
         "wheel_sha256": selected.wheel_sha256 if selected else "",
-        "source_commit": selected.source.commit if selected else "",
-        "source_tree": selected.source.tree if selected else "",
+        "product_version": selected.build.product_version if selected else "",
+        "distribution_version": selected.build.distribution_version if selected else "",
+        "channel": selected.build.channel if selected else "",
+        "acceptance_state": selected.build.acceptance_state if selected else "",
+        "source_commit": selected.build.source_commit if selected else "",
+        "source_tree": selected.build.source_tree if selected else "",
         "expected_source_commit": (
-            expected_source_identity.commit if expected_source_identity else ""
+            expected_build_identity.source_commit if expected_build_identity else ""
         ),
-        "expected_source_tree": expected_source_identity.tree if expected_source_identity else "",
+        "expected_source_tree": (
+            expected_build_identity.source_tree if expected_build_identity else ""
+        ),
         "current": not gaps,
         "next_action": _repair_action(repo, selected) if gaps else "",
         "python": selected.python.as_posix() if selected else "",
@@ -176,14 +189,14 @@ def _repair_action(repo: Path, selected: SelectedRuntime | None) -> str:
     )
 
 
-def _expected_source(
+def _expected_build(
     repo: Path,
-    selected: RuntimeSourceIdentity | None,
-) -> tuple[RuntimeSourceIdentity | None, Path | None]:
+    selected: BuildIdentity | None,
+) -> tuple[BuildIdentity | None, Path | None]:
     if selected is not None:
         return selected, None
     try:
-        return expected_runtime_source(repo)
+        return expected_runtime_build(repo)
     except (OSError, RuntimeError, ValueError):
         return None, None
 

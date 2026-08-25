@@ -1,6 +1,6 @@
 [project]
 name = "ethos"
-version = "0.1.0a2"
+dynamic = ["version"]
 description = "Repository change trust protocol"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -10,9 +10,11 @@ dependencies = [
   "jsonschema>=4.26.0",
   "markdown-it-py>=4.2.0",
   "nodejs-wheel-binaries>=24.19.0",
+  "packaging>=26.0",
   "pydantic>=2.13.4",
   "pyyaml>=6.0.3",
   "tomli-w>=1.2.0",
+  "uv>=0.12.5",
 ]
 
 [project.scripts]
@@ -47,6 +49,12 @@ dev = [
 requires = ["hatchling>=1.32.0"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+source = "code"
+path = "src/ethos/repository/release/identity.py"
+expression = "source_distribution_version()"
+search-paths = ["src"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/ethos"]
 
@@ -56,6 +64,9 @@ packages = ["src/ethos"]
 "system/policies/generated-artifact-topology.toml" = "ethos/data/generated_artifact_topology.toml"
 "package.json" = "ethos/data/supply-chain/package.json"
 "package-lock.json" = "ethos/data/supply-chain/package-lock.json"
+"pyproject.toml" = "ethos/data/runtime-project/pyproject.toml"
+"uv.lock" = "ethos/data/runtime-project/uv.lock"
+"VERSION" = "ethos/data/runtime-project/VERSION"
 "system/schemas/kernel" = "ethos/data/schemas/kernel"
 "tests/fixtures/semantic-contract/vectors.json" = "ethos/data/semantic-contract/vectors.json"
 
@@ -74,6 +85,8 @@ include = [
   "/package.json",
   "/package-lock.json",
   "/pyproject.toml",
+  "/uv.lock",
+  "/VERSION",
   "/tests/fixtures/semantic-contract/vectors.json",
   "/tools/ci/openspec_runtime_hook.py",
 ]

@@ -433,7 +433,6 @@ wheels = [
 
 [[package]]
 name = "ethos"
-version = "0.1.0a2"
 source = { editable = "." }
 dependencies = [
     { name = "cel-expr-python" },
@@ -441,9 +440,11 @@ dependencies = [
     { name = "jsonschema" },
     { name = "markdown-it-py" },
     { name = "nodejs-wheel-binaries" },
+    { name = "packaging" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "tomli-w" },
+    { name = "uv" },
 ]
 
 [package.dev-dependencies]
@@ -478,9 +479,11 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "markdown-it-py", specifier = ">=4.2.0" },
     { name = "nodejs-wheel-binaries", specifier = ">=24.19.0" },
+    { name = "packaging", specifier = ">=26.0" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "tomli-w", specifier = ">=1.2.0" },
+    { name = "uv", specifier = ">=0.12.5" },
 ]
 
 [package.metadata.requires-dev]

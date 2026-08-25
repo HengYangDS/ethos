@@ -1,0 +1,25 @@
+schema_version = 2
+id = "change:tempfile-ownership-lifecycle"
+intent = "Make every ETHOS-created temporary directory explicitly owned and reclaimed on success and failure without deleting caller-managed paths."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "openspec/changes/tempfile-ownership-lifecycle/**",
+  "tests/architecture/test_release_assets.py",
+  "tests/unit/ci/**",
+  "tools/ci/openspec_runtime_hook.py",
+  "tools/ci/python_test_gate.py",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+predecessors = [
+  "e01bb207e4029870ba48311b017ddc82bd8b0bd26cb9f38b1eeb71dc968cbde3",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

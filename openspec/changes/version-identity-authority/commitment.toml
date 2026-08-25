@@ -1,0 +1,36 @@
+schema_version = 2
+id = "change:version-identity-authority"
+intent = "Establish one product-version authority and immutable source, distribution, artifact, and runtime provenance without producing another 0.1.0a2 artifact."
+subjects = [
+    "repository:ethos",
+]
+scope = [
+    "CHANGELOG.md",
+    "VERSION",
+    "distributions/npm/package.json",
+    "docs/**",
+    "openspec/changes/version-identity-authority/**",
+    "openspec/specs/**",
+    "package-lock.json",
+    "package.json",
+    "pyproject.toml",
+    "rules/**",
+    "src/ethos/adapters/repo/hook/**",
+    "src/ethos/adapters/repo/hook_runtime_install.py",
+    "src/ethos/adapters/repo/runtime/**",
+    "src/ethos/repository/release/**",
+    "src/ethos/surface/**",
+    "system/**",
+    "tests/**",
+    "tools/ci/**",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

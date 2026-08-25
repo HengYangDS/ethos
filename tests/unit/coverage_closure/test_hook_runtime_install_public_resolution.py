@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -11,13 +12,35 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.hook_runtime_install as install
+import ethos.adapters.repo.runtime.transition as identity_transition
+from ethos.adapters.repo.runtime.manifest import runtime_digest
+from ethos.adapters.repo.runtime.manifest import runtime_environment
+from ethos.repository.release.identity import BuildIdentity
 
-_SOURCE_IDENTITY = install.RuntimeSourceIdentity(commit="a" * 40, tree="b" * 40)
+_BUILD_IDENTITY = BuildIdentity(
+    product_version="0.2.0-alpha.1",
+    distribution_version="0.2.0a1.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb",
+    source_commit="a" * 40,
+    source_tree="b" * 40,
+    channel="development",
+    acceptance_state="unaccepted",
+)
+_ENVIRONMENT = runtime_environment(
+    python_abi="cpython-test",
+    python_version="3.14.7",
+    python_implementation="cpython",
+    dependency_lock_sha256="d" * 64,
+    platform_name=platform.system().lower(),
+)
 
 
-def _bind_source_identity(monkeypatch: pytest.MonkeyPatch) -> install.RuntimeSourceIdentity:
-    monkeypatch.setattr(install, "wheel_source_identity", lambda _wheel: _SOURCE_IDENTITY)
-    return _SOURCE_IDENTITY
+def _bind_build_identity(monkeypatch: pytest.MonkeyPatch) -> BuildIdentity:
+    monkeypatch.setattr(
+        identity_transition,
+        "wheel_build_identity",
+        lambda _wheel: _BUILD_IDENTITY,
+    )
+    return _BUILD_IDENTITY
 
 
 def _completed(code: int, stdout: str = "", stderr: str = ""):
@@ -27,9 +50,9 @@ def _completed(code: int, stdout: str = "", stderr: str = ""):
 def _managed_runtime_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path]:
     wheel_sha256 = hashlib.sha256(b"wheel").hexdigest()
     runtime = tmp_path / "repo.git/ethos/runtime" / ("a" * 64)
-    source = runtime / "venv/lib/python3.14/site-packages"
+    source = runtime / "python/lib/python3.14/site-packages"
     source.mkdir(parents=True)
-    monkeypatch.setattr(sys, "prefix", (runtime / "venv").as_posix())
+    monkeypatch.setattr(sys, "prefix", (runtime / "python").as_posix())
     monkeypatch.setattr(
         install,
         "require_selected_runtime",
@@ -136,32 +159,26 @@ def test_managed_runtime_rejects_missing_or_ambiguous_content_addressed_wheel(
         install.resolve_runtime_wheel(source, tmp_path / "unused")
 
 
-def test_installed_runtime_copy_rejects_python_outside_prefix(
+def test_owned_python_copy_rejects_interpreter_outside_its_base_prefix(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _bind_source_identity(monkeypatch)
-    source = tmp_path / "installed/a/b/c/d"
-    source.mkdir(parents=True)
-    wheel = tmp_path / "ethos.whl"
-    wheel.write_bytes(b"wheel")
-    common = tmp_path / "repo.git"
-    common.mkdir()
-    monkeypatch.setattr(install, "__file__", (source / "module.py").as_posix())
-    monkeypatch.setattr(install, "git_common_dir", lambda _repo: common.as_posix())
-    monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: wheel)
-    monkeypatch.setattr(sys, "prefix", (tmp_path / "prefix").as_posix())
+    interpreter = tmp_path / "foreign/python"
+    interpreter.parent.mkdir()
+    interpreter.write_bytes(b"python")
     monkeypatch.setattr(
-        install.subprocess,
-        "run",
-        lambda *_args, **_kwargs: _completed(0, stdout="cpython-test\n"),
+        install,
+        "python_facts",
+        lambda _python: {
+            "python_abi": "cpython-test",
+            "python_version": "3.14.7",
+            "python_implementation": "cpython",
+            "prefix": (tmp_path / "prefix").as_posix(),
+            "base_prefix": (tmp_path / "base").as_posix(),
+        },
     )
 
-    with pytest.raises(ValueError, match="hook_runtime_python_prefix_invalid"):
-        install.materialize_hook_runtime(
-            tmp_path / "repo",
-            tmp_path / "foreign/python",
-            expected_source=_SOURCE_IDENTITY,
-        )
+    with pytest.raises(ValueError, match="hook_runtime_owned_interpreter_unavailable"):
+        install.copy_python_home(interpreter, tmp_path / "target")
 
 
 def test_runtime_tool_reports_missing_executable_and_stderr(
@@ -229,77 +246,48 @@ def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_
 def test_python_abi_and_manifest_fail_closed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _bind_source_identity(monkeypatch)
-    source = tmp_path / "installed/a/b/c/d"
-    source.mkdir(parents=True)
-    wheel = tmp_path / "ethos.whl"
-    wheel.write_bytes(b"wheel")
-    common = tmp_path / "repo.git"
-    common.mkdir()
-    prefix = tmp_path / "prefix"
-    source_python = prefix / "bin/python"
-    source_python.parent.mkdir(parents=True)
-    source_python.write_bytes(b"python")
-    monkeypatch.setattr(install, "__file__", (source / "module.py").as_posix())
-    monkeypatch.setattr(install, "git_common_dir", lambda _repo: common.as_posix())
-    monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: wheel)
-    monkeypatch.setattr(sys, "prefix", prefix.as_posix())
+    python = tmp_path / "python"
+    python.write_bytes(b"python")
     monkeypatch.setattr(install.subprocess, "run", lambda *_args, **_kwargs: _completed(1))
     with pytest.raises(ValueError, match="hook_runtime_python_abi_invalid"):
-        install.materialize_hook_runtime(
-            tmp_path / "repo", source_python, expected_source=_SOURCE_IDENTITY
-        )
+        install.python_facts(python)
 
-    monkeypatch.setattr(
-        install.subprocess,
-        "run",
-        lambda *_args, **_kwargs: _completed(0, stdout="cpython-test\n"),
+    supply = install.runtime_supply(
+        mode="locked-source",
+        source=tmp_path,
+        wheel=tmp_path / "ethos.whl",
+        interpreter=python,
     )
     monkeypatch.setattr(
-        install.shutil,
-        "copytree",
-        lambda _source, target, **_kwargs: target.mkdir(parents=True),
+        install,
+        "copy_python_home",
+        lambda _source, target: target.mkdir(parents=True),
     )
     with pytest.raises(ValueError, match="hook_runtime_python_missing"):
-        install.materialize_hook_runtime(
-            tmp_path / "repo", source_python, expected_source=_SOURCE_IDENTITY
-        )
+        install.materialize_runtime_python(tmp_path / "runtime/python", supply, tmp_path)
 
 
-def test_materialize_installed_runtime_copies_exact_python_prefix(
+def test_owned_python_copy_copies_the_complete_interpreter_home(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _bind_source_identity(monkeypatch)
-    source = tmp_path / "installed/lib/ethos/adapters/repo/hook_runtime_install.py"
-    source.parent.mkdir(parents=True)
-    source.write_text("installed", encoding="utf-8")
     prefix = tmp_path / "prefix"
-    host_python = tmp_path / "host/python"
-    host_python.parent.mkdir(parents=True)
-    host_python.write_bytes(b"python")
     python = prefix / "bin/python"
     python.parent.mkdir(parents=True)
-    python.symlink_to(host_python)
-    entrypoint = prefix / "bin/ethos"
-    entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
-    entrypoint.chmod(0o755)
-    common = tmp_path / "repo.git"
-    common.mkdir()
-    wheel = tmp_path / "ethos.whl"
-    wheel.write_bytes(b"wheel")
-    monkeypatch.setattr(install, "__file__", source.as_posix())
-    monkeypatch.setattr(sys, "prefix", prefix.as_posix())
-    monkeypatch.setattr(install, "git_common_dir", lambda _repo: common.as_posix())
+    python.write_bytes(b"python")
     monkeypatch.setattr(
-        install.subprocess,
-        "run",
-        lambda *_args, **_kwargs: _completed(0, stdout="cpython-test\n"),
+        install,
+        "python_facts",
+        lambda _python: {
+            "python_abi": "cpython-test",
+            "python_version": "3.14.7",
+            "python_implementation": "cpython",
+            "prefix": prefix.as_posix(),
+            "base_prefix": prefix.as_posix(),
+        },
     )
-    monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: wheel)
 
-    runtime = install.materialize_hook_runtime(
-        tmp_path / "repo", python, expected_source=_SOURCE_IDENTITY
-    )
+    runtime = tmp_path / "runtime/python"
+    install.copy_python_home(python, runtime)
 
     assert (runtime / "bin/python").read_bytes() == b"python"
     assert not (runtime / "bin/python").is_symlink()
@@ -308,7 +296,7 @@ def test_materialize_installed_runtime_copies_exact_python_prefix(
 def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _bind_source_identity(monkeypatch)
+    _bind_build_identity(monkeypatch)
     source = tmp_path / "source"
     module = source / "a/b/c/d/module.py"
     module.parent.mkdir(parents=True)
@@ -319,48 +307,28 @@ def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
     wheel_sha256 = hashlib.sha256(b"wheel").hexdigest()
     common = tmp_path / "repo.git"
     common.mkdir()
-    source_python = tmp_path / "bin/python"
-    source_python.parent.mkdir()
-    source_python.write_bytes(b"python")
-    monkeypatch.setattr(sys, "prefix", tmp_path.as_posix())
     calls: list[tuple[str, tuple[str, ...]]] = []
-    monkeypatch.setattr(install, "__file__", module.as_posix())
-    monkeypatch.setattr(install, "git_common_dir", lambda _repo: common.as_posix())
-    monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: volatile_wheel)
-    monkeypatch.setattr(install, "_python_abi", lambda _python: "cpython-test")
-
-    def copy_runtime(_source: Path, target: Path, **_kwargs: object) -> None:
-        python = target / "bin/python"
-        python.parent.mkdir(parents=True)
-        python.write_bytes(b"python")
-        entrypoint = target / "bin/ethos"
-        entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
-        entrypoint.chmod(0o755)
-
-    monkeypatch.setattr(install.shutil, "copytree", copy_runtime)
+    monkeypatch.setattr(identity_transition, "git_common_dir", lambda _repo: common.as_posix())
 
     def run_runtime_tool(_source: Path, operation: str, *args: str) -> None:
         calls.append((operation, args))
 
     monkeypatch.setattr(install, "_run_runtime_tool", run_runtime_tool)
-    monkeypatch.setattr(
-        install.subprocess,
-        "run",
-        lambda *_args, **_kwargs: _completed(0, stdout="ethos-test\n"),
+    artifact = identity_transition.materialize_release_wheel(
+        tmp_path / "repo",
+        volatile_wheel,
+        expected_build=_BUILD_IDENTITY,
+        collision="hook_runtime_wheel_digest_collision",
     )
-
-    install.materialize_hook_runtime(
-        tmp_path / "repo", source_python, expected_source=_SOURCE_IDENTITY
-    )
+    install.install_locked_runtime(source, tmp_path / "work", tmp_path / "python", artifact.path)
     volatile_wheel.unlink()
 
     durable = common / "ethos/packages" / wheel_sha256 / volatile_wheel.name
     assert calls[0][1][:4] == ("--locked", "--offline", "--no-dev", "--no-emit-project")
     assert calls[1][0] == "pip"
-    assert calls[1][1][:3] == ("sync", "--offline", "--require-hashes")
-    assert "--strict" in calls[1][1]
+    assert {"sync", "--offline", "--break-system-packages", "--require-hashes"} < set(calls[1][1])
     assert calls[2][0] == "pip"
-    assert {"install", "--offline", "--no-deps"} < set(calls[2][1])
+    assert {"install", "--offline", "--break-system-packages", "--no-deps"} < set(calls[2][1])
     assert Path(calls[2][1][-1]) == durable
     assert durable.read_bytes() == b"wheel"
 
@@ -368,7 +336,7 @@ def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
 def test_materialize_runtime_rejects_durable_wheel_digest_collision(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _bind_source_identity(monkeypatch)
+    _bind_build_identity(monkeypatch)
     source = tmp_path / "installed/a/b/c/d"
     source.mkdir(parents=True)
     wheel = tmp_path / "ethos-test.whl"
@@ -378,19 +346,14 @@ def test_materialize_runtime_rejects_durable_wheel_digest_collision(
     durable = common / "ethos/packages" / wheel_sha256 / wheel.name
     durable.parent.mkdir(parents=True)
     durable.write_bytes(b"different")
-    prefix = tmp_path / "prefix"
-    source_python = prefix / "bin/python"
-    source_python.parent.mkdir(parents=True)
-    source_python.write_bytes(b"python")
-    monkeypatch.setattr(install, "__file__", (source / "module.py").as_posix())
-    monkeypatch.setattr(install, "git_common_dir", lambda _repo: common.as_posix())
-    monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: wheel)
-    monkeypatch.setattr(install, "_python_abi", lambda _python: "cpython-test")
-    monkeypatch.setattr(sys, "prefix", prefix.as_posix())
+    monkeypatch.setattr(identity_transition, "git_common_dir", lambda _repo: common.as_posix())
 
     with pytest.raises(ValueError, match="hook_runtime_wheel_digest_collision"):
-        install.materialize_hook_runtime(
-            tmp_path / "repo", source_python, expected_source=_SOURCE_IDENTITY
+        identity_transition.materialize_release_wheel(
+            tmp_path / "repo",
+            wheel,
+            expected_build=_BUILD_IDENTITY,
+            collision="hook_runtime_wheel_digest_collision",
         )
 
 
@@ -398,12 +361,12 @@ def test_final_runtime_rejects_console_entrypoint_bound_to_staging(
     tmp_path: Path,
 ) -> None:
     runtime = tmp_path / "runtime" / ("a" * 64)
-    python = runtime / "venv/bin/python"
-    entrypoint = runtime / "venv/bin/ethos"
+    python = runtime / "python/bin/python"
+    entrypoint = runtime / "python/bin/ethos"
     python.parent.mkdir(parents=True)
     python.write_bytes(b"python")
     entrypoint.write_text(
-        f"#!{runtime.parent}/.runtime-staging/venv/bin/python\n",
+        f"#!{runtime.parent}/.runtime-staging/python/bin/python\n",
         encoding="utf-8",
     )
     entrypoint.chmod(0o755)
@@ -411,8 +374,8 @@ def test_final_runtime_rejects_console_entrypoint_bound_to_staging(
         runtime,
         "a" * 64,
         "b" * 64,
-        "cpython-test",
-        _SOURCE_IDENTITY,
+        _ENVIRONMENT,
+        _BUILD_IDENTITY,
         python,
     )
 
@@ -422,7 +385,7 @@ def test_final_runtime_rejects_console_entrypoint_bound_to_staging(
             "a" * 64,
             "b" * 64,
             "cpython-test",
-            _SOURCE_IDENTITY,
+            _BUILD_IDENTITY,
         )
 
 
@@ -430,22 +393,38 @@ def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    runtime = tmp_path / ("a" * 64)
-    python = runtime / "venv/bin/python"
-    entrypoint = runtime / "venv/bin/ethos"
+    digest = runtime_digest(
+        wheel_sha256="b" * 64,
+        build=_BUILD_IDENTITY,
+        environment=_ENVIRONMENT,
+    )
+    runtime = tmp_path / digest
+    python = runtime / "python/bin/python"
+    entrypoint = runtime / "python/bin/ethos"
     python.parent.mkdir(parents=True)
     python.write_bytes(b"python")
-    entrypoint.write_text("#!/staging/venv/bin/python\n", encoding="utf-8")
+    entrypoint.write_text("#!/staging/python/bin/python\n", encoding="utf-8")
     entrypoint.chmod(0o755)
     install.write_runtime_manifest(
         runtime,
         runtime.name,
         "b" * 64,
-        "cpython-test",
-        _SOURCE_IDENTITY,
+        _ENVIRONMENT,
+        _BUILD_IDENTITY,
         python,
     )
     observed: list[Path] = []
+    monkeypatch.setattr(
+        install,
+        "python_facts",
+        lambda _python: {
+            "python_abi": _ENVIRONMENT.python_abi,
+            "python_version": _ENVIRONMENT.python_version,
+            "python_implementation": _ENVIRONMENT.python_implementation,
+            "prefix": (runtime / "python").resolve().as_posix(),
+            "base_prefix": (runtime / "python").resolve().as_posix(),
+        },
+    )
     monkeypatch.setattr(
         install.subprocess,
         "run",
@@ -458,8 +437,8 @@ def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
         runtime,
         runtime.name,
         "b" * 64,
-        "cpython-test",
-        _SOURCE_IDENTITY,
+        _BUILD_IDENTITY,
+        _ENVIRONMENT,
     )
 
     assert entrypoint.read_text(encoding="utf-8").splitlines()[0] == f"#!{python}"

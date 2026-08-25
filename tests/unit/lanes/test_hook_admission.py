@@ -420,7 +420,7 @@ def test_runtime_state_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     module.parent.mkdir(parents=True)
     module.write_text("", encoding="utf-8")
     assert runner_source_root(module) == module.parent
-    python = tmp_path / "common/ethos/runtime/digest/venv/bin/python"
+    python = tmp_path / "common/ethos/runtime/digest/python/bin/python"
     python.parent.mkdir(parents=True)
     python.write_text("", encoding="utf-8")
     monkeypatch.setattr("ethos.adapters.repo.runtime.binding.sys.executable", python.as_posix())

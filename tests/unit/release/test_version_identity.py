@@ -1,16 +1,26 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
+import sys
 import tomllib
+import zipfile
+from email.parser import Parser
+from importlib import import_module
 from pathlib import Path
 
 import pytest
 from packaging.version import Version
 
 from ethos.repository.release.identity import BuildIdentity
+from ethos.repository.release.identity import accepted_version_reuse_gaps
 from ethos.repository.release.identity import build_identity
+from ethos.repository.release.identity import load_build_identity_bytes
 from ethos.repository.release.identity import product_version
 from ethos.repository.release.identity import projected_package_versions
+from ethos.repository.release.identity import wheel_build_identity
 
 
 def test_version_file_is_the_single_product_owner_and_manifests_are_projections() -> None:
@@ -18,27 +28,27 @@ def test_version_file_is_the_single_product_owner_and_manifests_are_projections(
     product = product_version(root)
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert product == "0.1.0-alpha.3"
+    assert product == "0.2.0-alpha.1"
     assert "version" not in pyproject["project"]
     assert "version" in pyproject["project"]["dynamic"]
+    assert "version" not in json.loads((root / "package.json").read_text(encoding="utf-8"))
     assert projected_package_versions(root) == {
-        "package.json": product,
-        "package-lock.json": product,
         "distributions/npm/package.json": product,
+        "package-lock.json#packages/distributions/npm": product,
     }
     assert "0.1.0a2" not in (root / "pyproject.toml").read_text(encoding="utf-8")
 
 
 def test_unreleased_distribution_identity_is_unique_pep440_and_below_release() -> None:
     first = build_identity(
-        product="0.1.0-alpha.3",
+        product="0.2.0-alpha.1",
         source_commit="a" * 40,
         source_tree="b" * 40,
         channel="development",
         acceptance_state="unaccepted",
     )
     second = build_identity(
-        product="0.1.0-alpha.3",
+        product="0.2.0-alpha.1",
         source_commit="c" * 40,
         source_tree="d" * 40,
         channel="development",
@@ -46,14 +56,51 @@ def test_unreleased_distribution_identity_is_unique_pep440_and_below_release() -
     )
 
     assert first.distribution_version != second.distribution_version
-    assert Version(first.distribution_version) < Version("0.1.0a3")
-    assert Version(second.distribution_version) < Version("0.1.0a3")
-    assert first.product_version == second.product_version == "0.1.0-alpha.3"
+    assert Version(first.distribution_version) < Version("0.2.0a1")
+    assert Version(second.distribution_version) < Version("0.2.0a1")
+    assert first.product_version == second.product_version == "0.2.0-alpha.1"
+
+
+def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> None:
+    root = Path.cwd()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    tracked = subprocess.check_output(
+        ("git", "ls-files", "-co", "--exclude-standard", "-z"), cwd=root
+    ).split(b"\0")
+    for raw in tracked:
+        if not raw:
+            continue
+        relative = Path(os.fsdecode(raw))
+        source = root / relative
+        if not source.exists():
+            continue
+        target = repo / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target, follow_symlinks=False)
+    _git(repo, "init", "--quiet", "--initial-branch=dev")
+    _git(repo, "config", "user.name", "ETHOS Test")
+    _git(repo, "config", "user.email", "ethos@example.invalid")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "--quiet", "-m", "first source")
+    first = _build_wheel(repo, tmp_path / "first")
+
+    readme = repo / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    _git(repo, "add", "README.md")
+    _git(repo, "commit", "--quiet", "-m", "second source")
+    second = _build_wheel(repo, tmp_path / "second")
+
+    assert first.source_commit != second.source_commit
+    assert first.source_tree != second.source_tree
+    assert first.distribution_version != second.distribution_version
+    assert Version(first.distribution_version) < Version("0.2.0a1")
+    assert Version(second.distribution_version) < Version("0.2.0a1")
 
 
 def test_accepted_identity_uses_exact_product_projection() -> None:
     identity = build_identity(
-        product="0.1.0-alpha.3",
+        product="0.2.0-alpha.1",
         source_commit="a" * 40,
         source_tree="b" * 40,
         channel="accepted",
@@ -61,8 +108,8 @@ def test_accepted_identity_uses_exact_product_projection() -> None:
     )
 
     assert identity == BuildIdentity(
-        product_version="0.1.0-alpha.3",
-        distribution_version="0.1.0a3",
+        product_version="0.2.0-alpha.1",
+        distribution_version="0.2.0a1",
         source_commit="a" * 40,
         source_tree="b" * 40,
         channel="accepted",
@@ -81,12 +128,91 @@ def test_projected_package_version_drift_is_reported(tmp_path: Path) -> None:
     (tmp_path / "VERSION").write_text("1.2.3\n", encoding="utf-8")
     (tmp_path / "package.json").write_text('{"version":"1.2.2"}\n', encoding="utf-8")
     (tmp_path / "package-lock.json").write_text(
-        json.dumps({"version": "1.2.3", "packages": {"": {"version": "1.2.3"}}}),
+        json.dumps(
+            {
+                "packages": {
+                    "": {},
+                    "distributions/npm": {"version": "1.2.3"},
+                }
+            }
+        ),
         encoding="utf-8",
     )
     package = tmp_path / "distributions/npm/package.json"
     package.parent.mkdir(parents=True)
     package.write_text('{"version":"1.2.3"}\n', encoding="utf-8")
 
-    with pytest.raises(ValueError, match="package_version_projection_drift:package.json"):
+    with pytest.raises(ValueError, match=r"package_version_parallel_owner:package\.json"):
         projected_package_versions(tmp_path)
+
+
+def test_build_identity_loader_rejects_distribution_or_channel_drift() -> None:
+    identity = build_identity(
+        product="0.2.0-alpha.1",
+        source_commit="a" * 40,
+        source_tree="b" * 40,
+        channel="development",
+        acceptance_state="unaccepted",
+    )
+    payload = identity.projection()
+    payload["distribution_version"] = "0.2.0a1.dev0+wrong"
+    with pytest.raises(ValueError, match="package_build_identity_invalid"):
+        load_build_identity_bytes(json.dumps(payload).encode())
+
+
+def test_accepted_identity_rejects_product_version_reuse_with_different_source() -> None:
+    prior = build_identity(
+        product="0.2.0-alpha.1",
+        source_commit="a" * 40,
+        source_tree="b" * 40,
+        channel="accepted",
+        acceptance_state="accepted",
+    )
+    candidate = build_identity(
+        product="0.2.0-alpha.1",
+        source_commit="c" * 40,
+        source_tree="d" * 40,
+        channel="accepted",
+        acceptance_state="accepted",
+    )
+
+    assert accepted_version_reuse_gaps(candidate, (prior,)) == (
+        "accepted_version_source_conflict:0.2.0-alpha.1",
+    )
+
+
+def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
+    node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
+    output.mkdir()
+    subprocess.run(
+        (
+            str(Path(sys.executable).with_name("uv")),
+            "build",
+            "--offline",
+            "--wheel",
+            "--out-dir",
+            str(output),
+            "--no-create-gitignore",
+        ),
+        cwd=repo,
+        env={
+            **os.environ,
+            "ETHOS_BUILD_CHANNEL": "development",
+            "ETHOS_BUILD_NODE": str(node_root / "bin" / "node"),
+            "ETHOS_BUILD_NPM_CLI": str(node_root / "lib/node_modules/npm/bin/npm-cli.js"),
+        },
+        check=True,
+    )
+    wheel = next(output.glob("ethos-*.whl"))
+    identity = wheel_build_identity(wheel)
+    with zipfile.ZipFile(wheel) as archive:
+        metadata_path = next(
+            name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+        )
+        metadata = Parser().parsestr(archive.read(metadata_path).decode("utf-8"))
+    assert metadata["Version"] == identity.distribution_version
+    return identity
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(("git", *args), cwd=repo, check=True)

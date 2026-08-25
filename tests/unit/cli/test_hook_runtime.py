@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import platform
 import subprocess
 import sys
+from datetime import UTC
+from datetime import datetime
 from io import StringIO
 from pathlib import Path
 
@@ -14,18 +18,27 @@ import pytest
 import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.hook_runtime_install as runtime_install
+import ethos.adapters.repo.runtime.transition as identity_transition
+from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
-from ethos.adapters.repo.hook.source_identity import expected_runtime_source
-from ethos.adapters.repo.hook.source_identity import runtime_source_identity
 from ethos.adapters.repo.hook_runtime import execute_hook
+from ethos.adapters.repo.runtime.authority import expected_runtime_build
+from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.repository.release.admission import accepted_release_attestation
+from ethos.repository.release.admission import accepted_release_identities
+from ethos.repository.release.admission import accepted_release_identity
+from ethos.repository.release.admission import accepted_runtime_identities
+from ethos.repository.release.identity import BuildIdentity
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
@@ -48,11 +61,24 @@ def _venv_executable(venv: Path, name: str) -> Path:
     return venv / directory / f"{name}{suffix}"
 
 
+def _build(commit: str, tree: str, *, accepted: bool = False) -> BuildIdentity:
+    return BuildIdentity(
+        product_version="0.2.0-alpha.1",
+        distribution_version=(
+            "0.2.0a1" if accepted else f"0.2.0a1.dev0+g{commit[:12]}.t{tree[:12]}"
+        ),
+        source_commit=commit,
+        source_tree=tree,
+        channel="accepted" if accepted else "development",
+        acceptance_state="accepted" if accepted else "unaccepted",
+    )
+
+
 def _materialize_runtime_case(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     *,
-    source_identity: runtime_install.RuntimeSourceIdentity | None = None,
+    package_identity: BuildIdentity | None = None,
 ) -> tuple[Path, Path]:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -64,16 +90,21 @@ def _materialize_runtime_case(
     source_python = Path(sys.executable)
     monkeypatch.setattr(runtime_install, "__file__", (source / "module.py").as_posix())
     monkeypatch.setattr(runtime_install, "resolve_runtime_wheel", lambda *_args: wheel)
-    monkeypatch.setattr(runtime_install, "_python_abi", lambda _python: "cpython-test")
-    identity = source_identity or runtime_source_identity(Path(__file__).resolve().parents[3])
-    monkeypatch.setattr(runtime_install, "wheel_source_identity", lambda *_args: identity)
+    identity = package_identity or runtime_build_identity(Path(__file__).resolve().parents[3])
+    monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda *_args: identity)
+    monkeypatch.setattr(
+        runtime_install,
+        "_runtime_project",
+        lambda _source: Path(__file__).resolve().parents[3],
+    )
+    monkeypatch.setattr(runtime_install, "_owned_runtime_interpreter", lambda *_args: source_python)
+    monkeypatch.setattr(runtime_install, "_require_package_runtime_source", lambda _supply: None)
 
-    def copy_runtime(target: Path, _python: Path) -> None:
+    def copy_runtime(_interpreter: Path, target: Path) -> None:
         runtime_python = _venv_executable(target, "python")
         runtime_python.parent.mkdir(parents=True)
-        source_python = Path(sys.executable)
-        runtime_python.write_bytes(source_python.read_bytes())
-        runtime_python.chmod(source_python.stat().st_mode)
+        runtime_python.write_bytes(b"python")
+        runtime_python.chmod(0o755)
         entrypoint = _venv_executable(target, "ethos")
         entrypoint.write_text(
             f"#!{runtime_python}\nprint('ethos-test')\n",
@@ -81,11 +112,49 @@ def _materialize_runtime_case(
         )
         entrypoint.chmod(0o755)
 
-    monkeypatch.setattr(runtime_install, "_copy_installed_runtime", copy_runtime)
+    def python_facts(python: Path) -> dict[str, str]:
+        prefix = python.parent.parent if python != source_python else source_python.parent.parent
+        return {
+            "python_abi": "cpython-test",
+            "python_version": "3.14.7",
+            "python_implementation": "cpython",
+            "prefix": prefix.resolve().as_posix(),
+            "base_prefix": prefix.resolve().as_posix(),
+        }
+
+    monkeypatch.setattr(runtime_install, "copy_python_home", copy_runtime)
+    monkeypatch.setattr(runtime_install, "python_facts", python_facts)
+
+    def finalize_runtime(
+        runtime: Path,
+        digest: str,
+        wheel_sha256: str,
+        build: BuildIdentity,
+        environment: runtime_install.RuntimeEnvironment,
+    ) -> None:
+        runtime_install.rewrite_runtime_entrypoint(runtime)
+        python = runtime_install.runtime_python(runtime / "python")
+        runtime_install.write_runtime_manifest(
+            runtime,
+            digest,
+            wheel_sha256,
+            environment,
+            build,
+            python,
+        )
+        runtime_install.require_runtime(
+            runtime,
+            digest,
+            wheel_sha256,
+            environment.python_abi,
+            build,
+        )
+
+    monkeypatch.setattr(runtime_install, "finalize_runtime", finalize_runtime)
     return repo, runtime_install.materialize_hook_runtime(
         repo,
         source_python,
-        expected_source=identity,
+        expected_build=identity,
     )
 
 
@@ -123,11 +192,11 @@ def _linked_runtime_case(
 def test_hook_binding_rejects_an_intact_runtime_from_an_older_source_identity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    installed = runtime_install.RuntimeSourceIdentity(commit="a" * 40, tree="b" * 40)
+    installed = _build("a" * 40, "b" * 40)
     repo, venv = _materialize_runtime_case(
         tmp_path,
         monkeypatch,
-        source_identity=installed,
+        package_identity=installed,
     )
     common = Path(git_common_dir(repo))
     generation = runtime_install.materialize_hook_launchers(common / "ethos" / "hooks")
@@ -136,16 +205,16 @@ def test_hook_binding_rejects_an_intact_runtime_from_an_older_source_identity(
     assert (
         _git(repo, "config", "--worktree", "core.hooksPath", generation.as_posix()).returncode == 0
     )
-    expected = runtime_install.RuntimeSourceIdentity(commit="c" * 40, tree="d" * 40)
+    expected = _build("c" * 40, "d" * 40)
 
-    observed = hook_runtime_binding(repo, expected_source=expected)
+    observed = hook_runtime_binding(repo, expected_build=expected)
 
     assert observed["source_commit"] == "a" * 40
     assert observed["source_tree"] == "b" * 40
     assert observed["expected_source_commit"] == "c" * 40
     assert observed["expected_source_tree"] == "d" * 40
     assert observed["current"] is False
-    assert observed["required_gaps"] == ["write_admission_not_armed:runtime_source_stale"]
+    assert observed["required_gaps"] == ["write_admission_not_armed:runtime_build_stale"]
     assert observed["next_action"] == runtime_command(
         repo, "hook", "install", "--root", repo.as_posix(), "--json"
     )
@@ -182,6 +251,7 @@ def test_self_hosted_expectation_uses_the_accepted_ref_and_linked_checkout(
         '[branch_roles]\naccepted_branch = "dev"\n',
         encoding="utf-8",
     )
+    (repo / "VERSION").write_text("0.2.0-alpha.1\n", encoding="ascii")
     (repo / "tracked.txt").write_text("accepted\n", encoding="utf-8")
     assert _git(repo, "add", ".").returncode == 0
     accepted = _git(
@@ -213,12 +283,9 @@ def test_self_hosted_expectation_uses_the_accepted_ref_and_linked_checkout(
     )
     assert candidate.returncode == 0
 
-    identity, source_root = expected_runtime_source(lane)
+    identity, source_root = expected_runtime_build(lane)
 
-    assert identity == runtime_install.RuntimeSourceIdentity(
-        commit=accepted_commit,
-        tree=accepted_tree,
-    )
+    assert identity == _build(accepted_commit, accepted_tree, accepted=True)
     assert source_root == repo.resolve()
 
 
@@ -273,7 +340,7 @@ def test_hook_runtime_manifest_rejects_every_binding_drift(
         runtime_install.materialize_hook_runtime(
             repo,
             Path(sys.executable),
-            expected_source=expected_runtime_source(repo)[0],
+            expected_build=expected_runtime_build(repo)[0],
         )
 
 
@@ -286,6 +353,142 @@ def test_hook_runtime_manifest_and_current_selector_bind_exact_package(
     assert selected.root == venv.parent
     assert selected.python.is_file()
     assert current_runtime(Path(git_common_dir(repo))) == selected
+
+
+def test_accepted_runtime_materialization_records_release_and_runtime_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    identity = _build("a" * 40, "b" * 40, accepted=True)
+    repo, venv = _materialize_runtime_case(
+        tmp_path,
+        monkeypatch,
+        package_identity=identity,
+    )
+
+    _root, attestations = read_attestation_set(repo)
+    releases = accepted_release_identities(attestations)
+    runtimes = accepted_runtime_identities(attestations)
+
+    assert releases == (
+        accepted_release_identity(
+            identity,
+            wheel_sha256=hashlib.sha256(b"wheel").hexdigest(),
+        ),
+    )
+    assert len(runtimes) == 1
+    assert runtimes[0].release == releases[0]
+    assert runtimes[0].runtime_digest == venv.parent.name
+    assert runtimes[0].python_abi == "cpython-test"
+    assert runtimes[0].platform == platform.system().lower()
+
+
+def test_accepted_runtime_activation_requires_canonical_identity_attestations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    identity = _build("a" * 40, "b" * 40, accepted=True)
+    repo, venv = _materialize_runtime_case(
+        tmp_path,
+        monkeypatch,
+        package_identity=identity,
+    )
+    assert _git(repo, "update-ref", "-d", ATTESTATION_SET_REF).returncode == 0
+
+    with pytest.raises(ValueError, match="accepted_release_identity_unattested"):
+        activate_runtime(Path(git_common_dir(repo)), venv.parent)
+
+    assert not (Path(git_common_dir(repo)) / "ethos/runtime/CURRENT").exists()
+
+
+def test_accepted_runtime_materialization_rejects_version_reuse_before_durable_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    prior = accepted_release_identity(
+        _build("c" * 40, "d" * 40, accepted=True),
+        wheel_sha256="e" * 64,
+    )
+    record_attestations(
+        repo,
+        (
+            accepted_release_attestation(
+                prior,
+                issued_at=datetime(2026, 8, 25, tzinfo=UTC),
+            ),
+        ),
+    )
+    source = tmp_path / "installed" / "a" / "b" / "c" / "d"
+    source.mkdir(parents=True)
+    wheel = tmp_path / "ethos-test.whl"
+    wheel.write_bytes(b"wheel")
+    candidate = _build("a" * 40, "b" * 40, accepted=True)
+    monkeypatch.setattr(runtime_install, "__file__", (source / "module.py").as_posix())
+    monkeypatch.setattr(runtime_install, "resolve_runtime_wheel", lambda *_args: wheel)
+    monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda *_args: candidate)
+    monkeypatch.setattr(
+        runtime_install,
+        "_runtime_project",
+        lambda _source: Path(__file__).resolve().parents[3],
+    )
+    monkeypatch.setattr(
+        runtime_install,
+        "_owned_runtime_interpreter",
+        lambda *_args: Path(sys.executable),
+    )
+    copied: list[Path] = []
+    monkeypatch.setattr(
+        runtime_install,
+        "copy_python_home",
+        lambda target, _python: copied.append(target),
+    )
+
+    with pytest.raises(ValueError, match=r"accepted_version_source_conflict:0\.2\.0-alpha\.1"):
+        runtime_install.materialize_hook_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=candidate,
+        )
+
+    common = Path(git_common_dir(repo))
+    assert copied == []
+    assert not (common / "ethos/packages" / hashlib.sha256(b"wheel").hexdigest()).exists()
+    assert not (common / "ethos/runtime/CURRENT").exists()
+
+
+def test_runtime_digest_uses_the_runtime_manifest_schema_not_build_resource_schema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    identity = _build("a" * 40, "b" * 40)
+    _repo, venv = _materialize_runtime_case(
+        tmp_path,
+        monkeypatch,
+        package_identity=identity,
+    )
+    expected = hashlib.sha256(
+        json.dumps(
+            {
+                "schema_version": 4,
+                "wheel_sha256": hashlib.sha256(b"wheel").hexdigest(),
+                "python_abi": "cpython-test",
+                "python_version": "3.14.7",
+                "python_implementation": "cpython",
+                "dependency_lock_sha256": hashlib.sha256(
+                    (Path(__file__).resolve().parents[3] / "uv.lock").read_bytes()
+                ).hexdigest(),
+                "platform": platform.system().lower(),
+                **{
+                    key: value
+                    for key, value in identity.projection().items()
+                    if key != "schema_version"
+                },
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+
+    assert venv.parent.name == expected
 
 
 def test_hook_runtime_wheel_provenance_and_tool_fail_closed(
@@ -311,20 +514,13 @@ def test_hook_runtime_wheel_provenance_and_tool_fail_closed(
 def test_hook_runtime_python_and_manifest_require_executable_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    assert _git(tmp_path, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    identity = runtime_install.RuntimeSourceIdentity(commit="e" * 40, tree="f" * 40)
-    monkeypatch.setattr(runtime_install, "wheel_source_identity", lambda _wheel: identity)
     monkeypatch.setattr(
         runtime_install.subprocess,
         "run",
         lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", "failed"),
     )
     with pytest.raises(ValueError, match="hook_runtime_python_abi_invalid"):
-        runtime_install.materialize_hook_runtime(
-            tmp_path,
-            tmp_path / "missing-python",
-            expected_source=identity,
-        )
+        runtime_install.python_facts(tmp_path / "missing-python")
 
 
 def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) -> None:
@@ -363,7 +559,7 @@ def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) 
         assert text.startswith("#!/bin/sh\n")
         assert checkout_python.as_posix() not in text
         assert 'CURRENT="$RUNTIME_ROOT/CURRENT"' in text
-        assert 'exec "$RUNTIME_ROOT/$RUNTIME_DIGEST/venv/' in text
+        assert 'exec "$RUNTIME_ROOT/$RUNTIME_DIGEST/python/' in text
 
 
 @pytest.mark.parametrize("kind", ["file", "symlink"])
@@ -540,9 +736,9 @@ def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, linked, venv, _generations = _linked_runtime_case(tmp_path, monkeypatch)
-    accepted_identity = runtime_source_identity(Path(__file__).resolve().parents[3])
+    accepted_identity = runtime_build_identity(Path(__file__).resolve().parents[3])
     source_selections: list[Path] = []
-    materialized_with: list[runtime_install.RuntimeSourceIdentity] = []
+    materialized_with: list[BuildIdentity] = []
     (linked / ".ethos").mkdir()
     (linked / ".ethos/profile.toml").write_text('profile_id = "ethos"\n', encoding="utf-8")
     (linked / ".ethos/workspace.toml").write_text(
@@ -558,20 +754,22 @@ def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
         _root: Path,
         _python: Path,
         *,
-        expected_source: runtime_install.RuntimeSourceIdentity,
+        expected_build: BuildIdentity,
+        build_source: Path | None = None,
     ) -> Path:
-        materialized_with.append(expected_source)
+        del build_source
+        materialized_with.append(expected_build)
         return venv
 
-    monkeypatch.setattr(hook_activation, "expected_runtime_source", select_source)
+    monkeypatch.setattr(hook_activation, "expected_runtime_build", select_source)
     monkeypatch.setattr(runtime_install, "materialize_hook_runtime", materialize)
 
     installed = install_hook_launchers(repo)
 
     assert source_selections == [repo]
     assert materialized_with == [accepted_identity]
-    assert installed["expected_source_commit"] == accepted_identity.commit
-    assert installed["expected_source_tree"] == accepted_identity.tree
+    assert installed["expected_source_commit"] == accepted_identity.source_commit
+    assert installed["expected_source_tree"] == accepted_identity.source_tree
     assert installed["required_gaps"] == []
 
 
@@ -765,7 +963,7 @@ def test_hook_runtime_rejects_a_symlinked_ethos_root_before_writing(tmp_path: Pa
         runtime_install.materialize_hook_runtime(
             repo,
             Path(sys.executable),
-            expected_source=expected_runtime_source(repo)[0],
+            expected_build=expected_runtime_build(repo)[0],
         )
 
     assert not tuple(external.iterdir())
@@ -868,7 +1066,7 @@ def test_hook_activation_rejects_a_non_current_post_observation(
         "hook_runtime_binding",
         lambda _root, **_kwargs: {
             "hooks_path": hooks.as_posix(),
-            "required_gaps": ["write_admission_not_armed:runtime_source_stale"],
+            "required_gaps": ["write_admission_not_armed:runtime_build_stale"],
         },
     )
 
@@ -888,6 +1086,8 @@ def test_hook_launcher_uses_git_shell_and_current_runtime_selector() -> None:
     assert 'CURRENT="$RUNTIME_ROOT/CURRENT"' in text
     assert 'RUNTIME="$RUNTIME_ROOT/$RUNTIME_DIGEST"' in text
     assert '[ -L "$RUNTIME" ] || [ ! -d "$RUNTIME" ]' in text
+    assert "/python/bin/python" in text
+    assert "/venv/" not in text
     assert "-I -m ethos.cli hook run pre-commit" in text
 
 
@@ -1188,3 +1388,27 @@ def test_repository_does_not_track_host_specific_hook_launchers() -> None:
     root = Path(__file__).resolve().parents[3]
 
     assert _git(root, "ls-files", ".githooks").stdout == ""
+
+
+def test_hook_runtime_manifest_carries_complete_package_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    identity = _build("a" * 40, "b" * 40)
+    package = BuildIdentity(
+        product_version="0.2.0-alpha.1",
+        distribution_version="0.2.0a1.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb",
+        source_commit=identity.source_commit,
+        source_tree=identity.source_tree,
+        channel="development",
+        acceptance_state="unaccepted",
+    )
+    monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda _wheel: package)
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch, package_identity=identity)
+
+    payload = json.loads((venv.parent / "manifest.json").read_text(encoding="utf-8"))
+    assert payload["product_version"] == package.product_version
+    assert payload["distribution_version"] == package.distribution_version
+    assert payload["channel"] == package.channel
+    assert payload["acceptance_state"] == package.acceptance_state
+    activate_runtime(Path(git_common_dir(repo)), venv.parent)
+    assert current_runtime(Path(git_common_dir(repo))).build == package

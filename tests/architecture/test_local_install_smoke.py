@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shlex
@@ -7,15 +8,25 @@ import shutil
 import subprocess
 import sys
 import tomllib
+from datetime import UTC
+from datetime import datetime
 from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-import ethos.adapters.repo.hook_runtime_install as runtime_install
+import pytest
+
+import ethos.adapters.repo.runtime.transition as identity_transition
 import tools.ci.delivery.pipeline as delivery_pipeline
-from ethos.adapters.repo.hook.source_identity import runtime_source_identity
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.contracts.semantic import load_commitment_file
+from ethos.repository.release.admission import accepted_release_attestation
+from ethos.repository.release.admission import accepted_release_identities
+from ethos.repository.release.admission import accepted_release_identity
+from ethos.repository.release.identity import BuildIdentity
 from tools.ci.delivery.adopter_fixture import commitment_carrier
 from tools.ci.delivery.pipeline import DeliveryPipeline
 
@@ -27,10 +38,10 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _venv_executable(venv: Path, name: str) -> Path:
+def _python_home_executable(runtime: Path, name: str) -> Path:
     directory = "Scripts" if os.name == "nt" else "bin"
     suffix = ".exe" if os.name == "nt" else ""
-    return venv / directory / f"{name}{suffix}"
+    return runtime / directory / f"{name}{suffix}"
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -123,6 +134,82 @@ def test_install_smoke_prepares_frozen_supply_before_offline_install(
     assert events == ["supply", ("install", session)]
 
 
+def test_build_publication_rejects_accepted_version_reuse_before_artifact_effect(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    prior_build = BuildIdentity(
+        "0.2.0-alpha.1",
+        "0.2.0a1",
+        "a" * 40,
+        "b" * 40,
+        "accepted",
+        "accepted",
+    )
+    candidate_build = prior_build._replace(source_commit="c" * 40, source_tree="d" * 40)
+    record_attestations(
+        repo,
+        (
+            accepted_release_attestation(
+                accepted_release_identity(prior_build, wheel_sha256="e" * 64),
+                issued_at=datetime(2026, 8, 25, tzinfo=UTC),
+            ),
+        ),
+    )
+    staging = tmp_path / "staging"
+    staging.mkdir()
+    wheel = staging / "ethos-0.2.0a1-py3-none-any.whl"
+    wheel.write_bytes(b"candidate-wheel")
+    artifacts = tmp_path / "artifacts"
+    monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda _wheel: candidate_build)
+    monkeypatch.setattr(delivery_pipeline, "source_build_identity", lambda _root: candidate_build)
+
+    with pytest.raises(ValueError, match=r"accepted_version_source_conflict:0\.2\.0-alpha\.1"):
+        delivery_pipeline.publish_built_wheel(repo, staging, artifacts)
+
+    assert not artifacts.exists()
+    assert not (repo / ".git/ethos/packages").exists()
+
+
+def test_build_publication_records_and_projects_one_accepted_wheel(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    build = BuildIdentity(
+        "0.2.0-alpha.1",
+        "0.2.0a1",
+        "a" * 40,
+        "b" * 40,
+        "accepted",
+        "accepted",
+    )
+    staging = tmp_path / "staging"
+    staging.mkdir()
+    wheel = staging / "ethos-0.2.0a1-py3-none-any.whl"
+    wheel.write_bytes(b"candidate-wheel")
+    artifacts = tmp_path / "artifacts"
+    monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda _wheel: build)
+    monkeypatch.setattr(delivery_pipeline, "source_build_identity", lambda _root: build)
+
+    published = delivery_pipeline.publish_built_wheel(repo, staging, artifacts)
+
+    assert published == artifacts / wheel.name
+    assert published.read_bytes() == b"candidate-wheel"
+    _root, attestations = read_attestation_set(repo)
+    assert accepted_release_identities(attestations) == (
+        accepted_release_identity(
+            build,
+            wheel_sha256=hashlib.sha256(b"candidate-wheel").hexdigest(),
+        ),
+    )
+
+
 def test_packaged_vector_derives_a_complete_strict_commitment(
     tmp_path: Path,
 ) -> None:
@@ -151,16 +238,15 @@ def test_packaged_vector_derives_a_complete_strict_commitment(
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
     node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
-    environment: dict[str, str] = {
+    bootstrap_environment: dict[str, str] = {
         **os.environ,
-        "UV_CACHE_DIR": (tmp_path / "empty-uv-cache").as_posix(),
         "ETHOS_BUILD_NODE": (
             node_root / "bin" / ("node.exe" if os.name == "nt" else "node")
         ).as_posix(),
         "ETHOS_BUILD_NPM_CLI": (node_root / "lib/node_modules/npm/bin/npm-cli.js").as_posix(),
     }
-    environment.pop("PYTHONPATH", None)
-    source_ethos = _venv_executable(Path(sys.executable).parent.parent, "ethos")
+    bootstrap_environment.pop("PYTHONPATH", None)
+    source_ethos = _python_home_executable(Path(sys.executable).parent.parent, "ethos")
     bootstrap_repo = tmp_path / "bootstrap-repo"
     bootstrap_repo.mkdir()
     assert _git(bootstrap_repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
@@ -171,24 +257,32 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         "--root",
         bootstrap_repo.as_posix(),
         "--json",
-        env=environment,
+        env=bootstrap_environment,
     )
     assert bootstrap.returncode == 0, bootstrap.stdout + bootstrap.stderr
     bootstrap_report = json.loads(bootstrap.stdout)
     assert bootstrap_report["verdict"] == "pass", bootstrap_report
     package_python = Path(bootstrap_report["data"]["python"])
-    package_ethos = _venv_executable(package_python.parent.parent, "ethos")
+    package_ethos = _python_home_executable(package_python.parent.parent, "ethos")
     _assert_runtime_excludes_development_dependencies(package_python)
-    packaged_identity = runtime_install.RuntimeSourceIdentity(
-        commit=bootstrap_report["data"]["source_commit"],
-        tree=bootstrap_report["data"]["source_tree"],
+    packaged_identity = BuildIdentity(
+        product_version=bootstrap_report["data"]["product_version"],
+        distribution_version=bootstrap_report["data"]["distribution_version"],
+        source_commit=bootstrap_report["data"]["source_commit"],
+        source_tree=bootstrap_report["data"]["source_tree"],
+        channel=bootstrap_report["data"]["channel"],
+        acceptance_state=bootstrap_report["data"]["acceptance_state"],
     )
-    assert packaged_identity == runtime_source_identity(ROOT)
+    assert packaged_identity == runtime_build_identity(ROOT)
 
     repo = tmp_path / "repo"
     repo.mkdir()
     assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
 
+    package_only_environment = {
+        **bootstrap_environment,
+        "UV_CACHE_DIR": (tmp_path / "empty-uv-cache").as_posix(),
+    }
     installed = _run(
         package_ethos,
         "hook",
@@ -196,26 +290,26 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         "--root",
         repo.as_posix(),
         "--json",
-        env=environment,
+        env=package_only_environment,
     )
 
     assert installed.returncode == 0, installed.stderr
     report = json.loads(installed.stdout)
     assert report["verdict"] == "pass", report
-    assert report["data"]["source_commit"] == packaged_identity.commit
-    assert report["data"]["source_tree"] == packaged_identity.tree
-    assert report["data"]["expected_source_commit"] == packaged_identity.commit
-    assert report["data"]["expected_source_tree"] == packaged_identity.tree
+    assert report["data"]["source_commit"] == packaged_identity.source_commit
+    assert report["data"]["source_tree"] == packaged_identity.source_tree
+    assert report["data"]["expected_source_commit"] == packaged_identity.source_commit
+    assert report["data"]["expected_source_tree"] == packaged_identity.source_tree
     assert report["data"]["current"] is True
     assert report["data"]["next_action"] == ""
     runtime_python = Path(report["data"]["python"])
     _assert_runtime_excludes_development_dependencies(runtime_python)
     bootstrap_repo.rename(tmp_path / "retired-bootstrap-repo")
-    runtime_ethos = _venv_executable(runtime_python.parent.parent, "ethos")
+    runtime_ethos = _python_home_executable(runtime_python.parent.parent, "ethos")
     git_executable = shutil.which("git")
     assert git_executable is not None
     package_environment = {
-        **environment,
+        **package_only_environment,
         "PATH": os.pathsep.join((str(Path(git_executable).parent), "/usr/bin", "/bin")),
     }
     assert shutil.which("ethos", path=package_environment["PATH"]) is None
@@ -240,9 +334,15 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     assert "--receipt" in rebind_help.stdout
     assert derive_help.returncode == 0, derive_help.stderr
     assert "--target-commit" in derive_help.stdout
-    version = _run(runtime_ethos, "--version", env=package_environment)
+    version = _run(runtime_ethos, "--version", "--json", env=package_environment)
     assert version.returncode == 0, version.stderr
-    assert version.stdout.strip()
+    version_identity = json.loads(version.stdout)["data"]["identity"]
+    assert version_identity == {
+        "schema_version": 1,
+        **packaged_identity.projection(),
+        "wheel_sha256": report["data"]["wheel_sha256"],
+        "runtime_digest": report["data"]["runtime_digest"],
+    }
 
 
 def _assert_runtime_excludes_development_dependencies(python: Path) -> None:

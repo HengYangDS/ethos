@@ -7,8 +7,9 @@ import importlib
 from cyclopts import App
 
 from ethos.contracts.admission import root_command
+from ethos.surface.cli.version import version_text
 
-app = App(name="ethos", help="ETHOS command plane.")
+app = App(name="ethos", help="ETHOS command plane.", version=version_text)
 
 _COMMAND_MODULES = {
     "status": "ethos.surface.cli.root.inspection",

@@ -17,11 +17,11 @@ from hypothesis import settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
-from ethos.adapters.repo.hook.source_identity import runtime_source_identity
-from ethos.adapters.repo.hook.source_identity import wheel_source_identity
+from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import load_commitment_file
+from ethos.repository.release.identity import wheel_build_identity
 from tests.support.semantic import commitment_fixture
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -276,8 +276,8 @@ def test_semantic_contract_golden_vectors_are_exact_in_source_wheel_and_sdist(
         check=True,
     )
     wheel, sdist = next(artifacts.glob("ethos-*.whl")), next(artifacts.glob("ethos-*.tar.gz"))
-    expected_source_identity = runtime_source_identity(root)
-    assert wheel_source_identity(wheel) == expected_source_identity
+    expected_build_identity = runtime_build_identity(root)
+    assert wheel_build_identity(wheel) == expected_build_identity
     with zipfile.ZipFile(wheel) as archive:
         wheel_bytes = archive.read("ethos/data/semantic-contract/vectors.json")
     with tarfile.open(sdist, "r:gz") as archive:
@@ -292,17 +292,13 @@ def test_semantic_contract_golden_vectors_are_exact_in_source_wheel_and_sdist(
         identity_member = next(
             item
             for item in archive.getmembers()
-            if item.name.endswith("src/ethos/data/build/source-identity.json")
+            if item.name.endswith("src/ethos/data/build/identity.json")
         )
         extracted_identity = archive.extractfile(identity_member)
         assert extracted_identity is not None
         sdist_identity = json.loads(extracted_identity.read())
     assert wheel_bytes == sdist_bytes == source_bytes
-    assert sdist_identity == {
-        "schema_version": 1,
-        "source_commit": expected_source_identity.commit,
-        "source_tree": expected_source_identity.tree,
-    }
+    assert sdist_identity == expected_build_identity.projection()
 
     installed = subprocess.run(
         (

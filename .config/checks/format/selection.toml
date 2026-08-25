@@ -298,6 +298,7 @@ yaml_allowed_roots = [
   ".config/ci/",
   ".config/checks/",
   "openspec/",
+  "system/projections/",
   ".pre-commit-config.yaml",
 ]
 
@@ -306,6 +307,7 @@ yaml_allowed_roots = [
 ".json" = { roots = [
   "system/schemas/",
   "system/openspec/",
+  "system/projections/",
   "tests/fixtures/",
   "evidence/",
   "distributions/npm/",

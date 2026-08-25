@@ -5,6 +5,7 @@ subjects = [
   "repository:ethos",
 ]
 scope = [
+  ".config/checks/format/selection.toml",
   "docs/plans/terminal-governance-product-design.md",
   "openspec/changes/projection-input-authority/**",
   "system/projections/terminal-architecture/**",

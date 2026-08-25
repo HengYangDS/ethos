@@ -14,7 +14,7 @@
 
 ## 3. Closure
 
-- [ ] 3.1 Run ETHOS focused, schema, module-layout, OpenSpec, and required proof gates.
+- [x] 3.1 Run ETHOS focused, schema, module-layout, OpenSpec, and required proof gates.
 - [x] 3.2 Run Archify tests, build, gates, random-directory reproduction, and atomic delivery.
-- [ ] 3.3 Audit exact HEADs, dirty state, delivery hashes, and stale path residue.
+- [x] 3.3 Audit exact HEADs, dirty state, delivery hashes, and stale path residue.
 - [x] 3.4 Retain owner decision as `PENDING`; do not delete the former source without explicit authorization.

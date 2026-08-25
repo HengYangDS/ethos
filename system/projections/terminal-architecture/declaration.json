@@ -8,19 +8,71 @@
     "effect_authority": false
   },
   "sources": [
-    {"id": "product_contract", "path": "docs/governance/product-design-contract.md", "authority": "canonical product meaning and semantic kernel"},
-    {"id": "axioms", "path": "system/axioms.md", "authority": "derived machine-adjacent constraints only"},
-    {"id": "transition_plan", "path": "docs/architecture/transition-plan.md", "authority": "current transient planning semantics"},
-    {"id": "runner_mutation", "path": "docs/architecture/runner-and-mutation.md", "authority": "current runner, Work Lane, closeout, verifier and peer mutation boundaries"},
-    {"id": "local_state", "path": "docs/architecture/local-state.md", "authority": "current host-local coordination boundary"},
-    {"id": "adoption", "path": "docs/architecture/adoption-profiles.md", "authority": "current adopter binding"},
-    {"id": "projections", "path": "docs/architecture/agent-projections.md", "authority": "current agent-facing projection boundary"},
-    {"id": "skills", "path": "docs/governance/playbooks-and-skills.md", "authority": "current skill projection boundary"},
-    {"id": "independent_verification", "path": "docs/governance/independent-verification-adoption.md", "authority": "optional independent trust-domain boundary"},
-    {"id": "commitment_contract", "path": "openspec/specs/contracts/spec.md", "authority": "current immutable predecessor-set, fork/join and lineage/dependency semantics"},
-    {"id": "lineage_governance", "path": "openspec/specs/repository-governance/spec.md", "authority": "current exact-tree predecessor resolution and scoped concurrency semantics"},
-    {"id": "lineage_command", "path": "openspec/specs/command-plane/spec.md", "authority": "current public predecessor selection and canonical request semantics"},
-    {"id": "evolution_campaign", "path": "docs/governance/evolution-campaign.md", "authority": "current hypothesis, experiment, learning and successor-Commitment semantics"}
+    {
+      "id": "product_contract",
+      "path": "docs/governance/product-design-contract.md",
+      "authority": "canonical product meaning and semantic kernel"
+    },
+    {
+      "id": "axioms",
+      "path": "system/axioms.md",
+      "authority": "derived machine-adjacent constraints only"
+    },
+    {
+      "id": "transition_plan",
+      "path": "docs/architecture/transition-plan.md",
+      "authority": "current transient planning semantics"
+    },
+    {
+      "id": "runner_mutation",
+      "path": "docs/architecture/runner-and-mutation.md",
+      "authority": "current runner, Work Lane, closeout, verifier and peer mutation boundaries"
+    },
+    {
+      "id": "local_state",
+      "path": "docs/architecture/local-state.md",
+      "authority": "current host-local coordination boundary"
+    },
+    {
+      "id": "adoption",
+      "path": "docs/architecture/adoption-profiles.md",
+      "authority": "current adopter binding"
+    },
+    {
+      "id": "projections",
+      "path": "docs/architecture/agent-projections.md",
+      "authority": "current agent-facing projection boundary"
+    },
+    {
+      "id": "skills",
+      "path": "docs/governance/playbooks-and-skills.md",
+      "authority": "current skill projection boundary"
+    },
+    {
+      "id": "independent_verification",
+      "path": "docs/governance/independent-verification-adoption.md",
+      "authority": "optional independent trust-domain boundary"
+    },
+    {
+      "id": "commitment_contract",
+      "path": "openspec/specs/contracts/spec.md",
+      "authority": "current immutable predecessor-set, fork/join and lineage/dependency semantics"
+    },
+    {
+      "id": "lineage_governance",
+      "path": "openspec/specs/repository-governance/spec.md",
+      "authority": "current exact-tree predecessor resolution and scoped concurrency semantics"
+    },
+    {
+      "id": "lineage_command",
+      "path": "openspec/specs/command-plane/spec.md",
+      "authority": "current public predecessor selection and canonical request semantics"
+    },
+    {
+      "id": "evolution_campaign",
+      "path": "docs/governance/evolution-campaign.md",
+      "authority": "current hypothesis, experiment, learning and successor-Commitment semantics"
+    }
   ],
   "documents": {
     "semantic_graph": "system/projections/terminal-architecture/semantic-graph.json",

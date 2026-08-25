@@ -187,7 +187,7 @@
     "lineage_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
       "authority": "current exact-tree predecessor resolution and scoped concurrency semantics",
-      "sha256": "b621d99b3242409bb13b66a7dbebb0369cac0afccc831b06e1b577e77f331e2a"
+      "sha256": "6d3fcd2e948a0d9187b25a416a90f0dcf4500de658cc851ba00152a8d424bcef"
     },
     "lineage_command": {
       "path": "openspec/specs/command-plane/spec.md",

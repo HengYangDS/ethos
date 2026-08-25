@@ -16,4 +16,4 @@
 
 - [x] 3.1 Run the focused cache tests and the seven-node pytest-xdist reproducer; verify all tests pass without worker timeout.
 - [x] 3.2 Run format before lint, source-budget, unit-architecture, and coverage-floor gates; verify each required gate passes.
-- [ ] 3.3 Prove strict OpenSpec validity and archive readiness, then use the official OpenSpec-backed ETHOS transition to archive the Change before the final HEAD-bound proof and public closeout.
+- [x] 3.3 Prove strict OpenSpec validity and archive readiness, then use the official OpenSpec-backed ETHOS transition to archive the Change before the final HEAD-bound proof and public closeout.

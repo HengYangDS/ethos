@@ -1,0 +1,5014 @@
+{
+  "schema": "ethos.terminal-semantic-graph/v2",
+  "status": "normative terminal-design ontology; implementation maturity remains explicit per entity",
+  "meta": {
+    "id": "ethos-terminal-ontology",
+    "title": "ETHOS continuable-reality ontology",
+    "thesis": "Keep the conditions by which shared software reality can be understood, challenged, changed, and continued independent of any transient actor, session, tool, or platform.",
+    "product_definition": "repository-native proof-carrying compiler and exact-CAS transaction protocol for repository change",
+    "product_position": "minimal constitutional narrow waist for autonomous, agentic-native repositories",
+    "authority_owner": "docs/governance/product-design-contract.md",
+    "derived_constraints": [
+      "system/axioms.md",
+      "docs/architecture/transition-plan.md",
+      "docs/architecture/runner-and-mutation.md"
+    ],
+    "basis": {
+      "repository": "repository:ethos",
+      "branch": "candidate/dev",
+      "head": "c17d34d0ff1bbf1c599bcde7163d72ec0fee67f3",
+      "tree": "01a2425bfbd9c2de73947bb9eaa647c4dc0fd891",
+      "remote_sync": "unverified"
+    },
+    "exclusions": [
+      "SDD carrier",
+      "agent orchestrator",
+      "skill platform",
+      "CI or forge replacement",
+      "central truth store",
+      "generic VCS implementation"
+    ],
+    "method": "capability may compound; authority, evidence, and accepted reality remain distinct",
+    "primary_reality_boundary": "ethos_repo",
+    "workspace_authority_manifest": "../../terminal-authority-manifest.yaml"
+  },
+  "vocabulary": {
+    "maturity": {
+      "canonical": "stated by the current canonical product contract",
+      "current": "directly supported by current repository docs, schemas, or code at the bound HEAD",
+      "terminal": "desired terminal design; not necessarily delivered",
+      "optional": "separately selected adapter or trust domain"
+    },
+    "node_kinds": [
+      "authority",
+      "durable_root",
+      "observation",
+      "transient_ir",
+      "verdict",
+      "capability",
+      "execution",
+      "proof_claim",
+      "effect_aperture",
+      "repository_state",
+      "coordination",
+      "recovery",
+      "projection",
+      "conformance",
+      "repository",
+      "selection",
+      "carrier",
+      "publication_target"
+    ],
+    "edge_kinds": [
+      "delegates",
+      "binds",
+      "observes",
+      "compiles",
+      "evaluates",
+      "branches",
+      "selects",
+      "executes",
+      "returns",
+      "admits",
+      "applies",
+      "post_observes",
+      "attests",
+      "projects",
+      "coordinates",
+      "recovers",
+      "reauthorizes",
+      "realizes",
+      "conforms",
+      "exchanges",
+      "preserves",
+      "derives",
+      "narrows",
+      "witnesses",
+      "interrupts",
+      "contains",
+      "invalidates"
+    ],
+    "authority_bearing_kinds": [
+      "authority"
+    ],
+    "durable_root_kinds": [
+      "durable_root"
+    ],
+    "non_authority_kinds": [
+      "observation",
+      "transient_ir",
+      "verdict",
+      "capability",
+      "execution",
+      "proof_claim",
+      "effect_aperture",
+      "repository_state",
+      "coordination",
+      "recovery",
+      "projection",
+      "conformance",
+      "repository",
+      "selection",
+      "carrier",
+      "publication_target"
+    ],
+    "effect_kinds": [
+      "effect_aperture"
+    ],
+    "proof_kinds": [
+      "proof_claim"
+    ],
+    "projection_kinds": [
+      "projection"
+    ],
+    "forbidden_authorizers": [
+      "capability",
+      "execution",
+      "proof_claim",
+      "coordination",
+      "recovery",
+      "projection",
+      "conformance",
+      "repository",
+      "carrier"
+    ]
+  },
+  "sources": {
+    "product_contract": {
+      "path": "docs/governance/product-design-contract.md",
+      "authority": "canonical product meaning and semantic kernel",
+      "sha256": "8a31e54ca336fc54a87d4d92324cf6f6b38216cdee02194cef2bf418aaeafb11"
+    },
+    "axioms": {
+      "path": "system/axioms.md",
+      "authority": "derived machine-adjacent constraints only",
+      "sha256": "c7986fc2592ebf99e6e10ede039a969fa3e6decd1c4d335558839e783cdb8e77"
+    },
+    "transition_plan": {
+      "path": "docs/architecture/transition-plan.md",
+      "authority": "current transient planning semantics",
+      "sha256": "fdfd8c1726c72fe65d85f154ddd141cfd8a12a7b71eed87a73d5eb092c679875"
+    },
+    "runner_mutation": {
+      "path": "docs/architecture/runner-and-mutation.md",
+      "authority": "current runner, Work Lane, closeout, verifier and peer mutation boundaries",
+      "sha256": "e6e2a2bf22123ad08c3dc1681921cd82719dd1a847112e5c32e5ab2c0f07845e"
+    },
+    "local_state": {
+      "path": "docs/architecture/local-state.md",
+      "authority": "current host-local coordination boundary",
+      "sha256": "fb54066ce227071930cb5349e1aa824bff3b043a5a15c2ef8c451c6a7b43a359"
+    },
+    "adoption": {
+      "path": "docs/architecture/adoption-profiles.md",
+      "authority": "current adopter binding",
+      "sha256": "a3337ad92c3c9033c750d478f3c380ebe38b35024920cf94892e18a364f43c58"
+    },
+    "projections": {
+      "path": "docs/architecture/agent-projections.md",
+      "authority": "current agent-facing projection boundary",
+      "sha256": "2703d273521bbe4162f99c3287f6cd2790182393e4a31cc60b89ce619ad662b0"
+    },
+    "skills": {
+      "path": "docs/governance/playbooks-and-skills.md",
+      "authority": "current skill projection boundary",
+      "sha256": "1aed70df4326a69daf9b68cc4a6ec1165cc3756e40721e8122a41319d5509070"
+    },
+    "independent_verification": {
+      "path": "docs/governance/independent-verification-adoption.md",
+      "authority": "optional independent trust-domain boundary",
+      "sha256": "7e0867fa8c532f7d865993a911f5e4ad21822ac4c34f24e6fdfe03632a8fe4c0"
+    },
+    "commitment_contract": {
+      "path": "openspec/specs/contracts/spec.md",
+      "authority": "current immutable predecessor-set, fork/join and lineage/dependency semantics",
+      "sha256": "9ed308579d3f85facee14b5c91b8a1c265bec035372a7f56734679b73c375c3b"
+    },
+    "lineage_governance": {
+      "path": "openspec/specs/repository-governance/spec.md",
+      "authority": "current exact-tree predecessor resolution and scoped concurrency semantics",
+      "sha256": "b621d99b3242409bb13b66a7dbebb0369cac0afccc831b06e1b577e77f331e2a"
+    },
+    "lineage_command": {
+      "path": "openspec/specs/command-plane/spec.md",
+      "authority": "current public predecessor selection and canonical request semantics",
+      "sha256": "53d0a0570a43641b1b0328a7a9d1fdb1b0f0d3b0ebc38489830c27906963332c"
+    },
+    "evolution_campaign": {
+      "path": "docs/governance/evolution-campaign.md",
+      "authority": "current hypothesis, experiment, learning and successor-Commitment semantics",
+      "sha256": "d809b4734d85a39f1ff1a8d29184045910977374fc5611583c51619b561256f1"
+    }
+  },
+  "nodes": {
+    "authorized_subject": {
+      "kind": "authority",
+      "maturity": "canonical",
+      "label": "Authorized subject",
+      "layer": "authority",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Selects bounded intent under applicable external authority; authority is not inferred from execution or evidence."
+    },
+    "authority_reference": {
+      "kind": "authority",
+      "maturity": "canonical",
+      "label": "Applicable authority",
+      "layer": "authority",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "External authority binding for principal, subject, scope and validity."
+    },
+    "commitment_n": {
+      "kind": "durable_root",
+      "root_concept": "Commitment",
+      "maturity": "canonical",
+      "label": "Commitment n",
+      "layer": "semantic_lineage",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Immutable intent, subject, scope, invariants, acceptance and authority reference."
+    },
+    "fresh_facts": {
+      "kind": "observation",
+      "maturity": "canonical",
+      "label": "Fresh observations",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "semantics": "Context-bound observations over exact repository and dependency bindings; never durable authority."
+    },
+    "prior_attestations": {
+      "kind": "durable_root",
+      "root_concept": "Attestation",
+      "maturity": "canonical",
+      "label": "Applicable prior attestations",
+      "layer": "semantic_lineage",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "semantics": "Selected verifier-bound statements whose exact predicates, bindings and validity apply."
+    },
+    "compile_plan": {
+      "kind": "transient_ir",
+      "maturity": "canonical",
+      "label": "Compile bounded transition",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "semantics": "Deterministic compilation from explicit Commitment, Facts, applicable Attestations and policy."
+    },
+    "transition_plan": {
+      "kind": "transient_ir",
+      "maturity": "current",
+      "label": "TransitionPlan",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "transition_plan"
+      ],
+      "semantics": "Transient exact-input-bound IR; never a workflow or progress store."
+    },
+    "action_evaluation": {
+      "kind": "verdict",
+      "maturity": "canonical",
+      "label": "Action admission",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "semantics": "Determines whether bounded candidate execution may proceed; does not by itself admit shared-reality effect.",
+      "gate_id": "action_admission_gate"
+    },
+    "action_pass": {
+      "kind": "verdict",
+      "verdict": "pass",
+      "phase": "action",
+      "maturity": "canonical",
+      "label": "PASS",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ]
+    },
+    "action_block": {
+      "kind": "verdict",
+      "verdict": "block",
+      "phase": "action",
+      "maturity": "canonical",
+      "label": "BLOCK",
+      "layer": "fail_closed",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ]
+    },
+    "action_unknown": {
+      "kind": "verdict",
+      "verdict": "unknown",
+      "phase": "action",
+      "maturity": "canonical",
+      "label": "UNKNOWN",
+      "layer": "fail_closed",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ]
+    },
+    "skills": {
+      "kind": "capability",
+      "maturity": "current",
+      "label": "Skills",
+      "layer": "capability_field",
+      "required_visible": true,
+      "evidence": [
+        "skills"
+      ],
+      "semantics": "Route actors to owner-native procedures and gates; own no plan, authority, progress or lifecycle state."
+    },
+    "owner_native_tools": {
+      "kind": "capability",
+      "maturity": "canonical",
+      "label": "Owner-native tools",
+      "layer": "capability_field",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "skills"
+      ],
+      "semantics": "OpenSpec, Git, tests, docs, CI and provider tools retain their own semantics."
+    },
+    "actor": {
+      "kind": "execution",
+      "maturity": "terminal",
+      "label": "Replaceable actor",
+      "layer": "transient_agency",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Human or agent identity admitted to execute; does not own repository truth merely by acting."
+    },
+    "session_host": {
+      "kind": "execution",
+      "maturity": "terminal",
+      "label": "Session / host",
+      "layer": "transient_agency",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Replaceable, losable execution environment."
+    },
+    "executor_loss": {
+      "kind": "recovery",
+      "maturity": "terminal",
+      "label": "Actor / session / host loss",
+      "layer": "rupture",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Interruption of execution without erasing durable roots or version reality."
+    },
+    "work_lane": {
+      "kind": "coordination",
+      "maturity": "current",
+      "label": "Work Lane generation",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation",
+        "local_state"
+      ],
+      "commitment_cardinality": "exactly_one_base_digest",
+      "semantics": "One admitted, bounded candidate reality in one linked worktree, bound to one immutable base Commitment digest."
+    },
+    "linked_worktree": {
+      "kind": "coordination",
+      "maturity": "current",
+      "label": "Linked worktree",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Isolated preparation domain; mutation here is not yet accepted shared reality."
+    },
+    "lease": {
+      "kind": "coordination",
+      "maturity": "current",
+      "label": "Lease",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation",
+        "local_state"
+      ],
+      "semantics": "Holder, generation, expiry and exact binding; coordinates access but grants no semantic authority."
+    },
+    "git_common_state": {
+      "kind": "coordination",
+      "maturity": "current",
+      "label": "Git-common coordination",
+      "layer": "substrate",
+      "required_visible": true,
+      "evidence": [
+        "local_state",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "semantics": "Shared Lease, transaction, receipt and runtime projection below one Git common directory; it coordinates a repository family but owns no semantic truth."
+    },
+    "git_common_activation": {
+      "kind": "coordination",
+      "maturity": "current",
+      "label": "Single Git-common activation",
+      "layer": "substrate",
+      "required_visible": true,
+      "evidence": [
+        "local_state",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "activation_cardinality": "exactly_one_per_git_common_directory",
+      "config_owner": "repository_common",
+      "owned_config_keys": [
+        "core.hooksPath",
+        "gc.packRefs"
+      ],
+      "worktree_local_owner_allowed": false,
+      "semantics": "Repository-common configuration selects one effective hook/runtime activation for the Git common directory; linked worktrees inherit it and cannot become parallel activation owners."
+    },
+    "runtime_generation_retirement": {
+      "kind": "coordination",
+      "maturity": "current",
+      "label": "Consumer-proved runtime retirement",
+      "layer": "substrate",
+      "required_visible": true,
+      "evidence": [
+        "local_state",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "required_consumer_observations": [
+        "effective_config",
+        "generated_launchers",
+        "live_process_commands",
+        "in_flight_operation_records"
+      ],
+      "unreadable_consumer_policy": "block_deletion",
+      "semantics": "A generated hook/runtime generation may be retired only after every declared consumer surface proves that no consumer remains; unreadable observation fails closed."
+    },
+    "repository_family_convergence": {
+      "kind": "projection",
+      "maturity": "current",
+      "label": "Repository-family convergence report",
+      "layer": "projection",
+      "required_visible": true,
+      "evidence": [
+        "lineage_command",
+        "lineage_governance"
+      ],
+      "semantics": "One hook-install operation reports the common hooks path, immutable runtime identity, every linked worktree checked or repaired, and exact retained or removed generations."
+    },
+    "exact_base": {
+      "kind": "repository_state",
+      "maturity": "current",
+      "label": "Exact candidate base",
+      "layer": "version_lineage",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Current candidate ref, HEAD and tree from which admitted Work Lanes diverge."
+    },
+    "candidate_bundle": {
+      "kind": "repository_state",
+      "maturity": "current",
+      "label": "Proven lane candidate",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "One lane result with exact Commitment, base, scope, Lease, prewrite and proof bindings; eligible for one serialized candidate-ref integration attempt."
+    },
+    "candidate_state": {
+      "kind": "repository_state",
+      "maturity": "current",
+      "label": "Candidate train state n",
+      "layer": "version_lineage",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "reality_boundary": "ethos_candidate_ref",
+      "semantics": "The exact candidate-ref HEAD from which admitted Work Lanes diverge and against which a lane integration is freshly compared."
+    },
+    "local_claim": {
+      "kind": "proof_claim",
+      "plane": "local",
+      "maturity": "current",
+      "label": "Local executed claim",
+      "layer": "proof_field",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Bounded claim from local executed proof; implies no other proof plane."
+    },
+    "independent_verifier": {
+      "kind": "execution",
+      "maturity": "optional",
+      "label": "Independent verifier",
+      "layer": "proof_field",
+      "required_visible": true,
+      "evidence": [
+        "independent_verification",
+        "runner_mutation"
+      ],
+      "semantics": "Separate trust identity that re-executes or checks declared proof; no repository effect path."
+    },
+    "independent_claim": {
+      "kind": "proof_claim",
+      "plane": "independent",
+      "maturity": "optional",
+      "label": "Scoped independent receipt",
+      "layer": "proof_field",
+      "required_visible": true,
+      "evidence": [
+        "independent_verification",
+        "runner_mutation"
+      ],
+      "semantics": "One-shot exact-bound receipt; mints no authority and does not authorize mutation in another repository."
+    },
+    "hosted_claim": {
+      "kind": "proof_claim",
+      "plane": "hosted",
+      "maturity": "canonical",
+      "label": "Hosted observation",
+      "layer": "proof_field",
+      "required_visible": false,
+      "evidence": [
+        "product_contract"
+      ]
+    },
+    "composite_verifier": {
+      "kind": "execution",
+      "maturity": "terminal",
+      "label": "Responsible composite verifier",
+      "layer": "proof_field",
+      "required_visible": false,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Applies an explicit inference rule to named input claim identities; never amplifies authority or scope."
+    },
+    "composite_claim": {
+      "kind": "proof_claim",
+      "plane": "composite",
+      "maturity": "terminal",
+      "label": "Bounded composite claim",
+      "layer": "proof_field",
+      "required_visible": false,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "New claim with explicit rule, responsible verifier, provenance and bounded scope."
+    },
+    "effect_evaluation": {
+      "kind": "verdict",
+      "maturity": "terminal",
+      "label": "Effect admission",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "semantics": "Evaluates required returned evidence, exact authority, scope and current bindings before shared effect.",
+      "gate_id": "effect_admission_gate"
+    },
+    "effect_pass": {
+      "kind": "verdict",
+      "verdict": "pass",
+      "phase": "effect",
+      "maturity": "terminal",
+      "label": "PASS",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "transition_plan"
+      ]
+    },
+    "effect_block": {
+      "kind": "verdict",
+      "verdict": "block",
+      "phase": "effect",
+      "maturity": "terminal",
+      "label": "BLOCK",
+      "layer": "fail_closed",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "transition_plan"
+      ]
+    },
+    "effect_unknown": {
+      "kind": "verdict",
+      "verdict": "unknown",
+      "phase": "effect",
+      "maturity": "terminal",
+      "label": "UNKNOWN",
+      "layer": "fail_closed",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "transition_plan"
+      ]
+    },
+    "effect_recheck": {
+      "kind": "observation",
+      "maturity": "canonical",
+      "label": "Fresh effect-time recheck",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "semantics": "Re-observes authority, repository identity, expected state, scope and exact bindings immediately before effect.",
+      "reality_boundary": "ethos_repo"
+    },
+    "admitted_runner": {
+      "kind": "execution",
+      "maturity": "current",
+      "label": "Admitted runner",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Current ETHOS command-plane implementation admitted to apply the already-authorized exact effect; it owns neither authority nor proof and cannot bypass the fresh recheck.",
+      "reality_boundary": "ethos_repo"
+    },
+    "repo_cas": {
+      "kind": "effect_aperture",
+      "maturity": "current",
+      "label": "Exact Git CAS",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "reality_boundary": "ethos_repo",
+      "local_aperture": true,
+      "semantics": "Unique linearization point for the ETHOS self-governance repository shown in magnified section; the same local transaction law applies to every adopter boundary.",
+      "transaction_law": "fresh-inputs-pass-recheck-exact-cas-post-observe-attest/v1"
+    },
+    "post_observation": {
+      "kind": "observation",
+      "maturity": "canonical",
+      "label": "Fresh post-observation",
+      "layer": "transaction_joint",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "semantics": "Re-observes the exact reality boundary after the attempted effect.",
+      "reality_boundary": "ethos_repo"
+    },
+    "accepted_n": {
+      "kind": "repository_state",
+      "maturity": "current",
+      "label": "Accepted state n",
+      "layer": "version_lineage",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "reality_boundary": "ethos_repo"
+    },
+    "accepted_next": {
+      "kind": "repository_state",
+      "maturity": "current",
+      "label": "Accepted state n+1",
+      "layer": "version_lineage",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "reality_boundary": "ethos_repo"
+    },
+    "outcome_unknown": {
+      "kind": "recovery",
+      "maturity": "terminal",
+      "label": "Outcome unknown",
+      "layer": "fail_closed",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "CAS intent or receipt exists but fresh post-observation cannot bind the attempted effect to the current state; replay is forbidden until re-observe."
+    },
+    "attestation_n": {
+      "kind": "durable_root",
+      "root_concept": "Attestation",
+      "maturity": "canonical",
+      "label": "Scoped attestation n",
+      "layer": "semantic_lineage",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Persistent verifier-bound statement of what was observed, decided, proved or effected; mints no authority.",
+      "reality_boundary": "ethos_repo"
+    },
+    "authorized_selection": {
+      "kind": "selection",
+      "maturity": "terminal",
+      "label": "Authorized selection",
+      "layer": "semantic_lineage",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "A newly authorized subject selects predecessor and applicable Attestation identities; permission is reacquired, never inherited."
+    },
+    "commitment_next": {
+      "kind": "durable_root",
+      "root_concept": "Commitment",
+      "maturity": "terminal",
+      "label": "Commitment n+1",
+      "layer": "semantic_lineage",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ]
+    },
+    "recovery_anchor": {
+      "kind": "recovery",
+      "maturity": "terminal",
+      "label": "Recovery anchor",
+      "layer": "recovery",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "semantics": "Durable roots and reachable Git state from which a successor can freshly reconstruct; no privileged jump to effect."
+    },
+    "successor_actor": {
+      "kind": "execution",
+      "maturity": "terminal",
+      "label": "Successor actor",
+      "layer": "transient_agency",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "New actor that must freshly observe, compile and reacquire applicable authority."
+    },
+    "model_gap": {
+      "kind": "recovery",
+      "maturity": "canonical",
+      "label": "Contradiction / model gap",
+      "layer": "model_evolution",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ]
+    },
+    "model_promotion": {
+      "kind": "transient_ir",
+      "maturity": "canonical",
+      "label": "Promote smallest model boundary",
+      "layer": "model_evolution",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Preserve conflict, promote the smallest model, recompile, verify and absorb or retire residue; no shim or parallel truth."
+    },
+    "cli_json": {
+      "kind": "projection",
+      "maturity": "current",
+      "label": "CLI / JSON",
+      "layer": "projections",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ]
+    },
+    "sdk_agent": {
+      "kind": "projection",
+      "maturity": "canonical",
+      "label": "SDK / Agent",
+      "layer": "projections",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ]
+    },
+    "mcp_a2a": {
+      "kind": "projection",
+      "maturity": "optional",
+      "label": "MCP / A2A",
+      "layer": "projections",
+      "required_visible": false,
+      "evidence": [
+        "product_contract"
+      ]
+    },
+    "ci_forge": {
+      "kind": "projection",
+      "maturity": "canonical",
+      "label": "CI / Forge",
+      "layer": "projections",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ]
+    },
+    "brownfield_repo": {
+      "kind": "repository",
+      "maturity": "terminal",
+      "label": "Brownfield repository",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "adoption"
+      ],
+      "reality_boundary": "brownfield_repo",
+      "semantics": "Inventory, preserve, expose conflicts, review binding, then use the same kernel without cloning repository semantics."
+    },
+    "brownfield_cas": {
+      "kind": "effect_aperture",
+      "maturity": "terminal",
+      "label": "Local CAS",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "reality_boundary": "brownfield_repo",
+      "local_aperture": true,
+      "transaction_law": "fresh-inputs-pass-recheck-exact-cas-post-observe-attest/v1"
+    },
+    "greenfield_repo": {
+      "kind": "repository",
+      "maturity": "terminal",
+      "label": "Greenfield repository",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "adoption"
+      ],
+      "reality_boundary": "greenfield_repo",
+      "semantics": "Declaration-first binding, minimal owner-native scaffold and first bounded Commitment; not a monolithic ETHOS template."
+    },
+    "greenfield_cas": {
+      "kind": "effect_aperture",
+      "maturity": "terminal",
+      "label": "Local CAS",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "reality_boundary": "greenfield_repo",
+      "local_aperture": true,
+      "transaction_law": "fresh-inputs-pass-recheck-exact-cas-post-observe-attest/v1"
+    },
+    "ethos_repo": {
+      "kind": "repository",
+      "maturity": "terminal",
+      "label": "ETHOS product repository",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "reality_boundary": "ethos_repo",
+      "semantics": "Self-governance and model evolution cross the same kernel and effect aperture; no legislator bypass."
+    },
+    "openspec_carrier": {
+      "kind": "carrier",
+      "maturity": "current",
+      "label": "OpenSpec intent carrier",
+      "layer": "carrier",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "adoption",
+        "skills"
+      ],
+      "semantics": "Current verified Change/design/spec/task/archive carrier for mutation-capable use; shapes no kernel ontology."
+    },
+    "git_substrate": {
+      "kind": "carrier",
+      "maturity": "current",
+      "label": "Git version substrate",
+      "layer": "carrier",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "semantics": "Current versioned state and exact-CAS substrate; not ETHOS itself."
+    },
+    "protocol_grammar": {
+      "kind": "carrier",
+      "maturity": "canonical",
+      "label": "Exchangeable protocol grammar",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Portable schema for expressing equivalent relations, bindings and verdicts; it grants no authority and owns no truth."
+    },
+    "brownfield_conformance": {
+      "kind": "conformance",
+      "maturity": "terminal",
+      "label": "Brownfield local conformance",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "adoption"
+      ],
+      "reality_boundary": "brownfield_repo",
+      "semantics": "Repository-local judgment over imported protocol grammar and fresh local facts; neither grammar nor remote claims decide local truth."
+    },
+    "greenfield_conformance": {
+      "kind": "conformance",
+      "maturity": "terminal",
+      "label": "Greenfield local conformance",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "adoption"
+      ],
+      "reality_boundary": "greenfield_repo",
+      "semantics": "Repository-local judgment over imported protocol grammar and fresh local facts; neither grammar nor remote claims decide local truth."
+    },
+    "ethos_conformance": {
+      "kind": "conformance",
+      "maturity": "terminal",
+      "label": "ETHOS local conformance",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "reality_boundary": "ethos_repo",
+      "semantics": "Repository-local judgment over imported protocol grammar and fresh local facts; neither grammar nor remote claims decide local truth."
+    },
+    "predecessor_set": {
+      "kind": "observation",
+      "maturity": "current",
+      "label": "Canonical predecessor set",
+      "layer": "change_lineage",
+      "required_visible": true,
+      "evidence": [
+        "commitment_contract",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "semantics": "Immutable backward Commitment identities resolved in the exact selected Git tree before effects."
+    },
+    "change_lineage": {
+      "kind": "repository_state",
+      "maturity": "current",
+      "label": "Commitment partial order",
+      "layer": "change_lineage",
+      "required_visible": true,
+      "evidence": [
+        "commitment_contract",
+        "lineage_governance"
+      ],
+      "semantics": "Immutable backward-linked fork/join partial order derived from Commitment carriers; it is neither execution dependencies nor global serialization, and owns no mutable successor index."
+    },
+    "scoped_concurrency": {
+      "kind": "coordination",
+      "maturity": "current",
+      "label": "Scoped concurrency",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "lineage_governance",
+        "product_contract"
+      ],
+      "semantics": "Disjoint scopes and effects may proceed concurrently; only conflicting exact Git or authority boundaries serialize."
+    },
+    "scope_effect_binding": {
+      "kind": "observation",
+      "maturity": "current",
+      "label": "Scope / effect binding",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "semantics": "Exact declared paths, resource scopes, and effects used to admit concurrency and reject overlap before a tracked write."
+    },
+    "prewrite_admission": {
+      "kind": "verdict",
+      "maturity": "current",
+      "label": "Prewrite admission",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Fresh path, repository-root, Lease-generation, holder, worktree, and expected-HEAD gate before tracked mutation.",
+      "verdict": "pass",
+      "phase": "prewrite"
+    },
+    "lane_proof_claim": {
+      "kind": "proof_claim",
+      "maturity": "current",
+      "label": "Lane-bound proof claim",
+      "layer": "proof_field",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Executed proof bound to the Lane result HEAD and Commitment; it cannot authorize another Lane or repository.",
+      "plane": "local"
+    },
+    "selection_hold": {
+      "kind": "projection",
+      "maturity": "canonical",
+      "label": "Hold",
+      "layer": "semantic_lineage",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Authorized selection may preserve an unresolved obligation without minting a successor Commitment."
+    },
+    "selection_done": {
+      "kind": "projection",
+      "maturity": "canonical",
+      "label": "Done",
+      "layer": "semantic_lineage",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Authorized selection may close the bounded obligation when the evidence supports no successor."
+    },
+    "owner_native_artifacts": {
+      "kind": "repository_state",
+      "maturity": "canonical",
+      "label": "Owner-native source / tests / config / docs",
+      "layer": "repository_anatomy",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "semantics": "Repository-owned semantic sources and verification assets retain their native owners; ETHOS binds rather than clones them.",
+      "reality_boundary": "ethos_repo"
+    },
+    "durable_evidence": {
+      "kind": "repository_state",
+      "maturity": "canonical",
+      "label": "Durable evidence",
+      "layer": "repository_anatomy",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "semantics": "Content-addressed evidence and receipts remain inspectable after transient execution disappears.",
+      "reality_boundary": "ethos_repo"
+    },
+    "rebuildable_outputs": {
+      "kind": "projection",
+      "maturity": "canonical",
+      "label": "Rebuildable projections / generated outputs",
+      "layer": "repository_anatomy",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "projections"
+      ],
+      "semantics": "Derived views may be regenerated from authoritative roots and must not become a parallel truth store.",
+      "reality_boundary": "ethos_repo"
+    },
+    "brownfield_expected_state": {
+      "kind": "observation",
+      "maturity": "terminal",
+      "label": "Inherited exact state",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "product_contract"
+      ],
+      "semantics": "Fresh inventory of existing history and repository-owned facts, preserving unrelated state and exposing conflicts before adoption effects.",
+      "reality_boundary": "brownfield_repo"
+    },
+    "greenfield_expected_state": {
+      "kind": "observation",
+      "maturity": "terminal",
+      "label": "Founding exact state",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "product_contract"
+      ],
+      "semantics": "Founding authority, domain seed, expected absence, and minimal owner-native scaffold from which Accepted zero may be created.",
+      "reality_boundary": "greenfield_repo"
+    },
+    "brownfield_effect_recheck": {
+      "kind": "observation",
+      "maturity": "terminal",
+      "label": "Fresh adopter recheck",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "product_contract"
+      ],
+      "semantics": "Boundary-local re-observation of authority, repository identity, expected inherited state, scope and bindings immediately before the brownfield effect.",
+      "reality_boundary": "brownfield_repo"
+    },
+    "brownfield_admitted_runner": {
+      "kind": "execution",
+      "maturity": "terminal",
+      "label": "Single-use admitted runner",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "runner_mutation"
+      ],
+      "semantics": "A boundary-bound single-use executor admitted only by the brownfield fresh recheck; it owns neither authority nor proof.",
+      "reality_boundary": "brownfield_repo"
+    },
+    "brownfield_post_observation": {
+      "kind": "observation",
+      "maturity": "terminal",
+      "label": "Fresh adopter post-observation",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "product_contract"
+      ],
+      "semantics": "Boundary-local observation of the exact brownfield ref after the attempted effect.",
+      "reality_boundary": "brownfield_repo"
+    },
+    "brownfield_effect_attestation": {
+      "kind": "durable_root",
+      "maturity": "terminal",
+      "label": "Scoped adopter attestation",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "product_contract"
+      ],
+      "semantics": "Durable verifier-bound statement of the brownfield effect outcome; it carries evidence but mints no authority.",
+      "root_concept": "Attestation",
+      "reality_boundary": "brownfield_repo"
+    },
+    "greenfield_effect_recheck": {
+      "kind": "observation",
+      "maturity": "terminal",
+      "label": "Fresh founding recheck",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "product_contract"
+      ],
+      "semantics": "Boundary-local re-observation of founding authority, expected absence, scaffold scope and exact bindings immediately before creation.",
+      "reality_boundary": "greenfield_repo"
+    },
+    "greenfield_admitted_runner": {
+      "kind": "execution",
+      "maturity": "terminal",
+      "label": "Single-use admitted runner",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "runner_mutation"
+      ],
+      "semantics": "A boundary-bound single-use executor admitted only by the greenfield fresh recheck; it owns neither authority nor proof.",
+      "reality_boundary": "greenfield_repo"
+    },
+    "greenfield_post_observation": {
+      "kind": "observation",
+      "maturity": "terminal",
+      "label": "Fresh founding post-observation",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "product_contract"
+      ],
+      "semantics": "Boundary-local observation of the founding ref and scaffold after the attempted effect.",
+      "reality_boundary": "greenfield_repo"
+    },
+    "greenfield_effect_attestation": {
+      "kind": "durable_root",
+      "maturity": "terminal",
+      "label": "Scoped founding attestation",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "adoption",
+        "product_contract"
+      ],
+      "semantics": "Durable verifier-bound statement of the greenfield effect outcome; it carries evidence but mints no authority.",
+      "root_concept": "Attestation",
+      "reality_boundary": "greenfield_repo"
+    },
+    "publication_remote": {
+      "kind": "publication_target",
+      "maturity": "current",
+      "label": "Declared publication remote",
+      "layer": "publication_ecology",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "reality_boundary": "publication_remote",
+      "semantics": "An explicitly selected remote Git ref target with provider-local exact CAS; it is not an ETHOS adopter, repository truth owner, or cross-provider atomic participant."
+    },
+    "publication_remote_cas": {
+      "kind": "effect_aperture",
+      "maturity": "current",
+      "label": "Remote exact CAS",
+      "layer": "publication_ecology",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "reality_boundary": "publication_remote",
+      "local_aperture": true,
+      "transaction_law": "fresh-inputs-pass-recheck-exact-cas-post-observe-attest/v1"
+    },
+    "publication_remote_observation": {
+      "kind": "observation",
+      "maturity": "current",
+      "label": "Remote ref observation",
+      "layer": "publication_ecology",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "reality_boundary": "publication_remote",
+      "semantics": "Fresh provider observation of the selected target ref, request binding, and signature trust; not adopter conformance."
+    },
+    "publication_effect_recheck": {
+      "kind": "observation",
+      "maturity": "current",
+      "label": "Fresh publication recheck",
+      "layer": "publication_ecology",
+      "required_visible": false,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Boundary-local re-observation of the selected full remote ref, request digest and trust bindings immediately before publication.",
+      "reality_boundary": "publication_remote"
+    },
+    "publication_admitted_runner": {
+      "kind": "execution",
+      "maturity": "current",
+      "label": "Single-use publication runner",
+      "layer": "publication_ecology",
+      "required_visible": false,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "A target-bound single-use executor admitted only by the publication fresh recheck; it owns neither authority nor remote truth.",
+      "reality_boundary": "publication_remote"
+    },
+    "publication_post_observation": {
+      "kind": "observation",
+      "maturity": "current",
+      "label": "Fresh publication post-observation",
+      "layer": "publication_ecology",
+      "required_visible": false,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Boundary-local provider observation of every selected remote ref after the attempted publication effect.",
+      "reality_boundary": "publication_remote"
+    },
+    "publication_effect_attestation": {
+      "kind": "durable_root",
+      "maturity": "current",
+      "label": "Scoped publication attestation",
+      "layer": "publication_ecology",
+      "required_visible": false,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Durable verifier-bound statement of the peer-local publication outcome; it neither transfers nor invents authority.",
+      "root_concept": "Attestation",
+      "reality_boundary": "publication_remote"
+    },
+    "adopter_peer_repo": {
+      "kind": "repository",
+      "maturity": "terminal",
+      "label": "Autonomous adopter repository",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "reality_boundary": "adopter_peer_repo",
+      "semantics": "An independently governed adopter with its own authority, facts, conformance judgment, accepted Git reality and local effect aperture."
+    },
+    "adopter_peer_cas": {
+      "kind": "effect_aperture",
+      "maturity": "terminal",
+      "label": "Adopter-local CAS",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "reality_boundary": "adopter_peer_repo",
+      "local_aperture": true,
+      "transaction_law": "fresh-inputs-pass-recheck-exact-cas-post-observe-attest/v1"
+    },
+    "adopter_peer_conformance": {
+      "kind": "conformance",
+      "maturity": "terminal",
+      "label": "Adopter peer local judgment",
+      "layer": "repository_constellation",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "reality_boundary": "adopter_peer_repo",
+      "semantics": "Repository-local judgment over imported protocol grammar and fresh local facts; no remote claim decides local truth."
+    },
+    "adopter_peer_expected_state": {
+      "kind": "observation",
+      "maturity": "terminal",
+      "label": "Peer exact state",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "reality_boundary": "adopter_peer_repo",
+      "semantics": "Fresh local observation of the autonomous adopter peer repository before effect admission."
+    },
+    "adopter_peer_effect_recheck": {
+      "kind": "observation",
+      "maturity": "terminal",
+      "label": "Fresh peer recheck",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "reality_boundary": "adopter_peer_repo",
+      "semantics": "Boundary-local re-observation of authority, exact state, scope and bindings immediately before the adopter peer effect."
+    },
+    "adopter_peer_admitted_runner": {
+      "kind": "execution",
+      "maturity": "terminal",
+      "label": "Single-use admitted runner",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "reality_boundary": "adopter_peer_repo",
+      "semantics": "A boundary-bound single-use executor admitted only by the autonomous peer fresh recheck; it owns neither authority nor proof."
+    },
+    "adopter_peer_post_observation": {
+      "kind": "observation",
+      "maturity": "terminal",
+      "label": "Fresh peer post-observation",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "reality_boundary": "adopter_peer_repo",
+      "semantics": "Boundary-local observation of the autonomous peer ref after the attempted effect."
+    },
+    "adopter_peer_effect_attestation": {
+      "kind": "durable_root",
+      "maturity": "terminal",
+      "label": "Scoped peer attestation",
+      "layer": "repository_constellation",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "adoption"
+      ],
+      "semantics": "Durable verifier-bound statement of the autonomous peer effect outcome; it carries evidence but mints no authority.",
+      "root_concept": "Attestation",
+      "reality_boundary": "adopter_peer_repo"
+    },
+    "candidate_integration_evaluation": {
+      "kind": "verdict",
+      "maturity": "current",
+      "label": "Candidate integration admission",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "semantics": "Selects at most one proved, nonconflicting Work Lane for the next candidate-ref attempt; it owns no queue, priority, or reusable permission.",
+      "gate_id": "candidate_integration_gate"
+    },
+    "candidate_integration_pass": {
+      "kind": "verdict",
+      "verdict": "pass",
+      "phase": "candidate_integration",
+      "maturity": "current",
+      "label": "Candidate PASS",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ]
+    },
+    "candidate_integration_block": {
+      "kind": "verdict",
+      "verdict": "block",
+      "phase": "candidate_integration",
+      "maturity": "current",
+      "label": "Candidate BLOCK",
+      "layer": "fail_closed",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ]
+    },
+    "candidate_integration_unknown": {
+      "kind": "verdict",
+      "verdict": "unknown",
+      "phase": "candidate_integration",
+      "maturity": "current",
+      "label": "Candidate UNKNOWN",
+      "layer": "fail_closed",
+      "required_visible": false,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ]
+    },
+    "candidate_effect_recheck": {
+      "kind": "observation",
+      "maturity": "current",
+      "label": "Fresh candidate-head recheck",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "semantics": "Re-observes the candidate ref, selected lane HEAD, ancestry, scope, Lease and proof immediately before integration.",
+      "reality_boundary": "ethos_candidate_ref"
+    },
+    "candidate_admitted_runner": {
+      "kind": "execution",
+      "maturity": "current",
+      "label": "Candidate admitted runner",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "Single-use command-plane execution admitted to advance only the candidate ref from the freshly observed expected HEAD.",
+      "reality_boundary": "ethos_candidate_ref"
+    },
+    "candidate_cas": {
+      "kind": "effect_aperture",
+      "maturity": "current",
+      "label": "Exact candidate-ref CAS",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "reality_boundary": "ethos_candidate_ref",
+      "local_aperture": true,
+      "semantics": "Linearizes one proved Work Lane into the local candidate train; concurrent preparation remains parallel, while ref advancement is one-at-a-time.",
+      "transaction_law": "fresh-inputs-pass-recheck-exact-cas-post-observe-attest/v1"
+    },
+    "candidate_next": {
+      "kind": "repository_state",
+      "maturity": "current",
+      "label": "Candidate train state n+1",
+      "layer": "version_lineage",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "reality_boundary": "ethos_candidate_ref",
+      "semantics": "The newly observed candidate-ref HEAD after one successful lane integration; it becomes the exact base for later integrations and the proof target for accepted closeout."
+    },
+    "candidate_post_observation": {
+      "kind": "observation",
+      "maturity": "current",
+      "label": "Candidate post-observation",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "reality_boundary": "ethos_candidate_ref",
+      "semantics": "Re-observes the candidate ref after the CAS attempt and binds the observed result to the attempted lane integration."
+    },
+    "candidate_effect_attestation": {
+      "kind": "durable_root",
+      "root_concept": "Attestation",
+      "maturity": "current",
+      "label": "Candidate effect attestation",
+      "layer": "semantic_lineage",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "reality_boundary": "ethos_candidate_ref",
+      "semantics": "Durable evidence of the candidate-ref effect and its post-state; it carries proof without transferring authority."
+    },
+    "candidate_base_stale": {
+      "kind": "recovery",
+      "maturity": "current",
+      "label": "Stale lane base",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation"
+      ],
+      "semantics": "A remaining Work Lane whose expected candidate base no longer equals the advanced candidate HEAD; it must refresh its base and re-prove before another integration attempt."
+    },
+    "lane_relation_judgment": {
+      "kind": "observation",
+      "maturity": "current",
+      "label": "Lane relation judgment",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation",
+        "evolution_campaign"
+      ],
+      "semantics": "Fresh scope/effect and hypothesis relations classify concurrent lanes as cooperative, comparative, dependent, or conflicting; no lane gains static priority."
+    },
+    "lane_experiment_protocol": {
+      "kind": "transient_ir",
+      "maturity": "current",
+      "label": "Experiment protocol",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "evolution_campaign"
+      ],
+      "semantics": "Commitment-bound hypotheses, falsifiers, comparison method, and stopping rule for alternative lanes; it is not a lifecycle authority."
+    },
+    "lane_comparative_claim": {
+      "kind": "proof_claim",
+      "maturity": "current",
+      "label": "Comparative evidence claim",
+      "layer": "proof_field",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "evolution_campaign"
+      ],
+      "semantics": "Exact-bound evidence compares alternative lane outcomes against the Commitment experiment protocol; evidence informs selection but grants no authority.",
+      "plane": "local"
+    },
+    "lane_disposition": {
+      "kind": "selection",
+      "maturity": "current",
+      "label": "Authorized lane disposition",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "product_contract",
+        "runner_mutation",
+        "evolution_campaign"
+      ],
+      "semantics": "Fresh authorized judgment may admit, continue through refresh and re-proof, hold uncertainty, or retire a superseded lane after absorption and retirement proof."
+    },
+    "lane_retirement": {
+      "kind": "recovery",
+      "maturity": "current",
+      "label": "Evidence-bound lane retirement",
+      "layer": "candidate_worlds",
+      "required_visible": true,
+      "evidence": [
+        "runner_mutation",
+        "evolution_campaign"
+      ],
+      "semantics": "A landed or superseded Lane may be retired only by its explicit exact-HEAD lifecycle transaction; non-selection alone never deletes it."
+    }
+  },
+  "edges": [
+    {
+      "id": "subject-delegates-commitment",
+      "from": "authorized_subject",
+      "to": "commitment_n",
+      "kind": "delegates",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "canonical",
+      "plane": "authority",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "applicable_authority"
+    },
+    {
+      "id": "authority-binds-commitment",
+      "from": "authority_reference",
+      "to": "commitment_n",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "canonical",
+      "plane": "authority",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "applicable_authority"
+    },
+    {
+      "id": "carrier-realizes-commitment",
+      "from": "openspec_carrier",
+      "to": "commitment_n",
+      "kind": "realizes",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "adoption",
+        "skills"
+      ],
+      "maturity": "current",
+      "plane": "carrier",
+      "flow_class": "carrier",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "git-realizes-state",
+      "from": "git_substrate",
+      "to": "accepted_n",
+      "kind": "realizes",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "carrier",
+      "flow_class": "carrier",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "commitment-compile",
+      "from": "commitment_n",
+      "to": "compile_plan",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "canonical",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "facts-compile",
+      "from": "fresh_facts",
+      "to": "compile_plan",
+      "kind": "compiles",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "canonical",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "prior-attestations-compile",
+      "from": "prior_attestations",
+      "to": "compile_plan",
+      "kind": "binds",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "canonical",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "compile-plan",
+      "from": "compile_plan",
+      "to": "transition_plan",
+      "kind": "compiles",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "current",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "plan-evaluate-action",
+      "from": "transition_plan",
+      "to": "action_evaluation",
+      "kind": "evaluates",
+      "required_visible": true,
+      "source_ids": [
+        "transition_plan",
+        "product_contract"
+      ],
+      "maturity": "current",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "action-pass-branch",
+      "from": "action_evaluation",
+      "to": "action_pass",
+      "kind": "branches",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "maturity": "canonical",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "action-block-branch",
+      "from": "action_evaluation",
+      "to": "action_block",
+      "kind": "branches",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "maturity": "canonical",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "action-unknown-branch",
+      "from": "action_evaluation",
+      "to": "action_unknown",
+      "kind": "branches",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "maturity": "canonical",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "plan-selects-skills",
+      "from": "transition_plan",
+      "to": "skills",
+      "kind": "selects",
+      "required_visible": true,
+      "source_ids": [
+        "transition_plan",
+        "skills"
+      ],
+      "maturity": "current",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "plan-selects-native-tools",
+      "from": "transition_plan",
+      "to": "owner_native_tools",
+      "kind": "selects",
+      "required_visible": true,
+      "source_ids": [
+        "transition_plan",
+        "product_contract",
+        "skills"
+      ],
+      "maturity": "current",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "subject-admits-actor",
+      "from": "authorized_subject",
+      "to": "actor",
+      "kind": "delegates",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "authority",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "applicable_authority"
+    },
+    {
+      "id": "actor-in-session",
+      "from": "actor",
+      "to": "session_host",
+      "kind": "executes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "pass-admits-actor",
+      "from": "action_pass",
+      "to": "actor",
+      "kind": "admits",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "skills-enable-actor",
+      "from": "skills",
+      "to": "actor",
+      "kind": "executes",
+      "required_visible": true,
+      "source_ids": [
+        "skills",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "tools-enable-actor",
+      "from": "owner_native_tools",
+      "to": "actor",
+      "kind": "executes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "skills"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "actor-executes-lane",
+      "from": "actor",
+      "to": "work_lane",
+      "kind": "executes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "terminal",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "commitment-binds-lane",
+      "from": "commitment_n",
+      "to": "work_lane",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "base-binds-lane",
+      "from": "exact_base",
+      "to": "work_lane",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "lane-coordinates-worktree",
+      "from": "work_lane",
+      "to": "linked_worktree",
+      "kind": "coordinates",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "lease-coordinates-lane",
+      "from": "lease",
+      "to": "work_lane",
+      "kind": "coordinates",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "local-state-coordinates-lease",
+      "from": "git_common_state",
+      "to": "lease",
+      "kind": "coordinates",
+      "required_visible": true,
+      "source_ids": [
+        "local_state",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "git-common-state-selects-activation",
+      "from": "git_common_state",
+      "to": "git_common_activation",
+      "kind": "coordinates",
+      "required_visible": true,
+      "source_ids": [
+        "local_state",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "common-activation-governs-linked-worktree",
+      "from": "git_common_activation",
+      "to": "linked_worktree",
+      "kind": "coordinates",
+      "required_visible": true,
+      "source_ids": [
+        "local_state",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "common-activation-binds-retirement",
+      "from": "git_common_activation",
+      "to": "runtime_generation_retirement",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "local_state",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "common-activation-projects-family-report",
+      "from": "git_common_activation",
+      "to": "repository_family_convergence",
+      "kind": "projects",
+      "required_visible": true,
+      "source_ids": [
+        "lineage_command",
+        "lineage_governance"
+      ],
+      "maturity": "current",
+      "plane": "projection",
+      "flow_class": "projection",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "exact-base-to-candidate",
+      "from": "exact_base",
+      "to": "candidate_bundle",
+      "kind": "derives",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "lane-to-candidate-bundle",
+      "from": "prewrite_admission",
+      "to": "candidate_bundle",
+      "kind": "admits",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "candidate-state-witnesses-local",
+      "from": "candidate_state",
+      "to": "local_claim",
+      "kind": "witnesses",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "proof",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "claim_scope"
+    },
+    {
+      "id": "candidate-state-to-independent",
+      "from": "candidate_state",
+      "to": "independent_verifier",
+      "kind": "executes",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "independent_verification"
+      ],
+      "maturity": "optional",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "independent-to-claim",
+      "from": "independent_verifier",
+      "to": "independent_claim",
+      "kind": "attests",
+      "required_visible": true,
+      "source_ids": [
+        "independent_verification",
+        "runner_mutation"
+      ],
+      "maturity": "optional",
+      "plane": "proof",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "claim_scope"
+    },
+    {
+      "id": "local-claim-to-effect-evaluation",
+      "from": "local_claim",
+      "to": "effect_evaluation",
+      "kind": "returns",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "independent-claim-to-effect-evaluation",
+      "from": "independent_claim",
+      "to": "effect_evaluation",
+      "kind": "returns",
+      "required_visible": true,
+      "source_ids": [
+        "independent_verification",
+        "runner_mutation",
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "hosted-claim-to-effect-evaluation",
+      "from": "hosted_claim",
+      "to": "effect_evaluation",
+      "kind": "returns",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "local-claim-to-composite",
+      "from": "local_claim",
+      "to": "composite_verifier",
+      "kind": "returns",
+      "required_visible": false,
+      "source_ids": [
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "proof",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "claim_scope"
+    },
+    {
+      "id": "independent-claim-to-composite",
+      "from": "independent_claim",
+      "to": "composite_verifier",
+      "kind": "returns",
+      "required_visible": false,
+      "source_ids": [
+        "independent_verification",
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "proof",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "claim_scope"
+    },
+    {
+      "id": "composite-verifier-attests",
+      "from": "composite_verifier",
+      "to": "composite_claim",
+      "kind": "attests",
+      "required_visible": false,
+      "inference_rule": "explicit",
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "proof",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "claim_scope"
+    },
+    {
+      "id": "composite-claim-to-effect-evaluation",
+      "from": "composite_claim",
+      "to": "effect_evaluation",
+      "kind": "returns",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "commitment-to-effect-evaluation",
+      "from": "commitment_n",
+      "to": "effect_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "effect-pass-branch",
+      "from": "effect_evaluation",
+      "to": "effect_pass",
+      "kind": "branches",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "effect-block-branch",
+      "from": "effect_evaluation",
+      "to": "effect_block",
+      "kind": "branches",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "effect-unknown-branch",
+      "from": "effect_evaluation",
+      "to": "effect_unknown",
+      "kind": "branches",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "effect-pass-to-recheck",
+      "from": "effect_pass",
+      "to": "effect_recheck",
+      "kind": "admits",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "authority-to-recheck",
+      "from": "authority_reference",
+      "to": "effect_recheck",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "maturity": "canonical",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "recheck-admits-runner",
+      "from": "effect_recheck",
+      "to": "admitted_runner",
+      "kind": "admits",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_time_freshness"
+    },
+    {
+      "id": "runner-applies-cas",
+      "from": "admitted_runner",
+      "to": "repo_cas",
+      "kind": "applies",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "current",
+      "plane": "effect",
+      "flow_class": "effect",
+      "effect_capable": true,
+      "effect_contract_id": "ethos_effect",
+      "guard": "effect_pass_and_fresh_recheck"
+    },
+    {
+      "id": "accepted-n-to-cas",
+      "from": "accepted_n",
+      "to": "repo_cas",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "cas-to-accepted-next",
+      "from": "repo_cas",
+      "to": "accepted_next",
+      "kind": "applies",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "cas-to-post-observation",
+      "from": "repo_cas",
+      "to": "post_observation",
+      "kind": "post_observes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "transition_plan"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "accepted-next-to-post-observation",
+      "from": "accepted_next",
+      "to": "post_observation",
+      "kind": "observes",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "post-to-attestation",
+      "from": "post_observation",
+      "to": "attestation_n",
+      "kind": "attests",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "canonical",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "post-to-outcome-unknown",
+      "from": "post_observation",
+      "to": "outcome_unknown",
+      "kind": "branches",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "commitment-to-attestation",
+      "from": "commitment_n",
+      "to": "attestation_n",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "canonical",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "attestation-to-selection",
+      "from": "attestation_n",
+      "to": "authorized_selection",
+      "kind": "preserves",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "subject-to-selection",
+      "from": "authorized_subject",
+      "to": "authorized_selection",
+      "kind": "reauthorizes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "authority",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "applicable_authority"
+    },
+    {
+      "id": "selection-to-next-commitment",
+      "from": "authorized_selection",
+      "to": "commitment_next",
+      "kind": "delegates",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "commitment-to-selection",
+      "from": "commitment_n",
+      "to": "authorized_selection",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "loss-interrupts-session",
+      "from": "session_host",
+      "to": "executor_loss",
+      "kind": "interrupts",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "loss-to-recovery-anchor",
+      "from": "executor_loss",
+      "to": "recovery_anchor",
+      "kind": "recovers",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "commitment-to-recovery-anchor",
+      "from": "commitment_n",
+      "to": "recovery_anchor",
+      "kind": "preserves",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "attestation-to-recovery-anchor",
+      "from": "attestation_n",
+      "to": "recovery_anchor",
+      "kind": "preserves",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "accepted-to-recovery-anchor",
+      "from": "accepted_next",
+      "to": "recovery_anchor",
+      "kind": "preserves",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "outcome-unknown-to-recovery",
+      "from": "outcome_unknown",
+      "to": "recovery_anchor",
+      "kind": "recovers",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "recovery-to-successor",
+      "from": "recovery_anchor",
+      "to": "successor_actor",
+      "kind": "recovers",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "successor-observes",
+      "from": "successor_actor",
+      "to": "fresh_facts",
+      "kind": "observes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "model-gap-to-promotion",
+      "from": "model_gap",
+      "to": "model_promotion",
+      "kind": "recovers",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "canonical",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "promotion-to-compile",
+      "from": "model_promotion",
+      "to": "compile_plan",
+      "kind": "compiles",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "canonical",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "action-block-to-model-gap",
+      "from": "action_block",
+      "to": "model_gap",
+      "kind": "branches",
+      "required_visible": true,
+      "conditional": "contradiction_or_model_gap_only",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "canonical",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "action-unknown-to-recovery",
+      "from": "action_unknown",
+      "to": "recovery_anchor",
+      "kind": "recovers",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "effect-block-to-model-gap",
+      "from": "effect_block",
+      "to": "model_gap",
+      "kind": "branches",
+      "required_visible": false,
+      "conditional": "contradiction_or_model_gap_only",
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "effect-unknown-to-recovery",
+      "from": "effect_unknown",
+      "to": "recovery_anchor",
+      "kind": "recovers",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "attestation-projects-cli",
+      "from": "attestation_n",
+      "to": "cli_json",
+      "kind": "projects",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "current",
+      "plane": "projection",
+      "flow_class": "projection",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "attestation-projects-sdk",
+      "from": "attestation_n",
+      "to": "sdk_agent",
+      "kind": "projects",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "canonical",
+      "plane": "projection",
+      "flow_class": "projection",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "attestation-projects-mcp",
+      "from": "attestation_n",
+      "to": "mcp_a2a",
+      "kind": "projects",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "optional",
+      "plane": "projection",
+      "flow_class": "projection",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "attestation-projects-ci",
+      "from": "attestation_n",
+      "to": "ci_forge",
+      "kind": "projects",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "canonical",
+      "plane": "projection",
+      "flow_class": "projection",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "brownfield-local-cas",
+      "from": "brownfield_repo",
+      "to": "brownfield_cas",
+      "kind": "realizes",
+      "required_visible": true,
+      "source_ids": [
+        "adoption",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "greenfield-local-cas",
+      "from": "greenfield_repo",
+      "to": "greenfield_cas",
+      "kind": "realizes",
+      "required_visible": true,
+      "source_ids": [
+        "adoption",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "publication-remote-local-cas",
+      "from": "publication_remote",
+      "to": "publication_remote_cas",
+      "kind": "realizes",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "attestation-projects-publication-request",
+      "from": "attestation_n",
+      "to": "publication_remote",
+      "kind": "exchanges",
+      "required_visible": true,
+      "payload": "scoped_claim_or_artifact",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "ethos-self-governs",
+      "from": "ethos_repo",
+      "to": "repo_cas",
+      "kind": "realizes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "brownfield-conforms-locally",
+      "from": "brownfield_repo",
+      "to": "brownfield_conformance",
+      "kind": "conforms",
+      "required_visible": true,
+      "source_ids": [
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "grammar-narrows-brownfield",
+      "from": "protocol_grammar",
+      "to": "brownfield_conformance",
+      "kind": "narrows",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "greenfield-conforms-locally",
+      "from": "greenfield_repo",
+      "to": "greenfield_conformance",
+      "kind": "conforms",
+      "required_visible": true,
+      "source_ids": [
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "grammar-narrows-greenfield",
+      "from": "protocol_grammar",
+      "to": "greenfield_conformance",
+      "kind": "narrows",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "ethos-conforms-locally",
+      "from": "ethos_repo",
+      "to": "ethos_conformance",
+      "kind": "conforms",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "grammar-narrows-ethos",
+      "from": "protocol_grammar",
+      "to": "ethos_conformance",
+      "kind": "narrows",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "commitment-binds-predecessors",
+      "from": "commitment_n",
+      "to": "predecessor_set",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "commitment_contract",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "maturity": "current",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "exact-tree-resolves-predecessors",
+      "from": "exact_base",
+      "to": "predecessor_set",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "commitment_contract",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "maturity": "current",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "predecessors-derive-lineage",
+      "from": "predecessor_set",
+      "to": "change_lineage",
+      "kind": "derives",
+      "required_visible": true,
+      "source_ids": [
+        "commitment_contract",
+        "lineage_governance",
+        "lineage_command"
+      ],
+      "maturity": "current",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "lineage-enables-scoped-concurrency",
+      "from": "change_lineage",
+      "to": "scoped_concurrency",
+      "kind": "coordinates",
+      "required_visible": true,
+      "source_ids": [
+        "commitment_contract",
+        "lineage_governance",
+        "product_contract"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "scoped-concurrency-coordinates-lanes",
+      "from": "scoped_concurrency",
+      "to": "work_lane",
+      "kind": "coordinates",
+      "required_visible": true,
+      "source_ids": [
+        "lineage_governance",
+        "product_contract",
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "subject-authorizes-effect-evaluation",
+      "from": "authorized_subject",
+      "to": "effect_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "authority-binds-effect-evaluation",
+      "from": "authority_reference",
+      "to": "effect_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "facts-bind-effect-evaluation",
+      "from": "fresh_facts",
+      "to": "effect_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "plan-binds-effect-evaluation",
+      "from": "transition_plan",
+      "to": "effect_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "transition_plan",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "accepted-state-binds-effect-recheck",
+      "from": "accepted_n",
+      "to": "effect_recheck",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "plan-binds-lane",
+      "from": "transition_plan",
+      "to": "work_lane",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "transition_plan",
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "scope-effect-binds-lane",
+      "from": "scope_effect_binding",
+      "to": "work_lane",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "lane-evaluates-prewrite",
+      "from": "work_lane",
+      "to": "prewrite_admission",
+      "kind": "evaluates",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "worktree-binds-prewrite",
+      "from": "linked_worktree",
+      "to": "prewrite_admission",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "lease-binds-prewrite",
+      "from": "lease",
+      "to": "prewrite_admission",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "scope_and_lease"
+    },
+    {
+      "id": "lane-witnesses-proof",
+      "from": "work_lane",
+      "to": "lane_proof_claim",
+      "kind": "witnesses",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "local_state"
+      ],
+      "maturity": "current",
+      "plane": "proof",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "claim_scope"
+    },
+    {
+      "id": "lane-proof-admits-candidate",
+      "from": "lane_proof_claim",
+      "to": "candidate_bundle",
+      "kind": "admits",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "proof",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "claim_scope"
+    },
+    {
+      "id": "selection-to-hold",
+      "from": "authorized_selection",
+      "to": "selection_hold",
+      "kind": "projects",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "projection",
+      "flow_class": "projection",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "selection-to-done",
+      "from": "authorized_selection",
+      "to": "selection_done",
+      "kind": "projects",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "projection",
+      "flow_class": "projection",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "accepted-next-to-selection",
+      "from": "accepted_next",
+      "to": "authorized_selection",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "ethos-contains-native-artifacts",
+      "from": "ethos_repo",
+      "to": "owner_native_artifacts",
+      "kind": "contains",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "ethos-preserves-durable-evidence",
+      "from": "ethos_repo",
+      "to": "durable_evidence",
+      "kind": "contains",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "attestation-preserves-evidence",
+      "from": "attestation_n",
+      "to": "durable_evidence",
+      "kind": "preserves",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "canonical",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "native-artifacts-project-outputs",
+      "from": "owner_native_artifacts",
+      "to": "rebuildable_outputs",
+      "kind": "projects",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "adoption",
+        "projections"
+      ],
+      "maturity": "canonical",
+      "plane": "projection",
+      "flow_class": "projection",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "evidence-projects-outputs",
+      "from": "durable_evidence",
+      "to": "rebuildable_outputs",
+      "kind": "projects",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "projections"
+      ],
+      "maturity": "canonical",
+      "plane": "projection",
+      "flow_class": "projection",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "brownfield-pass-to-recheck",
+      "from": "effect_pass",
+      "to": "brownfield_effect_recheck",
+      "kind": "admits",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "brownfield-state-binds-recheck",
+      "from": "brownfield_expected_state",
+      "to": "brownfield_effect_recheck",
+      "kind": "binds",
+      "required_visible": false,
+      "source_ids": [
+        "adoption",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "brownfield-recheck-admits-runner",
+      "from": "brownfield_effect_recheck",
+      "to": "brownfield_admitted_runner",
+      "kind": "admits",
+      "required_visible": false,
+      "source_ids": [
+        "adoption",
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_time_freshness"
+    },
+    {
+      "id": "brownfield-runner-applies-cas",
+      "from": "brownfield_admitted_runner",
+      "to": "brownfield_cas",
+      "kind": "applies",
+      "required_visible": false,
+      "source_ids": [
+        "adoption",
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "effect",
+      "flow_class": "effect",
+      "effect_capable": true,
+      "effect_contract_id": "brownfield_effect",
+      "guard": "effect_pass_and_fresh_recheck"
+    },
+    {
+      "id": "brownfield-cas-to-post-observation",
+      "from": "brownfield_cas",
+      "to": "brownfield_post_observation",
+      "kind": "post_observes",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "brownfield-post-to-attestation",
+      "from": "brownfield_post_observation",
+      "to": "brownfield_effect_attestation",
+      "kind": "attests",
+      "required_visible": false,
+      "source_ids": [
+        "adoption",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "greenfield-pass-to-recheck",
+      "from": "effect_pass",
+      "to": "greenfield_effect_recheck",
+      "kind": "admits",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "greenfield-state-binds-recheck",
+      "from": "greenfield_expected_state",
+      "to": "greenfield_effect_recheck",
+      "kind": "binds",
+      "required_visible": false,
+      "source_ids": [
+        "adoption",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "greenfield-recheck-admits-runner",
+      "from": "greenfield_effect_recheck",
+      "to": "greenfield_admitted_runner",
+      "kind": "admits",
+      "required_visible": false,
+      "source_ids": [
+        "adoption",
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_time_freshness"
+    },
+    {
+      "id": "greenfield-runner-applies-cas",
+      "from": "greenfield_admitted_runner",
+      "to": "greenfield_cas",
+      "kind": "applies",
+      "required_visible": false,
+      "source_ids": [
+        "adoption",
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "effect",
+      "flow_class": "effect",
+      "effect_capable": true,
+      "effect_contract_id": "greenfield_effect",
+      "guard": "effect_pass_and_fresh_recheck"
+    },
+    {
+      "id": "greenfield-cas-to-post-observation",
+      "from": "greenfield_cas",
+      "to": "greenfield_post_observation",
+      "kind": "post_observes",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "greenfield-post-to-attestation",
+      "from": "greenfield_post_observation",
+      "to": "greenfield_effect_attestation",
+      "kind": "attests",
+      "required_visible": false,
+      "source_ids": [
+        "adoption",
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "publication-pass-to-recheck",
+      "from": "effect_pass",
+      "to": "publication_effect_recheck",
+      "kind": "admits",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "publication-state-binds-recheck",
+      "from": "publication_remote_observation",
+      "to": "publication_effect_recheck",
+      "kind": "binds",
+      "required_visible": false,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "publication-recheck-admits-runner",
+      "from": "publication_effect_recheck",
+      "to": "publication_admitted_runner",
+      "kind": "admits",
+      "required_visible": false,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_time_freshness"
+    },
+    {
+      "id": "publication-runner-applies-cas",
+      "from": "publication_admitted_runner",
+      "to": "publication_remote_cas",
+      "kind": "applies",
+      "required_visible": false,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "effect",
+      "flow_class": "effect",
+      "effect_capable": true,
+      "effect_contract_id": "publication_effect",
+      "guard": "effect_pass_and_fresh_recheck"
+    },
+    {
+      "id": "publication-cas-to-post-observation",
+      "from": "publication_remote_cas",
+      "to": "publication_post_observation",
+      "kind": "post_observes",
+      "required_visible": false,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "publication-post-to-attestation",
+      "from": "publication_post_observation",
+      "to": "publication_effect_attestation",
+      "kind": "attests",
+      "required_visible": false,
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "adopter-peer-local-cas",
+      "from": "adopter_peer_repo",
+      "to": "adopter_peer_cas",
+      "kind": "realizes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "adopter-peer-conforms-locally",
+      "from": "adopter_peer_repo",
+      "to": "adopter_peer_conformance",
+      "kind": "conforms",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "grammar-narrows-adopter-peer",
+      "from": "protocol_grammar",
+      "to": "adopter_peer_conformance",
+      "kind": "narrows",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "attestation-exchanges-with-adopter-peer",
+      "from": "attestation_n",
+      "to": "adopter_peer_repo",
+      "kind": "exchanges",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "federation",
+      "flow_class": "federation",
+      "effect_capable": false,
+      "guard": "repository_boundary"
+    },
+    {
+      "id": "adopter-peer-pass-to-recheck",
+      "from": "effect_pass",
+      "to": "adopter_peer_effect_recheck",
+      "kind": "admits",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "adopter-peer-state-binds-recheck",
+      "from": "adopter_peer_expected_state",
+      "to": "adopter_peer_effect_recheck",
+      "kind": "binds",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "adopter-peer-recheck-admits-runner",
+      "from": "adopter_peer_effect_recheck",
+      "to": "adopter_peer_admitted_runner",
+      "kind": "admits",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_time_freshness"
+    },
+    {
+      "id": "adopter-peer-runner-applies-cas",
+      "from": "adopter_peer_admitted_runner",
+      "to": "adopter_peer_cas",
+      "kind": "applies",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "effect",
+      "flow_class": "effect",
+      "effect_capable": true,
+      "guard": "effect_pass_and_fresh_recheck",
+      "effect_contract_id": "adopter_peer_effect"
+    },
+    {
+      "id": "adopter-peer-cas-to-post-observation",
+      "from": "adopter_peer_cas",
+      "to": "adopter_peer_post_observation",
+      "kind": "post_observes",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "adopter-peer-post-to-attestation",
+      "from": "adopter_peer_post_observation",
+      "to": "adopter_peer_effect_attestation",
+      "kind": "attests",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "candidate-bundle-binds-integration",
+      "from": "candidate_bundle",
+      "to": "candidate_integration_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "candidate-state-binds-integration",
+      "from": "candidate_state",
+      "to": "candidate_integration_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "lane-proof-binds-integration",
+      "from": "lane_proof_claim",
+      "to": "candidate_integration_evaluation",
+      "kind": "returns",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "proof",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "commitment-binds-candidate-integration",
+      "from": "commitment_n",
+      "to": "candidate_integration_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "authority-binds-candidate-integration",
+      "from": "authority_reference",
+      "to": "candidate_integration_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "facts-bind-candidate-integration",
+      "from": "fresh_facts",
+      "to": "candidate_integration_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "plan-binds-candidate-integration",
+      "from": "transition_plan",
+      "to": "candidate_integration_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "candidate-integration-pass-branch",
+      "from": "candidate_integration_evaluation",
+      "to": "candidate_integration_pass",
+      "kind": "branches",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "candidate-integration-block-branch",
+      "from": "candidate_integration_evaluation",
+      "to": "candidate_integration_block",
+      "kind": "branches",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "candidate-integration-unknown-branch",
+      "from": "candidate_integration_evaluation",
+      "to": "candidate_integration_unknown",
+      "kind": "branches",
+      "required_visible": false,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "candidate-pass-to-recheck",
+      "from": "candidate_integration_pass",
+      "to": "candidate_effect_recheck",
+      "kind": "admits",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "candidate_integration_gate"
+    },
+    {
+      "id": "candidate-state-to-recheck",
+      "from": "candidate_state",
+      "to": "candidate_effect_recheck",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "candidate-recheck-admits-runner",
+      "from": "candidate_effect_recheck",
+      "to": "candidate_admitted_runner",
+      "kind": "admits",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_time_freshness"
+    },
+    {
+      "id": "candidate-runner-applies-cas",
+      "from": "candidate_admitted_runner",
+      "to": "candidate_cas",
+      "kind": "applies",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "effect",
+      "flow_class": "effect",
+      "effect_capable": true,
+      "guard": "effect_pass_and_fresh_recheck",
+      "effect_contract_id": "candidate_integration_effect"
+    },
+    {
+      "id": "candidate-cas-to-next",
+      "from": "candidate_cas",
+      "to": "candidate_next",
+      "kind": "applies",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "candidate-cas-to-post-observation",
+      "from": "candidate_cas",
+      "to": "candidate_post_observation",
+      "kind": "post_observes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "candidate-next-to-post-observation",
+      "from": "candidate_next",
+      "to": "candidate_post_observation",
+      "kind": "observes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "candidate-post-observation-attests",
+      "from": "candidate_post_observation",
+      "to": "candidate_effect_attestation",
+      "kind": "attests",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "proof",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "candidate-next-to-effect-evaluation",
+      "from": "candidate_next",
+      "to": "effect_evaluation",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "effect_admission_gate"
+    },
+    {
+      "id": "candidate-next-to-recheck",
+      "from": "candidate_next",
+      "to": "effect_recheck",
+      "kind": "binds",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "control",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "candidate-advance-stales-remaining-lanes",
+      "from": "candidate_next",
+      "to": "candidate_base_stale",
+      "kind": "invalidates",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "coordination",
+      "flow_class": "coordination",
+      "effect_capable": false,
+      "guard": "expected_candidate_head"
+    },
+    {
+      "id": "stale-lane-refreshes-from-candidate",
+      "from": "candidate_base_stale",
+      "to": "work_lane",
+      "kind": "recovers",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "plane": "recovery",
+      "flow_class": "continuity",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
+    },
+    {
+      "id": "commitment-binds-experiment-protocol",
+      "from": "commitment_n",
+      "to": "lane_experiment_protocol",
+      "kind": "binds",
+      "required_visible": false,
+      "plane": "semantic",
+      "guard": "none",
+      "source_ids": [
+        "product_contract",
+        "evolution_campaign"
+      ],
+      "maturity": "current",
+      "flow_class": "control",
+      "effect_capable": false
+    },
+    {
+      "id": "scope-effect-informs-lane-relation",
+      "from": "scope_effect_binding",
+      "to": "lane_relation_judgment",
+      "kind": "binds",
+      "required_visible": false,
+      "plane": "coordination",
+      "guard": "scope_and_lease",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "flow_class": "coordination",
+      "effect_capable": false
+    },
+    {
+      "id": "experiment-informs-lane-relation",
+      "from": "lane_experiment_protocol",
+      "to": "lane_relation_judgment",
+      "kind": "binds",
+      "required_visible": false,
+      "plane": "semantic",
+      "guard": "none",
+      "source_ids": [
+        "product_contract",
+        "evolution_campaign"
+      ],
+      "maturity": "current",
+      "flow_class": "control",
+      "effect_capable": false
+    },
+    {
+      "id": "lanes-enter-relation-judgment",
+      "from": "work_lane",
+      "to": "lane_relation_judgment",
+      "kind": "coordinates",
+      "required_visible": false,
+      "plane": "coordination",
+      "guard": "scope_and_lease",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "flow_class": "coordination",
+      "effect_capable": false
+    },
+    {
+      "id": "lane-proof-forms-comparative-claim",
+      "from": "lane_proof_claim",
+      "to": "lane_comparative_claim",
+      "kind": "returns",
+      "required_visible": false,
+      "plane": "proof",
+      "guard": "claim_scope",
+      "source_ids": [
+        "product_contract",
+        "evolution_campaign"
+      ],
+      "maturity": "current",
+      "flow_class": "evidence",
+      "effect_capable": false
+    },
+    {
+      "id": "experiment-binds-comparative-claim",
+      "from": "lane_experiment_protocol",
+      "to": "lane_comparative_claim",
+      "kind": "binds",
+      "required_visible": false,
+      "plane": "proof",
+      "guard": "claim_scope",
+      "source_ids": [
+        "product_contract",
+        "evolution_campaign"
+      ],
+      "maturity": "current",
+      "flow_class": "evidence",
+      "effect_capable": false
+    },
+    {
+      "id": "relation-binds-lane-disposition",
+      "from": "lane_relation_judgment",
+      "to": "lane_disposition",
+      "kind": "binds",
+      "required_visible": false,
+      "plane": "semantic",
+      "guard": "none",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "evolution_campaign"
+      ],
+      "maturity": "current",
+      "flow_class": "control",
+      "effect_capable": false
+    },
+    {
+      "id": "comparison-informs-lane-disposition",
+      "from": "lane_comparative_claim",
+      "to": "lane_disposition",
+      "kind": "returns",
+      "required_visible": false,
+      "plane": "proof",
+      "guard": "claim_scope",
+      "source_ids": [
+        "product_contract",
+        "evolution_campaign"
+      ],
+      "maturity": "current",
+      "flow_class": "evidence",
+      "effect_capable": false
+    },
+    {
+      "id": "disposition-selects-candidate-attempt",
+      "from": "lane_disposition",
+      "to": "candidate_integration_evaluation",
+      "kind": "selects",
+      "required_visible": false,
+      "plane": "control",
+      "guard": "candidate_integration_gate",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "evolution_campaign"
+      ],
+      "maturity": "current",
+      "flow_class": "control",
+      "effect_capable": false
+    },
+    {
+      "id": "disposition-can-hold",
+      "from": "lane_disposition",
+      "to": "selection_hold",
+      "kind": "projects",
+      "required_visible": false,
+      "plane": "projection",
+      "guard": "none",
+      "source_ids": [
+        "product_contract",
+        "evolution_campaign"
+      ],
+      "maturity": "current",
+      "flow_class": "projection",
+      "effect_capable": false
+    },
+    {
+      "id": "disposition-admits-retirement",
+      "from": "lane_disposition",
+      "to": "lane_retirement",
+      "kind": "selects",
+      "required_visible": false,
+      "plane": "recovery",
+      "guard": "fresh_reentry",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "evolution_campaign"
+      ],
+      "maturity": "current",
+      "flow_class": "continuity",
+      "effect_capable": false
+    },
+    {
+      "id": "candidate-attestation-binds-retirement",
+      "from": "candidate_effect_attestation",
+      "to": "lane_retirement",
+      "kind": "binds",
+      "required_visible": false,
+      "plane": "recovery",
+      "guard": "fresh_reentry",
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current",
+      "flow_class": "continuity",
+      "effect_capable": false
+    }
+  ],
+  "invariants": [
+    {
+      "id": "G01",
+      "statement": "Every edge has a valid typed endpoint and unique identity."
+    },
+    {
+      "id": "G02",
+      "statement": "Commitment and Attestation are the only durable semantic root concepts."
+    },
+    {
+      "id": "G03",
+      "statement": "Every current claim carries current evidence references bound to the basis HEAD."
+    },
+    {
+      "id": "G04",
+      "statement": "PASS, BLOCK and UNKNOWN are explicit at action admission; only PASS reaches execution."
+    },
+    {
+      "id": "G05",
+      "statement": "Shared effect occurs only after evidence return, effect evaluation, PASS and fresh effect-time recheck."
+    },
+    {
+      "id": "G06",
+      "statement": "BLOCK, UNKNOWN, contradiction, model gap, recovery and outcome-unknown have no effect bypass."
+    },
+    {
+      "id": "G07",
+      "statement": "Capability, execution, proof, coordination, projection, carrier and conformance nodes cannot authorize effects."
+    },
+    {
+      "id": "G08",
+      "statement": "Every effect aperture has a complete local pre-state, recheck, conditional effect, post-observation and Attestation chain."
+    },
+    {
+      "id": "G09",
+      "statement": "Each governed reality boundary has exactly one local effect aperture; there is no global CAS."
+    },
+    {
+      "id": "G10",
+      "statement": "Independent verifier has no effect path; its only product is an exact scoped claim."
+    },
+    {
+      "id": "G11",
+      "statement": "Proof planes neither imply nor replace one another; composite claims require an explicit responsible verifier and rule."
+    },
+    {
+      "id": "G12",
+      "statement": "Recovery and outcome-unknown re-enter through fresh observation and recompilation before any effect."
+    },
+    {
+      "id": "G13",
+      "statement": "An Attestation never automatically creates a successor Commitment; authorized selection reacquires authority."
+    },
+    {
+      "id": "G14",
+      "statement": "Actor, session or host loss does not break Commitment, Attestation or version lineages."
+    },
+    {
+      "id": "G15",
+      "statement": "Each Work Lane generation binds exactly one base Commitment digest and exact candidate base."
+    },
+    {
+      "id": "G16",
+      "statement": "Worktree, Lease and git-common runtime coordinate candidate preparation and own no truth or authority."
+    },
+    {
+      "id": "G17",
+      "statement": "Brownfield, Greenfield, self-governance, and autonomous adopter peers keep local authority and judgment; publication remotes remain distinct projection targets."
+    },
+    {
+      "id": "G18",
+      "statement": "Cross-repository exchange is limited to scoped claims, artifacts and conformance; authority is never exchanged."
+    },
+    {
+      "id": "G19",
+      "statement": "Projections are outward-only and may not reverse-own their source or hide required gaps."
+    },
+    {
+      "id": "G20",
+      "statement": "OpenSpec and Git realize the selected terminal design but are carriers, not ETHOS semantic roots."
+    },
+    {
+      "id": "G21",
+      "statement": "Commitment predecessors form an immutable partial order: fork and join are allowed, lineage is distinct from execution dependencies, and only conflicting scoped effects serialize."
+    },
+    {
+      "id": "G22",
+      "statement": "The effect gate, PASS verdict, fresh recheck, and admitted runner each dominate the primary effect aperture in the control/effect subgraph."
+    },
+    {
+      "id": "G23",
+      "statement": "Each local aperture has a closed effect-capable ingress set containing only its contract-bound admitted runner edge."
+    },
+    {
+      "id": "G24",
+      "statement": "Action and effect gates are conjunctive over their declared inputs and exact scoped-claim selector; removing a required input blocks admission."
+    },
+    {
+      "id": "G25",
+      "statement": "Every autonomous repository and publication target has one complete boundary-local effect contract and one unique linearization point; no contract crosses a boundary."
+    },
+    {
+      "id": "G26",
+      "statement": "Brownfield, Greenfield, self-governance, autonomous peer, and publication remote retain distinct origin, authority, judgment, and effect semantics."
+    },
+    {
+      "id": "G27",
+      "statement": "Responsibility and accepted-reality lineages outlive actor, session, host, tool, and platform loss without transferring authority."
+    },
+    {
+      "id": "G28",
+      "statement": "Concurrent candidate preparation preserves a complete Commitment, plan, Lane, exact base, Lease, scope/effect, prewrite, and proof tuple per generation."
+    },
+    {
+      "id": "G29",
+      "statement": "Concurrent Work Lanes prepare and prove independently, but candidate-ref integration and accepted-root closeout are distinct exact-CAS linearization boundaries; after candidate advancement, any stale remaining Lane refreshes and re-proves before a later attempt."
+    },
+    {
+      "id": "G30",
+      "statement": "Work Lanes support both cooperative parallelism and comparative racing; integration, refresh, hold, and superseded retirement are relation-aware dispositions, and non-selection never implies automatic deletion."
+    }
+  ],
+  "gates": {
+    "action_admission_gate": {
+      "mode": "all",
+      "required_inputs": [
+        "authorized_subject",
+        "authority_reference",
+        "commitment_n",
+        "fresh_facts",
+        "transition_plan"
+      ],
+      "required_claim_selector": "all applicable scoped prior Attestations selected by the Commitment",
+      "output": "action_pass",
+      "failure_outputs": [
+        "action_block",
+        "action_unknown"
+      ],
+      "source_ids": [
+        "product_contract",
+        "transition_plan"
+      ],
+      "maturity": "canonical"
+    },
+    "effect_admission_gate": {
+      "mode": "all",
+      "required_inputs": [
+        "authorized_subject",
+        "authority_reference",
+        "commitment_n",
+        "fresh_facts",
+        "transition_plan",
+        "candidate_next",
+        "local_claim"
+      ],
+      "required_claim_selector": "all declared proof-plane claims whose exact subject, predicate, scope, bindings, validity and verifier apply",
+      "output": "effect_pass",
+      "failure_outputs": [
+        "effect_block",
+        "effect_unknown"
+      ],
+      "source_ids": [
+        "product_contract",
+        "transition_plan",
+        "runner_mutation"
+      ],
+      "maturity": "terminal"
+    },
+    "publication_admission_gate": {
+      "mode": "all",
+      "required_inputs": [
+        "authorized_subject",
+        "authority_reference",
+        "attestation_n",
+        "accepted_next",
+        "publication_remote_observation",
+        "publication_remote"
+      ],
+      "required_claim_selector": "one selected full ref, request digest, repository common directory, signature trust and every target ref",
+      "output": "effect_pass",
+      "failure_outputs": [
+        "effect_block",
+        "effect_unknown"
+      ],
+      "source_ids": [
+        "runner_mutation",
+        "product_contract"
+      ],
+      "maturity": "current"
+    },
+    "candidate_integration_gate": {
+      "mode": "all",
+      "required_inputs": [
+        "authority_reference",
+        "commitment_n",
+        "fresh_facts",
+        "transition_plan",
+        "candidate_bundle",
+        "candidate_state",
+        "lane_proof_claim",
+        "lane_disposition"
+      ],
+      "required_claim_selector": "the one selected Lane claim whose exact Commitment, candidate base, scope, Lease, HEAD and proof apply",
+      "output": "candidate_integration_pass",
+      "failure_outputs": [
+        "candidate_integration_block",
+        "candidate_integration_unknown"
+      ],
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current"
+    }
+  },
+  "effect_contracts": {
+    "ethos_effect": {
+      "repository_boundary": "ethos_repo",
+      "resource_scope": "accepted-root Git ref and declared closeout scope",
+      "expected_pre_state": "accepted_n",
+      "admission_gate": "effect_admission_gate",
+      "pass_verdict": "effect_pass",
+      "fresh_recheck": "effect_recheck",
+      "admitted_runner": "admitted_runner",
+      "linearization_point": "repo_cas",
+      "post_observation": "post_observation",
+      "effect_attestation": "attestation_n",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current"
+    },
+    "brownfield_effect": {
+      "repository_boundary": "brownfield_repo",
+      "resource_scope": "one adopter-local governed ref and declared effect scope",
+      "expected_pre_state": "brownfield_expected_state",
+      "admission_gate": "effect_admission_gate",
+      "pass_verdict": "effect_pass",
+      "fresh_recheck": "brownfield_effect_recheck",
+      "admitted_runner": "brownfield_admitted_runner",
+      "linearization_point": "brownfield_cas",
+      "post_observation": "brownfield_post_observation",
+      "effect_attestation": "brownfield_effect_attestation",
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal"
+    },
+    "greenfield_effect": {
+      "repository_boundary": "greenfield_repo",
+      "resource_scope": "one adopter-local founding ref and declared scaffold scope",
+      "expected_pre_state": "greenfield_expected_state",
+      "admission_gate": "effect_admission_gate",
+      "pass_verdict": "effect_pass",
+      "fresh_recheck": "greenfield_effect_recheck",
+      "admitted_runner": "greenfield_admitted_runner",
+      "linearization_point": "greenfield_cas",
+      "post_observation": "greenfield_post_observation",
+      "effect_attestation": "greenfield_effect_attestation",
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal"
+    },
+    "publication_effect": {
+      "repository_boundary": "publication_remote",
+      "resource_scope": "one explicitly selected full remote ref",
+      "expected_pre_state": "publication_remote_observation",
+      "admission_gate": "publication_admission_gate",
+      "pass_verdict": "effect_pass",
+      "fresh_recheck": "publication_effect_recheck",
+      "admitted_runner": "publication_admitted_runner",
+      "linearization_point": "publication_remote_cas",
+      "post_observation": "publication_post_observation",
+      "effect_attestation": "publication_effect_attestation",
+      "source_ids": [
+        "runner_mutation"
+      ],
+      "maturity": "current"
+    },
+    "adopter_peer_effect": {
+      "repository_boundary": "adopter_peer_repo",
+      "resource_scope": "one adopter-local governed ref and declared effect scope",
+      "expected_pre_state": "adopter_peer_expected_state",
+      "admission_gate": "effect_admission_gate",
+      "pass_verdict": "effect_pass",
+      "fresh_recheck": "adopter_peer_effect_recheck",
+      "admitted_runner": "adopter_peer_admitted_runner",
+      "linearization_point": "adopter_peer_cas",
+      "post_observation": "adopter_peer_post_observation",
+      "effect_attestation": "adopter_peer_effect_attestation",
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal"
+    },
+    "candidate_integration_effect": {
+      "repository_boundary": "ethos_candidate_ref",
+      "resource_scope": "candidate Git ref and one selected proved Work Lane",
+      "expected_pre_state": "candidate_state",
+      "admission_gate": "candidate_integration_gate",
+      "pass_verdict": "candidate_integration_pass",
+      "fresh_recheck": "candidate_effect_recheck",
+      "admitted_runner": "candidate_admitted_runner",
+      "linearization_point": "candidate_cas",
+      "post_observation": "candidate_post_observation",
+      "effect_attestation": "candidate_effect_attestation",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current"
+    }
+  },
+  "lineages": {
+    "responsibility": {
+      "kind": "responsibility",
+      "members": [
+        "commitment_n",
+        "attestation_n",
+        "authorized_selection",
+        "commitment_next"
+      ],
+      "ordering": "immutable Commitment predecessor partial order with fork/join; scoped Attestations inform explicit reauthorization but never inherit permission",
+      "survives": [
+        "actor",
+        "session",
+        "host",
+        "tool",
+        "platform"
+      ],
+      "source_ids": [
+        "product_contract",
+        "commitment_contract",
+        "lineage_governance"
+      ],
+      "maturity": "current"
+    },
+    "accepted_reality": {
+      "kind": "accepted_reality",
+      "members": [
+        "accepted_n",
+        "repo_cas",
+        "accepted_next",
+        "recovery_anchor"
+      ],
+      "ordering": "per-repository exact-CAS linearization from accepted state to accepted state with an open future",
+      "survives": [
+        "actor",
+        "session",
+        "host",
+        "tool",
+        "platform"
+      ],
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current"
+    }
+  },
+  "repository_worlds": {
+    "brownfield": {
+      "repository_node": "brownfield_repo",
+      "world_kind": "adopter",
+      "origin": "inherit_existing_history",
+      "continuity_condition": "inventory_preserve_and_conflict_gate",
+      "effect_contract_id": "brownfield_effect",
+      "authority_local": true,
+      "conforms_to_kernel": true,
+      "source_ids": [
+        "adoption",
+        "product_contract"
+      ],
+      "maturity": "terminal"
+    },
+    "greenfield": {
+      "repository_node": "greenfield_repo",
+      "world_kind": "adopter",
+      "origin": "founding_authority_domain_seed_and_minimal_scaffold",
+      "continuity_condition": "create_accepted_zero_through_the_same_local_law",
+      "effect_contract_id": "greenfield_effect",
+      "authority_local": true,
+      "conforms_to_kernel": true,
+      "source_ids": [
+        "adoption",
+        "product_contract"
+      ],
+      "maturity": "terminal"
+    },
+    "self_governance": {
+      "repository_node": "ethos_repo",
+      "world_kind": "product_self_governance",
+      "origin": "recursive_application_of_the_same_law",
+      "continuity_condition": "no_bootstrap_or_legislator_privilege",
+      "effect_contract_id": "ethos_effect",
+      "authority_local": true,
+      "conforms_to_kernel": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "current"
+    },
+    "autonomous_peer": {
+      "repository_node": "adopter_peer_repo",
+      "world_kind": "adopter",
+      "origin": "independent_adoption_with_local_authority",
+      "continuity_condition": "local_observation_judgment_and_exact_cas",
+      "effect_contract_id": "adopter_peer_effect",
+      "authority_local": true,
+      "conforms_to_kernel": true,
+      "source_ids": [
+        "product_contract",
+        "adoption"
+      ],
+      "maturity": "terminal"
+    }
+  },
+  "candidate_generations": {
+    "generation_alpha": {
+      "commitment": "commitment_alpha",
+      "plan": "transition_plan_alpha",
+      "lane": "work_lane_alpha",
+      "exact_base": "candidate_state",
+      "lease": "lease_alpha",
+      "scope_effect": "scope_effect_alpha",
+      "prewrite": "prewrite_alpha",
+      "proof_claim": "lane_proof_alpha",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal"
+    },
+    "generation_beta": {
+      "commitment": "commitment_beta",
+      "plan": "transition_plan_beta",
+      "lane": "work_lane_beta",
+      "exact_base": "candidate_state",
+      "lease": "lease_beta",
+      "scope_effect": "scope_effect_beta",
+      "prewrite": "prewrite_beta",
+      "proof_claim": "lane_proof_beta",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal"
+    },
+    "generation_gamma": {
+      "commitment": "commitment_gamma",
+      "plan": "transition_plan_gamma",
+      "lane": "work_lane_gamma",
+      "exact_base": "candidate_state",
+      "lease": "lease_gamma",
+      "scope_effect": "scope_effect_gamma",
+      "prewrite": "prewrite_gamma",
+      "proof_claim": "lane_proof_gamma",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation"
+      ],
+      "maturity": "terminal"
+    },
+    "generation_delta": {
+      "commitment": "commitment_delta",
+      "plan": "transition_plan_delta",
+      "lane": "work_lane_delta",
+      "exact_base": "candidate_state",
+      "lease": "lease_delta",
+      "scope_effect": "scope_effect_delta",
+      "prewrite": "prewrite_delta",
+      "proof_claim": "lane_proof_delta",
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "evolution_campaign"
+      ],
+      "maturity": "terminal"
+    }
+  },
+  "publication_target": {
+    "target_node": "publication_remote",
+    "effect_contract_id": "publication_effect",
+    "authority_local": false,
+    "conforms_to_kernel": false,
+    "source_ids": [
+      "runner_mutation",
+      "product_contract"
+    ],
+    "maturity": "current"
+  },
+  "lane_modes": {
+    "cooperative": {
+      "relation": "disjoint_or_ordered_scope_effects",
+      "meaning": "Different bounded directions may progress concurrently; multiple proved results may enter the candidate train over successive exact-CAS advances.",
+      "post_advance": [
+        "already_integrated",
+        "refresh_and_reprove_if_still_applicable",
+        "hold_if_blocked"
+      ],
+      "selection_cardinality": "zero_or_one_per_candidate_cas; many_over_time"
+    },
+    "comparative": {
+      "relation": "alternative_hypotheses_or_implementations",
+      "meaning": "Racing lanes generate comparable evidence; an authorized judgment may select at most one result for a candidate attempt.",
+      "unselected_dispositions": [
+        "continue_experiment",
+        "hold_uncertainty",
+        "retire_superseded_only_after_absorption_and_retirement_proof"
+      ],
+      "selection_cardinality": "zero_or_one_selected_result"
+    },
+    "law": "Concurrency prepares possibilities; relation-aware evidence and authority determine disposition. Non-selection is not failure, refresh, or deletion."
+  }
+}

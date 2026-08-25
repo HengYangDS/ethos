@@ -219,6 +219,8 @@ def _projection_input(
     tree: str,
     bindings: list[dict[str, str]],
     documents: list[dict[str, str]],
+    copy: dict[str, Any],
+    quality_contract: str,
 ) -> dict[str, Any]:
     authority = _required_mapping(declaration.get("authority"), "projection authority")
     if authority.get("effect_authority") is not False:
@@ -242,6 +244,11 @@ def _projection_input(
             "git": {"commit": commit, "tree": tree},
             "bindings": bindings,
             "documents": documents,
+        },
+        "documents": {
+            "copy": copy,
+            "view_profile": view_profile,
+            "quality_contract": quality_contract,
         },
         "semantics": {"nodes": nodes, "relations": relations},
         "view": {"nodes": node_owners, "relations": relation_owners},
@@ -284,6 +291,8 @@ def export_projection_input(
     document_paths = {item["id"]: item["path"] for item in documents}
     semantic_graph = _json(document_bytes["semantic_graph"], path=document_paths["semantic_graph"])
     view_profile = _json(document_bytes["view_profile"], path=document_paths["view_profile"])
+    copy = _json(document_bytes["copy"], path=document_paths["copy"])
+    quality_contract = document_bytes["quality_contract"].decode("utf-8")
     bindings = _bindings(repository, commit, declaration)
     _validate_source_alignment(semantic_graph, bindings)
     output = _projection_input(
@@ -294,6 +303,8 @@ def export_projection_input(
         tree=tree,
         bindings=bindings,
         documents=documents,
+        copy=copy,
+        quality_contract=quality_contract,
     )
     output["digest"] = _sha256(_canonical_bytes(output))
     return output

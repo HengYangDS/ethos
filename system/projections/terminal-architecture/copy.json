@@ -1,0 +1,137 @@
+{
+  "schema": "ethos.terminal-copy/v1",
+  "language": "English with one bounded Chinese brand mark",
+  "allowed_han_sequences": [
+    "问道"
+  ],
+  "brand": "ETHOS · 问道",
+  "title": "CONTINUABLE REPOSITORY REALITY",
+  "subtitle": "Bind intent. Explore in parallel. Prove before judgment. Apply exact effects. Preserve what makes change continuable.",
+  "law": "CAPABILITY SERVES · AUTHORITY BOUNDS · EVIDENCE GROUNDS · REALITY ENDURES",
+  "terminal_law": "LOCAL AUTHORITY · LOCAL JUDGMENT · LOCAL EFFECT",
+  "thesis": "ETHOS is the Git-native proof-carrying compiler and transaction protocol that preserves intent, narrows change, admits one exact effect, and leaves enough evidence for independent verification, recovery, and succession.",
+  "sections": {
+    "mechanism": "BOUNDED CHANGE",
+    "ecology": "ONE KERNEL · LOCAL REPOSITORY REALITIES"
+  },
+  "labels": {
+    "brand": "ETHOS · 问道",
+    "axis": "ACCEPTED ROOT LINEAGE",
+    "before": "ACCEPTED ROOT n",
+    "future": "OPEN FUTURE",
+    "grounds": "DURABLE GROUNDS",
+    "authority_gap": "AUTHORITY ENDS",
+    "lanes": "ISOLATED CANDIDATE LANES",
+    "lane_detail": "worktree · Lease · scope/effect · prewrite",
+    "effect": "ONE EXACT EFFECT",
+    "projections": "CLI · SDK · MCP/A2A · IDE · CI",
+    "entry": "ENTRY CONDITIONS",
+    "ecology_law": "authority, judgment, and accepted truth stay local",
+    "publication": "PUBLICATION IS A PROJECTION, NOT ADOPTION",
+    "candidate_axis": "CANDIDATE TRAIN · SERIAL EFFECTS OVER PARALLEL WORK",
+    "refresh": "RETAINED LANE · STALE BASE · REFRESH · RE-PROVE"
+  },
+  "nodes": {
+    "authority": [
+      "BOUNDED AUTHORITY",
+      "subject · scope · validity"
+    ],
+    "commitment": [
+      "COMMITMENT",
+      "intent · invariants · acceptance"
+    ],
+    "action-joint": [
+      "COMPILE",
+      "fresh facts · deterministic plan"
+    ],
+    "agency": [
+      "REPLACEABLE CAPABILITY",
+      "agent · Skills · tools"
+    ],
+    "recovery": [
+      "RECOVER",
+      "loss / unknown outcome · re-observe · recompile"
+    ],
+    "worlds": [
+      "WORK LANE FIELD",
+      "COOPERATE · disjoint / ordered",
+      "PROVE · COMPARE / DEPEND / CONFLICT",
+      "ADMIT · CONTINUE · HOLD · RETIRE AFTER PROOF"
+    ],
+    "proof": [
+      "PROOF FIELD",
+      "claims · scope · verifier"
+    ],
+    "effect-joint": [
+      "CLOSEOUT",
+      "proved candidate · expected root",
+      "PASS only · else no accepted-root advance"
+    ],
+    "cas": [
+      "ACCEPTED-ROOT CAS",
+      "linearizes the accepted root only"
+    ],
+    "accepted-state": [
+      "ACCEPTED ROOT n",
+      "current accepted repository state"
+    ],
+    "accepted-next": [
+      "ACCEPTED ROOT n+1",
+      "post-observed · accepted"
+    ],
+    "attestation": [
+      "ATTESTATION",
+      "evidence-bound · durable"
+    ],
+    "reauthorization": [
+      "AUTHORIZED SELECTION",
+      "fresh subject · scope"
+    ],
+    "commitment-next": [
+      "COMMITMENT n+1",
+      "bounded intent"
+    ],
+    "brownfield": [
+      "BROWNFIELD",
+      "inherit history · preserve unrelated truth"
+    ],
+    "greenfield": [
+      "GREENFIELD",
+      "founding intent · minimal native scaffold"
+    ],
+    "self": [
+      "SELF-GOVERNANCE",
+      "model gap · promote the model · same aperture"
+    ],
+    "adopter-peer": [
+      "AUTONOMOUS ADOPTER",
+      "local authority · judgment · reality"
+    ],
+    "publication-remote": [
+      "PUBLICATION REMOTE",
+      "selected ref · remote CAS · no truth transfer"
+    ],
+    "conformance": [
+      "SEMANTIC KERNEL · CURRENT BINDING",
+      "OpenSpec + Git · alternatives must re-prove every invariant"
+    ],
+    "candidate-state": [
+      "CANDIDATE n",
+      "shared exact base"
+    ],
+    "candidate-gate": [
+      "ADMIT ONE",
+      "authorized proof · fresh HEAD",
+      "PASS only · else no candidate advance"
+    ],
+    "candidate-cas": [
+      "CANDIDATE CAS",
+      "linearizes one candidate ref only"
+    ],
+    "candidate-state-next": [
+      "CANDIDATE n+1",
+      "post-observed"
+    ]
+  },
+  "carriers": ""
+}

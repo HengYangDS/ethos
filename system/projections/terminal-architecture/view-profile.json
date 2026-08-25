@@ -1,0 +1,4125 @@
+{
+  "schema": "ethos.terminal-view-profile/v1",
+  "status": "normative quotient for one terminal architecture view; not a completion claim",
+  "graph": "semantic-graph.json",
+  "meta": {
+    "id": "commitment-to-trustworthy-repository-reality",
+    "brand_mark": "问道",
+    "language": "en-with-one-brand-mark",
+    "allowed_han_sequences": [
+      "问道"
+    ],
+    "purpose": "Show ETHOS as a repository-native constitutional narrow waist: bounded intent and authority produce relation-aware cooperative or comparative Work Lanes; evidence governs admission, refresh, hold, or retirement; candidate and accepted refs advance through distinct exact-CAS boundaries; durable grounds preserve recovery, succession, and autonomous adoption.",
+    "false_readings_to_prevent": [
+      "workflow engine",
+      "central CAS or truth service",
+      "proof system that grants authority",
+      "repository template or cloning system",
+      "agent or skill orchestrator",
+      "OpenSpec or Git wrapper"
+    ],
+    "maturity_display": "Terminal-design concepts must remain visually distinguishable from current implemented mechanisms.",
+    "projection_rule": "Every graph node and edge is either projected exactly once or omitted once with one explicit absence reason."
+  },
+  "visual_grammar": {
+    "nucleus": "accepted_repository_reality_axis",
+    "primary_axes": [
+      "accepted_reality_axis",
+      "durable_ground_lineage"
+    ],
+    "fields": [
+      "entry_conditions",
+      "replaceable_capability",
+      "candidate_worlds",
+      "bounded_proof",
+      "effect_joint",
+      "repository_ecology",
+      "publication_projection"
+    ],
+    "mandatory_topology": [
+      "accepted repository reality is the dominant horizontal axis",
+      "Commitment and Attestation form the only durable ground lineage",
+      "authority is bounded and visibly terminates before fresh selection",
+      "candidate Work Lanes branch from one exact candidate base and remain isolated until proof",
+      "fresh recheck and exact Git CAS form one local effect joint",
+      "actor session host skill and native tool loss cannot break semantic or accepted-reality continuity",
+      "Brownfield and Greenfield are entry conditions; self-governance and autonomous peer adoption use the same kernel without privileged paths",
+      "publication remote is an outward effect target, never an autonomous adopter or truth owner",
+      "OpenSpec and Git are selected carriers; Skills and native tools are capabilities only"
+    ],
+    "primitive_contract": {
+      "authority": "model/view-profile.json#visual_grammar.primitive_contract",
+      "law": "Every rendered primitive has exactly one visual owner, one bounded purpose, explicit execution constraints, and no authority beyond its semantic or compositional role.",
+      "primitive_kinds": {
+        "point": "A localized state, judgment, proof, endpoint, or disposition mark; never an unexplained ornament.",
+        "line": "A declared continuity, relation, boundary, flow, or guide; every interruption is semantic or forbidden.",
+        "surface": "A field, seam, payload, or geometry boundary with explicit ownership and paint order.",
+        "text": "Visible language sourced only from the canonical copy deck and placed by declared projection geometry.",
+        "machine": "Non-authoring geometry retained solely for deterministic validation and projection traceability.",
+        "definition": "A shared paint or marker definition that creates no independent visible meaning."
+      },
+      "modifier_classes": [
+        "accepted-state-detail",
+        "accepted-state-label",
+        "candidate-cas-label",
+        "cas-label",
+        "compact-label",
+        "comparative",
+        "comparative-branch",
+        "cooperative",
+        "cooperative-branch",
+        "gate-detail",
+        "lane-disposition-label",
+        "lane-mode-label",
+        "successor-detail"
+      ],
+      "families": {
+        "canvas_field": {
+          "primitive_kinds": [
+            "surface"
+          ],
+          "classes": [
+            "ground",
+            "grain"
+          ],
+          "purpose": "Provide a quiet, printable field and subordinate material texture.",
+          "constraints": [
+            "full-canvas only",
+            "no semantic state",
+            "grain remains sub-perceptual"
+          ]
+        },
+        "visible_copy": {
+          "primitive_kinds": [
+            "text"
+          ],
+          "classes": [
+            "brand",
+            "title",
+            "subtitle",
+            "section",
+            "axis-label",
+            "refresh-label",
+            "lane-contract-label",
+            "node-label",
+            "node-detail"
+          ],
+          "purpose": "Name and qualify the architecture in one controlled reading hierarchy.",
+          "constraints": [
+            "exact copy-deck leaf",
+            "declared placement",
+            "no overflow",
+            "no collision",
+            "English except 问道"
+          ]
+        },
+        "composition_guides": {
+          "primitive_kinds": [
+            "line",
+            "point"
+          ],
+          "classes": [
+            "section-rule",
+            "ecology-guide",
+            "ecology-node"
+          ],
+          "purpose": "Organize strata and bind local repository realities without asserting authority.",
+          "constraints": [
+            "subordinate contrast",
+            "no arrow",
+            "ecology guide excludes publication"
+          ]
+        },
+        "authority_boundary": {
+          "primitive_kinds": [
+            "line",
+            "point",
+            "surface"
+          ],
+          "classes": [
+            "authority-line",
+            "authority-link",
+            "authority-gap",
+            "authority-arc",
+            "authority-seed",
+            "succession-flow"
+          ],
+          "purpose": "Show bounded authorization, its exact termination, and explicit successor selection.",
+          "constraints": [
+            "single exact rupture",
+            "no inherited authority",
+            "successor requires authorized selection"
+          ]
+        },
+        "durable_grounds": {
+          "primitive_kinds": [
+            "line",
+            "point"
+          ],
+          "classes": [
+            "ground-lineage",
+            "root-ring",
+            "root-seed",
+            "root-filament",
+            "root-stem",
+            "attest-rise"
+          ],
+          "purpose": "Show Commitment and Attestation as durable grounds across effect and succession.",
+          "constraints": [
+            "attestation follows post-observation",
+            "grounds do not grant authority",
+            "direction is explicit where causal"
+          ]
+        },
+        "transaction_flow": {
+          "primitive_kinds": [
+            "line"
+          ],
+          "classes": [
+            "flow-link",
+            "candidate-link",
+            "candidate-effect-link",
+            "candidate-refresh",
+            "effect-link",
+            "accepted-axis",
+            "accepted-link"
+          ],
+          "purpose": "Carry candidate and accepted-state transitions through the two independent exact-effect boundaries.",
+          "constraints": [
+            "declared ports",
+            "fail-closed gates",
+            "candidate CAS distinct from accepted-root CAS",
+            "unknown outcome forbids blind replay"
+          ]
+        },
+        "intent_and_state": {
+          "primitive_kinds": [
+            "line",
+            "point",
+            "surface"
+          ],
+          "classes": [
+            "compile",
+            "plan-kernel",
+            "state-line",
+            "state"
+          ],
+          "purpose": "Render deterministic intent compilation and explicit repository states.",
+          "constraints": [
+            "state remains discrete on a continuous lineage",
+            "compiler does not own authority"
+          ]
+        },
+        "replaceable_capability": {
+          "primitive_kinds": [
+            "line"
+          ],
+          "classes": [
+            "actor",
+            "capability-feed"
+          ],
+          "purpose": "Supply replaceable agent, skill, session, host, and native-tool capability.",
+          "constraints": [
+            "never owns truth",
+            "never owns lifecycle",
+            "loss cannot break durable continuity"
+          ]
+        },
+        "recovery": {
+          "primitive_kinds": [
+            "line",
+            "point"
+          ],
+          "classes": [
+            "recovery-curve",
+            "recovery-dot",
+            "recovery-feed"
+          ],
+          "purpose": "Return loss or unknown outcome to observation and recompilation.",
+          "constraints": [
+            "never crosses directly into accepted reality",
+            "no blind replay",
+            "dashed as conditional"
+          ]
+        },
+        "lane_isolation": {
+          "primitive_kinds": [
+            "line",
+            "point"
+          ],
+          "classes": [
+            "lane",
+            "lane-trunk",
+            "lane-worktree",
+            "lane-lease",
+            "lane-prewrite",
+            "successive-rail",
+            "comparison-feed",
+            "selection-throat"
+          ],
+          "purpose": "Show isolated worktrees, bounded ownership, prewrite, cooperation, competition, and narrow serialization.",
+          "constraints": [
+            "one worktree lease and prewrite per lane",
+            "lanes stay distinct until judgment",
+            "cooperation and comparison remain distinguishable"
+          ]
+        },
+        "lane_proof": {
+          "primitive_kinds": [
+            "point"
+          ],
+          "classes": [
+            "lane-proof-seal"
+          ],
+          "purpose": "Bind proof locally to each lane before comparison or disposition.",
+          "constraints": [
+            "one per lane",
+            "precedes judgment",
+            "does not itself authorize effect"
+          ]
+        },
+        "lane_disposition": {
+          "primitive_kinds": [
+            "line",
+            "point"
+          ],
+          "classes": [
+            "lane-eligible",
+            "later-eligible",
+            "comparison-node",
+            "selected-disposition",
+            "continue-disposition",
+            "hold-disposition",
+            "retire-disposition"
+          ],
+          "purpose": "Distinguish admission, continuation, hold, non-selection, and proved retirement.",
+          "constraints": [
+            "non-selection is not retirement",
+            "retirement follows proof",
+            "uncertain outcomes remain visually distinct"
+          ]
+        },
+        "proof_field": {
+          "primitive_kinds": [
+            "line",
+            "point"
+          ],
+          "classes": [
+            "proof-rail",
+            "proof-orbit",
+            "proof-seal"
+          ],
+          "purpose": "Bind exact claims, scope, and verifier evidence before admission.",
+          "constraints": [
+            "proof remains scoped",
+            "verifier identity retained",
+            "proof cannot amplify authority"
+          ]
+        },
+        "admission_gate": {
+          "primitive_kinds": [
+            "line",
+            "point"
+          ],
+          "classes": [
+            "admission",
+            "pass",
+            "admission-rail",
+            "candidate-admission",
+            "candidate-pass",
+            "candidate-admission-rail"
+          ],
+          "purpose": "Separate evaluation from the only runner permitted to approach a CAS boundary.",
+          "constraints": [
+            "PASS alone permits effect",
+            "BLOCK and UNKNOWN produce no effect",
+            "gate and CAS remain distinct"
+          ]
+        },
+        "exact_cas": {
+          "primitive_kinds": [
+            "surface"
+          ],
+          "classes": [
+            "cas-halo",
+            "cas-seam",
+            "candidate-cas-seam"
+          ],
+          "purpose": "Mark the narrow linearization point where one exact compare-and-swap may change state.",
+          "constraints": [
+            "thin high-contrast seam",
+            "no decorative duplicate aperture",
+            "accepted and candidate CAS remain distinct"
+          ]
+        },
+        "repository_locality": {
+          "primitive_kinds": [
+            "line",
+            "point"
+          ],
+          "classes": [
+            "repo-line",
+            "local-aperture",
+            "local-judgment",
+            "remote",
+            "remote-observe"
+          ],
+          "purpose": "Keep authority, judgment, observation, and exact effects local to each repository or remote target.",
+          "constraints": [
+            "repository rail continuous beneath aperture",
+            "one aperture per local reality",
+            "publication transfers no truth"
+          ]
+        },
+        "scenario_origin": {
+          "primitive_kinds": [
+            "line",
+            "point",
+            "surface"
+          ],
+          "classes": [
+            "history",
+            "seed",
+            "scaffold",
+            "model-gap",
+            "promotion",
+            "claim",
+            "payload"
+          ],
+          "purpose": "Differentiate Brownfield, Greenfield, self-model repair, and adopter claim intake without changing the kernel.",
+          "constraints": [
+            "one compact scenario glyph",
+            "subordinate to repository reality",
+            "no privileged path"
+          ]
+        },
+        "shared_grammar": {
+          "primitive_kinds": [
+            "line"
+          ],
+          "classes": [
+            "grammar-wave",
+            "projection-rays"
+          ],
+          "purpose": "Show the current OpenSpec plus Git binding and replaceable outward projections as carriers, not essence.",
+          "constraints": [
+            "kernel preserved across adapters",
+            "no carrier becomes product authority"
+          ]
+        },
+        "geometry_owner": {
+          "primitive_kinds": [
+            "machine"
+          ],
+          "classes": [
+            "node-boundary"
+          ],
+          "purpose": "Provide exact invisible owner bounds for layout, routing, and collision verification.",
+          "constraints": [
+            "no visible paint",
+            "one per visual node",
+            "must match profile rectangle"
+          ]
+        },
+        "semantic_witness": {
+          "primitive_kinds": [
+            "machine"
+          ],
+          "classes": [
+            "semantic-node",
+            "edge-endpoint",
+            "edge-trace"
+          ],
+          "purpose": "Carry semantic graph identities into the artifact for deterministic projection audits.",
+          "constraints": [
+            "not visibly painted",
+            "never becomes a second human-facing diagram",
+            "exact graph identity"
+          ]
+        },
+        "shared_definition": {
+          "primitive_kinds": [
+            "definition"
+          ],
+          "classes": [],
+          "purpose": "Define shared gradients, filters, and arrowheads once without adding independent marks.",
+          "constraints": [
+            "inside defs only",
+            "referenced by declared families",
+            "no semantic authority"
+          ]
+        }
+      },
+      "exact_invariants": {
+        "authority_rupture": {
+          "left_path": "authority-generation-one",
+          "right_path": "authority-generation-two",
+          "gap_element": "authority-gap"
+        },
+        "repository_rail_aperture_contact": {
+          "repositories": [
+            "brownfield",
+            "greenfield",
+            "self",
+            "adopter-peer",
+            "publication-remote"
+          ],
+          "mode": "continuous-under-aperture"
+        },
+        "ecology_guide": {
+          "local_reality_start_x": 300,
+          "local_reality_end_x": 4350,
+          "publication_start_x": 4800,
+          "y": 2880
+        }
+      },
+      "class_kinds": {
+        "accepted-axis": "line",
+        "accepted-link": "line",
+        "actor": "line",
+        "admission": "point",
+        "admission-rail": "line",
+        "attest-rise": "line",
+        "authority-arc": "line",
+        "authority-gap": "surface",
+        "authority-line": "line",
+        "authority-link": "line",
+        "authority-seed": "point",
+        "axis-label": "text",
+        "brand": "text",
+        "candidate-admission": "point",
+        "candidate-admission-rail": "line",
+        "candidate-cas-seam": "surface",
+        "candidate-effect-link": "line",
+        "candidate-link": "line",
+        "candidate-pass": "point",
+        "candidate-refresh": "line",
+        "capability-feed": "line",
+        "cas-halo": "surface",
+        "cas-seam": "surface",
+        "claim": "line",
+        "comparison-feed": "line",
+        "comparison-node": "point",
+        "compile": "line",
+        "continue-disposition": "line",
+        "ecology-guide": "line",
+        "ecology-node": "point",
+        "edge-endpoint": "machine",
+        "edge-trace": "machine",
+        "effect-link": "line",
+        "flow-link": "line",
+        "grain": "surface",
+        "grammar-wave": "line",
+        "ground": "surface",
+        "ground-lineage": "line",
+        "history": "line",
+        "hold-disposition": "point",
+        "lane": "line",
+        "lane-contract-label": "text",
+        "lane-eligible": "point",
+        "lane-lease": "point",
+        "lane-prewrite": "line",
+        "lane-proof-seal": "point",
+        "lane-trunk": "line",
+        "lane-worktree": "point",
+        "later-eligible": "point",
+        "local-aperture": "point",
+        "local-judgment": "point",
+        "model-gap": "line",
+        "node-boundary": "machine",
+        "node-detail": "text",
+        "node-label": "text",
+        "pass": "point",
+        "payload": "surface",
+        "plan-kernel": "surface",
+        "projection-rays": "line",
+        "promotion": "line",
+        "proof-orbit": "point",
+        "proof-rail": "line",
+        "proof-seal": "point",
+        "recovery-curve": "line",
+        "recovery-dot": "point",
+        "recovery-feed": "line",
+        "refresh-label": "text",
+        "remote": "line",
+        "remote-observe": "point",
+        "repo-line": "line",
+        "retire-disposition": "point",
+        "root-filament": "line",
+        "root-ring": "point",
+        "root-seed": "point",
+        "root-stem": "line",
+        "scaffold": "line",
+        "section": "text",
+        "section-rule": "line",
+        "seed": "point",
+        "selected-disposition": "line",
+        "selection-throat": "line",
+        "semantic-node": "machine",
+        "state": "point",
+        "state-line": "line",
+        "subtitle": "text",
+        "succession-flow": "line",
+        "successive-rail": "line",
+        "title": "text"
+      },
+      "class_tags": {
+        "accepted-axis": "path",
+        "accepted-link": "path",
+        "actor": "path",
+        "admission": "circle",
+        "admission-rail": "path",
+        "attest-rise": "path",
+        "authority-arc": "path",
+        "authority-gap": "rect",
+        "authority-line": "path",
+        "authority-link": "path",
+        "authority-seed": "circle",
+        "axis-label": "text",
+        "brand": "text",
+        "candidate-admission": "circle",
+        "candidate-admission-rail": "path",
+        "candidate-cas-seam": "rect",
+        "candidate-effect-link": "path",
+        "candidate-link": "path",
+        "candidate-pass": "circle",
+        "candidate-refresh": "path",
+        "capability-feed": "path",
+        "cas-halo": "ellipse",
+        "cas-seam": "rect",
+        "claim": "path",
+        "comparison-feed": "path",
+        "comparison-node": "circle",
+        "compile": "path",
+        "continue-disposition": "path",
+        "ecology-guide": "path",
+        "ecology-node": "circle",
+        "edge-endpoint": "circle",
+        "edge-trace": "path",
+        "effect-link": "path",
+        "flow-link": "path",
+        "grain": "rect",
+        "grammar-wave": "path",
+        "ground": "rect",
+        "ground-lineage": "path",
+        "history": "path",
+        "hold-disposition": "circle",
+        "lane": "path",
+        "lane-contract-label": "text",
+        "lane-eligible": "circle",
+        "lane-lease": "ellipse",
+        "lane-prewrite": "path",
+        "lane-proof-seal": "circle",
+        "lane-trunk": "path",
+        "lane-worktree": "circle",
+        "later-eligible": "circle",
+        "local-aperture": "circle",
+        "local-judgment": "circle",
+        "model-gap": "path",
+        "node-boundary": "rect",
+        "node-detail": "text",
+        "node-label": "text",
+        "pass": "circle",
+        "payload": "rect",
+        "plan-kernel": "rect",
+        "projection-rays": "path",
+        "promotion": "path",
+        "proof-orbit": "circle",
+        "proof-rail": "path",
+        "proof-seal": "circle",
+        "recovery-curve": "path",
+        "recovery-dot": "circle",
+        "recovery-feed": "path",
+        "refresh-label": "text",
+        "remote": "path",
+        "remote-observe": "circle",
+        "repo-line": "path",
+        "retire-disposition": "circle",
+        "root-filament": "path",
+        "root-ring": "circle",
+        "root-seed": "circle",
+        "root-stem": "path",
+        "scaffold": "path",
+        "section": "text",
+        "section-rule": "path",
+        "seed": "circle",
+        "selected-disposition": "path",
+        "selection-throat": "path",
+        "semantic-node": "circle",
+        "state": "circle",
+        "state-line": "path",
+        "subtitle": "text",
+        "succession-flow": "path",
+        "successive-rail": "path",
+        "title": "text"
+      },
+      "definition_tags": [
+        "path"
+      ]
+    }
+  },
+  "aggregates": {
+    "transient-capability-field": {
+      "members": [
+        "actor",
+        "session_host",
+        "skills",
+        "owner_native_tools"
+      ],
+      "allowed_kinds": [
+        "execution",
+        "capability"
+      ],
+      "semantic_separation": "authority must remain outside this aggregate"
+    },
+    "tri-state-action": {
+      "members": [
+        "action_pass",
+        "action_block",
+        "action_unknown"
+      ],
+      "allowed_kinds": [
+        "verdict"
+      ],
+      "preserve_members": true
+    },
+    "tri-state-effect": {
+      "members": [
+        "effect_pass",
+        "effect_block",
+        "effect_unknown"
+      ],
+      "allowed_kinds": [
+        "verdict"
+      ],
+      "preserve_members": true
+    },
+    "lane-bundle": {
+      "members": [
+        "work_lane",
+        "linked_worktree",
+        "lease",
+        "candidate_bundle"
+      ],
+      "allowed_kinds": [
+        "coordination",
+        "repository_state"
+      ],
+      "preserve_multiplicity": true
+    },
+    "proof-field": {
+      "members": [
+        "local_claim",
+        "independent_claim",
+        "hosted_claim",
+        "composite_claim"
+      ],
+      "allowed_kinds": [
+        "proof_claim"
+      ],
+      "preserve_plane_identity": true
+    },
+    "outward-projections": {
+      "members": [
+        "cli_json",
+        "sdk_agent",
+        "mcp_a2a",
+        "ci_forge"
+      ],
+      "allowed_kinds": [
+        "projection"
+      ]
+    },
+    "autonomous-adopter-repositories": {
+      "members": [
+        "brownfield_repo",
+        "greenfield_repo",
+        "ethos_repo",
+        "adopter_peer_repo"
+      ],
+      "allowed_kinds": [
+        "repository"
+      ],
+      "preserve_local_authority": true
+    },
+    "publication-target": {
+      "members": [
+        "publication_remote"
+      ],
+      "allowed_kinds": [
+        "publication_target"
+      ],
+      "preserve_remote_effect_boundary": true
+    },
+    "local-apertures": {
+      "members": [
+        "brownfield_cas",
+        "greenfield_cas",
+        "repo_cas",
+        "adopter_peer_cas",
+        "publication_remote_cas"
+      ],
+      "allowed_kinds": [
+        "effect_aperture"
+      ],
+      "preserve_reality_boundary": true
+    },
+    "local-adopter-conformance-judgments": {
+      "members": [
+        "brownfield_conformance",
+        "greenfield_conformance",
+        "ethos_conformance",
+        "adopter_peer_conformance"
+      ],
+      "allowed_kinds": [
+        "conformance"
+      ],
+      "preserve_local_judgment": true
+    },
+    "publication-observation": {
+      "members": [
+        "publication_remote_observation"
+      ],
+      "allowed_kinds": [
+        "observation"
+      ],
+      "preserve_remote_observation_boundary": true
+    },
+    "carriers": {
+      "members": [
+        "openspec_carrier",
+        "git_substrate",
+        "protocol_grammar"
+      ],
+      "allowed_kinds": [
+        "carrier"
+      ],
+      "preserve_non_authority": true
+    }
+  },
+  "node_projection": {
+    "authorized_subject": {
+      "view_id": "authority",
+      "mode": "contained",
+      "semantic_role": "authority"
+    },
+    "authority_reference": {
+      "view_id": "authority",
+      "mode": "contained",
+      "semantic_role": "authority-binding"
+    },
+    "commitment_n": {
+      "view_id": "commitment",
+      "mode": "direct",
+      "semantic_role": "durable-root"
+    },
+    "fresh_facts": {
+      "view_id": "action-joint",
+      "mode": "direct",
+      "semantic_role": "observation"
+    },
+    "prior_attestations": {
+      "view_id": "commitment",
+      "mode": "contained",
+      "semantic_role": "applicable-history"
+    },
+    "compile_plan": {
+      "view_id": "action-joint",
+      "mode": "contained",
+      "semantic_role": "compile"
+    },
+    "transition_plan": {
+      "view_id": "action-joint",
+      "mode": "direct",
+      "semantic_role": "transient-ir"
+    },
+    "action_evaluation": {
+      "view_id": "action-joint",
+      "mode": "contained",
+      "semantic_role": "evaluation"
+    },
+    "action_pass": {
+      "view_id": "action-joint",
+      "mode": "contained",
+      "semantic_role": "verdict"
+    },
+    "action_block": {
+      "view_id": "action-joint",
+      "mode": "contained",
+      "semantic_role": "verdict"
+    },
+    "action_unknown": {
+      "view_id": "action-joint",
+      "mode": "contained",
+      "semantic_role": "verdict"
+    },
+    "skills": {
+      "view_id": "agency",
+      "mode": "contained",
+      "semantic_role": "capability"
+    },
+    "owner_native_tools": {
+      "view_id": "agency",
+      "mode": "contained",
+      "semantic_role": "capability"
+    },
+    "actor": {
+      "view_id": "agency",
+      "mode": "direct",
+      "semantic_role": "actor"
+    },
+    "session_host": {
+      "view_id": "agency",
+      "mode": "contained",
+      "semantic_role": "environment"
+    },
+    "executor_loss": {
+      "view_id": "recovery",
+      "mode": "direct",
+      "semantic_role": "interruption"
+    },
+    "work_lane": {
+      "view_id": "worlds",
+      "mode": "repeated",
+      "semantic_role": "candidate-world"
+    },
+    "linked_worktree": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "isolation"
+    },
+    "lease": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "coordination"
+    },
+    "scope_effect_binding": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "scope-effect-binding"
+    },
+    "prewrite_admission": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "prewrite-admission"
+    },
+    "git_common_state": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "coordination-substrate"
+    },
+    "git_common_activation": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "common-activation"
+    },
+    "runtime_generation_retirement": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "runtime-retirement"
+    },
+    "repository_family_convergence": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "family-convergence"
+    },
+    "exact_base": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "exact-base"
+    },
+    "candidate_bundle": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "convergence"
+    },
+    "candidate_state": {
+      "view_id": "candidate-state",
+      "mode": "direct",
+      "semantic_role": "candidate-state"
+    },
+    "local_claim": {
+      "view_id": "proof",
+      "mode": "contained",
+      "semantic_role": "local-claim"
+    },
+    "lane_proof_claim": {
+      "view_id": "proof",
+      "mode": "contained",
+      "semantic_role": "lane-bound-proof-claim"
+    },
+    "independent_verifier": {
+      "view_id": "proof",
+      "mode": "contained",
+      "semantic_role": "verifier"
+    },
+    "independent_claim": {
+      "view_id": "proof",
+      "mode": "contained",
+      "semantic_role": "independent-claim"
+    },
+    "hosted_claim": {
+      "view_id": "proof",
+      "mode": "contained",
+      "semantic_role": "hosted-claim"
+    },
+    "composite_verifier": {
+      "view_id": "proof",
+      "mode": "contained",
+      "semantic_role": "composite-verifier"
+    },
+    "composite_claim": {
+      "view_id": "proof",
+      "mode": "contained",
+      "semantic_role": "composite-claim"
+    },
+    "effect_evaluation": {
+      "view_id": "effect-joint",
+      "mode": "direct",
+      "semantic_role": "evaluation"
+    },
+    "effect_pass": {
+      "view_id": "effect-joint",
+      "mode": "contained",
+      "semantic_role": "verdict"
+    },
+    "effect_block": {
+      "view_id": "effect-joint",
+      "mode": "contained",
+      "semantic_role": "verdict"
+    },
+    "effect_unknown": {
+      "view_id": "effect-joint",
+      "mode": "contained",
+      "semantic_role": "verdict"
+    },
+    "effect_recheck": {
+      "view_id": "effect-joint",
+      "mode": "contained",
+      "semantic_role": "fresh-recheck"
+    },
+    "admitted_runner": {
+      "view_id": "effect-joint",
+      "mode": "contained",
+      "semantic_role": "admitted-runner"
+    },
+    "repo_cas": {
+      "view_id": "cas",
+      "mode": "direct",
+      "semantic_role": "effect-aperture"
+    },
+    "post_observation": {
+      "view_id": "accepted-next",
+      "mode": "contained",
+      "semantic_role": "post-observation"
+    },
+    "accepted_n": {
+      "view_id": "accepted-state",
+      "mode": "direct",
+      "semantic_role": "accepted-pre-state"
+    },
+    "accepted_next": {
+      "view_id": "accepted-next",
+      "mode": "direct",
+      "semantic_role": "version-state"
+    },
+    "outcome_unknown": {
+      "view_id": "accepted-next",
+      "mode": "contained",
+      "semantic_role": "unknown-outcome"
+    },
+    "attestation_n": {
+      "view_id": "attestation",
+      "mode": "direct",
+      "semantic_role": "durable-root"
+    },
+    "authorized_selection": {
+      "view_id": "reauthorization",
+      "mode": "direct",
+      "semantic_role": "reauthorization"
+    },
+    "selection_hold": {
+      "view_id": "reauthorization",
+      "mode": "contained",
+      "semantic_role": "hold-without-successor"
+    },
+    "selection_done": {
+      "view_id": "reauthorization",
+      "mode": "contained",
+      "semantic_role": "bounded-obligation-done"
+    },
+    "commitment_next": {
+      "view_id": "commitment-next",
+      "mode": "direct",
+      "semantic_role": "durable-root"
+    },
+    "recovery_anchor": {
+      "view_id": "recovery",
+      "mode": "contained",
+      "semantic_role": "recovery"
+    },
+    "successor_actor": {
+      "view_id": "recovery",
+      "mode": "contained",
+      "semantic_role": "actor"
+    },
+    "model_gap": {
+      "view_id": "recovery",
+      "mode": "contained",
+      "semantic_role": "model-gap"
+    },
+    "model_promotion": {
+      "view_id": "recovery",
+      "mode": "contained",
+      "semantic_role": "model-promotion"
+    },
+    "cli_json": {
+      "view_id": "attestation",
+      "mode": "contained",
+      "semantic_role": "projection"
+    },
+    "sdk_agent": {
+      "view_id": "attestation",
+      "mode": "contained",
+      "semantic_role": "projection"
+    },
+    "mcp_a2a": {
+      "view_id": "attestation",
+      "mode": "contained",
+      "semantic_role": "projection"
+    },
+    "ci_forge": {
+      "view_id": "attestation",
+      "mode": "contained",
+      "semantic_role": "projection"
+    },
+    "brownfield_repo": {
+      "view_id": "brownfield",
+      "mode": "direct",
+      "semantic_role": "autonomous-repository"
+    },
+    "brownfield_cas": {
+      "view_id": "brownfield",
+      "mode": "contained",
+      "semantic_role": "local-aperture"
+    },
+    "greenfield_repo": {
+      "view_id": "greenfield",
+      "mode": "direct",
+      "semantic_role": "autonomous-repository"
+    },
+    "greenfield_cas": {
+      "view_id": "greenfield",
+      "mode": "contained",
+      "semantic_role": "local-aperture"
+    },
+    "ethos_repo": {
+      "view_id": "self",
+      "mode": "direct",
+      "semantic_role": "autonomous-repository"
+    },
+    "owner_native_artifacts": {
+      "view_id": "self",
+      "mode": "contained",
+      "semantic_role": "owner-native-artifacts"
+    },
+    "durable_evidence": {
+      "view_id": "self",
+      "mode": "contained",
+      "semantic_role": "durable-evidence"
+    },
+    "rebuildable_outputs": {
+      "view_id": "self",
+      "mode": "contained",
+      "semantic_role": "rebuildable-projections"
+    },
+    "openspec_carrier": {
+      "view_id": "commitment",
+      "mode": "contained",
+      "semantic_role": "current-carrier"
+    },
+    "git_substrate": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "current-carrier"
+    },
+    "protocol_grammar": {
+      "view_id": "conformance",
+      "mode": "direct",
+      "semantic_role": "exchangeable-protocol-grammar"
+    },
+    "brownfield_conformance": {
+      "view_id": "brownfield",
+      "mode": "contained",
+      "semantic_role": "local-conformance-judgment"
+    },
+    "greenfield_conformance": {
+      "view_id": "greenfield",
+      "mode": "contained",
+      "semantic_role": "local-conformance-judgment"
+    },
+    "ethos_conformance": {
+      "view_id": "self",
+      "mode": "contained",
+      "semantic_role": "local-conformance-judgment"
+    },
+    "predecessor_set": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "lineage-input"
+    },
+    "change_lineage": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "lineage"
+    },
+    "scoped_concurrency": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "coordination"
+    },
+    "publication_remote": {
+      "view_id": "publication-remote",
+      "mode": "direct",
+      "semantic_role": "publication-target"
+    },
+    "publication_remote_cas": {
+      "view_id": "publication-remote",
+      "mode": "contained",
+      "semantic_role": "local-aperture"
+    },
+    "publication_remote_observation": {
+      "view_id": "publication-remote",
+      "mode": "contained",
+      "semantic_role": "fresh-remote-ref-observation"
+    },
+    "adopter_peer_repo": {
+      "view_id": "adopter-peer",
+      "mode": "direct",
+      "semantic_role": "autonomous-repository"
+    },
+    "adopter_peer_cas": {
+      "view_id": "adopter-peer",
+      "mode": "contained",
+      "semantic_role": "local-aperture"
+    },
+    "adopter_peer_conformance": {
+      "view_id": "adopter-peer",
+      "mode": "contained",
+      "semantic_role": "local-conformance-judgment"
+    },
+    "candidate_integration_evaluation": {
+      "view_id": "candidate-gate",
+      "mode": "direct",
+      "semantic_role": "candidate-integration-gate"
+    },
+    "candidate_integration_pass": {
+      "view_id": "candidate-gate",
+      "mode": "contained",
+      "semantic_role": "candidate-pass"
+    },
+    "candidate_integration_block": {
+      "view_id": "candidate-gate",
+      "mode": "contained",
+      "semantic_role": "candidate-block"
+    },
+    "candidate_integration_unknown": {
+      "view_id": "candidate-gate",
+      "mode": "contained",
+      "semantic_role": "candidate-unknown"
+    },
+    "candidate_effect_recheck": {
+      "view_id": "candidate-gate",
+      "mode": "contained",
+      "semantic_role": "candidate-fresh-recheck"
+    },
+    "candidate_admitted_runner": {
+      "view_id": "candidate-gate",
+      "mode": "contained",
+      "semantic_role": "candidate-single-use-runner"
+    },
+    "candidate_cas": {
+      "view_id": "candidate-cas",
+      "mode": "direct",
+      "semantic_role": "candidate-linearization-point"
+    },
+    "candidate_next": {
+      "view_id": "candidate-state-next",
+      "mode": "direct",
+      "semantic_role": "candidate-post-state"
+    },
+    "candidate_post_observation": {
+      "view_id": "candidate-state-next",
+      "mode": "contained",
+      "semantic_role": "candidate-post-observation"
+    },
+    "candidate_effect_attestation": {
+      "view_id": "candidate-state-next",
+      "mode": "contained",
+      "semantic_role": "candidate-effect-attestation"
+    },
+    "candidate_base_stale": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "stale-lane-recovery"
+    },
+    "lane_relation_judgment": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "lane-relation"
+    },
+    "lane_experiment_protocol": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "experiment-protocol"
+    },
+    "lane_comparative_claim": {
+      "view_id": "proof",
+      "mode": "contained",
+      "semantic_role": "comparative-evidence"
+    },
+    "lane_disposition": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "lane-disposition"
+    },
+    "lane_retirement": {
+      "view_id": "worlds",
+      "mode": "contained",
+      "semantic_role": "evidence-bound-retirement"
+    }
+  },
+  "edge_projection": {
+    "subject-delegates-commitment": {
+      "view_edge_id": "authority-to-commitment",
+      "mode": "direct"
+    },
+    "authority-binds-commitment": {
+      "view_edge_id": "authority-to-commitment",
+      "mode": "direct"
+    },
+    "carrier-realizes-commitment": {
+      "view_edge_id": "commitment-internal",
+      "mode": "contained"
+    },
+    "git-realizes-state": {
+      "view_edge_id": "worlds-to-accepted-state",
+      "mode": "direct"
+    },
+    "commitment-compile": {
+      "view_edge_id": "commitment-to-action-joint",
+      "mode": "direct"
+    },
+    "facts-compile": {
+      "view_edge_id": "action-joint-internal",
+      "mode": "contained"
+    },
+    "prior-attestations-compile": {
+      "view_edge_id": "commitment-to-action-joint",
+      "mode": "direct"
+    },
+    "compile-plan": {
+      "view_edge_id": "action-joint-internal",
+      "mode": "contained"
+    },
+    "plan-evaluate-action": {
+      "view_edge_id": "action-joint-internal",
+      "mode": "contained"
+    },
+    "action-pass-branch": {
+      "view_edge_id": "action-joint-internal",
+      "mode": "contained"
+    },
+    "action-block-branch": {
+      "view_edge_id": "action-joint-internal",
+      "mode": "contained"
+    },
+    "action-unknown-branch": {
+      "view_edge_id": "action-joint-internal",
+      "mode": "contained"
+    },
+    "plan-selects-skills": {
+      "view_edge_id": "action-joint-to-agency",
+      "mode": "direct"
+    },
+    "plan-selects-native-tools": {
+      "view_edge_id": "action-joint-to-agency",
+      "mode": "direct"
+    },
+    "subject-admits-actor": {
+      "view_edge_id": "authority-to-agency",
+      "mode": "direct"
+    },
+    "actor-in-session": {
+      "view_edge_id": "agency-internal",
+      "mode": "contained"
+    },
+    "pass-admits-actor": {
+      "view_edge_id": "action-joint-to-agency",
+      "mode": "direct"
+    },
+    "skills-enable-actor": {
+      "view_edge_id": "agency-internal",
+      "mode": "contained"
+    },
+    "tools-enable-actor": {
+      "view_edge_id": "agency-internal",
+      "mode": "contained"
+    },
+    "actor-executes-lane": {
+      "view_edge_id": "agency-to-worlds",
+      "mode": "direct"
+    },
+    "commitment-binds-lane": {
+      "view_edge_id": "commitment-to-worlds",
+      "mode": "direct"
+    },
+    "plan-binds-lane": {
+      "view_edge_id": "action-joint-to-worlds",
+      "mode": "direct"
+    },
+    "scope-effect-binds-lane": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "base-binds-lane": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "lane-coordinates-worktree": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "lease-coordinates-lane": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "local-state-coordinates-lease": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "exact-base-to-candidate": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "lane-to-candidate-bundle": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "lane-evaluates-prewrite": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "worktree-binds-prewrite": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "lease-binds-prewrite": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "lane-witnesses-proof": {
+      "view_edge_id": "worlds-to-proof",
+      "mode": "direct"
+    },
+    "candidate-state-witnesses-local": {
+      "view_edge_id": "worlds-to-proof",
+      "mode": "direct"
+    },
+    "candidate-state-to-independent": {
+      "view_edge_id": "worlds-to-proof",
+      "mode": "direct"
+    },
+    "independent-to-claim": {
+      "view_edge_id": "proof-internal",
+      "mode": "contained"
+    },
+    "local-claim-to-effect-evaluation": {
+      "view_edge_id": "proof-to-effect-joint",
+      "mode": "direct"
+    },
+    "independent-claim-to-effect-evaluation": {
+      "view_edge_id": "proof-to-effect-joint",
+      "mode": "direct"
+    },
+    "hosted-claim-to-effect-evaluation": {
+      "view_edge_id": "proof-to-effect-joint",
+      "mode": "direct"
+    },
+    "local-claim-to-composite": {
+      "view_edge_id": "proof-internal",
+      "mode": "contained"
+    },
+    "independent-claim-to-composite": {
+      "view_edge_id": "proof-internal",
+      "mode": "contained"
+    },
+    "composite-verifier-attests": {
+      "view_edge_id": "proof-internal",
+      "mode": "contained"
+    },
+    "composite-claim-to-effect-evaluation": {
+      "view_edge_id": "proof-to-effect-joint",
+      "mode": "direct"
+    },
+    "commitment-to-effect-evaluation": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "subject-authorizes-effect-evaluation": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "authority-binds-effect-evaluation": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "facts-bind-effect-evaluation": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "plan-binds-effect-evaluation": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "effect-pass-branch": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "effect-block-branch": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "effect-unknown-branch": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "effect-pass-to-recheck": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "authority-to-recheck": {
+      "view_edge_id": "authority-to-effect-joint",
+      "mode": "direct"
+    },
+    "accepted-state-binds-effect-recheck": {
+      "view_edge_id": "accepted-state-to-effect-joint",
+      "mode": "direct"
+    },
+    "recheck-admits-runner": {
+      "view_edge_id": "effect-joint-internal",
+      "mode": "contained"
+    },
+    "runner-applies-cas": {
+      "view_edge_id": "effect-joint-to-cas",
+      "mode": "direct"
+    },
+    "accepted-n-to-cas": {
+      "view_edge_id": "accepted-state-to-cas",
+      "mode": "direct"
+    },
+    "cas-to-accepted-next": {
+      "view_edge_id": "cas-to-accepted-next",
+      "mode": "direct"
+    },
+    "cas-to-post-observation": {
+      "view_edge_id": "cas-to-accepted-next",
+      "mode": "direct"
+    },
+    "accepted-next-to-post-observation": {
+      "view_edge_id": "accepted-next-internal",
+      "mode": "contained"
+    },
+    "post-to-attestation": {
+      "view_edge_id": "accepted-next-to-attestation",
+      "mode": "direct"
+    },
+    "post-to-outcome-unknown": {
+      "view_edge_id": "accepted-next-internal",
+      "mode": "contained"
+    },
+    "commitment-to-attestation": {
+      "view_edge_id": "commitment-to-attestation",
+      "mode": "direct"
+    },
+    "attestation-to-selection": {
+      "view_edge_id": "attestation-internal",
+      "mode": "contained"
+    },
+    "accepted-next-to-selection": {
+      "view_edge_id": "accepted-next-to-reauthorization",
+      "mode": "direct"
+    },
+    "subject-to-selection": {
+      "view_edge_id": "authority-to-attestation",
+      "mode": "direct"
+    },
+    "selection-to-hold": {
+      "view_edge_id": "reauthorization-internal",
+      "mode": "contained"
+    },
+    "selection-to-done": {
+      "view_edge_id": "reauthorization-internal",
+      "mode": "contained"
+    },
+    "selection-to-next-commitment": {
+      "view_edge_id": "attestation-internal",
+      "mode": "contained"
+    },
+    "commitment-to-selection": {
+      "view_edge_id": "commitment-to-attestation",
+      "mode": "direct"
+    },
+    "loss-interrupts-session": {
+      "view_edge_id": "agency-to-recovery",
+      "mode": "direct"
+    },
+    "loss-to-recovery-anchor": {
+      "view_edge_id": "recovery-internal",
+      "mode": "contained"
+    },
+    "commitment-to-recovery-anchor": {
+      "view_edge_id": "commitment-to-recovery",
+      "mode": "direct"
+    },
+    "attestation-to-recovery-anchor": {
+      "view_edge_id": "attestation-to-recovery",
+      "mode": "direct"
+    },
+    "accepted-to-recovery-anchor": {
+      "view_edge_id": "accepted-next-to-recovery",
+      "mode": "direct"
+    },
+    "outcome-unknown-to-recovery": {
+      "view_edge_id": "accepted-next-to-recovery",
+      "mode": "direct"
+    },
+    "recovery-to-successor": {
+      "view_edge_id": "recovery-internal",
+      "mode": "contained"
+    },
+    "successor-observes": {
+      "view_edge_id": "recovery-to-action-joint",
+      "mode": "direct"
+    },
+    "model-gap-to-promotion": {
+      "view_edge_id": "recovery-internal",
+      "mode": "contained"
+    },
+    "promotion-to-compile": {
+      "view_edge_id": "recovery-to-action-joint",
+      "mode": "direct"
+    },
+    "action-block-to-model-gap": {
+      "view_edge_id": "action-joint-to-recovery",
+      "mode": "direct"
+    },
+    "action-unknown-to-recovery": {
+      "view_edge_id": "action-joint-to-recovery",
+      "mode": "direct"
+    },
+    "effect-block-to-model-gap": {
+      "view_edge_id": "effect-joint-to-recovery",
+      "mode": "direct"
+    },
+    "effect-unknown-to-recovery": {
+      "view_edge_id": "effect-joint-to-recovery",
+      "mode": "direct"
+    },
+    "attestation-projects-cli": {
+      "view_edge_id": "attestation-internal",
+      "mode": "contained"
+    },
+    "attestation-projects-sdk": {
+      "view_edge_id": "attestation-internal",
+      "mode": "contained"
+    },
+    "attestation-projects-mcp": {
+      "view_edge_id": "attestation-internal",
+      "mode": "contained"
+    },
+    "attestation-projects-ci": {
+      "view_edge_id": "attestation-internal",
+      "mode": "contained"
+    },
+    "brownfield-local-cas": {
+      "view_edge_id": "brownfield-internal",
+      "mode": "contained"
+    },
+    "greenfield-local-cas": {
+      "view_edge_id": "greenfield-internal",
+      "mode": "contained"
+    },
+    "ethos-self-governs": {
+      "view_edge_id": "self-internal",
+      "mode": "contained"
+    },
+    "ethos-contains-native-artifacts": {
+      "view_edge_id": "self-internal",
+      "mode": "contained"
+    },
+    "ethos-preserves-durable-evidence": {
+      "view_edge_id": "self-internal",
+      "mode": "contained"
+    },
+    "attestation-preserves-evidence": {
+      "view_edge_id": "attestation-to-self",
+      "mode": "direct"
+    },
+    "native-artifacts-project-outputs": {
+      "view_edge_id": "self-internal",
+      "mode": "contained"
+    },
+    "evidence-projects-outputs": {
+      "view_edge_id": "self-internal",
+      "mode": "contained"
+    },
+    "brownfield-conforms-locally": {
+      "view_edge_id": "brownfield-local-conformance",
+      "mode": "contained"
+    },
+    "grammar-narrows-brownfield": {
+      "view_edge_id": "grammar-to-brownfield",
+      "mode": "direct"
+    },
+    "greenfield-conforms-locally": {
+      "view_edge_id": "greenfield-local-conformance",
+      "mode": "contained"
+    },
+    "grammar-narrows-greenfield": {
+      "view_edge_id": "grammar-to-greenfield",
+      "mode": "direct"
+    },
+    "ethos-conforms-locally": {
+      "view_edge_id": "self-local-conformance",
+      "mode": "contained"
+    },
+    "grammar-narrows-ethos": {
+      "view_edge_id": "grammar-to-self",
+      "mode": "direct"
+    },
+    "commitment-binds-predecessors": {
+      "view_edge_id": "commitment-to-worlds",
+      "mode": "contained"
+    },
+    "exact-tree-resolves-predecessors": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "predecessors-derive-lineage": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "lineage-enables-scoped-concurrency": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "scoped-concurrency-coordinates-lanes": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "publication-remote-local-cas": {
+      "view_edge_id": "peer-internal",
+      "mode": "contained"
+    },
+    "attestation-projects-publication-request": {
+      "view_edge_id": "attestation-to-peer",
+      "mode": "direct"
+    },
+    "adopter-peer-local-cas": {
+      "view_edge_id": "adopter-peer-internal",
+      "mode": "contained"
+    },
+    "adopter-peer-conforms-locally": {
+      "view_edge_id": "adopter-peer-local-conformance",
+      "mode": "contained"
+    },
+    "grammar-narrows-adopter-peer": {
+      "view_edge_id": "grammar-to-adopter-peer",
+      "mode": "direct"
+    },
+    "attestation-exchanges-with-adopter-peer": {
+      "view_edge_id": "attestation-to-adopter-peer",
+      "mode": "direct"
+    },
+    "candidate-bundle-binds-integration": {
+      "view_edge_id": "worlds-to-candidate-gate",
+      "mode": "direct"
+    },
+    "lane-proof-binds-integration": {
+      "view_edge_id": "worlds-to-candidate-gate",
+      "mode": "direct"
+    },
+    "candidate-state-binds-integration": {
+      "view_edge_id": "candidate-state-to-candidate-gate",
+      "mode": "direct"
+    },
+    "commitment-binds-candidate-integration": {
+      "view_edge_id": "candidate-gate-internal",
+      "mode": "contained"
+    },
+    "authority-binds-candidate-integration": {
+      "view_edge_id": "candidate-gate-internal",
+      "mode": "contained"
+    },
+    "facts-bind-candidate-integration": {
+      "view_edge_id": "candidate-gate-internal",
+      "mode": "contained"
+    },
+    "plan-binds-candidate-integration": {
+      "view_edge_id": "candidate-gate-internal",
+      "mode": "contained"
+    },
+    "candidate-integration-pass-branch": {
+      "view_edge_id": "candidate-gate-internal",
+      "mode": "contained"
+    },
+    "candidate-integration-block-branch": {
+      "view_edge_id": "candidate-gate-internal",
+      "mode": "contained"
+    },
+    "candidate-integration-unknown-branch": {
+      "view_edge_id": "candidate-gate-internal",
+      "mode": "contained"
+    },
+    "candidate-pass-to-recheck": {
+      "view_edge_id": "candidate-gate-internal",
+      "mode": "contained"
+    },
+    "candidate-state-to-recheck": {
+      "view_edge_id": "candidate-state-to-candidate-gate",
+      "mode": "direct"
+    },
+    "candidate-recheck-admits-runner": {
+      "view_edge_id": "candidate-gate-internal",
+      "mode": "contained"
+    },
+    "candidate-runner-applies-cas": {
+      "view_edge_id": "candidate-gate-to-cas",
+      "mode": "direct"
+    },
+    "candidate-cas-to-next": {
+      "view_edge_id": "candidate-cas-to-next",
+      "mode": "direct"
+    },
+    "candidate-cas-to-post-observation": {
+      "view_edge_id": "candidate-cas-to-next",
+      "mode": "direct"
+    },
+    "candidate-next-to-post-observation": {
+      "view_edge_id": "candidate-next-internal",
+      "mode": "contained"
+    },
+    "candidate-post-observation-attests": {
+      "view_edge_id": "candidate-next-internal",
+      "mode": "contained"
+    },
+    "candidate-next-to-effect-evaluation": {
+      "view_edge_id": "candidate-next-to-effect-joint",
+      "mode": "direct"
+    },
+    "candidate-next-to-recheck": {
+      "view_edge_id": "candidate-next-to-effect-joint",
+      "mode": "direct"
+    },
+    "candidate-advance-stales-remaining-lanes": {
+      "view_edge_id": "candidate-refresh-cycle",
+      "mode": "direct"
+    },
+    "stale-lane-refreshes-from-candidate": {
+      "view_edge_id": "candidate-refresh-cycle",
+      "mode": "direct"
+    },
+    "commitment-binds-experiment-protocol": {
+      "view_edge_id": "commitment-to-worlds",
+      "mode": "direct"
+    },
+    "scope-effect-informs-lane-relation": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "experiment-informs-lane-relation": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "lanes-enter-relation-judgment": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "lane-proof-forms-comparative-claim": {
+      "view_edge_id": "proof-internal",
+      "mode": "contained"
+    },
+    "experiment-binds-comparative-claim": {
+      "view_edge_id": "worlds-to-proof",
+      "mode": "direct"
+    },
+    "relation-binds-lane-disposition": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "comparison-informs-lane-disposition": {
+      "view_edge_id": "proof-to-worlds",
+      "mode": "direct"
+    },
+    "disposition-selects-candidate-attempt": {
+      "view_edge_id": "worlds-to-candidate-gate",
+      "mode": "direct"
+    },
+    "disposition-admits-retirement": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "candidate-attestation-binds-retirement": {
+      "view_edge_id": "candidate-refresh-cycle",
+      "mode": "direct"
+    },
+    "lane-proof-admits-candidate": {
+      "view_edge_id": "proof-to-worlds",
+      "mode": "direct"
+    },
+    "git-common-state-selects-activation": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "common-activation-governs-linked-worktree": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "common-activation-binds-retirement": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    },
+    "common-activation-projects-family-report": {
+      "view_edge_id": "worlds-internal",
+      "mode": "contained"
+    }
+  },
+  "omitted_edges": {
+    "brownfield-pass-to-recheck": {
+      "reason": "The complete boundary-local transaction law is preserved in the semantic model; this overview renders its repeated local aperture as one contained world joint."
+    },
+    "brownfield-state-binds-recheck": {
+      "reason": "The Brownfield expected-state binding is contained by the Brownfield world rather than expanded outside the single magnified transaction."
+    },
+    "brownfield-recheck-admits-runner": {
+      "reason": "The Brownfield single-use runner is contained by its local aperture and remains machine-validated in the semantic model."
+    },
+    "brownfield-runner-applies-cas": {
+      "reason": "The Brownfield effect-capable ingress is contained by its local aperture; no second cross-world effect route is drawn."
+    },
+    "brownfield-cas-to-post-observation": {
+      "reason": "The Brownfield post-observation remains inside the repeated world joint and is not duplicated as a global flow."
+    },
+    "brownfield-post-to-attestation": {
+      "reason": "The Brownfield bounded Attestation is contained by the repeated world joint."
+    },
+    "greenfield-pass-to-recheck": {
+      "reason": "The complete boundary-local transaction law is preserved in the semantic model; this overview renders its repeated local aperture as one contained world joint."
+    },
+    "greenfield-state-binds-recheck": {
+      "reason": "The Greenfield genesis-state binding is contained by the Greenfield world rather than expanded outside the single magnified transaction."
+    },
+    "greenfield-recheck-admits-runner": {
+      "reason": "The Greenfield single-use runner is contained by its local aperture and remains machine-validated in the semantic model."
+    },
+    "greenfield-runner-applies-cas": {
+      "reason": "The Greenfield effect-capable ingress is contained by its local aperture; no second cross-world effect route is drawn."
+    },
+    "greenfield-cas-to-post-observation": {
+      "reason": "The Greenfield post-observation remains inside the repeated world joint and is not duplicated as a global flow."
+    },
+    "greenfield-post-to-attestation": {
+      "reason": "The Greenfield bounded Attestation is contained by the repeated world joint."
+    },
+    "publication-pass-to-recheck": {
+      "reason": "The selected publication target has a provider-local transaction law, but this overview contains it inside the remote effect boundary."
+    },
+    "publication-state-binds-recheck": {
+      "reason": "Fresh remote-ref observation is contained by the selected publication target and must not be misread as adopter conformance."
+    },
+    "publication-recheck-admits-runner": {
+      "reason": "The provider-local single-use runner is contained by the selected publication target."
+    },
+    "publication-runner-applies-cas": {
+      "reason": "The provider-local exact-CAS ingress is contained by the publication boundary; it is not a global or cross-provider transaction."
+    },
+    "publication-cas-to-post-observation": {
+      "reason": "Remote post-observation remains contained by the selected publication target."
+    },
+    "publication-post-to-attestation": {
+      "reason": "The bounded remote-effect Attestation remains contained by the selected publication target."
+    },
+    "adopter-peer-pass-to-recheck": {
+      "reason": "The complete adopter-peer boundary-local transaction law remains in the semantic model and is represented by the repeated local aperture without duplicating the magnified transaction."
+    },
+    "adopter-peer-state-binds-recheck": {
+      "reason": "The complete adopter-peer boundary-local transaction law remains in the semantic model and is represented by the repeated local aperture without duplicating the magnified transaction."
+    },
+    "adopter-peer-recheck-admits-runner": {
+      "reason": "The complete adopter-peer boundary-local transaction law remains in the semantic model and is represented by the repeated local aperture without duplicating the magnified transaction."
+    },
+    "adopter-peer-runner-applies-cas": {
+      "reason": "The complete adopter-peer boundary-local transaction law remains in the semantic model and is represented by the repeated local aperture without duplicating the magnified transaction."
+    },
+    "adopter-peer-cas-to-post-observation": {
+      "reason": "The complete adopter-peer boundary-local transaction law remains in the semantic model and is represented by the repeated local aperture without duplicating the magnified transaction."
+    },
+    "adopter-peer-post-to-attestation": {
+      "reason": "The complete adopter-peer boundary-local transaction law remains in the semantic model and is represented by the repeated local aperture without duplicating the magnified transaction."
+    },
+    "disposition-can-hold": {
+      "reason": "The Hold disposition is named inside the Lane relation field; it does not create a successor or cross-field transition."
+    }
+  },
+  "forbidden_aggregations": [
+    [
+      "authority",
+      "capability"
+    ],
+    [
+      "authority",
+      "proof_claim"
+    ],
+    [
+      "authority",
+      "projection"
+    ],
+    [
+      "effect_aperture",
+      "capability"
+    ],
+    [
+      "effect_aperture",
+      "proof_claim"
+    ],
+    [
+      "effect_aperture",
+      "coordination"
+    ],
+    [
+      "repository",
+      "conformance"
+    ]
+  ],
+  "svg_contract": {
+    "require_edge_endpoint_binding": true,
+    "node_selector": "[data-semantic-role=\"node\"]",
+    "edge_selector": "[data-semantic-role=\"edge\"]",
+    "node_attributes": {
+      "graph_id": "data-graph-node",
+      "view_id": "data-view-node",
+      "maturity": "data-maturity",
+      "instance_id": "data-instance"
+    },
+    "edge_attributes": {
+      "graph_ids": "data-graph-edge",
+      "view_id": "data-view-edge",
+      "view_source": "data-source",
+      "view_target": "data-target",
+      "kinds": "data-edge-kind"
+    },
+    "rules": [
+      "The SVG root binds the exact semantic graph and view profile SHA-256 digests.",
+      "Every declared node projection has visible, unexempt semantic witnesses with exact graph, view, maturity and instance identities; edge machine carriers may be non-painted only when explicitly admitted below and backed by visible human structure.",
+      "A repeated node projection has at least two visible SVG instances; direct and contained node projections have exactly one.",
+      "Every declared view edge has exactly one exact machine carrier; its human-visible expression remains in the structural layer.",
+      "A view-edge witness carries the complete space-separated set of graph edge identities and relation kinds collapsed into it.",
+      "A collapsed view edge is legal only when all source graph nodes map to one view source and all target graph nodes map to one view target.",
+      "A visible semantic SVG node or edge not declared by this profile is forbidden.",
+      "No semantic node witness may be hidden; only the explicitly admitted edge machine-carrier role may be non-painted, and the geometry gate forbids any residual witness ink.",
+      "SVG metadata, title, desc, labels and hidden text obey the same language contract."
+    ],
+    "root_attributes": {
+      "graph_sha256": "data-semantic-graph-sha256",
+      "profile_sha256": "data-view-profile-sha256",
+      "copy_sha256": "data-copy-sha256"
+    },
+    "hidden_machine_witness_roles": [
+      "edge"
+    ]
+  },
+  "omitted_nodes": {
+    "adopter_peer_admitted_runner": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "adopter_peer_effect_attestation": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "adopter_peer_effect_recheck": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "adopter_peer_expected_state": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "adopter_peer_post_observation": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "brownfield_admitted_runner": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "brownfield_effect_attestation": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "brownfield_effect_recheck": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "brownfield_expected_state": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "brownfield_post_observation": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "greenfield_admitted_runner": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "greenfield_effect_attestation": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "greenfield_effect_recheck": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "greenfield_expected_state": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "greenfield_post_observation": {
+      "reason": "Contained inside the autonomous repository local aperture; the overview repeats the local law without duplicating the magnified ETHOS transaction."
+    },
+    "publication_admitted_runner": {
+      "reason": "Contained inside the publication remote effect boundary; the overview shows the target, fresh observation and exact remote CAS without duplicating the complete transaction chain."
+    },
+    "publication_effect_attestation": {
+      "reason": "Contained inside the publication remote effect boundary; the overview shows the target, fresh observation and exact remote CAS without duplicating the complete transaction chain."
+    },
+    "publication_effect_recheck": {
+      "reason": "Contained inside the publication remote effect boundary; the overview shows the target, fresh observation and exact remote CAS without duplicating the complete transaction chain."
+    },
+    "publication_post_observation": {
+      "reason": "Contained inside the publication remote effect boundary; the overview shows the target, fresh observation and exact remote CAS without duplicating the complete transaction chain."
+    }
+  },
+  "visual_nodes": {
+    "authority": {
+      "role": "durable-ground",
+      "tone": "authority",
+      "shape": "joint",
+      "copy_id": "authority",
+      "rect": {
+        "x": 300,
+        "y": 520,
+        "width": 540,
+        "height": 250
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "out": {
+          "x": 1,
+          "y": 0.8
+        },
+        "generation": {
+          "x": 0.5,
+          "y": 1
+        }
+      },
+      "edge_obstacle": true
+    },
+    "commitment": {
+      "role": "durable-ground",
+      "tone": "commitment",
+      "shape": "root",
+      "copy_id": "commitment",
+      "rect": {
+        "x": 900,
+        "y": 500,
+        "width": 840,
+        "height": 280
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "authority": {
+          "x": 0,
+          "y": 0.786
+        },
+        "compile": {
+          "x": 0.30952380952380953,
+          "y": 1
+        },
+        "ground": {
+          "x": 0.5,
+          "y": 1
+        },
+        "generation": {
+          "x": 0.5,
+          "y": 1
+        }
+      },
+      "edge_obstacle": true
+    },
+    "action-joint": {
+      "role": "mechanism",
+      "tone": "compile",
+      "shape": "process",
+      "copy_id": "action-joint",
+      "rect": {
+        "x": 920,
+        "y": 1050,
+        "width": 480,
+        "height": 300
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "intent": {
+          "x": 0.5,
+          "y": 0
+        },
+        "capability": {
+          "x": 0,
+          "y": 0.767
+        },
+        "incoming": {
+          "x": 0,
+          "y": 0.9
+        },
+        "outgoing": {
+          "x": 1,
+          "y": 0.9
+        },
+        "recover": {
+          "x": 0.5,
+          "y": 1
+        }
+      },
+      "edge_obstacle": true
+    },
+    "agency": {
+      "role": "capability",
+      "tone": "capability",
+      "shape": "field",
+      "copy_id": "agency",
+      "rect": {
+        "x": 300,
+        "y": 1050,
+        "width": 570,
+        "height": 300
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "feed": {
+          "x": 1,
+          "y": 0.767
+        }
+      },
+      "edge_obstacle": false
+    },
+    "recovery": {
+      "role": "recovery",
+      "tone": "recovery",
+      "shape": "field",
+      "copy_id": "recovery",
+      "rect": {
+        "x": 300,
+        "y": 1570,
+        "width": 880,
+        "height": 300
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "outgoing": {
+          "x": 1,
+          "y": 0.8
+        }
+      },
+      "edge_obstacle": false
+    },
+    "worlds": {
+      "role": "candidate-worlds",
+      "tone": "candidate",
+      "shape": "field",
+      "copy_id": "worlds",
+      "rect": {
+        "x": 1840,
+        "y": 1050,
+        "width": 1220,
+        "height": 830
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "incoming": {
+          "x": 0,
+          "y": 0.3253012048192771
+        },
+        "outgoing": {
+          "x": 1,
+          "y": 0.3253012048192771
+        },
+        "recovery": {
+          "x": 0,
+          "y": 0.93
+        },
+        "candidate_feed": {
+          "x": 1,
+          "y": 0.49
+        },
+        "refresh": {
+          "x": 1,
+          "y": 0.9156626506024096
+        },
+        "base": {
+          "x": 0,
+          "y": 0.3253012048192771
+        }
+      },
+      "edge_obstacle": false
+    },
+    "proof": {
+      "role": "proof",
+      "tone": "proof",
+      "shape": "field",
+      "copy_id": "proof",
+      "rect": {
+        "x": 3090,
+        "y": 1050,
+        "width": 360,
+        "height": 300
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "incoming": {
+          "x": 0,
+          "y": 0.9
+        },
+        "outgoing": {
+          "x": 1,
+          "y": 0.9
+        }
+      },
+      "edge_obstacle": false
+    },
+    "effect-joint": {
+      "role": "effect",
+      "tone": "admission",
+      "shape": "joint",
+      "copy_id": "effect-joint",
+      "rect": {
+        "x": 4380,
+        "y": 1050,
+        "width": 410,
+        "height": 300
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "incoming": {
+          "x": 0,
+          "y": 0.9
+        },
+        "outgoing": {
+          "x": 1,
+          "y": 0.9
+        }
+      },
+      "edge_obstacle": true
+    },
+    "cas": {
+      "role": "effect",
+      "tone": "effect",
+      "shape": "aperture",
+      "copy_id": "cas",
+      "rect": {
+        "x": 4830,
+        "y": 1120,
+        "width": 120,
+        "height": 950
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "effect": {
+          "x": 0,
+          "y": 0.21052631578947367
+        },
+        "axis_in": {
+          "x": 0,
+          "y": 1
+        },
+        "axis_out": {
+          "x": 1,
+          "y": 1
+        }
+      },
+      "edge_obstacle": true
+    },
+    "accepted-state": {
+      "role": "accepted-reality",
+      "tone": "reality",
+      "shape": "state",
+      "copy_id": "accepted-state",
+      "rect": {
+        "x": 1220,
+        "y": 1770,
+        "width": 520,
+        "height": 300
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "axis_in": {
+          "x": 0.5,
+          "y": 1
+        },
+        "axis_out": {
+          "x": 0.5,
+          "y": 1
+        },
+        "recheck": {
+          "x": 1,
+          "y": 0.5
+        }
+      },
+      "edge_obstacle": true
+    },
+    "accepted-next": {
+      "role": "accepted-reality",
+      "tone": "reality",
+      "shape": "state",
+      "copy_id": "accepted-next",
+      "rect": {
+        "x": 4990,
+        "y": 1710,
+        "width": 420,
+        "height": 360
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "axis_in": {
+          "x": 0,
+          "y": 1
+        },
+        "attest": {
+          "x": 0.5,
+          "y": 0
+        },
+        "future": {
+          "x": 1,
+          "y": 1
+        }
+      },
+      "edge_obstacle": true
+    },
+    "attestation": {
+      "role": "durable-ground",
+      "tone": "attestation",
+      "shape": "root",
+      "copy_id": "attestation",
+      "rect": {
+        "x": 4540,
+        "y": 500,
+        "width": 600,
+        "height": 280
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "observe": {
+          "x": 0,
+          "y": 1
+        },
+        "ground": {
+          "x": 0.5,
+          "y": 1
+        },
+        "successor": {
+          "x": 1,
+          "y": 1
+        },
+        "generation": {
+          "x": 1,
+          "y": 1
+        }
+      },
+      "edge_obstacle": true
+    },
+    "reauthorization": {
+      "role": "succession",
+      "tone": "authority",
+      "shape": "joint",
+      "copy_id": "reauthorization",
+      "rect": {
+        "x": 5200,
+        "y": 520,
+        "width": 320,
+        "height": 260
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "incoming": {
+          "x": 0,
+          "y": 1
+        },
+        "outgoing": {
+          "x": 1,
+          "y": 1
+        }
+      },
+      "edge_obstacle": true
+    },
+    "commitment-next": {
+      "role": "durable-ground",
+      "tone": "commitment",
+      "shape": "root",
+      "copy_id": "commitment-next",
+      "rect": {
+        "x": 5570,
+        "y": 520,
+        "width": 330,
+        "height": 260
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "incoming": {
+          "x": 0,
+          "y": 1
+        },
+        "generation": {
+          "x": 1,
+          "y": 1
+        }
+      },
+      "edge_obstacle": true
+    },
+    "brownfield": {
+      "role": "ecology",
+      "tone": "repository",
+      "shape": "repository",
+      "copy_id": "brownfield",
+      "rect": {
+        "x": 300,
+        "y": 2510,
+        "width": 900,
+        "height": 330
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        }
+      },
+      "edge_obstacle": true
+    },
+    "greenfield": {
+      "role": "ecology",
+      "tone": "repository",
+      "shape": "repository",
+      "copy_id": "greenfield",
+      "rect": {
+        "x": 1350,
+        "y": 2510,
+        "width": 900,
+        "height": 330
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        }
+      },
+      "edge_obstacle": true
+    },
+    "self": {
+      "role": "ecology",
+      "tone": "repository",
+      "shape": "repository",
+      "copy_id": "self",
+      "rect": {
+        "x": 2400,
+        "y": 2510,
+        "width": 900,
+        "height": 330
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        }
+      },
+      "edge_obstacle": true
+    },
+    "adopter-peer": {
+      "role": "ecology",
+      "tone": "repository",
+      "shape": "repository",
+      "copy_id": "adopter-peer",
+      "rect": {
+        "x": 3450,
+        "y": 2510,
+        "width": 900,
+        "height": 330
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        }
+      },
+      "edge_obstacle": true
+    },
+    "publication-remote": {
+      "role": "publication",
+      "tone": "publication",
+      "shape": "target",
+      "copy_id": "publication-remote",
+      "rect": {
+        "x": 4800,
+        "y": 2510,
+        "width": 900,
+        "height": 330
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        }
+      },
+      "edge_obstacle": true
+    },
+    "conformance": {
+      "role": "carrier",
+      "tone": "carrier",
+      "shape": "carrier",
+      "copy_id": "conformance",
+      "rect": {
+        "x": 1700,
+        "y": 2940,
+        "width": 2600,
+        "height": 170
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        }
+      },
+      "edge_obstacle": false
+    },
+    "candidate-state": {
+      "role": "candidate-state",
+      "tone": "candidate",
+      "shape": "state",
+      "copy_id": "candidate-state",
+      "rect": {
+        "x": 1450,
+        "y": 1050,
+        "width": 350,
+        "height": 300
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "gate": {
+          "x": 1,
+          "y": 0.9
+        },
+        "base": {
+          "x": 1,
+          "y": 0.9
+        },
+        "incoming": {
+          "x": 0,
+          "y": 0.9
+        },
+        "outgoing": {
+          "x": 1,
+          "y": 0.9
+        }
+      },
+      "edge_obstacle": true
+    },
+    "candidate-gate": {
+      "role": "candidate-integration",
+      "tone": "admission",
+      "shape": "joint",
+      "copy_id": "candidate-gate",
+      "rect": {
+        "x": 3480,
+        "y": 1050,
+        "width": 360,
+        "height": 300
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "incoming": {
+          "x": 0,
+          "y": 0.9
+        },
+        "state": {
+          "x": 0.5,
+          "y": 1
+        },
+        "outgoing": {
+          "x": 1,
+          "y": 0.9
+        }
+      },
+      "edge_obstacle": true
+    },
+    "candidate-cas": {
+      "role": "candidate-effect",
+      "tone": "effect",
+      "shape": "aperture",
+      "copy_id": "candidate-cas",
+      "rect": {
+        "x": 3880,
+        "y": 1070,
+        "width": 70,
+        "height": 810
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "effect": {
+          "x": 0,
+          "y": 0.30864197530864196
+        },
+        "outgoing": {
+          "x": 1,
+          "y": 0.30864197530864196
+        }
+      },
+      "edge_obstacle": true
+    },
+    "candidate-state-next": {
+      "role": "candidate-state",
+      "tone": "candidate",
+      "shape": "state",
+      "copy_id": "candidate-state-next",
+      "rect": {
+        "x": 3980,
+        "y": 1050,
+        "width": 370,
+        "height": 300
+      },
+      "ports": {
+        "north": {
+          "x": 0.5,
+          "y": 0
+        },
+        "east": {
+          "x": 1,
+          "y": 0.5
+        },
+        "south": {
+          "x": 0.5,
+          "y": 1
+        },
+        "west": {
+          "x": 0,
+          "y": 0.5
+        },
+        "incoming": {
+          "x": 0,
+          "y": 0.9
+        },
+        "closeout": {
+          "x": 1,
+          "y": 0.9
+        },
+        "refresh": {
+          "x": 0.82,
+          "y": 1
+        }
+      },
+      "edge_obstacle": true
+    }
+  },
+  "visual_edges": {
+    "authority-to-commitment|authority|commitment": {
+      "view_edge_id": "authority-to-commitment",
+      "source": "authority",
+      "target": "commitment",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "commitment-internal|commitment|commitment": {
+      "view_edge_id": "commitment-internal",
+      "source": "commitment",
+      "target": "commitment",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "worlds-internal|worlds|worlds": {
+      "view_edge_id": "worlds-internal",
+      "source": "worlds",
+      "target": "worlds",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "commitment-to-action-joint|commitment|action-joint": {
+      "view_edge_id": "commitment-to-action-joint",
+      "source": "commitment",
+      "target": "action-joint",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "action-joint-internal|action-joint|action-joint": {
+      "view_edge_id": "action-joint-internal",
+      "source": "action-joint",
+      "target": "action-joint",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "action-joint-to-agency|action-joint|agency": {
+      "view_edge_id": "action-joint-to-agency",
+      "source": "action-joint",
+      "target": "agency",
+      "source_port": "west",
+      "target_port": "east",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "authority-to-agency|authority|agency": {
+      "view_edge_id": "authority-to-agency",
+      "source": "authority",
+      "target": "agency",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "agency-internal|agency|agency": {
+      "view_edge_id": "agency-internal",
+      "source": "agency",
+      "target": "agency",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "agency-to-worlds|agency|worlds": {
+      "view_edge_id": "agency-to-worlds",
+      "source": "agency",
+      "target": "worlds",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "commitment-to-worlds|commitment|worlds": {
+      "view_edge_id": "commitment-to-worlds",
+      "source": "commitment",
+      "target": "worlds",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "action-joint-to-worlds|action-joint|worlds": {
+      "view_edge_id": "action-joint-to-worlds",
+      "source": "action-joint",
+      "target": "worlds",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "worlds-to-proof|worlds|proof": {
+      "view_edge_id": "worlds-to-proof",
+      "source": "worlds",
+      "target": "proof",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "proof-to-worlds|proof|worlds": {
+      "view_edge_id": "proof-to-worlds",
+      "source": "proof",
+      "target": "worlds",
+      "source_port": "west",
+      "target_port": "east",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "proof-internal|proof|proof": {
+      "view_edge_id": "proof-internal",
+      "source": "proof",
+      "target": "proof",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "commitment-to-effect-joint|commitment|effect-joint": {
+      "view_edge_id": "commitment-to-effect-joint",
+      "source": "commitment",
+      "target": "effect-joint",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "authority-to-effect-joint|authority|effect-joint": {
+      "view_edge_id": "authority-to-effect-joint",
+      "source": "authority",
+      "target": "effect-joint",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "action-joint-to-effect-joint|action-joint|effect-joint": {
+      "view_edge_id": "action-joint-to-effect-joint",
+      "source": "action-joint",
+      "target": "effect-joint",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "effect-joint-internal|effect-joint|effect-joint": {
+      "view_edge_id": "effect-joint-internal",
+      "source": "effect-joint",
+      "target": "effect-joint",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "effect-joint-to-cas|effect-joint|cas": {
+      "view_edge_id": "effect-joint-to-cas",
+      "source": "effect-joint",
+      "target": "cas",
+      "source_port": "outgoing",
+      "target_port": "effect",
+      "routing": "orthogonal",
+      "class_name": "effect",
+      "marker": true
+    },
+    "accepted-next-internal|accepted-next|accepted-next": {
+      "view_edge_id": "accepted-next-internal",
+      "source": "accepted-next",
+      "target": "accepted-next",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "commitment-to-attestation|commitment|attestation": {
+      "view_edge_id": "commitment-to-attestation",
+      "source": "commitment",
+      "target": "attestation",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "attestation-internal|attestation|reauthorization": {
+      "view_edge_id": "attestation-internal",
+      "source": "attestation",
+      "target": "reauthorization",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "accepted-next-to-reauthorization|accepted-next|reauthorization": {
+      "view_edge_id": "accepted-next-to-reauthorization",
+      "source": "accepted-next",
+      "target": "reauthorization",
+      "source_port": "north",
+      "target_port": "south",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "authority-to-attestation|authority|reauthorization": {
+      "view_edge_id": "authority-to-attestation",
+      "source": "authority",
+      "target": "reauthorization",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "reauthorization-internal|reauthorization|reauthorization": {
+      "view_edge_id": "reauthorization-internal",
+      "source": "reauthorization",
+      "target": "reauthorization",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "attestation-internal|reauthorization|commitment-next": {
+      "view_edge_id": "attestation-internal",
+      "source": "reauthorization",
+      "target": "commitment-next",
+      "source_port": "north",
+      "target_port": "south",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "commitment-to-attestation|commitment|reauthorization": {
+      "view_edge_id": "commitment-to-attestation",
+      "source": "commitment",
+      "target": "reauthorization",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "agency-to-recovery|agency|recovery": {
+      "view_edge_id": "agency-to-recovery",
+      "source": "agency",
+      "target": "recovery",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "curve",
+      "class_name": "recovery",
+      "marker": false
+    },
+    "recovery-internal|recovery|recovery": {
+      "view_edge_id": "recovery-internal",
+      "source": "recovery",
+      "target": "recovery",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "commitment-to-recovery|commitment|recovery": {
+      "view_edge_id": "commitment-to-recovery",
+      "source": "commitment",
+      "target": "recovery",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "attestation-to-recovery|attestation|recovery": {
+      "view_edge_id": "attestation-to-recovery",
+      "source": "attestation",
+      "target": "recovery",
+      "source_port": "west",
+      "target_port": "east",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "accepted-next-to-recovery|accepted-next|recovery": {
+      "view_edge_id": "accepted-next-to-recovery",
+      "source": "accepted-next",
+      "target": "recovery",
+      "source_port": "west",
+      "target_port": "east",
+      "routing": "curve",
+      "class_name": "recovery",
+      "marker": false
+    },
+    "recovery-to-action-joint|recovery|action-joint": {
+      "view_edge_id": "recovery-to-action-joint",
+      "source": "recovery",
+      "target": "action-joint",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "action-joint-to-recovery|action-joint|recovery": {
+      "view_edge_id": "action-joint-to-recovery",
+      "source": "action-joint",
+      "target": "recovery",
+      "source_port": "west",
+      "target_port": "east",
+      "routing": "curve",
+      "class_name": "recovery",
+      "marker": false
+    },
+    "effect-joint-to-recovery|effect-joint|recovery": {
+      "view_edge_id": "effect-joint-to-recovery",
+      "source": "effect-joint",
+      "target": "recovery",
+      "source_port": "west",
+      "target_port": "east",
+      "routing": "curve",
+      "class_name": "recovery",
+      "marker": false
+    },
+    "attestation-internal|attestation|attestation": {
+      "view_edge_id": "attestation-internal",
+      "source": "attestation",
+      "target": "attestation",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "brownfield-internal|brownfield|brownfield": {
+      "view_edge_id": "brownfield-internal",
+      "source": "brownfield",
+      "target": "brownfield",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "greenfield-internal|greenfield|greenfield": {
+      "view_edge_id": "greenfield-internal",
+      "source": "greenfield",
+      "target": "greenfield",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "self-internal|self|cas": {
+      "view_edge_id": "self-internal",
+      "source": "self",
+      "target": "cas",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "self-internal|self|self": {
+      "view_edge_id": "self-internal",
+      "source": "self",
+      "target": "self",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "attestation-to-self|attestation|self": {
+      "view_edge_id": "attestation-to-self",
+      "source": "attestation",
+      "target": "self",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "brownfield-local-conformance|brownfield|brownfield": {
+      "view_edge_id": "brownfield-local-conformance",
+      "source": "brownfield",
+      "target": "brownfield",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "grammar-to-brownfield|conformance|brownfield": {
+      "view_edge_id": "grammar-to-brownfield",
+      "source": "conformance",
+      "target": "brownfield",
+      "source_port": "west",
+      "target_port": "east",
+      "routing": "curve",
+      "class_name": "federation",
+      "marker": false
+    },
+    "greenfield-local-conformance|greenfield|greenfield": {
+      "view_edge_id": "greenfield-local-conformance",
+      "source": "greenfield",
+      "target": "greenfield",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "grammar-to-greenfield|conformance|greenfield": {
+      "view_edge_id": "grammar-to-greenfield",
+      "source": "conformance",
+      "target": "greenfield",
+      "source_port": "west",
+      "target_port": "east",
+      "routing": "curve",
+      "class_name": "federation",
+      "marker": false
+    },
+    "self-local-conformance|self|self": {
+      "view_edge_id": "self-local-conformance",
+      "source": "self",
+      "target": "self",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "grammar-to-self|conformance|self": {
+      "view_edge_id": "grammar-to-self",
+      "source": "conformance",
+      "target": "self",
+      "source_port": "north",
+      "target_port": "south",
+      "routing": "curve",
+      "class_name": "federation",
+      "marker": false
+    },
+    "peer-internal|publication-remote|publication-remote": {
+      "view_edge_id": "peer-internal",
+      "source": "publication-remote",
+      "target": "publication-remote",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "attestation-to-peer|attestation|publication-remote": {
+      "view_edge_id": "attestation-to-peer",
+      "source": "attestation",
+      "target": "publication-remote",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "curve",
+      "class_name": "federation",
+      "marker": false
+    },
+    "adopter-peer-internal|adopter-peer|adopter-peer": {
+      "view_edge_id": "adopter-peer-internal",
+      "source": "adopter-peer",
+      "target": "adopter-peer",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "adopter-peer-local-conformance|adopter-peer|adopter-peer": {
+      "view_edge_id": "adopter-peer-local-conformance",
+      "source": "adopter-peer",
+      "target": "adopter-peer",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "grammar-to-adopter-peer|conformance|adopter-peer": {
+      "view_edge_id": "grammar-to-adopter-peer",
+      "source": "conformance",
+      "target": "adopter-peer",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "federation",
+      "marker": false
+    },
+    "attestation-to-adopter-peer|attestation|adopter-peer": {
+      "view_edge_id": "attestation-to-adopter-peer",
+      "source": "attestation",
+      "target": "adopter-peer",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "curve",
+      "class_name": "federation",
+      "marker": false
+    },
+    "worlds-to-candidate-gate|worlds|candidate-gate": {
+      "view_edge_id": "worlds-to-candidate-gate",
+      "source": "worlds",
+      "target": "candidate-gate",
+      "source_port": "outgoing",
+      "target_port": "incoming",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "candidate-state-to-candidate-gate|candidate-state|candidate-gate": {
+      "view_edge_id": "candidate-state-to-candidate-gate",
+      "source": "candidate-state",
+      "target": "candidate-gate",
+      "source_port": "gate",
+      "target_port": "state",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "candidate-gate-internal|candidate-gate|candidate-gate": {
+      "view_edge_id": "candidate-gate-internal",
+      "source": "candidate-gate",
+      "target": "candidate-gate",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "candidate-gate-to-cas|candidate-gate|candidate-cas": {
+      "view_edge_id": "candidate-gate-to-cas",
+      "source": "candidate-gate",
+      "target": "candidate-cas",
+      "source_port": "outgoing",
+      "target_port": "effect",
+      "routing": "orthogonal",
+      "class_name": "effect",
+      "marker": true
+    },
+    "candidate-cas-to-next|candidate-cas|candidate-state-next": {
+      "view_edge_id": "candidate-cas-to-next",
+      "source": "candidate-cas",
+      "target": "candidate-state-next",
+      "source_port": "outgoing",
+      "target_port": "incoming",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "candidate-next-internal|candidate-state-next|candidate-state-next": {
+      "view_edge_id": "candidate-next-internal",
+      "source": "candidate-state-next",
+      "target": "candidate-state-next",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "internal",
+      "marker": false
+    },
+    "candidate-next-to-effect-joint|candidate-state-next|effect-joint": {
+      "view_edge_id": "candidate-next-to-effect-joint",
+      "source": "candidate-state-next",
+      "target": "effect-joint",
+      "source_port": "closeout",
+      "target_port": "incoming",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "candidate-refresh-cycle|candidate-state-next|worlds": {
+      "view_edge_id": "candidate-refresh-cycle",
+      "source": "candidate-state-next",
+      "target": "worlds",
+      "source_port": "refresh",
+      "target_port": "refresh",
+      "routing": "curve",
+      "class_name": "recovery",
+      "marker": false
+    },
+    "proof-to-candidate-gate|proof|candidate-gate": {
+      "view_edge_id": "proof-to-candidate-gate",
+      "source": "proof",
+      "target": "candidate-gate",
+      "source_port": "outgoing",
+      "target_port": "incoming",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "cas-to-accepted-next|cas|accepted-next": {
+      "view_edge_id": "cas-to-accepted-next",
+      "source": "cas",
+      "target": "accepted-next",
+      "source_port": "axis_out",
+      "target_port": "axis_in",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "accepted-next-to-attestation|accepted-next|attestation": {
+      "view_edge_id": "accepted-next-to-attestation",
+      "source": "accepted-next",
+      "target": "attestation",
+      "source_port": "attest",
+      "target_port": "observe",
+      "routing": "curve",
+      "class_name": "support",
+      "marker": false
+    },
+    "worlds-to-proof|candidate-state|proof": {
+      "view_edge_id": "worlds-to-proof",
+      "source": "candidate-state",
+      "target": "proof",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "support",
+      "marker": false
+    },
+    "proof-to-effect-joint|proof|effect-joint": {
+      "view_edge_id": "proof-to-effect-joint",
+      "source": "proof",
+      "target": "effect-joint",
+      "source_port": "outgoing",
+      "target_port": "incoming",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "effect-joint-internal|commitment|effect-joint": {
+      "view_edge_id": "effect-joint-internal",
+      "source": "commitment",
+      "target": "effect-joint",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "effect-joint-internal|authority|effect-joint": {
+      "view_edge_id": "effect-joint-internal",
+      "source": "authority",
+      "target": "effect-joint",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "effect-joint-internal|action-joint|effect-joint": {
+      "view_edge_id": "effect-joint-internal",
+      "source": "action-joint",
+      "target": "effect-joint",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "worlds-to-candidate-gate|proof|candidate-gate": {
+      "view_edge_id": "worlds-to-candidate-gate",
+      "source": "proof",
+      "target": "candidate-gate",
+      "source_port": "outgoing",
+      "target_port": "incoming",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "candidate-gate-internal|commitment|candidate-gate": {
+      "view_edge_id": "candidate-gate-internal",
+      "source": "commitment",
+      "target": "candidate-gate",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "candidate-gate-internal|authority|candidate-gate": {
+      "view_edge_id": "candidate-gate-internal",
+      "source": "authority",
+      "target": "candidate-gate",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "candidate-gate-internal|action-joint|candidate-gate": {
+      "view_edge_id": "candidate-gate-internal",
+      "source": "action-joint",
+      "target": "candidate-gate",
+      "source_port": "east",
+      "target_port": "west",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "candidate-refresh-cycle|worlds|worlds": {
+      "view_edge_id": "candidate-refresh-cycle",
+      "source": "worlds",
+      "target": "worlds",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "loop",
+      "class_name": "recovery",
+      "marker": false
+    },
+    "worlds-to-accepted-state|worlds|accepted-state": {
+      "view_edge_id": "worlds-to-accepted-state",
+      "source": "worlds",
+      "target": "accepted-state",
+      "source_port": "south",
+      "target_port": "north",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    },
+    "accepted-state-to-cas|accepted-state|cas": {
+      "view_edge_id": "accepted-state-to-cas",
+      "source": "accepted-state",
+      "target": "cas",
+      "source_port": "axis_out",
+      "target_port": "axis_in",
+      "routing": "orthogonal",
+      "class_name": "support",
+      "marker": false
+    },
+    "accepted-state-to-effect-joint|accepted-state|effect-joint": {
+      "view_edge_id": "accepted-state-to-effect-joint",
+      "source": "accepted-state",
+      "target": "effect-joint",
+      "source_port": "recheck",
+      "target_port": "incoming",
+      "routing": "curve",
+      "class_name": "ground",
+      "marker": false
+    }
+  },
+  "structural_paths": [
+    {
+      "id": "authority-generation-one",
+      "class_name": "authority-line",
+      "points": [
+        {
+          "x": 300,
+          "y": 820
+        },
+        {
+          "x": 5165,
+          "y": 820
+        }
+      ]
+    },
+    {
+      "id": "authority-generation-two",
+      "class_name": "authority-line",
+      "points": [
+        {
+          "x": 5205,
+          "y": 820
+        },
+        {
+          "x": 5900,
+          "y": 820
+        }
+      ]
+    },
+    {
+      "id": "accepted-reality-before",
+      "class_name": "accepted-axis",
+      "points": [
+        {
+          "x": 300,
+          "y": 2070
+        },
+        {
+          "x": 1480,
+          "y": 2070
+        }
+      ]
+    },
+    {
+      "id": "accepted-reality-after",
+      "class_name": "accepted-axis",
+      "points": [
+        {
+          "x": 5200,
+          "y": 2070
+        },
+        {
+          "x": 5900,
+          "y": 2070
+        }
+      ]
+    }
+  ],
+  "structural_links": [
+    {
+      "id": "authority-commitment",
+      "source_node": "authority",
+      "source_port": "out",
+      "target_node": "commitment",
+      "target_port": "authority",
+      "class_name": "authority-link",
+      "marker": false
+    },
+    {
+      "id": "grounds-lineage",
+      "source_node": "commitment",
+      "source_port": "ground",
+      "target_node": "attestation",
+      "target_port": "ground",
+      "class_name": "ground-lineage",
+      "via": [
+        {
+          "x": 1320,
+          "y": 900
+        },
+        {
+          "x": 4840,
+          "y": 900
+        }
+      ],
+      "marker": false
+    },
+    {
+      "id": "commitment-compile",
+      "source_node": "commitment",
+      "source_port": "compile",
+      "target_node": "action-joint",
+      "target_port": "intent",
+      "class_name": "flow-link",
+      "marker": false
+    },
+    {
+      "id": "capability-compile",
+      "source_node": "agency",
+      "source_port": "feed",
+      "target_node": "action-joint",
+      "target_port": "capability",
+      "class_name": "capability-feed",
+      "marker": false
+    },
+    {
+      "id": "compile-candidate-base",
+      "source_node": "action-joint",
+      "source_port": "outgoing",
+      "target_node": "candidate-state",
+      "target_port": "incoming",
+      "class_name": "flow-link",
+      "marker": false
+    },
+    {
+      "id": "candidate-base-lanes",
+      "source_node": "candidate-state",
+      "source_port": "outgoing",
+      "target_node": "worlds",
+      "target_port": "incoming",
+      "class_name": "candidate-link",
+      "marker": false
+    },
+    {
+      "id": "worlds-proof",
+      "source_node": "worlds",
+      "source_port": "outgoing",
+      "target_node": "proof",
+      "target_port": "incoming",
+      "class_name": "flow-link",
+      "marker": false
+    },
+    {
+      "id": "proof-candidate-gate",
+      "source_node": "proof",
+      "source_port": "outgoing",
+      "target_node": "candidate-gate",
+      "target_port": "incoming",
+      "class_name": "flow-link",
+      "marker": false
+    },
+    {
+      "id": "candidate-gate-cas",
+      "source_node": "candidate-gate",
+      "source_port": "outgoing",
+      "target_node": "candidate-cas",
+      "target_port": "effect",
+      "class_name": "candidate-effect-link",
+      "marker": true,
+      "marker_id": "candidate-arrow"
+    },
+    {
+      "id": "candidate-cas-next",
+      "source_node": "candidate-cas",
+      "source_port": "outgoing",
+      "target_node": "candidate-state-next",
+      "target_port": "incoming",
+      "class_name": "candidate-link",
+      "marker": false
+    },
+    {
+      "id": "candidate-next-closeout",
+      "source_node": "candidate-state-next",
+      "source_port": "closeout",
+      "target_node": "effect-joint",
+      "target_port": "incoming",
+      "class_name": "flow-link",
+      "marker": false
+    },
+    {
+      "id": "effect-cas",
+      "source_node": "effect-joint",
+      "source_port": "outgoing",
+      "target_node": "cas",
+      "target_port": "effect",
+      "class_name": "effect-link",
+      "marker": true,
+      "marker_id": "effect-arrow"
+    },
+    {
+      "id": "accepted-current-cas",
+      "source_node": "accepted-state",
+      "source_port": "axis_out",
+      "target_node": "cas",
+      "target_port": "axis_in",
+      "class_name": "accepted-link",
+      "marker": false
+    },
+    {
+      "id": "cas-accepted",
+      "source_node": "cas",
+      "source_port": "axis_out",
+      "target_node": "accepted-next",
+      "target_port": "axis_in",
+      "class_name": "accepted-link",
+      "marker": false
+    },
+    {
+      "id": "accepted-attestation",
+      "source_node": "accepted-next",
+      "source_port": "attest",
+      "target_node": "attestation",
+      "target_port": "observe",
+      "class_name": "attest-rise",
+      "marker": false,
+      "via": [
+        {
+          "x": 5120,
+          "y": 1710
+        },
+        {
+          "x": 5120,
+          "y": 440
+        },
+        {
+          "x": 4460,
+          "y": 440
+        },
+        {
+          "x": 4460,
+          "y": 850
+        },
+        {
+          "x": 4540,
+          "y": 850
+        }
+      ]
+    },
+    {
+      "id": "attestation-reauthorization",
+      "source_node": "attestation",
+      "source_port": "successor",
+      "target_node": "reauthorization",
+      "target_port": "incoming",
+      "class_name": "succession-flow",
+      "marker": false
+    },
+    {
+      "id": "reauthorization-next",
+      "source_node": "reauthorization",
+      "source_port": "outgoing",
+      "target_node": "commitment-next",
+      "target_port": "incoming",
+      "class_name": "succession-flow",
+      "marker": false
+    },
+    {
+      "id": "recovery-compile",
+      "source_node": "recovery",
+      "source_port": "outgoing",
+      "target_node": "action-joint",
+      "target_port": "recover",
+      "class_name": "recovery-feed",
+      "via": [
+        {
+          "x": 1200,
+          "y": 1810
+        },
+        {
+          "x": 1200,
+          "y": 2110
+        },
+        {
+          "x": 1160,
+          "y": 2110
+        }
+      ],
+      "marker": false
+    },
+    {
+      "id": "candidate-refresh-cycle",
+      "source_node": "candidate-state-next",
+      "source_port": "refresh",
+      "target_node": "worlds",
+      "target_port": "refresh",
+      "class_name": "candidate-refresh",
+      "via": [
+        {
+          "x": 4283.4,
+          "y": 1940
+        },
+        {
+          "x": 3200,
+          "y": 1940
+        },
+        {
+          "x": 3200,
+          "y": 1810
+        },
+        {
+          "x": 3060,
+          "y": 1810
+        }
+      ],
+      "marker": true,
+      "marker_id": "refresh-arrow"
+    }
+  ]
+}

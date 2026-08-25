@@ -34,6 +34,15 @@ reason; it cannot mint authority or hide a required gap. Isomorphism is checked
 across the product repository and adopters by comparing the same kernel inputs,
 verdict boundary, and attestation shape rather than their physical layouts.
 
+The terminal architecture declaration under
+`system/projections/terminal-architecture/` selects the complete visual
+assertion set and its absence reasons. It is not a second product ontology: the
+product contract remains semantic authority. The read-only exporter binds that
+declaration and every selected source to one exact Git commit and tree, emits a
+content-addressed `projection.input/v1`, and grants no repository-effect
+authority. Renderers and diagram tools consume the export; they never write
+back or become an authority root.
+
 ### Model Promotion
 
 [Model Promotion](../governance/product-design-contract.md#model-promotion) is

@@ -87,6 +87,7 @@ class Settings:
     head: str
     evidence: Path
     basetemp: Path
+    basetemp_owned: bool
     workers: int | None
     shards: int | None
     durations: int
@@ -98,11 +99,13 @@ class Settings:
     def load(cls) -> Self:
         """Read the declared execution controls once."""
         evidence = ROOT / os.getenv("ETHOS_TEST_EVIDENCE_DIR", "build/evidence/quality/tests")
+        configured_temp = os.getenv("ETHOS_TEST_BASETEMP")
         default_temp = Path(tempfile.gettempdir()) / f"ethos-pytest-{os.getpid()}"
         return cls(
             _head(),
             evidence,
-            Path(os.getenv("ETHOS_TEST_BASETEMP", str(default_temp))),
+            Path(configured_temp) if configured_temp else default_temp,
+            configured_temp is None,
             _parallelism("ETHOS_TEST_WORKERS", 8),
             _parallelism("ETHOS_TEST_SHARDS", 1),
             _number("ETHOS_TEST_DURATIONS", 20),
@@ -154,8 +157,8 @@ class PythonTestGate:
     def run_tests(self, session: nox.Session) -> None:
         """Run unit and architecture tests with branch coverage."""
         with self._coverage_lock():
-            self._prepare()
             try:
+                self._prepare()
                 self._sharded(session) if self.s.shards not in {None, 1} else self._single(session)
                 self.head_file.write_text(self.s.head + "\n", encoding="utf-8")
             finally:
@@ -202,6 +205,8 @@ class PythonTestGate:
             ROOT / "junit.xml",
         ):
             remove_generated_path(path)
+        if self.s.basetemp_owned:
+            remove_generated_path(self.s.basetemp)
         if self.s.identity:
             _chown(ROOT / "build", 0, 0)
             _chown(self.s.basetemp, 0, 0)

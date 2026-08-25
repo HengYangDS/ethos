@@ -1,0 +1,5 @@
+- [x] 1.1 Specify temporary-path ownership and build lifetime.
+- [x] 2.1 Test cleanup on success and failure.
+- [x] 3.1 Implement bounded ownership without another ledger.
+- [x] 4.1 Run focused checks, strict validation, and budget.
+- [x] 4.2 Verify a wheel build leaks no supply directory.

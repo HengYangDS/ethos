@@ -102,10 +102,7 @@ def test_coverage_gate_state() -> None:
     ]
 
 
-def test_python_test_evidence_cleanup_propagates_removal_failure(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_python_cleanup_propagates_removal_failure(tmp_path, monkeypatch) -> None:
     target = tmp_path / "evidence"
     target.mkdir()
 
@@ -118,36 +115,40 @@ def test_python_test_evidence_cleanup_propagates_removal_failure(
         python_test_gate.remove_generated_path(target)
 
 
-def test_python_test_cleanup_preserves_shared_interpreter_cache(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    root = tmp_path / "repo"
+@pytest.mark.parametrize(
+    ("failure", "ownership"),
+    [("", "owned"), ("pytest", "owned"), ("prepare", "owned"), ("", "external")],
+)
+def test_python_basetemp_ownership(tmp_path, monkeypatch, failure, ownership) -> None:
+    root, external = tmp_path / "repo", tmp_path / "external"
+    monkeypatch.setattr(python_test_gate, "ROOT", root)
+    monkeypatch.setattr(python_test_gate.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
+    monkeypatch.delenv("ETHOS_TEST_BASETEMP", raising=False)
+    if ownership == "external":
+        monkeypatch.setenv("ETHOS_TEST_BASETEMP", str(external))
+    gate = python_test_gate.PythonTestGate.from_environment()
     cache = root / "src/ethos/__pycache__"
     cache.mkdir(parents=True)
-    (cache / "module.pyc").write_bytes(b"cache")
-    (root / ".coverage").write_text("generated", encoding="utf-8")
-    monkeypatch.setattr(python_test_gate, "ROOT", root)
-    gate = python_test_gate.PythonTestGate(
-        python_test_gate.Settings(
-            head="a" * 40,
-            evidence=root / "build/evidence/quality/tests",
-            basetemp=tmp_path / "pytest",
-            workers=1,
-            shards=1,
-            durations=1,
-            timeout=None,
-            lock_wait=0,
-            identity=None,
-        )
+    monkeypatch.setattr(gate, "_stable_head", lambda: None)
+
+    def fail(*_args: object) -> None:
+        gate.s.basetemp.mkdir(parents=True, exist_ok=True)
+        message = f"{failure} failed"
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(
+        gate,
+        "_prepare" if failure == "prepare" else "_single",
+        fail if failure else lambda *_: None,
     )
-    monkeypatch.setattr(python_test_gate.PythonTestGate, "_single", lambda _self, _session: None)
-    monkeypatch.setattr(python_test_gate.PythonTestGate, "_stable_head", lambda _self: None)
+    if failure:
+        with pytest.raises(RuntimeError, match=failure):
+            gate.run_tests(object())  # type: ignore[invalid-argument-type]
+    else:
+        gate.run_tests(object())  # type: ignore[invalid-argument-type]
 
-    gate.run_tests(object())
-
-    assert cache.is_dir()
-    assert not (root / ".coverage").exists()
+    assert (gate.s.basetemp.exists(), cache.is_dir()) == (ownership == "external", True)
 
 
 def _write_fake_executable(path: Path, body: str) -> None:

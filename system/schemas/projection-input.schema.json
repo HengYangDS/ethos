@@ -230,8 +230,7 @@
       "required": [
         "label",
         "kind",
-        "provenance",
-        "assertion"
+        "provenance"
       ],
       "properties": {
         "label": {
@@ -249,9 +248,6 @@
             "type": "string",
             "minLength": 1
           }
-        },
-        "assertion": {
-          "type": "object"
         }
       },
       "additionalProperties": false
@@ -263,8 +259,7 @@
         "from",
         "to",
         "kind",
-        "provenance",
-        "assertion"
+        "provenance"
       ],
       "properties": {
         "id": {
@@ -290,9 +285,6 @@
             "type": "string",
             "minLength": 1
           }
-        },
-        "assertion": {
-          "type": "object"
         }
       },
       "additionalProperties": false

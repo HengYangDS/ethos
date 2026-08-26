@@ -19,6 +19,7 @@ scope = [
   "src/ethos/adapters/admission/git_admission.py",
   "src/ethos/adapters/mutation/proof.py",
   "src/ethos/adapters/mutation/proof_admission.py",
+  "src/ethos/adapters/mutation/remote_publication.py",
   "src/ethos/adapters/openspec/lifecycle/intent.py",
   "src/ethos/adapters/repo/hook/**",
   "src/ethos/adapters/repo/hook_runtime_install.py",

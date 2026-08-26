@@ -25,7 +25,9 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git import same_git_repository
-from ethos.adapters.repo.hook_runtime_install import require_runtime_wheel_provenance
+from ethos.adapters.repo.runtime.materialization.input_resolution import (
+    require_runtime_wheel_provenance,
+)
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.effects import replace_lease_authority
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease

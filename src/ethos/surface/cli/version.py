@@ -6,8 +6,8 @@ import json
 import sys
 from pathlib import Path
 
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
-from ethos.repository.release.identity import invoking_build_identity
 
 
 def version_text() -> str:

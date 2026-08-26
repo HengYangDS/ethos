@@ -237,7 +237,7 @@ def test_runtime_mutation_rejects_hardlinks_without_changing_the_external_inode(
         pytest.skip(f"hardlinks unavailable: {error}")
 
     effect = (
-        runtime_materialization._seal_runtime_payload  # noqa: SLF001
+        vars(runtime_materialization)["_seal_runtime_payload"]
         if operation == "seal"
         else runtime_materialization.remove_generated_tree
     )

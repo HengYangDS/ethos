@@ -23,7 +23,6 @@ from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attesta
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
-from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import git_effect_from_plan
@@ -188,11 +187,6 @@ def push_admission_report(
         if ref_kind == "tag"
         else pushed_head
     )
-    source_gaps = (
-        list(_release_publication_source_gaps(repo, policy=policy, peeled_commit=proof_head))
-        if role == "release_publication" and proof_head
-        else []
-    )
     supplied_proof = options.get("proof_admission")
     proof_admission = (
         dict(supplied_proof)
@@ -255,7 +249,6 @@ def push_admission_report(
             (
                 *ref_gaps,
                 *identity_gaps,
-                *source_gaps,
                 *proof_gap_list,
                 *topology_gaps,
                 *closeout_gaps,
@@ -277,30 +270,6 @@ def push_admission_report(
         else "pushed_commit_identity_not_allowed"
     )
     return _verdict(base, "block", "blocked", "block", reason, gaps)
-
-
-def _release_publication_source_gaps(
-    root: Path,
-    *,
-    policy: BranchRolePolicy,
-    peeled_commit: str,
-) -> tuple[str, ...]:
-    """Require a release tag to project one current accepted product head."""
-    product_heads = {
-        head
-        for branch in (policy.accepted_branch, policy.release_branch)
-        if branch
-        and (
-            head := git_stdout(
-                root,
-                "rev-parse",
-                "--verify",
-                "--quiet",
-                f"refs/heads/{branch}^{{commit}}",
-            )
-        )
-    }
-    return () if peeled_commit in product_heads else ("release_publication_source_not_current",)
 
 
 def ref_move_admission_report(

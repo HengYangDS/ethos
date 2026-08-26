@@ -103,9 +103,10 @@ def _build_identity_payload(root: Path) -> tuple[bytes, str]:
     if inserted:
         sys.path.insert(0, source_path)
     try:
-        identity_module = import_module("ethos.repository.release.identity")
-        identity = identity_module.build_input_identity(root)
-        return identity_module.build_identity_bytes(identity), identity.distribution_version
+        source = import_module("ethos.adapters.repo.runtime.source")
+        identity = source.build_input_identity(root)
+        codec = import_module("ethos.repository.release.identity")
+        return codec.build_identity_bytes(identity), identity.distribution_version
     finally:
         if inserted:
             sys.path.remove(source_path)

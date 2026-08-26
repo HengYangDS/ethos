@@ -82,35 +82,6 @@ def _object_mapping(value: object) -> dict[str, object]:
     return cast("dict[str, object]", value) if isinstance(value, dict) else {}
 
 
-def _publication_subject_head(
-    repo: Path,
-    *,
-    options: _PublishOptions,
-    invoking_head: str,
-) -> str:
-    """Return the commit whose exact object is being published."""
-    if options.receipt is not None:
-        try:
-            plan = load_remote_publication_request(
-                repo,
-                options.receipt,
-                options.receipt_sha256 or "",
-            )
-            return publication_effect_from_plan(plan).source.peeled_commit
-        except ValueError:
-            return invoking_head
-    if options.target_refs and all(ref.startswith("refs/tags/") for ref in options.target_refs):
-        peeled = git.git_stdout(
-            repo,
-            "rev-parse",
-            "--verify",
-            "--quiet",
-            f"{options.target_refs[0]}^{{commit}}",
-        )
-        return peeled or invoking_head
-    return invoking_head
-
-
 def _remote_ref_observation(
     observations: Mapping[str, Mapping[str, object]], peer_id: str, target_ref: str
 ) -> dict[str, object]:
@@ -172,7 +143,7 @@ def _publication_admission_gaps(
     *,
     repo: Path,
     target_refs: tuple[str, ...],
-    source_object: str,
+    current_head: str,
     remotes: Mapping[str, str],
     observations: Mapping[str, Mapping[str, object]],
     effect_gaps: tuple[str, ...],
@@ -182,7 +153,7 @@ def _publication_admission_gaps(
         f"{peer_id}:{target_ref}": push_admission_report(
             root=repo,
             target_ref=target_ref,
-            pushed_head=source_object,
+            pushed_head=current_head,
             remote_head=str(
                 _remote_ref_observation(observations, peer_id, target_ref).get(
                     "object_oid", git.zero_oid(repo)
@@ -194,18 +165,13 @@ def _publication_admission_gaps(
         for peer_id, remote in remotes.items()
         for target_ref in target_refs
     }
-    global_gaps = {
-        *effect_gaps,
-        *string_sequence(proof_admission.get("required_gaps")),
-    }
+    proof_gaps = set(string_sequence(proof_admission.get("required_gaps")))
     gaps = tuple(
         dict.fromkeys(
             (
                 *effect_gaps,
                 *(
-                    gap
-                    if gap in global_gaps or gap.startswith("release_publication_source_")
-                    else f"{gap}:{peer_id}"
+                    gap if gap in proof_gaps else f"{gap}:{peer_id}"
                     for peer_id, report in reports.items()
                     for gap in string_sequence(report.get("required_gaps"))
                 ),
@@ -302,11 +268,10 @@ def _publication_effect_observation(
         remotes=remotes,
         ref_admissions=ref_admissions,
     )
-    source_object = effect.source.object_oid if effect is not None else current_head
     admission_gaps, reports = _publication_admission_gaps(
         repo=repo,
         target_refs=target_refs,
-        source_object=source_object,
+        current_head=current_head,
         remotes=remotes,
         observations=observations,
         effect_gaps=effect_gaps,
@@ -515,13 +480,8 @@ def publish(
     """Report publish readiness without pushing."""
     repo = resolve_root(root)
     governance = repository_context(repo)
-    invoking_head = git.current_head(repo)
+    current_head = git.current_head(repo)
     projection_mode = bool(options.target_refs) or options.receipt is not None
-    current_head = _publication_subject_head(
-        repo,
-        options=options,
-        invoking_head=invoking_head,
-    )
     decision = evaluate_mutation(
         command="publish",
         apply=options.apply and not projection_mode,

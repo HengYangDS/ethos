@@ -14,8 +14,8 @@ from pathlib import Path
 import pytest
 from packaging.version import Version
 
+from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.repository.release.identity import BuildIdentity
-from ethos.repository.release.identity import accepted_version_reuse_gaps
 from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import load_build_identity_bytes
 from ethos.repository.release.identity import product_version
@@ -39,28 +39,6 @@ def test_version_file_is_the_single_product_owner_and_manifests_are_projections(
     assert "0.1.0a2" not in (root / "pyproject.toml").read_text(encoding="utf-8")
 
 
-def test_unreleased_distribution_identity_is_unique_pep440_and_below_release() -> None:
-    first = build_identity(
-        product="0.2.0-alpha.1",
-        source_commit="a" * 40,
-        source_tree="b" * 40,
-        channel="development",
-        acceptance_state="unaccepted",
-    )
-    second = build_identity(
-        product="0.2.0-alpha.1",
-        source_commit="c" * 40,
-        source_tree="d" * 40,
-        channel="development",
-        acceptance_state="unaccepted",
-    )
-
-    assert first.distribution_version != second.distribution_version
-    assert Version(first.distribution_version) < Version("0.2.0a1")
-    assert Version(second.distribution_version) < Version("0.2.0a1")
-    assert first.product_version == second.product_version == "0.2.0-alpha.1"
-
-
 def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> None:
     root = Path.cwd()
     repo = tmp_path / "repo"
@@ -78,7 +56,7 @@ def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> N
         target = repo / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target, follow_symlinks=False)
-    _git(repo, "init", "--quiet", "--initial-branch=dev")
+    _git(repo, "init", "--quiet", "--initial-branch=work/build-identity")
     _git(repo, "config", "user.name", "ETHOS Test")
     _git(repo, "config", "user.email", "ethos@example.invalid")
     _git(repo, "add", "-A")
@@ -98,6 +76,17 @@ def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> N
     assert Version(second.distribution_version) < Version("0.2.0a1")
 
 
+def test_environment_cannot_promote_a_work_build_to_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ETHOS_BUILD_CHANNEL", "accepted")
+
+    identity = source_build_identity(Path.cwd())
+
+    assert identity.channel == "development"
+    assert identity.acceptance_state == "unaccepted"
+
+
 def test_accepted_identity_uses_exact_product_projection() -> None:
     identity = build_identity(
         product="0.2.0-alpha.1",
@@ -115,6 +104,28 @@ def test_accepted_identity_uses_exact_product_projection() -> None:
         channel="accepted",
         acceptance_state="accepted",
     )
+
+
+def test_development_distribution_identity_uses_the_complete_source_coordinates() -> None:
+    common = "a" * 12
+    first = build_identity(
+        product="0.2.0-alpha.1",
+        source_commit=common + "1" * 28,
+        source_tree=common + "2" * 28,
+        channel="development",
+        acceptance_state="unaccepted",
+    )
+    second = build_identity(
+        product="0.2.0-alpha.1",
+        source_commit=common + "3" * 28,
+        source_tree=common + "4" * 28,
+        channel="development",
+        acceptance_state="unaccepted",
+    )
+
+    assert first.distribution_version != second.distribution_version
+    assert first.source_commit in first.distribution_version
+    assert first.source_tree in first.distribution_version
 
 
 @pytest.mark.parametrize("raw", ["1", "1.2", "v1.2.3", "1.2.3a1", "1.2.3-alpha"])
@@ -160,27 +171,6 @@ def test_build_identity_loader_rejects_distribution_or_channel_drift() -> None:
         load_build_identity_bytes(json.dumps(payload).encode())
 
 
-def test_accepted_identity_rejects_product_version_reuse_with_different_source() -> None:
-    prior = build_identity(
-        product="0.2.0-alpha.1",
-        source_commit="a" * 40,
-        source_tree="b" * 40,
-        channel="accepted",
-        acceptance_state="accepted",
-    )
-    candidate = build_identity(
-        product="0.2.0-alpha.1",
-        source_commit="c" * 40,
-        source_tree="d" * 40,
-        channel="accepted",
-        acceptance_state="accepted",
-    )
-
-    assert accepted_version_reuse_gaps(candidate, (prior,)) == (
-        "accepted_version_source_conflict:0.2.0-alpha.1",
-    )
-
-
 def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
     node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
     output.mkdir()
@@ -197,7 +187,6 @@ def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
         cwd=repo,
         env={
             **os.environ,
-            "ETHOS_BUILD_CHANNEL": "development",
             "ETHOS_BUILD_NODE": str(node_root / "bin" / "node"),
             "ETHOS_BUILD_NPM_CLI": str(node_root / "lib/node_modules/npm/bin/npm-cli.js"),
         },

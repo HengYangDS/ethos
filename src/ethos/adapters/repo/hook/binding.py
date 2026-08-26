@@ -13,9 +13,12 @@ from typing import TypedDict
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.authority import accepted_version_migration_pending
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
+from ethos.adapters.repo.runtime.authority import expected_runtime_source
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
 from ethos.adapters.repo.runtime.selection import runtime_command
 
 if TYPE_CHECKING:
@@ -40,6 +43,8 @@ class HookRuntimeBinding(TypedDict):
     expected_source_commit: str
     expected_source_tree: str
     current: bool
+    state: str
+    target_current: bool
     next_action: str
     python: str
     scripts: list[str]
@@ -62,18 +67,13 @@ def hook_launcher(name: str) -> str:
         'HOOK_DIR=$(CDPATH= cd "$HOOK_DIR" && pwd)\n'
         'RUNTIME_ROOT="$HOOK_DIR/../../runtime"\n'
         'CURRENT="$RUNTIME_ROOT/CURRENT"\n'
-        'if [ -L "$CURRENT" ] || [ ! -f "$CURRENT" ]; then\n'
-        '  printf "%s\\n" \'{"required_gaps":["hook_runtime_current_missing"],'
-        '"state":"blocked","verdict":"block"}\' >&2\n'
-        "  exit 1\n"
-        "fi\n"
+        'if [ -L "$CURRENT" ] || [ ! -f "$CURRENT" ]; then exit 1; fi\n'
         'RUNTIME_DIGEST=$(cat "$CURRENT") || exit 1\n'
         'case "$RUNTIME_DIGEST" in *[!0-9a-f]*|"") exit 1;; esac\n'
         '[ "${#RUNTIME_DIGEST}" -eq 64 ] || exit 1\n'
         'RUNTIME="$RUNTIME_ROOT/$RUNTIME_DIGEST"\n'
         'if [ -L "$RUNTIME" ] || [ ! -d "$RUNTIME" ]; then exit 1; fi\n'
-        f'exec "$RUNTIME_ROOT/$RUNTIME_DIGEST/python/{executable}" '
-        f'-I -m ethos.cli hook run {name} "$@"\n'
+        f'exec "$RUNTIME/python/{executable}" -B -I -m ethos.cli hook run {name} "$@"\n'
     )
 
 
@@ -108,19 +108,33 @@ def hook_runtime_binding(
         and not configured.is_symlink()
         and _valid_digest(configured.name)
     )
-    expected_build_identity, _source_root = _expected_build(repo, expected_build)
+    expected_build_identity, expected_build_gap = _expected_build(repo, expected_build)
+    expected_source_identity = _expected_source(repo, expected_build_identity)
     selected, selection_gap = _selected_runtime(common)
+    legacy_source = legacy_runtime_migration_source(common) if selected is None else None
+    target_applicable = expected_build_identity is not None
     gaps: list[str] = []
     if not valid_generation:
         gaps.append("write_admission_not_armed:core.hooksPath")
+    if expected_build_gap:
+        gaps.append(f"write_admission_not_armed:{expected_build_gap}")
     if selection_gap:
         gaps.append(f"write_admission_not_armed:{selection_gap}")
-    if expected_build_identity is None:
-        gaps.append("write_admission_not_armed:runtime_expected_build_unavailable")
-    elif selected is not None and selected.build != expected_build_identity:
+    source_stale = _source_gap(
+        expected_source_identity,
+        selected=selected,
+        legacy_source=legacy_source,
+        gaps=gaps,
+    )
+    if (
+        target_applicable
+        and selected is not None
+        and selected.build != expected_build_identity
+        and not source_stale
+    ):
         gaps.append("write_admission_not_armed:runtime_build_stale")
     gaps.extend(gap for name in HOOK_NAMES if (gap := _launcher_gap(hooks / name, name)))
-    if valid_generation:
+    if valid_generation and target_applicable:
         expected_launchers = {name: hook_launcher(name) for name in HOOK_NAMES}
         if hooks.name != hook_generation_digest(expected_launchers):
             gaps.append("write_admission_not_armed:hook_generation_digest")
@@ -135,13 +149,15 @@ def hook_runtime_binding(
         "acceptance_state": selected.build.acceptance_state if selected else "",
         "source_commit": selected.build.source_commit if selected else "",
         "source_tree": selected.build.source_tree if selected else "",
-        "expected_source_commit": (
-            expected_build_identity.source_commit if expected_build_identity else ""
-        ),
-        "expected_source_tree": (
-            expected_build_identity.source_tree if expected_build_identity else ""
-        ),
+        "expected_source_commit": expected_source_identity[0] if expected_source_identity else "",
+        "expected_source_tree": expected_source_identity[1] if expected_source_identity else "",
         "current": not gaps,
+        "state": "current"
+        if not gaps and target_applicable
+        else "migration_required"
+        if not gaps
+        else "stale",
+        "target_current": not gaps and target_applicable,
         "next_action": _repair_action(repo, selected) if gaps else "",
         "python": selected.python.as_posix() if selected else "",
         "scripts": list(HOOK_NAMES),
@@ -149,16 +165,41 @@ def hook_runtime_binding(
     }
 
 
-def _launcher_gap(launcher: Path, name: str) -> str:
+def _launcher_gap(
+    launcher: Path,
+    name: str,
+) -> str:
     if launcher.is_symlink() or not launcher.is_file() or not os.access(launcher, os.X_OK):
         return f"write_admission_not_armed:{name}_launcher_missing"
     try:
         current = launcher.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         current = ""
-    return (
-        "" if current == hook_launcher(name) else f"write_admission_not_armed:{name}_launcher_drift"
+    valid = current == hook_launcher(name)
+    return "" if valid else f"write_admission_not_armed:{name}_launcher_drift"
+
+
+def _source_gap(
+    expected: tuple[str, str] | None,
+    *,
+    selected: SelectedRuntime | None,
+    legacy_source: tuple[str, str] | None,
+    gaps: list[str],
+) -> bool:
+    observed = (
+        (selected.build.source_commit, selected.build.source_tree)
+        if selected is not None
+        else legacy_source
     )
+    stale = expected is not None and observed is not None and observed != expected
+    if expected is None:
+        gaps.append("write_admission_not_armed:runtime_expected_source_unavailable")
+    elif stale:
+        gaps.append("write_admission_not_armed:runtime_build_stale")
+        migration_gap = "write_admission_not_armed:runtime_schema_migration_required"
+        if migration_gap in gaps:
+            gaps.remove(migration_gap)
+    return stale
 
 
 def _selected_runtime(common: Path) -> tuple[SelectedRuntime | None, str]:
@@ -168,6 +209,8 @@ def _selected_runtime(common: Path) -> tuple[SelectedRuntime | None, str]:
         reason = str(error)
         if reason in {"hook_runtime_current_missing", "hook_runtime_current_invalid"}:
             return None, "runtime_current"
+        if reason == "hook_runtime_manifest_invalid":
+            return None, "runtime_schema_migration_required"
         return None, "runtime_manifest"
 
 
@@ -192,13 +235,24 @@ def _repair_action(repo: Path, selected: SelectedRuntime | None) -> str:
 def _expected_build(
     repo: Path,
     selected: BuildIdentity | None,
-) -> tuple[BuildIdentity | None, Path | None]:
+) -> tuple[BuildIdentity | None, str]:
     if selected is not None:
-        return selected, None
+        return selected, ""
     try:
-        return expected_runtime_build(repo)
+        return expected_runtime_build(repo)[0], ""
     except (OSError, RuntimeError, ValueError):
-        return None, None
+        if accepted_version_migration_pending(repo):
+            return None, ""
+        return None, "runtime_expected_build_unavailable"
+
+
+def _expected_source(repo: Path, selected: BuildIdentity | None) -> tuple[str, str] | None:
+    if selected is not None:
+        return selected.source_commit, selected.source_tree
+    try:
+        return expected_runtime_source(repo)
+    except (OSError, RuntimeError, ValueError):
+        return None
 
 
 def _valid_digest(value: str) -> bool:

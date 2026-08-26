@@ -24,7 +24,6 @@ scope = [
   "src/ethos/adapters/openspec/lifecycle/intent.py",
   "src/ethos/adapters/repo/hook/**",
   "src/ethos/adapters/repo/hook_runtime.py",
-  "src/ethos/adapters/repo/hook_runtime_install.py",
   "src/ethos/adapters/repo/runtime/**",
   "src/ethos/cli.py",
   "src/ethos/repository/release/**",

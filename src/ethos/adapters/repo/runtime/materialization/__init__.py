@@ -1,0 +1,1 @@
+"""Immutable runtime materialization adapters."""

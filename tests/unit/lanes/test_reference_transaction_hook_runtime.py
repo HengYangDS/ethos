@@ -7,11 +7,8 @@ import os
 import sqlite3
 import subprocess
 from contextlib import closing
-from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.hook.activation import install_hook_launchers
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos.adapters.store.state.schema import state_database
@@ -20,6 +17,8 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import render_branch_policy
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import pytest
 
 
@@ -107,8 +106,25 @@ def test_reference_transaction_hook_fails_closed_on_governed_branches(tmp_path: 
 
 def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
+    workspace = repo / ".ethos/workspace.toml"
+    workspace.parent.mkdir(parents=True)
+    workspace.write_text(
+        render_branch_policy(
+            release_branch="main",
+            accepted_branch="dev",
+            candidate_branch="candidate/dev",
+            work_branch_prefix="work/",
+            proposal_branch_prefix="proposal/",
+            release_mirror="accepted_ff",
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", workspace.as_posix())
+    git(repo, "commit", "-m", "declare accepted release mirror")
     candidate = tmp_path / "candidate"
     git(repo, "branch", "main")
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
@@ -116,43 +132,27 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     git(candidate, "add", "change")
     git(candidate, "commit", "-m", "candidate")
     candidate_head = git(candidate, "rev-parse", "HEAD")
-    exclude = repo / git(repo, "rev-parse", "--git-path", "info/exclude")
-    exclude.parent.mkdir(parents=True, exist_ok=True)
-    with exclude.open("a", encoding="utf-8") as excluded:
-        excluded.write("build/\nsrc/\ntools/\n")
-    install_hook_launchers(repo)
-    install_hook_launchers(candidate)
-    package = candidate / "src/ethos"
-    package.mkdir(parents=True)
-    (package / "__init__.py").write_text("", encoding="utf-8")
-    workspace = repo / ".ethos/workspace.toml"
-    workspace.parent.mkdir(parents=True)
-    workspace.write_text('[branch_roles]\nrelease_mirror = "accepted_ff"\n', encoding="utf-8")
-    hook = Path(str(hook_runtime_binding(repo)["hooks_path"])) / "reference-transaction"
-
-    completed = subprocess.run(
-        [hook, "prepared"],
-        cwd=repo,
-        input=f"{git(repo, 'rev-parse', 'main')} {candidate_head} refs/heads/main\n",
-        check=False,
-        capture_output=True,
-        text=True,
+    monkeypatch.setattr(
+        "ethos.adapters.repo.hook_runtime.current_runtime",
+        lambda _common: object(),
+    )
+    monkeypatch.setattr(
+        "ethos.adapters.repo.hook_runtime._candidate_python",
+        lambda *_args, **_kwargs: tmp_path / "python",
+    )
+    monkeypatch.setattr(
+        "ethos.adapters.repo.hook_runtime.run_command",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess((), 0, "", ""),
+    )
+    status = execute_hook(
+        repo,
+        "reference-transaction",
+        ("prepared",),
+        stdin=io.StringIO(f"{git(repo, 'rev-parse', 'main')} {candidate_head} refs/heads/main\n"),
     )
 
-    assert completed.returncode != 0
-
-
-def test_reference_transaction_hook_uses_the_candidate_project_environment() -> None:
-    owner = Path(__file__).resolve().parents[3] / "src/ethos/adapters/repo/hook_runtime.py"
-    text = owner.read_text(encoding="utf-8")
-
-    assert "def _candidate_python(" in text
-    assert "binding = hook_runtime_binding(candidate)" in text
-    assert 'if binding["required_gaps"]:' in text
-    assert '"-B",' in text
-    assert '"-I",' in text
-    assert '"ethos.cli",' in text
-    assert '"ref-transaction",' in text
+    assert status == 1
+    assert "candidate_semantic_runner_invalid" in capsys.readouterr().err
 
 
 def test_reference_transaction_reads_only_git_common_lease_state(

@@ -32,6 +32,8 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from ethos.adapters.repo.runtime.selection import SelectedRuntime
+
 
 @dataclass(frozen=True, slots=True)
 class _StatusPayload:
@@ -53,6 +55,7 @@ class _StatusPayload:
     advisory: list[str]
     unbound: list[dict[str, object]]
     workspace_gaps: list[str]
+    selected_runtime: SelectedRuntime | None
 
 
 def landing_readiness(
@@ -103,12 +106,21 @@ def _safe_ref(root: Path, ref: str) -> str:
         return ""
 
 
-def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> dict[str, object]:
+def workspace_status(
+    root: Path,
+    *,
+    include_foreign_path_scope: bool = True,
+    selected_runtime: SelectedRuntime | None = None,
+) -> dict[str, object]:
     """Return workspace truth, optionally deferring foreign path-scope expansion."""
     try:
         repo = Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
     except subprocess.CalledProcessError:
-        return _non_git_status(root, defer_details=not include_foreign_path_scope)
+        return _non_git_status(
+            root,
+            defer_details=not include_foreign_path_scope,
+            selected_runtime=selected_runtime,
+        )
     provenance = dirty_provenance(root)
     paths = tuple(str(item["path"]) for item in cast("list[dict[str, str]]", provenance["entries"]))
     branch, head, policy = (
@@ -172,6 +184,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
             advisory=advisory,
             unbound=unbound_refs,
             workspace_gaps=workspace_gaps,
+            selected_runtime=selected_runtime,
         )
     )
 
@@ -187,7 +200,10 @@ def _status_payload(payload: _StatusPayload) -> dict[str, object]:
             "dirty_provenance": payload.provenance,
             "role": payload.role,
             "role_policy": payload.policy.as_status_policy(),
-            "runtime_binding": runtime_binding(payload.runtime_root),
+            "runtime_binding": runtime_binding(
+                payload.runtime_root,
+                selected_runtime=payload.selected_runtime,
+            ),
             "landing_readiness": payload.landing,
             "candidate": payload.candidate,
             "worktrees": payload.worktrees,
@@ -257,7 +273,12 @@ def _stage_gates(
     }
 
 
-def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
+def _non_git_status(
+    root: Path,
+    *,
+    defer_details: bool,
+    selected_runtime: SelectedRuntime | None,
+) -> dict[str, object]:
     del defer_details
     policy = load_branch_role_policy(root)
     candidate: dict[str, object] = {
@@ -327,6 +348,7 @@ def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
             advisory=[],
             unbound=[],
             workspace_gaps=["git_repository_missing", "candidate_branch_missing"],
+            selected_runtime=selected_runtime,
         )
     )
 

@@ -12,12 +12,13 @@ from typing import TYPE_CHECKING
 from typing import NamedTuple
 from typing import NoReturn
 
+import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 from ethos.repository.release.identity import build_identity_from_projection
 
 if TYPE_CHECKING:
     from ethos.repository.release.identity import BuildIdentity
 
-_SCHEMA_VERSION = 4
+_SCHEMA_VERSION = 5
 _HEX = frozenset("0123456789abcdef")
 _ENVIRONMENT_INVALID = "hook_runtime_environment_invalid"
 _MANIFEST_INVALID = "hook_runtime_manifest_invalid"
@@ -31,6 +32,7 @@ class RuntimeEnvironment(NamedTuple):
     python_implementation: str
     dependency_lock_sha256: str
     platform: str
+    architecture: str
 
 
 class RuntimeManifest(NamedTuple):
@@ -64,6 +66,7 @@ def runtime_environment(
     python_implementation: str,
     dependency_lock_sha256: str,
     platform_name: str | None = None,
+    architecture_name: str | None = None,
 ) -> RuntimeEnvironment:
     """Construct and validate one platform-qualified runtime environment."""
     environment = RuntimeEnvironment(
@@ -72,6 +75,7 @@ def runtime_environment(
         python_implementation,
         dependency_lock_sha256,
         platform_name or platform.system().lower(),
+        canonical_architecture(architecture_name or platform.machine()),
     )
     if not all(environment) or not _valid_digest(environment.dependency_lock_sha256):
         raise ValueError(_ENVIRONMENT_INVALID)
@@ -98,7 +102,7 @@ def runtime_digest(
 
 def runtime_file_inventory(runtime: Path) -> dict[str, str]:
     """Hash every runtime file and symlink without following authority outside its root."""
-    if runtime.is_symlink() or not runtime.is_dir():
+    if runtime.is_symlink() or runtime_filesystem.is_junction(runtime) or not runtime.is_dir():
         raise ValueError(_MANIFEST_INVALID)
     root = runtime.resolve()
     records: dict[str, str] = {}
@@ -111,25 +115,34 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
             relative = path.relative_to(runtime).as_posix()
             if "__pycache__" in path.parts or path.suffix == ".pyc":
                 _raise_manifest_invalid()
+            if runtime_filesystem.is_junction(path):
+                _raise_manifest_invalid()
             if path == runtime / "manifest.json" or (path.is_dir() and not path.is_symlink()):
                 continue
             try:
                 mode = stat.S_IMODE(path.lstat().st_mode)
-                if path.is_symlink():
-                    target_path = path.readlink()
-                    if target_path.is_absolute():
-                        _raise_manifest_invalid()
-                    path.resolve(strict=True).relative_to(root)
-                    target = target_path.as_posix()
-                    payload = b"symlink\0" + f"{mode:o}\0".encode() + target.encode()
-                elif path.is_file():
-                    payload = b"file\0" + f"{mode:o}\0".encode() + path.read_bytes()
-                else:
-                    _raise_manifest_invalid()
+                digest = _inventory_entry_digest(path, root=root, mode=mode)
             except (OSError, RuntimeError, UnicodeError, ValueError) as error:
                 raise ValueError(_MANIFEST_INVALID) from error
-            records[relative] = hashlib.sha256(payload).hexdigest()
+            records[relative] = digest
     return dict(sorted(records.items()))
+
+
+def _inventory_entry_digest(path: Path, *, root: Path, mode: int) -> str:
+    if path.is_symlink():
+        target = path.readlink()
+        if target.is_absolute():
+            _raise_manifest_invalid()
+        path.resolve(strict=True).relative_to(root)
+        payload = b"symlink\0" + f"{mode:o}\0".encode() + target.as_posix().encode()
+        return hashlib.sha256(payload).hexdigest()
+    if not path.is_file():
+        _raise_manifest_invalid()
+    hasher = hashlib.sha256(b"file\0" + f"{mode:o}\0".encode())
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def runtime_manifest_bytes(
@@ -172,6 +185,7 @@ def load_runtime_manifest_bytes(raw: bytes) -> RuntimeManifest:
             python_implementation=str(payload["python_implementation"]),
             dependency_lock_sha256=str(payload["dependency_lock_sha256"]),
             platform_name=str(payload["platform"]),
+            architecture_name=str(payload["architecture"]),
         )
     except (KeyError, TypeError, UnicodeError, ValueError) as error:
         raise ValueError(_MANIFEST_INVALID) from error
@@ -216,6 +230,16 @@ def _canonical(payload: object) -> bytes:
 
 def _valid_digest(value: str) -> bool:
     return len(value) == 64 and not set(value) - _HEX
+
+
+def canonical_architecture(value: str) -> str:
+    """Normalize common architecture aliases for runtime identity comparison."""
+    normalized = value.strip().lower().replace("-", "_")
+    return {
+        "aarch64": "arm64",
+        "amd64": "x86_64",
+        "x64": "x86_64",
+    }.get(normalized, normalized)
 
 
 def _valid_inventory_path(value: str) -> bool:

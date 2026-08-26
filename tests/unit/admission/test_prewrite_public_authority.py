@@ -31,7 +31,11 @@ def _status(root: Path, *, role: str = "work_lane") -> dict[str, object]:
 
 
 def _bind_common(monkeypatch: pytest.MonkeyPatch, root: Path, *, role: str = "work_lane") -> None:
-    monkeypatch.setattr(prewrite, "_prewrite_status", lambda _root: _status(root, role=role))
+    monkeypatch.setattr(
+        prewrite,
+        "_prewrite_status",
+        lambda _root, **_kwargs: _status(root, role=role),
+    )
     monkeypatch.setattr(runtime_binding_adapter, "profile_gate_registry", lambda _root: False)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: False)
     monkeypatch.setattr(
@@ -53,7 +57,11 @@ def test_prewrite_fails_closed_on_non_repository_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(prewrite, "git_stdout", lambda *_args: "")
-    monkeypatch.setattr(prewrite, "runtime_binding", lambda root: {"audit_root": str(root)})
+    monkeypatch.setattr(
+        prewrite,
+        "runtime_binding",
+        lambda root, **_kwargs: {"audit_root": str(root)},
+    )
     monkeypatch.setattr(runtime_binding_adapter, "profile_gate_registry", lambda _root: True)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: False)
     monkeypatch.setattr(prewrite, "load_commitment", lambda _root: _commitment("**"))

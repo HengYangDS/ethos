@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.runtime.selection as runtime_selection
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -29,6 +30,7 @@ def test_hook_runtime_rejects_tampered_installed_package_bytes(
     package = runtime / "python/lib/python3.14/site-packages/ethos/module.py"
     activate_runtime(Path(git_common_dir(repo)), runtime)
 
+    package.chmod(0o644)
     package.write_text("tampered\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
@@ -82,6 +84,43 @@ def test_runtime_selection_compensation_is_exact_cas(tmp_path: Path) -> None:
     assert selector.read_bytes() == concurrent_selection
 
 
+def test_runtime_activation_validates_candidate_inside_selection_transaction(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    in_transaction = False
+    original = runtime_selection.require_selected_runtime
+
+    class SelectionTransaction:
+        def __init__(self, _path: str) -> None:
+            pass
+
+        def __enter__(self) -> None:
+            nonlocal in_transaction
+            in_transaction = True
+
+        def __exit__(self, *_args: object) -> None:
+            nonlocal in_transaction
+            in_transaction = False
+
+    def require_inside_transaction(*args: object, **kwargs: object):
+        assert in_transaction
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(runtime_selection, "FileLock", SelectionTransaction)
+    monkeypatch.setattr(
+        runtime_selection,
+        "require_selected_runtime",
+        require_inside_transaction,
+    )
+
+    selected = activate_runtime(common, venv.parent)
+
+    assert selected.root == venv.parent
+
+
 def test_current_runtime_rejects_symlinked_ethos_ancestor(tmp_path: Path) -> None:
     common = tmp_path / "common"
     external = tmp_path / "external"
@@ -108,7 +147,9 @@ def test_accepted_runtime_identity_rejects_a_second_closure_for_the_same_release
     activate_runtime(common, first)
     second_staging = tmp_path / "second-runtime"
     shutil.copytree(first, second_staging)
+    second_staging.chmod(0o755)
     package = second_staging / "python/lib/python3.14/site-packages/ethos/module.py"
+    package.chmod(0o644)
     package.write_text("different accepted closure\n", encoding="utf-8")
     selected = current_runtime(common)
     environment = runtime_environment(
@@ -117,6 +158,7 @@ def test_accepted_runtime_identity_rejects_a_second_closure_for_the_same_release
         python_implementation=selected.python_implementation,
         dependency_lock_sha256=selected.dependency_lock_sha256,
         platform_name=selected.platform,
+        architecture_name=selected.architecture,
     )
     files = runtime_file_inventory(second_staging)
     digest = runtime_digest(
@@ -127,7 +169,9 @@ def test_accepted_runtime_identity_rejects_a_second_closure_for_the_same_release
     )
     second = common / "ethos/runtime" / digest
     shutil.move(second_staging, second)
-    (second / "manifest.json").write_bytes(
+    manifest = second / "manifest.json"
+    manifest.chmod(0o644)
+    manifest.write_bytes(
         runtime_manifest_bytes(
             digest=digest,
             wheel_sha256=selected.wheel_sha256,

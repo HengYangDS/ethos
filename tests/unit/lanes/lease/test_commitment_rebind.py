@@ -23,13 +23,16 @@ from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
-from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import commit_active_commitment
 from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lifecycle_cases import rebind_effect
 from tests.support.lifecycle_cases import tamper_attestation
@@ -63,16 +66,6 @@ def _restore_lease_payload_json(worktree: Path, branch: str, payload: str) -> No
         connection.execute(
             "update leases set payload_json = ? where subject = ?", (payload, branch)
         )
-
-
-def _install_hooks(repository: Path, worktree: Path) -> None:
-    install_hook_launchers(repository)
-    install_hook_launchers(worktree)
-    exclude = Path(
-        git(repository, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude")
-    )
-    exclude.parent.mkdir(parents=True, exist_ok=True)
-    exclude.write_text("tools/\n", encoding="utf-8")
 
 
 def _configure_signing(worktree: Path, directory: Path, name: str) -> None:
@@ -139,10 +132,33 @@ def _bind_fixture_commitment(
         old_head,
     )
     git(worktree, "reset", "--hard", old_head)
-    install_hook_launchers(worktree)
     binding = exact_commitment_fields(worktree, head=old_head, carrier=carrier.as_posix())
     _replace_lease(worktree, branch, **binding)
     return old_head, leases_by_branch(worktree)[branch]
+
+
+def _start_minimal_rebind_lane(
+    tmp_path: Path, *, holder: str
+) -> tuple[Path, Path, str, dict[str, object]]:
+    """Create only the real Git, Commitment, and Lease facts rebind consumes."""
+    repository = init_git_repo(tmp_path / "repo")
+    git(repository, "branch", "candidate/dev", "dev")
+    commit_active_commitment(repository)
+    branch = "work/feature"
+    worktree = tmp_path / "repo-work-feature"
+    git(repository, "worktree", "add", "-b", branch, worktree.as_posix(), "dev")
+    carrier = "openspec/changes/fixture-change/commitment.toml"
+    acquire_lease(
+        state_database(repository),
+        lease=exact_lease(
+            repo=repository,
+            branch=branch,
+            holder_ref=holder,
+            expected_head=git(worktree, "rev-parse", "HEAD"),
+            carrier=carrier,
+        ),
+    )
+    return repository, worktree, branch, leases_by_branch(worktree)[branch]
 
 
 @dataclass
@@ -207,13 +223,27 @@ def _case(
     semantic_rename: bool = False,
     earlier_change: bool = False,
     byte_only: bool = False,
+    public_lane_start: bool = False,
 ) -> RebindCase:
     holder = "agent:test:case:commitment-rebind"
-    fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
-    worktree = fixture.worktree
-    _install_hooks(fixture.repository, worktree)
-    branch = git(worktree, "branch", "--show-current")
-    lease = leases_by_branch(worktree)[branch]
+    if public_lane_start:
+        fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
+        repository, worktree = fixture.repository, fixture.worktree
+        branch = git(worktree, "branch", "--show-current")
+        lease = leases_by_branch(worktree)[branch]
+        exclude = Path(
+            git(
+                repository,
+                "rev-parse",
+                "--path-format=absolute",
+                "--git-path",
+                "info/exclude",
+            )
+        )
+        exclude.parent.mkdir(parents=True, exist_ok=True)
+        exclude.write_text("tools/\n", encoding="utf-8")
+    else:
+        repository, worktree, branch, lease = _start_minimal_rebind_lane(tmp_path, holder=holder)
     carrier = Path(str(lease["base_commitment_path"]))
     old_head = git(worktree, "rev-parse", "HEAD")
     if earlier_change:
@@ -252,7 +282,6 @@ def _case(
         binding = exact_commitment_fields(worktree, head=old_head, carrier=carrier.as_posix())
         _replace_lease(worktree, branch, **binding)
         lease = leases_by_branch(worktree)[branch]
-        install_hook_launchers(worktree)
     target_carrier = {
         "stable": carrier,
         "relocated": Path("openspec/changes/rebound-fixture/commitment.toml"),
@@ -445,22 +474,20 @@ def test_rebind_checkpoint_matrix(
     case = _case(tmp_path, monkeypatch)
     epoch = int(case.lease["epoch"])
     if checkpoint == "prepared":
-        original = Path(git(case.worktree, "config", "core.hooksPath"))
+        original = git(case.worktree, "config", "core.hooksPath")
         hooks = tmp_path / "reject-prepared"
         hooks.mkdir()
         hook = hooks / "reference-transaction"
         hook.write_text(
-            (original / hook.name)
-            .read_text(encoding="utf-8")
-            .replace("#!/bin/sh\n", '#!/bin/sh\n[ "$1" = "prepared" ] && exit 1\n', 1),
+            '#!/bin/sh\n[ "$1" = "prepared" ] && exit 1\nexit 0\n',
             encoding="utf-8",
         )
         hook.chmod(0o755)
-        git(case.worktree, "config", "--worktree", "core.hooksPath", hooks.as_posix())
+        git(case.worktree, "config", "core.hooksPath", hooks.as_posix())
         interrupted = case.execute()
         assert interrupted["required_gaps"] == ["git_effect_cas_rejected"]
         assert git(case.worktree, "rev-parse", "HEAD") == case.request.expect_head
-        git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
+        git(case.worktree, "config", "core.hooksPath", original)
         report = case.execute()
         assert report["state"] == "applied"
         case.assert_terminal(report)
@@ -841,12 +868,25 @@ def test_rebind_receipt_apply_and_drift_matrix(
     assert report["required_gaps"] == [gap]
 
 
-@pytest.mark.parametrize("mode", ["stable", "relocated", "lease-ahead"])
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "public-lane-start-apply-recognized-e2e",
+        "relocated",
+        "lease-ahead",
+    ],
+)
 def test_rebind_cli_and_impossible_state_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
 ) -> None:
+    public_lane_start = mode == "public-lane-start-apply-recognized-e2e"
     case = _case(
-        tmp_path, monkeypatch, carrier_mode="relocated" if mode == "relocated" else "stable"
+        tmp_path,
+        monkeypatch,
+        carrier_mode="relocated" if mode == "relocated" else "stable",
+        public_lane_start=public_lane_start,
     )
     if mode == "lease-ahead":
         case.replace_lease(epoch=int(case.lease["epoch"]) + 1, **case.target)
@@ -877,10 +917,11 @@ def test_rebind_cli_and_impossible_state_matrix(
     applied = run_ethos(*arguments, cwd=case.worktree)["data"]
     assert applied["verdict"] == "pass"
     assert applied["lease"]["base_commitment_path"] == case.request.new_commitment_path
-    if mode == "stable":
+    if public_lane_start:
         repeated = run_ethos(*arguments, cwd=case.worktree)["data"]
         assert (applied["state"], repeated["state"]) == ("applied", "recognized")
         assert applied["attestation"] == repeated["attestation"]
+        case.assert_terminal(applied)
 
 
 @pytest.mark.parametrize(

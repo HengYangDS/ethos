@@ -36,6 +36,7 @@ from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_topology
 
 if TYPE_CHECKING:
+    from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.contracts.admission import HookAdmissionRequest
 
 HOOK_LAYERS = {
@@ -52,11 +53,19 @@ HOOK_LAYERS = {
 _ZERO_OIDS = {"0" * 40, "0" * 64}
 
 
-def hook_admission_report(request: HookAdmissionRequest) -> dict[str, object]:
+def hook_admission_report(
+    request: HookAdmissionRequest,
+    *,
+    selected_runtime: SelectedRuntime | None = None,
+) -> dict[str, object]:
     """Evaluate a hook-layer request against the current checkout state."""
     normalized = request.layer.strip().lower().replace("_", "-")
     repo = Path(request.root).resolve()
-    status = workspace_status(repo, include_foreign_path_scope=False)
+    status = workspace_status(
+        repo,
+        include_foreign_path_scope=False,
+        selected_runtime=selected_runtime,
+    )
     targets = [
         path
         if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
@@ -108,6 +117,7 @@ def hook_admission_report(request: HookAdmissionRequest) -> dict[str, object]:
             paths=targets,
             editor_root=editor_root,
             require_editor_root=request.require_editor_root,
+            selected_runtime=selected_runtime,
         )
     return report
 
@@ -394,12 +404,14 @@ def _prewrite_report(
     paths: list[Path],
     editor_root: Path | None,
     require_editor_root: bool,
+    selected_runtime: SelectedRuntime | None,
 ) -> dict[str, object]:
     admission = prewrite_guard(
         root=repo,
         paths=paths,
         editor_root=editor_root,
         require_editor_root=require_editor_root,
+        selected_runtime=selected_runtime,
     )
     base.update(admission=admission, role=admission["role"], branch=admission["branch"])
     verdict = report_verdict(admission)

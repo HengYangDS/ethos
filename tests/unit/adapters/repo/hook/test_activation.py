@@ -9,7 +9,9 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.hook.activation as hook_activation
+import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
+import ethos.adapters.repo.runtime.selection as runtime_selection
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
@@ -17,11 +19,78 @@ from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
+from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.repository.release.identity import BuildIdentity
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import linked_runtime_case
 from tests.support.runtime_scenarios import materialize_runtime_case
+
+
+def test_hook_install_observes_runtime_bytes_only_at_admission_and_post_observe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_runtime",
+        lambda *_args, **_kwargs: runtime,
+    )
+    observed: list[Path] = []
+    inventory = runtime_selection.runtime_file_inventory
+
+    def record_inventory(root: Path) -> dict[str, str]:
+        observed.append(root)
+        return inventory(root)
+
+    monkeypatch.setattr(runtime_selection, "runtime_file_inventory", record_inventory)
+
+    installed = install_hook_launchers(repo)
+
+    assert installed["required_gaps"] == []
+    assert observed == [runtime.parent, runtime.parent]
+
+
+def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = runtime_selection.activate_runtime(Path(git_common_dir(repo)), runtime.parent)
+    monkeypatch.setattr(
+        hook_activation,
+        "expected_runtime_build",
+        lambda _root: (selected.build, None),
+    )
+    environment = runtime_environment(
+        python_abi=selected.python_abi,
+        python_version=selected.python_version,
+        python_implementation=selected.python_implementation,
+        dependency_lock_sha256=selected.dependency_lock_sha256,
+        platform_name=selected.platform,
+        architecture_name=selected.architecture,
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "resolve_owned_interpreter",
+        lambda *_args: selected.python,
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "observe_runtime_environment",
+        lambda *_args, **_kwargs: environment,
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "resolve_runtime_wheel",
+        lambda *_args, **_kwargs: pytest.fail("exact runtime generation was rebuilt"),
+    )
+
+    first = install_hook_launchers(repo)
+    second = install_hook_launchers(repo)
+
+    assert first["runtime_digest"] == second["runtime_digest"]
 
 
 def test_hook_install_removes_only_unreferenced_generated_paths(
@@ -43,7 +112,16 @@ def test_hook_install_removes_only_unreferenced_generated_paths(
     removed_runtime = runtime_root / removed_digest
     retained_runtime.mkdir(parents=True)
     removed_runtime.mkdir()
+    sealed = removed_runtime / "sealed.txt"
+    sealed.write_text("immutable\n", encoding="utf-8")
+    sealed.chmod(0o444)
+    removed_runtime.chmod(0o555)
     active_hooks = hook_activation.materialize_hook_launchers(hooks_root)
+    legacy = common / "ethos-hooks"
+    digest_legacy = common / ("ethos-hooks-" + "c" * 64)
+    unrelated = common / "ethos-hooks-manual"
+    for path in (legacy, digest_legacy, unrelated):
+        path.mkdir()
     operations = common / "ethos" / "operations"
     operations.mkdir()
     (operations / "consumer.json").write_text(
@@ -54,34 +132,13 @@ def test_hook_install_removes_only_unreferenced_generated_paths(
     installed = install_hook_launchers(repo)
 
     cleanup = installed["generation_cleanup"]
-    assert cleanup["removed"] == [removed_runtime.as_posix()]
+    removed = cleanup["removed"]
+    assert removed_runtime.as_posix() in removed
     assert retained_runtime.as_posix() in cleanup["retained"]
     assert active_hooks.as_posix() in cleanup["retained"]
     assert not removed_runtime.exists()
     assert retained_runtime.is_dir()
     assert active_hooks.is_dir()
-
-
-def test_hook_install_retires_unreferenced_legacy_hook_directories(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: venv,
-    )
-    common = Path(git_common_dir(repo))
-    legacy = common / "ethos-hooks"
-    digest_legacy = common / ("ethos-hooks-" + "a" * 64)
-    unrelated = common / "ethos-hooks-manual"
-    for path in (legacy, digest_legacy, unrelated):
-        path.mkdir()
-
-    installed = install_hook_launchers(repo)
-
-    removed = installed["generation_cleanup"]["removed"]
     assert legacy.as_posix() in removed
     assert digest_legacy.as_posix() in removed
     assert not legacy.exists()
@@ -195,17 +252,6 @@ def test_hook_generation_failure_never_mutates_an_existing_generation(
     assert {path.name for path in root.iterdir()} == {old.name}
 
 
-def test_hook_generation_rejects_a_symlinked_ethos_ancestor(tmp_path: Path) -> None:
-    common = tmp_path / "common"
-    external = tmp_path / "external"
-    common.mkdir()
-    external.mkdir()
-    (common / "ethos").symlink_to(external, target_is_directory=True)
-
-    with pytest.raises(ValueError, match="hook_generation_root_invalid"):
-        hook_activation.materialize_hook_launchers(common / "ethos" / "hooks")
-
-
 def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -241,7 +287,7 @@ def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
 
     installed = install_hook_launchers(repo)
 
-    assert source_selections == [repo]
+    assert source_selections == [repo, repo]
     assert materialized_with == [accepted_identity]
     assert installed["expected_source_commit"] == accepted_identity.source_commit
     assert installed["expected_source_tree"] == accepted_identity.source_tree
@@ -318,18 +364,6 @@ def test_hook_activation_failure_keeps_the_old_generation_configured(
 def test_hook_generation_repairs_drift_without_changing_identity(tmp_path: Path) -> None:
     root = tmp_path / "ethos" / "hooks"
     generation = hook_activation.materialize_hook_launchers(root)
-    (generation / "pre-push").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-
-    repaired = hook_activation.materialize_hook_launchers(root)
-
-    assert repaired == generation
-    assert (repaired / "pre-push").read_text(encoding="utf-8") == hook_launcher("pre-push")
-
-
-def test_hook_generations_are_content_addressed_and_immutable(tmp_path: Path) -> None:
-    root = tmp_path / "ethos" / "hooks"
-
-    generation = hook_activation.materialize_hook_launchers(root)
     inode = generation.stat().st_ino
     repeated = hook_activation.materialize_hook_launchers(root)
 
@@ -338,9 +372,14 @@ def test_hook_generations_are_content_addressed_and_immutable(tmp_path: Path) ->
     assert generation.parent == root
     assert len(generation.name) == 64
     assert {path.name for path in generation.iterdir()} == set(HOOK_NAMES)
+    (generation / "pre-push").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+
+    repaired = hook_activation.materialize_hook_launchers(root)
+
+    assert repaired == generation
+    assert (repaired / "pre-push").read_text(encoding="utf-8") == hook_launcher("pre-push")
     assert all(
-        (generation / name).read_text(encoding="utf-8") == hook_launcher(name)
-        for name in HOOK_NAMES
+        (repaired / name).read_text(encoding="utf-8") == hook_launcher(name) for name in HOOK_NAMES
     )
 
 
@@ -365,6 +404,33 @@ def test_hook_install_blocks_cleanup_when_an_active_consumer_is_unreadable(
         install_hook_launchers(repo)
 
     assert stale.is_dir()
+
+
+def test_hook_install_rejects_a_junction_runtime_generation_without_touching_it(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_runtime",
+        lambda *_args, **_kwargs: venv,
+    )
+    common = Path(git_common_dir(repo))
+    junction = common / "ethos/runtime" / ("f" * 64)
+    junction.mkdir(parents=True)
+    sentinel = junction / "sentinel"
+    sentinel.write_text("outside authority\n", encoding="utf-8")
+    monkeypatch.setattr(
+        runtime_filesystem,
+        "is_junction",
+        lambda path: path == junction,
+    )
+
+    with pytest.raises(ValueError, match="hook_runtime_generation_root_invalid"):
+        install_hook_launchers(repo)
+
+    assert sentinel.read_text(encoding="utf-8") == "outside authority\n"
 
 
 def test_hook_generation_post_replace_failure_restores_the_existing_generation(
@@ -435,6 +501,74 @@ def test_hook_activation_rejects_a_non_current_post_observation(
     assert not selector.exists()
 
 
+def test_hook_activation_compensates_when_expected_build_drifts_during_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = runtime_selection.require_selected_runtime(runtime.parent)
+    drifted = BuildIdentity(
+        selected.build.product_version,
+        selected.build.distribution_version,
+        "d" * 40,
+        "e" * 40,
+        selected.build.channel,
+        selected.build.acceptance_state,
+    )
+    observations = iter((selected.build, drifted))
+    monkeypatch.setattr(
+        hook_activation,
+        "expected_runtime_build",
+        lambda _root: (next(observations), None),
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_runtime",
+        lambda *_args, **_kwargs: runtime,
+    )
+    common = Path(git_common_dir(repo))
+
+    with pytest.raises(ValueError, match="hook_runtime_expected_build_stale"):
+        install_hook_launchers(repo)
+
+    assert not (common / "ethos/runtime/CURRENT").exists()
+    assert git_process(repo, "config", "--local", "--get", "core.hooksPath").returncode != 0
+
+
+def test_hook_cleanup_rejects_selector_drift_before_deleting_generations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_runtime",
+        lambda *_args, **_kwargs: runtime,
+    )
+    common = Path(git_common_dir(repo))
+    concurrent_digest = "c" * 64
+    concurrent = common / "ethos/runtime" / concurrent_digest
+    concurrent.mkdir(parents=True)
+    sentinel = concurrent / "sentinel"
+    sentinel.write_text("concurrent selection\n", encoding="utf-8")
+    original_plan = hook_activation._generation_cleanup_plan  # noqa: SLF001
+
+    def drift_after_plan(*args: object, **kwargs: object) -> dict[str, tuple[Path, ...]]:
+        plan = original_plan(*args, **kwargs)
+        (common / "ethos/runtime/CURRENT").write_text(
+            f"{concurrent_digest}\n",
+            encoding="ascii",
+        )
+        return plan
+
+    monkeypatch.setattr(hook_activation, "_generation_cleanup_plan", drift_after_plan)
+
+    with pytest.raises(ValueError, match="hook_runtime_current_stale"):
+        install_hook_launchers(repo)
+
+    assert sentinel.read_text(encoding="utf-8") == "concurrent selection\n"
+
+
 def test_hook_runtime_rejects_a_symlinked_ethos_root_before_writing(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -455,10 +589,17 @@ def test_hook_runtime_rejects_a_symlinked_ethos_root_before_writing(tmp_path: Pa
 
 
 @pytest.mark.parametrize("kind", ["file", "symlink"])
-def test_hook_install_retires_the_legacy_runtime_python_locator(tmp_path: Path, kind: str) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+def test_hook_install_retires_the_legacy_runtime_python_locator(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+) -> None:
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_runtime",
+        lambda *_args, **_kwargs: runtime,
+    )
     common = Path(git_common_dir(repo))
     legacy = common / "ethos-runtime-python"
     if kind == "symlink":

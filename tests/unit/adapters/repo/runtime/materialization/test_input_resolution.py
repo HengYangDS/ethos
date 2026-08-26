@@ -139,6 +139,31 @@ def test_runtime_tool_reports_missing_executable_and_stderr(
     assert runtime_inputs.resolve_runtime_wheel(source, failed_wheel).parent == failed_wheel
 
 
+def test_runtime_tool_forces_copy_link_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    python = tmp_path / "bin/python"
+    uv = python.with_name("uv")
+    uv.parent.mkdir(parents=True)
+    uv.write_text("tool", encoding="utf-8")
+    monkeypatch.setattr(sys, "executable", python.as_posix())
+    monkeypatch.setenv("UV_LINK_MODE", "hardlink")
+    observed: dict[str, str] = {}
+
+    def run(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed.update(kwargs["env"])
+        return _completed(0)
+
+    monkeypatch.setattr(runtime_inputs.subprocess, "run", run)
+
+    runtime_inputs.run_runtime_tool(source, "pip", "install", "package.whl")
+
+    assert observed["UV_LINK_MODE"] == "copy"
+
+
 def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_writing(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

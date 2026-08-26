@@ -20,6 +20,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.admission import HookAdmissionRequest
@@ -41,13 +42,13 @@ def execute_hook(
     """Execute one Git hook without shell-owned policy or PATH-selected ETHOS code."""
     repo = root.resolve()
     try:
-        current_runtime(Path(git_common_dir(repo)))
+        selected_runtime = current_runtime(Path(git_common_dir(repo)))
         if name == "pre-commit":
-            reports = (_pre_commit(repo),)
+            reports = (_pre_commit(repo, selected_runtime=selected_runtime),)
         elif name == "pre-push":
             reports = _pre_push(repo, args, stdin)
         else:
-            reports = _reference_transaction(repo, args, stdin)
+            reports = _reference_transaction(repo, args, stdin, selected_runtime=selected_runtime)
     except (OSError, RuntimeError, TypeError, ValueError) as error:
         reports = (_blocked(name, str(error) or error.__class__.__name__),)
     failed = [report for report in reports if report_verdict(report) != "pass"]
@@ -57,7 +58,7 @@ def execute_hook(
     return 0
 
 
-def _pre_commit(root: Path) -> dict[str, object]:
+def _pre_commit(root: Path, *, selected_runtime: SelectedRuntime) -> dict[str, object]:
     staged = _git_paths(root, "diff", "--cached", "--name-only", "--diff-filter=ACMRTD")
     if not staged:
         return _passed("pre-commit", "no_staged_paths")
@@ -78,7 +79,8 @@ def _pre_commit(root: Path) -> dict[str, object]:
             expected_root=root.as_posix(),
             require_editor_root=True,
             command="git commit",
-        )
+        ),
+        selected_runtime=selected_runtime,
     )
 
 
@@ -157,7 +159,11 @@ def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[s
 
 
 def _reference_transaction(
-    root: Path, args: tuple[str, ...], stdin: IO[str]
+    root: Path,
+    args: tuple[str, ...],
+    stdin: IO[str],
+    *,
+    selected_runtime: SelectedRuntime,
 ) -> tuple[dict[str, object], ...]:
     phase = args[0] if args else ""
     if phase not in {"prepared", "committed", "aborted"}:
@@ -173,12 +179,27 @@ def _reference_transaction(
             old_value == new_value and old_value not in _ZERO_OIDS
         ):
             continue
-        reports.append(_reference_transition_report(root, phase, ref_name, old_value, new_value))
+        reports.append(
+            _reference_transition_report(
+                root,
+                phase,
+                ref_name,
+                old_value,
+                new_value,
+                selected_runtime=selected_runtime,
+            )
+        )
     return tuple(reports) or (_passed("reference-transaction", "no_governed_updates"),)
 
 
 def _reference_transition_report(
-    root: Path, phase: str, ref_name: str, old_value: str, new_value: str
+    root: Path,
+    phase: str,
+    ref_name: str,
+    old_value: str,
+    new_value: str,
+    *,
+    selected_runtime: SelectedRuntime,
 ) -> dict[str, object]:
     branch = ref_name.removeprefix("refs/heads/")
     try:
@@ -190,7 +211,13 @@ def _reference_transition_report(
     )
     if phase == "prepared" and protected:
         report = _candidate_report(
-            root, policy.candidate_branch, ref_name, old_value, new_value, phase
+            root,
+            policy.candidate_branch,
+            ref_name,
+            old_value,
+            new_value,
+            phase,
+            selected_runtime=selected_runtime,
         )
     elif policy.role_for_branch(branch) == ROLE_WORK_LANE:
         report = work_lane_ref_transition_report(
@@ -229,6 +256,8 @@ def _candidate_report(
     old_value: str,
     new_value: str,
     phase: str,
+    *,
+    selected_runtime: SelectedRuntime,
 ) -> dict[str, object]:
     policy = resolve_ref_move_policy(root, ref_name, old_value, new_value)
     records = worktree_records(root, current_path=root, policy=policy)
@@ -240,7 +269,7 @@ def _candidate_report(
         or run_git(candidate, "status", "--porcelain", check=False).stdout.strip()
     ):
         return _blocked("reference-transaction", "candidate_semantic_runner_unavailable")
-    python = _candidate_python(candidate)
+    python = _candidate_python(candidate, selected_runtime=selected_runtime)
     if python is None:
         return _blocked("reference-transaction", "candidate_semantic_runner_unavailable")
     completed = run_command(
@@ -275,8 +304,12 @@ def _candidate_report(
     )
 
 
-def _candidate_python(candidate: Path) -> Path | None:
-    binding = hook_runtime_binding(candidate)
+def _candidate_python(
+    candidate: Path,
+    *,
+    selected_runtime: SelectedRuntime,
+) -> Path | None:
+    binding = hook_runtime_binding(candidate, selected_runtime=selected_runtime)
     if binding["required_gaps"]:
         return None
     python = Path(binding["python"])

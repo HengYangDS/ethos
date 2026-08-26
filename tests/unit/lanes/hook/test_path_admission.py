@@ -106,7 +106,11 @@ def test_editor_binding_matrix(
         binding[f"{component}_source_root"] = (
             binding["audit_root"] if matches else f"/foreign/{component}"
         )
-    monkeypatch.setattr(admission_prewrite, "runtime_binding", lambda _root: binding)
+    monkeypatch.setattr(
+        admission_prewrite,
+        "runtime_binding",
+        lambda _root, **_kwargs: binding,
+    )
     report = _guard(worktree, ("README.md",))
     assert report["verdict"] == "block"
     assert "ok" not in report

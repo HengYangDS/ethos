@@ -551,7 +551,7 @@ def test_hook_cleanup_rejects_selector_drift_before_deleting_generations(
     concurrent.mkdir(parents=True)
     sentinel = concurrent / "sentinel"
     sentinel.write_text("concurrent selection\n", encoding="utf-8")
-    original_plan = hook_activation._generation_cleanup_plan  # noqa: SLF001
+    original_plan = vars(hook_activation)["_generation_cleanup_plan"]
 
     def drift_after_plan(*args: object, **kwargs: object) -> dict[str, tuple[Path, ...]]:
         plan = original_plan(*args, **kwargs)

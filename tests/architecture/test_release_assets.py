@@ -115,6 +115,20 @@ def test_python_cleanup_propagates_removal_failure(tmp_path, monkeypatch) -> Non
         python_test_gate.remove_generated_path(target)
 
 
+def test_python_cleanup_removes_owned_readonly_runtime_tree(tmp_path) -> None:
+    target = tmp_path / "evidence"
+    runtime = target / "repo/.git/ethos/runtime/digest"
+    runtime.mkdir(parents=True)
+    payload = runtime / "manifest.json"
+    payload.write_text("{}\n", encoding="utf-8")
+    payload.chmod(0o444)
+    runtime.chmod(0o555)
+
+    python_test_gate.remove_generated_path(target)
+
+    assert not target.exists()
+
+
 @pytest.mark.parametrize(
     ("failure", "ownership"),
     [("", "owned"), ("pytest", "owned"), ("prepare", "owned"), ("", "external")],

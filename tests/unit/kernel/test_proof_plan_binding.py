@@ -10,9 +10,11 @@ from typing import TYPE_CHECKING
 import pytest
 import tomli_w
 
+import ethos.adapters.mutation.lane_start_carrier as lane_start_carrier
 import ethos.adapters.mutation.proof as proof_module
 import ethos.adapters.mutation.proof_admission as proof_admission
 import ethos.adapters.openspec.profile as openspec_profile
+import tests.support.governed_repository as governed_repository
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
@@ -99,6 +101,8 @@ def _assert_proof(
 def test_work_lane_proof_plan_uses_the_current_active_commitment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(governed_repository, "install_hook_launchers", lambda _root: {})
+    monkeypatch.setattr(lane_start_carrier, "install_hook_launchers", lambda _root: {})
     holder = "agent:test:case:current-commitment"
     root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
     lease = proof_module.leases_by_branch(root)["work/feature"]

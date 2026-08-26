@@ -149,6 +149,7 @@ def test_reference_transaction_hook_uses_the_candidate_project_environment() -> 
     assert "def _candidate_python(" in text
     assert "binding = hook_runtime_binding(candidate)" in text
     assert 'if binding["required_gaps"]:' in text
+    assert '"-B",' in text
     assert '"-I",' in text
     assert '"ethos.cli",' in text
     assert '"ref-transaction",' in text

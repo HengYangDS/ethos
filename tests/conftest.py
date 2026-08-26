@@ -24,47 +24,12 @@ from pathlib import Path
 import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
 
-from ethos.repository.release.identity import source_build_identity
-from tools.ci.hook_runtime_cache import install_session_hook_runtime_cache
-from tools.ci.hook_runtime_cache import session_hook_runtime_cache_root
-from tools.ci.hook_runtime_cache import warm_session_hook_runtime_cache
-
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 set_hypothesis_home_dir(
     _REPO_ROOT
     / "build/runtime/tool-cache/hypothesis"
     / os.environ.get("PYTEST_XDIST_WORKER", "local")
 )
-
-
-def pytest_xdist_setupnodes(config: pytest.Config, specs: object) -> None:
-    """Build the shared immutable runtime before worker test time begins."""
-    del specs
-    if os.environ.get("ETHOS_TEST_DISABLE_RUNTIME_CACHE") == "1":
-        return
-    base = config.option.basetemp
-    if base is None:
-        base = Path(os.environ.get("TMPDIR", "/tmp")) / f"ethos-pytest-{os.getpid()}"
-        config.option.basetemp = base
-    source = Path(__file__).resolve().parents[1]
-    warm_session_hook_runtime_cache(
-        session_hook_runtime_cache_root(Path(base)),
-        expected_build=source_build_identity(source),
-    )
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _cache_immutable_hook_runtime(tmp_path_factory: pytest.TempPathFactory) -> object:
-    """Build package bytes once; copy them into each repository's common-dir."""
-    if os.environ.get("ETHOS_TEST_DISABLE_RUNTIME_CACHE") == "1":
-        yield
-        return
-    with pytest.MonkeyPatch.context() as monkeypatch:
-        install_session_hook_runtime_cache(
-            monkeypatch,
-            session_hook_runtime_cache_root(tmp_path_factory.getbasetemp()),
-        )
-        yield
 
 
 @pytest.fixture(autouse=True)

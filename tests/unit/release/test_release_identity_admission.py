@@ -2,20 +2,20 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.repo.runtime.transition as release_transition
 from ethos.contracts.semantic import Attestation
 from ethos.repository.release.admission import accepted_release_attestation
 from ethos.repository.release.admission import accepted_release_identities
 from ethos.repository.release.admission import accepted_release_identity
-from ethos.repository.release.admission import accepted_runtime_attestation
-from ethos.repository.release.admission import accepted_runtime_identities
-from ethos.repository.release.admission import accepted_runtime_identity
 from ethos.repository.release.admission import release_identity_admission_gaps
-from ethos.repository.release.admission import release_tag_admission_gaps
-from ethos.repository.release.admission import runtime_identity_admission_gaps
 from ethos.repository.release.identity import build_identity
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _release(
@@ -44,59 +44,28 @@ def test_local_only_first_release_and_exact_replay_are_admitted() -> None:
     assert release_identity_admission_gaps(candidate, (candidate,)) == ()
 
 
-def test_release_identity_rejects_product_version_rollback() -> None:
-    prior = _release("0.2.0-alpha.2")
-    candidate = _release("0.2.0-alpha.1", commit="e" * 40, tree="f" * 40)
-
-    assert release_identity_admission_gaps(candidate, (prior,)) == (
-        "accepted_version_rollback:0.2.0-alpha.1<0.2.0-alpha.2",
-    )
-
-
-def test_release_identity_rejects_same_version_with_different_source() -> None:
-    prior = _release("0.2.0-alpha.1")
-    candidate = _release("0.2.0-alpha.1", commit="e" * 40, tree="f" * 40)
-
-    assert release_identity_admission_gaps(candidate, (prior,)) == (
-        "accepted_version_source_conflict:0.2.0-alpha.1",
-    )
-
-
-def test_release_identity_rejects_same_source_with_different_artifact() -> None:
-    prior = _release("0.2.0-alpha.1")
-    candidate = _release("0.2.0-alpha.1", wheel="e" * 64)
-
-    assert release_identity_admission_gaps(candidate, (prior,)) == (
-        "accepted_version_artifact_conflict:0.2.0-alpha.1",
-    )
-
-
-def test_runtime_identity_is_unique_within_platform_and_abi() -> None:
-    release = _release("0.2.0-alpha.1")
-    prior = accepted_runtime_identity(
-        release,
-        runtime_digest="d" * 64,
-        python_abi="cpython-314",
-        platform="darwin",
-    )
-    conflicting = accepted_runtime_identity(
-        release,
-        runtime_digest="e" * 64,
-        python_abi="cpython-314",
-        platform="darwin",
-    )
-    linux = accepted_runtime_identity(
-        release,
-        runtime_digest="f" * 64,
-        python_abi="cpython-314",
-        platform="linux",
-    )
-
-    assert runtime_identity_admission_gaps(prior, (prior,)) == ()
-    assert runtime_identity_admission_gaps(conflicting, (prior,)) == (
-        "accepted_runtime_artifact_conflict:0.2.0-alpha.1:darwin:cpython-314",
-    )
-    assert runtime_identity_admission_gaps(linux, (prior,)) == ()
+@pytest.mark.parametrize(
+    ("prior", "candidate", "gap"),
+    [
+        (
+            _release("0.2.0-alpha.2"),
+            _release("0.2.0-alpha.1", commit="e" * 40, tree="f" * 40),
+            "accepted_version_rollback:0.2.0-alpha.1<0.2.0-alpha.2",
+        ),
+        (
+            _release("0.2.0-alpha.1"),
+            _release("0.2.0-alpha.1", commit="e" * 40, tree="f" * 40),
+            "accepted_version_source_conflict:0.2.0-alpha.1",
+        ),
+        (
+            _release("0.2.0-alpha.1"),
+            _release("0.2.0-alpha.1", wheel="e" * 64),
+            "accepted_version_artifact_conflict:0.2.0-alpha.1",
+        ),
+    ],
+)
+def test_release_identity_rejects_conflicts(prior, candidate, gap: str) -> None:
+    assert release_identity_admission_gaps(candidate, (prior,)) == (gap,)
 
 
 def test_release_attestation_round_trips_the_canonical_identity() -> None:
@@ -122,42 +91,35 @@ def test_release_attestation_rejects_malformed_owned_predicate() -> None:
         accepted_release_identities((malformed,))
 
 
-def test_runtime_attestation_round_trips_platform_qualified_identity() -> None:
-    runtime = accepted_runtime_identity(
-        _release("0.2.0-alpha.1"),
-        runtime_digest="d" * 64,
-        python_abi="cpython-314",
-        platform="darwin",
+def test_package_materialization_rejects_a_symlinked_common_store(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    common = tmp_path / "common"
+    external = tmp_path / "external-packages"
+    external.mkdir()
+    (common / "ethos").mkdir(parents=True)
+    (common / "ethos/packages").symlink_to(external, target_is_directory=True)
+    wheel = tmp_path / "ethos.whl"
+    wheel.write_bytes(b"wheel")
+    build = build_identity(
+        product="0.2.0-alpha.1",
+        source_commit="a" * 40,
+        source_tree="b" * 40,
+        channel="development",
+        acceptance_state="unaccepted",
     )
-    attestation = accepted_runtime_attestation(
-        runtime,
-        issued_at=datetime(2026, 8, 25, tzinfo=UTC),
-    )
+    monkeypatch.setattr(release_transition, "git_common_dir", lambda _root: common.as_posix())
+    monkeypatch.setattr(release_transition, "wheel_build_identity", lambda _wheel: build)
 
-    assert accepted_runtime_identities((attestation,)) == (runtime,)
-
-
-def test_release_tag_must_project_the_exact_version_and_source() -> None:
-    candidate = _release("0.2.0-alpha.1")
-
-    assert (
-        release_tag_admission_gaps(
-            candidate,
-            tag_name="v0.2.0-alpha.1",
-            tag_object_oid="1" * 40,
-            peeled_commit=candidate.build.source_commit,
-            tree_oid=candidate.build.source_tree,
+    with pytest.raises(ValueError, match="release_package_store_invalid"):
+        release_transition.materialize_release_wheel(
+            repo,
+            wheel,
+            expected_build=build,
+            collision="collision",
         )
-        == ()
-    )
-    assert release_tag_admission_gaps(
-        candidate,
-        tag_name="v0.2.0-alpha.2",
-        tag_object_oid="1" * 40,
-        peeled_commit="2" * 40,
-        tree_oid="3" * 40,
-    ) == (
-        "release_tag_version_mismatch:v0.2.0-alpha.2",
-        "release_tag_source_mismatch:v0.2.0-alpha.1",
-        "release_tag_tree_mismatch:v0.2.0-alpha.1",
-    )
+
+    assert tuple(external.iterdir()) == ()

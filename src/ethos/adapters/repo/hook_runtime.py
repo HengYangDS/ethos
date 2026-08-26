@@ -247,6 +247,7 @@ def _candidate_report(
         candidate,
         (
             python.as_posix(),
+            "-B",
             "-I",
             "-m",
             "ethos.cli",

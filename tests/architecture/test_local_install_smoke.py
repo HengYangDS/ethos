@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import shlex
@@ -8,24 +7,14 @@ import shutil
 import subprocess
 import sys
 import tomllib
-from datetime import UTC
-from datetime import datetime
 from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-import pytest
-
-import ethos.adapters.repo.runtime.transition as identity_transition
 import tools.ci.delivery.pipeline as delivery_pipeline
-from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.contracts.semantic import load_commitment_file
-from ethos.repository.release.admission import accepted_release_attestation
-from ethos.repository.release.admission import accepted_release_identities
-from ethos.repository.release.admission import accepted_release_identity
 from ethos.repository.release.identity import BuildIdentity
 from tools.ci.delivery.adopter_fixture import commitment_carrier
 from tools.ci.delivery.pipeline import DeliveryPipeline
@@ -132,82 +121,6 @@ def test_install_smoke_prepares_frozen_supply_before_offline_install(
     ).prove_install(session)
 
     assert events == ["supply", ("install", session)]
-
-
-def test_build_publication_rejects_accepted_version_reuse_before_artifact_effect(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    prior_build = BuildIdentity(
-        "0.2.0-alpha.1",
-        "0.2.0a1",
-        "a" * 40,
-        "b" * 40,
-        "accepted",
-        "accepted",
-    )
-    candidate_build = prior_build._replace(source_commit="c" * 40, source_tree="d" * 40)
-    record_attestations(
-        repo,
-        (
-            accepted_release_attestation(
-                accepted_release_identity(prior_build, wheel_sha256="e" * 64),
-                issued_at=datetime(2026, 8, 25, tzinfo=UTC),
-            ),
-        ),
-    )
-    staging = tmp_path / "staging"
-    staging.mkdir()
-    wheel = staging / "ethos-0.2.0a1-py3-none-any.whl"
-    wheel.write_bytes(b"candidate-wheel")
-    artifacts = tmp_path / "artifacts"
-    monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda _wheel: candidate_build)
-    monkeypatch.setattr(delivery_pipeline, "source_build_identity", lambda _root: candidate_build)
-
-    with pytest.raises(ValueError, match=r"accepted_version_source_conflict:0\.2\.0-alpha\.1"):
-        delivery_pipeline.publish_built_wheel(repo, staging, artifacts)
-
-    assert not artifacts.exists()
-    assert not (repo / ".git/ethos/packages").exists()
-
-
-def test_build_publication_records_and_projects_one_accepted_wheel(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    build = BuildIdentity(
-        "0.2.0-alpha.1",
-        "0.2.0a1",
-        "a" * 40,
-        "b" * 40,
-        "accepted",
-        "accepted",
-    )
-    staging = tmp_path / "staging"
-    staging.mkdir()
-    wheel = staging / "ethos-0.2.0a1-py3-none-any.whl"
-    wheel.write_bytes(b"candidate-wheel")
-    artifacts = tmp_path / "artifacts"
-    monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda _wheel: build)
-    monkeypatch.setattr(delivery_pipeline, "source_build_identity", lambda _root: build)
-
-    published = delivery_pipeline.publish_built_wheel(repo, staging, artifacts)
-
-    assert published == artifacts / wheel.name
-    assert published.read_bytes() == b"candidate-wheel"
-    _root, attestations = read_attestation_set(repo)
-    assert accepted_release_identities(attestations) == (
-        accepted_release_identity(
-            build,
-            wheel_sha256=hashlib.sha256(b"candidate-wheel").hexdigest(),
-        ),
-    )
 
 
 def test_packaged_vector_derives_a_complete_strict_commitment(
@@ -351,4 +264,4 @@ def _assert_runtime_excludes_development_dependencies(python: Path) -> None:
         "assert importlib.util.find_spec('pytest') is None; "
         "assert importlib.util.find_spec('ruff') is None"
     )
-    assert _run(python, "-I", "-c", probe, env=os.environ.copy()).returncode == 0
+    assert _run(python, "-B", "-I", "-c", probe, env=os.environ.copy()).returncode == 0

@@ -9,8 +9,8 @@ from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.adapters.repo.runtime.transition import materialize_release_wheel
-from ethos.repository.release.identity import source_build_identity
 from tools.ci.local_install_smoke import prepare_supply
 from tools.ci.local_install_smoke import run as run_install_smoke
 

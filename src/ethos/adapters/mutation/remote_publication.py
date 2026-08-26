@@ -26,6 +26,7 @@ from ethos.contracts.publication import compile_publication_plan
 from ethos.contracts.publication import publication_effect_from_plan
 from ethos.contracts.semantic import Facts
 from ethos.repository.release.publication import publication_ref_transition
+from ethos.repository.release.publication import publication_source_version_gaps
 
 
 def _observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
@@ -165,6 +166,27 @@ def observe_remote_publication_effect(
     signature = source_observation.get("signature")
     if not isinstance(signature, dict):
         return None, {}, (f"publication_source_signature_untrusted:{source_ref}",)
+    version_observation = (
+        git.run_git(
+            root,
+            "show",
+            f"{source_observation['peeled_commit']}:VERSION",
+            check=False,
+            observation=True,
+        )
+        if kind == "annotated-tag"
+        else None
+    )
+    if version_gaps := publication_source_version_gaps(
+        source_ref=source_ref,
+        annotated_tag=kind == "annotated-tag",
+        version_text=(
+            version_observation.stdout
+            if version_observation is not None and version_observation.returncode == 0
+            else None
+        ),
+    ):
+        return None, {}, version_gaps
     source = PublicationSource.model_validate(
         {
             "kind": kind,

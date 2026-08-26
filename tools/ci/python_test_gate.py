@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 import tomllib
@@ -68,6 +69,14 @@ def _head() -> str:
 def remove_generated_path(path: Path) -> None:
     """Remove one generated path without hiding cleanup failures."""
     if path.is_dir():
+        for parent, directories, files in os.walk(path, followlinks=False):
+            for name in (*directories, *files):
+                child = Path(parent, name)
+                if not child.is_symlink():
+                    child.chmod(stat.S_IMODE(child.stat().st_mode) | stat.S_IWUSR)
+            directory = Path(parent)
+            if not directory.is_symlink():
+                directory.chmod(stat.S_IMODE(directory.stat().st_mode) | stat.S_IRWXU)
         shutil.rmtree(path)
     else:
         path.unlink(missing_ok=True)

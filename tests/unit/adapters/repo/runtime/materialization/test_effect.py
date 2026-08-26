@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
-import json
+import os
+import stat
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.repo.hook.activation as hook_activation
+import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
+import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.materialization.python_image as runtime_python_image
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.hook.activation import install_hook_launchers
-from tests.support.runtime_scenarios import git_process
+from ethos.adapters.repo.runtime.manifest import runtime_environment
+from ethos.adapters.repo.runtime.selection import activate_runtime
+from ethos.adapters.repo.runtime.transition import ReleaseArtifact
+from tests.support.runtime_scenarios import materialize_runtime_case
+from tests.support.runtime_scenarios import runtime_build
 
 
 def test_materialized_python_is_a_product_owned_non_mutating_closure(
@@ -43,6 +48,7 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
             "python_abi": "cpython-test",
             "python_version": "3.14.7",
             "python_implementation": "cpython",
+            "architecture": "test-architecture",
             "prefix": home.as_posix(),
             "base_prefix": home.as_posix(),
         },
@@ -98,44 +104,148 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
         assert target.as_posix() not in text
 
 
-def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    checkout_python = tmp_path / "stale-checkout" / ".venv" / "bin" / "python"
-    checkout_python.parent.mkdir(parents=True)
-    checkout_python.symlink_to(Path(sys.executable))
-
-    report = install_hook_launchers(repo, python=checkout_python)
-    common_runtime = Path(git_common_dir(repo)) / "ethos" / "runtime"
-
-    assert Path(str(report["python"])).is_relative_to(common_runtime)
-    manifest = Path(str(report["runtime_manifest_path"]))
-    assert manifest.is_file()
-    payload = json.loads(manifest.read_text(encoding="utf-8"))
-    assert payload["runtime_digest"] == report["runtime_digest"]
-    assert payload["wheel_sha256"] == report["wheel_sha256"]
-    assert len(payload["wheel_sha256"]) == 64
-    assert report["scripts"] == ["pre-commit", "pre-push", "reference-transaction"]
-    assert report["required_gaps"] == []
-    console_script = Path(str(report["python"])).with_name(
-        "ethos.exe" if sys.platform == "win32" else "ethos"
+def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "runtime"
+    work = runtime_root / ".work"
+    source = tmp_path / "source"
+    interpreter = tmp_path / "python"
+    wheel = tmp_path / "ethos.whl"
+    source.mkdir()
+    interpreter.write_bytes(b"python")
+    wheel.write_bytes(b"wheel")
+    build = runtime_build("a" * 40, "b" * 40)
+    artifact = ReleaseArtifact(wheel, "c" * 64, build)
+    environment = runtime_environment(
+        python_abi="cpython-test",
+        python_version="3.14.7",
+        python_implementation="cpython",
+        dependency_lock_sha256="d" * 64,
+        platform_name="test",
+        architecture_name="test-architecture",
     )
-    version = subprocess.run(
-        (console_script, "--version"),
-        capture_output=True,
-        text=True,
-        check=False,
+
+    def materialize_python(
+        target: Path,
+        *_args: object,
+        **_kwargs: object,
+    ) -> None:
+        binary = target / "bin/python"
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(b"python")
+        entrypoint = target / "bin/ethos"
+        entrypoint.write_bytes(b"ethos")
+
+    observed: list[Path] = []
+    inventory = runtime_materialization.runtime_file_inventory
+
+    def record_inventory(root: Path) -> dict[str, str]:
+        observed.append(root)
+        return inventory(root)
+
+    monkeypatch.setattr(runtime_materialization, "materialize_python_image", materialize_python)
+    monkeypatch.setattr(runtime_materialization, "runtime_file_inventory", record_inventory)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "observe_python_facts",
+        lambda python: {
+            "prefix": python.parent.parent.resolve().as_posix(),
+            "base_prefix": python.parent.parent.resolve().as_posix(),
+        },
     )
-    assert version.returncode == 0, version.stderr
-    assert version.stdout.strip()
-    for name in report["scripts"]:
-        text = (Path(str(report["hooks_path"])) / name).read_text(encoding="utf-8")
-        assert text.startswith("#!/bin/sh\n")
-        assert checkout_python.as_posix() not in text
-        assert 'RUNTIME_ROOT="$HOOK_DIR/../../runtime"' in text
-        assert 'CURRENT="$RUNTIME_ROOT/CURRENT"' in text
-        assert 'exec "$RUNTIME/python/bin/python" -B -I -m ethos.cli' in text
+    monkeypatch.setattr(
+        runtime_materialization.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, "0.2.0-alpha.1\n", ""),
+    )
+
+    target = runtime_materialization.materialize_runtime_generation(
+        runtime_root,
+        work,
+        source,
+        interpreter,
+        artifact,
+        environment,
+        locked=False,
+    )
+
+    assert len(observed) == 2
+    assert observed[0].name.startswith(".runtime-build-")
+    assert observed[1] == target
+    assert stat.S_IMODE(target.stat().st_mode) & 0o222 == 0
+    assert stat.S_IMODE((target / "manifest.json").stat().st_mode) & 0o222 == 0
+    assert all(
+        path.is_symlink() or stat.S_IMODE(path.stat().st_mode) & 0o222 == 0
+        for path in target.rglob("*")
+    )
+
+
+def test_runtime_reuse_rejects_architecture_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = activate_runtime(Path(git_common_dir(repo)), venv.parent)
+    drifted = runtime_environment(
+        python_abi=selected.python_abi,
+        python_version=selected.python_version,
+        python_implementation=selected.python_implementation,
+        dependency_lock_sha256=selected.dependency_lock_sha256,
+        platform_name=selected.platform,
+        architecture_name="x86_64" if selected.architecture != "x86_64" else "arm64",
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "resolve_owned_interpreter",
+        lambda *_args: selected.python,
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "observe_runtime_environment",
+        lambda *_args, **_kwargs: drifted,
+    )
+
+    def rebuild_required(*_args: object) -> Path:
+        message = "architecture rebuild required"
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(runtime_materialization, "resolve_runtime_wheel", rebuild_required)
+
+    with pytest.raises(RuntimeError, match="architecture rebuild required"):
+        runtime_materialization.materialize_runtime(
+            repo,
+            selected.python,
+            expected_build=selected.build,
+        )
+
+
+@pytest.mark.parametrize("operation", ["seal", "remove"])
+def test_runtime_mutation_rejects_hardlinks_without_changing_the_external_inode(
+    tmp_path: Path,
+    operation: str,
+) -> None:
+    external = tmp_path / "external"
+    external.write_text("shared bytes\n", encoding="utf-8")
+    external.chmod(0o644)
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    try:
+        os.link(external, runtime / "shared")
+    except OSError as error:
+        pytest.skip(f"hardlinks unavailable: {error}")
+
+    effect = (
+        runtime_materialization._seal_runtime_payload  # noqa: SLF001
+        if operation == "seal"
+        else runtime_materialization.remove_generated_tree
+    )
+    with pytest.raises(ValueError, match="hook_runtime_generation_hardlink_invalid"):
+        effect(runtime)
+
+    assert stat.S_IMODE(external.stat().st_mode) == 0o644
+    assert runtime.is_dir()
 
 
 def test_install_rejects_nonexistent_and_relative_python(tmp_path: Path) -> None:
@@ -167,3 +277,25 @@ def test_install_rejects_unavailable_source_authority_before_mutation(
         hook_activation.install_hook_launchers(tmp_path, python=python)
 
     assert materialized is False
+
+
+def test_generated_tree_cleanup_rejects_a_junction_without_touching_its_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generated = tmp_path / "generated"
+    junction = generated / "junction"
+    junction.mkdir(parents=True)
+    sentinel = junction / "sentinel"
+    sentinel.write_text("outside authority\n", encoding="utf-8")
+    monkeypatch.setattr(
+        runtime_filesystem,
+        "is_junction",
+        lambda path: path == junction,
+    )
+
+    with pytest.raises(ValueError, match="hook_runtime_generation_tree_invalid"):
+        runtime_materialization.remove_generated_tree(generated)
+
+    assert generated.is_dir()
+    assert sentinel.read_text(encoding="utf-8") == "outside authority\n"

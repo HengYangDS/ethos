@@ -27,10 +27,11 @@ def materialize_python_image(
     wheel: Path,
     work: Path,
     *,
+    python_facts: dict[str, str] | None = None,
     locked: bool,
 ) -> None:
     """Build a relocatable Python image from exact interpreter and wheel inputs."""
-    facts = observe_python_facts(interpreter)
+    facts = python_facts or observe_python_facts(interpreter)
     home = Path(facts["base_prefix"])
     if facts["prefix"] != facts["base_prefix"] or not interpreter.resolve().is_relative_to(
         home.resolve()
@@ -43,7 +44,7 @@ def materialize_python_image(
     if locked:
         install_locked_runtime(source, work, python, wheel)
     else:
-        _require_package_runtime_source(source, interpreter, wheel)
+        _require_package_runtime_source(source, interpreter, wheel, facts)
     _remove_non_runtime_residue(target)
     _rewrite_console_scripts(target)
 
@@ -240,8 +241,13 @@ def _rewrite_console_scripts(runtime: Path) -> None:
         script.chmod(0o755)
 
 
-def _require_package_runtime_source(source: Path, interpreter: Path, wheel: Path) -> None:
-    runtime = Path(observe_python_facts(interpreter)["prefix"]).parent
+def _require_package_runtime_source(
+    source: Path,
+    interpreter: Path,
+    wheel: Path,
+    python_facts: dict[str, str],
+) -> None:
+    runtime = Path(python_facts["prefix"]).parent
     selected = require_selected_runtime(runtime)
     if selected.python.resolve() != interpreter.resolve():
         _fail("hook_runtime_package_interpreter_stale")

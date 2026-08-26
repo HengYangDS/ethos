@@ -205,10 +205,18 @@ def test_workspace_public_missing_candidate_and_non_git(
         "git_stdout_checked",
         lambda *_args: (_ for _ in ()).throw(subprocess.CalledProcessError(128, "git")),
     )
-    status = workspace.workspace_status(tmp_path)
+    selected_runtime = object()
+    observed: list[object] = []
+    monkeypatch.setattr(
+        workspace,
+        "runtime_binding",
+        lambda _root, *, selected_runtime=None: observed.append(selected_runtime) or {},
+    )
+    status = workspace.workspace_status(tmp_path, selected_runtime=selected_runtime)
     assert status["branch"] == "untracked"
     assert "git_repository_missing" in status["required_gaps"]
     assert status["landing_readiness"]["state"] == "not_work_lane"
+    assert observed == [selected_runtime]
 
 
 def test_landing_readiness_treats_unreadable_head_as_unknown(

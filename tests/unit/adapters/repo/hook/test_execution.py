@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from io import StringIO
 from pathlib import Path
 
@@ -11,11 +12,11 @@ import pytest
 
 import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.hook_runtime as runtime
+import ethos.adapters.repo.runtime.binding as runtime_binding_module
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.contracts.branch.roles import BranchRolePolicy
-from tests.support.governed_repository import git
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import candidate_runtime
 from tests.support.runtime_scenarios import git_process
@@ -71,6 +72,38 @@ def test_hook_runtime_public_input_matrix(
     assert (gap in error) if gap else not error
 
 
+def test_hook_execution_observes_the_full_runtime_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    selected_runtime = object()
+    observations: list[Path] = []
+    projections: list[object] = []
+
+    def observe_runtime(common: Path) -> object:
+        observations.append(common)
+        return selected_runtime
+
+    def project_runtime(
+        _root: Path, *, selected_runtime: object | None = None
+    ) -> dict[str, object]:
+        projections.append(selected_runtime)
+        return {"required_gaps": [], "python": sys.executable}
+
+    monkeypatch.setattr(hook_runtime, "current_runtime", observe_runtime)
+    monkeypatch.setattr(runtime_binding_module, "hook_runtime_binding", project_runtime)
+    (repo / "README.md").write_text("changed\n", encoding="utf-8")
+    assert git_process(repo, "add", "README.md").returncode == 0
+
+    assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 1
+    assert observations == [Path(git_common_dir(repo))]
+    assert projections
+    assert all(projection is selected_runtime for projection in projections)
+
+
 def test_repository_does_not_track_host_specific_hook_launchers() -> None:
     completed = git_process(REPOSITORY_ROOT, "ls-files", ".githooks")
 
@@ -114,7 +147,13 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
     python = candidate / "runtime-python"
     python.write_text("runtime", encoding="utf-8")
     policy = BranchRolePolicy()
-    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
+    selected_runtime = object()
+    projections: list[object | None] = []
+    monkeypatch.setattr(
+        hook_runtime,
+        "current_runtime",
+        lambda _common: selected_runtime,
+    )
     monkeypatch.setattr(hook_runtime, "resolve_ref_move_policy", lambda *_args: policy)
     monkeypatch.setattr(
         hook_runtime,
@@ -125,11 +164,14 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
             else [{"branch": policy.candidate_branch, "path": candidate, "head": "b" * 40}]
         ),
     )
-    monkeypatch.setattr(
-        hook_runtime,
-        "hook_runtime_binding",
-        lambda _root: {"required_gaps": [], "python": python.as_posix()},
-    )
+
+    def project_runtime(
+        _root: Path, *, selected_runtime: object | None = None, **_kwargs: object
+    ) -> dict[str, object]:
+        projections.append(selected_runtime)
+        return {"required_gaps": [], "python": python.as_posix()}
+
+    monkeypatch.setattr(hook_runtime, "hook_runtime_binding", project_runtime)
     monkeypatch.setattr(
         hook_runtime,
         "run_git",
@@ -156,15 +198,8 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
     assert (gap in error) if gap else not error
     if runner != "missing":
         assert commands[0][1:3] == ("-B", "-I")
-
-
-def test_governed_repository_git_reads_real_hook_configuration(tmp_path: Path) -> None:
-    repository = tmp_path / "repo"
-    repository.mkdir()
-    git(repository, "init", "-b", "dev")
-    git(repository, "config", "core.hooksPath", ".githooks")
-
-    assert git(repository, "config", "--get", "core.hooksPath") == ".githooks"
+        assert projections
+        assert all(projection is selected_runtime for projection in projections)
 
 
 def test_hook_execution_rejects_a_noncanonical_current_selector(
@@ -353,7 +388,7 @@ def test_candidate_runner_requires_clean_binding_and_real_file(
     monkeypatch.setattr(
         runtime,
         "hook_runtime_binding",
-        lambda _root: binding,
+        lambda _root, **_kwargs: binding,
     )
     result = runtime.execute_hook(
         tmp_path,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.lease_binding import lease_binding_reason
 from ethos.adapters.admission.patch_admission import patch_admission
@@ -20,7 +21,6 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
@@ -36,6 +36,9 @@ from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_mapping
+
+if TYPE_CHECKING:
+    from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "lease_id", "epoch", "head")
 _SCOPE_LIST_FIELDS = (
@@ -61,8 +64,9 @@ def prewrite_guard(
     editor_root: Path | None = None,
     require_editor_root: bool = False,
     patch: str = "",
+    selected_runtime: SelectedRuntime | None = None,
 ) -> dict[str, object]:
-    status = _prewrite_status(root)
+    status = _prewrite_status(root, selected_runtime=selected_runtime)
     status_role, status_branch = str(status["role"]), str(status["branch"])
     effective = _effective_write_context(root=root, role=status_role, branch=status_branch)
     runtime_check = runtime_binding_check(status)
@@ -73,9 +77,7 @@ def prewrite_guard(
         for path in checked
         if path["tracked_candidate"] is True and path["relative_path"]
     )
-    lease = _work_lane_lease_check(
-        root=root, status=status, effective=effective, tracked_write_requested=tracked
-    )
+    lease = _work_lane_lease_check(root=root, effective=effective, tracked_write_requested=tracked)
     profile_enabled = openspec_profile_enabled(root)
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
     prepared_authority = None
@@ -175,7 +177,11 @@ def prewrite_guard(
     }
 
 
-def _prewrite_status(root: Path) -> dict[str, object]:
+def _prewrite_status(
+    root: Path,
+    *,
+    selected_runtime: SelectedRuntime | None = None,
+) -> dict[str, object]:
     top = git_stdout(root, "rev-parse", "--show-toplevel")
     repo = Path(top).resolve() if top else root
     if not top:
@@ -183,8 +189,7 @@ def _prewrite_status(root: Path) -> dict[str, object]:
             "root": str(root),
             "branch": "untracked",
             "role": "other",
-            "runtime_binding": runtime_binding(repo),
-            "worktrees": [],
+            "runtime_binding": runtime_binding(repo, selected_runtime=selected_runtime),
         }
     policy = load_branch_role_policy(repo)
     branch = current_branch(repo)
@@ -192,8 +197,7 @@ def _prewrite_status(root: Path) -> dict[str, object]:
         "root": str(root),
         "branch": branch,
         "role": policy.role_for_branch(branch) if branch else ROLE_DETACHED,
-        "runtime_binding": runtime_binding(repo),
-        "worktrees": worktree_records(repo, current_path=repo, policy=policy),
+        "runtime_binding": runtime_binding(repo, selected_runtime=selected_runtime),
     }
 
 
@@ -227,7 +231,6 @@ def _rebase_head_branch(root: Path) -> str:
 def _work_lane_lease_check(
     *,
     root: Path,
-    status: dict[str, object],
     effective: dict[str, str],
     tracked_write_requested: bool,
 ) -> dict[str, object]:
@@ -235,7 +238,7 @@ def _work_lane_lease_check(
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
     if role != ROLE_WORK_LANE or not tracked_write_requested:
         return _lease_report(branch, actor, {}, ("pass", False, "not_required"))
-    lease = _work_lane_lease(root=root, status=status, branch=branch)
+    lease = leases_by_branch(root).get(branch, {})
     lease_state = str(lease.get("lease_state") or "missing")
     if lease_state != "valid" or not lease.get("holder_ref"):
         reason = {
@@ -302,11 +305,6 @@ def _lease_report(
         report.update(current_head=observed[0], binding_head=observed[1], head_source=observed[2])
     report["reason"] = reason
     return report
-
-
-def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> dict[str, object]:
-    current_path = Path(str(status.get("root") or root)).resolve()
-    return leases_by_branch(current_path).get(branch, {})
 
 
 def _prewrite_decision(

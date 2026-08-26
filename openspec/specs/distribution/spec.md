@@ -197,7 +197,7 @@ wheel. Validation failure SHALL precede runtime selection or hook activation.
 Every non-editable ETHOS wheel used to materialize a Git-hook runtime SHALL carry
 one immutable build identity containing the exact ETHOS source commit and source
 tree. The runtime manifest SHALL bind that identity together with its wheel,
-Python ABI, platform, executable, and entrypoint bytes.
+Python ABI, operating system, CPU architecture, executable, and entrypoint bytes.
 
 #### Scenario: wheel is built from an ETHOS checkout
 - **WHEN** a non-editable wheel is built from a Git-backed ETHOS source tree

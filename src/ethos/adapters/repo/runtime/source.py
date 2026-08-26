@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import os
-import subprocess
 import tempfile
 import tomllib
 from pathlib import Path
 from typing import Literal
 
+from ethos.adapters.repo.git import run_git
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import load_build_identity_bytes
@@ -53,10 +52,10 @@ def source_distribution_version() -> str:
 
 
 def source_git_identity(root: Path) -> tuple[str, str]:
-    """Return exact HEAD and effective source tree, including tracked overlay."""
+    """Return exact HEAD and the effective non-ignored source-build overlay."""
     commit = _git(root, "rev-parse", "HEAD")
     with tempfile.TemporaryDirectory(prefix="ethos-source-index-") as directory:
-        environment = {**os.environ, "GIT_INDEX_FILE": str(Path(directory) / "index")}
+        environment = {"GIT_INDEX_FILE": str(Path(directory) / "index")}
         _git(root, "read-tree", "HEAD", env=environment)
         _git(root, "add", "-A", env=environment)
         tree = _git(root, "write-tree", env=environment)
@@ -90,9 +89,7 @@ def _require_accepted_source(root: Path, commit: str, tree: str) -> None:
 
 
 def _git(root: Path, *args: str, env: dict[str, str] | None = None) -> str:
-    completed = subprocess.run(
-        ("git", *args), cwd=root, env=env, capture_output=True, text=True, check=False
-    )
+    completed = run_git(root, *args, env=env, check=False)
     if completed.returncode:
         message = "build_source_identity_unavailable"
         raise ValueError(message)

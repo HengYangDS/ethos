@@ -140,6 +140,13 @@ closes.
 9. **Close semantic increments.** Each phase produces an independently
    reviewable and provable terminal-state delta. Carrier topology follows intent
    cohesion and progress ownership rather than imposing one Change per outcome.
+10. **Optimize verified semantic throughput.** Measure progress by accepted gaps
+    closed per feedback cycle, not commands, churn, or raw test count. Repeated
+    scans, broad discovery runs, oversized fixtures, duplicate runtime builds,
+    false-green tests, agent rework, abnormal process loss, and unexplained
+    latency are root-cause signals. Use the narrowest real reproducer and run
+    heavy proof once at the frozen atomic boundary; never buy speed by weakening
+    semantics, evidence freshness, coverage, or fail-closed admission.
 
 ## Completion Boundary
 

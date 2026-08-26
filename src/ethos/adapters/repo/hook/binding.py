@@ -93,8 +93,9 @@ def hook_runtime_binding(
     root: Path,
     *,
     expected_build: BuildIdentity | None = None,
+    selected_runtime: SelectedRuntime | None = None,
 ) -> HookRuntimeBinding:
-    """Observe the configured common-dir hooks and selected runtime."""
+    """Project one binding, reusing a fresh transaction-local runtime observation."""
     repo = root.resolve()
     common = Path(git_common_dir(repo))
     generations = common / "ethos" / "hooks"
@@ -110,7 +111,12 @@ def hook_runtime_binding(
     )
     expected_build_identity, expected_build_gap = _expected_build(repo, expected_build)
     expected_source_identity = _expected_source(repo, expected_build_identity)
-    selected, selection_gap = _selected_runtime(common)
+    if selected_runtime is None:
+        selected, selection_gap = _selected_runtime(common)
+    elif selected_runtime.root.parent != common / "ethos" / "runtime":
+        selected, selection_gap = None, "runtime_manifest"
+    else:
+        selected, selection_gap = selected_runtime, ""
     legacy_source = legacy_runtime_migration_source(common) if selected is None else None
     target_applicable = expected_build_identity is not None
     gaps: list[str] = []

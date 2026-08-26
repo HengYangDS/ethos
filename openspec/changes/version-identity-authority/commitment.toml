@@ -17,6 +17,7 @@ scope = [
   "pyproject.toml",
   "rules/**",
   "src/ethos/adapters/admission/git_admission.py",
+  "src/ethos/adapters/mutation/lanes.py",
   "src/ethos/adapters/mutation/proof.py",
   "src/ethos/adapters/mutation/proof_admission.py",
   "src/ethos/adapters/mutation/remote_publication.py",

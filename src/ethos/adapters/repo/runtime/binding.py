@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import ethos
 from ethos.adapters.repo.git import repository_root
@@ -10,6 +11,9 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_gate_registry
+
+if TYPE_CHECKING:
+    from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
 
 def runner_source_root(module_path: Path) -> Path:
@@ -43,7 +47,11 @@ def _schema_source_root(audit_root: Path, runner_root: Path) -> Path:
     return runner_root
 
 
-def runtime_binding(root: Path) -> dict[str, object]:
+def runtime_binding(
+    root: Path,
+    *,
+    selected_runtime: SelectedRuntime | None = None,
+) -> dict[str, object]:
     """Expose runner/schema/audit binding for agent- and human-friendly diagnosis."""
     audit_root = root.resolve()
     runner_module_path = Path(ethos.__file__).resolve()
@@ -51,7 +59,7 @@ def runtime_binding(root: Path) -> dict[str, object]:
     schema_source_root = _schema_source_root(audit_root, source_root).resolve()
     runner_matches_audit_root = source_root == audit_root
     schema_matches_audit_root = schema_source_root == audit_root
-    hook_binding = hook_runtime_binding(audit_root)
+    hook_binding = hook_runtime_binding(audit_root, selected_runtime=selected_runtime)
     runner_matches_common_runtime = (
         not hook_binding["required_gaps"]
         and Path(hook_binding["python"]).resolve() == Path(sys.executable).resolve()

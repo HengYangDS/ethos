@@ -16,7 +16,8 @@ commit/tree, and content-addressed wheel/runtime identities as separate fields.
 #### Scenario: Package-only runtime is inspected
 - **WHEN** ETHOS runs without access to its source checkout
 - **THEN** its immutable manifest reports product and distribution versions,
-  source commit/tree, wheel SHA256, runtime digest, channel, and acceptance state
+  source commit/tree, wheel SHA256, runtime digest, interpreter ABI, operating
+  system, CPU architecture, channel, and acceptance state
 - **AND** no field is inferred from a mutable host path or Forge state.
 
 ### Requirement: Unreleased builds are unique and comparable

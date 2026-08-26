@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import shlex
 import shutil
 import subprocess
@@ -14,6 +15,7 @@ from typing import cast
 
 import tools.ci.delivery.pipeline as delivery_pipeline
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
+from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.contracts.semantic import load_commitment_file
 from ethos.repository.release.identity import BuildIdentity
 from tools.ci.delivery.adopter_fixture import commitment_carrier
@@ -51,6 +53,16 @@ def _run(executable: Path, *args: str, env: dict[str, str]) -> subprocess.Comple
         check=False,
         env=env,
     )
+
+
+def _assert_runtime_manifest(report: dict[str, object], repo: Path) -> None:
+    manifest_path = Path(str(report["runtime_manifest_path"]))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest_path.parent.parent == repo / ".git/ethos/runtime"
+    assert manifest_path.parent.name == report["runtime_digest"]
+    assert manifest["schema_version"] == 5
+    assert manifest["architecture"] == canonical_architecture(platform.machine())
+    assert manifest["runtime_digest"] == report["runtime_digest"]
 
 
 def _prove_relocated_runtime(
@@ -216,6 +228,7 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     assert report["data"]["current"] is True
     assert report["data"]["next_action"] == ""
     runtime_python = Path(report["data"]["python"])
+    _assert_runtime_manifest(report["data"], repo)
     _assert_runtime_excludes_development_dependencies(runtime_python)
     bootstrap_repo.rename(tmp_path / "retired-bootstrap-repo")
     runtime_ethos = _python_home_executable(runtime_python.parent.parent, "ethos")

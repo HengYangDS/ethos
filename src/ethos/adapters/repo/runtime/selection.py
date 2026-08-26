@@ -8,6 +8,7 @@ import os
 import platform
 import shlex
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
@@ -15,12 +16,15 @@ from typing import NamedTuple
 from filelock import FileLock
 
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.transition import require_release_identity_attested
 from ethos.repository.release.admission import accepted_release_identity
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from ethos.repository.release.identity import BuildIdentity
 
 _SELECTOR = "CURRENT"
@@ -46,6 +50,7 @@ class SelectedRuntime(NamedTuple):
     python_implementation: str
     dependency_lock_sha256: str
     platform: str
+    architecture: str
     build: BuildIdentity
 
 
@@ -96,16 +101,16 @@ def activate_runtime(
     candidate = runtime.resolve()
     if candidate.parent != runtime_root:
         raise ValueError(_CURRENT_TARGET_INVALID)
-    selected = require_selected_runtime(candidate)
-    release = (
-        accepted_release_identity(selected.build, wheel_sha256=selected.wheel_sha256)
-        if selected.build.acceptance_state == "accepted"
-        else None
-    )
-    require_release_identity_attested(common_root, release)
     runtime_root.mkdir(parents=True, exist_ok=True)
-    desired = f"{selected.digest}\n".encode("ascii")
-    with FileLock((common_root / "ethos" / "runtime-selection.lock").as_posix()):
+    with FileLock(_selection_lock_path(common_root).as_posix()):
+        selected = require_selected_runtime(candidate)
+        release = (
+            accepted_release_identity(selected.build, wheel_sha256=selected.wheel_sha256)
+            if selected.build.acceptance_state == "accepted"
+            else None
+        )
+        require_release_identity_attested(common_root, release)
+        desired = f"{selected.digest}\n".encode("ascii")
         current = _selector_bytes(runtime_root / _SELECTOR)
         if expected_current is not _UNSPECIFIED and current != expected_current:
             raise ValueError(_CURRENT_STALE)
@@ -123,10 +128,25 @@ def restore_runtime_selection(
     """Restore the exact prior selector bytes after failed activation."""
     common_root = common.resolve()
     selector = common_root / "ethos" / "runtime" / _SELECTOR
-    with FileLock((common_root / "ethos" / "runtime-selection.lock").as_posix()):
+    with FileLock(_selection_lock_path(common_root).as_posix()):
         if expected_current is not _UNSPECIFIED and _selector_bytes(selector) != expected_current:
             raise ValueError(_CURRENT_STALE)
         _replace_selector(selector, previous)
+
+
+@contextmanager
+def runtime_selection_transaction(
+    common: Path,
+    *,
+    expected_current: bytes,
+) -> Iterator[None]:
+    """Guard selector-dependent effects with the canonical lock and exact CAS."""
+    common_root = common.resolve()
+    selector = common_root / "ethos" / "runtime" / _SELECTOR
+    with FileLock(_selection_lock_path(common_root).as_posix()):
+        if _selector_bytes(selector) != expected_current:
+            raise ValueError(_CURRENT_STALE)
+        yield
 
 
 def runtime_command(root: Path, *arguments: str) -> str:
@@ -206,6 +226,7 @@ def require_selected_runtime(
     if (
         identity.digest != digest
         or identity.environment.platform != platform.system().lower()
+        or identity.environment.architecture != canonical_architecture(platform.machine())
         or (expected_build is not None and identity.build != expected_build)
         or identity.runtime_files != expected_files
     ):
@@ -259,6 +280,10 @@ def _replace_selector(selector: Path, value: bytes | None) -> None:
         staging.unlink(missing_ok=True)
 
 
+def _selection_lock_path(common: Path) -> Path:
+    return common / "ethos" / "runtime-selection.lock"
+
+
 def _require_accepted_runtime_closure_unique(
     common: Path,
     candidate: SelectedRuntime,
@@ -277,6 +302,7 @@ def _require_accepted_runtime_closure_unique(
             existing.build == candidate.build
             and existing.python_abi == candidate.python_abi
             and existing.platform == candidate.platform
+            and existing.architecture == candidate.architecture
             and existing.digest != candidate.digest
         ):
             reason = "accepted_runtime_identity_conflict"

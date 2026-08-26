@@ -430,7 +430,7 @@ def test_runtime_state_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     )
     monkeypatch.setattr(
         "ethos.adapters.repo.runtime.binding.hook_runtime_binding",
-        lambda _root: {
+        lambda _root, **_kwargs: {
             "python": python.as_posix(),
             "required_gaps": [],
             "hooks_path": "",

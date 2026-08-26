@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -90,8 +91,10 @@ def materialize_runtime_case(
         _wheel: Path,
         _work: Path,
         *,
+        python_facts: dict[str, str] | None = None,
         locked: bool,
     ) -> None:
+        assert python_facts is not None
         assert locked is False
         runtime_python = runtime_executable(target, "python")
         runtime_python.parent.mkdir(parents=True)
@@ -110,6 +113,7 @@ def materialize_runtime_case(
             "python_abi": "cpython-test",
             "python_version": "3.14.7",
             "python_implementation": "cpython",
+            "architecture": platform.machine(),
             "prefix": prefix.resolve().as_posix(),
             "base_prefix": prefix.resolve().as_posix(),
         }

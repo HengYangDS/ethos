@@ -18,9 +18,10 @@ provenance, never product SemVer.
 
 ### Runtime and release admission consume immutable evidence
 
-The runtime digest covers build identity, wheel bytes, interpreter/ABI/platform,
-dependency lock, and executable bytes. `CURRENT` selects one content-addressed
-runtime and currentness validates the complete manifest.
+The runtime digest covers build identity, wheel bytes, interpreter/ABI, operating
+system, CPU architecture, dependency lock, and executable bytes. `CURRENT`
+selects one content-addressed runtime and currentness validates the complete
+manifest.
 
 Accepted version reuse is checked against immutable Git and Attestation facts.
 Forge state is an optional projection, so local-only and configured Forge
@@ -42,13 +43,14 @@ current. Replace literals, verify unique development wheels and full manifests,
 then prove and admit one newly versioned package-only runtime.
 
 The source budget is calibrated to the smallest hundred-line ceilings that
-admit this candidate: product 42,600, tests 37,700, and global 92,900. This is
-not a claim that line count proves structural quality. Relative to the current
-HEAD, the staged Python change removes 892 lines overall, while the remaining
-accepted-to-candidate growth carries the new BuildIdentity, content-addressed
-runtime, manifest, and package-only invariants. Clone and complexity inspection
-found no same-scale duplicate owner that could be deleted from this atom.
-Semantic duplication, mixed ownership, package topology, coupling, and policy
-self-relaxation belong to the dependency-linked `quality-policy-authority`
-successor, where parent policy evaluates the candidate tree; they are not
-encoded as more exceptions in this version Change.
+admit the post-audit candidate: product 42,800, tests 38,200, and global 93,700.
+This is not a claim that line count proves structural quality. Before raising
+the boundary, the Change deleted duplicate test acceptance, an unused prewrite
+worktree scan, per-worktree repetition of complete runtime binding, and repeated
+Python subprocess observations. The remaining growth carries BuildIdentity,
+content-addressed runtime, manifest-v5 architecture binding, exact activation
+and compensation, and package-only invariants. Semantic duplication, mixed
+ownership, package topology, coupling, and policy self-relaxation belong to the
+dependency-linked `quality-policy-authority` successor, where parent policy
+evaluates the candidate tree; they are not encoded as exceptions in this
+version Change.

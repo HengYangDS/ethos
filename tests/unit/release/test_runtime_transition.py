@@ -16,8 +16,12 @@ from ethos.repository.release.admission import accepted_release_identity
 from ethos.repository.release.identity import BuildIdentity
 
 _BUILD_IDENTITY = BuildIdentity(
-    "0.2.0-alpha.1", "0.2.0a1.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb",
-    "a" * 40, "b" * 40, "development", "unaccepted",
+    "0.2.0-alpha.1",
+    "0.2.0a1.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb",
+    "a" * 40,
+    "b" * 40,
+    "development",
+    "unaccepted",
 )
 
 
@@ -75,15 +79,20 @@ def test_runtime_install_uses_a_durable_content_addressed_release_wheel(
         )
     durable.write_bytes(b"wheel")
     stale = _BUILD_IDENTITY._replace(source_commit="e" * 40)
-    monkeypatch.setattr(identity_transition, "wheel_build_identity",
-                        lambda path: _BUILD_IDENTITY if path == volatile_wheel else stale)
+    monkeypatch.setattr(
+        identity_transition,
+        "wheel_build_identity",
+        lambda path: _BUILD_IDENTITY if path == volatile_wheel else stale,
+    )
     with pytest.raises(ValueError, match="identity_transition_post_observation_mismatch"):
         identity_transition.materialize_release_wheel(
-            repo, volatile_wheel, expected_build=_BUILD_IDENTITY, collision="collision")
+            repo, volatile_wheel, expected_build=_BUILD_IDENTITY, collision="collision"
+        )
     monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda _path: _BUILD_IDENTITY)
     with pytest.raises(ValueError, match="release_wheel_build_identity_stale"):
         identity_transition.materialize_release_wheel(
-            repo, volatile_wheel, expected_build=stale, collision="collision")
+            repo, volatile_wheel, expected_build=stale, collision="collision"
+        )
     volatile_wheel.unlink()
 
 
@@ -110,8 +119,11 @@ def test_release_transition_attests_only_after_matching_post_observation(
         release._replace(build=build._replace(source_commit="e" * 40)),
         issued_at=datetime(2026, 8, 25, tzinfo=UTC),
     )
-    monkeypatch.setattr(identity_transition, "read_attestation_set",
-                        lambda _repo: ("", (prior,) if observation == "admission" else ()))
+    monkeypatch.setattr(
+        identity_transition,
+        "read_attestation_set",
+        lambda _repo: ("", (prior,) if observation == "admission" else ()),
+    )
     monkeypatch.setattr(
         identity_transition,
         "_observe_release_wheel",
@@ -136,9 +148,13 @@ def test_release_transition_attests_only_after_matching_post_observation(
     monkeypatch.setattr(
         identity_transition,
         "record_attestation_once",
-        lambda _repo, _attestation: events.append("attest") or (
-            attestation if observation != "attestation" else _attestation.model_copy(
-                update={"predicate": "foreign"})
+        lambda _repo, _attestation: (
+            events.append("attest")
+            or (
+                attestation
+                if observation != "attestation"
+                else _attestation.model_copy(update={"predicate": "foreign"})
+            )
         ),
     )
 
@@ -151,9 +167,10 @@ def test_release_transition_attests_only_after_matching_post_observation(
         )
         assert events == ["effect", "observe", "attest"]
     else:
-        reason = {"attestation": "identity_transition_attestation_mismatch",
-                  "admission": "accepted_version_source_conflict"}.get(
-                      observation, "identity_transition_post_observation_mismatch")
+        reason = {
+            "attestation": "identity_transition_attestation_mismatch",
+            "admission": "accepted_version_source_conflict",
+        }.get(observation, "identity_transition_post_observation_mismatch")
         with pytest.raises(ValueError, match=reason):
             identity_transition.materialize_release_wheel(
                 tmp_path,

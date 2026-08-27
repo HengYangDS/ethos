@@ -18,6 +18,16 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _build(version: str, *, commit="a" * 40, tree="b" * 40, accepted=True):
+    return build_identity(
+        product=version,
+        source_commit=commit,
+        source_tree=tree,
+        channel="accepted" if accepted else "development",
+        acceptance_state="accepted" if accepted else "unaccepted",
+    )
+
+
 def _release(
     version: str,
     *,
@@ -25,16 +35,7 @@ def _release(
     tree: str = "b" * 40,
     wheel: str = "c" * 64,
 ):
-    return accepted_release_identity(
-        build_identity(
-            product=version,
-            source_commit=commit,
-            source_tree=tree,
-            channel="accepted",
-            acceptance_state="accepted",
-        ),
-        wheel_sha256=wheel,
-    )
+    return accepted_release_identity(_build(version, commit=commit, tree=tree), wheel_sha256=wheel)
 
 
 def test_local_only_first_release_and_exact_replay_are_admitted() -> None:
@@ -89,11 +90,11 @@ def test_release_attestation_rejects_malformed_owned_predicate() -> None:
     malformed = Attestation.issue({key: value for key, value in payload.items() if key != "id"})
     with pytest.raises(ValueError, match="accepted_release_attestation_invalid"):
         accepted_release_identities((malformed,))
-    development = build_identity(product="1.2.3", source_commit="a" * 40,
-                                 source_tree="b" * 40, channel="development",
-                                 acceptance_state="unaccepted")
-    for build, wheel, reason in ((development, "c" * 64, "build"),
-                                 (_release("1.2.3").build, "bad", "wheel")):
+    development = _build("1.2.3", accepted=False)
+    for build, wheel, reason in (
+        (development, "c" * 64, "build"),
+        (_release("1.2.3").build, "bad", "wheel"),
+    ):
         with pytest.raises(ValueError, match=f"accepted_release_{reason}_identity_invalid"):
             accepted_release_identity(build, wheel_sha256=wheel)
 

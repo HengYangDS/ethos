@@ -40,8 +40,7 @@ def _legacy_manifest(
         "source_commit": source[0],
         "source_tree": source[1],
         "runtime_files": {
-            relative: hashlib.sha256(content).hexdigest()
-            for relative, content in contents.items()
+            relative: hashlib.sha256(content).hexdigest() for relative, content in contents.items()
         },
     }
     manifest = runtime / "manifest.json"

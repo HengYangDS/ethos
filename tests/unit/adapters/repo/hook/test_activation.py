@@ -624,9 +624,11 @@ def test_install_restores_runtime_selector_with_exact_cas_when_activation_fails(
 
     selected = f"{runtime_digest}\n".encode("ascii")
     assert restored == [(None, selected)]
+
     def fail(*_args: object, **_kwargs: object) -> None:
         message = "compensation"
         raise ValueError(message)
+
     monkeypatch.setattr(hook_activation, "_restore_activation", fail)
     monkeypatch.setattr(hook_activation, "restore_runtime_selection", fail)
     with pytest.raises(ValueError, match="hook_runtime_activation_compensation_failed"):

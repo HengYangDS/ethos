@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.admission.lease_binding import resolve_current_authority
 from ethos.adapters.repo.coordination import ForeignLaneContext
 from ethos.adapters.repo.coordination import branch_path_scope
 from ethos.adapters.repo.coordination import coordination_gaps
 from ethos.adapters.repo.coordination import foreign_work_lane
 from ethos.adapters.repo.coordination import foreign_work_lane_deferred
-from ethos.adapters.repo.coordination import workspace_required_gaps
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
 from ethos.adapters.repo.git import current_branch
@@ -56,6 +57,7 @@ class _StatusPayload:
     unbound: list[dict[str, object]]
     workspace_gaps: list[str]
     selected_runtime: SelectedRuntime | None
+    authority: dict[str, object]
 
 
 def landing_readiness(
@@ -113,13 +115,30 @@ def workspace_status(
     selected_runtime: SelectedRuntime | None = None,
 ) -> dict[str, object]:
     """Return workspace truth, optionally deferring foreign path-scope expansion."""
+    return workspace_status_observation(
+        root,
+        include_foreign_path_scope=include_foreign_path_scope,
+        selected_runtime=selected_runtime,
+    )[0]
+
+
+def workspace_status_observation(
+    root: Path,
+    *,
+    include_foreign_path_scope: bool = True,
+    selected_runtime: SelectedRuntime | None = None,
+) -> tuple[dict[str, object], dict[str, object]]:
+    """Return one workspace projection and its same-snapshot current authority."""
     try:
         repo = Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
     except subprocess.CalledProcessError:
-        return _non_git_status(
-            root,
-            defer_details=not include_foreign_path_scope,
-            selected_runtime=selected_runtime,
+        return (
+            _non_git_status(
+                root,
+                defer_details=not include_foreign_path_scope,
+                selected_runtime=selected_runtime,
+            ),
+            {},
         )
     provenance = dirty_provenance(root)
     paths = tuple(str(item["path"]) for item in cast("list[dict[str, str]]", provenance["entries"]))
@@ -132,6 +151,14 @@ def workspace_status(
     worktrees = worktree_records(root, current_path=repo, policy=policy)
     candidate = _candidate_status(root, worktrees, policy=policy)
     leases = leases_by_branch(repo)
+    authority = resolve_current_authority(
+        root=repo,
+        branch=branch,
+        lease=leases.get(branch, {}),
+        actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+        current_head=head or "",
+        required=role == ROLE_WORK_LANE,
+    ).projection()
     bindings = branch_bindings(repo, worktrees, candidate, policy=policy, lease_by_branch=leases)
     scope = (
         branch_path_scope(repo, branch=branch, candidate_branch=policy.candidate_branch)
@@ -158,13 +185,23 @@ def workspace_status(
         coordination_required_gaps=required,
     )
     landing = landing_readiness(repo, branch=branch, role=role, candidate=candidate)
-    workspace_gaps = workspace_required_gaps(
-        cast("list[str]", support["required_gaps"]), candidate=candidate
+    workspace_gaps = [
+        *cast("list[str]", authority["required_gaps"]),
+        *required,
+    ]
+    missing_candidate = (
+        "candidate_branch_missing"
+        if not candidate["exists"]
+        else "candidate_worktree_missing"
+        if not candidate["worktree_exists"]
+        else ""
     )
+    if missing_candidate:
+        workspace_gaps.append(missing_candidate)
     workspace_gaps.extend(
         gap for gap in cast("list[str]", landing["required_gaps"]) if gap not in workspace_gaps
     )
-    return _status_payload(
+    status = _status_payload(
         _StatusPayload(
             root=root,
             runtime_root=repo,
@@ -185,8 +222,10 @@ def workspace_status(
             unbound=unbound_refs,
             workspace_gaps=workspace_gaps,
             selected_runtime=selected_runtime,
+            authority=authority,
         )
     )
+    return status, authority
 
 
 def _status_payload(payload: _StatusPayload) -> dict[str, object]:
@@ -215,6 +254,7 @@ def _status_payload(payload: _StatusPayload) -> dict[str, object]:
             "stage_gates": _stage_gates(
                 branch=payload.branch,
                 role=payload.role,
+                authority=payload.authority,
                 closeout_support=payload.support,
                 landing_readiness=payload.landing,
             ),
@@ -228,14 +268,12 @@ def _stage_gates(
     *,
     branch: str,
     role: str,
+    authority: Mapping[str, object],
     closeout_support: Mapping[str, object],
     landing_readiness: Mapping[str, object],
 ) -> dict[str, object]:
     is_work_lane = role == ROLE_WORK_LANE
-    closeout_gaps = tuple(map(str, cast("list[object]", closeout_support.get("required_gaps", ()))))
-    authoring = is_work_lane and not any(
-        gap.startswith(("work_lane_lease_", "work_lane_missing_lease:")) for gap in closeout_gaps
-    )
+    authoring = is_work_lane and authority.get("verdict") == "pass"
     landing_gaps = tuple(map(str, cast("list[object]", landing_readiness.get("required_gaps", []))))
     stale = "candidate_base_stale" in landing_gaps
     integration = bool(closeout_support.get("supported")) and not stale
@@ -249,10 +287,7 @@ def _stage_gates(
     next_action = followup or (
         "ethos lane prewrite <path>"
         if authoring
-        else (
-            "ethos lane start <name> --commitment <commitment.toml> "
-            "--holder-ref <holder-ref> --apply --json"
-        )
+        else "ethos lane status --json"
     )
     if not authoring:
         blocked, owner = "authoring", branch if is_work_lane else ""

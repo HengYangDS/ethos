@@ -300,19 +300,3 @@ def path_overlaps(left: str, right: str) -> bool:
     left_parts, right_parts = [tuple(filter(None, path.split("/"))) for path in (left, right)]
     common = min(len(left_parts), len(right_parts))
     return bool(common) and left_parts[:common] == right_parts[:common]
-
-
-def workspace_required_gaps(closeout_gaps: list[str], *, candidate: dict[str, object]) -> list[str]:
-    gaps = [
-        gap
-        for gap in closeout_gaps
-        if gap.startswith(("work_lane_missing_lease:", "coordination_gap:"))
-    ]
-    missing = (
-        "candidate_branch_missing"
-        if not candidate["exists"]
-        else ("candidate_worktree_missing" if not candidate["worktree_exists"] else "")
-    )
-    if missing:
-        gaps.append(missing)
-    return gaps

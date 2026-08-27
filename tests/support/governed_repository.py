@@ -22,7 +22,6 @@ from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -170,7 +169,7 @@ def apply_accepted_closeout(repo: Path, accepted_before: str, candidate_head: st
     """Apply and attest the exact candidate-to-accepted ref transition for a fixture."""
     policy = load_branch_role_policy(repo)
     accepted_root = repo.parent / f"{repo.name}-accepted"
-    install_hook_launchers(repo)
+    install_fixture_hook_runtime(repo)
     git(repo, "worktree", "add", accepted_root.as_posix(), policy.accepted_branch)
     run_ethos(
         "land",

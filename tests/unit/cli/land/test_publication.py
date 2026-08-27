@@ -566,7 +566,7 @@ def test_publish_proposal_target_requires_the_local_candidate_source(tmp_path: P
     repo, _remotes, head = _branch_publication_fixture(tmp_path, source_branch="dev")
 
     assert _branch_publication(repo, head, blocked=True)["required_gaps"] == [
-        "publication_source_role_mismatch:dev:proposal_lane"
+        "publication_source_role_mismatch:dev:proposal_ref"
     ]
 
 

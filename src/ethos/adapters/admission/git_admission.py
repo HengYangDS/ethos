@@ -174,7 +174,7 @@ def push_admission_report(
         pushed_head,
         remote_head,
         f"{remote_name}/{policy.accepted_branch}"
-        if role == "proposal_lane" and remote_head in _ZERO_OIDS
+        if role == "proposal_ref" and remote_head in _ZERO_OIDS
         else "",
     )
     identity_gaps = list(cast("list[str]", identity["required_gaps"]))

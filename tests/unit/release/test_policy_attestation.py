@@ -263,7 +263,7 @@ def test_release_topology_enforces_invalid_declaration_without_bypass() -> None:
         (
             "refs/heads/proposal/topic",
             "branch",
-            "proposal_lane",
+            "proposal_ref",
             "current_commitment",
             "eligible",
         ),

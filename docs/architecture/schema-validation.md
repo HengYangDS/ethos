@@ -25,7 +25,7 @@ Workspace topology data is governed by
 vocabulary, candidate fields, linked worktree entries, configured `role_policy`,
 and role-policy `branch_bindings`. Release root and accepted root are separate
 semantic roles. The role order is
-release_root -> accepted_root -> candidate -> work_lane -> proposal_lane. Bindings
+release_root -> accepted_root -> candidate -> work_lane. Governed `proposal/*` publication refs are not local role bindings. Bindings
 are ordered by that semantic order, then by branch name for additional bound
 branches. Work Lane bindings include `lease_state`,
 `base_commitment_digest`, and `commitment_binding`. The Lease state vocabulary

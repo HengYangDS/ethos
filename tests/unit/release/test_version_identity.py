@@ -28,7 +28,7 @@ def test_version_file_is_the_single_product_owner_and_manifests_are_projections(
     product = product_version(root)
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert product == "0.2.0-alpha.1"
+    assert product == "0.2.0-alpha.2"
     assert "version" not in pyproject["project"]
     assert "version" in pyproject["project"]["dynamic"]
     assert "version" not in json.loads((root / "package.json").read_text(encoding="utf-8"))
@@ -72,60 +72,59 @@ def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> N
     assert first.source_commit != second.source_commit
     assert first.source_tree != second.source_tree
     assert first.distribution_version != second.distribution_version
-    assert Version(first.distribution_version) < Version("0.2.0a1")
-    assert Version(second.distribution_version) < Version("0.2.0a1")
+    assert Version(first.distribution_version) < Version("0.2.0a2")
+    assert Version(second.distribution_version) < Version("0.2.0a2")
 
 
-def test_environment_cannot_promote_a_work_build_to_accepted(
+def test_environment_cannot_promote_a_source_build_to_release(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("ETHOS_BUILD_CHANNEL", "accepted")
 
     identity = source_build_identity(Path.cwd())
 
-    assert identity.channel == "development"
-    assert identity.acceptance_state == "unaccepted"
+    assert Version(identity.distribution_version) < Version("0.2.0a2")
 
 
-def test_accepted_identity_uses_exact_product_projection() -> None:
+def test_release_identity_uses_exact_product_projection_only_when_explicit() -> None:
     identity = build_identity(
-        product="0.2.0-alpha.1",
+        product="0.2.0-alpha.2",
         source_commit="a" * 40,
         source_tree="b" * 40,
-        channel="accepted",
-        acceptance_state="accepted",
+        release=True,
     )
 
     assert identity == BuildIdentity(
-        product_version="0.2.0-alpha.1",
-        distribution_version="0.2.0a1",
+        product_version="0.2.0-alpha.2",
+        distribution_version="0.2.0a2",
         source_commit="a" * 40,
         source_tree="b" * 40,
-        channel="accepted",
-        acceptance_state="accepted",
     )
 
 
 def test_development_distribution_identity_uses_the_complete_source_coordinates() -> None:
     common = "a" * 12
     first = build_identity(
-        product="0.2.0-alpha.1",
+        product="0.2.0-alpha.2",
         source_commit=common + "1" * 28,
         source_tree=common + "2" * 28,
-        channel="development",
-        acceptance_state="unaccepted",
     )
     second = build_identity(
-        product="0.2.0-alpha.1",
+        product="0.2.0-alpha.2",
         source_commit=common + "3" * 28,
         source_tree=common + "4" * 28,
-        channel="development",
-        acceptance_state="unaccepted",
     )
 
     assert first.distribution_version != second.distribution_version
-    assert first.source_commit in first.distribution_version
-    assert first.source_tree in first.distribution_version
+    assert first.distribution_version.startswith("0.2.0a2.dev0+")
+    assert first.source_commit[:12] in first.distribution_version
+    assert first.source_tree[:12] in first.distribution_version
+
+
+def test_accepted_checkout_remains_a_development_build() -> None:
+    identity = source_build_identity(Path.cwd())
+
+    assert Version(identity.distribution_version) < Version("0.2.0a2")
 
 
 @pytest.mark.parametrize("raw", ["1", "1.2", "v1.2.3", "1.2.3a1", "1.2.3-alpha"])
@@ -157,28 +156,24 @@ def test_projected_package_version_drift_is_reported(tmp_path: Path) -> None:
         projected_package_versions(tmp_path)
 
 
-def test_build_identity_loader_rejects_distribution_or_channel_drift() -> None:
+def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
     identity = build_identity(
-        product="0.2.0-alpha.1",
+        product="0.2.0-alpha.2",
         source_commit="a" * 40,
         source_tree="b" * 40,
-        channel="development",
-        acceptance_state="unaccepted",
     )
     payload = identity.projection()
-    payload["distribution_version"] = "0.2.0a1.dev0+wrong"
+    payload["distribution_version"] = "0.2.0a2.dev0+wrong"
     with pytest.raises(ValueError, match="package_build_identity_invalid"):
         load_build_identity_bytes(json.dumps(payload).encode())
     base = {
         "product": "1.2.3",
         "source_commit": "a" * 40,
         "source_tree": "b" * 40,
-        "channel": "development",
-        "acceptance_state": "unaccepted",
     }
     for change, reason in (
         ({"source_commit": "x"}, "build_source_identity_invalid"),
-        ({"channel": "accepted"}, "build_acceptance_identity_invalid"),
+        ({"release": "invalid"}, "release_build_flag_invalid"),
         ({"product": "1.2.3.post1"}, "product_version_invalid"),
     ):
         with pytest.raises(ValueError, match=reason):

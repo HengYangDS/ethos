@@ -490,8 +490,6 @@ def test_hook_activation_compensates_when_expected_build_drifts_during_effect(
         selected.build.distribution_version,
         "d" * 40,
         "e" * 40,
-        selected.build.channel,
-        selected.build.acceptance_state,
     )
     observations = iter((selected.build, drifted))
     monkeypatch.setattr(
@@ -590,12 +588,10 @@ def test_install_restores_runtime_selector_with_exact_cas_when_activation_fails(
     runtime_digest = "a" * 64
     runtime = common / "ethos" / "runtime" / runtime_digest / "python"
     source = BuildIdentity(
-        "0.2.0-alpha.1",
-        "0.2.0a1.dev0+gcccccccccccc.tdddddddddddd",
+        "0.2.0-alpha.2",
+        "0.2.0a2.dev0+gcccccccccccc.tdddddddddddd",
         "c" * 40,
         "d" * 40,
-        "development",
-        "unaccepted",
     )
     restored: list[tuple[bytes | None, bytes | None]] = []
     monkeypatch.setattr(hook_activation, "expected_runtime_build", lambda _root: (source, None))

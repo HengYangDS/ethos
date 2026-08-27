@@ -51,9 +51,9 @@ def expected_runtime_build(root: Path) -> tuple[BuildIdentity, Path | None]:
     if accepted_version_migration_pending(repo, accepted_commit=commit):
         return runtime_build_identity(package_source, include_overlay=False), source_authority
     accepted_root = _accepted_worktree(repo, policy.accepted_branch)
-    identity = source_build_identity(accepted_root, channel="accepted")
+    identity = source_build_identity(accepted_root)
     if identity.source_commit != commit or identity.source_tree != tree:
-        message = "hook_runtime_accepted_build_identity_unavailable"
+        message = "hook_runtime_source_build_identity_unavailable"
         raise ValueError(message)
     return identity, accepted_root
 

@@ -12,6 +12,20 @@ A release-ready ETHOS repository must be understandable from tracked source,
 license, contribution, changelog, release policy, and evidence files before a
 developer opens implementation code.
 
+`VERSION` is the next explicit product-release target. Repository acceptance,
+a source development build, and an explicit distribution release are distinct
+facts: accepting a Git commit never turns its wheel into the exact release
+version. Source builds use unique PEP 440 development identities; only an
+explicit release transition may use the exact PEP 440 release projection and
+record release Attestation after fresh artifact observation. Product headings
+and tags use canonical SemVer; Python package metadata uses its PEP 440
+projection.
+
+`CHANGELOG.md` records selected user-facing changes under `Unreleased` and
+locally admitted product versions. It is neither a commit log nor evidence of a
+Git tag, Forge release, package-registry publication, or hosted CI result. Each
+of those remains an independently verified projection.
+
 Required product release surfaces are `README.md`, `LICENSE`,
 `CONTRIBUTING.md`, `CHANGELOG.md`, and `.ethos/release.toml`. Hosted forge and
 CI files are profile surfaces declared under `.ethos/release.toml`. The

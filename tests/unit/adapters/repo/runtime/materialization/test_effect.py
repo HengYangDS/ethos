@@ -16,7 +16,7 @@ import ethos.adapters.repo.runtime.materialization.python_image as runtime_pytho
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.selection import activate_runtime
-from ethos.adapters.repo.runtime.transition import ReleaseArtifact
+from ethos.adapters.repo.runtime.transition import PackageArtifact
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 
@@ -56,7 +56,7 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     source.mkdir()
     _write(interpreter, b"python")
     _write(wheel, b"wheel")
-    artifact = ReleaseArtifact(wheel, "c" * 64, runtime_build("a" * 40, "b" * 40))
+    artifact = PackageArtifact(wheel, "c" * 64, runtime_build("a" * 40, "b" * 40))
 
     def materialize_python(target: Path, *_args: object, **_kwargs: object) -> None:
         for relative, payload in (("bin/python", b"python"), ("bin/ethos", b"ethos")):
@@ -81,7 +81,7 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(
         runtime_materialization.subprocess,
         "run",
-        lambda *_a, **_k: subprocess.CompletedProcess([], 0, "0.2.0-alpha.1\n", ""),
+        lambda *_a, **_k: subprocess.CompletedProcess([], 0, "0.2.0-alpha.2\n", ""),
     )
     return (runtime_root, work, source, interpreter, artifact, _environment()), observed
 
@@ -209,7 +209,7 @@ def test_runtime_finalization_requires_python_and_entrypoint(
     ):
         _write(path)
     (runtime / "python/bin" / missing).unlink()
-    artifact = ReleaseArtifact(tmp_path / "wheel", "c" * 64, runtime_build("a" * 40, "b" * 40))
+    artifact = PackageArtifact(tmp_path / "wheel", "c" * 64, runtime_build("a" * 40, "b" * 40))
     with pytest.raises(ValueError, match=f"hook_runtime_{reason}_missing"):
         vars(runtime_materialization)["_finalize_runtime"](
             runtime, tmp_path / "digest", artifact, _environment(), {}

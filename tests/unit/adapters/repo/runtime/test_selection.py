@@ -39,10 +39,10 @@ def test_hook_runtime_manifest_and_current_selector_bind_exact_package(
         current_runtime(common)
 
 
-def test_accepted_runtime_activation_requires_canonical_identity_attestations(
+def test_release_runtime_activation_requires_canonical_identity_attestations(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    identity = runtime_build("a" * 40, "b" * 40, accepted=True)
+    identity = runtime_build("a" * 40, "b" * 40, release=True)
     repo, venv = materialize_runtime_case(
         tmp_path,
         monkeypatch,
@@ -143,11 +143,11 @@ def test_current_runtime_rejects_symlinked_ethos_ancestor(tmp_path: Path) -> Non
             current_runtime(common)
 
 
-def test_accepted_runtime_identity_rejects_a_second_closure_for_the_same_release(
+def test_release_runtime_identity_rejects_a_second_closure_for_the_same_release(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    identity = runtime_build("a" * 40, "b" * 40, accepted=True)
+    identity = runtime_build("a" * 40, "b" * 40, release=True)
     repo, venv = materialize_runtime_case(
         tmp_path,
         monkeypatch,
@@ -155,6 +155,7 @@ def test_accepted_runtime_identity_rejects_a_second_closure_for_the_same_release
     )
     common = Path(git_common_dir(repo))
     first = venv.parent
+    monkeypatch.setattr(runtime_selection, "require_release_identity_attested", lambda *_a: None)
     activate_runtime(common, first)
     second_staging = tmp_path / "second-runtime"
     shutil.copytree(first, second_staging)
@@ -192,7 +193,7 @@ def test_accepted_runtime_identity_rejects_a_second_closure_for_the_same_release
         )
     )
 
-    with pytest.raises(ValueError, match="accepted_runtime_identity_conflict"):
+    with pytest.raises(ValueError, match="release_runtime_identity_conflict"):
         activate_runtime(common, second)
 
     assert current_runtime(common).root == first

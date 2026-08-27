@@ -199,8 +199,8 @@ def _publication_request_gaps(
     conditions = (
         (options.expect_head is None, "expect_head_required"),
         (
-            "proposal_lane" in roles and source_branch != candidate_branch,
-            f"publication_source_role_mismatch:{source_branch}:proposal_lane",
+            "proposal_ref" in roles and source_branch != candidate_branch,
+            f"publication_source_role_mismatch:{source_branch}:proposal_ref",
         ),
         (options.apply and not options.authorize, "authorization_required"),
         (

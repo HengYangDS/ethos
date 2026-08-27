@@ -945,27 +945,6 @@
                     ]
                   ],
                   "type": "dict"
-                },
-                {
-                  "items": [
-                    [
-                      "role",
-                      "proposal_lane"
-                    ],
-                    [
-                      "kind",
-                      "branch_prefix"
-                    ],
-                    [
-                      "config_key",
-                      "proposal_branch_prefix"
-                    ],
-                    [
-                      "pattern",
-                      "proposal/*"
-                    ]
-                  ],
-                  "type": "dict"
                 }
               ],
               "type": "list"
@@ -974,7 +953,7 @@
         ],
         "type": "dict"
       },
-      "value_sha256": "5dc13a570955d8c035cfeb0144fe248d0aa19e689f4a7fa41d2e8dd59746c7a8"
+      "value_sha256": "270397d4c71899805fff0e33535cc8735938104ca4302965d2cac8eb8dd22ef5"
     },
     {
       "id": "kernel.test_admission_contract:parametrize:test_mutation_classifier_recognizes_owned_and_external_effects:0",

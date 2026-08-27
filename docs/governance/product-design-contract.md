@@ -114,7 +114,7 @@ heads, and compare-and-swap ref updates are the repository substrate for an
 effect. A profile may map the self-hosted integration topology as:
 
 ```text
-release_root -> accepted_root -> candidate -> work_lane -> proposal_lane
+release_root -> accepted_root -> candidate -> work_lane; proved candidate objects may be projected to proposal_ref
 ```
 
 This topology names Git resource roles, not semantic entities. Dirty, foreign,

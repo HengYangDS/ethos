@@ -21,10 +21,8 @@ from hypothesis.stateful import rule
 
 import ethos.adapters.mutation.lane_lifecycle.lease as lease_lifecycle
 import ethos.adapters.mutation.lane_retirement.effects as retirement_effects
-import ethos.adapters.mutation.lane_start_carrier as lane_start_carrier
 import ethos.adapters.repo.git_effects as git_effects
 import ethos.adapters.store.state.lease.lifecycle.transitions as lease_transitions
-import tests.support.governed_repository as governed_repository
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_takeover
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
@@ -241,8 +239,6 @@ def _assert_retired(repo: Path, source: Path, database: Path) -> None:
 def test_landed_retirement_readiness_and_apply_share_exact_ref_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(governed_repository, "install_fixture_hook_runtime", lambda _root: {})
-    monkeypatch.setattr(lane_start_carrier, "install_hook_launchers", lambda _root: {})
     fixture = start_adopted_work_lane(tmp_path, name="landed", holder_ref=SOURCE)
     branch = "work/landed"
     head = git(fixture.worktree, "rev-parse", "HEAD")

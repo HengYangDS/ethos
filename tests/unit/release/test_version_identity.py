@@ -169,6 +169,16 @@ def test_build_identity_loader_rejects_distribution_or_channel_drift() -> None:
     payload["distribution_version"] = "0.2.0a1.dev0+wrong"
     with pytest.raises(ValueError, match="package_build_identity_invalid"):
         load_build_identity_bytes(json.dumps(payload).encode())
+    base = {"product": "1.2.3", "source_commit": "a" * 40, "source_tree": "b" * 40,
+            "channel": "development", "acceptance_state": "unaccepted"}
+    for change, reason in (({"source_commit": "x"}, "build_source_identity_invalid"),
+                           ({"channel": "accepted"}, "build_acceptance_identity_invalid"),
+                           ({"product": "1.2.3.post1"}, "product_version_invalid")):
+        with pytest.raises(ValueError, match=reason):
+            build_identity(**(base | change))
+    for raw in (b"{}", json.dumps(build_identity(**base).projection()).encode(), b"not-json"):
+        with pytest.raises(ValueError, match="package_build_identity_invalid"):
+            load_build_identity_bytes(raw)
 
 
 def _build_wheel(repo: Path, output: Path) -> BuildIdentity:

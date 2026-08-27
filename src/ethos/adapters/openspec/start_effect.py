@@ -226,21 +226,60 @@ def current_generation_scope(
             carrier,
             source="initial_active_generation",
         )
+    current_binding = _current_lease_binding_matches(root, head, lease, carrier)
     return CurrentGenerationScope(
-        (),
+        fallback_paths if current_binding else (),
         {},
         attributions=tuple(
-            PathAttribution(path, "unresolved_lane_delta", "unknown", change, "")
+            PathAttribution(
+                path,
+                "current_lease_binding" if current_binding else "unresolved_lane_delta",
+                "unknown"
+                if not current_binding
+                else "authorized"
+                if any(repository_path_matches(path, pattern) for pattern in commitment.scope)
+                else "uncovered",
+                change,
+                str(lease.get("expected_head") or "") if current_binding else "",
+                str(lease.get("lease_id") or "") if current_binding else "",
+                next(
+                    (
+                        pattern
+                        for pattern in commitment.scope
+                        if repository_path_matches(path, pattern)
+                    ),
+                    "",
+                )
+                if current_binding
+                else "",
+            )
             for path in fallback_paths
         ),
         selected_carrier=carrier,
-        gaps=(
-            ("change_generation_authority_missing",)
-            if fallback_paths
-            and str(lease.get("expected_head") or "") == head
-            and not carrier.startswith("openspec/changes/archive/")
-            else ()
-        ),
+    )
+
+
+def _current_lease_binding_matches(
+    root: Path, head: str, lease: dict[str, object], carrier: str
+) -> bool:
+    """Return whether one supplied Lease is the exact current active binding."""
+    if not carrier or carrier.startswith("openspec/changes/archive/"):
+        return False
+    branch = git_stdout(root, "branch", "--show-current")
+    current = leases_by_branch(root).get(branch, {})
+    fields = (
+        "lease_id",
+        "epoch",
+        "expected_head",
+        "expected_tree",
+        "base_commitment_path",
+        "base_commitment_bytes_sha256",
+        "base_commitment_digest",
+    )
+    return (
+        str(current.get("lease_state") or "") == "valid"
+        and str(current.get("expected_head") or "") == head
+        and all(current.get(field) == lease.get(field) for field in fields)
     )
 
 

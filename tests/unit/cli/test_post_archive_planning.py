@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -18,6 +19,7 @@ from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.root.proof import resolve_generation_scope
@@ -38,6 +40,116 @@ def _clear_selected_attestations(root: Path) -> None:
     if existing.returncode == 0:
         run_git(root, "update-ref", "-d", ATTESTATION_SET_REF)
     assert read_attestation_set(root) == ("", ())
+
+
+def test_current_authority_does_not_depend_on_transition_attestations(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fixture = start_adopted_work_lane(
+        tmp_path,
+        scope=("README.md", "openspec/changes/fixture-change/**"),
+    )
+    worktree = fixture.worktree
+    branch = git(worktree, "branch", "--show-current")
+    lease = leases_by_branch(worktree)[branch]
+    monkeypatch.setenv("ETHOS_ACTOR", str(lease["holder_ref"]))
+
+    generation_head = git(worktree, "rev-parse", "HEAD")
+    tree = git(worktree, "rev-parse", "HEAD^{tree}")
+    side = git(
+        worktree,
+        "commit-tree",
+        tree,
+        "-p",
+        generation_head,
+        "-m",
+        "fixture side parent",
+    )
+    merge = git(
+        worktree,
+        "commit-tree",
+        tree,
+        "-p",
+        generation_head,
+        "-p",
+        side,
+        "-m",
+        "fixture merge generation",
+    )
+    git(
+        worktree,
+        "update-ref",
+        f"refs/heads/{branch}",
+        merge,
+        generation_head,
+    )
+    git(worktree, "reset", "--hard", merge)
+    advanced = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{branch}",
+        old_value=generation_head,
+        new_value=merge,
+    )
+    assert advanced["state"] == "lease_ref_advanced"
+    _clear_selected_attestations(worktree)
+
+    readme = worktree / "README.md"
+    readme.write_text("# current authority\n", encoding="utf-8")
+    git(worktree, "add", "README.md")
+    lease = leases_by_branch(worktree)[branch]
+    assert {
+        "lease_state": lease["lease_state"],
+        "commitment_binding": lease["commitment_binding"],
+        "holder_ref": lease["holder_ref"],
+        "expected_head": lease["expected_head"],
+        "expected_tree": lease["expected_tree"],
+    } == {
+        "lease_state": "valid",
+        "commitment_binding": "bound",
+        "holder_ref": "agent:test:case:agent-test",
+        "expected_head": merge,
+        "expected_tree": tree,
+    }
+
+    status = run_ethos("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
+    plan = run_ethos(
+        "plan", "--changed", "--root", worktree.as_posix(), "--json", cwd=worktree
+    )
+    prewrite = run_ethos(
+        "lane",
+        "prewrite",
+        "README.md",
+        "--root",
+        worktree.as_posix(),
+        "--editor-root",
+        worktree.as_posix(),
+        "--require-editor-root",
+        "--json",
+        cwd=worktree,
+    )
+
+    expected = {
+        "verdict": "pass",
+        "branch": branch,
+        "holder_ref": lease["holder_ref"],
+        "lease_id": lease["lease_id"],
+        "epoch": lease["epoch"],
+        "expected_head": merge,
+        "expected_tree": tree,
+        "base_commitment_path": lease["base_commitment_path"],
+        "base_commitment_digest": lease["base_commitment_digest"],
+        "reason": "matched",
+    }
+    for authority in (
+        status["data"]["authority"],
+        plan["data"]["authority"],
+        prewrite["data"]["mutation_authority"],
+    ):
+        assert {name: authority[name] for name in expected} == expected
+    assert "change_generation_authority_missing" not in status["required_gaps"]
+    assert "change_generation_authority_missing" not in plan["required_gaps"]
+    assert execute_hook(worktree, "pre-commit", (), stdin=StringIO("")) == 0
 
 
 def _advance_current_generation(worktree: Path, overlay: Path) -> None:
@@ -295,7 +407,7 @@ def test_plan_and_prove_bind_only_the_current_post_start_generation(
     )
     assert rejected.paths == ()
     assert rejected.start_authority == {}
-    assert rejected.gaps == ("change_generation_authority_missing",)
+    assert rejected.gaps == ()
     assert rejected.attributions[0].state == "unknown"
 
     scope = resolve_generation_scope(worktree)

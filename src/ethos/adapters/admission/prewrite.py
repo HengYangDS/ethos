@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.lease_binding import lease_binding_reason
+from ethos.adapters.admission.lease_binding import observe_current_authority
 from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
@@ -14,13 +14,11 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_effect import archive_prewrite_authority
 from ethos.adapters.openspec.lifecycle.archive_effect import archive_prewrite_recovery
 from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.runtime.binding import runtime_binding_check
-from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
@@ -236,75 +234,13 @@ def _work_lane_lease_check(
 ) -> dict[str, object]:
     role, branch, source = effective["role"], effective["branch"], effective["source"]
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    if role != ROLE_WORK_LANE or not tracked_write_requested:
-        return _lease_report(branch, actor, {}, ("pass", False, "not_required"))
-    lease = leases_by_branch(root).get(branch, {})
-    lease_state = str(lease.get("lease_state") or "missing")
-    if lease_state != "valid" or not lease.get("holder_ref"):
-        reason = {
-            "unknown": f"work_lane_lease_unknown:{branch}",
-            "expired": f"work_lane_lease_expired:{branch}",
-        }.get(lease_state, f"work_lane_missing_lease:{branch}")
-        return _lease_report(
-            branch,
-            actor,
-            lease,
-            ("unknown" if lease_state == "unknown" else "block", True, reason),
-        )
-    current = git_stdout(root, "rev-parse", "HEAD")
-    binding = (
-        git_stdout(root, "rev-parse", "--verify", f"refs/heads/{branch}")
-        if source == "git_rebase_head_name"
-        else current
-    )
-    reason = lease_binding_reason(
+    return observe_current_authority(
         root=root,
         branch=branch,
-        lease=lease,
         actor=actor,
-        current_head=binding,
-        commitment_loader=load_lease_bound_commitment,
-    )
-    return _lease_report(
-        branch,
-        actor,
-        lease,
-        ("block" if reason else "pass", True, reason or "matched"),
-        observed=(
-            current,
-            binding,
-            "rebase_branch_ref" if source == "git_rebase_head_name" else "head",
-        ),
-    )
-
-
-def _lease_report(
-    branch: str,
-    actor: str,
-    lease: dict[str, object],
-    result: tuple[Verdict, bool, str],
-    *,
-    observed: tuple[str, str, str] | None = None,
-) -> dict[str, object]:
-    verdict, required, reason = result
-    report: dict[str, object] = {
-        "verdict": verdict,
-        "required": required,
-        "branch": branch,
-        "holder_ref": str(lease.get("holder_ref") or ""),
-        "invocation_holder_ref": actor,
-        "lease_id": str(lease.get("lease_id") or ""),
-        "epoch": integer_value(lease.get("epoch")),
-        "expected_head": str(lease.get("expected_head") or ""),
-        "expected_tree": str(lease.get("expected_tree") or ""),
-        "base_commitment_path": str(lease.get("base_commitment_path") or ""),
-        "base_commitment_bytes_sha256": str(lease.get("base_commitment_bytes_sha256") or ""),
-        "base_commitment_digest": str(lease.get("base_commitment_digest") or ""),
-    }
-    if observed:
-        report.update(current_head=observed[0], binding_head=observed[1], head_source=observed[2])
-    report["reason"] = reason
-    return report
+        required=role == ROLE_WORK_LANE and tracked_write_requested,
+        head_source="rebase_branch_ref" if source == "git_rebase_head_name" else "head",
+    ).projection()
 
 
 def _prewrite_decision(
@@ -497,23 +433,26 @@ def _commitment_scope(
             "required_gaps": [str(lease.get("reason") or "commitment_scope_unavailable")],
         }
     try:
-        commitment = (
-            load_lease_bound_commitment(root, lease=lease)
-            if lease.get("required") is True
-            else load_commitment(root)
-        )
+        commitment = load_commitment(root) if lease.get("required") is not True else None
     except ValueError as exc:
         return {"verdict": "block", "state": "invalid", "required_gaps": [str(exc)]}
+    patterns = lease.get("scope") if commitment is None else commitment.scope
+    if not isinstance(patterns, list | tuple):
+        return {
+            "verdict": "block",
+            "state": "invalid",
+            "required_gaps": ["commitment_scope_unavailable"],
+        }
     uncovered = [
         path
         for path in requested
-        if not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
+        if not any(repository_path_matches(path, str(pattern)) for pattern in patterns)
     ]
     return {
         "verdict": "block" if uncovered else "pass",
         "state": "uncovered" if uncovered else "covered" if requested else "no_paths",
         "changed_paths": list(requested),
-        "material_patterns": list(commitment.scope),
+        "material_patterns": list(patterns),
         "material_paths": list(requested),
         "uncovered_paths": uncovered,
         "required_gaps": [f"commitment_scope_uncovered:{path}" for path in uncovered],

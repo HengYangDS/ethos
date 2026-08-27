@@ -63,12 +63,16 @@ class EthosResult(BaseModel):
 
     @model_validator(mode="after")
     def reject_false_pass(self) -> Self:
-        """Prevent blockers from coexisting with a green command result."""
+        """Require one closed verdict with an explicit non-pass reason."""
         adverse = tuple(
             str(item.get("message") or item.get("code") or item.get("severity"))
             for item in self.diagnostics
             if str(item.get("severity") or "").lower() in {"warning", "error"}
         )
+        if self.verdict == "unknown" and not self.required_gaps:
+            raise ValueError("unknown_without_required_gaps")
+        if self.verdict == "block" and not self.required_gaps and not adverse:
+            raise ValueError("block_without_reason")
         require_closed_verdict(self.verdict, self.required_gaps, adverse)
         return self
 

@@ -113,9 +113,7 @@ def test_current_authority_does_not_depend_on_transition_attestations(
     }
 
     status = run_ethos("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
-    plan = run_ethos(
-        "plan", "--changed", "--root", worktree.as_posix(), "--json", cwd=worktree
-    )
+    plan = run_ethos("plan", "--changed", "--root", worktree.as_posix(), "--json", cwd=worktree)
     prewrite = run_ethos(
         "lane",
         "prewrite",

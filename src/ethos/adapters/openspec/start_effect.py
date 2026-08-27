@@ -12,7 +12,6 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
 from ethos.adapters.openspec.generation.attestation import start_effect_authority
 from ethos.adapters.openspec.lifecycle.archive_effect import archive_effect_authority
 from ethos.adapters.openspec.profile import load_profile_commitment
-from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commitment import commitment_generation_origin
 from ethos.adapters.repo.commitment import load_commitment
@@ -21,7 +20,6 @@ from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
-from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.semantic import canonical_json_digest
@@ -31,6 +29,7 @@ from ethos.normalization.coercion import string_sequence
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.adapters.admission.lease_binding import CurrentAuthority
     from ethos.contracts.semantic import Commitment
     from ethos.contracts.value import JsonObject
 
@@ -99,17 +98,21 @@ def current_generation_binding(
     *,
     status: JsonObject,
     repository_id: str,
+    authority: CurrentAuthority | None = None,
     change: str | None = None,
     changed: bool = True,
 ) -> CurrentGenerationBinding:
     """Bind all readers to one shared current-generation observation."""
     work_lane = status.get("role") == ROLE_WORK_LANE
-    lease = leases_by_branch(root).get(str(status.get("branch") or ""), {}) if work_lane else {}
-    commitment = (
-        load_work_lane_commitment(root, change_id=change, lease=lease)
-        if work_lane
-        else load_profile_commitment(root, change_id=change)
-    )
+    if work_lane:
+        if authority is None or authority.commitment is None:
+            msg = f"current_authority_unavailable:{status.get('branch') or ''}"
+            raise ValueError(msg)
+        lease = authority.lease
+        commitment = authority.commitment
+    else:
+        lease = {}
+        commitment = load_profile_commitment(root, change_id=change)
     observed = change_scope_paths_from_status(root, status) if changed else ()
     scope = (
         current_generation_scope(
@@ -119,6 +122,7 @@ def current_generation_binding(
             commitment=commitment,
             lease=lease,
             fallback_paths=observed,
+            current_binding=authority is not None and authority.verdict == "pass",
         )
         if changed and work_lane
         else CurrentGenerationScope(observed, {})
@@ -134,6 +138,7 @@ def current_generation_scope(
     commitment: Commitment,
     lease: dict[str, object],
     fallback_paths: tuple[str, ...],
+    current_binding: bool = False,
 ) -> CurrentGenerationScope:
     """Observe exact start/archive authority once and select current paths."""
     change = commitment.id.removeprefix("change:")
@@ -226,7 +231,6 @@ def current_generation_scope(
             carrier,
             source="initial_active_generation",
         )
-    current_binding = _current_lease_binding_matches(root, head, lease, carrier)
     return CurrentGenerationScope(
         fallback_paths if current_binding else (),
         {},
@@ -256,30 +260,6 @@ def current_generation_scope(
             for path in fallback_paths
         ),
         selected_carrier=carrier,
-    )
-
-
-def _current_lease_binding_matches(
-    root: Path, head: str, lease: dict[str, object], carrier: str
-) -> bool:
-    """Return whether one supplied Lease is the exact current active binding."""
-    if not carrier or carrier.startswith("openspec/changes/archive/"):
-        return False
-    branch = git_stdout(root, "branch", "--show-current")
-    current = leases_by_branch(root).get(branch, {})
-    fields = (
-        "lease_id",
-        "epoch",
-        "expected_head",
-        "expected_tree",
-        "base_commitment_path",
-        "base_commitment_bytes_sha256",
-        "base_commitment_digest",
-    )
-    return (
-        str(current.get("lease_state") or "") == "valid"
-        and str(current.get("expected_head") or "") == head
-        and all(current.get(field) == lease.get(field) for field in fields)
     )
 
 

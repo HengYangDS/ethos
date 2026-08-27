@@ -24,5 +24,7 @@
 
 - [x] 4.1 Run focused quality, release/runtime, package-only, schema, and strict
   OpenSpec checks without building a legacy artifact.
-- [ ] 4.2 Run exact-HEAD proof, archive/reproof, candidate/accepted CAS, and one
-  newly versioned immutable package-only delivery.
+- [x] 4.2 Run the full applicable proof once on the frozen implementation HEAD.
+  Archive/reproof, candidate/accepted CAS, accepted package-only delivery, and
+  Work Lane retirement remain separate governed lifecycle effects proved by
+  their own exact receipts.

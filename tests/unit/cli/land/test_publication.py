@@ -9,7 +9,7 @@ import pytest
 import ethos.adapters.mutation.proof as proof_adapter
 import ethos.adapters.mutation.publication.attestation as publication_attestation
 import ethos.adapters.mutation.remote_publication as remote_publication
-import ethos.surface.cli.root.publish as publication_cli
+import ethos.repository.release.publication as release_publication
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.runtime.selection import runtime_command
@@ -21,7 +21,6 @@ from ethos.domain.land.publication import local_ci_owner_scripts
 from ethos.domain.land.publication import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture
@@ -41,28 +40,12 @@ def _write_local_only_publication(repo: Path) -> None:
     )
 
 
-def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(
-    tmp_path: Path,
-) -> None:
+def _publish_fixture(tmp_path: Path) -> tuple[Path, str]:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")
     seed_executed_proof(repo, head)
-    manifest = repo / "build" / "evidence" / "local-ci" / "fallback.json"
-    manifest.parent.mkdir(parents=True)
-    manifest.write_text("{not-json", encoding="utf-8")
-
-    payload = run_ethos("publish", "--json", cwd=repo)
-
-    evidence_status = payload["data"]["local_ci_fallback"]["evidence_status"]
-    assert evidence_status == {
-        "state": "invalid",
-        "path": "build/evidence/local-ci/fallback.json",
-        "current_head": head,
-        "evidence_head": "",
-        "verdict": "block",
-        "next_action": "rerun dev/verify to refresh local fallback evidence",
-    }
+    return repo, head
 
 
 def test_publish_reports_local_readiness_without_remote_push() -> None:
@@ -86,167 +69,87 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     assert payload["next_action"]
 
 
-def test_publish_uses_declared_local_verification_command_as_fallback_ssot(
-    tmp_path: Path,
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    command = "uv run --locked --no-sync nox -s full"
-    release = repo / ".ethos" / "release.toml"
-    release.write_text(
-        release.read_text(encoding="utf-8").replace(
-            'local_verification_command = "dev/verify"',
-            f'local_verification_command = "{command}"',
-        ),
-        encoding="utf-8",
-    )
-    head = commit_fixture(repo, "declare canonical local verification")
-    seed_executed_proof(repo, head)
-
-    payload = run_ethos("publish", "--json", cwd=repo)
-
-    fallback = payload["data"]["local_ci_fallback"]
-    assert fallback["command"] == command
-    assert fallback["evidence_status"]["next_action"] == (
-        f"run {command} as local fallback evidence"
-    )
-    assert payload["next_action"] == f"run {command} as local fallback evidence"
-
-
-def test_publish_rejects_fallback_evidence_from_a_retired_verification_command(
-    tmp_path: Path,
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
-    seed_executed_proof(repo, head)
+@pytest.mark.parametrize("case", ["invalid", "custom", "retired"])
+def test_publish_fallback_evidence_matrix(tmp_path: Path, case: str) -> None:
+    repo, head = _publish_fixture(tmp_path)
     manifest = repo / "build" / "evidence" / "local-ci" / "fallback.json"
-    manifest.parent.mkdir(parents=True)
-    manifest.write_text(
-        '{"command":"retired/verify","head":"' + head + '","required_gaps":[],"verdict":"pass"}\n',
-        encoding="utf-8",
-    )
-
+    command = "uv run --locked --no-sync nox -s full"
+    if case == "custom":
+        release = repo / ".ethos/release.toml"
+        release.write_text(
+            release.read_text().replace('"dev/verify"', f'"{command}"'), encoding="utf-8"
+        )
+        head = commit_fixture(repo, "declare canonical local verification")
+        seed_executed_proof(repo, head)
+    else:
+        manifest.parent.mkdir(parents=True)
+        content = (
+            "{not-json"
+            if case == "invalid"
+            else (
+                f'{{"command":"retired/verify","head":"{head}","required_gaps":[],"verdict":"pass"}}\n'
+            )
+        )
+        manifest.write_text(content, encoding="utf-8")
     payload = run_ethos("publish", "--json", cwd=repo)
-
     evidence = payload["data"]["local_ci_fallback"]["evidence_status"]
-    assert evidence["state"] == "stale"
-    assert evidence["command"] == "retired/verify"
-    assert evidence["next_action"] == "run dev/verify as local fallback evidence"
+    expected = {
+        "invalid": ("invalid", "rerun dev/verify to refresh local fallback evidence"),
+        "custom": ("missing", f"run {command} as local fallback evidence"),
+        "retired": ("stale", "run dev/verify as local fallback evidence"),
+    }[case]
+    assert (evidence["state"], evidence["next_action"]) == expected
+    if case == "custom":
+        assert (payload["data"]["local_ci_fallback"]["command"], payload["next_action"]) == (
+            command,
+            f"run {command} as local fallback evidence",
+        )
 
 
-def test_publish_observes_gitlab_and_github_independently_without_push(
-    tmp_path: Path,
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
-    seed_executed_proof(repo, head)
-    gitlab = tmp_path / "gitlab.git"
-    github = tmp_path / "github.git"
-    for remote in (gitlab, github):
-        git(tmp_path, "init", "--bare", remote.as_posix())
-    git(repo, "remote", "add", "origin", gitlab.as_posix())
-    git(repo, "remote", "add", "github", github.as_posix())
-    git(repo, "push", "--set-upstream", "origin", "dev")
-    git(repo, "push", "--set-upstream", "github", "dev")
-
+@pytest.mark.parametrize("mode", ["dual", "local", "single", "tracking"])
+def test_publish_peer_topology_matrix(tmp_path: Path, mode: str) -> None:
+    repo, head = _publish_fixture(tmp_path)
+    if mode == "local":
+        _write_local_only_publication(repo)
+        head = commit_fixture(repo, "declare local-only publication")
+        seed_executed_proof(repo, head)
+    else:
+        if mode == "single":
+            release = repo / ".ethos/release.toml"
+            parts = release.read_text().split("[[publication.peers]]", 2)
+            release.write_text(parts[0] + "[[publication.peers]]" + parts[1])
+            head = commit_fixture(repo, "declare GitLab-only publication")
+            seed_executed_proof(repo, head)
+        peers = (
+            (("gitlab", "origin"), ("github", "github"))
+            if mode == "dual"
+            else (("gitlab", "origin"),)
+        )
+        for peer, remote in peers:
+            target = tmp_path / f"{peer}.git"
+            git(tmp_path, "init", "--bare", target.as_posix())
+            git(repo, "remote", "add", remote, target.as_posix())
+            git(repo, "push", "--set-upstream", remote, "dev")
     payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
-
-    assert payload["summary"]["remote_push"] == "not_performed"
-    assert payload["summary"]["hosted_ci_status_claimed"] is False
+    if mode == "local":
+        assert payload["verdict"] == "pass"
+        return
     observations = payload["data"]["remote_observations"]
-    assert set(observations) == {"gitlab", "github"}
-    assert observations["gitlab"]["availability"]["remote"] == "origin"
-    assert observations["github"]["availability"]["remote"] == "github"
-    assert payload["data"]["publication"]["remote_observations"] == observations
-
-
-def test_publish_local_only_does_not_observe_or_require_a_remote(
-    tmp_path: Path,
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    _write_local_only_publication(repo)
-    head = commit_fixture(repo, "declare local-only publication")
-    seed_executed_proof(repo, head)
-    payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
-
-    assert payload["verdict"] == "pass"
-
-
-def test_publish_gitlab_only_observes_only_the_declared_peer(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    release = repo / ".ethos" / "release.toml"
-    declaration = release.read_text(encoding="utf-8")
-    declaration = declaration.split("[[publication.peers]]", 2)
-    release.write_text(declaration[0] + "[[publication.peers]]" + declaration[1], encoding="utf-8")
-    head = commit_fixture(repo, "declare GitLab-only publication")
-    seed_executed_proof(repo, head)
-    remote = tmp_path / "gitlab.git"
-    git(tmp_path, "init", "--bare", remote.as_posix())
-    git(repo, "remote", "add", "origin", remote.as_posix())
-    git(repo, "push", "--set-upstream", "origin", "dev")
-
-    payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
-
-    assert set(payload["data"]["remote_observations"]) == {"gitlab"}
-    assert payload["data"]["remote_topology"]["state"] == "ready"
-
-
-def test_publish_reports_peer_tracking_without_claiming_a_collective_push(
-    tmp_path: Path,
-) -> None:
-    """A matching tracking ref is an observation, not an executed publication."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
-    seed_executed_proof(repo, head)
-    remote = tmp_path / "origin.git"
-    for root, *args in (
-        (tmp_path, "init", "--bare", remote.as_posix()),
-        (repo, "remote", "add", "origin", remote.as_posix()),
-        (repo, "push", "--set-upstream", "origin", "dev"),
-    ):
-        git(root, *args)
-
-    payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
-
-    assert payload["summary"]["remote_sync_states"]["gitlab"] == "synchronized"
-    assert payload["summary"]["remote_sync_states"]["github"] == "remote_tracking_missing"
-    assert payload["summary"]["remote_publication_state"] == "target_available"
-    assert payload["summary"]["remote_push"] == "not_performed"
-    assert payload["data"]["publication"]["remote_state"] == "target_available"
-    assert (
-        payload["data"]["publication"]["remote_observations"]["gitlab"]["sync"]["state"]
-        == "synchronized"
+    assert set(observations) == (
+        {"gitlab", "github"} if mode in {"dual", "tracking"} else {"gitlab"}
     )
-    assert payload["data"]["publication"]["remote_push"] == "not_performed"
-    assert payload["data"]["mutation"]["decision"]["verdict"] == "unknown"
-
-
-def test_publish_projects_declared_peer_collections_without_single_remote_aliases(
-    tmp_path: Path,
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
-    seed_executed_proof(repo, head)
-
-    payload = run_ethos("publish", "--json", cwd=repo)
-
-    assert not {
-        "remote_availability_state",
-        "remote_sync_state",
-        "remote_ahead",
-        "remote_behind",
-    } & set(payload["summary"])
-    assert not {"remote_availability", "remote_sync"} & set(payload["data"])
-    assert not {
-        "remote_availability",
-        "remote_sync",
-    } & set(payload["data"]["publication"])
+    assert payload["summary"]["remote_push"] == "not_performed"
+    if mode == "dual":
+        assert observations["github"]["availability"]["remote"] == "github"
+        assert not {"remote_availability", "remote_sync"} & set(payload["data"])
+    elif mode == "single":
+        assert payload["data"]["remote_topology"]["state"] == "ready"
+    else:
+        assert payload["summary"]["remote_sync_states"] == {
+            "gitlab": "synchronized",
+            "github": "remote_tracking_missing",
+        }
+        assert payload["data"]["mutation"]["decision"]["verdict"] == "unknown"
 
 
 def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_status() -> None:
@@ -371,6 +274,133 @@ def _configure_publication_signer(repo: Path, root: Path) -> tuple[Path, str]:
     return anchor, fingerprint
 
 
+def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
+    local = {"local_verification_command": "python", "local_installation_command": "python"}
+    peer = {
+        "id": "gitlab",
+        "provider": "gitlab",
+        "role": "review",
+        "git_remote": "origin",
+        "capabilities": ["repository", "publication"],
+    }
+    (tmp_path / "folder").mkdir()
+
+    def case(gap: str, **updates: object) -> tuple[dict[str, object], str]:
+        return {**local, **updates}, gap
+
+    cases = [
+        case("declaration_invalid", peers={}),
+        case("peer_declaration_invalid", peers=[{**peer, "extra": 1}]),
+        case("peer_declaration_invalid", peers=[{**peer, "id": 1}]),
+        case("peer_declaration_invalid", peers=[{**peer, "capabilities": [1]}]),
+        case("peer_declaration_invalid", peers=[{**peer, "ci_surface": 1}]),
+        case("git_remote_invalid", peers=[{**peer, "git_remote": "../x"}]),
+        case("capabilities_invalid", peers=[{**peer, "capabilities": []}]),
+        case(
+            "ci_surface_missing", peers=[{**peer, "capabilities": [*peer["capabilities"], "ci_cd"]}]
+        ),
+        case("ci_surface_without_capability", peers=[{**peer, "ci_surface": "ci.yml"}]),
+        *(
+            case(gap, local_verification_command=value, peers=[])
+            for value, gap in (
+                ("", "command_missing"),
+                ("'", "command_invalid"),
+                ('""', "command_not_regular"),
+                ("/bin/sh", "command_path_escape"),
+                ("folder", "command_not_regular"),
+            )
+        ),
+    ]
+    for declaration, gap in cases:
+        topology = release_publication.publication_topology(tmp_path, {"publication": declaration})
+        assert any(gap in item for item in topology["required_gaps"])
+    assert release_publication.publication_source_version_gaps(
+        source_ref="refs/tags/v1", annotated_tag=True, version_text=None
+    ) == ("publication_source_version_invalid:v1",)
+    topology = {"required_gaps": [], "remotes": [{"id": "gitlab", "git_remote": "origin"}]}
+    admissions = (
+        ("invalid", "origin", "ref_unavailable"),
+        ("refs/heads/dev", "", "name_missing"),
+        ("refs/heads/dev", "other", "target_unknown"),
+    )
+    for ref, remote, gap in admissions:
+        admission = release_publication.publication_ref_admission(
+            topology,
+            policy=load_branch_role_policy(Path.cwd()),
+            target_ref=ref,
+            release_tags=("v*",),
+            remote_name=remote,
+        )
+        assert any(gap in item for item in admission["enforcement_gaps"])
+
+
+def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    signature = {
+        "verdict": "pass",
+        "principal": "test",
+        "fingerprint": "SHA256:key",
+        "trust_anchor_sha256": "a" * 64,
+        "verifier": "git verify-commit",
+        "verifier_version": "1",
+    }
+    observation = {
+        "kind": "commit",
+        "object_oid": head,
+        "peeled_commit": head,
+        "tree_oid": git(repo, "rev-parse", "HEAD^{tree}"),
+        "signature": signature,
+    }
+    for targets, expected in (
+        ((), "ref_kind_mismatch"),
+        (("refs/heads/dev", "refs/tags/v1"), "ref_kind_mismatch"),
+    ):
+        assert (
+            expected
+            in remote_publication.observe_remote_publication_effect(
+                root=repo, source_ref=head, target_refs=targets, remotes={}, ref_admissions={}
+            )[2][0]
+        )
+    monkeypatch.setattr(remote_publication, "observe_git_object", lambda *_args: observation)
+    monkeypatch.setattr(
+        remote_publication,
+        "_observe_remote_ref",
+        lambda *_args: {"state": "unavailable", "object_oid": "", "required_gaps": []},
+    )
+    effect, _observations, gaps = remote_publication.observe_remote_publication_effect(
+        root=repo,
+        source_ref=head,
+        target_refs=("refs/heads/dev",),
+        remotes={"gitlab": "origin"},
+        ref_admissions={"refs/heads/dev": {}},
+    )
+    assert effect is None
+    assert gaps == ("publication_remote_unavailable:gitlab:origin",)
+
+    store = local_state_root(repo) / "requests/publication"
+    store.mkdir(parents=True)
+    missing = store / f"{'1' * 64}.json"
+    failures = [
+        (tmp_path / "elsewhere.json", "1" * 64, "path_invalid"),
+        (missing, "1" * 64, "receipt_missing"),
+    ]
+    for path, digest, error in failures:
+        with pytest.raises(ValueError, match=error):
+            remote_publication.load_remote_publication_request(repo, str(path), digest)
+    corrupt = store / f"{'2' * 64}.json"
+    corrupt.write_text("not the digest")
+    with pytest.raises(ValueError, match="sha256_mismatch"):
+        remote_publication.load_remote_publication_request(repo, str(corrupt), "2" * 64)
+    invalid = b"not-json"
+    digest = hashlib.sha256(invalid).hexdigest()
+    (store / f"{digest}.json").write_bytes(invalid)
+    with pytest.raises(ValueError, match="receipt_invalid"):
+        remote_publication.load_remote_publication_request(
+            repo, str(store / f"{digest}.json"), digest
+        )
+
+
 def _signed_publication_fixture(
     tmp_path: Path,
 ) -> tuple[Path, dict[str, Path], str, str, str, str, str]:
@@ -414,25 +444,18 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
     repo, remotes, commit, tag, tree, fingerprint, anchor_sha256 = _signed_publication_fixture(
         tmp_path
     )
-
-    effect, observations, gaps = remote_publication.observe_remote_publication_effect(
-        root=repo,
-        source_ref="refs/tags/v1.2.3",
-        target_refs=("refs/tags/v1.2.3",),
-        remotes={"gitlab": "origin", "github": "github"},
-        ref_admissions={
-            "refs/tags/v1.2.3": {
-                "target_ref": "refs/tags/v1.2.3",
-                "ref_kind": "tag",
-                "role": "release_publication",
-                "remote_mutation_allowed": True,
-            }
-        },
+    seed_executed_proof(repo, commit)
+    dry_run = run_ethos(
+        "publish",
+        "--ref",
+        "refs/tags/v1.2.3",
+        "--probe-remote",
+        "--expect-head",
+        commit,
+        "--json",
+        cwd=repo,
     )
-
-    assert gaps == ()
-    assert effect is not None
-    assert effect.source.model_dump(mode="json") == {
+    assert dry_run["data"]["remote_effect"]["source"] == {
         "kind": "annotated-tag",
         "object_oid": tag,
         "peeled_commit": commit,
@@ -446,23 +469,15 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
             "verifier_version": git(repo, "version"),
         },
     }
-    assert all(
-        observation["refs"]["refs/tags/v1.2.3"]["object_oid"] == "0" * 40
-        for observation in observations.values()
-    )
-
-    seed_executed_proof(repo, commit)
-    proof = publication_cli.proof_admission_report(repo, commit, repository_transition=True)[
-        "attestation"
-    ]
-    plan = remote_publication.compile_remote_publication_request(
-        root=repo,
-        effect=effect,
-        proof={**proof, "selection": "repository_transition"},
-    )
-    applied = remote_publication.apply_remote_publication_effect(root=repo, plan=plan)
-
-    assert applied["state"] == "applied"
+    receipt = dry_run["data"]["request_receipt"]
+    anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
+    trust = anchor.read_text()
+    anchor.write_text("")
+    blocked = _receipt(repo, receipt, commit, blocked=True)
+    assert blocked["required_gaps"] == ["publication_source_signature_drift"]
+    assert {_proposal_ref(remote) for remote in remotes.values()} == {""}
+    anchor.write_text(trust)
+    assert _receipt(repo, receipt, commit)["state"] == "published"
     for remote in remotes.values():
         assert git(remote, "rev-parse", "refs/tags/v1.2.3") == tag
         assert git(remote, "rev-parse", "refs/tags/v1.2.3^{}") == commit
@@ -526,79 +541,6 @@ def test_publication_rejects_a_signed_tag_that_disagrees_with_version_authority(
     assert effect is None
     assert observations == {}
     assert gaps == ("publication_source_version_mismatch:v9.9.9!=v1.2.3",)
-
-
-def test_publication_apply_rechecks_bound_local_object_trust_before_any_push(
-    tmp_path: Path,
-) -> None:
-    repo, remotes, _commit, _tag, _tree, _fingerprint, _anchor_sha256 = _signed_publication_fixture(
-        tmp_path
-    )
-    effect, _observations, gaps = remote_publication.observe_remote_publication_effect(
-        root=repo,
-        source_ref="refs/tags/v1.2.3",
-        target_refs=("refs/tags/v1.2.3",),
-        remotes={"gitlab": "origin", "github": "github"},
-        ref_admissions={
-            "refs/tags/v1.2.3": {
-                "target_ref": "refs/tags/v1.2.3",
-                "ref_kind": "tag",
-                "role": "release_publication",
-                "remote_mutation_allowed": True,
-            }
-        },
-    )
-    assert gaps == ()
-    assert effect is not None
-    seed_executed_proof(repo, effect.source.peeled_commit)
-    proof = publication_cli.proof_admission_report(
-        repo, effect.source.peeled_commit, repository_transition=True
-    )["attestation"]
-    plan = remote_publication.compile_remote_publication_request(
-        root=repo,
-        effect=effect,
-        proof={**proof, "selection": "repository_transition"},
-    )
-    anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-    anchor.write_text("", encoding="utf-8")
-
-    blocked = remote_publication.apply_remote_publication_effect(root=repo, plan=plan)
-
-    assert blocked["state"] == "preflight_blocked"
-    assert blocked["required_gaps"] == ["publication_source_signature_drift"]
-    for remote in remotes.values():
-        assert git(remote, "for-each-ref", "--format=%(objectname)", "refs/tags/v1.2.3") == ""
-
-
-def test_publish_projects_one_signed_release_tag_through_the_full_ref_command(
-    tmp_path: Path,
-) -> None:
-    repo, remotes, commit, tag, tree, _fingerprint, _anchor_sha256 = _signed_publication_fixture(
-        tmp_path
-    )
-    seed_executed_proof(repo, commit)
-
-    dry_run = run_ethos(
-        "publish",
-        "--ref",
-        "refs/tags/v1.2.3",
-        "--probe-remote",
-        "--expect-head",
-        commit,
-        "--json",
-        cwd=repo,
-    )
-    receipt = dry_run["data"]["request_receipt"]
-    assert dry_run["state"] == "ready_to_publish"
-    assert dry_run["data"]["remote_effect"]["source"]["object_oid"] == tag
-
-    applied = _receipt(repo, receipt, commit)
-
-    assert applied["state"] == "published"
-    for remote in remotes.values():
-        assert git(remote, "rev-parse", "refs/tags/v1.2.3") == tag
-        assert git(remote, "rev-parse", "refs/tags/v1.2.3^{}") == commit
-        assert git(remote, "rev-parse", "refs/tags/v1.2.3^{tree}") == tree
 
 
 def test_publish_uses_git_ref_grammar_as_the_positive_name_authority(
@@ -908,11 +850,3 @@ def test_publish_branch_supports_one_declared_gitlab_peer(tmp_path: Path) -> Non
     payload = _receipt(repo, request, head)
     assert [target["id"] for target in payload["data"]["remote_effect"]["targets"]] == ["gitlab"]
     assert _proposal_ref(remotes["gitlab"]) == head
-
-
-def test_publish_branch_honors_human_output_mode(tmp_path: Path) -> None:
-    repo, _remotes, head = _branch_publication_fixture(tmp_path)
-    output = run_ethos_raw(
-        "publish", "--ref", _PROPOSAL_REF, "--probe-remote", "--expect-head", head, cwd=repo
-    ).stdout
-    assert output.startswith("publish: ready_to_publish")

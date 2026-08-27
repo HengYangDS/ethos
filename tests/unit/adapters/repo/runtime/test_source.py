@@ -2,64 +2,73 @@
 
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.runtime.source import source_git_identity
+import pytest
+
+import ethos.adapters.repo.runtime.source as source
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import pytest
-
-
-def test_source_identity_ignores_an_inherited_foreign_git_directory(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    source = _repository(tmp_path / "source", "source")
-    foreign = _repository(tmp_path / "foreign", "foreign")
-    expected = (git(source, "rev-parse", "HEAD"), git(source, "rev-parse", "HEAD^{tree}"))
-    monkeypatch.setenv("GIT_DIR", git(foreign, "rev-parse", "--absolute-git-dir"))
-
-    assert source_git_identity(source) == expected
-
-
-def test_source_identity_includes_nonignored_overlay_but_excludes_ignored_residue(
-    tmp_path: Path,
-) -> None:
-    source = _repository(tmp_path / "source", "base")
-    (source / "tracked.txt").write_text("modified\n", encoding="utf-8")
-    (source / "new-source.txt").write_text("new source\n", encoding="utf-8")
-    (source / ".gitignore").write_text("ignored.txt\n", encoding="utf-8")
-    (source / "ignored.txt").write_text("residue\n", encoding="utf-8")
-
-    commit, tree = source_git_identity(source)
-
-    assert commit == git(source, "rev-parse", "HEAD")
-    assert git(source, "show", f"{tree}:tracked.txt") == "modified"
-    assert git(source, "show", f"{tree}:new-source.txt") == "new source"
-    assert git(source, "ls-tree", "--name-only", tree).splitlines() == [
-        ".gitignore",
-        "new-source.txt",
-        "tracked.txt",
-    ]
-
 
 def _repository(path: Path, content: str) -> Path:
     path.mkdir()
     git(path, "init", "--quiet", "--initial-branch=dev")
-    (path / "tracked.txt").write_text(content + "\n", encoding="utf-8")
-    git(path, "add", "tracked.txt")
-    git(
-        path,
-        "-c",
-        "user.name=ETHOS Test",
-        "-c",
-        "user.email=test@example.invalid",
-        "commit",
-        "--quiet",
-        "-m",
-        content,
-    )
+    (path / "tracked.txt").write_text(content + "\n")
+    commit_fixture(path, content)
     return path
+
+
+def test_source_identity_ignores_an_inherited_foreign_git_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository, foreign = (
+        _repository(tmp_path / "source", "source"),
+        _repository(tmp_path / "foreign", "foreign"),
+    )
+    expected = (git(repository, "rev-parse", "HEAD"), git(repository, "rev-parse", "HEAD^{tree}"))
+    monkeypatch.setenv("GIT_DIR", git(foreign, "rev-parse", "--absolute-git-dir"))
+    assert source.source_git_identity(repository) == expected
+
+
+def test_source_identity_overlay_and_failure_matrix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = _repository(tmp_path / "source", "base")
+    for path, content in (
+        ("tracked.txt", "modified\n"),
+        ("new-source.txt", "new source\n"),
+        (".gitignore", "ignored.txt\n"),
+        ("ignored.txt", "residue\n"),
+    ):
+        (repository / path).write_text(content)
+    commit, tree = source.source_git_identity(repository)
+    assert commit == git(repository, "rev-parse", "HEAD")
+    assert git(repository, "show", f"{tree}:tracked.txt") == "modified"
+    assert git(repository, "show", f"{tree}:new-source.txt") == "new source"
+    assert git(repository, "ls-tree", "--name-only", tree).splitlines() == [
+        ".gitignore",
+        "new-source.txt",
+        "tracked.txt",
+    ]
+    with pytest.raises(ValueError, match="build_channel_invalid"):
+        source.source_build_identity(repository, channel="invalid")
+    packaged = tmp_path / "package"
+    packaged.mkdir()
+    with pytest.raises(ValueError, match="package_build_identity_missing"):
+        source.build_input_identity(packaged)
+    with monkeypatch.context() as git_failure:
+        git_failure.setattr(
+            source, "run_git", lambda *_a, **_k: subprocess.CompletedProcess((), 1, "", "failed")
+        )
+        with pytest.raises(ValueError, match="build_source_identity_unavailable"):
+            source.source_git_identity(packaged)
+    invalid = _repository(tmp_path / "invalid-policy", "source")
+    (invalid / ".ethos").mkdir()
+    (invalid / ".ethos/workspace.toml").write_bytes(b"\xff")
+    with pytest.raises(ValueError, match="accepted_build_policy_unavailable"):
+        source.source_build_identity(invalid, channel="accepted")

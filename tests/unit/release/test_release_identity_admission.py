@@ -89,6 +89,13 @@ def test_release_attestation_rejects_malformed_owned_predicate() -> None:
     malformed = Attestation.issue({key: value for key, value in payload.items() if key != "id"})
     with pytest.raises(ValueError, match="accepted_release_attestation_invalid"):
         accepted_release_identities((malformed,))
+    development = build_identity(product="1.2.3", source_commit="a" * 40,
+                                 source_tree="b" * 40, channel="development",
+                                 acceptance_state="unaccepted")
+    for build, wheel, reason in ((development, "c" * 64, "build"),
+                                 (_release("1.2.3").build, "bad", "wheel")):
+        with pytest.raises(ValueError, match=f"accepted_release_{reason}_identity_invalid"):
+            accepted_release_identity(build, wheel_sha256=wheel)
 
 
 def test_package_materialization_rejects_a_symlinked_common_store(

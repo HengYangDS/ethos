@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import sys
 
+import ethos.surface.cli.version as version_module
 from tests.support.ethos_cli_runner import run_ethos_raw
 
 
@@ -23,10 +25,14 @@ def test_version_json_is_one_utf8_result_not_double_encoded() -> None:
     assert "\\u" not in completed.stdout
 
 
-def test_version_human_output_is_concise() -> None:
+def test_version_human_output_is_concise(tmp_path, monkeypatch) -> None:
     completed = run_ethos_raw("--version")
 
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.startswith("ethos 0.2.0-alpha.1 ")
     assert "0.2.0a1.dev0+" in completed.stdout
     assert "{" not in completed.stdout
+    monkeypatch.setattr(sys, "prefix", (tmp_path / "runtime" / ("a" * 64) / "python").as_posix())
+    monkeypatch.setattr(version_module, "require_selected_runtime",
+                        lambda _root: (_ for _ in ()).throw(ValueError))
+    assert version_module.version_text().startswith("ethos 0.2.0-alpha.1 ")

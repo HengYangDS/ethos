@@ -1,111 +1,93 @@
-"""Tests for the concrete semantic owner named by this module path."""
+"""Tests for runtime build-authority selection."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import ethos.adapters.repo.runtime.authority as runtime_authority
-from ethos.adapters.repo.runtime.authority import expected_runtime_build
+import pytest
+
+import ethos.adapters.repo.runtime.authority as authority
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import runtime_build
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import pytest
+
+def _git(root: Path, *args: str) -> str:
+    result = git_process(root, *args)
+    assert result.returncode == 0
+    return result.stdout.strip()
 
 
-def test_self_hosted_expectation_uses_the_accepted_ref_and_linked_checkout(
-    tmp_path: Path,
-) -> None:
-    repo = tmp_path / "ethos"
+def _commit(root: Path, message: str) -> None:
+    _git(root, "add", ".")
+    _git(root, "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", message)
+
+
+def _repository(tmp_path: Path, *, version: bool) -> tuple[Path, Path]:
+    repo, lane = tmp_path / "ethos", tmp_path / "lane"
     repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    _git(repo, "init", "--quiet", "--initial-branch=dev")
     (repo / ".ethos").mkdir()
-    (repo / ".ethos/profile.toml").write_text('profile_id = "ethos"\n', encoding="utf-8")
-    (repo / ".ethos/workspace.toml").write_text(
-        '[branch_roles]\naccepted_branch = "dev"\n',
-        encoding="utf-8",
-    )
-    (repo / "VERSION").write_text("0.2.0-alpha.1\n", encoding="ascii")
-    (repo / "tracked.txt").write_text("accepted\n", encoding="utf-8")
-    assert git_process(repo, "add", ".").returncode == 0
-    accepted = git_process(
-        repo,
-        "-c",
-        "user.name=test",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "accepted",
-    )
-    assert accepted.returncode == 0
-    accepted_commit = git_process(repo, "rev-parse", "dev").stdout.strip()
-    accepted_tree = git_process(repo, "rev-parse", "dev^{tree}").stdout.strip()
-    lane = tmp_path / "lane"
-    assert git_process(repo, "worktree", "add", "-q", "-b", "work/runtime", lane).returncode == 0
-    (lane / "tracked.txt").write_text("candidate\n", encoding="utf-8")
-    assert git_process(lane, "add", "tracked.txt").returncode == 0
-    candidate = git_process(
-        lane,
-        "-c",
-        "user.name=test",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "candidate",
-    )
-    assert candidate.returncode == 0
-
-    identity, source_root = expected_runtime_build(lane)
-
-    assert identity == runtime_build(accepted_commit, accepted_tree, accepted=True)
-    assert source_root == repo.resolve()
+    (repo / ".ethos/profile.toml").write_text('profile_id = "ethos"\n')
+    (repo / ".ethos/workspace.toml").write_text('[branch_roles]\naccepted_branch = "dev"\n')
+    (repo / "tracked.txt").write_text("accepted\n")
+    if version:
+        (repo / "VERSION").write_text("0.2.0-alpha.1\n")
+    _commit(repo, "accepted")
+    _git(repo, "worktree", "add", "-q", "-b", "work/runtime", str(lane))
+    return repo, lane
 
 
-def test_self_hosted_version_migration_bootstraps_from_the_exact_invoking_lane(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+def test_self_hosted_expectation_uses_accepted_checkout_and_rejects_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = tmp_path / "ethos"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    (repo / ".ethos").mkdir()
-    (repo / ".ethos/profile.toml").write_text('profile_id = "ethos"\n', encoding="utf-8")
-    (repo / ".ethos/workspace.toml").write_text(
-        '[branch_roles]\naccepted_branch = "dev"\n',
-        encoding="utf-8",
+    repo, lane = _repository(tmp_path, version=True)
+    expected = runtime_build(
+        _git(repo, "rev-parse", "dev"), _git(repo, "rev-parse", "dev^{tree}"), accepted=True
     )
-    (repo / "tracked.txt").write_text("accepted\n", encoding="utf-8")
-    assert git_process(repo, "add", ".").returncode == 0
-    assert (
-        git_process(
-            repo,
-            "-c",
-            "user.name=test",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "accepted without VERSION",
-        ).returncode
-        == 0
+    (lane / "tracked.txt").write_text("candidate\n")
+    _commit(lane, "candidate")
+    identity, source_root = authority.expected_runtime_build(lane)
+    assert (identity, source_root) == (expected, repo.resolve())
+    monkeypatch.setattr(
+        authority, "source_build_identity", lambda *_a, **_k: runtime_build("a" * 40, "b" * 40)
     )
-    lane = tmp_path / "lane"
-    assert git_process(repo, "worktree", "add", "-q", "-b", "work/runtime", lane).returncode == 0
-    (lane / "VERSION").write_text("0.2.0-alpha.1\n", encoding="ascii")
-    (lane / "pyproject.toml").write_text("[project]\nname='ethos'\n", encoding="utf-8")
-    invoking_module = lane / "src/ethos/adapters/repo/runtime/authority.py"
-    invoking_module.parent.mkdir(parents=True)
-    invoking_module.touch()
-    monkeypatch.setattr(runtime_authority, "__file__", invoking_module.as_posix())
+    with pytest.raises(ValueError, match="accepted_build_identity_unavailable"):
+        authority.expected_runtime_build(lane)
 
-    identity, source_root = expected_runtime_build(lane)
 
-    assert identity.source_commit == git_process(lane, "rev-parse", "HEAD").stdout.strip()
-    assert identity.source_tree != git_process(lane, "rev-parse", "HEAD^{tree}").stdout.strip()
-    assert identity.channel == "development"
-    assert identity.acceptance_state == "unaccepted"
-    assert source_root == lane.resolve()
+def test_version_migration_uses_exact_invoking_lane(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _repo, lane = _repository(tmp_path, version=False)
+    (lane / "VERSION").write_text("0.2.0-alpha.1\n")
+    (lane / "pyproject.toml").write_text("[project]\nname='ethos'\n")
+    module = lane / "src/ethos/adapters/repo/runtime/authority.py"
+    module.parent.mkdir(parents=True)
+    module.touch()
+    monkeypatch.setattr(authority, "__file__", str(module))
+    identity, source_root = authority.expected_runtime_build(lane)
+    assert identity.source_commit == _git(lane, "rev-parse", "HEAD")
+    assert identity.source_tree != _git(lane, "rev-parse", "HEAD^{tree}")
+    assert (identity.channel, identity.acceptance_state, source_root) == (
+        "development",
+        "unaccepted",
+        lane.resolve(),
+    )
+
+
+def test_runtime_authority_fallback_matrix(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    packaged = runtime_build("a" * 40, "b" * 40)
+    monkeypatch.setattr(authority, "packaged_build_identity", lambda: packaged)
+    assert authority.runtime_build_identity(tmp_path) == packaged
+    monkeypatch.setattr(
+        authority, "repository_root", lambda _root: (_ for _ in ()).throw(ValueError())
+    )
+    monkeypatch.setattr(authority, "runtime_build_identity", lambda _root: packaged)
+    assert authority.expected_runtime_build(tmp_path)[0] == packaged
+    assert authority.expected_runtime_source(tmp_path) == (
+        packaged.source_commit,
+        packaged.source_tree,
+    )

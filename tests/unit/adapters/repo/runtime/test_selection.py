@@ -22,30 +22,21 @@ from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 
 
-def test_hook_runtime_rejects_tampered_installed_package_bytes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
-    runtime = venv.parent
-    package = runtime / "python/lib/python3.14/site-packages/ethos/module.py"
-    activate_runtime(Path(git_common_dir(repo)), runtime)
-
-    package.chmod(0o644)
-    package.write_text("tampered\n", encoding="utf-8")
-
-    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
-        current_runtime(Path(git_common_dir(repo)))
-
-
 def test_hook_runtime_manifest_and_current_selector_bind_exact_package(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
-    selected = activate_runtime(Path(git_common_dir(repo)), venv.parent)
+    common = Path(git_common_dir(repo))
+    selected = activate_runtime(common, venv.parent)
 
     assert selected.root == venv.parent
     assert selected.python.is_file()
-    assert current_runtime(Path(git_common_dir(repo))) == selected
+    assert current_runtime(common) == selected
+    package = selected.root / "python/lib/python3.14/site-packages/ethos/module.py"
+    package.chmod(0o644)
+    package.write_text("tampered\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+        current_runtime(common)
 
 
 def test_accepted_runtime_activation_requires_canonical_identity_attestations(
@@ -82,6 +73,13 @@ def test_runtime_selection_compensation_is_exact_cas(tmp_path: Path) -> None:
         )
 
     assert selector.read_bytes() == concurrent_selection
+    restore_runtime_selection(common, previous, expected_current=concurrent_selection)
+    assert selector.read_bytes() == previous
+    transaction = runtime_selection.runtime_selection_transaction(
+        common, expected_current=operation_selection
+    )
+    with pytest.raises(ValueError, match="hook_runtime_current_stale"), transaction:
+        pass
 
 
 def test_runtime_activation_validates_candidate_inside_selection_transaction(
@@ -130,6 +128,19 @@ def test_current_runtime_rejects_symlinked_ethos_ancestor(tmp_path: Path) -> Non
 
     with pytest.raises(ValueError, match="hook_runtime_current_target_invalid"):
         current_runtime(common)
+    cases = (
+        (None, "hook_runtime_current_missing"),
+        (b"bad\n", "hook_runtime_current_invalid"),
+        (b"\xff", "hook_runtime_current_invalid"),
+    )
+    for raw, reason in cases:
+        common = tmp_path / reason / str(len(raw or b""))
+        selector = common / "ethos/runtime/CURRENT"
+        selector.parent.mkdir(parents=True)
+        if raw is not None:
+            selector.write_bytes(raw)
+        with pytest.raises(ValueError, match=reason):
+            current_runtime(common)
 
 
 def test_accepted_runtime_identity_rejects_a_second_closure_for_the_same_release(

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.admission.lease_binding import CurrentAuthority
 from ethos.adapters.admission.lease_binding import resolve_current_authority
 from ethos.adapters.repo.coordination import ForeignLaneContext
 from ethos.adapters.repo.coordination import branch_path_scope
@@ -127,7 +128,7 @@ def workspace_status_observation(
     *,
     include_foreign_path_scope: bool = True,
     selected_runtime: SelectedRuntime | None = None,
-) -> tuple[dict[str, object], dict[str, object]]:
+) -> tuple[dict[str, object], CurrentAuthority | None]:
     """Return one workspace projection and its same-snapshot current authority."""
     try:
         repo = Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
@@ -138,7 +139,7 @@ def workspace_status_observation(
                 defer_details=not include_foreign_path_scope,
                 selected_runtime=selected_runtime,
             ),
-            {},
+            None,
         )
     provenance = dirty_provenance(root)
     paths = tuple(str(item["path"]) for item in cast("list[dict[str, str]]", provenance["entries"]))
@@ -158,7 +159,8 @@ def workspace_status_observation(
         actor=os.environ.get("ETHOS_ACTOR", "").strip(),
         current_head=head or "",
         required=role == ROLE_WORK_LANE,
-    ).projection()
+    )
+    authority_projection = authority.projection()
     bindings = branch_bindings(repo, worktrees, candidate, policy=policy, lease_by_branch=leases)
     scope = (
         branch_path_scope(repo, branch=branch, candidate_branch=policy.candidate_branch)
@@ -186,7 +188,7 @@ def workspace_status_observation(
     )
     landing = landing_readiness(repo, branch=branch, role=role, candidate=candidate)
     workspace_gaps = [
-        *cast("list[str]", authority["required_gaps"]),
+        *cast("list[str]", authority_projection["required_gaps"]),
         *required,
     ]
     missing_candidate = (
@@ -222,7 +224,7 @@ def workspace_status_observation(
             unbound=unbound_refs,
             workspace_gaps=workspace_gaps,
             selected_runtime=selected_runtime,
-            authority=authority,
+            authority=authority_projection,
         )
     )
     return status, authority
@@ -285,9 +287,7 @@ def _stage_gates(
         else ""
     )
     next_action = followup or (
-        "ethos lane prewrite <path>"
-        if authoring
-        else "ethos lane status --json"
+        "ethos lane prewrite <path>" if authoring else "ethos lane status --json"
     )
     if not authoring:
         blocked, owner = "authoring", branch if is_work_lane else ""
@@ -384,6 +384,7 @@ def _non_git_status(
             unbound=[],
             workspace_gaps=["git_repository_missing", "candidate_branch_missing"],
             selected_runtime=selected_runtime,
+            authority={},
         )
     )
 

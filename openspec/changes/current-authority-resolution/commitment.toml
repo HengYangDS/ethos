@@ -15,6 +15,7 @@ scope = [
   "src/ethos/adapters/repo/status/workspace.py",
   "src/ethos/surface/cli/root/inspection.py",
   "src/ethos/surface/cli/root/planning.py",
+  "src/ethos/surface/cli/root/proof.py",
   "tests/unit/admission/test_prewrite_public_authority.py",
   "tests/unit/cli/openspec/test_generation_observation.py",
   "tests/unit/cli/test_post_archive_planning.py",

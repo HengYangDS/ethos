@@ -33,15 +33,14 @@ def _count(value: object) -> int:
 def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
     repo = resolve_root(root)
-    observed, authority = workspace_status_observation(
-        repo, include_foreign_path_scope=False
-    )
+    observed, authority = workspace_status_observation(repo, include_foreign_path_scope=False)
     try:
         generation_scope = (
             current_generation_binding(
                 repo,
                 status=observed,
                 repository_id=load_repository_commitment(repo).id,
+                authority=authority,
             ).scope
             if observed.get("role") == ROLE_WORK_LANE
             else CurrentGenerationScope((), {})
@@ -74,6 +73,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     foreign = cast("list[dict[str, object]]", observed.get("foreign_work_lanes") or [])
     unbound = cast("list[dict[str, object]]", observed.get("unbound_work_lane_refs") or [])
     coordination_gaps = string_sequence(observed.get("coordination_gaps"))
+    authority_projection = authority.projection() if authority is not None else {}
     data = {
         "root": observed.get("root", ""),
         "branch": observed.get("branch", ""),
@@ -83,7 +83,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
         "changed_path_count": _count(observed.get("changed_paths")),
         "selected_carrier": generation_scope.selected_carrier,
         "path_attributions": list(generation_scope.attribution_projection()),
-        "authority": authority,
+        "authority": authority_projection,
         "landing_readiness": {
             "state": landing.get("state", ""),
             "required_gaps": string_sequence(landing.get("required_gaps")),

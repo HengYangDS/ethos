@@ -347,17 +347,23 @@ def test_resolve_generation_uses_the_shared_active_carrier_selector(
         subjects=("repository:proof-command",),
     )
     binding = CurrentGenerationBinding({}, commitment, CurrentGenerationScope(("a.py",), {}))
+    authority = object()
     monkeypatch.setattr(
         proof_cli,
-        "workspace_status",
-        lambda *_args, **_kwargs: {"head": "a" * 40, "branch": "dev", "role": "accepted"},
+        "workspace_status_observation",
+        lambda *_args, **_kwargs: (
+            {"head": "a" * 40, "branch": "dev", "role": "accepted"},
+            authority,
+        ),
     )
     monkeypatch.setattr(proof_cli, "change_scope_paths_from_status", lambda *_args: ("a.py",))
     monkeypatch.setattr(
         proof_cli, "load_repository_commitment", lambda *_args, **_kwargs: commitment
     )
 
-    def select(*_args, **_kwargs):
+    def select(*_args, **kwargs):
+        assert kwargs["authority"] is authority
+        assert kwargs["status"]["changed_paths"] == ["a.py"]
         if invalid:
             message = "invalid"
             raise ValueError(message)

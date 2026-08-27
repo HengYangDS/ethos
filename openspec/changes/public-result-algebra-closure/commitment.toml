@@ -14,6 +14,7 @@ scope = [
   "tests/unit/cli/test_terminal_command_surface.py",
   "tests/unit/kernel/test_mutation_decision.py",
   "tests/unit/kernel/test_result_contract_model.py",
+  "tests/unit/lanes/test_hook_publication_admission.py",
 ]
 invariants = [
   "public_projection_does_not_invent_authority",

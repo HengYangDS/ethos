@@ -14,7 +14,6 @@ from typing import cast
 
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_OTHER
-from ethos.contracts.branch.roles import ROLE_PROPOSAL_LANE
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.repository.release.identity import product_version_from_text
@@ -26,7 +25,8 @@ _DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, "peers"))
 _PEER_FIELDS = frozenset(("id", "provider", "role", "git_remote", "capabilities", "ci_surface"))
 _REQUIRED_CAPABILITIES = frozenset(("repository", "publication"))
 _ALLOWED_CAPABILITIES = frozenset((*_REQUIRED_CAPABILITIES, "ci_cd"))
-_BRANCH_PUBLICATION_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_PROPOSAL_LANE, ROLE_RELEASE_ROOT))
+_PROPOSAL_REF = "proposal_ref"
+_BRANCH_PUBLICATION_ROLES = frozenset((ROLE_ACCEPTED_ROOT, _PROPOSAL_REF, ROLE_RELEASE_ROOT))
 _RELEASE_PUBLICATION = "release_publication"
 _REPOSITORY_PROOF_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_RELEASE_ROOT, _RELEASE_PUBLICATION))
 
@@ -93,7 +93,12 @@ def publication_ref_admission(
     gaps = _strings(topology.get("required_gaps"))
     if target_ref.startswith("refs/heads/"):
         ref_kind = "branch"
-        role = policy.role_for_branch(target_ref.removeprefix("refs/heads/"))
+        branch = target_ref.removeprefix("refs/heads/")
+        role = (
+            _PROPOSAL_REF
+            if policy.proposal_branch_prefix and branch.startswith(policy.proposal_branch_prefix)
+            else policy.role_for_branch(branch)
+        )
         allowed = role in _BRANCH_PUBLICATION_ROLES
     elif target_ref.startswith("refs/tags/"):
         ref_kind = "tag"

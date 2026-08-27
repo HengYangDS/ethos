@@ -12,7 +12,6 @@ ROLE_RELEASE_ROOT = "release_root"
 ROLE_ACCEPTED_ROOT = "accepted_root"
 ROLE_CANDIDATE = "candidate"
 ROLE_WORK_LANE = "work_lane"
-ROLE_PROPOSAL_LANE = "proposal_lane"
 ROLE_DETACHED = "detached"
 ROLE_OTHER = "other"
 
@@ -46,7 +45,6 @@ PROTECTED_WRITE_ROLES = frozenset(
         ROLE_RELEASE_ROOT,
         ROLE_ACCEPTED_ROOT,
         ROLE_CANDIDATE,
-        ROLE_PROPOSAL_LANE,
         ROLE_DETACHED,
         ROLE_OTHER,
     }
@@ -73,13 +71,10 @@ class BranchRolePolicy:
         for branch_name, role in exact_roles:
             if branch == branch_name:
                 return role
-        prefix_roles = (
-            (self.work_branch_prefix, ROLE_WORK_LANE),
-            (self.proposal_branch_prefix, ROLE_PROPOSAL_LANE),
-        )
-        return next(
-            (role for prefix, role in prefix_roles if prefix and branch.startswith(prefix)),
-            ROLE_OTHER,
+        return (
+            ROLE_WORK_LANE
+            if self.work_branch_prefix and branch.startswith(self.work_branch_prefix)
+            else ROLE_OTHER
         )
 
     def work_branch(self, slug: str) -> str:
@@ -124,12 +119,6 @@ class BranchRolePolicy:
                 "kind": "branch_prefix",
                 "config_key": "work_branch_prefix",
                 "pattern": f"{self.work_branch_prefix}*",
-            },
-            {
-                "role": ROLE_PROPOSAL_LANE,
-                "kind": "branch_prefix",
-                "config_key": "proposal_branch_prefix",
-                "pattern": f"{self.proposal_branch_prefix}*",
             },
         )
 

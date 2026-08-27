@@ -37,8 +37,3 @@ config_key = "candidate_branch"
 role = "work_lane"
 kind = "branch_prefix"
 config_key = "work_branch_prefix"
-
-[[role_order]]
-role = "proposal_lane"
-kind = "branch_prefix"
-config_key = "proposal_branch_prefix"

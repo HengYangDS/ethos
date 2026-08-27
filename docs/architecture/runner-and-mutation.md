@@ -49,7 +49,7 @@ accepted root diverge before accepted-root closeout, closeout reports
 so the train can be reset deliberately before the Work Lane is replayed.
 Status output reports configured `role_policy` and role-policy
 `branch_bindings` in semantic order:
-release_root -> accepted_root -> candidate -> work_lane -> proposal_lane.
+release_root -> accepted_root -> candidate -> work_lane. A `proposal/*` ref is a governed remote review projection, not a local authoring role.
 Existing linked worktrees report `worktree_binding = "linked"` as product
 state; host-specific navigation labels are adapter projections, not workspace
 semantics. Adapters derive presentation from `worktree_binding`; they do not

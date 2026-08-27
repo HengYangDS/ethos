@@ -11,7 +11,7 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.source import source_build_identity
-from ethos.adapters.repo.runtime.source import source_git_identity
+from ethos.adapters.repo.runtime.source import source_head_build_identity
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.identity import BuildIdentity
@@ -50,7 +50,7 @@ def expected_runtime_build(root: Path) -> tuple[BuildIdentity, Path | None]:
     commit = ref_head(repo, policy.accepted_branch)
     tree = current_tree(repo, commit)
     if accepted_version_migration_pending(repo, accepted_commit=commit):
-        return runtime_build_identity(package_source), source_authority
+        return source_head_build_identity(package_source), source_authority
     accepted_root = _accepted_worktree(repo, policy.accepted_branch)
     identity = source_build_identity(accepted_root, channel="accepted")
     if identity.source_commit != commit or identity.source_tree != tree:
@@ -74,7 +74,8 @@ def expected_runtime_source(root: Path) -> tuple[str, str]:
     policy = load_branch_role_policy(repo)
     commit = ref_head(repo, policy.accepted_branch)
     if accepted_version_migration_pending(repo, accepted_commit=commit):
-        return source_git_identity(repo)
+        identity = source_head_build_identity(package_source)
+        return identity.source_commit, identity.source_tree
     return commit, current_tree(repo, commit)
 
 

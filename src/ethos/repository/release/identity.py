@@ -7,7 +7,6 @@ import zipfile
 from collections.abc import Mapping
 from importlib import resources
 from typing import TYPE_CHECKING
-from typing import Literal
 from typing import NamedTuple
 from typing import NoReturn
 from typing import cast
@@ -36,11 +35,9 @@ class BuildIdentity(NamedTuple):
     distribution_version: str
     source_commit: str
     source_tree: str
-    channel: Literal["development", "accepted"]
-    acceptance_state: Literal["unaccepted", "accepted"]
 
     def projection(self) -> dict[str, str | int]:
-        return {"schema_version": 1, **self._asdict()}
+        return {"schema_version": 2, **self._asdict()}
 
 
 def product_version(root: Path) -> str:
@@ -65,30 +62,22 @@ def build_identity(
     product: str,
     source_commit: str,
     source_tree: str,
-    channel: Literal["development", "accepted"],
-    acceptance_state: Literal["unaccepted", "accepted"],
+    release: bool = False,
 ) -> BuildIdentity:
-    """Compile one exact source and channel into a package build identity."""
+    """Compile exact source into a development or explicit release identity."""
     if not _valid_git_identity(source_commit) or not _valid_git_identity(source_tree):
         raise ValueError(_BUILD_SOURCE_INVALID)
-    if (channel, acceptance_state) not in {
-        ("development", "unaccepted"),
-        ("accepted", "accepted"),
-    }:
-        _fail("build_acceptance_identity_invalid")
+    if not isinstance(release, bool):
+        _fail("release_build_flag_invalid")
     if product != _canonical_semver(product):
         _fail("product_version_invalid")
     base = str(Version(product))
-    distribution = (
-        base if acceptance_state == "accepted" else f"{base}.dev0+g{source_commit}.t{source_tree}"
-    )
+    distribution = base if release else f"{base}.dev0+g{source_commit}.t{source_tree}"
     return BuildIdentity(
         product,
         str(Version(distribution)),
         source_commit,
         source_tree,
-        channel,
-        acceptance_state,
     )
 
 
@@ -110,21 +99,25 @@ def load_build_identity_bytes(raw: bytes) -> BuildIdentity:
 
 def build_identity_from_projection(payload: object) -> BuildIdentity:
     """Reconstruct one canonical build identity projection."""
-    if not isinstance(payload, Mapping) or payload.get("schema_version") != 1:
+    if not isinstance(payload, Mapping) or payload.get("schema_version") != 2:
         raise ValueError(_PACKAGE_BUILD_INVALID)
     try:
         identity = build_identity(
             product=str(payload["product_version"]),
             source_commit=str(payload["source_commit"]),
             source_tree=str(payload["source_tree"]),
-            channel=cast("Literal['development', 'accepted']", payload["channel"]),
-            acceptance_state=cast("Literal['unaccepted', 'accepted']", payload["acceptance_state"]),
+            release=Version(str(payload["distribution_version"])).dev is None,
         )
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError(_PACKAGE_BUILD_INVALID) from error
     if dict(payload) != identity.projection():
         raise ValueError(_PACKAGE_BUILD_INVALID)
     return identity
+
+
+def is_release_build(identity: BuildIdentity) -> bool:
+    """Return whether an identity denotes the exact explicit release version."""
+    return Version(identity.distribution_version).dev is None
 
 
 def packaged_build_identity() -> BuildIdentity:

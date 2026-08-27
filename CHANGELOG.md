@@ -5,9 +5,48 @@ All notable ETHOS changes are recorded here.
 The format follows Keep a Changelog, and commit subjects follow Conventional
 Commits.
 
-## Unreleased
+## [Unreleased]
 
-## 0.1.0a2 - 2026-07-24
+### Changed
+
+- Repository acceptance, development package builds, and explicit releases now
+  have separate identities; accepted source produces a unique PEP 440
+  development build instead of silently claiming the release version.
+- `proposal/*` is a governed remote review-ref projection; `work/*` remains the
+  sole local authoring lane.
+
+### Removed
+
+- Removed the duplicate local `proposal_lane` role and its protected-write
+  semantics.
+- Removed `channel` and `acceptance_state` from build and runtime manifests.
+
+## [0.2.0-alpha.1] - 2026-08-27
+
+### Added
+
+- The terminal repository trust kernel: canonical Commitment and Attestation
+  contracts, deterministic plans, exact Git effects, and post-effect evidence.
+- Governed Work Lane and Lease lifecycle, candidate/accepted-root promotion,
+  exact object publication, and package-only immutable hook runtimes.
+- Repository-native quality, source-budget, evidence, supply-chain, and
+  OpenSpec lifecycle gates.
+
+### Changed
+
+- Consolidated the Python implementation into one `ethos` package and removed
+  retired compatibility control planes and duplicate lifecycle owners.
+- Moved shared mutable runtime state under the Git common directory and made
+  generated hooks thin projections over the selected immutable runtime.
+- Converged status, plan, proof, mutation, archive, and closeout results on the
+  schema-version-2 verdict model.
+
+### Fixed
+
+- Hardened exact-CAS mutation, compensation, ownerless-lane preservation,
+  runtime bootstrap, cross-worktree state, and hosted proof execution.
+
+## [0.1.0-alpha.2] - 2026-07-24
 
 ### Added
 
@@ -37,7 +76,7 @@ Commits.
 - GitLab verification reclones complete history so replay checks resolve pinned
   commits even when a runner workspace was previously shallow.
 
-## 0.1.0a1 - 2026-06-30
+## [0.1.0-alpha.1] - 2026-06-30
 
 ### Added
 

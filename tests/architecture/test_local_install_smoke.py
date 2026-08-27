@@ -60,7 +60,7 @@ def _assert_runtime_manifest(report: dict[str, object], repo: Path) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest_path.parent.parent == repo / ".git/ethos/runtime"
     assert manifest_path.parent.name == report["runtime_digest"]
-    assert manifest["schema_version"] == 5
+    assert manifest["schema_version"] == 6
     assert manifest["architecture"] == canonical_architecture(platform.machine())
     assert manifest["runtime_digest"] == report["runtime_digest"]
 
@@ -195,8 +195,6 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         distribution_version=bootstrap_report["data"]["distribution_version"],
         source_commit=bootstrap_report["data"]["source_commit"],
         source_tree=bootstrap_report["data"]["source_tree"],
-        channel=bootstrap_report["data"]["channel"],
-        acceptance_state=bootstrap_report["data"]["acceptance_state"],
     )
     assert packaged_identity == runtime_build_identity(ROOT)
 

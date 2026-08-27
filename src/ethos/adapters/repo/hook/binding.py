@@ -36,8 +36,6 @@ class HookRuntimeBinding(TypedDict):
     wheel_sha256: str
     product_version: str
     distribution_version: str
-    channel: str
-    acceptance_state: str
     source_commit: str
     source_tree: str
     expected_source_commit: str
@@ -151,8 +149,6 @@ def hook_runtime_binding(
         "wheel_sha256": selected.wheel_sha256 if selected else "",
         "product_version": selected.build.product_version if selected else "",
         "distribution_version": selected.build.distribution_version if selected else "",
-        "channel": selected.build.channel if selected else "",
-        "acceptance_state": selected.build.acceptance_state if selected else "",
         "source_commit": selected.build.source_commit if selected else "",
         "source_tree": selected.build.source_tree if selected else "",
         "expected_source_commit": expected_source_identity[0] if expected_source_identity else "",

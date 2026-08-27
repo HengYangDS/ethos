@@ -10,6 +10,7 @@ from packaging.version import Version
 
 from ethos.contracts.semantic import Attestation
 from ethos.repository.release.identity import BuildIdentity
+from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import build_identity_from_projection
 
 if TYPE_CHECKING:
@@ -39,7 +40,7 @@ class AcceptedReleaseIdentity(NamedTuple):
 def accepted_release_identity(
     build: BuildIdentity, *, wheel_sha256: str
 ) -> AcceptedReleaseIdentity:
-    if build[4:] != ("accepted", "accepted"):
+    if Version(build.distribution_version).dev is not None:
         raise ValueError(_RELEASE_BUILD_INVALID)
     if len(wheel_sha256) != 64 or set(wheel_sha256) - _HEX:
         raise ValueError(_RELEASE_WHEEL_INVALID)
@@ -70,6 +71,19 @@ def release_identity_admission_gaps(
 def accepted_release_attestation(
     release: AcceptedReleaseIdentity, *, issued_at: datetime
 ) -> Attestation:
+    return _release_attestation(
+        release,
+        issued_at=issued_at,
+        identity_projection=release.projection(),
+    )
+
+
+def _release_attestation(
+    release: AcceptedReleaseIdentity,
+    *,
+    issued_at: datetime,
+    identity_projection: Mapping[str, object],
+) -> Attestation:
     evidence = (
         f"git:commit:{release.build.source_commit}",
         f"git:tree:{release.build.source_tree}",
@@ -85,7 +99,7 @@ def accepted_release_attestation(
             "valid_from": None,
             "valid_until": None,
             "verdict": "pass",
-            "payload": {"kind": _RELEASE, "body": {"identity": release.projection()}},
+            "payload": {"kind": _RELEASE, "body": {"identity": dict(identity_projection)}},
             "relations": (),
             "advisories": (),
             "evidence_refs": tuple(sorted(evidence)),
@@ -113,7 +127,11 @@ def accepted_release_identities(
             value = _release_from_projection(raw)
         except (KeyError, TypeError, ValueError) as error:
             raise ValueError(_RELEASE_ATTESTATION_INVALID) from error
-        expected = accepted_release_attestation(value, issued_at=attestation.issued_at)
+        expected = _release_attestation(
+            value,
+            issued_at=attestation.issued_at,
+            identity_projection=raw,
+        )
         if expected.model_dump(exclude={"id", "issued_at"}) != attestation.model_dump(
             exclude={"id", "issued_at"}
         ):
@@ -123,10 +141,37 @@ def accepted_release_identities(
 
 
 def _release_from_projection(raw: Mapping[object, object]) -> AcceptedReleaseIdentity:
-    build = build_identity_from_projection(
-        {key: value for key, value in raw.items() if key != "wheel_sha256"}
-    )
+    if raw.get("schema_version") == 1:
+        build = _legacy_release_build(raw)
+    else:
+        build = build_identity_from_projection(
+            {key: value for key, value in raw.items() if key != "wheel_sha256"}
+        )
     release = accepted_release_identity(build, wheel_sha256=str(raw["wheel_sha256"]))
-    if dict(raw) != release.projection():
+    expected = (
+        {
+            **release.projection(),
+            "schema_version": 1,
+            "channel": "accepted",
+            "acceptance_state": "accepted",
+        }
+        if raw.get("schema_version") == 1
+        else release.projection()
+    )
+    if dict(raw) != expected:
         raise ValueError(_RELEASE_PROJECTION_INVALID)
     return release
+
+
+def _legacy_release_build(raw: Mapping[object, object]) -> BuildIdentity:
+    if raw.get("channel") != "accepted" or raw.get("acceptance_state") != "accepted":
+        raise ValueError(_RELEASE_PROJECTION_INVALID)
+    build = build_identity(
+        product=str(raw["product_version"]),
+        source_commit=str(raw["source_commit"]),
+        source_tree=str(raw["source_tree"]),
+        release=True,
+    )
+    if raw.get("distribution_version") != build.distribution_version:
+        raise ValueError(_RELEASE_PROJECTION_INVALID)
+    return build

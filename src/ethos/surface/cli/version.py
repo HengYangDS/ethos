@@ -28,8 +28,6 @@ def version_text() -> str:
                 "summary": {
                     "product_version": identity.product_version,
                     "distribution_version": identity.distribution_version,
-                    "channel": identity.channel,
-                    "acceptance_state": identity.acceptance_state,
                 },
                 "diagnostics": [],
                 "required_gaps": [],

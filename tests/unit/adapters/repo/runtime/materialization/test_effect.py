@@ -22,16 +22,26 @@ from tests.support.runtime_scenarios import runtime_build
 
 
 def _environment(**changes: str):
-    values = {"python_abi": "cpython-test", "python_version": "3.14.7",
-              "python_implementation": "cpython", "dependency_lock_sha256": "d" * 64,
-              "platform_name": "test", "architecture_name": "test-architecture"}
+    values = {
+        "python_abi": "cpython-test",
+        "python_version": "3.14.7",
+        "python_implementation": "cpython",
+        "dependency_lock_sha256": "d" * 64,
+        "platform_name": "test",
+        "architecture_name": "test-architecture",
+    }
     return runtime_environment(**(values | changes))
 
 
 def _python_facts(home: Path) -> dict[str, str]:
-    return {"python_abi": "cpython-test", "python_version": "3.14.7",
-            "python_implementation": "cpython", "architecture": "test-architecture",
-            "prefix": home.as_posix(), "base_prefix": home.as_posix()}
+    return {
+        "python_abi": "cpython-test",
+        "python_version": "3.14.7",
+        "python_implementation": "cpython",
+        "architecture": "test-architecture",
+        "prefix": home.as_posix(),
+        "base_prefix": home.as_posix(),
+    }
 
 
 def _write(path: Path, payload: bytes = b"payload") -> Path:
@@ -55,13 +65,24 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     observed: list[Path] = []
     inventory = runtime_materialization.runtime_file_inventory
     monkeypatch.setattr(runtime_materialization, "materialize_python_image", materialize_python)
-    monkeypatch.setattr(runtime_materialization, "runtime_file_inventory",
-                        lambda root: observed.append(root) or inventory(root))
-    monkeypatch.setattr(runtime_materialization, "observe_python_facts",
-                        lambda python: {"prefix": python.parent.parent.resolve().as_posix(),
-                                        "base_prefix": python.parent.parent.resolve().as_posix()})
-    monkeypatch.setattr(runtime_materialization.subprocess, "run",
-                        lambda *_a, **_k: subprocess.CompletedProcess([], 0, "0.2.0-alpha.1\n", ""))
+    monkeypatch.setattr(
+        runtime_materialization,
+        "runtime_file_inventory",
+        lambda root: observed.append(root) or inventory(root),
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "observe_python_facts",
+        lambda python: {
+            "prefix": python.parent.parent.resolve().as_posix(),
+            "base_prefix": python.parent.parent.resolve().as_posix(),
+        },
+    )
+    monkeypatch.setattr(
+        runtime_materialization.subprocess,
+        "run",
+        lambda *_a, **_k: subprocess.CompletedProcess([], 0, "0.2.0-alpha.1\n", ""),
+    )
     return (runtime_root, work, source, interpreter, artifact, _environment()), observed
 
 
@@ -72,12 +93,17 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
     home = tmp_path / "managed-python"
     interpreter = _write(home / "bin/python3.14", b"python-runtime")
     interpreter.chmod(0o755)
-    for relative in ("lib/python3.14/os.py", "lib/python3.14/test/support.py",
-                     "include/Python.h", "share/python.1"):
+    for relative in (
+        "lib/python3.14/os.py",
+        "lib/python3.14/test/support.py",
+        "include/Python.h",
+        "share/python.1",
+    ):
         _write(home / relative)
     target = tmp_path / "runtime/python"
-    monkeypatch.setattr(runtime_python_image, "observe_python_facts",
-                        lambda _python: _python_facts(home))
+    monkeypatch.setattr(
+        runtime_python_image, "observe_python_facts", lambda _python: _python_facts(home)
+    )
 
     def install(
         _source: Path,
@@ -101,11 +127,11 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
     )
 
     runtime_python_image.materialize_python_image(
-        target, tmp_path, interpreter, tmp_path / "ethos.whl", tmp_path / "work", locked=True)
+        target, tmp_path, interpreter, tmp_path / "ethos.whl", tmp_path / "work", locked=True
+    )
 
     assert (target / "bin/python").read_bytes() == b"python-runtime"
-    assert not any((target / path).exists() for path in
-                   ("include", "share", "lib/python3.14/test"))
+    assert not any((target / path).exists() for path in ("include", "share", "lib/python3.14/test"))
     assert not tuple(target.rglob("__pycache__")) + tuple(target.rglob("*.pyc"))
     for name in ("ethos", "uv"):
         script = target / "bin" / name
@@ -138,8 +164,11 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     runtime_root.chmod(mode | stat.S_IWUSR)
     with monkeypatch.context() as context:
         seen: set[Path] = set()
-        context.setattr(Path, "is_dir", lambda path: is_dir(path)
-                        if path != target or path in seen else bool(seen.add(path)))
+        context.setattr(
+            Path,
+            "is_dir",
+            lambda path: is_dir(path) if path != target or path in seen else bool(seen.add(path)),
+        )
         context.setattr(
             Path, "rename", lambda _path, _target: (_ for _ in ()).throw(FileExistsError)
         )
@@ -150,15 +179,22 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
         with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
             runtime_materialization.require_runtime_generation(target, args[4], environment)
     with monkeypatch.context() as context:
-        context.setattr(runtime_materialization, "observe_python_facts",
-                        lambda _python: {"prefix": "wrong", "base_prefix": "wrong"})
+        context.setattr(
+            runtime_materialization,
+            "observe_python_facts",
+            lambda _python: {"prefix": "wrong", "base_prefix": "wrong"},
+        )
         with pytest.raises(ValueError, match="hook_runtime_python_not_relocatable"):
             runtime_materialization.require_runtime_generation(target, args[4], environment)
-    monkeypatch.setattr(runtime_materialization.subprocess, "run",
-                        lambda *_a, **_k: subprocess.CompletedProcess([], 1, "", "failed"))
+    monkeypatch.setattr(
+        runtime_materialization.subprocess,
+        "run",
+        lambda *_a, **_k: subprocess.CompletedProcess([], 1, "", "failed"),
+    )
     with pytest.raises(ValueError, match="hook_runtime_entrypoint_smoke_failed"):
         runtime_materialization.materialize_runtime_generation(
-            *args[:-1], _environment(architecture_name="other"), locked=False)
+            *args[:-1], _environment(architecture_name="other"), locked=False
+        )
     assert {path for path in runtime_root.iterdir() if path.is_dir()} == {target}
 
 
@@ -167,14 +203,17 @@ def test_runtime_finalization_requires_python_and_entrypoint(
     tmp_path: Path, missing: str, reason: str
 ) -> None:
     runtime = tmp_path / missing
-    for path in (runtime_materialization.runtime_python(runtime / "python"),
-                 runtime_materialization.runtime_entrypoint(runtime / "python")):
+    for path in (
+        runtime_materialization.runtime_python(runtime / "python"),
+        runtime_materialization.runtime_entrypoint(runtime / "python"),
+    ):
         _write(path)
     (runtime / "python/bin" / missing).unlink()
     artifact = ReleaseArtifact(tmp_path / "wheel", "c" * 64, runtime_build("a" * 40, "b" * 40))
     with pytest.raises(ValueError, match=f"hook_runtime_{reason}_missing"):
         vars(runtime_materialization)["_finalize_runtime"](
-            runtime, tmp_path / "digest", artifact, _environment(), {})
+            runtime, tmp_path / "digest", artifact, _environment(), {}
+        )
 
 
 def test_runtime_reuse_rejects_architecture_drift(
@@ -183,15 +222,20 @@ def test_runtime_reuse_rejects_architecture_drift(
 ) -> None:
     repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
     selected = activate_runtime(Path(git_common_dir(repo)), venv.parent)
-    drifted = runtime_environment(python_abi=selected.python_abi,
+    drifted = runtime_environment(
+        python_abi=selected.python_abi,
         python_version=selected.python_version,
         python_implementation=selected.python_implementation,
-        dependency_lock_sha256=selected.dependency_lock_sha256, platform_name=selected.platform,
-        architecture_name="x86_64" if selected.architecture != "x86_64" else "arm64")
-    monkeypatch.setattr(runtime_materialization, "resolve_owned_interpreter",
-                        lambda *_args: selected.python)
-    monkeypatch.setattr(runtime_materialization, "observe_runtime_environment",
-                        lambda *_args, **_kwargs: drifted)
+        dependency_lock_sha256=selected.dependency_lock_sha256,
+        platform_name=selected.platform,
+        architecture_name="x86_64" if selected.architecture != "x86_64" else "arm64",
+    )
+    monkeypatch.setattr(
+        runtime_materialization, "resolve_owned_interpreter", lambda *_args: selected.python
+    )
+    monkeypatch.setattr(
+        runtime_materialization, "observe_runtime_environment", lambda *_args, **_kwargs: drifted
+    )
 
     def rebuild_required(*_args: object) -> Path:
         message = "architecture rebuild required"
@@ -200,8 +244,9 @@ def test_runtime_reuse_rejects_architecture_drift(
     monkeypatch.setattr(runtime_materialization, "resolve_runtime_wheel", rebuild_required)
 
     with pytest.raises(RuntimeError, match="architecture rebuild required"):
-        runtime_materialization.materialize_runtime(repo, selected.python,
-                                                    expected_build=selected.build)
+        runtime_materialization.materialize_runtime(
+            repo, selected.python, expected_build=selected.build
+        )
 
 
 @pytest.mark.parametrize("operation", ["seal", "remove"])
@@ -256,8 +301,11 @@ def test_generated_tree_cleanup_rejects_a_junction_without_touching_its_target(
     runtime_materialization.remove_generated_tree(generated)
     failed = tmp_path / "failed"
     failed.mkdir()
-    monkeypatch.setattr(runtime_materialization.shutil, "rmtree",
-                        lambda _path: (_ for _ in ()).throw(OSError("busy")))
+    monkeypatch.setattr(
+        runtime_materialization.shutil,
+        "rmtree",
+        lambda _path: (_ for _ in ()).throw(OSError("busy")),
+    )
     with pytest.raises(OSError, match="busy"):
         runtime_materialization.remove_generated_tree(failed)
     runtime_materialization.remove_generated_tree(failed, ignore_errors=True)

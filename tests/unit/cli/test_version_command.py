@@ -33,6 +33,7 @@ def test_version_human_output_is_concise(tmp_path, monkeypatch) -> None:
     assert "0.2.0a1.dev0+" in completed.stdout
     assert "{" not in completed.stdout
     monkeypatch.setattr(sys, "prefix", (tmp_path / "runtime" / ("a" * 64) / "python").as_posix())
-    monkeypatch.setattr(version_module, "require_selected_runtime",
-                        lambda _root: (_ for _ in ()).throw(ValueError))
+    monkeypatch.setattr(
+        version_module, "require_selected_runtime", lambda _root: (_ for _ in ()).throw(ValueError)
+    )
     assert version_module.version_text().startswith("ethos 0.2.0-alpha.1 ")

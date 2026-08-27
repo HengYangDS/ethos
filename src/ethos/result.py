@@ -22,6 +22,8 @@ from ethos.contracts.verdict import require_closed_verdict
 
 PAYLOAD_BUDGETS = {"status": 16 * 1024, "plan": 32 * 1024}
 _ARTIFACT_HOME = Path("payloads")
+_UNKNOWN_WITHOUT_GAPS = "unknown_without_required_gaps"
+_BLOCK_WITHOUT_REASON = "block_without_reason"
 
 
 class EthosResult(BaseModel):
@@ -70,9 +72,9 @@ class EthosResult(BaseModel):
             if str(item.get("severity") or "").lower() in {"warning", "error"}
         )
         if self.verdict == "unknown" and not self.required_gaps:
-            raise ValueError("unknown_without_required_gaps")
+            raise ValueError(_UNKNOWN_WITHOUT_GAPS)
         if self.verdict == "block" and not self.required_gaps and not adverse:
-            raise ValueError("block_without_reason")
+            raise ValueError(_BLOCK_WITHOUT_REASON)
         require_closed_verdict(self.verdict, self.required_gaps, adverse)
         return self
 

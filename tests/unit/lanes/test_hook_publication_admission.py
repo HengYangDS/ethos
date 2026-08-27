@@ -62,7 +62,7 @@ def test_pre_push_public_envelope_and_effect_gate_use_declared_verdict(
             "role": "accepted_root",
             "remote_name": "origin",
             "decision": {"action": "allow", "reason": "legacy_observation"},
-            "required_gaps": [],
+            "required_gaps": ["push_admission_facts_unavailable"],
         },
     )
 

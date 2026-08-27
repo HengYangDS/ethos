@@ -175,24 +175,15 @@ def test_ethos_result_rejects_truncated_wire_payload(field: str) -> None:
         EthosResult.from_payload(payload)
 
 
-def test_ethos_result_rejects_pass_with_required_gaps() -> None:
-    with pytest.raises(ValidationError, match="pass_with_required_gaps"):
-        _result(required_gaps=("hard_gap",))
-
-
-@pytest.mark.parametrize(
-    ("verdict", "reason"),
-    [
-        ("unknown", "unknown_without_required_gaps"),
-        ("block", "block_without_reason"),
-    ],
-)
-def test_ethos_result_rejects_non_pass_without_a_concrete_reason(
-    verdict: str,
-    reason: str,
-) -> None:
-    with pytest.raises(ValidationError, match=reason):
-        _result(verdict=verdict, state=verdict)
+def test_ethos_result_rejects_unclosed_verdicts() -> None:
+    cases = (
+        ({"required_gaps": ("hard_gap",)}, "pass_with_required_gaps"),
+        ({"verdict": "unknown", "state": "unknown"}, "unknown_without_required_gaps"),
+        ({"verdict": "block", "state": "block"}, "block_without_reason"),
+    )
+    for updates, reason in cases:
+        with pytest.raises(ValidationError, match=reason):
+            _result(**updates)
 
 
 @pytest.mark.parametrize("severity", ["warning", "error"])

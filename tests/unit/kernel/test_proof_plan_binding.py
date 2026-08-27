@@ -101,7 +101,7 @@ def _assert_proof(
 def test_work_lane_proof_plan_uses_the_current_active_commitment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(governed_repository, "install_hook_launchers", lambda _root: {})
+    monkeypatch.setattr(governed_repository, "install_fixture_hook_runtime", lambda _root: {})
     monkeypatch.setattr(lane_start_carrier, "install_hook_launchers", lambda _root: {})
     holder = "agent:test:case:current-commitment"
     root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree

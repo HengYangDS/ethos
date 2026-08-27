@@ -241,7 +241,7 @@ def _assert_retired(repo: Path, source: Path, database: Path) -> None:
 def test_landed_retirement_readiness_and_apply_share_exact_ref_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(governed_repository, "install_hook_launchers", lambda _root: {})
+    monkeypatch.setattr(governed_repository, "install_fixture_hook_runtime", lambda _root: {})
     monkeypatch.setattr(lane_start_carrier, "install_hook_launchers", lambda _root: {})
     fixture = start_adopted_work_lane(tmp_path, name="landed", holder_ref=SOURCE)
     branch = "work/landed"

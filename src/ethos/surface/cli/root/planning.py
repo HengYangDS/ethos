@@ -18,7 +18,7 @@ from ethos.adapters.repo.coordination import collaboration_competition_projectio
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
-from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
@@ -69,7 +69,7 @@ def plan(
 ) -> None:
     """Compile deterministic TransitionPlan."""
     repo = resolve_root(root)
-    status_payload = workspace_status(repo)
+    status_payload, authority = workspace_status_observation(repo)
     head = str(status_payload.get("head") or "")
     try:
         repository = load_repository_commitment(repo)
@@ -235,6 +235,7 @@ def plan(
             )
         ),
         data={
+            "authority": authority,
             "changed_paths": list(paths),
             "selected_carrier": generation_scope.selected_carrier,
             "path_attributions": list(generation_scope.attribution_projection()),

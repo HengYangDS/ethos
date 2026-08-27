@@ -8,7 +8,7 @@ from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
-from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -33,7 +33,9 @@ def _count(value: object) -> int:
 def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
     repo = resolve_root(root)
-    observed = workspace_status(repo, include_foreign_path_scope=False)
+    observed, authority = workspace_status_observation(
+        repo, include_foreign_path_scope=False
+    )
     try:
         generation_scope = (
             current_generation_binding(
@@ -81,7 +83,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
         "changed_path_count": _count(observed.get("changed_paths")),
         "selected_carrier": generation_scope.selected_carrier,
         "path_attributions": list(generation_scope.attribution_projection()),
-        "authority": cast("dict[str, object]", observed.get("stage_gates") or {}),
+        "authority": authority,
         "landing_readiness": {
             "state": landing.get("state", ""),
             "required_gaps": string_sequence(landing.get("required_gaps")),

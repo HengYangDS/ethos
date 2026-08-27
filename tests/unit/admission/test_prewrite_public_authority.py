@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.admission.lease_binding as lease_binding
 import ethos.adapters.admission.prewrite as prewrite
 import ethos.adapters.repo.runtime.binding as runtime_binding_adapter
 from tests.support.semantic import commitment_fixture
@@ -166,6 +167,7 @@ def test_prewrite_uses_lease_commitment_without_full_openspec_governance(
         "lease_id": "lease:test",
         "epoch": 1,
         "expected_head": "a" * 40,
+        "scope": ["README.md"],
     }
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
     monkeypatch.setattr(prewrite, "_work_lane_lease_check", lambda **_kwargs: lease)
@@ -175,9 +177,6 @@ def test_prewrite_uses_lease_commitment_without_full_openspec_governance(
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("prewrite_must_not_run_full_openspec_governance")
         ),
-    )
-    monkeypatch.setattr(
-        prewrite, "load_lease_bound_commitment", lambda *_args, **_kwargs: _commitment("README.md")
     )
     monkeypatch.setattr(prewrite, "archive_prewrite_authority", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
@@ -211,13 +210,19 @@ def test_prewrite_preserves_exact_lease_commitment_coordinates(
         "base_commitment_digest": "d" * 64,
     }
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
-    monkeypatch.setattr(prewrite, "git_stdout", lambda *_args: "a" * 40)
+    monkeypatch.setattr(lease_binding, "git_stdout", lambda *_args: "a" * 40)
     monkeypatch.setattr(
-        prewrite, "leases_by_branch", lambda *_args, **_kwargs: {"work/example": lease}
+        lease_binding,
+        "current_tree",
+        lambda *_args, **_kwargs: "b" * 40,
     )
-    monkeypatch.setattr(prewrite, "lease_binding_reason", lambda **_kwargs: "")
     monkeypatch.setattr(
-        prewrite, "load_lease_bound_commitment", lambda *_args, **_kwargs: _commitment("README.md")
+        lease_binding, "leases_by_branch", lambda *_args, **_kwargs: {"work/example": lease}
+    )
+    monkeypatch.setattr(
+        lease_binding,
+        "load_lease_bound_commitment",
+        lambda *_args, **_kwargs: _commitment("README.md"),
     )
 
     report = prewrite.prewrite_guard(
@@ -255,15 +260,20 @@ def test_prewrite_surfaces_lease_commitment_binding_failure(
         "lease_id": "lease:test",
         "epoch": 1,
         "expected_head": "a" * 40,
+        "expected_tree": "b" * 40,
+        "base_commitment_path": "openspec/changes/example/commitment.toml",
+        "base_commitment_bytes_sha256": "c" * 64,
+        "base_commitment_digest": "d" * 64,
     }
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
     monkeypatch.setattr(prewrite, "current_branch", lambda _root: "work/example")
-    monkeypatch.setattr(prewrite, "git_stdout", lambda *_args: "a" * 40)
+    monkeypatch.setattr(lease_binding, "git_stdout", lambda *_args: "a" * 40)
+    monkeypatch.setattr(lease_binding, "current_tree", lambda *_args: "b" * 40)
     monkeypatch.setattr(
-        prewrite, "leases_by_branch", lambda *_args, **_kwargs: {"work/example": lease}
+        lease_binding, "leases_by_branch", lambda *_args, **_kwargs: {"work/example": lease}
     )
     monkeypatch.setattr(
-        prewrite,
+        lease_binding,
         "load_lease_bound_commitment",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             ValueError("lease_base_commitment_bytes_mismatch")

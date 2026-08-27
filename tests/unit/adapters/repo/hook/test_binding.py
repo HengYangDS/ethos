@@ -27,74 +27,33 @@ def test_hook_binding_follows_the_exact_configured_generation(
     common = Path(git_common_dir(repo))
     generation = hook_activation.materialize_hook_launchers(common / "ethos" / "hooks")
     activate_runtime(common, venv.parent)
-    assert git_process(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
-    assert (
-        git_process(
-            repo, "config", "--worktree", "core.hooksPath", generation.as_posix()
-        ).returncode
-        == 0
-    )
+    for arguments in (
+        ("config", "extensions.worktreeConfig", "true"),
+        ("config", "--worktree", "core.hooksPath", generation.as_posix()),
+    ):
+        assert git_process(repo, *arguments).returncode == 0
 
     observed = hook_runtime_binding(repo)
+    projected = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
 
     assert observed["hooks_path"] == generation.as_posix()
     assert observed["required_gaps"] == []
-
-
-def test_hook_binding_rejects_an_intact_runtime_from_an_older_source_identity(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    installed = runtime_build("a" * 40, "b" * 40)
-    repo, venv = materialize_runtime_case(
-        tmp_path,
-        monkeypatch,
-        package_identity=installed,
-    )
-    common = Path(git_common_dir(repo))
-    generation = hook_activation.materialize_hook_launchers(common / "ethos" / "hooks")
-    activate_runtime(common, venv.parent)
-    assert git_process(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
-    assert (
-        git_process(
-            repo, "config", "--worktree", "core.hooksPath", generation.as_posix()
-        ).returncode
-        == 0
-    )
+    assert projected["data"]["hook_runtime"] == observed
     expected = runtime_build("c" * 40, "d" * 40)
 
-    observed = hook_runtime_binding(repo, expected_build=expected)
+    stale = hook_runtime_binding(repo, expected_build=expected)
 
-    assert observed["source_commit"] == "a" * 40
-    assert observed["source_tree"] == "b" * 40
-    assert observed["expected_source_commit"] == "c" * 40
-    assert observed["expected_source_tree"] == "d" * 40
-    assert observed["current"] is False
-    assert observed["required_gaps"] == ["write_admission_not_armed:runtime_build_stale"]
-    assert observed["next_action"] == runtime_command(
+    assert stale["source_commit"] == observed["source_commit"]
+    assert stale["source_tree"] == observed["source_tree"]
+    assert (stale["expected_source_commit"], stale["expected_source_tree"]) == (
+        "c" * 40,
+        "d" * 40,
+    )
+    assert not stale["current"]
+    assert stale["required_gaps"] == ["write_admission_not_armed:runtime_build_stale"]
+    assert stale["next_action"] == runtime_command(
         repo, "hook", "install", "--root", repo.as_posix(), "--json"
     )
-
-
-def test_status_projects_the_single_hook_runtime_binding(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
-    common = Path(git_common_dir(repo))
-    generation = hook_activation.materialize_hook_launchers(common / "ethos" / "hooks")
-    activate_runtime(common, venv.parent)
-    assert git_process(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
-    assert (
-        git_process(
-            repo, "config", "--worktree", "core.hooksPath", generation.as_posix()
-        ).returncode
-        == 0
-    )
-    installed = hook_runtime_binding(repo)
-
-    projected = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
-
-    assert projected["data"]["hook_runtime"] == installed
 
 
 def test_hook_binding_reports_non_utf8_launcher_as_drift(

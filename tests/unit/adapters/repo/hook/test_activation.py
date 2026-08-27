@@ -27,16 +27,17 @@ from tests.support.runtime_scenarios import linked_runtime_case
 from tests.support.runtime_scenarios import materialize_runtime_case
 
 
+def _materialized(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(runtime_materialization, "materialize_runtime", lambda *_a, **_k: runtime)
+    return repo, runtime, Path(git_common_dir(repo))
+
+
 def test_hook_install_observes_runtime_bytes_only_at_admission_and_post_observe(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: runtime,
-    )
+    repo, runtime, _common = _materialized(tmp_path, monkeypatch)
     observed: list[Path] = []
     inventory = runtime_selection.runtime_file_inventory
 
@@ -97,13 +98,7 @@ def test_hook_install_removes_only_unreferenced_generated_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: venv,
-    )
-    common = Path(git_common_dir(repo))
+    repo, _venv, common = _materialized(tmp_path, monkeypatch)
     hooks_root = common / "ethos" / "hooks"
     runtime_root = common / "ethos" / "runtime"
     retained_digest = "a" * 64
@@ -387,13 +382,7 @@ def test_hook_install_blocks_cleanup_when_an_active_consumer_is_unreadable(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: venv,
-    )
-    common = Path(git_common_dir(repo))
+    repo, _venv, common = _materialized(tmp_path, monkeypatch)
     hooks_root = common / "ethos" / "hooks"
     stale = hook_activation.materialize_hook_launchers(hooks_root)
     operations = common / "ethos" / "operations"
@@ -410,13 +399,7 @@ def test_hook_install_rejects_a_junction_runtime_generation_without_touching_it(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: venv,
-    )
-    common = Path(git_common_dir(repo))
+    repo, _venv, common = _materialized(tmp_path, monkeypatch)
     junction = common / "ethos/runtime" / ("f" * 64)
     junction.mkdir(parents=True)
     sentinel = junction / "sentinel"
@@ -476,14 +459,9 @@ def test_hook_activation_rejects_a_non_current_post_observation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
-    hooks = Path(git_common_dir(repo)) / "ethos/hooks" / ("b" * 64)
+    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
+    hooks = common / "ethos/hooks" / ("b" * 64)
     hooks.mkdir(parents=True)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: runtime,
-    )
     monkeypatch.setattr(hook_activation, "materialize_hook_launchers", lambda *_args: hooks)
     monkeypatch.setattr(
         hook_activation,
@@ -497,7 +475,7 @@ def test_hook_activation_rejects_a_non_current_post_observation(
     with pytest.raises(ValueError, match="hook_runtime_activation_invalid"):
         install_hook_launchers(repo)
 
-    selector = Path(git_common_dir(repo)) / "ethos" / "runtime" / "CURRENT"
+    selector = common / "ethos" / "runtime" / "CURRENT"
     assert not selector.exists()
 
 
@@ -505,7 +483,7 @@ def test_hook_activation_compensates_when_expected_build_drifts_during_effect(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    repo, runtime, common = _materialized(tmp_path, monkeypatch)
     selected = runtime_selection.require_selected_runtime(runtime.parent)
     drifted = BuildIdentity(
         selected.build.product_version,
@@ -521,12 +499,6 @@ def test_hook_activation_compensates_when_expected_build_drifts_during_effect(
         "expected_runtime_build",
         lambda _root: (next(observations), None),
     )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: runtime,
-    )
-    common = Path(git_common_dir(repo))
 
     with pytest.raises(ValueError, match="hook_runtime_expected_build_stale"):
         install_hook_launchers(repo)
@@ -539,13 +511,7 @@ def test_hook_cleanup_rejects_selector_drift_before_deleting_generations(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: runtime,
-    )
-    common = Path(git_common_dir(repo))
+    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
     concurrent_digest = "c" * 64
     concurrent = common / "ethos/runtime" / concurrent_digest
     concurrent.mkdir(parents=True)
@@ -594,13 +560,7 @@ def test_hook_install_retires_the_legacy_runtime_python_locator(
     monkeypatch: pytest.MonkeyPatch,
     kind: str,
 ) -> None:
-    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: runtime,
-    )
-    common = Path(git_common_dir(repo))
+    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
     legacy = common / "ethos-runtime-python"
     if kind == "symlink":
         legacy.symlink_to(tmp_path / "retired-python")
@@ -664,3 +624,10 @@ def test_install_restores_runtime_selector_with_exact_cas_when_activation_fails(
 
     selected = f"{runtime_digest}\n".encode("ascii")
     assert restored == [(None, selected)]
+    def fail(*_args: object, **_kwargs: object) -> None:
+        message = "compensation"
+        raise ValueError(message)
+    monkeypatch.setattr(hook_activation, "_restore_activation", fail)
+    monkeypatch.setattr(hook_activation, "restore_runtime_selection", fail)
+    with pytest.raises(ValueError, match="hook_runtime_activation_compensation_failed"):
+        vars(hook_activation)["_restore_failed_activation"](repo, common, {}, {}, None)

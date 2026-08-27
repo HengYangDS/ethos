@@ -1,0 +1,48 @@
+schema_version = 2
+id = "change:current-authority-resolution"
+intent = "Make one fresh Lease-bound Commitment authority resolution the sole source consumed by status, plan, prewrite, and hooks, while demoting historical transition Attestations to provenance and deleting duplicate authoring decisions."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "openspec/changes/current-authority-resolution/**",
+  "src/ethos/adapters/admission/git_admission.py",
+  "src/ethos/adapters/admission/lease_binding.py",
+  "src/ethos/adapters/admission/prewrite.py",
+  "src/ethos/adapters/openspec/profile.py",
+  "src/ethos/adapters/openspec/start_effect.py",
+  "src/ethos/adapters/repo/status/workspace.py",
+  "src/ethos/surface/cli/root/inspection.py",
+  "src/ethos/surface/cli/root/planning.py",
+  "tests/unit/admission/test_prewrite_public_authority.py",
+  "tests/unit/cli/openspec/test_generation_observation.py",
+  "tests/unit/cli/test_post_archive_planning.py",
+  "tests/unit/cli/test_proof_command.py",
+  "tests/unit/lanes/test_hook_admission.py",
+]
+invariants = [
+  "historical_transition_evidence_does_not_mint_current_authoring_authority",
+  "one_fresh_authority_observation_drives_every_public_projection",
+  "valid_exact_lease_and_commitment_binding_has_one_verdict_across_surfaces",
+]
+acceptance = [
+  "missing_transition_attestation_does_not_block_valid_current_authority",
+  "status_plan_prewrite_and_pre_commit_project_identical_authority_coordinates",
+  "stale_or_ambiguous_current_authority_remains_fail_closed_with_one_exact_reason",
+]
+risks = [
+  "removing_duplicate_authority_checks_could_hide_provenance_diagnostics_if_projection_boundaries_are_not_preserved",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "user_instruction",
+]
+predecessors = [
+  "b38f72fd29359efd28a9887da4f11aea989e97354037839a27f1be19d219cea2",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

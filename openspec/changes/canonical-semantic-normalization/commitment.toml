@@ -1,0 +1,38 @@
+schema_version = 2
+id = "change:canonical-semantic-normalization"
+intent = "Make semantic validity independent of input collection order while preserving strict membership validation and one deterministic canonical identity."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "docs/governance/product-design-contract.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "openspec/changes/canonical-semantic-normalization/**",
+  "openspec/specs/kernel/spec.md",
+  "src/ethos/contracts/semantic.py",
+  "tests/unit/kernel/test_semantic_contract.py",
+]
+invariants = [
+  "canonical_identity_is_derived_from_normalized_typed_values",
+  "duplicate_and_conflicting_members_fail_closed",
+  "input_order_never_determines_semantic_validity",
+]
+acceptance = [
+  "canonical_output_is_idempotent",
+  "ordered_and_permuted_inputs_have_identical_values_digests_and_canonical_json",
+  "semantic_duplicates_and_conflicts_remain_rejected",
+]
+risks = [
+  "normalization_could_mask_a_true_duplicate_or_reference_conflict",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "user_instruction",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

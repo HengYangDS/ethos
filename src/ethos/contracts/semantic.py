@@ -37,7 +37,6 @@ _DIGEST_PATTERN = r"^[a-f0-9]{64}$"
 _SEMANTIC_ID_PATTERN = r"^(?:[a-z][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)+|[a-f0-9]{64})$"
 _MAX_SAFE_INTEGER = 9_007_199_254_740_991
 _SEMANTIC_COLLECTION_DUPLICATE = "semantic_collection_duplicate"
-_SEMANTIC_COLLECTION_ORDER_INVALID = "semantic_collection_order_invalid"
 _SEMANTIC_INTEGER_OUT_OF_RANGE = "semantic_integer_out_of_range"
 _SEMANTIC_JSON_VALUE_INVALID = "semantic_json_value_invalid"
 _SEMANTIC_JSON_NONCANONICAL = "semantic_json_noncanonical"
@@ -180,9 +179,7 @@ def _canonical_set[T](values: tuple[T, ...], *, identity) -> tuple[T, ...]:
     identities = tuple(identity(value) for value in values)
     if len(identities) != len(set(identities)):
         raise ValueError(_SEMANTIC_COLLECTION_DUPLICATE)
-    if identities != tuple(sorted(identities)):
-        raise ValueError(_SEMANTIC_COLLECTION_ORDER_INVALID)
-    return values
+    return tuple(sorted(values, key=identity))
 
 
 def _require_nonblank_string(value: str) -> str:

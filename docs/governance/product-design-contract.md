@@ -57,6 +57,11 @@ The only durable semantic roots are:
 `Facts` are fresh, context-bound observations. `TransitionPlan` is deterministic,
 transient IR bound to exact inputs. Neither is a durable semantic root.
 
+Semantic validity belongs to typed meaning, not carrier presentation. The kernel
+validates members, duplicates, references, and conflicts, then normalizes
+unordered collections before identity. Exact canonical-byte checks remain
+confined to readers for already content-addressed envelopes.
+
 ```text
 (Commitment, Facts, prior Attestations) -> TransitionPlan -> new Attestations
 ```

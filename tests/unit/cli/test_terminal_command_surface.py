@@ -80,6 +80,8 @@ def test_lane_status_projects_coordination_facts_without_shared_inbox(tmp_path) 
     )
 
     assert "shared_inbox" not in payload["data"]
+    assert payload["verdict"] == "pass"
+    assert payload["state"] == "ready"
     assert payload["data"]["foreign_work_lanes"]
     assert "foreign_work_lane_present" in payload["data"]["coordination_gaps"]
     assert "unbound_work_lane_refs" in payload["data"]

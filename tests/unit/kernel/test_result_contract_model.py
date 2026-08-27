@@ -180,6 +180,21 @@ def test_ethos_result_rejects_pass_with_required_gaps() -> None:
         _result(required_gaps=("hard_gap",))
 
 
+@pytest.mark.parametrize(
+    ("verdict", "reason"),
+    [
+        ("unknown", "unknown_without_required_gaps"),
+        ("block", "block_without_reason"),
+    ],
+)
+def test_ethos_result_rejects_non_pass_without_a_concrete_reason(
+    verdict: str,
+    reason: str,
+) -> None:
+    with pytest.raises(ValidationError, match=reason):
+        _result(verdict=verdict, state=verdict)
+
+
 @pytest.mark.parametrize("severity", ["warning", "error"])
 def test_ethos_result_rejects_pass_with_adverse_diagnostic(severity: str) -> None:
     with pytest.raises(ValidationError, match="pass_with_warnings"):

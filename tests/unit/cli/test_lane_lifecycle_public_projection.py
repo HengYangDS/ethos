@@ -26,13 +26,21 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
         ),
         (
             "lane status",
-            {"verdict": "block", "role": "accepted_root"},
+            {
+                "verdict": "block",
+                "role": "accepted_root",
+                "required_gaps": ["accepted_root_observe_only"],
+            },
             "blocked",
             "ethos status --json",
         ),
         (
             "lane status",
-            {"verdict": "unknown", "role": "work_lane"},
+            {
+                "verdict": "unknown",
+                "role": "work_lane",
+                "required_gaps": ["lane_facts_unavailable"],
+            },
             "unknown",
             "ethos lane prewrite <path>",
         ),
@@ -48,6 +56,7 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
                 "verdict": "unknown",
                 "path_count": 0,
                 "role": "other",
+                "required_gaps": ["editor_root_unavailable"],
                 "next_action": "ethos lane prewrite <path> --editor-root <root>",
             },
             "unknown",
@@ -73,7 +82,11 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
         ),
         (
             "lane refresh-base",
-            {"verdict": "block", "next_action": "resolve conflict"},
+            {
+                "verdict": "block",
+                "required_gaps": ["refresh_conflict"],
+                "next_action": "resolve conflict",
+            },
             "blocked",
             "resolve conflict",
         ),

@@ -225,7 +225,7 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
         *prove_domain.workspace_status_validation_gaps(validation),
     )
     report.update(
-        verdict=reduce_verdicts(report_verdict(report), report_verdict(validation)),
+        verdict=reduce_verdicts(report_verdict(validation), required_gaps=gaps),
         required_gaps=gaps,
     )
     stage_gates = cast("dict[str, object]", report.get("stage_gates") or {})

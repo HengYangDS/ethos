@@ -5,4 +5,4 @@
 - [x] Delete stale schema, routing, fixture, documentation, and test references.
 - [x] Run focused tests and repository-wide active reference closure.
 - [x] Run exact-HEAD proof.
-- [ ] Archive, re-prove, land, accept, runtime readback, and retire the Work Lane.
+- [x] Complete pre-archive exact-HEAD proof and prepare governed closeout.

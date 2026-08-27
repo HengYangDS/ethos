@@ -4,4 +4,5 @@
 - [x] Delete `proposal_lane` from branch roles and route proposal targets at the publication boundary.
 - [x] Delete stale schema, routing, fixture, documentation, and test references.
 - [x] Run focused tests and repository-wide active reference closure.
-- [ ] Run exact-HEAD proof, archive, re-prove, land, accept, runtime readback, and retire the Work Lane.
+- [x] Run exact-HEAD proof.
+- [ ] Archive, re-prove, land, accept, runtime readback, and retire the Work Lane.

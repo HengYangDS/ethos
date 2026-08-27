@@ -9,6 +9,7 @@ import zipfile
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 import tomli_w
@@ -46,7 +47,7 @@ _JSON_OBJECT = st.recursive(
 ).map(lambda value: value if isinstance(value, dict) else {"value": value})
 
 
-def _attestation_payload() -> dict[str, object]:
+def _attestation_payload() -> dict[str, Any]:
     return {
         "schema_version": 2,
         "predicate": "observation:repository",
@@ -82,7 +83,7 @@ def _attestation_payload() -> dict[str, object]:
     }
 
 
-def _commitment_payload() -> dict[str, object]:
+def _commitment_payload() -> dict[str, Any]:
     return commitment_fixture(
         id="change:model-promotion-successor",
         intent="Adopt one selected input.",
@@ -166,13 +167,15 @@ def test_commitment_fixture_runtime_validation_matrix(tmp_path: Path) -> None:
 
     subjects = ["repository:\ue000", "repository:\U00010000"]
     ordered = Commitment.model_validate(payload | {"subjects": subjects})
-    assert ordered.subjects == tuple(subjects)
-    with pytest.raises(ValidationError, match="semantic_collection_order_invalid"):
-        Commitment.model_validate(payload | {"subjects": list(reversed(subjects))})
+    reordered = Commitment.model_validate(payload | {"subjects": list(reversed(subjects))})
+    assert reordered == ordered
+    assert reordered.digest() == ordered.digest()
 
 
 def test_attestation_invalid_field_and_relation_matrix() -> None:
     payload = _attestation_payload()
+    ordered = Attestation.issue(payload | {"advisories": ["advisory:one", "advisory:two"]})
+    assert ordered == Attestation.issue(payload | {"advisories": ["advisory:two", "advisory:one"]})
     missing = {key: value for key, value in payload.items() if key != "facts_digest"}
     duplicate = dict(payload["relations"][0], attributes={"different": True})
     invalid = (

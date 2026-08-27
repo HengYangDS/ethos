@@ -149,7 +149,6 @@ closes.
     latency are root-cause signals. Use the narrowest real reproducer and run
     heavy proof once at the frozen atomic boundary; never buy speed by weakening
     semantics, evidence freshness, coverage, or fail-closed admission.
-
 ## Completion Boundary
 
 Terminal convergence is verified only when the kernel, Git-native effect

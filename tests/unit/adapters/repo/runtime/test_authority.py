@@ -58,7 +58,7 @@ def test_self_hosted_expectation_uses_accepted_checkout_and_rejects_drift(
         authority.expected_runtime_build(lane)
 
 
-def test_version_migration_uses_exact_invoking_lane_head(
+def test_version_migration_uses_exact_invoking_lane(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _repo, lane = _repository(tmp_path, version=False)
@@ -74,10 +74,7 @@ def test_version_migration_uses_exact_invoking_lane_head(
     identity, source_root = authority.expected_runtime_build(lane)
     assert identity.source_commit == _git(lane, "rev-parse", "HEAD")
     assert identity.source_tree == _git(lane, "rev-parse", "HEAD^{tree}")
-    assert authority.expected_runtime_source(lane) == (
-        identity.source_commit,
-        identity.source_tree,
-    )
+    assert authority.expected_runtime_source(lane) == identity[2:4]
     assert (identity.channel, identity.acceptance_state, source_root) == (
         "development",
         "unaccepted",
@@ -89,6 +86,7 @@ def test_runtime_authority_fallback_matrix(monkeypatch: pytest.MonkeyPatch, tmp_
     packaged = runtime_build("a" * 40, "b" * 40)
     monkeypatch.setattr(authority, "packaged_build_identity", lambda: packaged)
     assert authority.runtime_build_identity(tmp_path) == packaged
+    assert authority.runtime_build_identity(tmp_path, include_overlay=False) == packaged
     monkeypatch.setattr(
         authority, "repository_root", lambda _root: (_ for _ in ()).throw(ValueError())
     )

@@ -5,6 +5,7 @@ subjects = [
   "repository:ethos",
 ]
 scope = [
+  ".config/checks/format/selection.toml",
   "openspec/changes/current-authority-resolution/**",
   "src/ethos/adapters/admission/git_admission.py",
   "src/ethos/adapters/admission/lease_binding.py",

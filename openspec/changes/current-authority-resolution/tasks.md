@@ -10,5 +10,5 @@
 
 ## 3. Closure
 
-- [ ] 3.1 Pass focused regressions, reference closure, type/lint, and source/test budgets.
+- [x] 3.1 Pass focused regressions, reference closure, type/lint, and source/test budgets.
 - [ ] 3.2 Freeze exact HEAD for full proof, archive/reproof, candidate/accepted CAS, package-only runtime readback, GC, and lane retirement.

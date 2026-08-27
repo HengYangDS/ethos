@@ -1,0 +1,67 @@
+schema_version = 2
+id = "change:version-release-boundary"
+intent = "Separate accepted repository state from explicit package release identity, then make SemVer, package identity, runtime identity, and changelog agree."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "CHANGELOG.md",
+  "VERSION",
+  "distributions/npm/package.json",
+  "docs/governance/release-governance.md",
+  "openspec/changes/version-release-boundary/**",
+  "openspec/specs/command-plane/spec.md",
+  "openspec/specs/distribution/spec.md",
+  "package-lock.json",
+  "src/ethos/adapters/repo/hook/binding.py",
+  "src/ethos/adapters/repo/runtime/authority.py",
+  "src/ethos/adapters/repo/runtime/manifest.py",
+  "src/ethos/adapters/repo/runtime/materialization/effect.py",
+  "src/ethos/adapters/repo/runtime/selection.py",
+  "src/ethos/adapters/repo/runtime/source.py",
+  "src/ethos/adapters/repo/runtime/transition.py",
+  "src/ethos/repository/release/admission.py",
+  "src/ethos/repository/release/identity.py",
+  "src/ethos/surface/cli/version.py",
+  "tests/architecture/test_local_install_smoke.py",
+  "tests/support/runtime_scenarios.py",
+  "tests/unit/adapters/repo/hook/test_activation.py",
+  "tests/unit/adapters/repo/runtime/materialization/test_effect.py",
+  "tests/unit/adapters/repo/runtime/test_authority.py",
+  "tests/unit/adapters/repo/runtime/test_manifest.py",
+  "tests/unit/adapters/repo/runtime/test_selection.py",
+  "tests/unit/adapters/repo/runtime/test_source.py",
+  "tests/unit/ci/test_openspec_runtime_hook.py",
+  "tests/unit/cli/test_version_command.py",
+  "tests/unit/release/test_policy_attestation.py",
+  "tests/unit/release/test_release_identity_admission.py",
+  "tests/unit/release/test_runtime_transition.py",
+  "tests/unit/release/test_version_identity.py",
+  "tools/ci/delivery/pipeline.py",
+]
+invariants = [
+  "git_acceptance_never_implies_package_release",
+  "source_builds_are_unique_and_release_builds_are_explicit",
+  "version_changelog_package_and_runtime_projections_have_one_owner",
+]
+acceptance = [
+  "changelog_uses_canonical_semver_without_false_publication_claims",
+  "explicit_release_reuse_and_rollback_remain_blocked",
+  "ordinary_hook_install_mints_no_release_attestation",
+  "prior_release_attestation_remains_authoritative_after_cutover",
+  "two_accepted_commits_install_as_distinct_development_builds",
+]
+risks = [
+  "direct_manifest_schema_cutover_invalidates_old_runtime_generations",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/governance/release-governance.md",
+  "rules/release.md",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

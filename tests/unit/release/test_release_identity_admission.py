@@ -18,13 +18,12 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _build(version: str, *, commit="a" * 40, tree="b" * 40, accepted=True):
+def _build(version: str, *, commit="a" * 40, tree="b" * 40, release=True):
     return build_identity(
         product=version,
         source_commit=commit,
         source_tree=tree,
-        channel="accepted" if accepted else "development",
-        acceptance_state="accepted" if accepted else "unaccepted",
+        release=release,
     )
 
 
@@ -79,6 +78,42 @@ def test_release_attestation_round_trips_the_canonical_identity() -> None:
     assert accepted_release_identities((attestation,)) == (release,)
 
 
+def test_release_attestation_preserves_prior_schema_identity_authority() -> None:
+    release = _release("0.2.0-alpha.1")
+    issued_at = datetime(2026, 8, 25, tzinfo=UTC)
+    legacy = accepted_release_attestation(release, issued_at=issued_at).model_dump(mode="json")
+    identity = legacy["payload"]["body"]["identity"]
+    identity["schema_version"] = 1
+    identity["channel"] = "accepted"
+    identity["acceptance_state"] = "accepted"
+    attestation = Attestation.issue({key: value for key, value in legacy.items() if key != "id"})
+
+    assert accepted_release_identities((attestation,)) == (release,)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("channel", "development"), ("acceptance_state", "unaccepted")],
+)
+def test_release_attestation_rejects_invalid_prior_schema_state(field: str, value: str) -> None:
+    release = _release("0.2.0-alpha.1")
+    legacy = accepted_release_attestation(
+        release,
+        issued_at=datetime(2026, 8, 25, tzinfo=UTC),
+    ).model_dump(mode="json")
+    identity = legacy["payload"]["body"]["identity"]
+    identity.update(
+        schema_version=1,
+        channel="accepted",
+        acceptance_state="accepted",
+    )
+    identity[field] = value
+    attestation = Attestation.issue({key: value for key, value in legacy.items() if key != "id"})
+
+    with pytest.raises(ValueError, match="accepted_release_attestation_invalid"):
+        accepted_release_identities((attestation,))
+
+
 def test_release_attestation_rejects_malformed_owned_predicate() -> None:
     release = _release("0.2.0-alpha.1")
     payload = accepted_release_attestation(
@@ -90,7 +125,7 @@ def test_release_attestation_rejects_malformed_owned_predicate() -> None:
     malformed = Attestation.issue({key: value for key, value in payload.items() if key != "id"})
     with pytest.raises(ValueError, match="accepted_release_attestation_invalid"):
         accepted_release_identities((malformed,))
-    development = _build("1.2.3", accepted=False)
+    development = _build("1.2.3", release=False)
     for build, wheel, reason in (
         (development, "c" * 64, "build"),
         (_release("1.2.3").build, "bad", "wheel"),
@@ -113,17 +148,15 @@ def test_package_materialization_rejects_a_symlinked_common_store(
     wheel = tmp_path / "ethos.whl"
     wheel.write_bytes(b"wheel")
     build = build_identity(
-        product="0.2.0-alpha.1",
+        product="0.2.0-alpha.2",
         source_commit="a" * 40,
         source_tree="b" * 40,
-        channel="development",
-        acceptance_state="unaccepted",
     )
     monkeypatch.setattr(release_transition, "git_common_dir", lambda _root: common.as_posix())
     monkeypatch.setattr(release_transition, "wheel_build_identity", lambda _wheel: build)
 
     with pytest.raises(ValueError, match="release_package_store_invalid"):
-        release_transition.materialize_release_wheel(
+        release_transition.materialize_package_wheel(
             repo,
             wheel,
             expected_build=build,

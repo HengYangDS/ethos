@@ -136,14 +136,13 @@ def runtime_executable(runtime: Path, name: str) -> Path:
     return runtime / directory / f"{name}{suffix}"
 
 
-def runtime_build(commit: str, tree: str, *, accepted: bool = False) -> BuildIdentity:
+def runtime_build(commit: str, tree: str, *, release: bool = False) -> BuildIdentity:
     """Construct one exact test build identity."""
     return build_identity(
-        product="0.2.0-alpha.1",
+        product="0.2.0-alpha.2",
         source_commit=commit,
         source_tree=tree,
-        channel="accepted" if accepted else "development",
-        acceptance_state="accepted" if accepted else "unaccepted",
+        release=release,
     )
 
 
@@ -213,7 +212,7 @@ def materialize_runtime_case(
 
     def require_runtime(
         runtime: Path,
-        artifact: identity_transition.ReleaseArtifact,
+        artifact: identity_transition.PackageArtifact,
         _environment: RuntimeEnvironment,
         **kwargs: object,
     ) -> None:

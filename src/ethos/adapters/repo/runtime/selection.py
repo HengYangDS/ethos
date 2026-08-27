@@ -21,6 +21,7 @@ from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.transition import require_release_identity_attested
 from ethos.repository.release.admission import accepted_release_identity
+from ethos.repository.release.identity import is_release_build
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -106,7 +107,7 @@ def activate_runtime(
         selected = require_selected_runtime(candidate)
         release = (
             accepted_release_identity(selected.build, wheel_sha256=selected.wheel_sha256)
-            if selected.build.acceptance_state == "accepted"
+            if is_release_build(selected.build)
             else None
         )
         require_release_identity_attested(common_root, release)
@@ -114,7 +115,7 @@ def activate_runtime(
         current = _selector_bytes(runtime_root / _SELECTOR)
         if expected_current is not _UNSPECIFIED and current != expected_current:
             raise ValueError(_CURRENT_STALE)
-        _require_accepted_runtime_closure_unique(common_root, selected)
+        _require_release_runtime_closure_unique(common_root, selected)
         _replace_selector(runtime_root / _SELECTOR, desired)
         return current_runtime(common_root, expected_build=selected.build)
 
@@ -284,11 +285,11 @@ def _selection_lock_path(common: Path) -> Path:
     return common / "ethos" / "runtime-selection.lock"
 
 
-def _require_accepted_runtime_closure_unique(
+def _require_release_runtime_closure_unique(
     common: Path,
     candidate: SelectedRuntime,
 ) -> None:
-    if candidate.build.acceptance_state != "accepted":
+    if not is_release_build(candidate.build):
         return
     runtime_root = common / "ethos" / "runtime"
     for path in runtime_root.iterdir():
@@ -305,8 +306,8 @@ def _require_accepted_runtime_closure_unique(
             and existing.architecture == candidate.architecture
             and existing.digest != candidate.digest
         ):
-            reason = "accepted_runtime_identity_conflict"
-            raise ValueError(reason)
+            message = "release_runtime_identity_conflict"
+            raise ValueError(message)
 
 
 def _valid_digest(value: str) -> bool:

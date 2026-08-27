@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.runtime.source import source_build_identity
-from ethos.adapters.repo.runtime.transition import materialize_release_wheel
+from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 from tools.ci.local_install_smoke import prepare_supply
 from tools.ci.local_install_smoke import run as run_install_smoke
 
@@ -90,7 +90,7 @@ def publish_built_wheel(repo: Path, staging: Path, artifacts: Path) -> Path:
         message = "release_wheel_output_invalid"
         raise ValueError(message)
     wheel = wheels[0]
-    durable = materialize_release_wheel(
+    durable = materialize_package_wheel(
         repo,
         wheel,
         expected_build=source_build_identity(repo),

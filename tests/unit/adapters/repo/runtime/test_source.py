@@ -55,8 +55,6 @@ def test_source_identity_overlay_and_failure_matrix(
         "new-source.txt",
         "tracked.txt",
     ]
-    with pytest.raises(ValueError, match="build_channel_invalid"):
-        source.source_build_identity(repository, channel="invalid")
     packaged = tmp_path / "package"
     packaged.mkdir()
     with pytest.raises(ValueError, match="package_build_identity_missing"):
@@ -67,8 +65,3 @@ def test_source_identity_overlay_and_failure_matrix(
         )
         with pytest.raises(ValueError, match="build_source_identity_unavailable"):
             source.source_git_identity(packaged)
-    invalid = _repository(tmp_path / "invalid-policy", "source")
-    (invalid / ".ethos").mkdir()
-    (invalid / ".ethos/workspace.toml").write_bytes(b"\xff")
-    with pytest.raises(ValueError, match="accepted_build_policy_unavailable"):
-        source.source_build_identity(invalid, channel="accepted")

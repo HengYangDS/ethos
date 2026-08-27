@@ -34,7 +34,7 @@ def _repository(tmp_path: Path, *, version: bool) -> tuple[Path, Path]:
     (repo / ".ethos/workspace.toml").write_text('[branch_roles]\naccepted_branch = "dev"\n')
     (repo / "tracked.txt").write_text("accepted\n")
     if version:
-        (repo / "VERSION").write_text("0.2.0-alpha.1\n")
+        (repo / "VERSION").write_text("0.2.0-alpha.2\n")
     _commit(repo, "accepted")
     _git(repo, "worktree", "add", "-q", "-b", "work/runtime", str(lane))
     return repo, lane
@@ -44,9 +44,7 @@ def test_self_hosted_expectation_uses_accepted_checkout_and_rejects_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, lane = _repository(tmp_path, version=True)
-    expected = runtime_build(
-        _git(repo, "rev-parse", "dev"), _git(repo, "rev-parse", "dev^{tree}"), accepted=True
-    )
+    expected = runtime_build(_git(repo, "rev-parse", "dev"), _git(repo, "rev-parse", "dev^{tree}"))
     (lane / "tracked.txt").write_text("candidate\n")
     _commit(lane, "candidate")
     identity, source_root = authority.expected_runtime_build(lane)
@@ -54,7 +52,7 @@ def test_self_hosted_expectation_uses_accepted_checkout_and_rejects_drift(
     monkeypatch.setattr(
         authority, "source_build_identity", lambda *_a, **_k: runtime_build("a" * 40, "b" * 40)
     )
-    with pytest.raises(ValueError, match="accepted_build_identity_unavailable"):
+    with pytest.raises(ValueError, match="source_build_identity_unavailable"):
         authority.expected_runtime_build(lane)
 
 
@@ -62,7 +60,7 @@ def test_version_migration_uses_exact_invoking_lane(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _repo, lane = _repository(tmp_path, version=False)
-    (lane / "VERSION").write_text("0.2.0-alpha.1\n")
+    (lane / "VERSION").write_text("0.2.0-alpha.2\n")
     (lane / "pyproject.toml").write_text("[project]\nname='ethos'\n")
     module = lane / "src/ethos/adapters/repo/runtime/authority.py"
     module.parent.mkdir(parents=True)
@@ -75,9 +73,8 @@ def test_version_migration_uses_exact_invoking_lane(
     assert identity.source_commit == _git(lane, "rev-parse", "HEAD")
     assert identity.source_tree == _git(lane, "rev-parse", "HEAD^{tree}")
     assert authority.expected_runtime_source(lane) == identity[2:4]
-    assert (identity.channel, identity.acceptance_state, source_root) == (
-        "development",
-        "unaccepted",
+    assert (identity.distribution_version.endswith(identity.source_tree), source_root) == (
+        True,
         lane.resolve(),
     )
 

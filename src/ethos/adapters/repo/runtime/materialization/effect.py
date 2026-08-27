@@ -31,8 +31,8 @@ from ethos.adapters.repo.runtime.materialization.python_image import materialize
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_entrypoint
 from ethos.adapters.repo.runtime.selection import runtime_python
-from ethos.adapters.repo.runtime.transition import ReleaseArtifact
-from ethos.adapters.repo.runtime.transition import materialize_release_wheel
+from ethos.adapters.repo.runtime.transition import PackageArtifact
+from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 
 if TYPE_CHECKING:
     from ethos.repository.release.identity import BuildIdentity
@@ -67,7 +67,7 @@ def materialize_runtime(
         if reusable := _reusable_runtime(repo, expected_build, environment):
             return reusable / "python"
         wheel = resolve_runtime_wheel(package_source, work / "wheel")
-        artifact = materialize_release_wheel(
+        artifact = materialize_package_wheel(
             repo,
             wheel,
             expected_build=expected_build,
@@ -126,7 +126,7 @@ def materialize_runtime_generation(
     work: Path,
     source: Path,
     interpreter: Path,
-    artifact: ReleaseArtifact,
+    artifact: PackageArtifact,
     environment: RuntimeEnvironment,
     *,
     python_facts: dict[str, str] | None = None,
@@ -175,7 +175,7 @@ def materialize_runtime_generation(
 def _finalize_runtime(
     runtime: Path,
     target: Path,
-    artifact: ReleaseArtifact,
+    artifact: PackageArtifact,
     environment: RuntimeEnvironment,
     runtime_files: dict[str, str],
 ) -> None:
@@ -237,7 +237,7 @@ def remove_generated_tree(path: Path, *, ignore_errors: bool = False) -> None:
 
 def require_runtime_generation(
     runtime: Path,
-    artifact: ReleaseArtifact,
+    artifact: PackageArtifact,
     environment: RuntimeEnvironment,
     *,
     expected_root: Path | None = None,

@@ -22,7 +22,7 @@ from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import wheel_build_identity
 
 
-class ReleaseArtifact(NamedTuple):
+class PackageArtifact(NamedTuple):
     """Post-observed wheel and its immutable identity."""
 
     path: Path
@@ -34,14 +34,14 @@ def _fail(reason: str) -> NoReturn:
     raise ValueError(reason)
 
 
-def materialize_release_wheel(
+def materialize_package_wheel(
     repo: Path,
     wheel: Path,
     *,
     expected_build: BuildIdentity,
     collision: str,
-) -> ReleaseArtifact:
-    """Admit and materialize one wheel through the release identity."""
+) -> PackageArtifact:
+    """Materialize one exact wheel without implying package release."""
     payload = wheel.read_bytes()
     sha256 = hashlib.sha256(payload).hexdigest()
     build = wheel_build_identity(wheel)
@@ -51,32 +51,44 @@ def materialize_release_wheel(
     package_store = common / "ethos" / "packages"
     _require_package_store(common, package_store)
     target = package_store / sha256 / wheel.name
-    release = (
-        accepted_release_identity(build, wheel_sha256=sha256)
-        if build.acceptance_state == "accepted"
-        else None
-    )
-    if release:
-        _root, attestations = read_attestation_set(repo)
-        if gaps := release_identity_admission_gaps(
-            release, accepted_release_identities(attestations)
-        ):
-            raise ValueError(",".join(gaps))
     durable = write_content_addressed(target, payload, collision=collision)
-    if release is None:
-        if wheel_build_identity(durable) != build or _sha256(durable) != sha256:
-            _fail("identity_transition_post_observation_mismatch")
-    else:
-        observed = _observe_release_wheel(durable)
-        if observed != release:
-            _fail("identity_transition_post_observation_mismatch")
-        recorded = record_attestation_once(
-            repo,
-            accepted_release_attestation(observed, issued_at=datetime.now(UTC)),
-        )
-        if accepted_release_identities((recorded,)) != (observed,):
-            _fail("identity_transition_attestation_mismatch")
-    return ReleaseArtifact(target, sha256, build)
+    if wheel_build_identity(durable) != build or _sha256(durable) != sha256:
+        _fail("identity_transition_post_observation_mismatch")
+    return PackageArtifact(target, sha256, build)
+
+
+def materialize_explicit_release(
+    repo: Path,
+    wheel: Path,
+    *,
+    expected_build: BuildIdentity,
+    collision: str,
+) -> AcceptedReleaseIdentity:
+    """Admit, materialize, observe, and attest one explicit release."""
+    payload = wheel.read_bytes()
+    sha256 = hashlib.sha256(payload).hexdigest()
+    build = wheel_build_identity(wheel)
+    if build != expected_build:
+        _fail("release_wheel_build_identity_stale")
+    release = accepted_release_identity(build, wheel_sha256=sha256)
+    _root, attestations = read_attestation_set(repo)
+    if gaps := release_identity_admission_gaps(release, accepted_release_identities(attestations)):
+        raise ValueError(",".join(gaps))
+    common = Path(git_common_dir(repo))
+    package_store = common / "ethos" / "packages"
+    _require_package_store(common, package_store)
+    target = package_store / sha256 / wheel.name
+    durable = write_content_addressed(target, payload, collision=collision)
+    observed = _observe_release_wheel(durable)
+    if observed != release:
+        _fail("identity_transition_post_observation_mismatch")
+    recorded = record_attestation_once(
+        repo,
+        accepted_release_attestation(observed, issued_at=datetime.now(UTC)),
+    )
+    if accepted_release_identities((recorded,)) != (observed,):
+        _fail("identity_transition_attestation_mismatch")
+    return observed
 
 
 def require_release_identity_attested(

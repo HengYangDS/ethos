@@ -18,7 +18,7 @@ from ethos.repository.release.identity import build_identity_from_projection
 if TYPE_CHECKING:
     from ethos.repository.release.identity import BuildIdentity
 
-_SCHEMA_VERSION = 5
+_SCHEMA_VERSION = 6
 _HEX = frozenset("0123456789abcdef")
 _ENVIRONMENT_INVALID = "hook_runtime_environment_invalid"
 _MANIFEST_INVALID = "hook_runtime_manifest_invalid"
@@ -165,7 +165,7 @@ def load_runtime_manifest_bytes(raw: bytes) -> RuntimeManifest:
         payload = json.loads(raw.decode("utf-8"))
         build = build_identity_from_projection(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 **{
                     key: payload[key]
                     for key in (
@@ -173,8 +173,6 @@ def load_runtime_manifest_bytes(raw: bytes) -> RuntimeManifest:
                         "distribution_version",
                         "source_commit",
                         "source_tree",
-                        "channel",
-                        "acceptance_state",
                     )
                 },
             }

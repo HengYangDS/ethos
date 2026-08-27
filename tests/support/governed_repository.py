@@ -35,6 +35,7 @@ from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.semantic import commitment_fixture
 
 
@@ -48,13 +49,19 @@ class WorkLaneFixture(NamedTuple):
 
 
 def start_adopted_candidate(tmp_path: Path) -> tuple[Path, Path]:
-    """Create an adopted accepted root and its candidate worktree."""
+    """Create an adopted accepted root and its candidate worktree.
+
+    The generic fixture owns Git, profile, and OpenSpec facts. Package-runtime
+    acceptance is orthogonal and must be requested explicitly by the tests that
+    consume it; otherwise every semantic fixture would copy and hash a complete
+    runtime image.
+    """
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    install_hook_launchers(candidate)
+    install_fixture_hook_runtime(candidate)
     return repo, candidate
 
 
@@ -75,7 +82,7 @@ def start_adopted_work_lane(
         scope=scope,
     )
     worktree = tmp_path / f"repo-work-{name}"
-    run_ethos(
+    arguments = (
         "lane",
         "start",
         name,
@@ -89,8 +96,8 @@ def start_adopted_work_lane(
         holder_ref,
         "--apply",
         "--json",
-        cwd=repo,
     )
+    run_ethos(*arguments, cwd=repo)
     return WorkLaneFixture(repo, candidate, source, worktree)
 
 

@@ -25,24 +25,18 @@ or create reusable authorization.
 - **AND** it mints no role, token, session, or reusable permission.
 
 ### Requirement: Work Lane Topology
-ETHOS SHALL classify linked worktrees by lane role and surface foreign Work
-Lanes without entering their file trees.
+ETHOS SHALL classify linked worktrees by local repository role and SHALL keep remote review refs outside local authoring authority.
 
 #### Scenario: Role policy is projected
-- **WHEN** `ethos status --json` or `ethos lane status --json` reports
-  workspace topology
-- **THEN** the payload includes `role_policy`
-- **AND** the role order is
-  `release_root -> accepted_root -> candidate -> work_lane -> proposal_lane`
-- **AND** `branch_bindings` follow that semantic order before branch name
-- **AND** host navigation labels are not product state
-- **AND** adapters derive presentation from `worktree_binding` rather than
-  owning branch, lane, or mutation semantics
+- **WHEN** `ethos status --json` or `ethos lane status --json` reports workspace topology
+- **THEN** local role order is `release_root -> accepted_root -> candidate -> work_lane`
+- **AND** a configured `proposal/*` target is classified only by publication admission as `proposal_ref`
+- **AND** no proposal ref grants local authoring or Lease authority.
 
 #### Scenario: Foreign Work Lanes exist
 - **WHEN** `ethos status` or `ethos lane status` inspects a repository with a
   linked `work/*` lane outside the current checkout
-- **THEN** ETHOS reports the foreign lane path, branch, head, and role from git
+- **THEN** ETHOS reports the foreign lane path, branch, head, and role from Git
   worktree metadata
 - **AND** ETHOS reports `foreign_work_lane_present` as a coordination signal
 - **AND** ETHOS does not read, modify, close, or clean the foreign lane
@@ -51,23 +45,27 @@ Lanes without entering their file trees.
 - **AND** actual mutation re-evaluates its exact current request.
 
 ### Requirement: Prewrite Admission
-ETHOS SHALL gate tracked writes through the current Work Lane role and editor
-root binding before files are edited.
+ETHOS SHALL admit tracked authoring only from an owned `work/*` lane.
 
 #### Scenario: Protected root write is requested
 - **WHEN** `ethos lane prewrite` checks tracked candidate paths from an accepted
-  root, candidate, proposal lane, detached checkout, or unknown lane
-- **THEN** ETHOS blocks the request with `protected_lane_prewrite_blocked`
+  root, candidate, detached checkout, or other non-Work-Lane checkout
+- **THEN** ETHOS blocks the request with `protected_lane_prewrite_blocked`.
 
 #### Scenario: Owned Work Lane write is requested
 - **WHEN** `ethos lane prewrite` checks tracked candidate paths from a `work/*`
   lane whose editor root matches the checkout root
-- **THEN** ETHOS admits the write and returns a structured admission report
+- **THEN** ETHOS admits the write and returns a structured admission report.
 
 #### Scenario: Work Lane write lacks editor-root binding
 - **WHEN** `ethos lane prewrite` checks tracked candidate paths from a `work/*`
   lane without editor-root binding
-- **THEN** ETHOS blocks the request with `editor_root_missing`
+- **THEN** ETHOS blocks the request with `editor_root_missing`.
+
+#### Scenario: Proposal ref is checked out locally
+- **WHEN** `ethos lane prewrite` evaluates tracked mutation from a `proposal/*` checkout
+- **THEN** the checkout has no authoring role
+- **AND** ETHOS blocks the write rather than suggesting that the proposal ref is a Work Lane.
 
 ### Requirement: Lease-backed Lane Start
 

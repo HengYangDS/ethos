@@ -2,28 +2,22 @@
 
 ### Requirement: Command results use one closed semantic envelope
 
-Every public command result SHALL carry one authoritative verdict and SHALL be
-self-explanatory at the typed boundary. `pass` SHALL carry no blocking gap or
-adverse diagnostic. `unknown` SHALL name at least one missing fact or evidence
-item. `block` SHALL name at least one failed condition or carry an adverse
-diagnostic. A projection SHALL NOT manufacture a verdict from a facts-only
-mapping.
+Every public command result SHALL carry one authoritative, self-explanatory
+verdict. `pass` SHALL carry no blocker; `unknown` SHALL name missing facts or
+evidence; `block` SHALL name a failed condition or adverse diagnostic. A
+projection SHALL NOT manufacture a verdict from facts-only data.
 
 #### Scenario: Required facts are unavailable
 
-- **WHEN** a command cannot determine a required fact or evidence item
-- **THEN** the result verdict is `unknown`
-- **AND** `required_gaps` names the missing fact or evidence.
+- **WHEN** a required fact or evidence item is unavailable
+- **THEN** the verdict is `unknown` and `required_gaps` names it.
 
-#### Scenario: A known condition blocks the operation
+#### Scenario: A condition blocks the operation
 
-- **WHEN** a current fact violates an admitted precondition
-- **THEN** the result verdict is `block`
-- **AND** a required gap or adverse diagnostic identifies the reason.
+- **WHEN** an admitted precondition fails
+- **THEN** the verdict is `block` with a named gap or adverse diagnostic.
 
-#### Scenario: Work Lane facts and validation are healthy
+#### Scenario: Work Lane validation is healthy
 
-- **WHEN** `lane status` observes a valid workspace and its schema validation passes
-- **THEN** the public verdict is `pass`
-- **AND** coordination advisories remain observations rather than being promoted
-  into a reasonless `unknown` verdict.
+- **WHEN** workspace validation passes
+- **THEN** `lane status` is `pass`; coordination advisories stay observations.

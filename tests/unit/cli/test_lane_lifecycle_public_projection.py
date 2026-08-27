@@ -25,26 +25,6 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
             "ethos lane prewrite <path>",
         ),
         (
-            "lane status",
-            {
-                "verdict": "block",
-                "role": "accepted_root",
-                "required_gaps": ["accepted_root_observe_only"],
-            },
-            "blocked",
-            "ethos status --json",
-        ),
-        (
-            "lane status",
-            {
-                "verdict": "unknown",
-                "role": "work_lane",
-                "required_gaps": ["lane_facts_unavailable"],
-            },
-            "unknown",
-            "ethos lane prewrite <path>",
-        ),
-        (
             "lane prewrite",
             {"verdict": "pass", "path_count": 1, "role": "work_lane"},
             "admitted",

@@ -12,10 +12,15 @@ scope = [
   "openspec/changes/proposal-ref-subtraction/**",
   "src/ethos/adapters/admission/git_admission.py",
   "src/ethos/contracts/branch/roles.py",
+  "src/ethos/repository/release/publication.py",
+  "src/ethos/surface/cli/root/publish.py",
+  "system/routing.toml",
   "system/schemas/kernel/workspace-status.schema.json",
   "tests/fixtures/literal-cases/cases.json",
   "tests/unit/admission/test_git_admission_failure_branches.py",
+  "tests/unit/cli/land/test_publication.py",
   "tests/unit/lanes/test_lane_family_profile.py",
+  "tests/unit/release/test_policy_attestation.py",
 ]
 invariants = [
   "normal_authoring_has_one_local_role_work_lane",

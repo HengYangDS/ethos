@@ -11,6 +11,7 @@ scope = [
   "src/ethos/adapters/admission/prewrite.py",
   "src/ethos/adapters/openspec/profile.py",
   "src/ethos/adapters/openspec/start_effect.py",
+  "src/ethos/adapters/repo/coordination.py",
   "src/ethos/adapters/repo/status/workspace.py",
   "src/ethos/surface/cli/root/inspection.py",
   "src/ethos/surface/cli/root/planning.py",
@@ -18,6 +19,7 @@ scope = [
   "tests/unit/cli/openspec/test_generation_observation.py",
   "tests/unit/cli/test_post_archive_planning.py",
   "tests/unit/cli/test_proof_command.py",
+  "tests/unit/cli/test_terminal_command_surface.py",
   "tests/unit/lanes/test_hook_admission.py",
 ]
 invariants = [

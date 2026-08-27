@@ -17,9 +17,11 @@ _SOURCE_BUILD_IDENTITY = Path("src/ethos/data/build/identity.json")
 _HEX = frozenset("0123456789abcdef")
 
 
-def source_build_identity(root: Path, *, channel: str | None = None) -> BuildIdentity:
+def source_build_identity(
+    root: Path, *, channel: str | None = None, include_overlay: bool = True
+) -> BuildIdentity:
     """Compile the current Git checkout into its exact build identity."""
-    commit, tree = source_git_identity(root)
+    commit, tree = source_git_identity(root, include_overlay=include_overlay)
     selected = channel or _source_channel(root, commit=commit, tree=tree)
     if selected not in {"development", "accepted"}:
         message = "build_channel_invalid"
@@ -32,19 +34,6 @@ def source_build_identity(root: Path, *, channel: str | None = None) -> BuildIde
         source_tree=tree,
         channel=selected,
         acceptance_state="accepted" if selected == "accepted" else "unaccepted",
-    )
-
-
-def source_head_build_identity(root: Path) -> BuildIdentity:
-    """Compile the exact committed HEAD used to authorize the next Git effect."""
-    commit = _git(root, "rev-parse", "HEAD")
-    tree = _git(root, "rev-parse", "HEAD^{tree}")
-    return build_identity(
-        product=product_version(root),
-        source_commit=commit,
-        source_tree=tree,
-        channel="development",
-        acceptance_state="unaccepted",
     )
 
 
@@ -64,9 +53,11 @@ def source_distribution_version() -> str:
     return build_input_identity(Path(__file__).resolve().parents[5]).distribution_version
 
 
-def source_git_identity(root: Path) -> tuple[str, str]:
+def source_git_identity(root: Path, *, include_overlay: bool = True) -> tuple[str, str]:
     """Return exact HEAD and the effective non-ignored source-build overlay."""
     commit = _git(root, "rev-parse", "HEAD")
+    if not include_overlay:
+        return commit, _git(root, "rev-parse", "HEAD^{tree}")
     with tempfile.TemporaryDirectory(prefix="ethos-source-index-") as directory:
         environment = {"GIT_INDEX_FILE": str(Path(directory) / "index")}
         _git(root, "read-tree", "HEAD", env=environment)

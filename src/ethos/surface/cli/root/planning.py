@@ -92,6 +92,7 @@ def plan(
             repo,
             status=status_payload,
             repository_id=repository.id,
+            authority=authority,
             change=change,
             changed=changed,
         )
@@ -212,6 +213,7 @@ def plan(
         and skill_activation.verdict == "pass"
     )
     closeout_action = closeout_command_from_status(repo, status_payload)
+    authority_projection = authority.projection() if authority is not None else {}
     result = EthosResult(
         command="plan",
         verdict="pass" if ok else "block" if required_gaps else "unknown",
@@ -235,7 +237,7 @@ def plan(
             )
         ),
         data={
-            "authority": authority,
+            "authority": authority_projection,
             "changed_paths": list(paths),
             "selected_carrier": generation_scope.selected_carrier,
             "path_attributions": list(generation_scope.attribution_projection()),

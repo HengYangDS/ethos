@@ -27,7 +27,7 @@ from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import observation_verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -176,7 +176,7 @@ def _emit_host_gate_observation(*, repo: Path, options: _ProofOptions, json_outp
 
 def resolve_generation(repo: Path, *, change: str | None = None) -> CurrentGenerationBinding | None:
     """Resolve the selected logical Change and current-generation scope."""
-    status = workspace_status(repo, include_foreign_path_scope=False)
+    status, authority = workspace_status_observation(repo, include_foreign_path_scope=False)
     status = dict(status)
     status["changed_paths"] = list(change_scope_paths_from_status(repo, status))
     try:
@@ -185,6 +185,7 @@ def resolve_generation(repo: Path, *, change: str | None = None) -> CurrentGener
             repo,
             status=status,
             repository_id=repository.id,
+            authority=authority,
             change=change,
         )
     except ValueError:

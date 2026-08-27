@@ -465,5 +465,5 @@ projections are derived from the same identity result.
 - **WHEN** an agent runs `ethos --version --json`
 - **THEN** stdout is one valid UTF-8 JSON document containing product version,
   distribution version, source commit/tree, wheel SHA256 or explicit absence,
-  runtime digest or explicit absence, channel, and acceptance state
+  and runtime digest or explicit absence
 - **AND** JSON string escaping is used only where required by JSON syntax.

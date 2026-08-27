@@ -124,9 +124,11 @@ closes.
    to them as a projection.
 3. **Separate planes.** Local proof and each declared peer observation produce
    distinct attestations and cannot imply one another.
-4. **Retire only after relation proof.** A carrier is removed only after its
-   inbound consumers, preserved history, replacement owner, and projection
-   references are checked.
+4. **Subtract before succession.** For every obsolete carrier or Work Lane,
+   move only unique terminal semantics into the existing owner, then delete the
+   implementation, tests, schema, documentation, state, ref, and worktree that
+   no longer have a consumer. Foreign dirty work waits only for explicit owner
+   handoff; it does not justify a preservation store or parallel lifecycle.
 5. **Prove across shapes.** Product, code, and documentation adopters demonstrate
    the same input-to-verdict relation while retaining their native carriers.
 6. **One obvious safe path.** Defaults select the least-powerful useful operation;

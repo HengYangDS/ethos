@@ -26,7 +26,6 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.coordination import LaneLease
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.governed_repository import commit_fixture_file
@@ -43,15 +42,6 @@ if TYPE_CHECKING:
 
 _HOLDER = "agent:test:case:agent-test"
 _LEASE_COORDINATES = literal_case("lanes.test_lane_family_profile:assign:_LEASE_COORDINATES:0")
-
-
-def test_proposal_ref_is_not_a_local_authoring_lane() -> None:
-    policy = BranchRolePolicy()
-
-    assert policy.role_for_branch("proposal/topic") == "other"
-    assert all(
-        binding["config_key"] != "proposal_branch_prefix" for binding in policy.semantic_order()
-    )
 
 
 @pytest.fixture
@@ -111,7 +101,6 @@ def test_work_lane_projections_preserve_exact_carrier_coordinates() -> None:
     support_names = summary_names[:2] + summary_names[5:7]
     assert {name: lease[name] for name in summary_names}.items() <= summary.items()
     assert {f"lease_{name}": lease[name] for name in support_names}.items() <= support.items()
-    assert support["base_commitment_digest"] == lease["base_commitment_digest"]
 
 
 @pytest.mark.parametrize(

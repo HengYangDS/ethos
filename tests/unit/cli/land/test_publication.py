@@ -565,6 +565,7 @@ def test_publish_uses_git_ref_grammar_as_the_positive_name_authority(
 def test_publish_proposal_target_requires_the_local_candidate_source(tmp_path: Path) -> None:
     repo, _remotes, head = _branch_publication_fixture(tmp_path, source_branch="dev")
 
+    assert load_branch_role_policy(repo).role_for_branch("proposal/topic") == "other"
     assert _branch_publication(repo, head, blocked=True)["required_gaps"] == [
         "publication_source_role_mismatch:dev:proposal_ref"
     ]

@@ -35,6 +35,19 @@ def source_build_identity(root: Path, *, channel: str | None = None) -> BuildIde
     )
 
 
+def source_head_build_identity(root: Path) -> BuildIdentity:
+    """Compile the exact committed HEAD used to authorize the next Git effect."""
+    commit = _git(root, "rev-parse", "HEAD")
+    tree = _git(root, "rev-parse", "HEAD^{tree}")
+    return build_identity(
+        product=product_version(root),
+        source_commit=commit,
+        source_tree=tree,
+        channel="development",
+        acceptance_state="unaccepted",
+    )
+
+
 def build_input_identity(root: Path) -> BuildIdentity:
     """Resolve a Git checkout or its carried sdist build identity."""
     if (root / ".git").exists():

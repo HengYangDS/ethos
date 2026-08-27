@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import platform
+import shutil
 import subprocess
 import sys
+import uuid
+import venv
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -14,7 +18,17 @@ import ethos.adapters.repo.runtime.materialization.effect as runtime_materializa
 import ethos.adapters.repo.runtime.materialization.python_image as runtime_python_image
 import ethos.adapters.repo.runtime.transition as identity_transition
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
+from ethos.adapters.repo.runtime.manifest import runtime_digest
+from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
+from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
+from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
+from ethos.adapters.repo.runtime.materialization.python_environment import (
+    observe_runtime_environment,
+)
+from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
@@ -25,6 +39,82 @@ if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+
+
+def install_fixture_hook_runtime(root: Path) -> dict[str, object]:
+    """Install a small valid runtime for non-runtime governance fixtures."""
+    common = Path(git_common_dir(root))
+    runtime_root = common / "ethos/runtime"
+    staging = runtime_root / f".fixture-{uuid.uuid4().hex}"
+    package = b"ethos fixture wheel\n"
+    wheel_sha256 = hashlib.sha256(package).hexdigest()
+    wheel = common / "ethos/packages" / wheel_sha256 / "ethos-fixture.whl"
+    build = expected_runtime_build(root)[0]
+    environment = observe_runtime_environment(REPOSITORY_ROOT, Path(sys.executable))
+    try:
+        _create_fixture_python(staging / "python")
+        runtime_files = runtime_file_inventory(staging)
+        digest = runtime_digest(
+            wheel_sha256=wheel_sha256,
+            build=build,
+            environment=environment,
+            runtime_files=runtime_files,
+        )
+        target = runtime_root / digest
+        (staging / "manifest.json").write_bytes(
+            runtime_manifest_bytes(
+                digest=digest,
+                wheel_sha256=wheel_sha256,
+                build=build,
+                environment=environment,
+                runtime_files=runtime_files,
+            )
+        )
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            shutil.rmtree(staging)
+        else:
+            staging.rename(target)
+        wheel.parent.mkdir(parents=True, exist_ok=True)
+        wheel.write_bytes(package)
+        assert file_sha256(wheel) == wheel_sha256
+        activate_runtime(common, target)
+        return install_hook_launchers(root)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
+def _create_fixture_python(target: Path) -> None:
+    """Create an executable fixture image backed by the test environment."""
+    venv.EnvBuilder(with_pip=False, symlinks=False).create(target)
+    version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    relative_site = (
+        Path("Lib/site-packages") if os.name == "nt" else Path(f"lib/{version}/site-packages")
+    )
+    site_packages = target / relative_site
+    source_site = Path(sys.prefix) / relative_site
+    site_packages.mkdir(parents=True, exist_ok=True)
+    (site_packages / "ethos-fixture.pth").write_text(
+        f"{source_site.resolve().as_posix()}\n{(REPOSITORY_ROOT / 'src').as_posix()}\n",
+        encoding="utf-8",
+    )
+    if os.name == "nt":
+        launcher = Path(sys.executable).with_name("ethos.exe")
+        if not launcher.is_file():
+            message = "fixture_hook_runtime_launcher_missing"
+            raise ValueError(message)
+        shutil.copy2(launcher, target / "Scripts/ethos.exe")
+        (target / "Scripts/ethos-script.py").write_text(
+            "from ethos.cli import main\nraise SystemExit(main())\n",
+            encoding="utf-8",
+        )
+        return
+    entrypoint = target / "bin/ethos"
+    entrypoint.write_text(
+        '#!/bin/sh\nexec "${0%/*}/python" -B -I -m ethos.cli "$@"\n',
+        encoding="utf-8",
+    )
+    entrypoint.chmod(0o755)
 
 
 def git_process(root: Path, *args: object, stdin: str = "") -> subprocess.CompletedProcess[str]:

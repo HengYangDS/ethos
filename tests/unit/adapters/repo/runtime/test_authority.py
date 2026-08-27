@@ -58,7 +58,7 @@ def test_self_hosted_expectation_uses_accepted_checkout_and_rejects_drift(
         authority.expected_runtime_build(lane)
 
 
-def test_version_migration_uses_exact_invoking_lane(
+def test_version_migration_uses_exact_invoking_lane_head(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _repo, lane = _repository(tmp_path, version=False)
@@ -68,9 +68,16 @@ def test_version_migration_uses_exact_invoking_lane(
     module.parent.mkdir(parents=True)
     module.touch()
     monkeypatch.setattr(authority, "__file__", str(module))
+    _commit(lane, "version migration")
+    (lane / "tracked.txt").write_text("staged postimage\n")
+    _git(lane, "add", "tracked.txt")
     identity, source_root = authority.expected_runtime_build(lane)
     assert identity.source_commit == _git(lane, "rev-parse", "HEAD")
-    assert identity.source_tree != _git(lane, "rev-parse", "HEAD^{tree}")
+    assert identity.source_tree == _git(lane, "rev-parse", "HEAD^{tree}")
+    assert authority.expected_runtime_source(lane) == (
+        identity.source_commit,
+        identity.source_tree,
+    )
     assert (identity.channel, identity.acceptance_state, source_root) == (
         "development",
         "unaccepted",

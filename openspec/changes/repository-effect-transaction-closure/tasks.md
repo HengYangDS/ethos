@@ -6,7 +6,7 @@
 
 ## 2. Replacement and deletion
 
-- [ ] 2.1 Remove hook-side Lease/effect ownership and move exact completion into the executor.
+- [x] 2.1 Remove hook-side Lease/effect ownership and move exact completion into the executor.
 - [ ] 2.2 Route local lifecycle ref effects through the one executor.
 - [ ] 2.3 Delete superseded ref-effect compensation, recovery, schemas, tests, and documentation.
 

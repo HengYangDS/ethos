@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import shutil
-import sqlite3
-from contextlib import closing
 from typing import TYPE_CHECKING
 
 import pytest
@@ -110,45 +107,21 @@ def test_prepared_ref_shape_matrix(
         assert "ok" not in report
 
 
-@pytest.mark.parametrize("case", ["create", "delete", "unknown"])
-def test_committed_zero_oid_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+@pytest.mark.parametrize("phase", ["committed", "aborted"])
+@pytest.mark.parametrize("case", ["create", "delete"])
+def test_terminal_zero_oid_transitions_are_observation_only(
+    tmp_path: Path, phase: str, case: str
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     head, zero, branch = git(repo, "rev-parse", "HEAD"), "0" * 40, "work/terminal"
-    if case == "unknown":
-        commit_active_commitment(repo)
-        head = git(repo, "rev-parse", "HEAD")
-        holder = "agent:test:case:unknown-create"
-        initial = _lease(repo, branch, head, holder)
-        payload = dict(initial["payload"])
-        payload["retired_field"] = "retired"
-        raw = json.dumps(payload, sort_keys=True)
-        database = state_database(repo)
-        with closing(sqlite3.connect(database)) as connection:
-            connection.execute(
-                "update leases set payload_json = ? where subject = ?", (raw, branch)
-            )
-            connection.commit()
-        monkeypatch.setenv("ETHOS_ACTOR", holder)
-        _expect(
-            _report(repo, "committed", zero, head, branch),
-            "unknown",
-            f"work_lane_lease_unknown:{branch}",
-        )
-        with closing(sqlite3.connect(database)) as connection:
-            stored = connection.execute(
-                "select payload_json from leases where subject = ?", (branch,)
-            ).fetchone()[0]
-        assert stored == raw
-        return
     if case == "create":
         git(repo, "branch", branch, head)
     old, new = (zero, head) if case == "create" else (head, zero)
-    report = _report(repo, "committed", old, new, branch)
+    report = _report(repo, phase, old, new, branch)
     _expect(report, "pass")
     assert report["state"] == "admitted"
-    assert report["decision"]["reason"] == "lane_ref_terminal_state_observed"
+    assert report["decision"]["reason"] == f"{phase}_observed"
+    assert report["lease"] == {}
 
 
 @pytest.mark.parametrize("case", ["create", "delete"])
@@ -186,61 +159,50 @@ def test_ref_intent_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case
     assert intent["nonce"]
 
 
-@pytest.mark.parametrize("case", ["prepared", "moved", "unmoved", "unknown"])
-def test_lease_transition_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+def test_prepared_transition_validates_current_ref_and_lease(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _repo, candidate, lane, head, initial = _lane(tmp_path, monkeypatch)
+    target = _commit(candidate)
+    monkeypatch.setattr(
+        transitions, "workspace_status", lambda _root: pytest.fail("status"), raising=False
+    )
+    report = _report(lane, "prepared", head, target, "work/current")
+    _expect(report, "pass")
+    assert report["decision"]["action"] == "allow"
+    assert report["lease"]["epoch"] == 1
+    stale = "c" * 40
+    _expect(
+        _report(lane, "prepared", stale, target, "work/current"),
+        "block",
+        f"lane_ref_observation_stale:{stale}!={head}",
+    )
+    _assert_lease_unchanged(leases_by_branch(lane)["work/current"], initial)
+
+
+@pytest.mark.parametrize("phase", ["committed", "aborted"])
+@pytest.mark.parametrize("ref_state", ["moved", "unmoved"])
+def test_terminal_transition_does_not_mutate_lease(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str, ref_state: str
 ) -> None:
     repo, candidate, lane, head, initial = _lane(tmp_path, monkeypatch)
     target = _commit(candidate)
-    if case == "unknown":
-        payload = dict(initial["payload"])
-        payload["retired_field"] = "retired"
-        raw = json.dumps(payload, sort_keys=True)
-        with closing(sqlite3.connect(state_database(repo))) as connection:
-            connection.execute(
-                "update leases set payload_json = ? where subject = ?", (raw, "work/current")
-            )
-            connection.commit()
-        _expect(
-            _report(lane, "prepared", head, target, "work/current"),
-            "unknown",
-            "work_lane_lease_unknown:work/current",
-        )
-        return
-    if case == "prepared":
-        monkeypatch.setattr(
-            transitions, "workspace_status", lambda _root: pytest.fail("status"), raising=False
-        )
-        report = _report(lane, "prepared", head, target, "work/current")
-        _expect(report, "pass")
-        assert report["decision"]["action"] == "allow"
-        assert report["lease"]["epoch"] == 1
-        stale = "c" * 40
-        _expect(
-            _report(lane, "prepared", stale, target, "work/current"),
-            "block",
-            f"lane_ref_observation_stale:{stale}!={head}",
-        )
-        return
-    if case == "moved":
+    if ref_state == "moved":
         git(repo, "update-ref", "refs/heads/work/current", target, head)
-    report = _report(lane, "committed", head, target, "work/current")
-    stored = leases_by_branch(lane)["work/current"]
-    if case == "unmoved":
-        _expect(report, "block", f"lane_ref_observation_stale:{target}!={head}")
-        _assert_lease_unchanged(stored, initial)
-    else:
-        _expect(report, "pass")
-        assert report["state"] == "lease_ref_advanced"
-        assert stored["expected_head"] == target
-        assert stored["expected_tree"] == git(repo, "rev-parse", f"{target}^{{tree}}")
+
+    report = _report(lane, phase, head, target, "work/current")
+
+    _expect(report, "pass")
+    assert report["decision"]["reason"] == f"{phase}_observed"
+    assert report["lease"] == {}
+    _assert_lease_unchanged(leases_by_branch(lane)["work/current"], initial)
 
 
 @pytest.mark.parametrize("case", ["exact", "content", "duplicate", "rewrite"])
 def test_commitment_policy_matrix(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
 ) -> None:
-    repo, candidate, lane, head, initial = _lane(tmp_path, monkeypatch)
+    _repo, candidate, lane, head, initial = _lane(tmp_path, monkeypatch)
     relocated = candidate / "records/fixture-change/commitment.toml"
     if case == "rewrite":
         relocated = candidate / _CARRIER
@@ -256,26 +218,13 @@ def test_commitment_policy_matrix(
         shutil.copyfile(relocated, duplicate)
         git(candidate, "add", str(duplicate.relative_to(candidate)))
     target = _commit(candidate, "marker")
-    git(repo, "update-ref", "refs/heads/work/current", target, head)
-    report = _report(lane, "committed", head, target, "work/current")
+    report = _report(lane, "prepared", head, target, "work/current")
     stored = leases_by_branch(lane)["work/current"]
-    if case in {"content", "duplicate"}:
-        _expect(report, "block", "lease_base_commitment_path_mismatch")
-        _assert_lease_unchanged(stored, initial)
-    elif case == "rewrite":
-        _expect(report, "block", "lease_base_commitment_bytes_mismatch")
-        _assert_lease_unchanged(stored, initial)
-    else:
+    if case == "exact":
         _expect(report, "pass")
-        assert report["state"] == "lease_ref_advanced"
-        assert stored["expected_head"] == target
-        assert stored["expected_tree"] == git(repo, "rev-parse", f"{target}^{{tree}}")
-        assert stored["base_commitment_path"] == str(relocated.relative_to(candidate))
-        assert stored["base_commitment_bytes_sha256"] == initial["base_commitment_bytes_sha256"]
-        assert stored["base_commitment_digest"] == initial["base_commitment_digest"]
-        assert stored["payload_sha256"] != initial["payload_sha256"]
-        assert {
-            name
-            for name in initial["payload"]
-            if initial["payload"][name] != stored["payload"][name]
-        } == {"expected_head", "expected_tree", "base_commitment_path"}
+    else:
+        _expect(report, "block", "commitment_rebind_required")
+        assert report["next_action"] == (
+            f"ethos lane rebind-commitment derive --target-commit {target} --json"
+        )
+    _assert_lease_unchanged(stored, initial)

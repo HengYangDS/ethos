@@ -6,7 +6,6 @@ import pytest
 
 import ethos.adapters.admission.transitions as transitions
 from ethos.adapters.admission.ref_intent import write_ref_intent
-from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.plan import GitRefUpdate
@@ -88,8 +87,6 @@ def _report(lane: Path, phase: str, old: str, new: str) -> dict[str, object]:
     ("phase", "reason", "state"),
     [
         ("prepared", "commitment_rebind_admitted", "admitted"),
-        ("committed", "commitment_rebind_pending", "commitment_rebind_pending"),
-        ("aborted", "commitment_rebind_aborted", "admitted"),
     ],
 )
 def test_commitment_rebind_transition_requires_exact_intent_and_cas_coordinates(
@@ -99,13 +96,9 @@ def test_commitment_rebind_transition_requires_exact_intent_and_cas_coordinates(
     reason: str,
     state: str,
 ) -> None:
-    repo, lane, head = _lane(tmp_path, monkeypatch)
+    _repo, lane, head = _lane(tmp_path, monkeypatch)
     target = _target_commit(lane, head)
     _intent(lane, head, target)
-    if phase == "committed":
-        assert _report(lane, "prepared", head, target)["verdict"] == "pass"
-        git(repo, "update-ref", f"refs/heads/{_BRANCH}", target, head)
-
     report = _report(lane, phase, head, target)
 
     assert report["verdict"] == "pass"
@@ -177,38 +170,20 @@ def test_commitment_rebind_transition_blocks_stale_target_coordinates(
     assert report["decision"]["action"] == "block"
 
 
-def test_committed_ref_transition_reports_lease_cas_failure_without_false_authority(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("phase", ["committed", "aborted"])
+def test_terminal_ref_transition_only_observes_git_outcome(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str
 ) -> None:
     repo, lane, head = _lane(tmp_path, monkeypatch)
-    (lane / "change.txt").write_text("change\n", encoding="utf-8")
-    git(lane, "add", "change.txt")
-    tree = git(lane, "write-tree")
-    target = git(
-        lane,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit-tree",
-        tree,
-        "-p",
-        head,
-        "-m",
-        "advance lane",
-    )
-    git(repo, "update-ref", f"refs/heads/{_BRANCH}", target, head)
-    initial = leases_by_branch(lane)[_BRANCH]
+    target = _target_commit(lane, head)
+    _intent(lane, head, target)
+    if phase == "committed":
+        assert _report(lane, "prepared", head, target)["verdict"] == "pass"
+        git(repo, "update-ref", f"refs/heads/{_BRANCH}", target, head)
 
-    def stale_lease(*_args: object, **_kwargs: object) -> dict[str, object]:
-        message = "lease_epoch_mismatch"
-        raise ValueError(message)
+    report = _report(lane, phase, head, target)
 
-    monkeypatch.setattr(transitions, "advance_lease_ref", stale_lease)
-    report = _report(lane, "committed", head, target)
-
-    assert report["verdict"] == "block"
-    assert report["state"] == "repair_required"
-    assert report["decision"] == {"action": "block", "reason": "lease_ref_update_failed"}
-    assert report["required_gaps"] == ["lease_epoch_mismatch"]
-    assert leases_by_branch(lane)[_BRANCH]["payload_sha256"] == initial["payload_sha256"]
+    assert report["verdict"] == "pass"
+    assert report["state"] == "admitted"
+    assert report["decision"] == {"action": "allow", "reason": f"{phase}_observed"}
+    assert report["lease"] == {}

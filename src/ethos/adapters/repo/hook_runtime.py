@@ -225,6 +225,8 @@ def _reference_transition_report(
     *,
     selected_runtime: SelectedRuntime,
 ) -> dict[str, object]:
+    if phase in {"committed", "aborted"}:
+        return _passed("reference-transaction", f"{phase}_observed")
     branch = ref_name.removeprefix("refs/heads/")
     try:
         policy = resolve_ref_move_policy(root, ref_name, old_value, new_value)
@@ -258,10 +260,6 @@ def _reference_transition_report(
             old_value=old_value,
             new_value=new_value,
             phase=phase,
-        )
-    if phase in {"aborted", "committed"}:
-        return (
-            _passed("reference-transaction", f"{phase}_observed") if phase == "aborted" else report
         )
     if policy.role_for_branch(branch) == ROLE_WORK_LANE or protected:
         return report

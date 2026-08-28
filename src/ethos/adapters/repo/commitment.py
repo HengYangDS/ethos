@@ -460,6 +460,7 @@ def load_lease_bound_commitment(
     repo: Path,
     *,
     lease: Mapping[str, object],
+    head: str = "",
     change_id: str | None = None,
     environment: dict[str, str] | None = None,
 ) -> Commitment:
@@ -474,14 +475,23 @@ def load_lease_bound_commitment(
             "base_commitment_digest",
         )
     }
-    missing = next((name for name, value in expected.items() if not value), "")
+    binding_head = head or expected["expected_head"]
+    generation_fields = (
+        "base_commitment_path",
+        "base_commitment_bytes_sha256",
+        "base_commitment_digest",
+    )
+    required = generation_fields if head else (*generation_fields, "expected_head", "expected_tree")
+    missing = next((name for name in required if not expected[name]), "")
+    if not binding_head:
+        missing = missing or "expected_head"
     if missing:
         message = f"lease_{missing}_missing"
         raise ValueError(message)
     try:
         actual = exact_commitment_fields(
             repo,
-            head=expected["expected_head"],
+            head=binding_head,
             carrier=expected["base_commitment_path"],
             change_id=change_id,
             environment=environment,
@@ -496,7 +506,8 @@ def load_lease_bound_commitment(
             raise ValueError(mapped) from exc
         message = "lease_base_commitment_digest_mismatch"
         raise ValueError(message) from exc
-    mismatch = next((name for name in expected if actual[name] != expected[name]), "")
+    compared = generation_fields if head else tuple(expected)
+    mismatch = next((name for name in compared if actual[name] != expected[name]), "")
     if mismatch:
         raise ValueError(
             {

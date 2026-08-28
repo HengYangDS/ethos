@@ -6,6 +6,7 @@ import pytest
 
 import ethos.adapters.admission.transitions as transitions
 from ethos.adapters.admission.ref_intent import write_ref_intent
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.plan import GitRefUpdate
@@ -175,6 +176,7 @@ def test_terminal_ref_transition_only_observes_git_outcome(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str
 ) -> None:
     repo, lane, head = _lane(tmp_path, monkeypatch)
+    lease_before = leases_by_branch(lane)[_BRANCH]
     target = _target_commit(lane, head)
     _intent(lane, head, target)
     if phase == "committed":
@@ -187,3 +189,4 @@ def test_terminal_ref_transition_only_observes_git_outcome(
     assert report["state"] == "admitted"
     assert report["decision"] == {"action": "allow", "reason": f"{phase}_observed"}
     assert report["lease"] == {}
+    assert leases_by_branch(lane)[_BRANCH] == lease_before

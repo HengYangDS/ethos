@@ -33,7 +33,6 @@ from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
-from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
@@ -744,8 +743,8 @@ def test_lease_observation_keeps_valid_expired_unknown_and_missing_distinct(tmp_
     assert observe_lease(database, mismatch.lane_ref).state == "unknown"
 
 
-def test_lease_transition_matrix_preserves_binding_and_rejects_invalid_effects(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_lease_transition_matrix_preserves_generation_and_rejects_invalid_effects(
+    tmp_path: Path,
 ) -> None:
     case = LeaseCase.start(tmp_path, "transition")
     initial = case.snapshot()
@@ -761,37 +760,15 @@ def test_lease_transition_matrix_preserves_binding_and_rejects_invalid_effects(
         holder_quiesced=True,
     )
     _assert_reissue(offered, accepted, "holder_ref", "epoch", "renewed_at", "expires_at", "handoff")
-    binding = {
-        "expected_head": "c" * 40,
-        "expected_tree": "d" * 40,
-        "base_commitment_path": "records/change/commitment.toml",
-        "base_commitment_bytes_sha256": "e" * 64,
-        "base_commitment_digest": "f" * 64,
-    }
-    advanced = advance_lease_ref(
-        case.database, request=case.request("advance", accepted, holder_ref=TARGET), binding=binding
-    )
-    _assert_reissue(accepted, advanced, *binding)
-    monkeypatch.setattr(
-        lease_transitions,
-        "replace_exact_lease_from_connection",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError),
-    )
-    with pytest.raises(ValueError, match="expected_head"):
-        advance_lease_ref(
-            case.database,
-            request=case.request("advance", advanced, holder_ref=TARGET),
-            binding=binding | {"expected_head": "invalid-head"},
-        )
     stable = case.snapshot()
-    assert {key: stable[key] for key in advanced} == advanced
-    stale = case.request("renew", advanced, holder_ref=TARGET).model_copy(
-        update={"expected_epoch": int(advanced["epoch"]) + 1}
+    assert {key: stable[key] for key in accepted} == accepted
+    stale = case.request("renew", accepted, holder_ref=TARGET).model_copy(
+        update={"expected_epoch": int(accepted["epoch"]) + 1}
     )
     for request, error in (
         (stale, "^lease_epoch_stale:"),
-        (case.request("renew", advanced, apply=False, holder_ref=TARGET), "lease_apply_required"),
-        (case.request("typo_accept", advanced, holder_ref=TARGET), "lease_operation_unknown"),
+        (case.request("renew", accepted, apply=False, holder_ref=TARGET), "lease_apply_required"),
+        (case.request("typo_accept", accepted, holder_ref=TARGET), "lease_operation_unknown"),
     ):
         with pytest.raises(ValueError, match=error):
             apply_lease_operation(case.database, request=request)

@@ -771,7 +771,7 @@ def _effect_failure_runner(
     carried = proof_plan(case)
 
     def fail(record: Attestation | None = None) -> object:
-        if first[0] and (failure == "projection" or record is not None):
+        if first[0] and record is not None:
             first[0] = False
             message = f"{failure} unavailable"
             raise OSError(message)
@@ -798,7 +798,7 @@ def _effect_failure_runner(
             lambda _root, _plan, record=None, **_kwargs: fail(record),
         )
         return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER)
-    return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER, projection=fail)
+    return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER)
 
 
 def _inject_postcondition_failure(case: Any, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -818,7 +818,7 @@ def _inject_postcondition_failure(case: Any, monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(runtime, "observe_git_effect", stale_once)
 
 
-@pytest.mark.parametrize("failure", ["attestation", "persistence", "projection", "postcondition"])
+@pytest.mark.parametrize("failure", ["attestation", "persistence", "postcondition"])
 def test_atomic_compensation_and_retry_matrix(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:

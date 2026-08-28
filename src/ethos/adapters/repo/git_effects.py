@@ -190,7 +190,6 @@ def execute_git_effect(
     *,
     issuer: str,
     environment: Mapping[str, str] | None = None,
-    projection: Callable[[], None] | None = None,
     detached_branch: str = "",
 ) -> Attestation:
     """Recognize, execute, or recover one exact Git ref transaction."""
@@ -214,10 +213,8 @@ def execute_git_effect(
             recovering=True,
         )
         intents = _claim_effect_intents(
-            root, plan, effect, phase="recover", missing_ok=projection is None
+            root, plan, effect, phase="recover", missing_ok=True
         )
-        if projection:
-            projection()
         _clear_claimed_intents(root, intents)
         return attestation
     observed, recovering, repository = _admit_git_effect(
@@ -251,8 +248,6 @@ def execute_git_effect(
                 after,
             ),
         )
-        if projection:
-            projection()
         ethos.adapters.repo.git_effect_attestation.records(
             root, plan, attestation, environment=environment
         )

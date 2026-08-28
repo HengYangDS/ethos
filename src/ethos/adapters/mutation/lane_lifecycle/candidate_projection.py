@@ -157,12 +157,8 @@ def bootstrap_candidate(
                 ["git_effect_recovery_unproven"],
                 **details,
             )
-        execute_git_effect(
-            repo,
-            plan,
-            issuer=issuer,
-            projection=lambda: _add_candidate_worktree(repo, target, policy.candidate_branch),
-        )
+        execute_git_effect(repo, plan, issuer=issuer)
+        _add_candidate_worktree(repo, target, policy.candidate_branch)
     except (OSError, ValueError) as error:
         ref = run_git(repo, "rev-parse", policy.candidate_branch, check=False)
         gap = (
@@ -266,13 +262,9 @@ def refresh_candidate_from_accepted(
         previous = (
             git_effect_from_plan(plan).updates[f"refs/heads/{policy.candidate_branch}"].expected
         )
-        execute_git_effect(
-            repo,
-            plan,
-            issuer=issuer,
-            projection=lambda: _sync_candidate_worktree(
-                repo, path, policy.candidate_branch, head, previous, head
-            ),
+        execute_git_effect(repo, plan, issuer=issuer)
+        _sync_candidate_worktree(
+            repo, path, policy.candidate_branch, head, previous, head
         )
     except (OSError, ValueError) as error:
         message = str(error)

@@ -29,6 +29,19 @@ outcomes without advancing, revoking, or replacing Lease authority.
 - **THEN** the hook does not rewrite Lease state
 - **AND** subsequent authority reads bind the stable Lease/Commitment generation to fresh branch HEAD and tree Facts
 
+### Requirement: Rebuildable projections converge after the authority effect
+
+Worktrees, indexes, hooks, and runtime files SHALL remain projections of an
+attested Git ref effect rather than participants in a simulated cross-domain
+transaction.
+
+#### Scenario: Projection fails after an exact ref effect
+
+- **WHEN** the ref CAS and its Attestation succeed but projection does not
+- **THEN** the ref remains at the attested target
+- **AND** retry recognizes that exact Attestation and completes the projection forward
+- **AND** no reverse ref mutation is attempted
+
 ### Requirement: Rejected raw Git transitions fail cleanly or explicitly
 
 The hook SHALL compensate an already projected index/worktree only from an

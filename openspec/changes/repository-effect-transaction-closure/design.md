@@ -23,11 +23,17 @@ reference-transaction rejection. The ref hook is atomic only for refs.
 
 ### One local repository-effect owner
 
-`execute_git_effect` is promoted into the sole local ref executor. It owns the
-exact effect capability, effect-time observation, ref CAS, postcondition,
-effect Attestation, and bounded compensation/recovery. Callers compile semantic
+`execute_git_effect` is the sole local ref executor. It owns the exact effect
+capability, effect-time observation, ref CAS, postcondition, effect
+Attestation, and exact ref-only compensation/recovery. Callers compile semantic
 operations into the same `TransitionPlan`; they do not implement another ref
 transaction.
+
+Worktrees, indexes, hooks, and runtime files are rebuildable projections, not
+members of the ref transaction. After an attested ref effect, callers converge
+their projection forward with idempotent exact worktree effects. A projection
+failure never rewinds an already attested ref. Retrying the same public command
+recognizes the Attestation and completes only the missing projection.
 
 The hook consumes the executor-issued exact intent in `prepared`, then observes
 `committed` or `aborted`. It does not update Lease, persist an effect receipt, or
@@ -64,4 +70,6 @@ blocked effect and leaves explicit recovery to the command plane.
   consumers use fresh Git facts plus stable Lease/Commitment identity.
 - Delete lifecycle-specific ref compensation/recovery once the unique executor
   owns equivalent semantics.
+- Delete projection callbacks and reverse-ref recovery used to simulate one
+  transaction across Git refs and rebuildable host state.
 - Delete the unsupported `preparing`/`ORIG_HEAD` interception assumption.

@@ -105,17 +105,13 @@ def resolve_current_authority(
         if actor != str(lease.get("holder_ref") or "")
         else f"lease_generation_missing:{branch}"
         if not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1
-        else f"lease_head_stale:{branch}"
-        if str(lease.get("expected_head") or "") != authoritative_head
-        else f"lease_tree_stale:{branch}"
-        if str(lease.get("expected_tree") or "") != observed_tree
         else ""
     )
     commitment = None
     if not reason:
         try:
             loader = commitment_loader or load_lease_bound_commitment
-            commitment = loader(root, lease=lease)
+            commitment = loader(root, lease=lease, head=authoritative_head)
         except ValueError as error:
             reason = str(error)
             if reason.startswith("lease_base_"):

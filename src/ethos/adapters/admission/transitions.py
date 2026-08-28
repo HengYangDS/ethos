@@ -18,11 +18,9 @@ from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import relocated_commitment_fields
 from ethos.adapters.repo.git import ref_head
-from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
@@ -34,8 +32,7 @@ if TYPE_CHECKING:
 def work_lane_ref_transition_report(
     *, root: Path, phase: str, ref_name: str, old_value: str, new_value: str
 ) -> dict[str, object]:
-    """Check a prepared move or advance its lease after Git commits it."""
-    branch = ref_name.removeprefix("refs/heads/")
+    """Check a prepared Work Lane ref move; terminal phases only observe."""
     if not (_is_oid(old_value) and _is_oid(new_value)):
         return _report(
             phase,
@@ -45,21 +42,27 @@ def work_lane_ref_transition_report(
             {},
             ["work_lane_ref_oid_invalid"],
         )
+    if phase in {"committed", "aborted"}:
+        return _admit(phase, ref_name, old_value, new_value, f"{phase}_observed")
+    return _prepared_work_lane_ref_transition_report(
+        root=root,
+        phase=phase,
+        ref_name=ref_name,
+        old_value=old_value,
+        new_value=new_value,
+    )
+
+
+def _prepared_work_lane_ref_transition_report(
+    *, root: Path, phase: str, ref_name: str, old_value: str, new_value: str
+) -> dict[str, object]:
+    """Admit one exact prepared Work Lane ref transition."""
+    branch = ref_name.removeprefix("refs/heads/")
     old_zero, new_zero = _is_zero_oid(old_value), _is_zero_oid(new_value)
     repo = root.resolve()
     observed_ref = ref_head(repo, branch)
     immediate_reason = (
-        "lane_ref_noop"
-        if old_value == new_value and not (old_zero or new_zero) and phase != "committed"
-        else "lane_ref_terminal_state_observed"
-        if _committed_ref_effect_observed(
-            phase=phase,
-            old_zero=old_zero,
-            new_zero=new_zero,
-            observed_ref=observed_ref,
-            new_value=new_value,
-        )
-        else ""
+        "lane_ref_noop" if old_value == new_value and not (old_zero or new_zero) else ""
     )
     early = _early_transition_report(
         phase=phase,
@@ -81,13 +84,7 @@ def work_lane_ref_transition_report(
             update=update,
             new_zero=new_zero,
         )
-    expected_ref = (
-        ""
-        if (phase == "prepared" and old_zero) or (phase == "committed" and new_zero)
-        else new_value
-        if phase == "committed"
-        else old_value
-    )
+    expected_ref = "" if old_zero else old_value
     if lease.get("lease_state") == "valid" and observed_ref != expected_ref:
         return _report(
             phase,
@@ -142,38 +139,22 @@ def work_lane_ref_transition_report(
         terminal=old_zero or new_zero,
     )
     if report is not None:
-        base = report
-        advance = False
-    else:
-        reason = (
-            "lane_creation_saga_started"
-            if old_zero
-            else "lane_teardown_ref_deletion"
-            if new_zero
-            else ""
-        )
-        base = _report(
-            phase,
-            ref_name,
-            old_value,
-            new_value,
-            lease,
-            gaps,
-            reason if not gaps else "",
-        )
-        advance = not gaps and phase == "committed" and not (old_zero or new_zero)
-    return (
-        _advance_ref_lease(
-            repo=repo,
-            branch=branch,
-            actor=actor,
-            lease=lease,
-            old_value=old_value,
-            target=target,
-            report=base,
-        )
-        if advance
-        else base
+        return report
+    reason = (
+        "lane_creation_saga_started"
+        if old_zero
+        else "lane_teardown_ref_deletion"
+        if new_zero
+        else ""
+    )
+    return _report(
+        phase,
+        ref_name,
+        old_value,
+        new_value,
+        lease,
+        gaps,
+        reason if not gaps else "",
     )
 
 
@@ -188,46 +169,6 @@ def _early_transition_report(
     if immediate_reason:
         return _admit(phase, ref_name, old_value, new_value, immediate_reason)
     return None
-
-
-def _advance_ref_lease(
-    *,
-    repo: Path,
-    branch: str,
-    actor: str,
-    lease: dict[str, object],
-    old_value: str,
-    target: dict[str, str],
-    report: dict[str, object],
-) -> dict[str, object]:
-    try:
-        updated = advance_lease_ref(
-            state_database(repo),
-            request=LeaseOperationRequest(
-                operation="advance",
-                branch=branch,
-                holder_ref=actor,
-                lease_id=str(lease.get("lease_id") or ""),
-                expected_epoch=integer_value(lease.get("epoch")),
-                expect_head=old_value,
-                expected_expires_at=str(lease.get("expires_at") or ""),
-                expected_payload_sha256=str(lease.get("payload_sha256") or ""),
-                apply=True,
-            ),
-            binding=target,
-        )
-    except ValueError as exc:
-        return report | {
-            "verdict": "block",
-            "state": "repair_required",
-            "decision": {"action": "block", "reason": "lease_ref_update_failed"},
-            "required_gaps": [str(exc)],
-        }
-    return report | {
-        "state": "lease_ref_advanced",
-        "lease": updated,
-        "decision": {"action": "allow", "reason": "lease_ref_advanced"},
-    }
 
 
 def _missing_lease_report(
@@ -369,14 +310,6 @@ def _is_oid(value: str) -> bool:
     return len(value) in {40, 64} and not set(value) - set("0123456789abcdef")
 
 
-def _committed_ref_effect_observed(
-    *, phase: str, old_zero: bool, new_zero: bool, observed_ref: str, new_value: str
-) -> bool:
-    return phase == "committed" and (
-        (old_zero and observed_ref == new_value) or (new_zero and not observed_ref)
-    )
-
-
 def _admit(
     phase: str, ref_name: str, old_value: str, new_value: str, reason: str
 ) -> dict[str, object]:
@@ -435,11 +368,10 @@ def _work_lane_ref_transition_facts(
                 "expired": f"work_lane_lease_expired:{branch}",
             }.get(lease_state, f"work_lane_missing_lease:{branch}")
         ], {}
-    expected = str(lease.get("expected_head") or "")
     target: dict[str, str] = {}
     contract_gap = ""
     try:
-        _ = load_lease_bound_commitment(root, lease=lease)
+        _ = load_lease_bound_commitment(root, lease=lease, head=lease_head)
         try:
             target = exact_commitment_fields(
                 root,
@@ -453,7 +385,7 @@ def _work_lane_ref_transition_facts(
             if not target:
                 target = relocated_commitment_fields(
                     root,
-                    old_head=expected,
+                    old_head=lease_head,
                     new_head=target_head,
                     lease=lease,
                 )
@@ -480,7 +412,6 @@ def _work_lane_ref_transition_facts(
             not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1,
             f"lease_generation_missing:{branch}",
         ),
-        (expected != lease_head, f"lease_head_stale:{expected}!={lease_head}"),
         (bool(contract_gap), contract_gap),
     )
     return [gap for failed, gap in checks if failed], target

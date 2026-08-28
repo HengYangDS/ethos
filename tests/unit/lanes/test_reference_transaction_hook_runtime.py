@@ -10,10 +10,15 @@ import sys
 from contextlib import closing
 from typing import TYPE_CHECKING
 
+from ethos.adapters.admission.lease_binding import resolve_current_authority
 from ethos.adapters.repo.hook_runtime import execute_hook
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.worktree_effects import restore_rejected_checkout_projection
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos.adapters.store.state.schema import state_database
+from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import render_branch_policy
@@ -246,6 +251,84 @@ def test_checkout_compensation_refuses_non_exact_index_overlay(tmp_path: Path) -
         "index_tree": g("write-tree").stdout,
         "status": g("status", "--porcelain=v1", "-z").stdout,
     } == before
+
+
+def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(
+    tmp_path: Path,
+) -> None:
+    """Ordinary commits never use an unabortable hook to rewrite Lease authority."""
+    repo = init_git_repo(tmp_path / "repo")
+    commit_active_commitment(repo)
+    lane = tmp_path / "lane"
+    branch = "work/current"
+    holder = "agent:test:case:fresh-lane-head"
+    git(repo, "worktree", "add", "-b", branch, lane.as_posix(), "dev")
+    start = git(lane, "rev-parse", "HEAD")
+    acquire_lease(
+        state_database(repo),
+        lease=exact_lease(
+            repo=repo,
+            branch=branch,
+            holder_ref=holder,
+            expected_head=start,
+            carrier="openspec/changes/fixture-change/commitment.toml",
+        ),
+    )
+    hooks = repo / ".git/test-hooks"
+    hooks.mkdir(exist_ok=True)
+    driver = hooks / "reference_transaction_driver.py"
+    driver.write_text(
+        """from pathlib import Path
+import sys
+
+import ethos.adapters.repo.hook_runtime as runtime
+
+runtime.current_runtime = lambda _common: object()
+raise SystemExit(
+    runtime.execute_hook(
+        Path.cwd(),
+        "reference-transaction",
+        tuple(sys.argv[1:]),
+        stdin=sys.stdin,
+    )
+)
+""",
+        encoding="utf-8",
+    )
+    hook = hooks / "reference-transaction"
+    hook.write_text(
+        f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+    git(lane, "config", "core.hooksPath", hooks.as_posix())
+    before = leases_by_branch(lane)[branch]
+    (lane / "ordinary.txt").write_text("ordinary\n", encoding="utf-8")
+    git(lane, "add", "ordinary.txt")
+
+    committed = subprocess.run(
+        ["git", "commit", "-m", "ordinary source change"],
+        cwd=lane,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "ETHOS_ACTOR": holder},
+    )
+
+    assert committed.returncode == 0, committed.stderr
+    head = git(lane, "rev-parse", "HEAD")
+    assert head != start
+    after = leases_by_branch(lane)[branch]
+    assert after["payload_sha256"] == before["payload_sha256"]
+    authority = resolve_current_authority(
+        root=lane,
+        branch=branch,
+        lease=after,
+        actor=holder,
+        current_head=head,
+    )
+    assert authority.verdict == "pass"
+    assert authority.current_head == head
 
 
 def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict(

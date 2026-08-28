@@ -23,9 +23,14 @@ from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.workspace import worktree_records
+from ethos.adapters.repo.worktree_effects import restore_rejected_checkout_projection
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
+from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.contracts.branch.roles import ROLE_CANDIDATE
+from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import report_verdict
 
 HookName = Literal["pre-commit", "pre-push", "reference-transaction"]
@@ -179,17 +184,36 @@ def _reference_transaction(
             old_value == new_value and old_value not in _ZERO_OIDS
         ):
             continue
-        reports.append(
-            _reference_transition_report(
-                root,
-                phase,
-                ref_name,
-                old_value,
-                new_value,
-                selected_runtime=selected_runtime,
-            )
+        report = _reference_transition_report(
+            root,
+            phase,
+            ref_name,
+            old_value,
+            new_value,
+            selected_runtime=selected_runtime,
         )
+        if (
+            phase == "prepared"
+            and report_verdict(report) != "pass"
+            and _protected_checkout(root)
+            and restore_rejected_checkout_projection(root, target_head=new_value)
+        ):
+            report["checkout_compensation"] = {
+                "state": "restored",
+                "head": run_git(root, "rev-parse", "HEAD", check=False).stdout.strip(),
+            }
+        reports.append(report)
     return tuple(reports) or (_passed("reference-transaction", "no_governed_updates"),)
+
+
+def _protected_checkout(root: Path) -> bool:
+    policy = load_branch_role_policy(root)
+    branch = run_git(root, "branch", "--show-current", check=False).stdout.strip()
+    return policy.role_for_branch(branch) in {
+        ROLE_RELEASE_ROOT,
+        ROLE_ACCEPTED_ROOT,
+        ROLE_CANDIDATE,
+    }
 
 
 def _reference_transition_report(

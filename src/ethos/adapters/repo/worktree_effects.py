@@ -131,6 +131,46 @@ def sync_worktree(
     return _attestation(root, "applied", effect, before, after, environment)
 
 
+def restore_rejected_checkout_projection(
+    root: Path,
+    *,
+    target_head: str,
+    environment: Mapping[str, str] | None = None,
+    runner: Callable[..., Any] = run_git,
+) -> bool:
+    """Restore a clean Git porcelain projection whose ref transaction was rejected."""
+    current_head = runner(root, "rev-parse", "HEAD", check=False, env=environment).stdout.strip()
+    target_tree = _commit_tree(root, target_head, environment)
+    indexed = runner(root, "write-tree", check=False, env=environment)
+    dirty = runner(root, "diff-files", "--quiet", check=False, env=environment)
+    if (
+        not current_head
+        or not target_tree
+        or indexed.returncode
+        or indexed.stdout.strip() != target_tree
+        or dirty.returncode
+    ):
+        return False
+    restored = runner(
+        root,
+        "read-tree",
+        "--reset",
+        "-u",
+        current_head,
+        check=False,
+        env=environment,
+    )
+    if restored.returncode:
+        return False
+    indexed = runner(root, "write-tree", check=False, env=environment)
+    dirty = runner(root, "diff-files", "--quiet", check=False, env=environment)
+    return (
+        not indexed.returncode
+        and indexed.stdout.strip() == _commit_tree(root, current_head, environment)
+        and not dirty.returncode
+    )
+
+
 def attach_worktree(
     root: Path,
     path: Path,

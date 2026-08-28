@@ -5,7 +5,6 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import cast
 
 import pytest
 
@@ -18,7 +17,6 @@ from ethos.contracts.semantic import Facts
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -250,12 +248,7 @@ def test_detached_public_recovery_accepts_only_exact_persisted_effect(
         lambda _root, _path, *, branch, head: attached.append((branch, head)) or SimpleNamespace(),
     )
 
-    def execute(_root: Path, _plan: object, **kwargs: object) -> SimpleNamespace:
-        projection = cast("Callable[[], object]", kwargs["projection"])
-        projection()
-        return SimpleNamespace()
-
-    monkeypatch.setattr(refresh, "execute_git_effect", execute)
+    monkeypatch.setattr(refresh, "execute_git_effect", lambda *_args, **_kwargs: SimpleNamespace())
 
     report = refresh.refresh_work_lane_base(root=tmp_path, apply=True)
 
@@ -272,27 +265,21 @@ def test_detached_public_recovery_accepts_only_exact_persisted_effect(
         ]
 
 
-@pytest.mark.parametrize("case", ["ref-drift", "effect-fails"])
 def test_refresh_public_effect_failure_restores_original_checkout(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    case: str,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
-    heads = iter((HEAD, REBASED, REBASED if case == "effect-fails" else HEAD, HEAD, HEAD))
+    ancestry = iter((False, True))
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
+    heads = iter((HEAD, REBASED, HEAD))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     _stub_refresh_effect(monkeypatch)
-    monkeypatch.setattr(
-        refresh, "ref_head", lambda *_args: "other" if case == "ref-drift" else REBASED
-    )
     monkeypatch.setattr(
         refresh,
         "execute_git_effect",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("stale effect")),
     )
     restored: list[tuple[str, str]] = []
-    monkeypatch.setattr(refresh, "compensate_git_worktree", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         refresh,
         "attach_worktree",
@@ -313,30 +300,23 @@ def test_refresh_public_attachment_failure_is_reported(
     _common(monkeypatch)
     ancestry = iter((False, True))
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, REBASED, REBASED, HEAD, HEAD))
+    heads = iter((HEAD, REBASED, REBASED))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     _stub_refresh_effect(monkeypatch)
-    monkeypatch.setattr(refresh, "ref_head", lambda *_args: "other")
-
-    def execute(_root: Path, _plan: object, **kwargs: object) -> None:
-        projection = cast("Callable[[], object]", kwargs["projection"])
-        projection()
-
-    monkeypatch.setattr(refresh, "execute_git_effect", execute)
+    monkeypatch.setattr(refresh, "execute_git_effect", lambda *_args, **_kwargs: SimpleNamespace())
     monkeypatch.setattr(
         refresh,
         "attach_worktree",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("branch occupied")),
     )
-    monkeypatch.setattr(refresh, "compensate_git_worktree", lambda *_args, **_kwargs: None)
 
     report = refresh.refresh_work_lane_base(
         root=tmp_path, apply=True, authorized=True, expect_head=HEAD
     )
 
-    assert report["required_gaps"] == [
-        "refresh_base_worktree_attach_failed",
-        "refresh_base_worktree_restore_failed",
-    ]
+    assert report["required_gaps"] == ["refresh_base_worktree_attach_failed"]
+    assert report["next_action"] == (
+        "retry this exact refresh command to restore the Work Lane projection"
+    )
     stderr = str(report["stderr"])
     assert "attachment" in stderr or "branch" in stderr

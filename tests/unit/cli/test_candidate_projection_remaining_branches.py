@@ -72,11 +72,19 @@ def test_candidate_bootstrap_effect_failure_classification(
     target = tmp_path / "candidate"
     _common(monkeypatch, tmp_path, _status(target, exists=False, worktree_exists=False))
     monkeypatch.setattr(projection, "_candidate_plan", lambda **_k: object())
-    monkeypatch.setattr(
-        projection,
-        "execute_git_effect",
-        lambda *_a, **_k: (_ for _ in ()).throw(ValueError(error)),
-    )
+    if error == "projection failed":
+        monkeypatch.setattr(projection, "execute_git_effect", lambda *_a, **_k: None)
+        monkeypatch.setattr(
+            projection,
+            "_add_candidate_worktree",
+            lambda *_a, **_k: (_ for _ in ()).throw(ValueError(error)),
+        )
+    else:
+        monkeypatch.setattr(
+            projection,
+            "execute_git_effect",
+            lambda *_a, **_k: (_ for _ in ()).throw(ValueError(error)),
+        )
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
         if args[-1] == "candidate/dev":
@@ -132,3 +140,46 @@ def test_candidate_refresh_reports_base_current_without_effect(
 
     assert report["state"] == "base_current"
     assert report["required_gaps"] == []
+
+
+def test_candidate_refresh_retries_only_the_missing_projection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    candidate = tmp_path / "candidate"
+    _common(monkeypatch, tmp_path, _status(candidate))
+    plan = SimpleNamespace(digest="plan")
+    update = SimpleNamespace(expected="previous")
+    monkeypatch.setattr(projection, "_recovery_plan", lambda *_a: plan)
+    monkeypatch.setattr(
+        projection,
+        "git_effect_from_plan",
+        lambda _plan: SimpleNamespace(updates={"refs/heads/candidate/dev": update}),
+    )
+    monkeypatch.setattr(
+        projection,
+        "worktree_sync_gap",
+        lambda *_a, **_k: "worktree_index_mismatch",
+    )
+    effects: list[object] = []
+    syncs: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        projection, "execute_git_effect", lambda _root, value, **_kwargs: effects.append(value)
+    )
+    monkeypatch.setattr(
+        projection,
+        "_sync_candidate_worktree",
+        lambda _root, _path, _branch, _ref, previous, desired: syncs.append(
+            (previous, desired)
+        ),
+    )
+
+    report = projection.refresh_candidate_from_accepted(
+        root=tmp_path,
+        apply=True,
+        authorized=True,
+        expect_head="head",
+    )
+
+    assert report["state"] == "refreshed_from_accepted"
+    assert effects == [plan]
+    assert syncs == [("previous", "head")]

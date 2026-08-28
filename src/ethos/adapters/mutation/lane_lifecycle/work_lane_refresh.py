@@ -11,11 +11,9 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import is_ancestor
-from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
-from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
@@ -31,8 +29,6 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from ethos.contracts.semantic import Attestation
 
 
@@ -195,39 +191,34 @@ def _refresh_work_lane(
         candidate_head,
         rebase_attestation,
     )
-    attachment_attestation: Attestation | None = None
-
-    def attach() -> None:
-        nonlocal attachment_attestation
-        attachment_attestation = _attach_work_lane(root, branch, rebased_head)
-
     try:
         ref_attestation = execute_git_effect(
             root,
             plan,
             issuer=_actor(),
-            projection=attach,
             detached_branch=branch,
         )
     except (OSError, ValueError) as error:
-        recovered = _recover_applied_refresh(root, plan, attach, branch, rebased_head)
-        if recovered is None:
-            restore_gap = _restore_pre_refresh_checkout(root, branch, current_head)
-            return _report(
-                context,
-                current_tracked_head(root),
-                "blocked",
-                [
-                    "refresh_base_worktree_attach_failed"
-                    if "attachment" in str(error)
-                    else "refresh_base_snapshot_stale:work_lane",
-                    *restore_gap,
-                ],
-                plan_digest=plan.digest,
-                previous_head=current_head,
-                stderr=str(error),
-            )
-        ref_attestation = recovered
+        try:
+            _attach_work_lane(root, branch, current_head)
+            restore_gap: list[str] = []
+        except (OSError, ValueError):
+            restore_gap = ["refresh_base_worktree_restore_failed"]
+        return _report(
+            context,
+            current_tracked_head(root),
+            "blocked",
+            ["refresh_base_snapshot_stale:work_lane", *restore_gap],
+            plan_digest=plan.digest,
+            previous_head=current_head,
+            stderr=str(error),
+        )
+    attachment_attestation = None
+    attachment_error = ""
+    try:
+        attachment_attestation = _attach_work_lane(root, branch, rebased_head)
+    except (OSError, ValueError) as error:
+        attachment_error = str(error)
     refreshed_head = current_tracked_head(root)
     post_gaps = [
         gap
@@ -244,13 +235,18 @@ def _refresh_work_lane(
             "blocked",
             post_gaps,
             previous_head=current_head,
-            stderr=(
+            next_action=(
+                "retry this exact refresh command to restore the Work Lane projection"
+                if attachment_error
+                else ""
+            ),
+            stderr=attachment_error
+            or (
                 "work-lane branch advanced after refresh compare-and-swap"
                 if refreshed_head != rebased_head
                 else ""
             ),
         )
-    attachment = cast("Attestation", attachment_attestation)
     return _report(
         context,
         refreshed_head,
@@ -259,43 +255,10 @@ def _refresh_work_lane(
         previous_head=current_head,
         rebase_attestation=rebase_attestation.model_dump(mode="json"),
         ref_attestation=ref_attestation.model_dump(mode="json"),
-        attachment_attestation=attachment.model_dump(mode="json"),
+        attachment_attestation=cast("Attestation", attachment_attestation).model_dump(
+            mode="json"
+        ),
     )
-
-
-def _recover_applied_refresh(
-    root: Path,
-    plan: TransitionPlan,
-    attach: Callable[[], None],
-    branch: str,
-    head: str,
-) -> Attestation | None:
-    if ref_head(root, branch) != head:
-        return None
-    try:
-        return execute_git_effect(
-            root,
-            plan,
-            issuer=_actor(),
-            projection=attach,
-            detached_branch=branch,
-        )
-    except (OSError, ValueError):
-        return None
-
-
-def _restore_pre_refresh_checkout(root: Path, branch: str, head: str) -> list[str]:
-    if (
-        current_tracked_head(root) == head
-        and run_git(root, "branch", "--show-current").stdout.strip() == branch
-    ):
-        return []
-    try:
-        compensate_git_worktree(root, head=head)
-        attach_worktree(root, root, branch=branch, head=head)
-    except (OSError, ValueError):
-        return ["refresh_base_worktree_restore_failed"]
-    return []
 
 
 def _attach_work_lane(root: Path, branch: str, head: str) -> Attestation:
@@ -356,16 +319,13 @@ def _recover_work_lane(
         msg = "git_effect_recovery_unproven"
         raise ValueError(msg)
 
-    def attach() -> None:
-        _attach_work_lane(root, branch, head)
-
     execute_git_effect(
         root,
         plan,
         issuer=_actor(),
-        projection=attach,
         detached_branch=branch,
     )
+    _attach_work_lane(root, branch, head)
     return _report(
         (branch, candidate_branch, candidate_head, candidate_path),
         head,

@@ -7,7 +7,6 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git import current_tracked_head
@@ -342,50 +341,46 @@ def recover_plan(
     ref_name: str = "",
     assertions: Mapping[str, str] | None = None,
 ) -> TransitionPlan | None:
-    """Return the sole attested plan bound to one committed ref intent."""
-    intent = committed_ref_intent(
-        root=root,
-        operation=operation,
-        desired=desired,
-        ref_name=ref_name,
-    )
-    gap = str(intent["gap"] or "")
-    if gap == "ref_intent_missing":
-        return None
-    if gap:
-        raise ValueError(
-            "git_effect_recovery_ambiguous"
-            if gap == "ref_intent_ambiguous"
-            else "git_effect_recovery_unproven"
-        )
-    digest = str(intent["plan_digest"])
+    """Return the sole current Attestation-backed plan for one exact ref effect."""
     try:
-        attestation = next(iter(_matching_plan_attestations(root, digest)))
-        plan = plan_from_attestation(attestation)
-        validate(
-            root,
-            git_effect_from_plan(plan),
-            attestation,
-            issuer=attestation.verifier,
-            plan=plan,
-        )
-        effect = git_effect_from_plan(plan)
-        update = effect.updates.get(str(intent["ref_name"]))
-    except (StopIteration, ValueError) as error:
-        msg = "git_effect_recovery_unproven"
-        raise ValueError(msg) from error
-    if (
-        plan.digest != digest
-        or attestation.plan_digest != digest
-        or (plan.policy.get("transition") or plan.policy.get("operation")) != operation
-        or update is None
-        or update.expected != intent["old_value"]
-        or update.desired != desired
-        or (assertions is not None and effect.assertions != assertions)
-    ):
-        msg = "git_effect_recovery_unproven"
-        raise ValueError(msg)
-    return plan
+        _identity, attestations = read_attestation_set(root)
+    except ValueError as error:
+        message = "git_effect_recovery_unproven"
+        raise ValueError(message) from error
+    matches: list[TransitionPlan] = []
+    for attestation in attestations:
+        if attestation.predicate != "effect:git-ref-update":
+            continue
+        try:
+            plan = plan_from_attestation(attestation)
+            effect = git_effect_from_plan(plan)
+            updates = (
+                ((ref_name, effect.updates.get(ref_name)),)
+                if ref_name
+                else tuple(effect.updates.items())
+            )
+            if (
+                (plan.policy.get("transition") or plan.policy.get("operation")) != operation
+                or not any(
+                    update is not None and update.desired == desired for _, update in updates
+                )
+                or (assertions is not None and effect.assertions != assertions)
+            ):
+                continue
+            validate(
+                root,
+                effect,
+                attestation,
+                issuer=attestation.verifier,
+                plan=plan,
+            )
+        except ValueError:
+            continue
+        matches.append(plan)
+    if len(matches) > 1:
+        message = "git_effect_recovery_ambiguous"
+        raise ValueError(message)
+    return matches[0] if matches else None
 
 
 def records(

@@ -6,8 +6,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import Any
 
-import pytest
-
 import ethos.adapters.repo.git_effect_attestation as attest
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.plan import GitEffect
@@ -20,6 +18,8 @@ from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import pytest
 
 ISSUER = "agent:test:attestation"
 
@@ -110,23 +110,16 @@ def test_git_effect_recovery_requires_the_exact_attestation_set_member(
         evidence=("repository:repo", "applied", before, after),
     )
     update = effect.updates["refs/heads/dev"]
-    intent = {
-        "gap": "",
-        "plan_digest": plan.digest,
-        "ref_name": "refs/heads/dev",
-        "old_value": update.expected,
-    }
-    monkeypatch.setattr(attest, "committed_ref_intent", lambda **_kwargs: intent)
+    assert attest.recover_plan(
+        repo, operation="git.ref.compare-and-swap", desired=update.desired
+    ) is None
+
+    git(repo, "update-ref", "refs/heads/dev", update.desired, update.expected)
+    record_attestations(repo, (record,))
     monkeypatch.setattr(
         attest, "resolve_git_effect_repository", lambda *_args, **_kwargs: "repository:repo"
     )
     monkeypatch.setattr(attest, "_matches", lambda *_args, **_kwargs: True)
-
-    with pytest.raises(ValueError, match="git_effect_recovery_unproven"):
-        attest.recover_plan(repo, operation="git.ref.compare-and-swap", desired=update.desired)
-
-    git(repo, "update-ref", "refs/heads/dev", update.desired, update.expected)
-    record_attestations(repo, (record,))
     assert (
         attest.recover_plan(repo, operation="git.ref.compare-and-swap", desired=update.desired)
         == plan

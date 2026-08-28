@@ -6,10 +6,12 @@ import io
 import os
 import sqlite3
 import subprocess
+import sys
 from contextlib import closing
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.hook_runtime import execute_hook
+from ethos.adapters.repo.worktree_effects import restore_rejected_checkout_projection
 from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos.adapters.store.state.schema import state_database
 from tests.support.governed_repository import git
@@ -102,6 +104,148 @@ def test_reference_transaction_hook_fails_closed_on_governed_branches(tmp_path: 
     escape = g("merge", "--ff-only", "work/x", env={**no_binary, "ETHOS_ALLOW_REF_MOVE": "1"})
     assert escape.returncode != 0
     assert g("rev-parse", "dev").stdout.strip() == dev_head
+
+
+def test_rejected_accepted_merge_preserves_head_index_and_worktree(tmp_path: Path) -> None:
+    """A rejected raw merge must not pollute the accepted checkout."""
+    g, hooks, no_binary = _unavailable_runtime_repo(tmp_path)
+    driver = hooks / "reference_transaction_driver.py"
+    driver.write_text(
+        """from pathlib import Path
+import sys
+
+import ethos.adapters.repo.hook_runtime as runtime
+
+runtime.current_runtime = lambda _common: object()
+raise SystemExit(
+    runtime.execute_hook(
+        Path.cwd(),
+        "reference-transaction",
+        tuple(sys.argv[1:]),
+        stdin=sys.stdin,
+    )
+)
+""",
+        encoding="utf-8",
+    )
+    hook = hooks / "reference-transaction"
+    hook.write_text(
+        f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+    g("config", "core.hooksPath", "")
+    assert g("checkout", "work/x").returncode == 0
+    (tmp_path / "a").write_text("2", encoding="utf-8")
+    (tmp_path / "work-only").write_text("work\n", encoding="utf-8")
+    assert g("add", ".").returncode == 0
+    assert g("commit", "-m", "work change").returncode == 0
+    assert g("checkout", "dev").returncode == 0
+    g("config", "core.hooksPath", hooks.as_posix())
+    before = {
+        "symbolic_head": g("symbolic-ref", "-q", "HEAD").stdout,
+        "head": g("rev-parse", "HEAD").stdout,
+        "index_tree": g("write-tree").stdout,
+        "status": g("status", "--porcelain=v1", "-z").stdout,
+        "tracked": (tmp_path / "a").read_bytes(),
+        "work_only": (tmp_path / "work-only").exists(),
+    }
+
+    blocked = g("merge", "--ff-only", "work/x", env=no_binary)
+
+    assert blocked.returncode != 0
+    assert {
+        "symbolic_head": g("symbolic-ref", "-q", "HEAD").stdout,
+        "head": g("rev-parse", "HEAD").stdout,
+        "index_tree": g("write-tree").stdout,
+        "status": g("status", "--porcelain=v1", "-z").stdout,
+        "tracked": (tmp_path / "a").read_bytes(),
+        "work_only": (tmp_path / "work-only").exists(),
+    } == before
+
+
+def test_rejected_work_lane_creation_preserves_head_index_and_worktree(tmp_path: Path) -> None:
+    """A rejected raw work-branch checkout must restore the source checkout."""
+    g, hooks, no_binary = _unavailable_runtime_repo(tmp_path)
+    driver = hooks / "reference_transaction_driver.py"
+    driver.write_text(
+        """from pathlib import Path
+import sys
+
+import ethos.adapters.repo.hook_runtime as runtime
+
+runtime.current_runtime = lambda _common: object()
+raise SystemExit(
+    runtime.execute_hook(
+        Path.cwd(),
+        "reference-transaction",
+        tuple(sys.argv[1:]),
+        stdin=sys.stdin,
+    )
+)
+""",
+        encoding="utf-8",
+    )
+    hook = hooks / "reference-transaction"
+    hook.write_text(
+        f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+    g("config", "core.hooksPath", "")
+    assert g("checkout", "work/x").returncode == 0
+    (tmp_path / "a").write_text("2", encoding="utf-8")
+    (tmp_path / "work-only").write_text("work\n", encoding="utf-8")
+    assert g("add", ".").returncode == 0
+    assert g("commit", "-m", "work change").returncode == 0
+    target = g("rev-parse", "HEAD").stdout.strip()
+    assert g("checkout", "dev").returncode == 0
+    g("config", "core.hooksPath", hooks.as_posix())
+    before = {
+        "symbolic_head": g("symbolic-ref", "-q", "HEAD").stdout,
+        "head": g("rev-parse", "HEAD").stdout,
+        "index_tree": g("write-tree").stdout,
+        "status": g("status", "--porcelain=v1", "-z").stdout,
+        "tracked": (tmp_path / "a").read_bytes(),
+        "work_only": (tmp_path / "work-only").exists(),
+    }
+
+    blocked = g("checkout", "-b", "work/unleased", target, env=no_binary)
+
+    assert blocked.returncode != 0
+    assert g("show-ref", "--verify", "refs/heads/work/unleased").returncode != 0
+    assert {
+        "symbolic_head": g("symbolic-ref", "-q", "HEAD").stdout,
+        "head": g("rev-parse", "HEAD").stdout,
+        "index_tree": g("write-tree").stdout,
+        "status": g("status", "--porcelain=v1", "-z").stdout,
+        "tracked": (tmp_path / "a").read_bytes(),
+        "work_only": (tmp_path / "work-only").exists(),
+    } == before
+
+
+def test_checkout_compensation_refuses_non_exact_index_overlay(tmp_path: Path) -> None:
+    """Compensation never guesses how to reconstruct a pre-existing staged overlay."""
+    g, _hooks, _no_binary = _unavailable_runtime_repo(tmp_path)
+    g("config", "core.hooksPath", "")
+    assert g("checkout", "work/x").returncode == 0
+    (tmp_path / "a").write_text("2", encoding="utf-8")
+    assert g("add", "a").returncode == 0
+    assert g("commit", "-m", "work change").returncode == 0
+    target = g("rev-parse", "HEAD").stdout.strip()
+    assert g("checkout", "dev").returncode == 0
+    (tmp_path / "staged-overlay").write_text("owned by caller\n", encoding="utf-8")
+    assert g("add", "staged-overlay").returncode == 0
+    before = {
+        "index_tree": g("write-tree").stdout,
+        "status": g("status", "--porcelain=v1", "-z").stdout,
+    }
+
+    assert not restore_rejected_checkout_projection(tmp_path, target_head=target)
+    assert {
+        "index_tree": g("write-tree").stdout,
+        "status": g("status", "--porcelain=v1", "-z").stdout,
+    } == before
 
 
 def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict(

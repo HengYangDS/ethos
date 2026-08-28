@@ -1,0 +1,52 @@
+schema_version = 2
+id = "change:repository-effect-transaction-closure"
+intent = "Make one exact repository effect transaction the sole owner of admission, mutation, post-observation, Attestation persistence, compensation, and recovery across governed Git ref and worktree transitions."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "docs/architecture/runner-and-mutation.md",
+  "openspec/changes/repository-effect-transaction-closure/**",
+  "src/ethos/adapters/admission/ref_intent.py",
+  "src/ethos/adapters/admission/transitions.py",
+  "src/ethos/adapters/mutation/accepted.py",
+  "src/ethos/adapters/mutation/landing.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/**",
+  "src/ethos/adapters/mutation/lane_retirement/**",
+  "src/ethos/adapters/mutation/lane_start_*.py",
+  "src/ethos/adapters/mutation/lanes.py",
+  "src/ethos/adapters/repo/git_effect_*.py",
+  "src/ethos/adapters/repo/git_effects.py",
+  "src/ethos/adapters/repo/hook_runtime.py",
+  "src/ethos/adapters/repo/native_effect_attestation.py",
+  "src/ethos/adapters/repo/worktree_effects.py",
+  "tests/unit/adapters/repo/hook/**",
+  "tests/unit/lanes/test_reference_transaction_hook_runtime.py",
+  "tests/unit/mutation/**",
+]
+invariants = [
+  "one_effect_plan_digest_survives_dry_run_apply_post_observe_and_attestation",
+  "rejected_or_failed_git_transitions_leave_head_index_and_worktree_exactly_unchanged_or_expose_one_recoverable_committed_effect",
+  "recovery_reobserves_exact_coordinates_and_never_replays_unknown_effects",
+]
+acceptance = [
+  "real_git_hook_rejection_has_no_unreported_index_or_worktree_side_effect",
+  "all_governed_ref_effects_use_one_admit_execute_observe_attest_recover_owner",
+  "command_specific_effect_and_compensation_owners_are_deleted_after_semantic_migration",
+]
+risks = [
+  "git_native_hook_phase_order_can_make_fail_before_worktree_projection_impossible_for_raw_checkout_or_merge_and_must_be modeled_as_command_plane_only_mutation",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "user_instruction",
+]
+predecessors = [
+  "deabec3c0948717d7fa0477fe464742d0a47261173d1434856093a585bd4d01f",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

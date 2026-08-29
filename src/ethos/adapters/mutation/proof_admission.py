@@ -130,7 +130,9 @@ def _selected_candidates(
     if not candidates:
         return (), ["proof_not_proven"]
     if require_archive:
-        candidates = tuple(item for item in candidates if _archive_bound(item))
+        candidates = tuple(
+            item for item in candidates if _archive_bound(item) or _repository_bound(item)
+        )
         if not candidates:
             return (), ["proof_archive_authority_missing"]
     current = tuple(item for item in candidates if _current_at(item, datetime.now(UTC)))
@@ -194,6 +196,22 @@ def _archive_bound(attestation: Attestation) -> bool:
     except (TypeError, ValueError):
         return False
     return archive_authority_valid(archive)
+
+
+def _repository_bound(attestation: Attestation) -> bool:
+    """Return whether proof binds repository truth without Work Lane intent."""
+    try:
+        plan = plan_from_statement(attestation)
+    except (TypeError, ValueError):
+        return False
+    values = plan.facts.get("values")
+    return (
+        plan.inputs.commitment is None
+        and plan.commitment is None
+        and isinstance(values, Mapping)
+        and values.get("change_id") == ""
+        and "lease_generation" not in values
+    )
 
 
 def _assertion_digest(attestation: Attestation) -> str:

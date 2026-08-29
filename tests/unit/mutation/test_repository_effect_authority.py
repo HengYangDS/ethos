@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.landing as landing
 import ethos.adapters.mutation.remote_publication as publication
+from ethos.contracts.semantic import Commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -75,10 +76,14 @@ def test_candidate_plan_compiles_active_openspec_acceptance(
     assert observed["authority"] is authority
 
 
-def test_remote_publication_separates_repository_identity_from_acceptance(
+def test_remote_publication_consumes_selected_proof_acceptance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    authority = object()
+    authority = Commitment(
+        schema_version=3,
+        id="change:fixture",
+        acceptance=("accepted",),
+    )
     captured: dict[str, object] = {}
     source = SimpleNamespace(
         peeled_commit="a" * 40,
@@ -94,11 +99,6 @@ def test_remote_publication_separates_repository_identity_from_acceptance(
     effect = SimpleNamespace(source=source, targets=(target,))
     monkeypatch.setattr(
         publication,
-        "load_openspec_commitment",
-        lambda _root, *, tree_ref: captured.update(commitment_tree=tree_ref) or authority,
-    )
-    monkeypatch.setattr(
-        publication,
         "repository_identity",
         lambda _root, *, tree_ref: captured.update(identity_tree=tree_ref) or "repository:test",
     )
@@ -112,10 +112,13 @@ def test_remote_publication_separates_repository_identity_from_acceptance(
     publication.compile_remote_publication_request(
         root=tmp_path,
         effect=effect,
-        proof={"predicate": "proof:execution"},
+        proof={
+            "predicate": "proof:execution",
+            "commitment": authority.identity_projection(),
+            "commitment_digest": authority.digest(),
+        },
     )
 
-    assert captured["commitment_tree"] == "a" * 40
     assert captured["identity_tree"] == "a" * 40
-    assert captured["commitment"] is authority
+    assert captured["commitment"].digest() == authority.digest()
     assert captured["facts"].repository == "repository:test"

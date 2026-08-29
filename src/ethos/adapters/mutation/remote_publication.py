@@ -12,7 +12,6 @@ from typing import cast
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.publication.attestation import terminal_publication_result
-from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.git_object import GitObjectKind
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.profile import repository_identity
@@ -25,6 +24,7 @@ from ethos.contracts.publication import PublicationTarget
 from ethos.contracts.publication import PublicationUpdate
 from ethos.contracts.publication import compile_publication_plan
 from ethos.contracts.publication import publication_effect_from_plan
+from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.repository.release.publication import publication_ref_transition
 from ethos.repository.release.publication import publication_source_version_gaps
@@ -316,7 +316,15 @@ def compile_remote_publication_request(
     *, root: Path, effect: PublicationEffect, proof: dict[str, object]
 ) -> TransitionPlan:
     """Compile fresh remote observations into the common TransitionPlan."""
-    commitment = load_openspec_commitment(root, tree_ref=effect.source.peeled_commit)
+    commitment_payload = proof.get("commitment")
+    commitment = (
+        Commitment.model_validate(commitment_payload, strict=False)
+        if isinstance(commitment_payload, Mapping)
+        else None
+    )
+    if proof.get("commitment_digest") != (commitment.digest() if commitment is not None else None):
+        message = "publication_proof_commitment_mismatch"
+        raise ValueError(message)
     facts = Facts(
         repository=repository_identity(root, tree_ref=effect.source.peeled_commit),
         head=effect.source.peeled_commit,

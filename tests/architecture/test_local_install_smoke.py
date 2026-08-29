@@ -106,6 +106,7 @@ def test_package_gate_order_and_offline_contract_have_one_machine_owner() -> Non
 def test_package_only_runtime_behavior_remains_owned_by_install_smoke() -> None:
     owner = (ROOT / "tools/ci/local_install_smoke.py").read_text(encoding="utf-8")
     assert "build/runtime/work/local-install-smoke" in owner
+    assert '"--source-root"' not in owner
     assert '"external_governance_available": False' in owner
     assert '"hosted_ci_status_claimed": False' in owner
     assert '"publish",\n            "--ref"' in owner

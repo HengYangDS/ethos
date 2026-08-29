@@ -385,7 +385,9 @@ class TransitionPlan(_PlanModel):
         except (TypeError, ValueError) as error:
             message = "transition_plan_closure_invalid"
             raise ValueError(message) from error
-        if commitment is not None:
+        if commitment is not None or (
+            isinstance(self.effect, dict) and self.effect.get("operation") == "proof.execute"
+        ):
             validate_proof_plan(self, commitment, facts)
         if self.inputs != PlanInputs(
             commitment=commitment.digest() if commitment is not None else None,
@@ -470,7 +472,7 @@ def git_effect_from_plan(plan: TransitionPlan) -> GitEffect:
 
 
 def compile_plan(
-    commitment: Commitment,
+    commitment: Commitment | None,
     facts: Facts,
     nodes: tuple[PlanNode, ...],
     *,
@@ -480,7 +482,7 @@ def compile_plan(
 ) -> TransitionPlan:
     """Compile one effective commitment and current fact snapshot into TransitionPlan."""
     attestations = prior_attestations or {}
-    commitment_digest = commitment.digest()
+    commitment_digest = commitment.digest() if commitment is not None else None
     facts_digest = facts.digest()
     policy_digest = canonical_json_digest(policy)
     effect = proof_effect_projection(
@@ -498,7 +500,7 @@ def compile_plan(
             effect=canonical_json_digest(effect),
         ),
         closure={
-            "commitment": commitment.identity_projection(),
+            "commitment": commitment.identity_projection() if commitment is not None else None,
             "prior_attestations": attestations,
             "policy": policy,
             "effect": effect,
@@ -512,7 +514,7 @@ def compile_plan(
 
 
 def proof_effect_digest(
-    *, commitment: str, facts: str, policy: str, nodes: tuple[PlanNode, ...]
+    *, commitment: str | None, facts: str, policy: str, nodes: tuple[PlanNode, ...]
 ) -> str:
     """Return the canonical identity of one proof execution closure."""
     return canonical_json_digest(
@@ -526,7 +528,7 @@ def proof_effect_digest(
 
 
 def proof_effect_projection(
-    *, commitment: str, facts: str, policy: str, nodes: tuple[PlanNode, ...]
+    *, commitment: str | None, facts: str, policy: str, nodes: tuple[PlanNode, ...]
 ) -> JsonObject:
     """Return the exact proof operation carried by its TransitionPlan."""
     ordered = TransitionPlan.closure(nodes)

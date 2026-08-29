@@ -18,6 +18,7 @@ from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_active_commitment
 from tests.support.literal_cases import literal_case
 from tests.support.playbooks import write_playbook_package
 
@@ -166,6 +167,7 @@ def test_plan_projects_the_compiled_skill_activation(
     activation_path = repo / ".agents" / "skills" / "activation.toml"
     activation_path.parent.mkdir(parents=True)
     activation_path.write_text("[meta]\nversion = 2\n", encoding="utf-8")
+    write_active_commitment(repo)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt")
     registry = _registry(

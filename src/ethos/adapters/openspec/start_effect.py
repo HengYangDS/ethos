@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -66,6 +67,30 @@ class CurrentGenerationBinding:
         """Return the selected official Change identity."""
         return self.commitment.id.removeprefix("change:")
 
+    def scope_report(self, paths: tuple[str, ...] | None = None) -> JsonObject:
+        """Project the selected generation as one material-path authority."""
+        authorized = tuple(dict.fromkeys(self.scope.paths))
+        observed = tuple(dict.fromkeys(paths if paths is not None else authorized))
+        change = self.change_id
+        covered = tuple(path for path in observed if path in authorized)
+        uncovered = tuple(path for path in observed if path not in authorized)
+        gaps = (
+            *self.scope.gaps,
+            *(f"openspec_material_path_uncovered:{path}" for path in uncovered),
+        )
+        return {
+            "verdict": "block" if gaps else "pass",
+            "state": ("archive_attested" if self.scope.archive_authority else "attributed"),
+            "changed_paths": list(observed),
+            "material_patterns": [],
+            "material_paths": list(observed),
+            "changes": [{"name": change}],
+            "covered_paths": [{"path": path, "changes": [change]} for path in covered],
+            "uncovered_paths": list(uncovered),
+            "required_gaps": list(gaps),
+            "advisory_gaps": [],
+        }
+
 
 def current_generation_binding(
     root: Path,
@@ -82,8 +107,27 @@ def current_generation_binding(
     if work_lane and (authority is None or authority.verdict != "pass"):
         reason = authority.reason if authority is not None else "current_authority_unavailable"
         raise ValueError(reason)
-    commitment = load_profile_commitment(root, change_id=change)
-    paths = change_scope_paths_from_status(root, status) if changed else ()
+    archive_authority: JsonObject = {}
+    try:
+        commitment = load_profile_commitment(root, change_id=change)
+    except ValueError as error:
+        if str(error) != "openspec_active_change_missing":
+            raise
+        archived = attested_archive_transition(
+            root,
+            head=str(status.get("head") or ""),
+            change=change,
+        )
+        if archived is None:
+            raise
+        commitment, archive_authority = archived
+    observed_paths = change_scope_paths_from_status(root, status) if changed else ()
+    authorized_paths = archive_authority.get("authorized_paths")
+    paths = (
+        tuple(str(path) for path in authorized_paths)
+        if archive_authority and isinstance(authorized_paths, list | tuple)
+        else observed_paths
+    )
     scope = current_generation_scope(
         root,
         head=str(status.get("head") or ""),
@@ -93,6 +137,12 @@ def current_generation_binding(
         fallback_paths=paths,
         current_binding=work_lane,
     )
+    if archive_authority:
+        scope = CurrentGenerationScope(
+            paths=scope.paths,
+            archive_authority=archive_authority,
+            attributions=scope.attributions,
+        )
     return CurrentGenerationBinding(
         authority.lease if authority is not None else {}, commitment, scope
     )

@@ -43,6 +43,24 @@ from ethos.contracts.value import mutable_json
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.semantic import Commitment
+
+
+def _proof_commitment(
+    root: Path,
+    *,
+    change_id: str | None,
+    head: str,
+    work_lane: bool,
+) -> Commitment | None:
+    """Compile active intent, allowing an entity-free repository proof."""
+    try:
+        return load_profile_commitment(root, change_id=change_id, tree_ref=head)
+    except ValueError as error:
+        if work_lane or change_id is not None or str(error) != "openspec_active_change_missing":
+            raise
+        return None
+
 
 def _proof_issue_values(
     payload: Mapping[str, object],
@@ -151,9 +169,12 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         )
         if authority.verdict != "pass":
             raise ValueError(authority.reason)
-        commitment = load_profile_commitment(root, change_id=change_id or None, tree_ref=head)
-    else:
-        commitment = load_profile_commitment(root, change_id=change_id or None, tree_ref=head)
+    commitment = _proof_commitment(
+        root,
+        change_id=change_id or None,
+        head=head,
+        work_lane=work_lane,
+    )
     policy = resolve_gate_policy(
         root,
         tree_ref=head,
@@ -161,7 +182,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     )
     if (
         not head
-        or commitment.digest() != plan.inputs.commitment
+        or (commitment.digest() if commitment is not None else None) != plan.inputs.commitment
         or policy.digest != plan.inputs.policy
         or plan.inputs.prior_attestations != canonical_json_digest(plan.prior_attestations)
         or plan.inputs.effect
@@ -288,12 +309,19 @@ def proof_plan(
         )
         if authority.verdict != "pass":
             raise ValueError(authority.reason)
-        commitment = load_profile_commitment(root, change_id=change_id, tree_ref=head)
-    else:
-        commitment = load_profile_commitment(root, change_id=change_id, tree_ref=head)
+    commitment = _proof_commitment(
+        root,
+        change_id=change_id,
+        head=head,
+        work_lane=work_lane,
+    )
     repository = repository_identity(root, tree_ref=head)
-    selected_change_id = commitment.id.removeprefix("change:")
-    archived = attested_archive_transition(root, head=head, change=selected_change_id)
+    selected_change_id = commitment.id.removeprefix("change:") if commitment is not None else ""
+    archived = (
+        attested_archive_transition(root, head=head, change=selected_change_id)
+        if selected_change_id
+        else None
+    )
     policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
     nodes = policy.nodes
     observed_scope = generation_scope or (
@@ -451,6 +479,7 @@ def proof_admission_report(
             "verdict": attestation.verdict,
             "commit": head,
             "tree": str(plan.facts.get("tree") or ""),
+            "commitment": plan.commitment,
             "commitment_digest": attestation.commitment_digest,
             "facts_digest": attestation.facts_digest,
             "plan_digest": attestation.plan_digest,

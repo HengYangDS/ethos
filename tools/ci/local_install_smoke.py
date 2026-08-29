@@ -164,8 +164,6 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
             "lane",
             "start",
             "smoke-change",
-            "--source-root",
-            str(adopter),
             "--holder-ref",
             holder,
             *suffix,

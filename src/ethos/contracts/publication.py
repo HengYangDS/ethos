@@ -151,7 +151,7 @@ _PUBLICATION_NODE = PlanNode(
 
 def compile_publication_plan(
     *,
-    commitment: Commitment,
+    commitment: Commitment | None,
     facts: Facts,
     effect: PublicationEffect,
     prior_attestations: JsonObject,
@@ -167,14 +167,14 @@ def compile_publication_plan(
     projection = effect.model_dump(mode="json")
     return TransitionPlan.compile(
         inputs=PlanInputs(
-            commitment=commitment.digest(),
+            commitment=commitment.digest() if commitment is not None else None,
             facts=facts.digest(),
             prior_attestations=canonical_json_digest(prior_attestations),
             policy=canonical_json_digest(policy),
             effect=effect_digest,
         ),
         closure={
-            "commitment": commitment.identity_projection(),
+            "commitment": commitment.identity_projection() if commitment is not None else None,
             "prior_attestations": prior_attestations,
             "policy": policy,
             "effect": projection,

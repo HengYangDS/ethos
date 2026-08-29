@@ -333,7 +333,7 @@ def proof_plan(
             lease=lease,
             fallback_paths=changed_paths,
         )
-        if work_lane and changed_paths
+        if work_lane and changed_paths and commitment is not None
         else None
     )
     effective_paths = (

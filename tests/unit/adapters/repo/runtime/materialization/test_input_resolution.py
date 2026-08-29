@@ -190,3 +190,113 @@ def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_
 
     assert commands == [(uv.as_posix(), "sync", "--locked", "--offline", "--check", "--active")]
     assert not wheel_dir.parent.exists()
+
+
+def test_runtime_project_selects_complete_source_or_complete_packaged_data(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    for name in ("pyproject.toml", "uv.lock", "VERSION"):
+        (source / name).write_text("x\n", encoding="utf-8")
+    assert runtime_inputs.resolve_runtime_project(source) == source
+
+    packaged = tmp_path / "package/ethos/data/runtime-project"
+    packaged.mkdir(parents=True)
+    for name in ("pyproject.toml", "uv.lock", "VERSION"):
+        (packaged / name).write_text("x\n", encoding="utf-8")
+    monkeypatch.setattr(
+        runtime_inputs,
+        "__file__",
+        packaged.parents[1] / "a/b/c/d/input_resolution.py",
+    )
+    incomplete = tmp_path / "incomplete"
+    incomplete.mkdir()
+    assert runtime_inputs.resolve_runtime_project(incomplete) == packaged
+
+    (packaged / "VERSION").unlink()
+    with pytest.raises(ValueError, match="hook_runtime_packaged_project_missing"):
+        runtime_inputs.resolve_runtime_project(incomplete)
+
+
+def test_owned_interpreter_reuses_runtime_or_installs_one_managed_python(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    runtime = tmp_path / "repo.git/ethos/runtime" / ("a" * 64)
+    prefix = runtime / "python"
+    interpreter = prefix / "bin/python"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text("python", encoding="utf-8")
+    monkeypatch.setattr(sys, "prefix", prefix.as_posix())
+    assert runtime_inputs.resolve_owned_interpreter(tmp_path, interpreter) == interpreter.resolve()
+
+    source_python = tmp_path / "source-python"
+    source_python.write_text("python", encoding="utf-8")
+    managed = tmp_path / "managed/python"
+    managed.parent.mkdir(parents=True)
+    managed.write_text("python", encoding="utf-8")
+    uv = prefix / "bin/uv"
+    uv.write_text("uv", encoding="utf-8")
+    monkeypatch.setattr(sys, "prefix", (tmp_path / "ambient").as_posix())
+    monkeypatch.setattr(sys, "executable", (prefix / "bin/python").as_posix())
+    monkeypatch.setattr(
+        runtime_inputs,
+        "observe_python_facts",
+        lambda path: (
+            {"python_version": "3.14", "prefix": "source", "base_prefix": "source"}
+            if path == source_python
+            else {"prefix": "managed", "base_prefix": "managed"}
+        ),
+    )
+    calls = 0
+
+    def run(_command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        return _completed(1) if calls == 1 else _completed(0, managed.as_posix())
+
+    monkeypatch.setattr(runtime_inputs.subprocess, "run", run)
+
+    assert runtime_inputs.resolve_owned_interpreter(tmp_path, source_python) == managed.resolve()
+    assert calls == 3
+
+
+def test_owned_interpreter_reports_install_and_validation_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source_python = tmp_path / "source-python"
+    source_python.write_text("python", encoding="utf-8")
+    python = tmp_path / "bin/python"
+    uv = python.with_name("uv")
+    uv.parent.mkdir(parents=True)
+    uv.write_text("uv", encoding="utf-8")
+    monkeypatch.setattr(sys, "executable", python.as_posix())
+    monkeypatch.setattr(
+        runtime_inputs,
+        "observe_python_facts",
+        lambda path: (
+            {"python_version": "3.14", "prefix": "source", "base_prefix": "source"}
+            if path == source_python
+            else {"prefix": "venv", "base_prefix": "base"}
+        ),
+    )
+    monkeypatch.setattr(
+        runtime_inputs.subprocess,
+        "run",
+        lambda command, **_kwargs: (
+            _completed(1, stderr="install failed") if "install" in command else _completed(1)
+        ),
+    )
+    with pytest.raises(ValueError, match="install failed"):
+        runtime_inputs.resolve_owned_interpreter(tmp_path, source_python)
+
+    candidate = tmp_path / "managed/python"
+    candidate.parent.mkdir(parents=True)
+    candidate.write_text("python", encoding="utf-8")
+    monkeypatch.setattr(
+        runtime_inputs.subprocess,
+        "run",
+        lambda *_args, **_kwargs: _completed(0, candidate.as_posix()),
+    )
+    with pytest.raises(ValueError, match="hook_runtime_owned_interpreter_unavailable"):
+        runtime_inputs.resolve_owned_interpreter(tmp_path, source_python)

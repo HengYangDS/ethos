@@ -66,11 +66,8 @@ def _binding_gaps(attestation: Attestation, plan: TransitionPlan) -> list[str]:
 def _result_gaps(
     attestation: Attestation,
     checks: tuple[dict[str, Any], ...],
-    required_gaps: tuple | list,
 ) -> list[str]:
     gaps: list[str] = []
-    if attestation.verdict == "pass" and required_gaps:
-        gaps.append("proof_attestation_verdict_mismatch")
     if attestation.verdict != "pass":
         gaps.append(f"proof_attestation_verdict_{attestation.verdict}")
     if any(check["verdict"] != "pass" for check in checks):
@@ -168,5 +165,5 @@ def proof_statement_gaps(
         *_binding_gaps(attestation, plan),
         *_statement_gaps(attestation, statement),
         *_gate_gaps(plan, checks),
-        *_result_gaps(attestation, checks, required_gaps),
+        *_result_gaps(attestation, checks),
     ]

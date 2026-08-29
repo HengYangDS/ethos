@@ -102,6 +102,47 @@ def test_coverage_gate_state() -> None:
     ]
 
 
+def test_coverage_floor_reuses_the_test_run_configuration(tmp_path, monkeypatch) -> None:
+    policy = tomllib.loads(python_test_gate.COVERAGE_POLICY.read_text(encoding="utf-8"))
+    settings = python_test_gate.Settings(
+        head="a" * 40,
+        evidence=tmp_path / "evidence",
+        basetemp=tmp_path / "pytest",
+        basetemp_owned=True,
+        workers=None,
+        shards=None,
+        durations=0,
+        timeout=None,
+        lock_wait=0,
+        identity=None,
+    )
+    gate = python_test_gate.PythonTestGate(settings)
+    gate.coverage.mkdir(parents=True)
+    gate.data.touch()
+    gate.head_file.write_text(settings.head + "\n", encoding="utf-8")
+    monkeypatch.setattr(gate, "_stable_head", lambda: None)
+    commands: list[tuple[str, ...]] = []
+
+    class Session:
+        @staticmethod
+        def run(*command: str, **_kwargs: object) -> None:
+            commands.append(command)
+
+    gate.enforce_floor(Session())  # type: ignore[invalid-argument-type]
+
+    assert commands == [
+        (
+            str(python_test_gate.PYTHON),
+            "-m",
+            "coverage",
+            "report",
+            f"--rcfile={python_test_gate.COVERAGE_CONFIG}",
+            f"--data-file={gate.data}",
+            f"--fail-under={policy['current_hard_floor']}",
+        )
+    ]
+
+
 def test_python_cleanup_propagates_removal_failure(tmp_path, monkeypatch) -> None:
     target = tmp_path / "evidence"
     target.mkdir()

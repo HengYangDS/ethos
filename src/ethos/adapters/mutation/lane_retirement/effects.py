@@ -16,7 +16,6 @@ from ethos.adapters.mutation.lane_retirement.observation import output
 from ethos.adapters.mutation.lane_retirement.observation import ref_outcome
 from ethos.adapters.mutation.lane_retirement.observation import retirement_observation
 from ethos.adapters.mutation.lane_retirement.observation import retirement_terminal
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effects import admit_git_effect
@@ -242,24 +241,24 @@ def archived_carrier_absorption(
     *,
     head: str,
     accepted_head: str,
-    carrier: str,
 ) -> dict[str, object]:
-    """Return exact active-to-archive blob mapping for one reconstructed carrier."""
-    active_root = carrier.removesuffix("/commitment.toml")
-    prefix = "openspec/changes/"
-    if (
-        not carrier.startswith(prefix)
-        or "/archive/" in carrier
-        or not carrier.endswith("/commitment.toml")
-        or not is_ancestor(repo, accepted_head, head)
-    ):
+    """Derive one exact active-to-archive OpenSpec mapping from Git facts."""
+    if not is_ancestor(repo, accepted_head, head):
         return {}
-    change = active_root.removeprefix(prefix)
     source_paths = _carrier_delta_paths(repo, accepted_head, head)
-    if not source_paths or any(
-        path != active_root and not path.startswith(f"{active_root}/") for path in source_paths
-    ):
+    roots = {
+        "/".join(path.split("/")[:3])
+        for path in source_paths
+        if path.startswith("openspec/changes/")
+        and not path.startswith("openspec/changes/archive/")
+        and len(path.split("/")) >= 4
+    }
+    if len(roots) != 1:
         return {}
+    active_root = next(iter(roots))
+    if any(path != active_root and not path.startswith(f"{active_root}/") for path in source_paths):
+        return {}
+    change = active_root.rsplit("/", 1)[-1]
     candidates = _archive_roots(repo, accepted_head, change)
     if len(candidates) != 1:
         return {}
@@ -339,11 +338,6 @@ def lane(
                 "expired": f"work_lane_lease_expired:{branch}",
             }.get(lease_state, f"work_lane_missing_lease:{branch}")
         )
-    else:
-        try:
-            load_lease_bound_commitment(path, lease=lease)
-        except ValueError as exc:
-            gaps.append(str(exc))
     return {
         "branch": branch,
         "path": path.as_posix(),
@@ -425,12 +419,10 @@ def archive_absorption_gaps(
     archive_absorption = cast("dict[str, object]", lane.get("archive_absorption") or {})
     if not archive_absorption:
         return []
-    lease = cast("dict[str, object]", lane.get("lease") or {})
     observed = archived_carrier_absorption(
         control_root,
         head=str(lane.get("head") or ""),
         accepted_head=accepted_head,
-        carrier=str(lease.get("base_commitment_path") or ""),
     )
     return [] if observed == archive_absorption else ["retirement_archive_absorption_stale"]
 
@@ -442,11 +434,8 @@ def lease_request(lane: dict[str, object]) -> LeaseOperationRequest:
         operation="revoke",
         branch=str(lane["branch"]),
         holder_ref=holder_ref(lane),
-        lease_id=str(lease.get("lease_id") or ""),
-        expected_epoch=integer_value(lease.get("epoch")),
-        expect_head=str(lane["head"]),
-        expected_expires_at=str(lease.get("expires_at") or ""),
-        expected_payload_sha256=str(lease.get("payload_sha256") or ""),
+        generation=integer_value(lease.get("generation")),
+        expires_at=str(lease.get("expires_at") or ""),
         apply=True,
     )
 

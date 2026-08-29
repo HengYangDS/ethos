@@ -52,11 +52,93 @@ affected projections, and prove the replacement has one semantic owner.
 
 ### Git-Native Transaction Boundary
 
-Effects bind an exact Git head and declared scope into `TransitionPlan`,
-recheck the binding, execute one compare-and-swap, then post-observe and attest.
+Effects bind freshly observed Git coordinates and one exact ref intent into a
+`TransitionPlan`, recheck them, execute one compare-and-swap, then post-observe
+and attest.
 Worktrees, lanes, leases, and integration refs are resource coordination, not
 semantic roots. Their transition may not substitute stale facts, a dashboard,
 or a hosted result for the local Git binding.
+
+### Repository Semantic Panorama
+
+The repository is governed by semantic obligations, not by its current file
+layout. The following table is the destructive-convergence map for active
+implementation owners. A listed current surface is evidence of where an
+obligation is implemented today, not a reason to retain that surface.
+
+| Obligation | Current implementation owners | Terminal owner and disposition |
+| --- | --- | --- |
+| Intent and completed proof | official OpenSpec artifacts, Commitment compiler, Attestations, evidence adapters | Official OpenSpec is the sole tracked intent carrier. Commitment is a transient three-field compilation; Attestations durably own completed proof. |
+| Observation, decision, and continuation | status, plan, prewrite, hook admission, result projection, command-local resolvers | One typed resolver compiles fresh `Facts` and selected authority into one result and continuation. CLI, hooks, SDK, and skills consume it; they do not reinterpret it. |
+| Local Git ref mutation | common Git-effect executor plus archive, lane-start, retirement, landing, refresh, and attestation-set ref writers | One Git-ref effect adapter owns admission, exact CAS, post-observation, compensation, recovery evidence, and effect Attestation. Delete command-specific ref-effect state machines after migrating unique pre/postconditions. |
+| Worktree and filesystem mutation | worktree helpers plus lane-start, retirement, handoff, hook, archive, and accepted-root orchestration | One worktree/filesystem effect adapter implements reversible primitives under the common transaction protocol. Lifecycle commands compile plans; they do not own rollback frameworks. |
+| Lease and shared state mutation | SQLite Lease lifecycle plus command-specific finalization, archive, handoff, and retirement logic | One row stores only lane, holder, CAS generation, and expiry. Git, OpenSpec, Commitment, workflow, and effect state remain outside it; handoff uses exact facts, request evidence, and one holder CAS. |
+| Remote publication | publication request receipts, forge adapters, proposal/promotion command paths | One remote-effect adapter models observed, applied, unknown, and re-observed outcomes. GitHub, GitLab, and local-only are peer projections. `proposal/*` is a governed review ref projection, never an authoring lane. |
+| Runtime, package, and hooks | build identity, runtime selector/materialization, hook binding/activation, package readback | One immutable BuildIdentity and one runtime transition adapter own installation, upgrade, self-heal, rollback, and readback. Package version is never reused for different bytes. |
+| Recovery and compensation | Git-effect recovery plus archive, lane-start, retirement, handoff, publication, runtime, and config-specific recovery | Recovery re-observes an exact plan and effect class. An effect may retain evidence needed to resume or compensate, but no command owns a parallel lifecycle or generic mutable recovery state. |
+| Assurance | gate compiler/runner, proof admission, OpenSpec task checks, hosted and independent verification adapters | Acceptance propositions compile to proof obligations and verifier-bound Attestations. Tasks express progress, paths name inputs, and neither substitutes for proof. Pre-publication and hosted evidence remain distinct phases. |
+| Operational integrity | quality gates, source budgets, semantic closure, reference closure, package/runtime checks, temporary-resource owners | One executable quality graph owns each obligation once. Size thresholds are tripwires, not proof of redundancy; structural duplication, competing owners, unreachable symbols, and semantic overlap determine deletion. |
+
+The five effect classes are `git-ref`, `worktree/filesystem`, `lease/state`,
+`remote`, and `runtime/package`. They share one protocol:
+
+```text
+fresh observe
+-> deterministic TransitionPlan
+-> effect-time admission and exact binding recheck
+-> effect-class apply
+-> post-observe
+-> Attestation
+-> idempotent resume or bounded compensation
+```
+
+They do not share one oversized implementation function. Each adapter owns only
+the irreducible native operation for its effect class; lifecycle commands own
+neither mutation primitives nor recovery state machines.
+
+The dependency-ordered destructive batches are:
+
+1. **Close the active local repository-effect atom.** Remove the model defect
+   that made lifecycle commands mirror Git and OpenSpec inside Lease state.
+   Compile intent from the exact official OpenSpec Change, reduce Lease to the
+   lane-holder relation, route remaining local ref effects through the common
+   Git-effect owner, and delete tracked Commitment carriers plus private binding,
+   receipt, predicate, recovery, hook authority, tests, and documentation in the
+   same Change.
+2. **Unify authority and result projection.** Replace command-local status,
+   plan, prewrite, and hook interpretation with one resolver and closed result
+   algebra; remove duplicate diagnostics and abstract next actions.
+3. **Converge official projections and acceptance compilation.** Compile the
+   minimal Commitment value from official OpenSpec requirements and scenarios;
+   derive effect paths from fresh Git Facts; delete relation, predicted-scope,
+   research, authority-reference, and progress fields that do not alter
+   acceptance. Do not add a replacement carrier.
+4. **Close coordination.** Build one positive lane/Lease reconciliation model
+   for start, continue, handoff, takeover, reacquire, restore, absorb, preserve,
+   and retire. Delete command-specific orphan ownership and model `unbound` as
+   an observation rather than authority.
+5. **Correct integration roles.** Keep authoring on `work/*`; project proved
+   objects to `proposal/*`; converge developer MR/PR and maintainer exact-CAS
+   paths on the same promotion semantics and cleanup.
+6. **Close immutable identity and installation.** Establish non-reused package
+   versions, source/tree/runtime digests, repository binding, package-only
+   operation, idempotent hook/runtime upgrade, uninstall, and retention/GC.
+7. **Complete assurance and publication.** Compile requirement coverage into
+   proof obligations, separate local and hosted phases, admit independent
+   verification, and prove local/GitHub/GitLab publication as distinct planes.
+8. **Subtract operational residue.** Enforce semantic ownership, duplication,
+   module boundaries, temporary-resource ownership, supply-chain integrity,
+   and performance through one quality graph; delete obsolete code, tests,
+   schemas, documentation, configuration, runtime generations, and refs.
+9. **Prove terminal slices.** Run greenfield, brownfield, package-only, local,
+   single-forge, dual-forge, interruption, drift, unbound, and adversarial
+   adopter workloads before claiming terminal convergence.
+
+Only disjoint read-only audits and disjoint later-change preparation may run in
+parallel. A mutation owner and its consumers converge serially so that no two
+active Changes modify the same authority surface. Each batch starts from fresh
+accepted-root facts and may be reordered only by evidence that its prerequisite
+is already satisfied or invalid.
 
 ### Adopter Isomorphism And First-Hour UX
 
@@ -104,15 +186,13 @@ The completed convergence carrier is immutable history at
 [`2026-08-16-model-promotion`](../../openspec/changes/archive/2026-08-16-model-promotion/).
 Its archived
 [`tasks.md`](../../openspec/changes/archive/2026-08-16-model-promotion/tasks.md)
-records the bounded implementation and proof mapping. Its Commitment carries
-the declared dependency edges. This plan owns no queue, phase state, dependency
-ledger, or progress projection.
+records the bounded implementation and proof mapping. This plan owns no queue,
+phase state, dependency ledger, or progress projection.
 
 The implementation order is the order in that task owner. Small commits are
-encouraged, but no parallel backlog may split semantic ownership. Intent outside
-the current Commitment is recorded as a non-authorizing Attestation and may be
-selected only by a dependency-linked successor Commitment after this Change
-closes.
+encouraged, but no parallel backlog may split semantic ownership. New intent
+outside the current official Change waits for its own bounded official Change;
+evidence that must survive is recorded as a non-authorizing Attestation.
 
 ## Convergence Rules
 
@@ -149,6 +229,7 @@ closes.
     latency are root-cause signals. Use the narrowest real reproducer and run
     heavy proof once at the frozen atomic boundary; never buy speed by weakening
     semantics, evidence freshness, coverage, or fail-closed admission.
+
 ## Completion Boundary
 
 Terminal convergence is verified only when the kernel, Git-native effect

@@ -40,11 +40,7 @@ def _case(tmp_path: Path) -> tuple[Path, GitEffect, Any, dict[str, object], dict
         values={"refs": {"refs/heads/dev": old}, "assertions": {}},
     )
     plan = compile_git_effect_plan(
-        commitment_fixture(
-            id="authority:test:attestation",
-            intent="Exercise attestation boundaries.",
-            subjects=("repository:repo",),
-        ),
+        commitment_fixture(id="authority:test:attestation", acceptance=("acceptance:fixture",)),
         facts,
         prior_attestations={},
         policy={"operation": "git.ref.compare-and-swap", "effect_digest": effect.digest()},
@@ -110,9 +106,10 @@ def test_git_effect_recovery_requires_the_exact_attestation_set_member(
         evidence=("repository:repo", "applied", before, after),
     )
     update = effect.updates["refs/heads/dev"]
-    assert attest.recover_plan(
-        repo, operation="git.ref.compare-and-swap", desired=update.desired
-    ) is None
+    assert (
+        attest.recover_plan(repo, operation="git.ref.compare-and-swap", desired=update.desired)
+        is None
+    )
 
     git(repo, "update-ref", "refs/heads/dev", update.desired, update.expected)
     record_attestations(repo, (record,))

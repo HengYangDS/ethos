@@ -15,6 +15,7 @@ from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -29,13 +30,12 @@ def test_observed_effect_compiler_promotes_semantic_policy_to_exact_cas_authorit
     tmp_path: Path,
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
+    write_test_profile(root)
+    git(root, "add", ".ethos/profile.toml")
+    git(root, "commit", "-m", "declare repository identity")
     head = git(root, "rev-parse", "HEAD")
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)})
-    authority = commitment_fixture(
-        id=f"repository:{root.name}",
-        intent="Compile one exact effect.",
-        subjects=(f"repository:{root.name}",),
-    )
+    authority = commitment_fixture(id=f"repository:{root.name}", acceptance=("acceptance:fixture",))
 
     carried = compile_observed_git_effect(
         root,
@@ -73,9 +73,7 @@ def _plan(
         },
     )
     authority = commitment_fixture(
-        id="authority:test:git-effect",
-        intent="Admit an exact effect.",
-        subjects=(f"repository:{root.name}",),
+        id="authority:test:git-effect", acceptance=("acceptance:fixture",)
     )
     return compile_git_effect_plan(
         authority,
@@ -86,20 +84,12 @@ def _plan(
     )
 
 
-def _generation(root: Path, branch: str, head: str) -> dict[str, object]:
+def _generation(branch: str, *, generation: int = 4) -> dict[str, object]:
     return {
         "branch": branch,
-        "lane_incarnation_id": "lane:test",
-        "lease_id": "lease:test",
-        "epoch": 4,
+        "generation": generation,
         "holder_ref": ACTOR,
-        "expected_head": head,
-        "expected_tree": git(root, "rev-parse", f"{head}^{{tree}}"),
-        "base_commitment_path": "openspec/changes/example/commitment.toml",
-        "base_commitment_bytes_sha256": "b" * 64,
-        "base_commitment_digest": "c" * 64,
         "expires_at": "2030-01-01T00:00:00+00:00",
-        "payload_sha256": "d" * 64,
     }
 
 
@@ -108,35 +98,48 @@ def test_raw_semantic_operation_never_authorizes_an_effect(tmp_path: Path) -> No
     old = git(root, "rev-parse", "HEAD")
     new = git(root, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "target")
     branch = "work/example"
-    generation = _generation(root, branch, old)
-    successor = generation | {
-        "epoch": 5,
-        "expected_head": new,
-        "base_commitment_path": "openspec/changes/example/commitment.toml",
-        "base_commitment_bytes_sha256": "e" * 64,
-        "base_commitment_digest": "f" * 64,
-    }
+    generation = _generation(branch)
     effect = GitEffect(updates={f"refs/heads/{branch}": GitRefUpdate(expected=old, desired=new)})
-    values = {
-        "lease_generation": generation,
-        "lease_successor": successor,
-        "new_commitment_path": successor["base_commitment_path"],
-        "new_commitment_bytes_sha256": successor["base_commitment_bytes_sha256"],
-        "new_commitment_digest": successor["base_commitment_digest"],
-    }
     carried = _plan(
         root,
         effect,
-        values=values,
-        policy={
-            "operation": "commitment.rebind",
-            "old_commitment_digest": generation["base_commitment_digest"],
-            "new_commitment_digest": successor["base_commitment_digest"],
-        },
+        values={"lease_generation": generation},
+        policy={"operation": "openspec.change.start"},
     )
 
     with pytest.raises(ValueError, match="git_effect_permission_denied"):
         admission.require_effect_permission(effect, carried)
+
+
+def test_recovery_accepts_the_same_minimal_lease_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    old = git(root, "rev-parse", "HEAD")
+    new = git(root, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "target")
+    branch = "work/example"
+    current = _generation(branch) | {
+        "lane_ref": branch,
+        "lease_state": "valid",
+    }
+    generation = admission.lease_generation(current)
+    effect = GitEffect(updates={f"refs/heads/{branch}": GitRefUpdate(expected=old, desired=new)})
+    carried = _plan(
+        root,
+        effect,
+        values={"lease_generation": generation},
+        policy={"operation": "openspec.change.start", "execution_branch": branch},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", ACTOR)
+    monkeypatch.setattr(admission, "leases_by_branch", lambda *_args, **_kwargs: {branch: current})
+    monkeypatch.setattr(
+        admission,
+        "run_git",
+        lambda *_args, **_kwargs: type("Result", (), {"stdout": f"{branch}\n"})(),
+    )
+
+    admission.require_live_lease(root, carried)
 
 
 @pytest.mark.parametrize("drift", ["refs", "assertions", "head", "tree"])
@@ -191,11 +194,10 @@ def test_live_lease_binds_actor_branch_and_detached_execution(
     root = init_git_repo(tmp_path / "repo")
     head = git(root, "rev-parse", "HEAD")
     branch = "work/example"
-    generation = _generation(root, branch, head)
+    generation = _generation(branch)
     observed = generation | {
         "lane_ref": branch,
         "lease_state": "valid",
-        "commitment_binding": "bound",
     }
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)})
     carried = _plan(
@@ -225,11 +227,10 @@ def test_live_lease_rejects_wrong_actor_before_effect(
     root = init_git_repo(tmp_path / "repo")
     head = git(root, "rev-parse", "HEAD")
     branch = "work/example"
-    generation = _generation(root, branch, head)
+    generation = _generation(branch)
     observed = generation | {
         "lane_ref": branch,
         "lease_state": "valid",
-        "commitment_binding": "bound",
     }
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)})
     carried = _plan(root, effect, values={"lease_generation": generation})

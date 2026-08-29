@@ -26,9 +26,7 @@ from ethos.contracts.verdict import Verdict
 from tests.support.literal_cases import literal_case
 from tests.support.semantic import commitment_fixture
 
-_COMMITMENT = commitment_fixture(
-    id="change:test", intent="Exercise one transition plan.", subjects=("repository:test",)
-)
+_COMMITMENT = commitment_fixture(id="change:test", acceptance=("acceptance:fixture",))
 _FACTS = Facts(
     repository="repository:test",
     head="a" * 40,
@@ -72,10 +70,8 @@ def _facts(*paths: object, repository: str = "repository:test") -> Facts:
     )
 
 
-def _commitment(
-    *, subjects: tuple[str, ...] = ("repository:test",), scope: tuple[str, ...] = ("**",)
-) -> Commitment:
-    return commitment_fixture(id="change:test", intent="test", subjects=subjects, scope=scope)
+def _commitment() -> Commitment:
+    return commitment_fixture(id="change:test", acceptance=("acceptance:fixture",))
 
 
 def _compile(
@@ -361,7 +357,9 @@ def test_transition_plan_requires_all_bound_inputs_and_complete_closure() -> Non
 def test_transition_plan_rejects_a_mismatched_closure_binding(field: str) -> None:
     closure = dict(_INPUTS["closure"])
     closure[field] = {
-        "commitment": _COMMITMENT.model_copy(update={"intent": "Different"}).identity_projection(),
+        "commitment": _COMMITMENT.model_copy(
+            update={"acceptance": ("acceptance:different",)}
+        ).identity_projection(),
         "prior_attestations": {"proof": "different"},
         "policy": {"name": "different"},
         "effect": {"operation": "different"},
@@ -370,43 +368,25 @@ def test_transition_plan_rejects_a_mismatched_closure_binding(field: str) -> Non
         TransitionPlan.compile(**(_INPUTS | {"closure": closure}))
 
 
-def test_compile_plan_binds_subject_scope_and_recursive_globs() -> None:
-    node = PlanNode(id="status", kind="check")
-    assert _compile("src/ethos/result.py", nodes=(node,)).verdict == "pass"
-    blocked = _compile(
-        "src/ethos/result.py",
-        commitment=_commitment(subjects=("repository:other",), scope=("docs/**",)),
-        nodes=(node,),
-    )
-    assert blocked.required_gaps == ("repository_subject_mismatch", "change_scope_exceeded")
-    archive = _compile(
-        "openspec/changes/archive/2026-08-05-fixture-change/tasks.md",
-        commitment=_commitment(scope=("openspec/changes/archive/*-fixture-change/**",)),
-    )
-    assert (archive.verdict, archive.required_gaps) == ("pass", ())
-
-
 @pytest.mark.parametrize("path", [123, "/absolute.py", "../escape.py", "src\\windows.py"])
 def test_compile_plan_rejects_noncanonical_changed_paths(path: object) -> None:
     assert _compile(path).required_gaps == ("changed_paths_invalid",)
 
 
 def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
-    archive_path = "openspec/changes/archive/2026-08-08-test/commitment.toml"
+    archive_path = "openspec/changes/archive/2026-08-08-test/tasks.md"
     spec_path = "openspec/specs/product/spec.md"
     product_path = "src/ethos/product.py"
-    commitment = _commitment(scope=(product_path,))
+    commitment = _commitment()
     facts = _facts(archive_path, spec_path, product_path)
-    effect_identity = "d" * 64
     authority = {
         "openspec_archive": {
-            "predicate": "effect:openspec-archive",
+            "predicate": "effect:git-ref-update",
             "attestation_id": "a" * 64,
-            "commitment_digest": "b" * 64,
             "effect_digest": "c" * 64,
-            "effect_identity": effect_identity,
-            "input": {"effect_identity": effect_identity},
-            "output": {"changed_paths": [archive_path, spec_path]},
+            "plan_digest": "d" * 64,
+            "claim": {"operation": "openspec.archive", "effect": "c" * 64},
+            "source": "archive_commit",
             "authorized_paths": [archive_path, spec_path],
         }
     }
@@ -440,17 +420,12 @@ def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
         commitment=commitment,
         prior=weak,
     )
-    assert uncovered.required_gaps == (
-        "proof_archive_scope_stale",
-        "change_scope_exceeded",
-    )
+    assert uncovered.required_gaps == ("proof_archive_scope_stale",)
 
 
 def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
     commitment = commitment_fixture(
         id="change:test",
-        intent="Preserve",
-        subjects=("repository:test",),
         acceptance=("behavior_preserved",),
     )
     facts = _facts("src/ethos/result.py")
@@ -458,12 +433,7 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
     base = _compile(commitment=commitment, facts=facts, nodes=(node,))
     variants = (
         _compile(
-            commitment=commitment.model_copy(
-                update={
-                    "intent": "Replace",
-                    "acceptance": ("replacement_proven",),
-                }
-            ),
+            commitment=commitment.model_copy(update={"acceptance": ("replacement_proven",)}),
             facts=facts,
             nodes=(node,),
         ),

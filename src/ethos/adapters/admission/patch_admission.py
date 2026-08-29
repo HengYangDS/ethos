@@ -3,12 +3,10 @@ from __future__ import annotations
 import shlex
 import shutil
 import tempfile
-import tomllib
 from pathlib import Path
 
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
-from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.declarations import command_owner_sources_from_files
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
@@ -46,19 +44,6 @@ def patch_admission(
         reason = "prewrite_patch_baseline_missing"
     if not reason and not _patch_applies(root, patch, check_preimage=True):
         reason = "prewrite_patch_preimage_mismatch"
-    scope = _baseline_scope_patterns(root, baseline_head) if not reason else ()
-    if not reason:
-        reason = next(
-            (
-                f"product_path_not_admitted_at_baseline:{change['path']}"
-                for change in changes
-                if change["new"] is True
-                and not any(
-                    repository_path_matches(str(change["path"]), pattern) for pattern in scope
-                )
-            ),
-            "",
-        )
     references: dict[str, set[str]] = {}
     if not reason:
         baseline_files = _baseline_reference_files(root, baseline_head)
@@ -148,31 +133,6 @@ def _patch_path(raw: str) -> str:
     if raw == "/dev/null":
         return raw
     return raw.removeprefix("a/").removeprefix("b/")
-
-
-def _baseline_scope_patterns(root: Path, head: str) -> tuple[str, ...]:
-    paths = git_stdout(
-        root,
-        "ls-tree",
-        "-r",
-        "--name-only",
-        head,
-        "--",
-        "openspec/changes",
-    ).splitlines()
-    patterns: list[str] = []
-    for path in paths:
-        if not path.endswith("/commitment.toml") or "/archive/" in path:
-            continue
-        text = git_stdout(root, "show", f"{head}:{path}")
-        try:
-            scope = tomllib.loads(text).get("scope", [])
-        except tomllib.TOMLDecodeError:
-            continue
-        if not isinstance(scope, list):
-            continue
-        patterns.extend(item for item in scope if isinstance(item, str) and item)
-    return tuple(dict.fromkeys(patterns))
 
 
 def _patch_references(

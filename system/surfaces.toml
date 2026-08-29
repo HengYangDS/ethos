@@ -9,7 +9,6 @@ schema = "system/schemas/contracts/surfaces.schema.json"
 inputs = [
   "DOCKER_HOST",
   "ETHOS_ACTOR",
-  "ETHOS_ARCHIVE_TRANSITION",
   "ETHOS_CI_TOOL_CACHE_DIR",
   "ETHOS_HOUSEKEEPING_ROOTS",
   "ETHOS_INDEPENDENT_VERIFICATION_RECEIPT",

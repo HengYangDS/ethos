@@ -14,7 +14,6 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
-from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -72,11 +71,7 @@ def _recovery_plan(
         assertions={"refs/heads/candidate/dev": CANDIDATE},
     )
     return compile_git_effect_plan(
-        commitment_fixture(
-            id="authority:test:refresh",
-            intent="Recover one refresh effect.",
-            subjects=("repository:test",),
-        ),
+        None,
         Facts(
             repository="repository:test",
             head=REBASED,
@@ -93,24 +88,31 @@ def _recovery_plan(
     )
 
 
-def _stub_refresh_effect(monkeypatch: pytest.MonkeyPatch) -> None:
+def _stub_refresh_effect(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+    captured: dict[str, object] = {}
     monkeypatch.setattr(
         refresh,
-        "load_repository_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(id="repository:self", digest=lambda: "d" * 64),
+        "repository_identity",
+        lambda *_args, **_kwargs: "repository:self",
     )
     monkeypatch.setattr(refresh, "lease_generation", lambda _lease: {})
     monkeypatch.setattr(refresh, "leases_by_branch", lambda _root: {BRANCH: {}})
     monkeypatch.setattr(
         refresh,
         "compile_observed_git_effect",
-        lambda *_args, **_kwargs: SimpleNamespace(digest="plan-digest"),
+        lambda _root, commitment, _effect, **kwargs: (
+            captured.update(commitment=commitment, plan=kwargs)
+            or SimpleNamespace(digest="plan-digest")
+        ),
     )
     monkeypatch.setattr(
         refresh,
         "issue_native_effect",
-        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
+        lambda *_args, **kwargs: (
+            captured.update(native=kwargs) or SimpleNamespace(model_dump=lambda **_kwargs: {})
+        ),
     )
+    return captured
 
 
 def test_refresh_public_reader_distinguishes_current_and_ready(
@@ -273,11 +275,17 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
     heads = iter((HEAD, REBASED, HEAD))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
-    _stub_refresh_effect(monkeypatch)
+    captured = _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(
         refresh,
         "execute_git_effect",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("stale effect")),
+    )
+    compensated: list[str] = []
+    monkeypatch.setattr(
+        refresh,
+        "compensate_git_worktree",
+        lambda _root, *, head: compensated.append(head),
     )
     restored: list[tuple[str, str]] = []
     monkeypatch.setattr(
@@ -291,7 +299,13 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     )
 
     assert report["state"] == "blocked"
+    assert compensated == [HEAD]
     assert restored == [(BRANCH, HEAD)]
+    native = captured["native"]
+    assert isinstance(native, dict)
+    assert native["commitment_digest"] is None
+    assert native["repository_id"] == "repository:self"
+    assert captured["commitment"] is None
 
 
 def test_refresh_public_attachment_failure_is_reported(

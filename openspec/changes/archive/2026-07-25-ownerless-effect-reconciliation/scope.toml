@@ -1,8 +1,0 @@
-schema_version = 1
-paths = [
-  "evidence/claims/ownerless-effect-reconciliation-20260725.toml",
-  "evidence/chronicle/ownerless-effect-reconciliation-20260725/**",
-  "evidence/parity/generic-shadow.json",
-  "openspec/changes/ownerless-effect-reconciliation/**",
-  "openspec/specs/repository-governance/spec.md",
-]

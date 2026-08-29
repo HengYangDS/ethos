@@ -6,7 +6,7 @@ import pytest
 
 import ethos.adapters.admission.patch_admission as admission
 from ethos.adapters.admission.patch_admission import patch_admission
-from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -14,10 +14,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _repository(tmp_path: Path, *, scope: tuple[str, ...] = ("safe.txt",)) -> tuple[Path, str]:
+def _repository(tmp_path: Path) -> tuple[Path, str]:
     repo = init_git_repo(tmp_path / "repo")
     (repo / "safe.txt").write_text("old\n", encoding="utf-8")
-    commit_active_commitment(repo, scope=scope)
+    commit_active_change(repo)
     return repo, git(repo, "rev-parse", "HEAD")
 
 
@@ -77,38 +77,6 @@ def test_patch_admission_rejects_escaping_postimage(tmp_path: Path) -> None:
 
     assert report["verdict"] == "block"
     assert report["reason"] == "prewrite_patch_preimage_mismatch"
-
-
-def test_patch_admission_rejects_nonlist_scope(tmp_path: Path) -> None:
-    repo, _ = _repository(tmp_path)
-    carrier = repo / "openspec/changes/fixture-change/commitment.toml"
-    carrier.write_text(carrier.read_text().replace('scope = ["safe.txt"]', 'scope = "safe.txt"'))
-    git(repo, "add", carrier.as_posix())
-    parent = git(repo, "rev-parse", "HEAD")
-    head = git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit-tree",
-        git(repo, "write-tree"),
-        "-p",
-        parent,
-        "-m",
-        "corrupt scope",
-    )
-    git(repo, "update-ref", "refs/heads/dev", head, parent)
-
-    report = patch_admission(
-        root=repo,
-        requested_paths=("safe.txt",),
-        baseline_head=head,
-        patch=_change_patch(),
-    )
-
-    assert report["verdict"] == "block"
-    assert report["reason"] == "prewrite_patch_postimage_failed"
 
 
 def test_patch_admission_reports_failed_postimage_apply(

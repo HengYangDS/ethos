@@ -1,2 +1,0 @@
-schema_version = 1
-paths = ["evidence/claims/openspec-archive-logical-identifier-unbound-retirement-20260719.toml", "evidence/chronicle/openspec-archive-logical-identifier-unbound-retirement-20260719/**", "openspec/changes/openspec-archive-logical-identifier-unbound-retirement-20260719/**", "openspec/specs/repository-governance/spec.md"]

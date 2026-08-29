@@ -86,9 +86,6 @@ def test_import_reports_invalid_holder_before_effects(
                 "source_head": "a" * 40,
                 "source_tree": "b" * 40,
                 "target_holder_ref": "agent:test:case:target",
-                "base_commitment_path": "openspec/changes/example/commitment.toml",
-                "base_commitment_bytes_sha256": "c" * 64,
-                "base_commitment_digest": "d" * 64,
             },
             [],
         ),
@@ -139,9 +136,6 @@ def test_import_wraps_effect_failure_in_public_gap(
                 "source_head": "a" * 40,
                 "source_tree": "b" * 40,
                 "target_holder_ref": holder,
-                "base_commitment_path": "openspec/changes/example/commitment.toml",
-                "base_commitment_bytes_sha256": "c" * 64,
-                "base_commitment_digest": "d" * 64,
             },
             [],
         ),
@@ -187,10 +181,8 @@ def _export_request(tmp_path: Path, **overrides: object) -> CrossHostHandoffExpo
         "branch": "work/example",
         "holder_ref": "agent:test:case:source",
         "target_holder_ref": "agent:test:case:target",
-        "lease_id": "lease:1",
-        "epoch": 1,
-        "expected_expires_at": "2026-08-10T00:00:00+00:00",
-        "expected_payload_sha256": "a" * 64,
+        "generation": 1,
+        "expires_at": "2026-08-29T12:00:00+00:00",
         "expect_head": "b" * 40,
         "context_text": "context",
         "context_file": None,
@@ -208,16 +200,8 @@ def _mock_export_observations(
     observed_lease = {
         "lease_state": "valid",
         "holder_ref": "agent:test:case:source",
-        "lease_id": "lease:1",
-        "epoch": 1,
-        "expected_head": "b" * 40,
-        "expected_tree": "c" * 40,
-        "expires_at": "2026-08-10T00:00:00+00:00",
-        "payload_sha256": "a" * 64,
-        "lane_incarnation_id": "lane:1",
-        "base_commitment_path": "openspec/changes/example/commitment.toml",
-        "base_commitment_bytes_sha256": "d" * 64,
-        "base_commitment_digest": "e" * 64,
+        "generation": 1,
+        "expires_at": "2026-08-29T12:00:00+00:00",
     }
     if lease is not None:
         observed_lease = lease
@@ -240,6 +224,5 @@ def _mock_export_observations(
     monkeypatch.setattr(
         transfer, "leases_by_branch", lambda _root: {"work/example": observed_lease}
     )
-    monkeypatch.setattr(transfer, "load_lease_bound_commitment", lambda *_args, **_kwargs: object())
     monkeypatch.setattr(transfer, "changed_paths", lambda _root: ())
     monkeypatch.setattr(transfer.handoff_package, "dirty_content_sha256", lambda _root: "f" * 64)

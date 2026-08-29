@@ -16,9 +16,8 @@ from typing import cast
 import tools.ci.delivery.pipeline as delivery_pipeline
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
-from ethos.contracts.semantic import load_commitment_file
+from ethos.contracts.semantic import Commitment
 from ethos.repository.release.identity import BuildIdentity
-from tools.ci.delivery.adopter_fixture import commitment_carrier
 from tools.ci.delivery.pipeline import DeliveryPipeline
 
 if TYPE_CHECKING:
@@ -135,30 +134,14 @@ def test_install_smoke_prepares_frozen_supply_before_offline_install(
     assert events == ["supply", ("install", session)]
 
 
-def test_packaged_vector_derives_a_complete_strict_commitment(
-    tmp_path: Path,
-) -> None:
+def test_packaged_vector_carries_the_minimal_commitment_contract() -> None:
     vectors = (ROOT / "tests/fixtures/semantic-contract/vectors.json").read_text(encoding="utf-8")
-    carrier = tmp_path / "commitment.toml"
-    carrier.write_text(
-        commitment_carrier(
-            Path("ethos.whl"),
-            Path("python"),
-            commitment_id="change:install-smoke",
-            intent="Prove the installed package carrier.",
-            subjects=("repository:install-smoke",),
-            scope=("README.md",),
-            run=lambda *_args, **_kwargs: vectors,
-        ),
-        encoding="utf-8",
-    )
-
-    commitment = load_commitment_file(carrier)
-    assert commitment.id == "change:install-smoke"
-    assert commitment.dependencies
-    assert commitment.hypotheses
-    assert commitment.falsifiers
-    assert commitment.experiment_protocols
+    commitment = Commitment.model_validate_json(json.loads(vectors)["commitment"]["canonical_json"])
+    assert commitment.model_dump(mode="json") == {
+        "schema_version": 3,
+        "id": "change:model-promotion-successor",
+        "acceptance": ["selected_input_is_bound"],
+    }
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
@@ -243,21 +226,6 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         hooks_path=Path(report["data"]["hooks_path"]),
         environment=package_environment,
     )
-    rebind_help = _run(
-        runtime_ethos, "lane", "rebind-commitment", "--help", env=package_environment
-    )
-    derive_help = _run(
-        runtime_ethos,
-        "lane",
-        "rebind-commitment",
-        "derive",
-        "--help",
-        env=package_environment,
-    )
-    assert rebind_help.returncode == 0, rebind_help.stderr
-    assert "--receipt" in rebind_help.stdout
-    assert derive_help.returncode == 0, derive_help.stderr
-    assert "--target-commit" in derive_help.stdout
     version = _run(runtime_ethos, "--version", "--json", env=package_environment)
     assert version.returncode == 0, version.stderr
     version_identity = json.loads(version.stdout)["data"]["identity"]

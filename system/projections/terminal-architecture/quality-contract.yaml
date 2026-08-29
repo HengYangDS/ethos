@@ -28,7 +28,6 @@ hard_gates:
     canonical_graph_view_svg_coverage: 1.0
     forbidden_authorizing_paths: 0
     unsupported_effect_paths: 0
-    automatic_successor_commitment_paths: 0
     implicit_cross_plane_implication_paths: 0
     composite_claims_without_declared_rule: 0
     composite_claims_without_responsible_verifier: 0

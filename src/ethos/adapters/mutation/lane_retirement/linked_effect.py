@@ -5,11 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.value import mutable_json
 
 
 def linked_retirement_plan(
@@ -45,7 +48,15 @@ def linked_retirement_plan(
         },
         assertions=assertions,
     )
-    commitment = load_lease_bound_commitment(transaction_root, lease=authority_lease)
+    proof = proof_attestation(transaction_root, execution_head)
+    if proof is None:
+        msg = "proof_not_proven"
+        raise ValueError(msg)
+    commitment_payload = plan_from_statement(proof).commitment
+    if commitment_payload is None:
+        msg = "proof_commitment_missing"
+        raise ValueError(msg)
+    commitment = Commitment.model_validate(mutable_json(commitment_payload), strict=False)
     return transaction_root, compile_observed_git_effect(
         transaction_root,
         commitment,

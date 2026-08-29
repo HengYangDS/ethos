@@ -8,7 +8,7 @@ import ethos.adapters.admission.prewrite as admission_prewrite
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.contracts.admission import HookAdmissionRequest
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.lane_scenarios import leased_worktree
@@ -22,7 +22,7 @@ def actor(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def worktree(tmp_path: Path) -> Path:
     repo = init_git_repo(tmp_path / "repo")
-    commit_active_commitment(repo)
+    commit_active_change(repo)
     return leased_worktree(repo, tmp_path / "repo-work-feature")
 
 
@@ -153,7 +153,7 @@ def test_cli_path_token(worktree: Path) -> None:
     assert data["admission"]["paths"][0]["path"] == token
 
 
-def _lane(tmp: Path, scope: tuple[str, ...], imports: tuple[str, ...]) -> Path:
+def _lane(tmp: Path, _scope: tuple[str, ...], imports: tuple[str, ...]) -> Path:
     repo = init_git_repo(tmp / "repo")
     dependencies = [root.replace("_", "-") for root in imports]
     (repo / "system").mkdir()
@@ -163,7 +163,7 @@ def _lane(tmp: Path, scope: tuple[str, ...], imports: tuple[str, ...]) -> Path:
     tools += 'concern = "test_execution"\ntool = "test tools"\nconfig = "system/tools.toml"\n'
     (repo / "system/tools.toml").write_text(tools + 'profile = "product"\nexecutables = []\n')
     (repo / "module.py").write_text("VALUE = 1\n")
-    commit_active_commitment(repo, scope=scope)
+    commit_active_change(repo)
     return leased_worktree(repo, tmp / "repo-work-feature")
 
 
@@ -186,7 +186,6 @@ T = ("system/tools.toml",)
 E_IMPORT = "product_reference_not_admitted_at_baseline:import:external_sdk"
 E_EXEC = "product_reference_not_admitted_at_baseline:executable:external-runner"
 E_COMMAND = "product_reference_not_admitted_at_baseline:command:external-operation"
-E_PATH = "product_path_not_admitted_at_baseline:src/external_adapter.py"
 P_IMPORT = _patch(*M, "import external_sdk")
 P_EXEC = _patch(*M, 'COMMAND = ["external-runner"]')
 P_COMMAND = _patch(*M, '@app.command(name="external-operation")')

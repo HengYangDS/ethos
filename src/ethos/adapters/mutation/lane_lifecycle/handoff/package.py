@@ -18,11 +18,11 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
@@ -64,16 +64,6 @@ def write_handoff_package(
             holds=run_git(repo, "bundle", "list-heads", bundle.as_posix()).stdout.splitlines()
             == [f"{handoff.source_head} refs/heads/{handoff.source_lane_ref}"],
         )
-        commitment = load_lease_bound_commitment(
-            repo,
-            lease={
-                "expected_head": handoff.source_head,
-                "expected_tree": handoff.source_tree,
-                "base_commitment_path": handoff.base_commitment_path,
-                "base_commitment_bytes_sha256": handoff.base_commitment_bytes_sha256,
-                "base_commitment_digest": handoff.base_commitment_digest,
-            },
-        )
         context_path = staging / "context.md"
         context_path.write_text(context, encoding="utf-8")
         artifacts = [
@@ -113,8 +103,8 @@ def write_handoff_package(
                 after={"present": True, "manifest": manifest},
             ),
             state="recognized" if recognized else "applied",
-            commitment_digest=commitment.digest(),
-            repository_id=commitment.subjects[0],
+            commitment_digest=None,
+            repository_id=repository_identity(repo, tree_ref=handoff.source_head),
         ).model_dump(mode="json"),
     }
 
@@ -215,41 +205,17 @@ def _verify_export_snapshot(
         holds=dirty_content_sha256(repo) == handoff.dirty_content_sha256,
     )
     source = cast("dict[str, Any]", handoff.to_payload()["source_lease_binding"])
-    with closing(sqlite3.connect(state_database(repo))) as connection:
-        connection.execute("begin immediate")
-        try:
-            _, lease = expected_current_lease(
+    try:
+        with closing(sqlite3.connect(state_database(repo))) as connection:
+            connection.execute("begin immediate")
+            expected_current_lease(
                 connection,
                 request=lease_binding(handoff.source_lane_ref, source),
                 require_expired=False,
             )
-            require(
-                "handoff_export_lane_incarnation_mismatch",
-                holds=lease.lane_incarnation_id == handoff.source_lane_incarnation_id,
-            )
-            require(
-                "handoff_export_base_commitment_path_mismatch",
-                holds=lease.base_commitment_path == handoff.base_commitment_path,
-            )
-            require(
-                "handoff_export_base_commitment_bytes_mismatch",
-                holds=(lease.base_commitment_bytes_sha256 == handoff.base_commitment_bytes_sha256),
-            )
-            require(
-                "handoff_export_base_commitment_digest_mismatch",
-                holds=lease.base_commitment_digest == handoff.base_commitment_digest,
-            )
-        except ValueError as error:
-            message = "handoff_export_lease_drift"
-            raise ValueError(message) from error
-    try:
-        load_lease_bound_commitment(repo, lease=lease.to_payload())
     except ValueError as error:
-        if str(error) == "lease_base_commitment_digest_mismatch":
-            message = "handoff_export_base_commitment_digest_mismatch"
-            raise ValueError(message) from error
-        message = "handoff_export_base_commitment_invalid"
-        raise ValueError(message) from error
+        msg = "handoff_export_lease_drift"
+        raise ValueError(msg) from error
 
 
 @contextmanager
@@ -292,19 +258,8 @@ def validated_handoff_acknowledgement(
         "destination_head": manifest["source_head"],
         "destination_tree": manifest["source_tree"],
         "destination_holder_ref": manifest["target_holder_ref"],
-        "destination_lane_incarnation_id": lease["lane_incarnation_id"],
-        "destination_lease_id": lease["lease_id"],
-        "destination_lease_epoch": lease["epoch"],
-        "destination_lease_expected_head": lease["expected_head"],
-        "destination_lease_expected_tree": lease["expected_tree"],
+        "destination_lease_generation": lease["generation"],
         "destination_lease_expires_at": lease["expires_at"],
-        "destination_lease_payload_sha256": lease["payload_sha256"],
-        "destination_lease_base_commitment_path": lease["base_commitment_path"],
-        "destination_lease_base_commitment_bytes_sha256": lease["base_commitment_bytes_sha256"],
-        "base_commitment_digest": lease["base_commitment_digest"],
-        "source_lease_transferred": False,
-        "truth_boundary": "destination_holder_asserted_local_generation",
-        "mints_authority": False,
     }
     acknowledgement = {"acknowledgement_id": _content_id("handoff-ack", payload), **payload}
     _require_schema(root, acknowledgement, "acknowledgement")
@@ -317,11 +272,8 @@ def lease_binding(branch: str, lease: dict[str, Any]) -> LeaseOperationRequest:
         operation="handoff_validate",
         branch=branch,
         holder_ref=str(lease["holder_ref"]),
-        lease_id=str(lease["lease_id"]),
-        expected_epoch=int(lease["epoch"]),
-        expect_head=str(lease["expected_head"]),
-        expected_expires_at=str(lease["expires_at"]),
-        expected_payload_sha256=str(lease["payload_sha256"]),
+        generation=int(lease["generation"]),
+        expires_at=str(lease["expires_at"]),
         apply=True,
     )
 

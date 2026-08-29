@@ -35,7 +35,7 @@ def issue_native_effect(
     *,
     effect: NativeEffect,
     state: str,
-    commitment_digest: str,
+    commitment_digest: str | None,
     repository_id: str,
     issued_at: datetime | None = None,
 ) -> Attestation:
@@ -108,7 +108,6 @@ def native_effect_components(
         and attestation.verifier == "git"
         and (attestation.valid_from or attestation.issued_at) <= now
         and (attestation.valid_until is None or now <= attestation.valid_until)
-        and attestation.commitment_digest is not None
         and attestation.effect_digest is not None
     ):
         return None

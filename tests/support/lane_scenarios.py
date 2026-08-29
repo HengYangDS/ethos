@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
-from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import write_role_policy
+from tests.support.governed_repository import seed_executed_proof
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -19,27 +20,21 @@ if TYPE_CHECKING:
 
 def add_candidate_worktree(repo: Path, path: Path) -> Path:
     git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
-    install_hook_launchers(path)
+    install_fixture_hook_runtime(path)
     return path
 
 
 def leased_worktree(repo: Path, path: Path, *, holder_ref: str = "agent:test:case:agent-a") -> Path:
     """Create one owned worktree with a matching lease for admission tests."""
-    carrier = "openspec/changes/fixture-change/commitment.toml"
-    change_id = "fixture-change"
-    if not (repo / carrier).exists():
-        commit_active_commitment(repo)
+    if not (repo / "openspec/changes/fixture-change").exists():
+        commit_active_change(repo)
     git(repo, "worktree", "add", "-b", "work/feature", path.as_posix(), "dev")
-    head = git(path, "rev-parse", "HEAD")
+    git(path, "rev-parse", "HEAD")
     acquire_lease(
         state_database(repo),
         lease=exact_lease(
-            repo=repo,
             branch="work/feature",
             holder_ref=holder_ref,
-            expected_head=head,
-            carrier=carrier,
-            change_id=change_id,
         ),
     )
     return path
@@ -74,15 +69,8 @@ def superseded_work_lane(
 ) -> tuple[Path, Path, str, str, Path]:
     """Create an owned obsolete lane and optionally absorb its change on dev."""
     repo = init_git_repo(tmp_path / "repo")
-    write_role_policy(
-        repo,
-        candidate_branch="candidate/dev",
-        work_branch_prefix="work/",
-        proposal_branch_prefix="proposal/",
-    )
-    commit_active_commitment(repo)
-    carrier = "openspec/changes/fixture-change/commitment.toml"
-    change_id = "fixture-change"
+    adopt_and_commit(repo)
+    commit_active_change(repo)
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     lane = tmp_path / "repo-work-superseded"
     git(repo, "worktree", "add", "-b", "work/superseded", lane.as_posix(), "dev")
@@ -102,15 +90,12 @@ def superseded_work_lane(
     acquire_lease(
         database,
         lease=exact_lease(
-            repo=repo,
             branch="work/superseded",
             holder_ref=holder_ref,
-            expected_head=head,
-            carrier=carrier,
-            change_id=change_id,
             ttl_seconds=3600,
         ),
     )
+    seed_executed_proof(repo, accepted)
     return repo, lane, head, accepted, database
 
 

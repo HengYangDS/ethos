@@ -21,7 +21,6 @@ def _adoption_result(
     authorize: bool,
     expect_head: str | None,
     root: RootOption | None,
-    repository_id: str | None = None,
     expect_plan_digest: str | None = None,
 ) -> EthosResult:
     target = resolve_root(root)
@@ -36,7 +35,6 @@ def _adoption_result(
     plan_payload = adoption_plan(
         target,
         apply=do_apply,
-        repository_id=repository_id,
         expect_plan_digest=expect_plan_digest,
     )
     required_gaps = tuple(gaps) + tuple(string_sequence(plan_payload.get("required_gaps")))
@@ -67,7 +65,6 @@ def adopt(
     apply: bool = False,
     authorize: bool = False,
     expect_head: str | None = None,
-    repository_id: str | None = None,
     expect_plan_digest: str | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -77,7 +74,6 @@ def adopt(
         authorize=authorize,
         expect_head=expect_head,
         root=root,
-        repository_id=repository_id,
         expect_plan_digest=expect_plan_digest,
     )
     emit(result, json_output=json_output, enforce=apply)

@@ -247,7 +247,6 @@ def _retirement_target(
     if lanes or mode == "landed":
         return lanes, lanes[0] if lanes else {}
     lane = recovery_lane(
-        repo,
         policy=policy,
         worktrees=worktrees,
         leases=leases,
@@ -328,12 +327,10 @@ def _effect_readiness_gaps(
 def _with_archive_absorption(
     repo: Path, lane: dict[str, object], accepted_head: str
 ) -> dict[str, object]:
-    lease = cast("dict[str, object]", lane.get("lease") or {})
     mapping = effects.archived_carrier_absorption(
         repo,
         head=str(lane.get("head") or ""),
         accepted_head=accepted_head,
-        carrier=str(lease.get("base_commitment_path") or ""),
     )
     return {**lane, **({"archive_absorption": mapping} if mapping else {})}
 

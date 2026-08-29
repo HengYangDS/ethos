@@ -50,9 +50,10 @@ def test_takeover_is_a_public_generation_bound_lease_command() -> None:
     for option in (
         "--authorization",
         "--source-state",
-        "--dirty-content-sha256",
-        "--lane-incarnation-id",
-        "--expect-tree",
+        "--generation",
+        "--expires-at",
+        "--source-holder-ref",
+        "--target-holder-ref",
     ):
         assert option in completed.stdout
 
@@ -230,7 +231,7 @@ def test_archive_change_rejects_the_retired_history_rebuild_option() -> None:
 
 
 def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) -> None:
-    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    _repo, candidate, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
     completed = run_ethos_raw("status", "--root", worktree.as_posix(), "--json", cwd=worktree)

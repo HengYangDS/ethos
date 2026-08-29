@@ -10,7 +10,7 @@ include = [
   "references/governance-map.md",
 ]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:543162c0eb56fd56a90f466f63c7c6804fb035f2ad334745f6928bc5c1d81708"
+expected_digest = "sha256:642a64b19d9e26c256ebe96777ca941a99d5c758959d53b7ff7a09e14a0c57db"
 
 [quality]
 placeholder_allowed = false

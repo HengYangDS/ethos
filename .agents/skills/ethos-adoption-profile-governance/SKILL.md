@@ -18,9 +18,9 @@ or evaluates its explicit profile and adapter boundaries.
    `uv run ethos status --root <repo> --json`.
 3. Keep adopter skills, OpenSpec carriers, docs, Attestations, and CI as thin
    projections over the same repository truth.
-4. Preserve adapter boundaries: provider state belongs to the provider; durable
-   truth must be promoted into source, tests, schemas, docs, OpenSpec,
-   Commitments, or Attestations.
+4. Preserve adapter boundaries: provider state belongs to the provider; tracked
+   intent goes to official OpenSpec and durable proof goes to Attestations while
+   source, tests, schemas, and docs retain their native authority.
 5. Validate the adopter with the current full proof plan before claiming
    readiness.
 
@@ -36,6 +36,7 @@ uv run ethos prove --root <repo> --full --json
 
 Repository truth remains the source of truth. This skill routes adoption work;
 it does not create a second task store or command plane. The adopter's tracked
-files, profile, OpenSpec, Commitments, Attestations, and ETHOS command JSON are the
-truth. Hosted forges, CI providers, MCP, editor state, and generated assistant
-surfaces remain adapters or projections.
+files, profile, official OpenSpec, Attestations, and fresh ETHOS observations are
+the truth inputs and durable results. Commitment is compiled transiently.
+Hosted forges, CI providers, MCP, editor state, and generated assistant surfaces
+remain adapters or projections.

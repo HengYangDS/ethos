@@ -4,12 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import tomllib
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
-from pathlib import PurePosixPath
-from typing import TYPE_CHECKING
 from typing import Literal
 from typing import Self
 
@@ -28,10 +25,6 @@ from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-
 _KIND_PATTERN = r"^[a-z][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)+$"
 _DIGEST_PATTERN = r"^[a-f0-9]{64}$"
 _SEMANTIC_ID_PATTERN = r"^(?:[a-z][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)+|[a-f0-9]{64})$"
@@ -44,8 +37,6 @@ _SEMANTIC_OBJECT_KEY_INVALID = "semantic_object_key_invalid"
 _SEMANTIC_OBJECT_KEY_DUPLICATE = "semantic_object_key_duplicate"
 _SEMANTIC_STRING_SURROGATE_INVALID = "semantic_string_surrogate_invalid"
 _COMMITMENT_DIGEST_INVALID = "commitment_digest_invalid"
-_COMMITMENT_HYPOTHESIS_ID_DUPLICATE = "commitment_hypothesis_id_duplicate"
-_COMMITMENT_HYPOTHESIS_REFERENCE_MISSING = "commitment_hypothesis_reference_missing"
 _COMMITMENT_STRING_VALUE_INVALID = "commitment_string_value_invalid"
 _ATTESTATION_BINDING_MISSING = "attestation_binding_missing"
 _ATTESTATION_IDENTITY_MISMATCH = "attestation_identity_mismatch"
@@ -188,226 +179,32 @@ def _require_nonblank_string(value: str) -> str:
     return value
 
 
-class _DependencyValue(_SemanticModel):
-    kind: str = Field(pattern=_KIND_PATTERN)
-    target: str = Field(min_length=1)
-    attributes: JsonObject
-
-    @field_validator("target")
-    @classmethod
-    def validate_target(cls, value: str) -> str:
-        return _require_nonblank_string(value)
-
-    @model_validator(mode="after")
-    def validate_attributes(self) -> Self:
-        _canonical_json(self.attributes)
-        return self
-
-
-class _HypothesisValue(_SemanticModel):
-    id: str = Field(pattern=_KIND_PATTERN)
-    kind: str = Field(pattern=_KIND_PATTERN)
-    body: JsonObject
-
-    @model_validator(mode="after")
-    def validate_body(self) -> Self:
-        _canonical_json(self.body)
-        return self
-
-
-class _FalsifierValue(_SemanticModel):
-    id: str = Field(pattern=_KIND_PATTERN)
-    hypothesis_id: str = Field(pattern=_KIND_PATTERN)
-    kind: str = Field(pattern=_KIND_PATTERN)
-    body: JsonObject
-
-    @model_validator(mode="after")
-    def validate_body(self) -> Self:
-        _canonical_json(self.body)
-        return self
-
-
-class _ExperimentProtocolValue(_SemanticModel):
-    id: str = Field(pattern=_KIND_PATTERN)
-    hypothesis_ids: FrozenTuple[str]
-    kind: str = Field(pattern=_KIND_PATTERN)
-    body: JsonObject
-
-    @field_validator("hypothesis_ids")
-    @classmethod
-    def validate_hypothesis_ids(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        return _canonical_set(values, identity=lambda value: _canonical_json(value).encode())
-
-    @model_validator(mode="after")
-    def validate_body(self) -> Self:
-        _canonical_json(self.body)
-        return self
-
-
 class Commitment(_CanonicalSemanticModel):
-    """Immutable normative promise for one bounded transition."""
+    """Acceptance semantics compiled from one exact official OpenSpec Change."""
 
-    schema_version: Literal[2]
+    schema_version: Literal[3]
     id: str = Field(pattern=_KIND_PATTERN)
-    intent: str = Field(min_length=1)
-    subjects: FrozenTuple[str] = Field(min_length=1)
-    scope: FrozenTuple[str]
-    invariants: FrozenTuple[str]
     acceptance: FrozenTuple[str]
-    risks: FrozenTuple[str]
-    authority_refs: FrozenTuple[str]
-    predecessors: FrozenTuple[str]
-    selected_attestations: FrozenTuple[str]
-    dependencies: FrozenTuple[_DependencyValue]
-    hypotheses: FrozenTuple[_HypothesisValue]
-    falsifiers: FrozenTuple[_FalsifierValue]
-    experiment_protocols: FrozenTuple[_ExperimentProtocolValue]
 
-    @field_validator("intent")
+    @field_validator("acceptance")
     @classmethod
-    def validate_intent(cls, value: str) -> str:
-        return _require_nonblank_string(value)
-
-    @field_validator(
-        "subjects",
-        "invariants",
-        "acceptance",
-        "risks",
-        "authority_refs",
-    )
-    @classmethod
-    def validate_string_set(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        if any(not value.strip() or value == "repository:self" for value in values):
+    def validate_acceptance(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if not values or any(not value.strip() for value in values):
             raise ValueError(_COMMITMENT_STRING_VALUE_INVALID)
         return _canonical_set(
             values,
             identity=lambda value: _canonical_json(value).encode(),
         )
 
-    @field_validator("predecessors", "selected_attestations")
-    @classmethod
-    def validate_digest_set(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        if any(
-            len(value) != 64 or any(char not in "0123456789abcdef" for char in value)
-            for value in values
-        ):
-            raise ValueError(_COMMITMENT_DIGEST_INVALID)
-        return _canonical_set(values, identity=lambda value: value)
-
-    @field_validator("scope")
-    @classmethod
-    def validate_scope(cls, scope: tuple[str, ...]) -> tuple[str, ...]:
-        for pattern in scope:
-            if (
-                not pattern.strip()
-                or pattern.startswith("/")
-                or "\\" in pattern
-                or any(part in {"", ".", ".."} for part in PurePosixPath(pattern).parts)
-            ):
-                msg = "change_scope_invalid"
-                raise ValueError(msg)
-        return _canonical_set(
-            scope,
-            identity=lambda value: _canonical_json(value).encode(),
-        )
-
-    @field_validator("dependencies")
-    @classmethod
-    def validate_dependencies(
-        cls, values: tuple[_DependencyValue, ...]
-    ) -> tuple[_DependencyValue, ...]:
-        keys = tuple((value.kind, value.target) for value in values)
-        if len(keys) != len(set(keys)):
-            raise ValueError(_SEMANTIC_COLLECTION_DUPLICATE)
-        return _canonical_set(
-            values,
-            identity=lambda value: (
-                value.kind,
-                value.target,
-                _canonical_json(value.attributes),
-            ),
-        )
-
-    @field_validator("hypotheses")
-    @classmethod
-    def validate_hypotheses(
-        cls, values: tuple[_HypothesisValue, ...]
-    ) -> tuple[_HypothesisValue, ...]:
-        ids = tuple(value.id for value in values)
-        if len(ids) != len(set(ids)):
-            raise ValueError(_COMMITMENT_HYPOTHESIS_ID_DUPLICATE)
-        return _canonical_set(
-            values,
-            identity=lambda value: (value.id, value.kind, _canonical_json(value.body)),
-        )
-
-    @field_validator("falsifiers")
-    @classmethod
-    def validate_falsifiers(
-        cls, values: tuple[_FalsifierValue, ...]
-    ) -> tuple[_FalsifierValue, ...]:
-        ids = tuple(value.id for value in values)
-        if len(ids) != len(set(ids)):
-            raise ValueError(_SEMANTIC_COLLECTION_DUPLICATE)
-        return _canonical_set(
-            values,
-            identity=lambda value: (
-                value.hypothesis_id,
-                value.id,
-                value.kind,
-                _canonical_json(value.body),
-            ),
-        )
-
-    @field_validator("experiment_protocols")
-    @classmethod
-    def validate_experiment_protocols(
-        cls, values: tuple[_ExperimentProtocolValue, ...]
-    ) -> tuple[_ExperimentProtocolValue, ...]:
-        ids = tuple(value.id for value in values)
-        if len(ids) != len(set(ids)):
-            raise ValueError(_SEMANTIC_COLLECTION_DUPLICATE)
-        return _canonical_set(
-            values,
-            identity=lambda value: (
-                value.id,
-                value.kind,
-                _canonical_json(value.hypothesis_ids),
-                _canonical_json(value.body),
-            ),
-        )
-
-    @model_validator(mode="after")
-    def validate_hypothesis_references(self) -> Self:
-        hypothesis_ids = {value.id for value in self.hypotheses}
-        references = {value.hypothesis_id for value in self.falsifiers} | {
-            hypothesis_id
-            for protocol in self.experiment_protocols
-            for hypothesis_id in protocol.hypothesis_ids
-        }
-        if not references <= hypothesis_ids:
-            raise ValueError(_COMMITMENT_HYPOTHESIS_REFERENCE_MISSING)
-        return self
-
     def identity_projection(self) -> dict[str, object]:
         """Return the schema-versioned portable identity projection."""
         return self.model_dump(mode="json")
 
     def digest(self) -> str:
-        return hashlib.sha256(b"ethos.commitment.v2\0" + self.canonical_json().encode()).hexdigest()
+        return hashlib.sha256(b"ethos.commitment.v3\0" + self.canonical_json().encode()).hexdigest()
 
     def canonical_json(self) -> str:
         return _canonical_json(self.identity_projection())
-
-
-def load_commitment_bytes(raw: bytes) -> Commitment:
-    """Load one strict Commitment from exact TOML bytes."""
-    return Commitment.model_validate(tomllib.loads(raw.decode("utf-8")))
-
-
-def load_commitment_file(path: Path) -> Commitment:
-    """Load one strict Commitment TOML carrier."""
-    return load_commitment_bytes(path.read_bytes())
 
 
 class _AttestationPayload(_SemanticModel):

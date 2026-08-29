@@ -1,19 +1,15 @@
-"""Bind material repository paths to exact Commitment scope."""
+"""Attribute material changed paths to the selected official OpenSpec Change."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.contracts.semantic import load_commitment_file
 from ethos.normalization.coercion import repository_path_matches
-from ethos.normalization.coercion import string_sequence
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.contracts.semantic import Commitment
 
 
 def material_change_scope_report(
@@ -22,96 +18,31 @@ def material_change_scope_report(
     changed_paths: tuple[str, ...] = (),
     active_change_names: tuple[str, ...] = (),
 ) -> dict[str, object]:
-    """Report material paths covered by active Commitment declarations."""
+    """Attribute material paths when exactly one official Change owns the work."""
     paths, patterns, material, applicable = _scope_inputs(root, changed_paths)
     if not applicable:
         return _scope_report(paths, patterns, material, state="not_applicable")
-    changes = [commitment_report(root, name) for name in active_change_names]
-    invalid = [gap for change in changes for gap in string_sequence(change.get("required_gaps"))]
+    names = tuple(dict.fromkeys(active_change_names))
     if not material:
-        return _scope_report(
-            paths,
-            patterns,
-            material,
-            changes=changes,
-            state="invalid" if invalid else "no_material_paths",
-            gaps=invalid,
+        return _scope_report(paths, patterns, material, state="no_material_paths")
+    if len(names) != 1:
+        gaps = (
+            ["openspec_active_change_missing"]
+            if not names
+            else [f"openspec_active_change_ambiguous:{','.join(names)}"]
         )
-    covered: list[dict[str, object]] = [
-        {
-            "path": path,
-            "changes": [
-                str(change.get("name", ""))
-                for change in changes
-                if change.get("verdict") == "pass"
-                and any(
-                    repository_path_matches(path, pattern)
-                    for pattern in string_sequence(change.get("scope"))
-                )
-            ],
-        }
-        for path in material
-    ]
-    uncovered = [str(item["path"]) for item in covered if not item["changes"]]
+        return _scope_report(paths, patterns, material, state="unattributed", gaps=gaps)
+    change = names[0]
+    owner = {"name": change, "path": f"openspec/changes/{change}"}
+    covered: list[dict[str, object]] = [{"path": path, "changes": [change]} for path in material]
     return _scope_report(
         paths,
         patterns,
         material,
-        changes=changes,
-        covered=[item for item in covered if item["changes"]],
-        uncovered=uncovered,
-        state="uncovered" if uncovered else "covered",
-        gaps=[*invalid, *_uncovered_gaps(uncovered)],
+        changes=[owner],
+        covered=covered,
+        state="attributed",
     )
-
-
-def prepared_change_scope_report(
-    root: Path,
-    *,
-    changed_paths: tuple[str, ...],
-    change: str,
-    commitment: Commitment,
-) -> dict[str, object]:
-    """Bind one exact prepared Change-start delta to its compiled Commitment."""
-    paths, patterns, material, applicable = _scope_inputs(root, changed_paths)
-    if not applicable:
-        return _scope_report(paths, patterns, material, state="not_applicable")
-    change_root = f"openspec/changes/{change}"
-    effect_paths = {f"{change_root}/.openspec.yaml", f"{change_root}/commitment.toml"}
-    uncovered = [
-        path
-        for path in material
-        if path not in effect_paths
-        and not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
-    ]
-    changes: list[dict[str, object]] = [
-        {"name": change, "path": change_root, "scope": list(commitment.scope)}
-    ]
-    return _scope_report(
-        paths,
-        patterns,
-        material,
-        changes=changes,
-        covered=[{"path": path, "changes": [change]} for path in material if path not in uncovered],
-        uncovered=uncovered,
-        state="change_start_transition",
-        gaps=_uncovered_gaps(uncovered),
-    )
-
-
-def commitment_report(root: Path, name: str) -> dict[str, object]:
-    """Load one active Commitment and project only coverage facts."""
-    try:
-        load_commitment_file(root / ".ethos" / "commitment.toml")
-        contract = load_commitment_file(root / "openspec" / "changes" / name / "commitment.toml")
-    except (OSError, UnicodeError, TypeError, ValueError):
-        return {
-            "name": name,
-            "verdict": "block",
-            "scope": [],
-            "required_gaps": [f"commitment_invalid:{name}"],
-        }
-    return {"name": name, "verdict": "pass", "scope": list(contract.scope), "required_gaps": []}
 
 
 def _scope_inputs(
@@ -136,7 +67,6 @@ def _scope_report(
     *,
     changes: list[dict[str, object]] | None = None,
     covered: list[dict[str, object]] | None = None,
-    uncovered: list[str] | None = None,
     state: str,
     gaps: list[str] | None = None,
 ) -> dict[str, object]:
@@ -149,11 +79,7 @@ def _scope_report(
         "material_paths": list(material),
         "changes": changes or [],
         "covered_paths": covered or [],
-        "uncovered_paths": uncovered or [],
+        "uncovered_paths": [] if covered else list(material),
         "required_gaps": required,
         "advisory_gaps": [],
     }
-
-
-def _uncovered_gaps(paths: list[str]) -> list[str]:
-    return [f"openspec_material_path_uncovered:{path}" for path in paths]

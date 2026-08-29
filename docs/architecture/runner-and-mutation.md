@@ -78,39 +78,35 @@ second proof-carry receipt. The projection exposes
 `mints_proof = false`, `same_head_only = true`, and source/target verification
 flags. It simply keeps Evidence with the same promoted HEAD so accepted-root
 closeout can prove the candidate head without requiring a redundant runner pass.
-The standard Work Lane lifecycle is command-bound: `ethos lane start` consumes
-an explicit Commitment for a fresh Change, or a source Work Lane's exact
-Lease-bound Commitment only when continuation is explicitly requested. It
-creates the lane and binds the new Lease to the resulting HEAD, tree, carrier
-path, carrier-byte SHA-256, and semantic digest. Missing, ambiguous, or
-mismatched Commitment coordinates block before any ref, worktree, or SQLite
-effect. `ethos lane refresh-base` replays a stale lane onto the configured candidate
+The standard Work Lane lifecycle starts from an official OpenSpec Change and a
+fresh Git observation. ETHOS compiles the official projection into the
+three-field Commitment and records only the four-field Lease relation. It then
+derives exact source and target ref intent; missing, ambiguous, stale, or
+conflicting facts block before any ref, worktree, or SQLite effect. `ethos lane
+refresh-base` replays a stale lane onto the configured candidate
 branch. It creates ordinary new local commits when Git requires them; it never
 reconstructs an existing product object merely to change identity or signature.
 `ethos land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work
-Lane HEAD. `ethos lane retire superseded` also lets the current clean, leased
-successor retire one clean, ownerless source whose exact HEAD is its ancestor;
-the transaction preserves both accepted and successor refs and retains the
-successor Lease. Prewrite, TransitionPlan, proof, head advance, handoff,
-closeout, retirement, and status all consume the same strict Lease observation
-and exact carrier binding. Cross-host source revocation is likewise an exact
-live-Lease CAS: a missing Lease blocks and never masquerades as successful replay.
+Lane HEAD. `ethos lane retire superseded` may retire one clean ownerless source
+whose exact HEAD is already absorbed by the current owned lane; the transaction
+preserves the integration ref and current Lease. Prewrite, TransitionPlan,
+proof, ref advance, handoff, closeout, retirement, and status consume the same
+Lease observation plus fresh Git facts. Cross-host source revocation is likewise
+an exact live-Lease CAS: a missing Lease blocks and never masquerades as replay.
 
 `ethos lane archive-change` closes the lifecycle edge that cannot be split
 between an external archive process and a later Git commit. It requires the
-same-holder exact Lease and proof for the pre-archive HEAD, runs official
-OpenSpec `1.10.0`, admits only its exact rename/spec delta, commits through the
-ordinary hooks, advances the Lease to the archived carrier, and attests the
-post-state. The archived HEAD remains plan/proof/land capable without restoring
-an active carrier or bypassing hooks.
+same-holder Lease and proof for the pre-archive HEAD, runs official OpenSpec
+`1.10.0`, admits only its exact rename/spec delta, commits through ordinary
+hooks, and attests the post-state. The archived HEAD remains plan/proof/land
+capable because acceptance is compiled from its exact official projection.
 Unbound Work Lane refs are observations only. Status preserves their exact ref,
-HEAD, complete Lease generation, and accepted-relation facts, but no lifecycle
+HEAD, Lease observation, and accepted-relation facts, but no lifecycle
 command deletes them.
-Unknown, dirty, unbound, or owner-uncertain state remains blocked until a future
-generic recovery Commitment is independently admitted. Raw Git worktree
-creation can exist as a repository fact, but it is not standard ETHOS workflow
-state.
+Unknown, dirty, unbound, or owner-uncertain state remains observe-only until a
+public transition can derive an exact safe effect from current facts. Raw Git
+worktree creation can exist as a repository fact, but it is not authority.
 
 Status output also carries `closeout_support`. Only the current clean
 Work Lane checkout can advertise `operation = "land_to_candidate"`. Release
@@ -151,7 +147,7 @@ closure, and installs the exact wheel. The uv cache remains a disposable
 acceleration layer, never a prerequisite or authority. A selected package-only
 runtime derives successors from its validated production closure and the exact
 wheel in the same Git-common `ethos/packages/<sha256>/` store. An
-installer-created `direct_url.json` may record a predecessor path, but that path
+installer-created `direct_url.json` may record an installation source path, but that path
 is not runtime authority and need not remain present after relocation.
 
 Its mode is `maintainer_break_glass_local`: a current ETHOS

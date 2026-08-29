@@ -9,23 +9,24 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.proof_admission
+from ethos.adapters.admission.lease_binding import resolve_current_authority
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
+from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.profile import load_profile_commitment
-from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.attestation_set import record_attestations
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -41,8 +42,6 @@ from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.contracts.semantic import Commitment
 
 
 def _proof_issue_values(
@@ -127,7 +126,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     if (
         current_tracked_head(root) != head
         or current_tree(root, head) != plan.facts.get("tree")
-        or load_repository_commitment(root, tree_ref=head).id != plan.facts.get("repository")
+        or repository_identity(root, tree_ref=head) != plan.facts.get("repository")
     ):
         msg = "proof_attestation_live_facts_stale"
         raise ValueError(msg)
@@ -143,18 +142,18 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         ):
             msg = "proof_lease_generation_stale"
             raise ValueError(msg)
-        if os.environ.get("ETHOS_ACTOR", "").strip() != str(lease.get("holder_ref") or ""):
-            msg = "lease_actor_mismatch"
-            raise ValueError(msg)
-    commitment = (
-        load_work_lane_commitment(
-            root,
-            change_id=change_id or None,
+        authority = resolve_current_authority(
+            root=root,
+            branch=branch,
             lease=lease,
+            actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+            current_head=head,
         )
-        if work_lane
-        else load_profile_commitment(root, change_id=change_id or None, tree_ref=head)
-    )
+        if authority.verdict != "pass":
+            raise ValueError(authority.reason)
+        commitment = load_profile_commitment(root, change_id=change_id or None, tree_ref=head)
+    else:
+        commitment = load_profile_commitment(root, change_id=change_id or None, tree_ref=head)
     policy = resolve_gate_policy(
         root,
         tree_ref=head,
@@ -280,34 +279,28 @@ def proof_plan(
     lease = leases_by_branch(root).get(branch, {})
     work_lane = load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE
     if work_lane:
-        if lease.get("lease_state") != "valid":
-            message = f"work_lane_lease_{lease.get('lease_state') or 'missing'}:{branch}"
-            raise ValueError(message)
-        if str(lease.get("expected_head") or "") != head:
-            message = f"lease_head_stale:{branch}"
-            raise ValueError(message)
-        if os.environ.get("ETHOS_ACTOR", "").strip() != str(lease.get("holder_ref") or ""):
-            message = "lease_actor_mismatch"
-            raise ValueError(message)
-    if work_lane:
-        commitment = load_work_lane_commitment(
-            root,
-            change_id=change_id,
+        authority = resolve_current_authority(
+            root=root,
+            branch=branch,
             lease=lease,
+            actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+            current_head=head,
         )
+        if authority.verdict != "pass":
+            raise ValueError(authority.reason)
+        commitment = load_profile_commitment(root, change_id=change_id, tree_ref=head)
     else:
         commitment = load_profile_commitment(root, change_id=change_id, tree_ref=head)
-    repository = load_repository_commitment(root, tree_ref=head)
-    selected_change_id = (
-        commitment.id.removeprefix("change:") if commitment.id != repository.id else ""
-    )
+    repository = repository_identity(root, tree_ref=head)
+    selected_change_id = commitment.id.removeprefix("change:")
+    archived = attested_archive_transition(root, head=head, change=selected_change_id)
     policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
     nodes = policy.nodes
     observed_scope = generation_scope or (
         current_generation_scope(
             root,
             head=head,
-            repository_id=repository.id,
+            repository_id=repository,
             commitment=commitment,
             lease=lease,
             fallback_paths=changed_paths,
@@ -321,7 +314,7 @@ def proof_plan(
         else changed_paths
     )
     facts = Facts(
-        repository=repository.id,
+        repository=repository,
         head=head,
         tree=current_tree(root, head),
         observed_at=datetime.now().astimezone(),
@@ -346,7 +339,9 @@ def proof_plan(
         ),
     )
     archive_authority = (
-        observed_scope.archive_authority
+        archived[1]
+        if archived is not None
+        else observed_scope.archive_authority
         if work_lane and effective_paths and observed_scope is not None
         else {}
     )
@@ -376,17 +371,14 @@ def proof_attestation(root: Path, head: str) -> Attestation | None:
 
 
 def proof_for_repository_transition(
-    root: Path, head: str, *, repository: Commitment | None = None
+    root: Path,
+    head: str,
 ) -> tuple[Attestation | None, list[str]]:
     """Resolve the proof authority applicable to one repository transition."""
-    try:
-        repository = repository or load_repository_commitment(root, tree_ref=head)
-    except (TypeError, ValueError) as error:
-        return None, [str(error)]
     return ethos.adapters.mutation.proof_admission.proof_attestation(
         root,
         head,
-        repository=repository,
+        require_archive=True,
         store=proof_artifact_root(root),
     )
 

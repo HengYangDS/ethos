@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 from typing import cast
 
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.worktree_effects import add_worktree
@@ -15,7 +14,6 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 
 
 def recovery_lane(
-    repo: Path,
     *,
     policy: BranchRolePolicy,
     worktrees: list[dict[str, object]],
@@ -48,18 +46,9 @@ def recovery_lane(
                 lease_state not in {"valid", "unknown", "expired"},
                 f"work_lane_missing_lease:{branch}",
             ),
-            (
-                lease_state == "valid" and str(lease.get("expected_head") or "") != head,
-                "lease_head_stale",
-            ),
         )
         if failed
     )
-    if lease_state == "valid":
-        try:
-            load_lease_bound_commitment(repo, lease=lease)
-        except ValueError as error:
-            gaps.append(str(error))
     return {
         "branch": branch,
         "path": target.as_posix(),

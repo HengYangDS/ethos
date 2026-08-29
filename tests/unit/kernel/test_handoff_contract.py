@@ -19,17 +19,11 @@ _HANDOFF = {
     "source_lane_ref": "work/example",
     "source_head": "a" * 40,
     "source_tree": "b" * 40,
-    "base_commitment_path": "openspec/changes/example/commitment.toml",
-    "base_commitment_bytes_sha256": "1" * 64,
     "target_holder_ref": HolderRef.parse("agent:other:run:two"),
     "context_digest": "c" * 64,
     "dirty_content_sha256": "f" * 64,
-    "source_lane_incarnation_id": "lane-incarnation:one",
-    "source_lease_id": "lease:one",
-    "source_lease_epoch": 3,
+    "source_lease_generation": 3,
     "source_lease_expires_at": "2026-07-20T00:00:00+00:00",
-    "source_lease_payload_sha256": "e" * 64,
-    "base_commitment_digest": "f" * 64,
     "source_holder_ref": HolderRef.parse("agent:source:run:one"),
 }
 
@@ -55,42 +49,28 @@ def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> No
     expected = {
         "source_head": "a" * width,
         "source_tree": "b" * width,
-        "base_commitment_path": "openspec/changes/example/commitment.toml",
-        "base_commitment_bytes_sha256": "1" * 64,
         "target_holder_ref": "agent:other:run:two",
         "dirty_content_sha256": "f" * 64,
-        "base_commitment_digest": "f" * 64,
-        "transfers_source_lease": False,
-        "destination_creates_local_incarnation": True,
-        "truth_boundary": "content_addressed_context_until_promoted",
     }
     assert expected.items() <= payload.items()
-    lease = payload["source_lease_binding"]
-    keys = "lane_incarnation_id", "epoch", "expires_at", "payload_sha256"
-    assert [lease[key] for key in keys] == [
-        "lane-incarnation:one",
-        3,
-        "2026-07-20T00:00:00+00:00",
-        "e" * 64,
-    ]
-    assert all(
-        CrossHostHandoff.model_fields[field].is_required()
-        for field in (
-            "source_lease_expires_at",
-            "source_lane_incarnation_id",
-            "source_lease_payload_sha256",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        )
-    )
+    assert payload["source_lease_binding"] == {
+        "lane_ref": "work/example",
+        "holder_ref": "agent:source:run:one",
+        "generation": 3,
+        "expires_at": "2026-07-20T00:00:00+00:00",
+    }
 
 
 def _artifact(**overrides: str) -> tuple[dict[str, str]]:
     return ({"path": "repository.bundle", "sha256": "d" * 64, "kind": "git_bundle"} | overrides,)
 
 
-_VALIDATION_CASES = literal_case("kernel.test_handoff_contract:assign:_VALIDATION_CASES:derived")
+_VALIDATION_CASES = [
+    ("source_lane_ref", {}),
+    ("source_lease_generation", {}),
+    ("", {"source_lease_generation": True}),
+    ("", {"source_head": "a" * 41}),
+]
 
 
 @pytest.mark.parametrize(("absent", "overrides"), _VALIDATION_CASES)
@@ -130,7 +110,7 @@ def test_handoff_export_rejects_a_bundle_from_another_generation(
             repo=tmp_path,
             handoff=_handoff(
                 dirty_content_sha256="d" * 64,
-                source_lease_epoch=1,
+                source_lease_generation=1,
                 source_lease_expires_at="2026-07-21T00:00:00+00:00",
             ),
             context="context",
@@ -192,9 +172,6 @@ def test_handoff_import_rejects_destination_lease_before_git_effects(
                 "source_lane_ref": branch,
                 "source_head": "a" * 40,
                 "source_tree": "d" * 40,
-                "base_commitment_path": "openspec/changes/example/commitment.toml",
-                "base_commitment_bytes_sha256": "e" * 64,
-                "base_commitment_digest": "b" * 64,
             },
             target_holder_ref="agent:test:case:target",
         )

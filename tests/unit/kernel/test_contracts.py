@@ -27,11 +27,7 @@ from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.value import mutable_json
 from tests.support.semantic import commitment_fixture
 
-_PLAN_COMMITMENT = commitment_fixture(
-    id="change:test-plan",
-    intent="Exercise one transition plan.",
-    subjects=("repository:test",),
-)
+_PLAN_COMMITMENT = commitment_fixture(id="change:test-plan", acceptance=("acceptance:fixture",))
 _PLAN_FACTS = Facts(
     repository="repository:test",
     head="a" * 40,
@@ -92,61 +88,19 @@ def _attestation(
 def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -> None:
     commitment = commitment_fixture(
         id="change:terminal-kernel",
-        intent="Base",
-        subjects=("repository:test",),
-        risks=("cutover",),
-        hypotheses=(
-            {
-                "id": "hypothesis:compiler",
-                "kind": "hypothesis:repository",
-                "body": {"statement": "compiler"},
-            },
-        ),
-        dependencies=(
-            {
-                "kind": "dependency:requires",
-                "target": "commitment:git",
-                "attributes": {},
-            },
-        ),
+        acceptance=("acceptance:base",),
     )
 
     assert commitment.identity_projection() == {
-        "schema_version": 2,
+        "schema_version": 3,
         "id": "change:terminal-kernel",
-        "intent": "Base",
-        "subjects": ["repository:test"],
-        "scope": [],
-        "invariants": [],
-        "acceptance": [],
-        "risks": ["cutover"],
-        "authority_refs": [],
-        "predecessors": [],
-        "selected_attestations": [],
-        "dependencies": [
-            {
-                "kind": "dependency:requires",
-                "target": "commitment:git",
-                "attributes": {},
-            }
-        ],
-        "hypotheses": [
-            {
-                "id": "hypothesis:compiler",
-                "kind": "hypothesis:repository",
-                "body": {"statement": "compiler"},
-            }
-        ],
-        "falsifiers": [],
-        "experiment_protocols": [],
+        "acceptance": ["acceptance:base"],
     }
     assert (
         commitment.digest()
         != commitment_fixture(
             id="change:terminal-kernel",
-            intent="Base",
-            subjects=("repository:test",),
-            risks=("other",),
+            acceptance=("acceptance:replacement",),
         ).digest()
     )
 
@@ -269,9 +223,7 @@ def test_commitment_rejects_process_and_distribution_fields(field: str) -> None:
     with pytest.raises(ValidationError):
         Commitment.model_validate(
             commitment_fixture(
-                id="change:terminal-kernel",
-                intent="Base",
-                subjects=("repository:test",),
+                id="change:terminal-kernel", acceptance=("acceptance:fixture",)
             ).model_dump(mode="python")
             | {field: "retired"}
         )
@@ -281,24 +233,9 @@ def test_commitment_rejects_reusable_permissions() -> None:
     with pytest.raises(ValidationError):
         Commitment.model_validate(
             commitment_fixture(
-                id="change:terminal-kernel",
-                intent="Base",
-                subjects=("repository:test",),
+                id="change:terminal-kernel", acceptance=("acceptance:fixture",)
             ).model_dump(mode="python")
             | {"permissions": ("git.ref.compare-and-swap",)}
-        )
-
-
-@pytest.mark.parametrize(
-    "scope", [("/absolute",), ("docs/../secrets",), (r"docs\windows",), ("docs/**", "docs/**")]
-)
-def test_commitment_rejects_ambiguous_scope(scope: tuple[str, ...]) -> None:
-    with pytest.raises(ValueError, match=r"change_scope_invalid|semantic_collection_duplicate"):
-        commitment_fixture(
-            id="change:invalid-scope",
-            intent="Reject ambiguous scope.",
-            subjects=("repository:test",),
-            scope=scope,
         )
 
 
@@ -451,12 +388,10 @@ def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: obj
         pytest.param(
             lambda value: commitment_fixture(
                 id="change:digest-matrix",
-                intent="Bind commitment identity.",
-                subjects=("repository:test",),
-                risks=(str(value),),
+                acceptance=(f"acceptance:{value}",),
             ),
             lambda model: hashlib.sha256(
-                b"ethos.commitment.v2\0" + model.canonical_json().encode()
+                b"ethos.commitment.v3\0" + model.canonical_json().encode()
             ).hexdigest(),
             id="commitment",
         ),
@@ -566,21 +501,18 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         jsonschema.Draft202012Validator.check_schema(schema)
 
     commitment = generated["commitment.schema.json"]
-    assert commitment["properties"]["schema_version"]["const"] == 2
+    assert commitment["properties"]["schema_version"]["const"] == 3
     assert set(commitment["required"]) == set(commitment["properties"])
+    assert set(commitment["properties"]) == {"schema_version", "id", "acceptance"}
     assert all("default" not in field for field in commitment["properties"].values())
     assert not {"campaign", "collaboration", "compatibility", "publication"} & set(
         commitment["properties"]
     )
     structurally_valid = commitment_fixture(
         id="change:schema-projection",
-        intent="Prove the schema boundary.",
-        subjects=("repository:test",),
+        acceptance=("acceptance:fixture",),
     ).model_dump(mode="json")
-    structurally_valid["subjects"] = ["repository:test", "repository:test"]
     assert list(jsonschema.Draft202012Validator(commitment).iter_errors(structurally_valid)) == []
-    with pytest.raises(ValueError, match="semantic_collection_duplicate"):
-        Commitment.model_validate(structurally_valid)
     attestation = generated["attestation.schema.json"]
     assert set(attestation["required"]) == set(attestation["properties"])
     assert all("default" not in field for field in attestation["properties"].values())

@@ -2,24 +2,17 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import subprocess
-import uuid
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import NamedTuple
 
-import tomli_w
-
-from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.repo.commitment import exact_commitment_fields
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
@@ -35,7 +28,6 @@ from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
-from tests.support.semantic import commitment_fixture
 
 
 class WorkLaneFixture(NamedTuple):
@@ -43,7 +35,6 @@ class WorkLaneFixture(NamedTuple):
 
     repository: Path
     candidate: Path
-    source: Path
     worktree: Path
 
 
@@ -60,7 +51,7 @@ def start_adopted_candidate(tmp_path: Path) -> tuple[Path, Path]:
     commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    install_fixture_hook_runtime(candidate)
+    install_fixture_hook_runtime(repo)
     return repo, candidate
 
 
@@ -69,17 +60,9 @@ def start_adopted_work_lane(
     *,
     name: str = "feature",
     holder_ref: str = "agent:test:case:agent-test",
-    scope: tuple[str, ...] = ("**",),
 ) -> WorkLaneFixture:
     """Create a generic adopted repository, candidate worktree, and owned lane."""
     repo, candidate = start_adopted_candidate(tmp_path)
-    source = create_change_source_lane(
-        repo,
-        tmp_path / f"repo-work-source-{name}",
-        branch=f"work/source-{name}",
-        holder_ref=holder_ref,
-        scope=scope,
-    )
     worktree = tmp_path / f"repo-work-{name}"
     arguments = (
         "lane",
@@ -89,33 +72,26 @@ def start_adopted_work_lane(
         repo.as_posix(),
         "--path",
         worktree.as_posix(),
-        "--source-root",
-        source.as_posix(),
         "--holder-ref",
         holder_ref,
         "--apply",
         "--json",
     )
     run_ethos(*arguments, cwd=repo)
-    return WorkLaneFixture(repo, candidate, source, worktree)
+    _write_active_change_carrier(worktree, change_id="fixture-change")
+    commit_fixture(worktree, "declare fixture-change")
+    return WorkLaneFixture(repo, candidate, worktree)
 
 
 def lane_start_arguments(
     repository: Path,
     worktree: Path,
     *,
-    source_root: Path | None = None,
     name: str = "feature",
     holder_ref: str = "agent:test:case:agent-test",
 ) -> tuple[str, ...]:
     """Build canonical CLI arguments for an applied test Work Lane start."""
     commit_openspec_baseline(repository)
-    source_root = source_root or create_change_source_lane(
-        repository,
-        repository.parent / f"{repository.name}-work-source-{name}",
-        branch=f"{load_branch_role_policy(repository).work_branch_prefix}source-{name}",
-        holder_ref=holder_ref,
-    )
     return (
         "lane",
         "start",
@@ -124,8 +100,6 @@ def lane_start_arguments(
         repository.as_posix(),
         "--path",
         worktree.as_posix(),
-        "--source-root",
-        source_root.as_posix(),
         "--holder-ref",
         holder_ref,
         "--apply",
@@ -138,31 +112,10 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-    previous = git(root, "rev-parse", "HEAD")
     git(root, "add", relative)
     empty_hooks = Path(git(root, "rev-parse", "--path-format=absolute", "--git-path", "test-hooks"))
     empty_hooks.mkdir(parents=True, exist_ok=True)
-    head = _commit_fixture(root, message, hooks_path=empty_hooks)
-    branch = git(root, "branch", "--show-current")
-    holder = str(leases_by_branch(root).get(branch, {}).get("holder_ref") or "")
-    if holder:
-        original = os.environ.get("ETHOS_ACTOR")
-        os.environ["ETHOS_ACTOR"] = holder
-        try:
-            report = work_lane_ref_transition_report(
-                root=root,
-                phase="committed",
-                ref_name=f"refs/heads/{branch}",
-                old_value=previous,
-                new_value=head,
-            )
-        finally:
-            if original is None:
-                os.environ.pop("ETHOS_ACTOR", None)
-            else:
-                os.environ["ETHOS_ACTOR"] = original
-        assert report["state"] == "lease_ref_advanced"
-    return head
+    return _commit_fixture(root, message, hooks_path=empty_hooks)
 
 
 def apply_accepted_closeout(repo: Path, accepted_before: str, candidate_head: str) -> None:
@@ -241,23 +194,21 @@ def create_change_source_lane(
     *,
     branch: str = "work/change-source",
     change_id: str = "fixture-change",
-    scope: tuple[str, ...] = ("**",),
     holder_ref: str = "agent:test:case:source",
 ) -> Path:
     """Create one clean linked Work Lane carrying one active Change."""
     base_branch = load_branch_role_policy(repo).accepted_branch
     git(repo, "worktree", "add", "-b", branch, path.as_posix(), base_branch)
-    _write_active_change_carrier(path, change_id=change_id, scope=scope)
+    _write_active_change_carrier(path, change_id=change_id)
     commit_fixture(path, f"declare {change_id}")
+    now = datetime.now(UTC)
     acquire_lease(
         state_database(repo),
-        lease=exact_lease(
-            repo=repo,
-            branch=branch,
+        lease=LaneLease(
+            lane_ref=branch,
             holder_ref=holder_ref,
-            expected_head=git(path, "rev-parse", "HEAD"),
-            carrier=f"openspec/changes/{change_id}/commitment.toml",
-            change_id=change_id,
+            generation=1,
+            expires_at=now + timedelta(days=1),
         ),
     )
     return path
@@ -269,66 +220,11 @@ def write_active_commitment(
     change_id: str = "fixture-change",
     scope: tuple[str, ...] = ("**",),
 ) -> None:
-    """Write one complete-shape active OpenSpec Change for lifecycle fixtures."""
+    """Write one complete official OpenSpec Change for lifecycle fixtures."""
+    del scope
     _enable_openspec_profile(repo)
-    repository_commitment = repo / ".ethos" / "commitment.toml"
-    if not repository_commitment.exists():
-        repository_id = f"repository:fixture-{hashlib.sha256(repo.name.encode()).hexdigest()[:16]}"
-        repository_commitment.parent.mkdir(parents=True, exist_ok=True)
-        repository_commitment.write_text(
-            tomli_w.dumps(
-                commitment_fixture(
-                    id=repository_id,
-                    intent="Govern the fixture repository.",
-                    subjects=(repository_id,),
-                ).model_dump(mode="python")
-            ),
-            encoding="utf-8",
-        )
     _write_openspec_baseline(repo)
-    _write_active_change_carrier(repo, change_id=change_id, scope=scope)
-
-
-def write_repository_commitment(repo: Path, *, repository_id: str = "repository:test") -> str:
-    """Write one minimal repository Commitment and return its identity."""
-    path = repo / ".ethos/commitment.toml"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        tomli_w.dumps(
-            commitment_fixture(
-                id=repository_id,
-                intent="Govern.",
-                subjects=(repository_id,),
-            ).model_dump(mode="python")
-        ),
-        encoding="utf-8",
-    )
-    return repository_id
-
-
-def write_change_commitment(
-    repo: Path,
-    change_id: str,
-    *,
-    intent: str = "Change.",
-    scope: tuple[str, ...] = (),
-) -> str:
-    """Write one minimal Change Commitment and return its relative carrier."""
-    relative = f"openspec/changes/{change_id}/commitment.toml"
-    path = repo / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        tomli_w.dumps(
-            commitment_fixture(
-                id=f"change:{change_id}",
-                intent=intent,
-                subjects=(load_repository_commitment(repo).id,),
-                scope=scope,
-            ).model_dump(mode="python")
-        ),
-        encoding="utf-8",
-    )
-    return relative
+    _write_active_change_carrier(repo, change_id=change_id)
 
 
 def _write_openspec_baseline(repo: Path) -> None:
@@ -373,11 +269,9 @@ def _write_active_change_carrier(
     repo: Path,
     *,
     change_id: str,
-    scope: tuple[str, ...],
 ) -> None:
-    """Write only one selected active OpenSpec Change carrier."""
+    """Write one official OpenSpec Change without a parallel intent carrier."""
     openspec = repo / "openspec"
-    repository_id = load_repository_commitment(repo).id
     carrier = openspec / "changes" / change_id
     carrier.mkdir(parents=True, exist_ok=True)
     (carrier / "proposal.md").write_text(
@@ -399,21 +293,10 @@ def _write_active_change_carrier(
     (carrier / "specs" / "contracts" / "spec.md").write_text(
         "## ADDED Requirements\n\n"
         "### Requirement: Fixture change\n\n"
-        "The fixture Commitment SHALL remain the single intent carrier.\n\n"
+        "The official OpenSpec Change SHALL remain the single intent carrier.\n\n"
         "#### Scenario: Fixture change is selected\n\n"
         "- **WHEN** the fixture lifecycle selects the change\n"
-        "- **THEN** its Commitment is the single intent carrier\n",
-        encoding="utf-8",
-    )
-    (carrier / "commitment.toml").write_text(
-        tomli_w.dumps(
-            commitment_fixture(
-                id=f"change:{change_id}",
-                intent="Exercise the governed fixture lifecycle.",
-                subjects=(repository_id,),
-                scope=scope,
-            ).model_dump(mode="python")
-        ),
+        "- **THEN** its official artifacts are the single intent carrier\n",
         encoding="utf-8",
     )
     (carrier / "tasks.md").write_text(
@@ -422,23 +305,16 @@ def _write_active_change_carrier(
     )
 
 
-def commit_active_commitment(
+def commit_active_change(
     repo: Path,
     *,
     change_id: str = "fixture-change",
-    scope: tuple[str, ...] = ("**",),
 ) -> str:
-    """Commit one active fixture Commitment and return its canonical digest."""
-    write_active_commitment(repo, change_id=change_id, scope=scope)
+    """Commit one official active OpenSpec Change and return its exact HEAD."""
+    write_active_commitment(repo, change_id=change_id)
     if git(repo, "status", "--short"):
         commit_fixture(repo, "declare active change")
-    head = git(repo, "rev-parse", "HEAD")
-    return exact_commitment_fields(
-        repo,
-        head=head,
-        carrier=f"openspec/changes/{change_id}/commitment.toml",
-        change_id=change_id,
-    )["base_commitment_digest"]
+    return git(repo, "rev-parse", "HEAD")
 
 
 def _enable_openspec_profile(repo: Path) -> None:
@@ -753,34 +629,15 @@ def conformant_proof_check(gate_id: str, root: Path, *, tree_ref: str) -> dict[s
 
 def exact_lease(
     *,
-    repo: Path,
     branch: str,
     holder_ref: str,
-    expected_head: str,
-    carrier: str,
-    change_id: str | None = None,
     ttl_seconds: int = 86_400,
 ) -> LaneLease:
+    """Create one minimal exact Lease fixture."""
     now = datetime.now(UTC)
-    binding = exact_commitment_fields(
-        repo,
-        head=expected_head,
-        carrier=carrier,
-        change_id=change_id,
-    )
     return LaneLease(
-        lane_incarnation_id=f"lane-incarnation:{uuid.uuid4()}",
-        lease_id=f"lease:{uuid.uuid4()}",
         lane_ref=branch,
         holder_ref=holder_ref,
-        epoch=1,
-        issued_at=now,
-        renewed_at=now,
+        generation=1,
         expires_at=now + timedelta(seconds=ttl_seconds),
-        expected_head=binding["expected_head"],
-        expected_tree=binding["expected_tree"],
-        base_commitment_path=binding["base_commitment_path"],
-        base_commitment_bytes_sha256=binding["base_commitment_bytes_sha256"],
-        base_commitment_digest=binding["base_commitment_digest"],
-        path_scope=(),
     )

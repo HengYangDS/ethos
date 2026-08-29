@@ -11,18 +11,16 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_offer_and_accept_delegate_to_declared_lease_operation(
+def test_transfer_delegates_to_declared_lease_operation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     observed: list[object] = []
     monkeypatch.setattr(handoff_cli, "execute_declared_lease_operation", observed.append)
-    offer = SimpleNamespace(command="lane handoff offer")
-    accept = SimpleNamespace(command="lane handoff accept")
+    transfer = SimpleNamespace(command="lane handoff transfer")
 
-    handoff_cli.lane_handoff_offer(offer)
-    handoff_cli.lane_handoff_accept(accept)
+    handoff_cli.lane_handoff_transfer(transfer)
 
-    assert observed == [offer, accept]
+    assert observed == [transfer]
 
 
 @pytest.mark.parametrize("operation", ["export", "import", "revoke"])
@@ -65,10 +63,8 @@ def test_handoff_cli_projects_blocked_adapter_report(
             branch="work/example",
             holder_ref="agent:test:case:source",
             target_holder_ref="agent:test:case:target",
-            lease_id="lease:1",
-            epoch=2,
-            expected_expires_at="2026-08-10T00:00:00+00:00",
-            expected_payload_sha256="a" * 64,
+            generation=2,
+            expires_at="2026-08-10T00:00:00+00:00",
             expect_head="b" * 40,
             context_text="context",
             context_file=tmp_path / "context.md",
@@ -107,11 +103,9 @@ def test_handoff_cli_projects_blocked_adapter_report(
             package=tmp_path / "package",
             acknowledgement=tmp_path / "ack.json",
             holder_ref="agent:test:case:source",
-            lease_id="lease:1",
-            epoch=2,
+            generation=2,
             expect_head="b" * 40,
-            expected_expires_at="2026-08-10T00:00:00+00:00",
-            expected_payload_sha256="a" * 64,
+            expires_at="2026-08-10T00:00:00+00:00",
         )
         handoff_cli.lane_handoff_revoke_source(options)
         request = received[0]

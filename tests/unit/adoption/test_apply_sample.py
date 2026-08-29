@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import os
-import tomllib
 from pathlib import Path
 
 import pytest
 
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.profile import load_repository_profile
@@ -16,51 +14,27 @@ from tests.support.governed_repository import init_git_repo
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_adopt_apply_writes_profile_and_repository_commitment(tmp_path: Path) -> None:
+def test_adopt_apply_writes_profile_and_official_openspec_config(tmp_path: Path) -> None:
     result = adoption_plan(tmp_path, apply=True)
 
     profile = load_repository_profile(tmp_path)
     assert result["applied"] is True
     assert result["planned_files"] == [
         ".ethos/profile.toml",
-        ".ethos/commitment.toml",
         "openspec/config.yaml",
-        "openspec/specs/README.md",
     ]
     assert profile.exists
     assert profile.state == "valid"
     assert profile.declaration is not None
     assert profile.declaration.profile_id == tmp_path.name
-    assert profile.declaration.commitment == ".ethos/commitment.toml"
     assert profile.declaration.openspec.material_paths == ("**",)
     assert resolve_gate_policy(tmp_path).gate_ids == ()
     assert resolve_gate_policy(tmp_path).registry == {}
     assert sorted(path.as_posix() for path in tmp_path.rglob("*") if path.is_file()) == [
-        (tmp_path / ".ethos/commitment.toml").as_posix(),
         (tmp_path / ".ethos/profile.toml").as_posix(),
         (tmp_path / "openspec/config.yaml").as_posix(),
-        (tmp_path / "openspec/specs/README.md").as_posix(),
     ]
-    commitment_text = (tmp_path / ".ethos/commitment.toml").read_text(encoding="utf-8")
-    commitment = tomllib.loads(commitment_text)
-    assert commitment == {
-        "schema_version": 2,
-        "id": result["repository_id"],
-        "intent": "Govern repository change through ETHOS.",
-        "subjects": [result["repository_id"]],
-        "scope": ["**"],
-        "invariants": [],
-        "acceptance": [],
-        "risks": [],
-        "authority_refs": [".ethos/profile.toml"],
-        "predecessors": [],
-        "selected_attestations": [],
-        "dependencies": [],
-        "hypotheses": [],
-        "falsifiers": [],
-        "experiment_protocols": [],
-    }
-    assert "repository:self" not in commitment_text
+    assert result["repository_id"] == f"repository:{tmp_path.name}"
 
 
 def test_declared_local_gate_registry_preserves_self_governance_floor() -> None:
@@ -113,20 +87,20 @@ def test_dry_run_plan_can_be_applied_without_changing_identity(tmp_path: Path) -
     result = adoption_plan(
         tmp_path,
         apply=True,
-        repository_id=plan["repository_id"],
         expect_plan_digest=plan["plan_digest"],
     )
 
     assert result["repository_id"] == plan["repository_id"]
     assert result["plan_digest"] == plan["plan_digest"]
-    assert load_repository_commitment(tmp_path).id == plan["repository_id"]
+    profile = load_repository_profile(tmp_path)
+    assert profile.declaration is not None
+    assert profile.declaration.profile_id == tmp_path.name
 
 
 def test_apply_rejects_a_plan_digest_that_was_not_reviewed(tmp_path: Path) -> None:
     result = adoption_plan(
         tmp_path,
         apply=True,
-        repository_id="repository:reviewed",
         expect_plan_digest="0" * 64,
     )
 
@@ -143,13 +117,13 @@ def test_adoption_repository_identity_does_not_depend_on_checkout_path(tmp_path:
     second = tmp_path / "second"
     git(first, "worktree", "add", "--detach", second.as_posix(), "HEAD")
 
-    first_contract = (first / ".ethos" / "commitment.toml").read_text(encoding="utf-8")
+    first_profile = (first / ".ethos" / "profile.toml").read_text(encoding="utf-8")
     second_plan = adoption_plan(second)
 
     assert second_plan["required_gaps"] == []
     assert {item["action"] for item in second_plan["write_plan"]} == {"keep_existing"}
-    assert (second / ".ethos" / "commitment.toml").read_text(encoding="utf-8") == first_contract
-    assert load_repository_commitment(first).id == load_repository_commitment(second).id
+    assert (second / ".ethos" / "profile.toml").read_text(encoding="utf-8") == first_profile
+    assert adoption_plan(first)["repository_id"] == adoption_plan(second)["repository_id"]
 
 
 def test_apply_is_idempotent_and_replaces_an_empty_binding(tmp_path: Path) -> None:
@@ -239,7 +213,6 @@ def test_adopt_rejects_symlinked_profile_parent(tmp_path: Path) -> None:
     assert result["applied"] is False
     assert result["required_gaps"] == [
         "adoption_conflict:.ethos/profile.toml",
-        "adoption_conflict:.ethos/commitment.toml",
     ]
     assert list(external.iterdir()) == []
 
@@ -303,22 +276,3 @@ def test_atomic_profile_write_cleans_temporary_file_on_failure(tmp_path: Path, m
         adoption_plan(tmp_path, apply=True)
 
     assert list(target.parent.glob(".profile-*")) == []
-
-
-def test_adopt_rolls_back_profile_when_commitment_write_fails(tmp_path: Path, monkeypatch) -> None:
-    commitment = tmp_path / ".ethos" / "commitment.toml"
-    original_replace = Path.replace
-    message = "commitment replace failed"
-
-    def fail_commitment(path: Path, destination: Path) -> Path:
-        if destination == commitment:
-            raise OSError(message)
-        return original_replace(path, destination)
-
-    monkeypatch.setattr(Path, "replace", fail_commitment)
-
-    with pytest.raises(OSError, match="commitment replace failed"):
-        adoption_plan(tmp_path, apply=True)
-
-    assert not (tmp_path / ".ethos" / "profile.toml").exists()
-    assert not commitment.exists()

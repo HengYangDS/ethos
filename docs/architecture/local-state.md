@@ -48,12 +48,12 @@ retired, mismatched, or otherwise unverifiable; it is never treated as missing
 and is observe-only. These facts guide the next action but do not authorize a
 write, renewal, handoff, retirement, repair, or cleanup.
 
-Every valid Lease carries one immutable `base_commitment_digest`. The
-current release admits no amendment set, so the selected Commitment digest
-used by prewrite, TransitionPlan, proof, handoff, head advance, and closeout must equal
-that base digest exactly. The SQLite row duplicates only its indexed identity,
-owner, subject, and expiry fields; every replacement is a complete exact-CAS
-reissue of the strict Lease wire.
+Every Lease row contains exactly `lane_ref`, `holder_ref`, `generation`, and
+`expires_at`. It coordinates one actor-lane relationship and contains no Git
+HEAD, tree, index, worktree, OpenSpec identity, Commitment, path scope,
+handoff state, or effect outcome. Commands compile those values from fresh
+Facts and exact intent, then compare-and-swap only the four-field relation when
+ownership changes.
 
 Tool caches belong under ignored runtime locations. Curated evidence becomes
 repository truth only after its owning gate promotes it through the declared

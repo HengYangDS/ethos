@@ -23,7 +23,8 @@ ETHOS is a compiler over repository truth, not a workflow engine or private
 state authority:
 
 ```text
-Commitment + Facts
+official OpenSpec projection
+              -> Commitment + fresh Facts
               -> TransitionPlan
               -> verdict
               -> admitted effects
@@ -38,7 +39,7 @@ and reducers are deterministic transformations over supplied values.
 
 | Concern | Sole mechanism | Output |
 | --- | --- | --- |
-| Persisted contracts | strict frozen Pydantic v2 models | validated values and checked JSON Schema |
+| Validated contracts | strict frozen Pydantic v2 models | compiled values and checked JSON Schema |
 | Transient values | tuples, mappings, enums, and small frozen stdlib values | immutable facts and decisions |
 | Predicates | typed facts plus CEL where plain declarations are insufficient | explained `pass`, `block`, or `unknown` verdicts |
 | Dependency order | `TransitionPlan` and direct `graphlib.TopologicalSorter` | deterministic `Check`, `Decision`, and `Effect` order |
@@ -53,6 +54,7 @@ becomes a parallel hand-edited truth source.
 
 ```text
 observe(root) -> Facts
+compile_commitment(OpenSpec projection) -> Commitment
 compile(Commitment, Facts) -> TransitionPlan
 judge(TransitionPlan, attestations) -> verdict
 execute(admitted Effect) -> Attestation

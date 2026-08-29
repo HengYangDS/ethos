@@ -8,7 +8,6 @@ from typing import cast
 
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.mutation.proof import proof_for_repository_transition
-from ethos.adapters.repo.commitment import observe_repository_commitment
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
 
     from ethos.contracts.branch.roles import BranchRolePolicy
     from ethos.contracts.semantic import Attestation
-    from ethos.contracts.semantic import Commitment
     from ethos.contracts.value import JsonObject
 
 
@@ -80,71 +78,63 @@ def _apply_candidate_promotion(
             candidate_head=candidate_head,
         )
     sweep_stale_ref_intents(root)
-    authority, repository_prestate, authority_gap = _promotion_authority(
-        root,
-        current_head,
-        candidate_head,
-    )
-    transition_error = authority_gap
-    if not transition_error:
-        try:
-            prior_attestations = {
-                "proof": proof.model_dump(mode="json"),
-                **(
-                    {"control_replacement_receipt": control_replacement_receipt}
-                    if control_replacement_receipt
-                    else {}
-                ),
-            }
-            effect, release_old = _promotion_effect(root, policy, current_head, candidate_head)
-            preflight_gap = worktree_sync_gap(
-                root,
-                (root,),
-                policy.accepted_branch,
-                current_head,
-                current_head,
-                candidate_head,
-            )
-            preflight_gap = f"accepted_{preflight_gap}" if preflight_gap else ""
-            if (
-                not preflight_gap
-                and release_old is not None
-                and (
-                    gap := worktree_sync_gap(
-                        root,
-                        ref_worktree_paths(worktrees, policy.release_branch),
-                        policy.release_branch,
-                        release_old,
-                        release_old,
-                        candidate_head,
-                    )
+    transition_error = ""
+    try:
+        prior_attestations = {
+            "proof": proof.model_dump(mode="json"),
+            **(
+                {"control_replacement_receipt": control_replacement_receipt}
+                if control_replacement_receipt
+                else {}
+            ),
+        }
+        effect, release_old = _promotion_effect(root, policy, current_head, candidate_head)
+        preflight_gap = worktree_sync_gap(
+            root,
+            (root,),
+            policy.accepted_branch,
+            current_head,
+            current_head,
+            candidate_head,
+        )
+        preflight_gap = f"accepted_{preflight_gap}" if preflight_gap else ""
+        if (
+            not preflight_gap
+            and release_old is not None
+            and (
+                gap := worktree_sync_gap(
+                    root,
+                    ref_worktree_paths(worktrees, policy.release_branch),
+                    policy.release_branch,
+                    release_old,
+                    release_old,
+                    candidate_head,
                 )
-            ):
-                preflight_gap = f"release_mirror_{gap}"
-            if preflight_gap:
-                return _accepted_block(
-                    policy,
-                    current_head,
-                    [preflight_gap],
-                    candidate_head=candidate_head,
-                )
-            plan = _accepted_transition_plan(
-                root=root,
-                role_policy=policy,
-                authority=cast("Commitment", authority),
-                effect=effect,
-                head=current_head,
-                candidate_worktree_path=candidate_worktree_path,
-                prior_attestations=prior_attestations,
-                repository_prestate=repository_prestate,
             )
-        except (TypeError, ValueError) as error:
-            transition_error = str(error)
+        ):
+            preflight_gap = f"release_mirror_{gap}"
+        if preflight_gap:
+            return _accepted_block(
+                policy,
+                current_head,
+                [preflight_gap],
+                candidate_head=candidate_head,
+            )
+        plan = _accepted_transition_plan(
+            root=root,
+            role_policy=policy,
+            effect=effect,
+            head=current_head,
+            candidate_worktree_path=candidate_worktree_path,
+            prior_attestations=prior_attestations,
+        )
+    except (TypeError, ValueError) as error:
+        transition_error = str(error)
     if transition_error:
         return _accepted_block(
             policy,
             current_head,
-            [authority_gap or "accepted_transition_invalid"],
+            ["accepted_transition_invalid"],
             candidate_head=candidate_head,
             stderr=transition_error,
         )
@@ -223,34 +213,14 @@ def _apply_candidate_promotion(
     }
 
 
-def _promotion_authority(
-    root: Path,
-    current_head: str,
-    candidate_head: str,
-) -> tuple[Commitment | None, str, str]:
-    accepted = observe_repository_commitment(root, tree_ref=current_head)
-    if accepted.state == "valid":
-        return accepted.require(), "present", ""
-    if accepted.state != "missing":
-        return None, "", accepted.gap
-    candidate = observe_repository_commitment(root, tree_ref=candidate_head)
-    return (
-        (candidate.require(), "absent", "")
-        if candidate.state == "valid"
-        else (None, "", candidate.gap)
-    )
-
-
 def _accepted_transition_plan(
     *,
     root: Path,
     role_policy: BranchRolePolicy,
-    authority: Commitment,
     effect: GitEffect,
     head: str,
     candidate_worktree_path: str,
     prior_attestations: JsonObject,
-    repository_prestate: str,
 ) -> TransitionPlan:
     effect_policy = {
         "operation": "candidate.accept",
@@ -258,11 +228,10 @@ def _accepted_transition_plan(
         "accepted_branch": role_policy.accepted_branch,
         "candidate_branch": role_policy.candidate_branch,
         "release_mirror": role_policy.release_mirror,
-        "repository_prestate": repository_prestate,
     }
     return compile_observed_git_effect(
         root,
-        authority,
+        None,
         effect,
         head=head,
         prior_attestations=prior_attestations,

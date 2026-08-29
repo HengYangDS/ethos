@@ -22,7 +22,7 @@
     "grounds": "DURABLE GROUNDS",
     "authority_gap": "AUTHORITY ENDS",
     "lanes": "ISOLATED CANDIDATE LANES",
-    "lane_detail": "worktree · Lease · scope/effect · prewrite",
+    "lane_detail": "worktree · Lease · fresh facts · prewrite",
     "effect": "ONE EXACT EFFECT",
     "projections": "CLI · SDK · MCP/A2A · IDE · CI",
     "entry": "ENTRY CONDITIONS",
@@ -37,8 +37,8 @@
       "subject · scope · validity"
     ],
     "commitment": [
-      "COMMITMENT",
-      "intent · invariants · acceptance"
+      "COMPILED INTENT",
+      "change identity · acceptance"
     ],
     "action-joint": [
       "COMPILE",
@@ -82,14 +82,6 @@
     "attestation": [
       "ATTESTATION",
       "evidence-bound · durable"
-    ],
-    "reauthorization": [
-      "AUTHORIZED SELECTION",
-      "fresh subject · scope"
-    ],
-    "commitment-next": [
-      "COMMITMENT n+1",
-      "bounded intent"
     ],
     "brownfield": [
       "BROWNFIELD",

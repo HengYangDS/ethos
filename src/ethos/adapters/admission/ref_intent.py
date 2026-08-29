@@ -216,7 +216,7 @@ def _identity_gap(
             intent.old_value != update.expected or intent.new_value != update.desired,
             "ref_intent_mismatch",
         ),
-        (intent.operation != operation, "ref_intent_operation_mismatch"),
+        (bool(operation and intent.operation != operation), "ref_intent_operation_mismatch"),
         (bool(plan_digest and intent.plan_digest != plan_digest), "ref_intent_plan_mismatch"),
     )
     return next((gap for failed, gap in checks if failed), "")

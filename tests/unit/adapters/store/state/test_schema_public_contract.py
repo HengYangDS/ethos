@@ -55,24 +55,20 @@ def test_state_schema_initialization_requires_a_transaction_and_validates_absenc
 
 
 @pytest.mark.parametrize(
-    ("mutation", "expected"),
+    "mutation",
     [
+        "create table leases (id text primary key, subject text not null)",
         (
-            "create table leases (id text primary key, subject text not null)",
-            "state_schema_lease_table_definition_mismatch",
-        ),
-        (
-            schema.SCHEMA[0],
-            "state_schema_lease_subject_unique_missing",
+            "create table leases ("
+            "lane_ref text primary key, holder_ref text not null, "
+            "generation integer not null, expires_at text not null, extra text)"
         ),
     ],
 )
-def test_state_schema_rejects_noncanonical_table_or_missing_index(
-    mutation: str, expected: str
-) -> None:
+def test_state_schema_rejects_noncanonical_table(mutation: str) -> None:
     with closing(sqlite3.connect(":memory:")) as connection:
         connection.execute(mutation)
-        with pytest.raises(RuntimeError, match=expected):
+        with pytest.raises(RuntimeError, match="state_schema_lease_table_definition_mismatch"):
             schema.validate_current_lease_schema(connection)
 
 
@@ -82,8 +78,8 @@ def test_state_schema_rejects_extra_subject_authority_or_triggers(
 ) -> None:
     with closing(_canonical_connection(tmp_path / "state.sqlite")) as connection:
         if mutation == "extra-index":
-            connection.execute("create unique index extra_subject on leases(subject desc)")
-            expected = "state_schema_lease_subject_unique_missing"
+            connection.execute("create index extra_holder on leases(holder_ref)")
+            expected = "state_schema_lease_index_present"
         else:
             connection.execute(
                 "create trigger lease_guard after insert on leases begin select 1; end"
@@ -93,32 +89,23 @@ def test_state_schema_rejects_extra_subject_authority_or_triggers(
             schema.validate_current_lease_schema(connection)
 
 
-def test_state_schema_allows_unrelated_nonunique_indexes(tmp_path: Path) -> None:
-    with closing(_canonical_connection(tmp_path / "state.sqlite")) as connection:
-        connection.execute("create index lease_owner on leases(owner)")
-
-        assert schema.validate_current_lease_schema(connection) is True
-
-
 def test_state_schema_rejects_columns_hidden_behind_canonical_catalog_sql() -> None:
     with closing(sqlite3.connect(":memory:")) as connection:
         connection.execute(
             "create table leases ("
-            "id text primary key, subject text not null, owner text not null, "
-            "expires_at text not null, payload_json text not null, extra text)"
+            "lane_ref text primary key, holder_ref text not null, "
+            "generation integer not null, expires_at text not null, extra text)"
         )
-        connection.execute(schema.SCHEMA[1])
         connection.execute("pragma writable_schema = on")
         connection.execute(
             "update sqlite_master set sql = ? where type = 'table' and name = 'leases'",
             (
                 (
                     "CREATE TABLE leases (\n"
-                    "      id text primary key,\n"
-                    "      subject text not null,\n"
-                    "      owner text not null,\n"
+                    "      lane_ref text primary key,\n"
+                    "      holder_ref text not null,\n"
+                    "      generation integer not null,\n"
                     "      expires_at text not null,\n"
-                    "      payload_json text not null\n"
                     "    )"
                 ),
             ),

@@ -168,9 +168,7 @@ def test_candidate_refresh_retries_only_the_missing_projection(
     monkeypatch.setattr(
         projection,
         "_sync_candidate_worktree",
-        lambda _root, _path, _branch, _ref, previous, desired: syncs.append(
-            (previous, desired)
-        ),
+        lambda _root, _path, _branch, _ref, previous, desired: syncs.append((previous, desired)),
     )
 
     report = projection.refresh_candidate_from_accepted(

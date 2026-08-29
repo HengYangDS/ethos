@@ -60,7 +60,7 @@ def attestation_fixture(
 
 
 def commitment_fixture(**fields: object) -> Commitment:
-    """Build one complete Commitment v2 without adding production defaults."""
-    required = {"schema_version", "id", "intent", "subjects"}
-    empty_collections = dict.fromkeys(Commitment.model_fields.keys() - required, ())
-    return Commitment.model_validate({"schema_version": 2, **empty_collections, **fields})
+    """Build one minimal compiled Commitment without compatibility fields."""
+    return Commitment.model_validate(
+        {"schema_version": 3, "acceptance": ("acceptance:fixture",), **fields}
+    )

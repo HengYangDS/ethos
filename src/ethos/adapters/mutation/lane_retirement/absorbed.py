@@ -9,8 +9,6 @@ from typing import cast
 from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.repo.commitment import load_repository_commitment
-from ethos.adapters.repo.commitment import observe_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
@@ -221,14 +219,6 @@ def _admitted_retirement_plan(
     recovering: bool,
     recovery_intent: dict[str, object],
 ) -> TransitionPlan:
-    commitment = load_repository_commitment(repo)
-    prestate = observe_repository_commitment(repo, tree_ref=expect_head)
-    if prestate.state == "valid":
-        prestate_policy: dict[str, str] = {}
-    elif prestate.state == "missing":
-        prestate_policy = {"repository_prestate": "absent"}
-    else:
-        raise ValueError(prestate.gap)
     policy = {
         "operation": "lane.retire",
         "retirement_kind": "absorbed-ref",
@@ -236,7 +226,7 @@ def _admitted_retirement_plan(
         "accepted_branch": accepted_branch,
         "accepted_head": accepted_head,
         "holder_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
-        **prestate_policy,
+        "repository_prestate": "absent",
     }
     values = {
         "absorbed_ref": branch,
@@ -246,7 +236,7 @@ def _admitted_retirement_plan(
     }
     plan = compile_observed_git_effect(
         repo,
-        commitment,
+        None,
         effect,
         head=current_tracked_head(repo),
         prior_attestations={},
@@ -256,7 +246,7 @@ def _admitted_retirement_plan(
     if recovering and plan.digest != recovery_intent.get("plan_digest"):
         plan = compile_observed_git_effect(
             repo,
-            commitment,
+            None,
             effect,
             head=current_tracked_head(repo),
             prior_attestations={},

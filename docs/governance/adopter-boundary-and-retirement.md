@@ -43,7 +43,7 @@ and evidence before it can support a governed transition.
 
 ## Comparative Assurance
 
-A successor execution substrate may replace an incumbent only after it is proven
+A replacement execution substrate may replace an incumbent only after it is proven
 at least as strong for the adopter. This proof must use the same repository,
 HEAD, changed paths, evidence inputs, structured comparative diff, and a clean
 documentation-topology audit for the adopter target. The first transition gate is
@@ -54,24 +54,24 @@ digests before semantic diff results can be used.
 Allowed outcomes:
 
 ```text
-successor == incumbent
-successor stricter than incumbent
+replacement == incumbent
+replacement stricter than incumbent
 ```
 
-"Stricter" means the successor preserves every incumbent blocking
+"Stricter" means the replacement preserves every incumbent blocking
 `required_gaps` item and may add additional blocking obligations. A missing
-incumbent blocking gap is a comparative false negative even when the successor
+incumbent blocking gap is a comparative false negative even when the replacement
 records an advisory signal for the same condition.
 
 Blocking outcomes:
 
 ```text
-successor misses a required gap
-successor accepts stale evidence
-successor turns blocking into advisory
-successor treats dry-run as live proof
-successor loses domain gate planning obligations
-successor permits removal while the adopter's declared documentation health is
+replacement misses a required gap
+replacement accepts stale evidence
+replacement turns blocking into advisory
+replacement treats dry-run as live proof
+replacement loses domain gate planning obligations
+replacement permits removal while the adopter's declared documentation health is
 unverified
 ```
 
@@ -89,7 +89,7 @@ A retirement judgment must record:
 
 - which capabilities transition;
 - which surfaces remain adopter-owned;
-- comparative evidence proving the successor is equivalent or stricter;
+- comparative evidence proving the replacement is equivalent or stricter;
 - profile validation evidence;
 - domain false-negative evidence;
 - exact-head/tree effects and their reachable Git recovery anchor;

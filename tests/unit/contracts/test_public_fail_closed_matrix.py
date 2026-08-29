@@ -21,12 +21,10 @@ from ethos.contracts.semantic import canonical_json_digest
 from tests.support.semantic import commitment_fixture
 
 
-def _commitment(*, scope: tuple[str, ...] = ("src/**",)) -> Commitment:
+def _commitment(*, acceptance: tuple[str, ...] = ("acceptance:fixture",)) -> Commitment:
     return commitment_fixture(
         id="change:contract-matrix",
-        intent="Keep public contract validation fail-closed.",
-        subjects=("repository:test",),
-        scope=scope,
+        acceptance=acceptance,
     )
 
 
@@ -151,7 +149,7 @@ def test_validate_proof_plan_rejects_effect_semantics_and_model_drift() -> None:
         )
 
     with pytest.raises(ValueError, match="transition_plan_semantics_mismatch"):
-        validate_proof_plan(plan, _commitment(scope=("docs/**",)), facts)
+        validate_proof_plan(plan, _commitment(acceptance=("acceptance:different",)), facts)
 
     invalid_policy = plan.model_copy(update={"policy": {"gates": {}, "gaps": []}})
     with pytest.raises(TypeError, match="transition_plan_policy_invalid"):

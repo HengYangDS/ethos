@@ -15,7 +15,7 @@ and machine contracts. No single directory owns every governance fact.
 
 | Surface | Role | Owns | Does Not Own |
 | --- | --- | --- | --- |
-| `.ethos/` | ETHOS binding layer | tracked profile and Commitment entrypoints | tool-native config, domain truth, durable evidence, mutable runtime state |
+| `.ethos/` | ETHOS binding layer | tracked repository profile | change intent, tool-native config, domain truth, durable evidence, mutable runtime state |
 | `<git-common-dir>/ethos/` | host-local runtime layer | leases, Attestation staging/cache, and transaction state shared by worktrees | current Attestation selection, tracked repository truth, or portable configuration |
 | `.config/` | execution/config layer | tool configuration, reusable gate policy, CI scripts, boundary configs, worktree configs | ETHOS ontology, evidence truth, user decisions |
 | `rules/` | governance rule layer | human and agent rules, domain contracts, projection policies | tool implementation details, generated state |

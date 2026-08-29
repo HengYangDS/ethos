@@ -6,6 +6,10 @@ import pytest
 
 import ethos.adapters.admission.prewrite as prewrite
 import ethos.adapters.repo.runtime.binding as runtime_binding_adapter
+from ethos.adapters.admission.lease_binding import CurrentAuthority
+from ethos.adapters.openspec.start_effect import CurrentGenerationBinding
+from ethos.adapters.openspec.start_effect import CurrentGenerationScope
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -142,17 +146,22 @@ def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _bind_common(monkeypatch, tmp_path)
-    lease = {
-        "verdict": "pass",
-        "required": True,
-        "reason": "matched",
-        "holder_ref": "agent:test:case:owner",
-        "generation": 1,
-        "current_head": "a" * 40,
-        "current_tree": "b" * 40,
-    }
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="matched",
+        branch="work/example",
+        actor="agent:test:case:owner",
+        lease={
+            "lane_ref": "work/example",
+            "holder_ref": "agent:test:case:owner",
+            "generation": 1,
+            "expires_at": "2099-01-01T00:00:00+00:00",
+        },
+        current_head="a" * 40,
+        current_tree="b" * 40,
+    )
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    monkeypatch.setattr(prewrite, "_work_lane_lease_check", lambda **_kwargs: lease)
+    monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
     monkeypatch.setattr(
         prewrite,
         "openspec_governance_report",
@@ -185,6 +194,124 @@ def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
     assert report["material_scope"]["state"] == "attributed"
 
 
+def test_prewrite_reuses_exact_archive_generation_binding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _bind_common(monkeypatch, tmp_path)
+    monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
+    monkeypatch.setattr(
+        prewrite,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "required_gaps": ["openspec_active_change_missing"],
+            "lifecycle": {
+                "scope_binding": {
+                    "verdict": "block",
+                    "state": "unattributed",
+                    "required_gaps": ["openspec_active_change_missing"],
+                }
+            },
+        },
+    )
+    lease = {
+        "lane_ref": "work/example",
+        "holder_ref": "agent:test:case:owner",
+        "generation": 1,
+        "expires_at": "2099-01-01T00:00:00+00:00",
+    }
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="matched",
+        branch="work/example",
+        actor="agent:test:case:owner",
+        lease=lease,
+        current_head="a" * 40,
+        current_tree="b" * 40,
+    )
+    monkeypatch.setattr(
+        prewrite,
+        "observe_current_authority",
+        lambda **_kwargs: authority,
+    )
+    monkeypatch.setattr(
+        prewrite,
+        "current_generation_binding",
+        lambda *_args, **_kwargs: CurrentGenerationBinding(
+            lease=lease,
+            commitment=commitment_fixture(id="change:example"),
+            scope=CurrentGenerationScope(
+                paths=("README.md",),
+                archive_authority={"attestation_id": "c" * 64},
+            ),
+        ),
+    )
+    monkeypatch.setattr(prewrite, "repository_identity", lambda _root: "repository:test")
+
+    report = prewrite.prewrite_guard(
+        root=tmp_path,
+        paths=[tmp_path / "README.md"],
+        editor_root=tmp_path,
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["material_scope"]["state"] == "archive_attested"
+    assert report["material_scope"]["covered_paths"] == [
+        {"path": "README.md", "changes": ["example"]}
+    ]
+    assert report["material_scope"]["required_gaps"] == []
+
+
+def test_prewrite_archive_authority_rejects_unattested_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _bind_common(monkeypatch, tmp_path)
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="matched",
+        branch="work/example",
+        actor="agent:test:case:owner",
+        lease={"holder_ref": "agent:test:case:owner", "generation": 1},
+        current_head="a" * 40,
+        current_tree="b" * 40,
+    )
+    monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
+    monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
+    monkeypatch.setattr(
+        prewrite,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "required_gaps": ["openspec_active_change_missing"],
+            "lifecycle": {"scope_binding": {}},
+        },
+    )
+    monkeypatch.setattr(
+        prewrite,
+        "current_generation_binding",
+        lambda *_args, **_kwargs: CurrentGenerationBinding(
+            lease=authority.lease,
+            commitment=commitment_fixture(id="change:example"),
+            scope=CurrentGenerationScope(
+                paths=("openspec/changes/archive/2026-08-29-example/tasks.md",),
+                archive_authority={"attestation_id": "c" * 64},
+            ),
+        ),
+    )
+    monkeypatch.setattr(prewrite, "repository_identity", lambda _root: "repository:test")
+
+    report = prewrite.prewrite_guard(
+        root=tmp_path,
+        paths=[tmp_path / "src/unattested.py"],
+        editor_root=tmp_path,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["material_scope"]["covered_paths"] == []
+    assert report["material_scope"]["uncovered_paths"] == ["src/unattested.py"]
+    assert report["required_gaps"] == ["openspec_material_path_uncovered:src/unattested.py"]
+
+
 def test_prewrite_projects_only_minimal_lease_and_fresh_git_coordinates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -199,15 +326,16 @@ def test_prewrite_projects_only_minimal_lease_and_fresh_git_coordinates(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
     monkeypatch.setattr(
         prewrite,
-        "_work_lane_lease_check",
-        lambda **_kwargs: {
-            "verdict": "pass",
-            "required": True,
-            "reason": "matched",
-            **lease,
-            "current_head": "a" * 40,
-            "current_tree": "b" * 40,
-        },
+        "_work_lane_authority",
+        lambda **_kwargs: CurrentAuthority(
+            verdict="pass",
+            reason="matched",
+            branch="work/example",
+            actor="agent:test:case:owner",
+            lease=lease,
+            current_head="a" * 40,
+            current_tree="b" * 40,
+        ),
     )
 
     report = prewrite.prewrite_guard(
@@ -218,18 +346,20 @@ def test_prewrite_projects_only_minimal_lease_and_fresh_git_coordinates(
 
     projected = report["work_lane_lease"]
     assert isinstance(projected, dict)
-    assert {name: projected[name] for name in lease} == lease
     assert projected["current_head"] == "a" * 40
     assert projected["current_tree"] == "b" * 40
     assert set(projected) == {
         "verdict",
         "required",
         "reason",
-        "lane_ref",
         "holder_ref",
         "generation",
         "expires_at",
-        "lease_state",
+        "branch",
+        "invocation_holder_ref",
+        "binding_head",
+        "head_source",
+        "required_gaps",
         "current_head",
         "current_tree",
     }

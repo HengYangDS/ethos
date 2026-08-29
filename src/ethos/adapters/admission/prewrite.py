@@ -9,9 +9,11 @@ from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -30,6 +32,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
 
 if TYPE_CHECKING:
+    from ethos.adapters.admission.lease_binding import CurrentAuthority
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "holder_ref", "generation", "head")
@@ -69,7 +72,12 @@ def prewrite_guard(
         for path in checked
         if path["tracked_candidate"] is True and path["relative_path"]
     )
-    lease = _work_lane_lease_check(root=root, effective=effective, tracked_write_requested=tracked)
+    current_authority = _work_lane_authority(
+        root=root,
+        effective=effective,
+        tracked_write_requested=tracked,
+    )
+    lease = current_authority.projection()
     profile_enabled = openspec_profile_enabled(root)
     authority = lease
     profile_adapter: dict[str, object] = {}
@@ -80,7 +88,23 @@ def prewrite_guard(
             changed_paths=requested,
             require_workspace=False,
         )
-        scope = _openspec_scope(profile_adapter)
+        try:
+            generation = current_generation_binding(
+                root,
+                status={
+                    "role": effective["role"],
+                    "head": current_authority.current_head,
+                },
+                repository_id=repository_identity(root),
+                authority=current_authority,
+            )
+        except ValueError:
+            scope = _openspec_scope(profile_adapter)
+        else:
+            if generation.scope.archive_authority:
+                scope = generation.scope_report(requested)
+            else:
+                scope = _openspec_scope(profile_adapter)
     else:
         scope = _commitment_scope(root, requested, lease)
     editor = _editor_root_check(
@@ -124,7 +148,6 @@ def prewrite_guard(
         "mutation_authority": authority,
         "editor_root": editor,
         "patch_admission": patch_report,
-        **({"profile_adapter": profile_adapter} if profile_adapter else {}),
         "material_scope": scope,
         "paths": checked,
         "blocked_paths": blocked,
@@ -186,12 +209,12 @@ def _rebase_head_branch(root: Path) -> str:
     return head.read_text(encoding="utf-8").strip().removeprefix("refs/heads/") if head else ""
 
 
-def _work_lane_lease_check(
+def _work_lane_authority(
     *,
     root: Path,
     effective: dict[str, str],
     tracked_write_requested: bool,
-) -> dict[str, object]:
+) -> CurrentAuthority:
     role, branch, source = effective["role"], effective["branch"], effective["source"]
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
     return observe_current_authority(
@@ -200,7 +223,7 @@ def _work_lane_lease_check(
         actor=actor,
         required=role == ROLE_WORK_LANE and tracked_write_requested,
         head_source="rebase_branch_ref" if source == "git_rebase_head_name" else "head",
-    ).projection()
+    )
 
 
 def _prewrite_decision(

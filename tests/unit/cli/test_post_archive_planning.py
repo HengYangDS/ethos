@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+import ethos.adapters.openspec.start_effect as start_effect
 from ethos.adapters.openspec.start_effect import current_generation_scope
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -75,3 +78,73 @@ def test_post_archive_planning_ignores_lease_payload_beyond_coordination(
     )
 
     assert first == second
+
+
+def test_current_generation_binding_recovers_exact_archive_effect(
+    monkeypatch, tmp_path: Path
+) -> None:
+    head = "a" * 40
+    archive_paths = (
+        "openspec/changes/archive/2026-08-29-fixture-change/tasks.md",
+        "src/fixture.py",
+    )
+    commitment = commitment_fixture(id="change:fixture-change")
+    archive_authority = {
+        "predicate": "effect:git-ref-update",
+        "source": "archive_commit",
+        "claim": {"operation": "openspec.archive"},
+        "attestation_id": "b" * 64,
+        "effect_digest": "c" * 64,
+        "plan_digest": "d" * 64,
+        "authorized_paths": list(archive_paths),
+    }
+    calls: list[str | None] = []
+
+    def load(_root: Path, *, change_id=None, tree_ref=None):
+        calls.append(tree_ref)
+        if tree_ref is None:
+            message = "openspec_active_change_missing"
+            raise ValueError(message)
+        assert change_id is None
+        assert tree_ref == head
+        return commitment
+
+    def archived(_root: Path, *, head: str, change: str | None):
+        assert head == "a" * 40
+        assert change is None
+        return commitment, archive_authority
+
+    monkeypatch.setattr(start_effect, "load_profile_commitment", load)
+    monkeypatch.setattr(
+        start_effect,
+        "change_scope_paths_from_status",
+        lambda *_args: ("src/unrelated-work-lane-history.py",),
+    )
+    monkeypatch.setattr(
+        start_effect,
+        "attested_archive_transition",
+        archived,
+        raising=False,
+    )
+    authority = SimpleNamespace(
+        verdict="pass",
+        reason="matched",
+        lease={
+            "lane_ref": "work/fixture-change",
+            "holder_ref": "agent:test",
+            "generation": 1,
+            "expires_at": "2026-08-30T00:00:00Z",
+        },
+    )
+
+    binding = start_effect.current_generation_binding(
+        tmp_path,
+        status={"role": ROLE_WORK_LANE, "head": head},
+        repository_id="repository:test",
+        authority=authority,
+    )
+
+    assert calls == [None]
+    assert binding.commitment == commitment
+    assert binding.scope.paths == archive_paths
+    assert binding.scope.archive_authority == archive_authority

@@ -133,6 +133,8 @@ def _arrange(
         "required_gaps": [],
         "summary": {"change_count": 0},
     }
+    commitment = commitment_fixture(id="change:proof-command", acceptance=("acceptance:fixture",))
+    binding = CurrentGenerationBinding({}, commitment, CurrentGenerationScope(("changed.py",), {}))
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: repo)
     monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
     monkeypatch.setattr(
@@ -141,7 +143,7 @@ def _arrange(
         lambda *_args, **_kwargs: (
             "a" * 40,
             audit,
-            CurrentGenerationScope(("changed.py",), {}),
+            binding,
             lifecycle,
         ),
     )
@@ -401,7 +403,13 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
         "openspec_governance_report",
         lambda *_args, **_kwargs: lifecycle,
     )
-    monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: _plan())
+
+    def compile_plan(*_args, **kwargs):
+        assert kwargs["generation_binding"] is binding
+        assert "generation_scope" not in kwargs
+        return _plan()
+
+    monkeypatch.setattr(proof_cli, "proof_plan", compile_plan)
     monkeypatch.setattr(proof_cli, "run_plan_checks", lambda **_kwargs: ([_check()], True))
     monkeypatch.setattr(proof_cli, "emit", lambda result, **_kwargs: emitted.append(result))
 

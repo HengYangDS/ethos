@@ -32,10 +32,20 @@ def require_runtime_wheel_provenance() -> None:
         resolve_runtime_wheel(source, Path())
 
 
-def resolve_runtime_wheel(source: Path, wheel_dir: Path) -> Path:
+def resolve_runtime_wheel(source: Path, wheel_dir: Path, *, cache_dir: Path | None = None) -> Path:
     """Resolve exactly one source-built, managed, or installed wheel."""
     if (source / "pyproject.toml").is_file():
-        run_runtime_tool(source, "sync", "--locked", "--offline", "--check", "--active")
+        run_runtime_tool(
+            source,
+            "sync",
+            "--locked",
+            "--offline",
+            "--check",
+            "--active",
+            "--no-install-project",
+            "--inexact",
+            cache_dir=cache_dir,
+        )
         wheel_dir.parent.mkdir(parents=True, exist_ok=True)
         if wheel_dir.exists():
             _fail("hook_runtime_wheel_invalid")
@@ -49,6 +59,7 @@ def resolve_runtime_wheel(source: Path, wheel_dir: Path) -> Path:
                 "--wheel",
                 "--out-dir",
                 staging.as_posix(),
+                cache_dir=cache_dir,
             )
             wheels = tuple(staging.glob("ethos-*.whl"))
             if len(wheels) != 1:
@@ -124,26 +135,32 @@ def resolve_owned_interpreter(source: Path, source_python: Path) -> Path:
     return interpreter
 
 
-def run_runtime_tool(source: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def run_runtime_tool(
+    source: Path,
+    *args: str,
+    cache_dir: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
     """Run the runtime-adjacent uv executable with pinned build inputs."""
     node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
+    environment = {
+        **os.environ,
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "UV_LINK_MODE": "copy",
+        "VIRTUAL_ENV": Path(sys.prefix).as_posix(),
+        "ETHOS_BUILD_NODE": (
+            node_root / "bin" / ("node.exe" if os.name == "nt" else "node")
+        ).as_posix(),
+        "ETHOS_BUILD_NPM_CLI": (node_root / "lib/node_modules/npm/bin/npm-cli.js").as_posix(),
+    }
+    if cache_dir is not None:
+        environment["UV_CACHE_DIR"] = cache_dir.as_posix()
     completed = subprocess.run(
         (_uv_executable().as_posix(), *args),
         cwd=source,
         capture_output=True,
         text=True,
         check=False,
-        env={
-            **os.environ,
-            "PYTHONDONTWRITEBYTECODE": "1",
-            "UV_CACHE_DIR": (source / "build/runtime/tool-cache/uv").as_posix(),
-            "UV_LINK_MODE": "copy",
-            "VIRTUAL_ENV": Path(sys.prefix).as_posix(),
-            "ETHOS_BUILD_NODE": (
-                node_root / "bin" / ("node.exe" if os.name == "nt" else "node")
-            ).as_posix(),
-            "ETHOS_BUILD_NPM_CLI": (node_root / "lib/node_modules/npm/bin/npm-cli.js").as_posix(),
-        },
+        env=environment,
     )
     if completed.returncode:
         raise ValueError(

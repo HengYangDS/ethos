@@ -88,6 +88,7 @@ def test_current_generation_binding_recovers_exact_archive_effect(
         "openspec/changes/archive/2026-08-29-fixture-change/tasks.md",
         "src/fixture.py",
     )
+    observed_paths = (*archive_paths, "src/post-archive-repair.py")
     commitment = commitment_fixture(id="change:fixture-change")
     archive_authority = {
         "predicate": "effect:git-ref-update",
@@ -98,27 +99,23 @@ def test_current_generation_binding_recovers_exact_archive_effect(
         "plan_digest": "d" * 64,
         "authorized_paths": list(archive_paths),
     }
-    calls: list[str | None] = []
 
     def load(_root: Path, *, change_id=None, tree_ref=None):
-        calls.append(tree_ref)
-        if tree_ref is None:
-            message = "openspec_active_change_missing"
-            raise ValueError(message)
-        assert change_id is None
-        assert tree_ref == head
-        return commitment
+        assert change_id == "fixture-change"
+        assert tree_ref is None
+        message = "openspec_show_failed:fixture-change"
+        raise ValueError(message)
 
     def archived(_root: Path, *, head: str, change: str | None):
         assert head == "a" * 40
-        assert change is None
+        assert change == "fixture-change"
         return commitment, archive_authority
 
     monkeypatch.setattr(start_effect, "load_profile_commitment", load)
     monkeypatch.setattr(
         start_effect,
         "change_scope_paths_from_status",
-        lambda *_args: ("src/unrelated-work-lane-history.py",),
+        lambda *_args: observed_paths,
     )
     monkeypatch.setattr(
         start_effect,
@@ -142,9 +139,9 @@ def test_current_generation_binding_recovers_exact_archive_effect(
         status={"role": ROLE_WORK_LANE, "head": head},
         repository_id="repository:test",
         authority=authority,
+        change="fixture-change",
     )
 
-    assert calls == [None]
     assert binding.commitment == commitment
-    assert binding.scope.paths == archive_paths
+    assert binding.scope.paths == observed_paths
     assert binding.scope.archive_authority == archive_authority

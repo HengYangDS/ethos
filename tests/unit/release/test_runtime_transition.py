@@ -53,19 +53,22 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
         collision="hook_runtime_wheel_digest_collision",
     )
 
+    requirements = tmp_path / "work/locked-requirements.txt"
+    requirements.parent.mkdir()
+    requirements.write_text("locked\n", encoding="utf-8")
     python_image.install_locked_runtime(
         source,
-        tmp_path / "work",
         tmp_path / "python",
         artifact.path,
+        requirements,
     )
     durable = common / "ethos/packages" / wheel_sha256 / volatile_wheel.name
-    assert calls[0][1][:4] == ("--locked", "--offline", "--no-dev", "--no-emit-project")
+    assert calls[0][0] == "pip"
+    assert {"sync", "--offline", "--break-system-packages", "--require-hashes"} < set(calls[0][1])
+    assert Path(calls[0][1][-1]) == requirements
     assert calls[1][0] == "pip"
-    assert {"sync", "--offline", "--break-system-packages", "--require-hashes"} < set(calls[1][1])
-    assert calls[2][0] == "pip"
-    assert {"install", "--offline", "--break-system-packages", "--no-deps"} < set(calls[2][1])
-    assert Path(calls[2][1][-1]) == durable
+    assert {"install", "--offline", "--break-system-packages", "--no-deps"} < set(calls[1][1])
+    assert Path(calls[1][1][-1]) == durable
     assert durable.read_bytes() == b"wheel"
     durable.write_bytes(b"different")
     with pytest.raises(ValueError, match="hook_runtime_wheel_digest_collision"):

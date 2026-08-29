@@ -135,6 +135,43 @@ def test_start_compensates_ref_worktree_and_lease_when_hook_binding_fails(
     assert "work/feature" not in leases_by_branch(repo)
 
 
+def test_start_uses_the_owned_worktree_removal_effect_for_compensation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    target = tmp_path / "repo-work-feature"
+    monkeypatch.setattr(lane_start, "require_runtime_wheel_provenance", lambda: None)
+    removed: list[tuple[Path, str, str, bool]] = []
+    real_remove = lane_start.remove_worktree
+
+    def remove(root: Path, path: Path, *, branch: str, head: str, force: bool):
+        removed.append((path, branch, head, force))
+        return real_remove(root, path, branch=branch, head=head, force=force)
+
+    monkeypatch.setattr(lane_start, "remove_worktree", remove)
+    monkeypatch.setattr(
+        lane_start,
+        "install_hook_launchers",
+        lambda _root: (_ for _ in ()).throw(ValueError("hook_runtime_failed")),
+    )
+
+    report = lane_start.start_work_lane(
+        root=repo,
+        name="feature",
+        path=target,
+        holder_ref=HOLDER,
+        apply=True,
+    )
+
+    assert report["required_gaps"] == ["hook_runtime_failed"]
+    assert [(path, branch, force) for path, branch, _head, force in removed] == [
+        (target, "work/feature", True)
+    ]
+    assert ref_head(repo, "work/feature") == ""
+    assert not target.exists()
+    assert "work/feature" not in leases_by_branch(repo)
+
+
 def test_start_honors_canonical_sibling_profile_without_a_parallel_source_lane(
     tmp_path: Path,
 ) -> None:

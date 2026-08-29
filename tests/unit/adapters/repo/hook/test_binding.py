@@ -10,7 +10,6 @@ import pytest
 import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.hook.binding as hook_binding
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import runtime_command
@@ -76,12 +75,17 @@ def test_hook_binding_reports_non_utf8_launcher_as_drift(
     assert "write_admission_not_armed:pre-push_launcher_drift" in observed["required_gaps"]
 
 
-def test_hook_runtime_observation_rejects_launcher_drift(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    report = install_hook_launchers(repo)
-    launcher = Path(str(report["hooks_path"])) / "pre-push"
+def test_hook_runtime_observation_rejects_launcher_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    generation = hook_activation.materialize_hook_launchers(common / "ethos" / "hooks")
+    activate_runtime(common, runtime.parent)
+    assert git_process(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
+    assert git_process(repo, "config", "core.hooksPath", generation.as_posix()).returncode == 0
+    assert git_process(repo, "config", "gc.packRefs", "false").returncode == 0
+    launcher = generation / "pre-push"
     launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
 
     observed = hook_runtime_binding(repo)

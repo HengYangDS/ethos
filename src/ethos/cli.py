@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import shlex
 import sys
+from pathlib import Path
 
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.adapters.repo.git import repository_root
+from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
@@ -53,18 +57,54 @@ def _emit_invalid_profile(command: str, argv: list[str]) -> None:
 def _emit_contract_failure(command: str, argv: list[str], error: Exception) -> None:
     """Close one public contract failure without leaking a traceback."""
     gap = str(error).strip() or "public_command_contract_failure"
+    root = _argument_root(argv)
+    data: dict[str, object] = {"error_boundary": "public_command_contract"}
+    schema: dict[str, object] | None = None
+    if gap.startswith("state_schema_"):
+        try:
+            schema = state_schema_report(repository_root(root))
+        except (GitExecutionError, OSError, ValueError):
+            schema = {
+                "expected_state": "current",
+                "observed_state": "unavailable",
+            }
+        data["state_schema"] = schema
     emit(
         EthosResult(
             command=command,
             verdict="block",
             state="gapped",
             required_gaps=(gap,),
-            next_action="repair the reported gap and rerun the command",
-            data={"error_boundary": "public_command_contract"},
+            next_action=_contract_failure_action(gap, root, schema),
+            data=data,
         ),
         json_output="--json" in argv,
         enforce=True,
     )
+
+
+def _argument_root(argv: list[str]) -> Path:
+    if "--root" in argv:
+        index = argv.index("--root")
+        if index + 1 < len(argv):
+            return Path(argv[index + 1]).resolve()
+    value = next((item.partition("=")[2] for item in argv if item.startswith("--root=")), "")
+    return Path(value).resolve() if value else Path.cwd().resolve()
+
+
+def _contract_failure_action(
+    gap: str,
+    root: Path,
+    schema: dict[str, object] | None,
+) -> str:
+    if not gap.startswith("state_schema_"):
+        return "repair the reported gap and rerun the command"
+    command = ["ethos", "hook", "install", "--root", root.as_posix()]
+    observed = str((schema or {}).get("observed_state") or "")
+    if observed not in {"absent", "current", "legacy"} and gap != "state_schema_migration_required":
+        command.extend(("--reset-state", "--authorize"))
+    command.append("--json")
+    return shlex.join(command)
 
 
 if __name__ == "__main__":

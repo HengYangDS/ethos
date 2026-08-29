@@ -18,7 +18,6 @@ from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.profile import load_profile_commitment
-from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
@@ -43,6 +42,7 @@ from ethos.contracts.value import mutable_json
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.adapters.openspec.start_effect import CurrentGenerationBinding
     from ethos.contracts.semantic import Commitment
 
 
@@ -293,7 +293,7 @@ def proof_plan(
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
     changed_paths: tuple[str, ...] = (),
-    generation_scope: CurrentGenerationScope | None = None,
+    generation_binding: CurrentGenerationBinding | None = None,
 ) -> TransitionPlan:
     """Compile the exact commitment-, fact-, and policy-bound proof plan."""
     branch = binding_branch if binding_branch is not None else current_branch(root)
@@ -309,37 +309,43 @@ def proof_plan(
         )
         if authority.verdict != "pass":
             raise ValueError(authority.reason)
-    commitment = _proof_commitment(
-        root,
-        change_id=change_id,
-        head=head,
-        work_lane=work_lane,
+    commitment = (
+        generation_binding.commitment
+        if generation_binding is not None
+        else _proof_commitment(
+            root,
+            change_id=change_id,
+            head=head,
+            work_lane=work_lane,
+        )
     )
     repository = repository_identity(root, tree_ref=head)
     selected_change_id = commitment.id.removeprefix("change:") if commitment is not None else ""
     archived = (
         attested_archive_transition(root, head=head, change=selected_change_id)
-        if selected_change_id
+        if generation_binding is None and selected_change_id
         else None
     )
     policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
     nodes = policy.nodes
-    observed_scope = generation_scope or (
-        current_generation_scope(
-            root,
-            head=head,
-            repository_id=repository,
-            commitment=commitment,
-            lease=lease,
-            fallback_paths=changed_paths,
+    observed_scope = (
+        generation_binding.scope
+        if generation_binding is not None
+        else (
+            current_generation_scope(
+                root,
+                head=head,
+                repository_id=repository,
+                commitment=commitment,
+                lease=lease,
+                fallback_paths=changed_paths,
+            )
+            if work_lane and changed_paths and commitment is not None
+            else None
         )
-        if work_lane and changed_paths and commitment is not None
-        else None
     )
     effective_paths = (
-        observed_scope.paths
-        if generation_scope is not None and observed_scope is not None
-        else changed_paths
+        generation_binding.scope.paths if generation_binding is not None else changed_paths
     )
     facts = Facts(
         repository=repository,

@@ -6,8 +6,11 @@ import pytest
 
 import ethos.surface.cli.hook.commands as hook_commands
 from ethos.adapters.admission.git_admission import push_admission_report
+from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
+from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
+from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.contracts.semantic import Attestation
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -140,6 +143,36 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
             candidate_ref="refs/heads/candidate/dev",
             candidate_head=candidate_head,
         )
+
+
+def test_closeout_selects_archived_candidate_proof_not_worktree_projection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, candidate, accepted_head, candidate_head = _archived_candidate(tmp_path, monkeypatch)
+    proof, gaps = proof_for_repository_transition(candidate, candidate_head)
+    assert gaps == []
+    assert proof is not None
+    projection = sync_worktree(
+        repo,
+        candidate,
+        branch="candidate/dev",
+        previous=candidate_head,
+        head=candidate_head,
+    )
+    assert projection.predicate == "effect:git-worktree-index"
+    assert projection.commitment_digest is None
+    record_attestations(repo, (projection,))
+
+    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
+
+    resolution = payload["data"]["closeout_resolution"]
+    assert resolution["proof"]["repository_attestation_id"] == proof.id
+    accepted_effect = Attestation.model_validate(payload["data"]["accepted_update"]["attestation"])
+    accepted_plan = plan_from_attestation(accepted_effect)
+    assert accepted_plan.prior_attestations["proof"]["id"] == proof.id
+    assert accepted_plan.prior_attestations["proof"]["commitment_digest"] == (
+        proof.commitment_digest
+    )
 
 
 def test_status_plan_closeout_and_hook_share_exact_apply_command(

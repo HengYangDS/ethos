@@ -33,6 +33,7 @@ from tests.support.governed_repository import conformant_proof_check
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import issue_conformant_proof
+from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
 from tests.support.literal_cases import literal_case
@@ -123,6 +124,23 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
         "scope",
     }
     _assert_proof(repo, head, selected=record)
+
+
+def test_repository_proof_without_active_change_has_no_commitment(tmp_path: Path) -> None:
+    """A repository proof binds Git and policy without inventing authored intent."""
+    _repo, candidate = start_adopted_candidate(tmp_path)
+    head = git(candidate, "rev-parse", "HEAD")
+
+    plan = proof_plan(candidate, head=head)
+    record = issue_conformant_proof(candidate, head, plan=plan)
+
+    assert plan.commitment is None
+    assert plan.inputs.commitment is None
+    assert plan.facts["values"]["change_id"] == ""
+    assert record.commitment_digest is None
+    assert persist_proof_attestation(candidate, record)["added"] == (record.id,)
+    _assert_proof(candidate, head, selected=record)
+    assert proof_module.proof_for_repository_transition(candidate, head) == (record, [])
 
 
 @pytest.mark.parametrize(

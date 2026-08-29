@@ -96,11 +96,12 @@ def commitment_fact_gaps(
 
 def validate_proof_plan(
     plan: TransitionPlan,
-    commitment: Commitment,
+    commitment: Commitment | None,
     facts: Facts,
 ) -> None:
     """Reject a proof plan whose carried semantic projections diverge."""
-    if mutable_json(plan.commitment) != mutable_json(commitment.identity_projection()):
+    expected_commitment = commitment.identity_projection() if commitment is not None else None
+    if mutable_json(plan.commitment) != mutable_json(expected_commitment):
         message = "transition_plan_semantics_mismatch"
         raise ValueError(message)
     policy = mutable_json(plan.policy)

@@ -73,7 +73,11 @@ def test_invalid_profile_readercommand_names_emit_json_result(
     args = ["ethos", command, "--root", repo.as_posix(), "--json"]
     monkeypatch.setattr(sys, "argv", args)
 
-    main()
+    if command == "plan":
+        with pytest.raises(SystemExit, match="0"):
+            main()
+    else:
+        main()
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["verdict"] == "block"

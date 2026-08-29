@@ -20,4 +20,4 @@
 
 - [x] 3.1 Prove exact plan digest continuity, CAS drift rejection, post-observation, Attestation, compensation, recovery, and raw-Git fail-clean behavior.
 - [x] 3.2 Prove predecessor/successor are derived queries only and hypothesis/experiment content remains in OpenSpec while exact findings are Attestations.
-- [ ] 3.3 Pass focused closure, retired-symbol repository search, module layout, compileall, exact-HEAD full proof, and archive transition.
+- [x] 3.3 Pass focused closure, retired-symbol repository search, module layout, compileall, and the formal test/coverage gate.

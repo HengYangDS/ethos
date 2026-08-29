@@ -6,23 +6,12 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import TypedDict
 
-from ethos.adapters.repo.dirty.change_provenance import changed_paths
-from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import git_stdout
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.normalization.coercion import repository_path_matches
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-class ChangeOverlay(TypedDict):
-    """Exact pre-transition overlay observation."""
-
-    paths: tuple[str, ...]
-    digest: str
-    required_gaps: list[str]
 
 
 EffectState = Literal["zero_effect", "mutated", "committed"]
@@ -139,33 +128,3 @@ def work_lane_transition_gaps(
         (lease.get("holder_ref") == actor, "lease_actor_mismatch"),
     )
     return [gap for valid, gap in checks if not valid]
-
-
-def change_overlay_report(
-    root: Path,
-    *,
-    scope: tuple[str, ...],
-    expected_digest: str,
-    apply: bool,
-) -> ChangeOverlay:
-    """Bind a clean tree or one fully staged, scope-covered overlay."""
-    paths = changed_paths(root)
-    if not paths:
-        return {"paths": (), "digest": "", "required_gaps": []}
-    unstaged = tuple(git_stdout(root, "diff", "--name-only", "--").splitlines())
-    staged = tuple(git_stdout(root, "diff", "--cached", "--name-only", "--").splitlines())
-    digest = dirty_content_sha256(root)
-    gaps: list[str] = []
-    if unstaged or set(staged) != set(paths):
-        gaps.append("openspec_change_overlay_not_fully_staged")
-    uncovered = [
-        path
-        for path in paths
-        if not any(repository_path_matches(path, pattern) for pattern in scope)
-    ]
-    gaps.extend(f"openspec_change_overlay_uncovered:{path}" for path in uncovered)
-    if expected_digest and expected_digest != digest:
-        gaps.append("openspec_change_overlay_digest_mismatch")
-    if apply and not expected_digest:
-        gaps.append("openspec_change_overlay_digest_required")
-    return {"paths": paths, "digest": digest, "required_gaps": gaps}

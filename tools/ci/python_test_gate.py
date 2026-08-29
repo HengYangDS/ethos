@@ -299,7 +299,15 @@ class PythonTestGate:
         session.run(*self._command(), *args, env=self._env(data), stdout=stdout)
 
     def _coverage(self, action: str, *args: str) -> tuple[str, ...]:
-        return (str(PYTHON), "-m", "coverage", action, f"--data-file={self.data}", *args)
+        return (
+            str(PYTHON),
+            "-m",
+            "coverage",
+            action,
+            f"--rcfile={COVERAGE_CONFIG}",
+            f"--data-file={self.data}",
+            *args,
+        )
 
     def _single(self, session: nox.Session) -> None:
         for path in (self.data, self.coverage / "coverage.xml", self.pytest / "junit.xml"):

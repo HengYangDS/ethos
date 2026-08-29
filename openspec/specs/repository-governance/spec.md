@@ -362,24 +362,24 @@ branch as ready for another closeout mutation.
 
 ### Requirement: OpenSpec Lifecycle Contract Review
 
-ETHOS SHALL compose official OpenSpec validation with one Commitment per
-active Change. The Commitment SHALL own repository subject, intent, scope,
-invariants, acceptance, permissions, and publication policy; no claim or
-`scope.toml` carrier SHALL be required for current lifecycle readiness.
+ETHOS SHALL compose official OpenSpec validation with one transient Commitment
+compiled from each selected active Change. Official proposal, specs, design,
+tasks, metadata, and configuration are the sole tracked intent and lifecycle
+carriers; no `commitment.toml`, `scope.toml`, local template, or Change README is
+required.
 
 #### Scenario: Active OpenSpec Change is lifecycle complete
-- **GIVEN** an active OpenSpec Change has proposal, design, tasks, delta specs,
-  and a valid `commitment.toml`
-- **WHEN** ETHOS audits OpenSpec repository governance in lifecycle mode
-- **THEN** ETHOS reports the Change as lifecycle-ready
-- **AND** material paths are covered only by `Commitment.scope`.
+
+- **GIVEN** an active OpenSpec Change has every artifact required by its official schema
+- **WHEN** ETHOS audits lifecycle or compiles a plan
+- **THEN** it validates the official Change and deterministically compiles acceptance intent
+- **AND** no parallel tracked carrier participates
 
 #### Scenario: Active OpenSpec Change lacks its contract
-- **GIVEN** an active OpenSpec Change has valid official syntax
-- **AND** `commitment.toml` is absent or invalid
-- **WHEN** ETHOS audits lifecycle or evaluates a material path
-- **THEN** ETHOS reports a Commitment gap
-- **AND** no bootstrap, claim binding, or parallel scope carrier grants authority.
+
+- **WHEN** an official required artifact is missing, invalid, or incomplete
+- **THEN** ETHOS reports the exact official artifact or task gap
+- **AND** no bootstrap, claim, archive scan, or parallel metadata grants authority
 
 ### Requirement: Reference Adopter Parity Closure
 ETHOS SHALL prove reference adopter parity through generic profile and shadow
@@ -1671,35 +1671,28 @@ and hosted CI as separate evidence classes.
 
 ETHOS SHALL require every valid adopter declaration to carry a non-empty
 `[openspec].material_paths` list. For changed paths matching that declaration,
-prewrite, changed planning, and proof SHALL use the same selected active
-`Commitment.scope` set.
-Adoption SHALL emit the complete declaration; no historical profile-write exception remains.
-Complete active Changes and archived carriers are historical input only and
-SHALL NOT authorize new material writes.
+prewrite, changed planning, and proof SHALL attribute the fresh paths to the same
+single selected active official OpenSpec Change. The attribution is a fact, not
+an authored scope or permission carrier.
 
 #### Scenario: covered material path is admitted across all surfaces
 
-- **GIVEN** a material path is covered by a valid selected active Commitment
-- **WHEN** prewrite, changed planning, or proof evaluates that path
-- **THEN** the scope binding reports the same coverage fact
-- **AND THEN** no material-scope required gap is produced.
+- **GIVEN** exactly one valid active Change is selected
+- **WHEN** prewrite, changed planning, or proof evaluates a declared material path
+- **THEN** each surface reports the same Change attribution
+- **AND** no parallel tracked carrier participates
 
 #### Scenario: uncovered material path is rejected consistently
 
-- **GIVEN** a declared material path lacks coverage by every valid selected
-  active Commitment
-- **WHEN** any of prewrite, changed planning, or proof evaluates it
-- **THEN** it SHALL report `openspec_material_path_uncovered:<path>`
-- **AND THEN** it SHALL not substitute a proof gate, private schema, or method
-  package for Change authority.
+- **WHEN** no active Change can own a declared material path
+- **THEN** every surface reports `openspec_active_change_missing`
+- **AND** no proof gate or historical carrier substitutes for intent
 
 #### Scenario: Commitment coverage is singular
 
-- **GIVEN** one or more active Changes declare strict Commitments
-- **WHEN** prewrite, changed planning, or proof evaluates a material path
-- **THEN** the same selected active Change set and `Commitment.scope` decide coverage
-- **AND** historical archives, claims, malformed parallel files, and unrelated Changes do not authorize the write
-- **AND** an uncovered path emits `openspec_material_path_uncovered:<path>`.
+- **WHEN** more than one active Change could own a declared material path
+- **THEN** every surface reports the same ambiguous active-Change gap
+- **AND** no `scope.toml`, Commitment field, archive, or unrelated Change authorizes the write
 
 ### Requirement: Accepted closeout remains candidate-first and non-self-approving
 
@@ -2988,25 +2981,13 @@ selection, peer reconciliation, or object identity policy.
 
 Every accepted feedback occurrence SHALL be preserved in the Attestation set and
 selected to a semantic owner or explicit absence, contradiction, or model-gap
-disposition. New input SHALL NOT expand an active Commitment implicitly.
+disposition. New input SHALL NOT expand an active Change implicitly.
 
 #### Scenario: Several agents provide concurrent feedback
 
 - **WHEN** their inputs are independent
 - **THEN** exact-CAS set union preserves every occurrence
-- **AND** selections may feed disjoint successor Commitments
-
-### Requirement: One Commitment binds one Change and lane generation
-
-An effective Commitment SHALL bind one OpenSpec Change, one writable owner lane
-generation, and one task authority. Successors MAY run concurrently only when
-dependencies, scopes, and exact effects are disjoint.
-
-#### Scenario: Input is deferred to a successor
-
-- **WHEN** it cannot be completed inside the active boundary
-- **THEN** selection and dependency remain traceable
-- **AND** deferral does not count as implementation
+- **AND** selections may feed disjoint future official OpenSpec Changes
 
 ### Requirement: Deployed adopter readers remain bounded
 
@@ -3023,228 +3004,137 @@ carrier without making either a proof or mutation authority.
 ### Requirement: Candidate proof admission selects repository authority
 
 ETHOS SHALL use one repository-transition proof query for readiness and mutation.
-The query SHALL bind the exact repository identity, HEAD, tree, proof policy and
-applicable Commitment authority before resolving mutable dependencies or proof
-conflicts. Candidate acceptance, accepted publication, and control-replacement
-admission SHALL consume that query rather than maintaining command-specific
-selectors.
+The query SHALL bind exact repository identity, HEAD, tree, proof policy, and the
+applicable transient Commitment or verified archive effect. Candidate acceptance,
+accepted publication, and control-replacement admission SHALL consume that query.
 
 #### Scenario: Historical Work Lane proof is not applicable
 
-- **GIVEN** one exact HEAD has both a repository-Commitment proof and a proof
-  authorized by an archived Change Commitment for the same repository
-- **WHEN** a repository role transition is evaluated
-- **THEN** ETHOS selects the repository-Commitment proof
-- **AND** the archived proof remains queryable but does not invalidate the
-  transition.
+- **WHEN** a proof is bound only to a retired Work Lane relation
+- **THEN** it does not authorize a current repository transition
+- **AND** it remains queryable as historical evidence
 
 #### Scenario: Retired Work Lane leaves the only applicable proof
 
-- **GIVEN** an archived Change proof is bound to the exact repository, HEAD,
-  tree and current proof policy
-- **AND** its former Work Lane generation is no longer current
-- **WHEN** no repository-Commitment proof exists for that HEAD
-- **THEN** the repository-transition query may select the archive-authorized
-  proof
-- **AND** it does not require recreating or deleting historical lane evidence.
+- **GIVEN** a verified archive effect and proof bind the exact repository, HEAD, tree, and current proof policy
+- **WHEN** the active Change and former Work Lane no longer exist
+- **THEN** repository transition selects that exact evidence without scanning an archived Commitment carrier
+- **AND** no historical ownership is recreated
 
 #### Scenario: Applicable proof conflict fails closed
 
-- **GIVEN** two current proofs under the authority selected for the query
-- **WHEN** their exact bindings or assertions differ
-- **THEN** ETHOS returns the stable mismatch coordinate
-- **AND** no repository effect is authorized.
+- **WHEN** selected proof bindings disagree
+- **THEN** ETHOS returns the first stable mismatch coordinate
+- **AND** no repository effect is authorized
 
 #### Scenario: Closeout readiness and apply share proof admission
 
 - **WHEN** accepted-root closeout is evaluated without and with `--apply`
-- **THEN** both evaluations query the same candidate HEAD and repository
-  Commitment through the same repository-transition proof selector
-- **AND** a proof-selection mismatch cannot appear only after apply is requested.
+- **THEN** both evaluations query the same candidate HEAD and proof selector
+- **AND** a proof-selection mismatch cannot appear only after apply is requested
 
 #### Scenario: Wrong authority cannot satisfy candidate acceptance
 
-- **WHEN** a proof names another repository or does not bind the exact HEAD,
-  tree, policy, or applicable authority
+- **WHEN** a proof names another repository, HEAD, tree, policy, or applicable authority
 - **THEN** ETHOS rejects it with a specific mismatch coordinate
-- **AND** does not infer authority from another proof on the same HEAD.
+- **AND** does not infer authority from another proof on the same HEAD
 
 ### Requirement: Publication selects repository authority
-ETHOS SHALL select the exact accepted-HEAD repository Commitment proof.
+
+ETHOS SHALL select the exact accepted-HEAD repository proof and bind its
+repository identity, commit, tree, policy, and verdict.
+
 #### Scenario: Historical or conflicting proof shares the HEAD
-- **WHEN** repository and retired Work Lane proofs share the accepted HEAD
-- **THEN** only exact repository authority SHALL apply, or fail closed on conflict.
 
-### Requirement: Commitment rebind partial effects recover through the original receipt
-
-ETHOS SHALL recover a Commitment rebind whose exact Git CAS is durable while
-the Lane Lease still matches the immutable receipt's old generation. Recovery
-SHALL consume the original receipt, validate or reconstruct only its exact
-plan-bound Git-effect evidence, advance only that exact Lease generation, and
-persist the terminal rebind Attestation.
-
-#### Scenario: Exact old-generation Lease is recovered after Git CAS
-
-- **GIVEN** the receipt target ref and tree are current
-- **AND** the Lease exactly matches the receipt's old generation
-- **AND** the exact plan-bound Git-effect Attestation is selected
-- **WHEN** the same public rebind command is retried
-- **THEN** dry-run reports `ready_to_recover` without mutation
-- **AND** apply advances the Lease once and persists the terminal Attestation
-
-#### Scenario: Partial state reconstructs its missing Git-effect witness
-
-- **GIVEN** the target ref is current while the Lease remains at the old generation
-- **AND** the immutable receipt, target tree, index, and overlay are exact
-- **AND** no Git-effect Attestation or ref intent remains from the failed apply
-- **WHEN** the same public rebind command is retried
-- **THEN** ETHOS reconstructs the original plan-bound intent without updating the ref
-- **AND** persists the Git-effect Attestation before advancing the exact Lease generation
-
-#### Scenario: Partial recovery coordinates drift
-
-- **GIVEN** a receipt for an interrupted Commitment rebind
-- **WHEN** its ref, tree, Lease generation, holder, digest, index, overlay, or plan differs
-- **THEN** ETHOS rejects recovery before mutation
+- **WHEN** several proofs share the accepted HEAD
+- **THEN** only the exact applicable repository proof SHALL apply, or selection fails closed on conflict
 
 ### Requirement: Exact local Git object projection
 
 A product commit or annotated release tag SHALL be created and signed once in
-the local Git authority. ETHOS SHALL verify the selected local object's
-signature through Git and the repository's declared OpenSSH trust projection,
-then publish the exact existing object bytes. Transport authentication,
-provider account identity, and provider `Verified` presentation SHALL remain
-separate observations and SHALL NOT alter author, committer, tagger, message,
-parents, timestamp, signature, or object OID.
-
-For a commit target, verification SHALL bind the exact commit OID and tree. For
-an annotated tag, verification SHALL bind the exact tag object OID, peeled
-commit OID, peeled tree OID, signer principal, signer fingerprint, and trust-root
-digest. Every peer post-observation SHALL match those coordinates exactly.
+the local Git authority. ETHOS SHALL verify the selected local object's signature
+and publish the exact existing object bytes. Transport authentication, provider
+identity, and provider presentation SHALL remain separate observations.
 
 #### Scenario: one signed commit reaches two peers
 
-- **WHEN** one trusted local commit is published to two independent peers using different transport credentials
-- **THEN** both peer refs SHALL equal the local commit OID
-- **AND** the transport credentials SHALL not appear in product object identity
+- **WHEN** one trusted local commit is published to two independent peers
+- **THEN** both peer refs equal the local commit OID
+- **AND** transport credentials do not enter product object identity
 
 #### Scenario: one annotated tag reaches two peers
 
 - **WHEN** one trusted local annotated tag is published to two independent peers
-- **THEN** local and peer tag object OIDs SHALL be exactly equal
-- **AND** their peeled commit and tree OIDs SHALL be exactly equal
+- **THEN** local and peer tag object OIDs, peeled commits, and trees are equal
 
 #### Scenario: a new remote ref is created
 
 - **WHEN** the target ref is absent
-- **THEN** the plan SHALL bind the repository's zero OID as the expected state
-- **AND** Git execution SHALL compile that state into an explicit empty exact lease
+- **THEN** the plan binds Git's zero OID as the exact expected state
 
 #### Scenario: tree-only equality is insufficient
 
-- **WHEN** a peer object has the expected tree but a different commit or tag object OID
-- **THEN** publication parity SHALL fail closed
-- **AND** ETHOS SHALL NOT accept provider replay, re-signing, identity rewrite, or tree-only equivalence
+- **WHEN** a peer object has the expected tree but a different object OID
+- **THEN** publication parity fails closed
+- **AND** ETHOS does not accept replay, re-signing, identity rewrite, or tree-only equivalence
 
 #### Scenario: proof authority is exact
 
 - **WHEN** publication selects a proof Attestation
-- **THEN** the plan SHALL bind its exact ID, repository Commitment, commit, tree, gate-set policy digest, and verdict
-- **AND** hook and receipt apply SHALL reject any coordinate drift
+- **THEN** the plan binds its exact ID, repository identity, commit, tree, gate-set policy digest, and verdict
+- **AND** hook and receipt apply reject coordinate drift
 
 ### Requirement: Lifecycle effect finalization authorizes exact transition paths
 
-ETHOS SHALL use one verified OpenSpec lifecycle-effect authority for the exact
-transition paths of Change start, official archive, canonical-spec projection,
-and post-archive closeout. The authority SHALL bind the repository identity,
-source Commitment digest and carrier, previous HEAD/tree, exact index/overlay,
-official OpenSpec result, completion artifacts, changed paths, resulting
-HEAD/tree, Lease generation, and terminal effect Attestation. Status, plan,
-prove, land, prewrite, rebind derivation, and Git hooks SHALL consume this same
-authority rather than infer permission from an active Change, an archive path,
-or a generic Lease check. A durable partial effect SHALL be recoverable through
-the same public operation by exact CAS; recovery SHALL never replay OpenSpec or
-create a second product commit.
+ETHOS SHALL use one verified OpenSpec lifecycle-effect authority for Change
+start, official archive, canonical-spec projection, and post-archive closeout.
+The authority SHALL bind repository identity, the transient Commitment digest,
+previous and resulting Git facts, exact changed paths, official OpenSpec result,
+and terminal effect Attestation. Status, plan, prove, land, prewrite, and hooks
+SHALL consume that same authority. A durable partial effect SHALL recover through
+the same public operation by exact CAS.
 
 #### Scenario: Exact archive transition is congruent across readers
 
-- **GIVEN** the official OpenSpec archive command completed one Change and
-  emitted a valid effect Attestation binding the source Commitment, resulting
-  HEAD/tree, Lease generation, and exact changed paths
-- **WHEN** status, plan, prove, land, prewrite, rebind derivation, or a
-  protected-ref hook evaluates the resulting finalization commit
-- **THEN** every attested archive, canonical-spec, policy, and generated path is
-  attributed to the source Change
-- **AND** no reader requires a new active Change merely because the official
-  active Change list is empty
-- **AND** all surfaces select the same finalization scope.
+- **WHEN** official OpenSpec archive completes and the Git effect Attestation binds the exact source and result
+- **THEN** status, plan, prove, land, prewrite, and hooks attribute the finalization paths identically
+- **AND** no reader requires a new active Change or archived Commitment carrier
 
 #### Scenario: A committed archive is recovered after controller loss
 
-- **GIVEN** the Work Lane Lease still names the proved pre-archive HEAD
-- **AND** the current HEAD is its direct child containing one byte-identical
-  active-to-dated-archive carrier relocation and the exact official archive path
-  set
-- **WHEN** the owner retries the public archive transition
-- **THEN** dry-run reports the recoverable Lease/Attestation boundary
-- **AND** apply advances only that Lease generation to the observed archive HEAD
-  and carrier before recording the terminal Attestation
-- **AND** it does not replay OpenSpec, create another commit, or require a second
-  Change.
+- **WHEN** the exact archive Git effect is durable but its rebuildable projection is incomplete
+- **THEN** retry recognizes the effect Attestation and completes projection forward
+- **AND** it does not replay OpenSpec, reverse the ref, or create another product commit
 
 #### Scenario: Missing or tampered archive authority fails closed
 
-- **WHEN** the archive result, effect Attestation, source Commitment, Lease
-  generation, direct-parent relation, carrier bytes, or exact path set is absent,
-  ambiguous, stale, or tampered
-- **THEN** ETHOS does not project archive-finalization authority
-- **AND** it reports the first exact missing coordinate and one public next
-  command when a mechanical continuation exists
-- **AND** it does not infer permission from an archive path or historical lane.
+- **WHEN** the official result, exact Git facts, effect Attestation, or changed path set is missing, ambiguous, stale, or tampered
+- **THEN** ETHOS reports the first exact missing coordinate and one public next command
+- **AND** it does not infer authority from an archive path or historical lane
 
 #### Scenario: Multi-commit Change start recovers its exact successor
 
-- **GIVEN** a signed Change-start commit is already the first-parent successor
-  of the Lease-bound expected HEAD
-- **AND** later commits are clean, unique, and covered by the same Commitment
-  scope and effect evidence
-- **AND** the current Lease still matches the old generation
-- **WHEN** the same public start/recovery operation is retried
-- **THEN** dry-run reports `ready_to_recover` without mutation
-- **AND** apply advances only the exact successor Lease generation and records
-  one terminal Attestation
-- **AND** no second commit, ref replay, or OpenSpec invocation is performed.
+- **WHEN** an exact Change-start Git effect is durable and later projection failed
+- **THEN** retry recognizes the same plan and completes projection forward
+- **AND** it creates no second commit, lineage record, or OpenSpec invocation
 
 #### Scenario: Finalization state is classified before mutation
 
-- **WHEN** a finalization request observes no Lease, an expired same-holder
-  Lease, a different-holder Lease, or an ownerless effect
-- **THEN** ETHOS reports distinct machine-readable states
-- **AND** an expired same-holder Lease reports the exact public resume command
-- **AND** a different-holder Lease reports the public query for an already
-  accepted takeover authorization before any takeover command can be formed
-- **AND** an ownerless exact effect reports the exact archive recovery command
-- **AND** a truly missing Lease with no exact effect fails closed, reports the
-  public status command, and marks that a user authority decision is required
-- **AND** no command silently assumes holder identity or edits SQLite directly.
+- **WHEN** finalization observes a missing, expired, foreign, or valid Lease
+- **THEN** it reports that exact coordination state and its one public action
+- **AND** it never assumes holder identity or edits SQLite directly
 
 #### Scenario: Zero-effect failure has no compensation gap
 
-- **WHEN** preflight fails before a ref, worktree, Lease, or Git object is
-  created
-- **THEN** the receipt records the original failure and proves each asset
-  absent
-- **AND** it does not report compensation or cleanup failure for an asset that
-  never existed.
+- **WHEN** preflight fails before an effect
+- **THEN** the receipt preserves the original failure and proves owned assets absent
+- **AND** it reports no compensation failure for an effect that never occurred
 
 #### Scenario: Hook observation cannot re-enter Git maintenance
 
-- **WHEN** a Git reference transaction invokes ETHOS admission while Git holds
-  a ref or packed-refs lock
-- **THEN** the hook performs only bounded read-only observations that cannot
-  launch maintenance or acquire the same lock
-- **AND** a missing observation returns `effect_observation_unavailable` with a
-  public recovery command rather than hanging.
+- **WHEN** a reference transaction invokes admission while Git holds a ref lock
+- **THEN** the hook performs only bounded read-only observations
+- **AND** unavailable observation fails closed without re-entering maintenance
 
 ### Requirement: Hook runtime currentness is mutation admission
 ETHOS SHALL distinguish runtime byte integrity from accepted-source currentness.
@@ -3271,95 +3161,6 @@ and tree equal the exact expected ETHOS identity.
 - **WHEN** a hook denies an exact HEAD because its required proof is absent
 - **THEN** the report contains one executable command bound to the selected runtime, repository root, and exact HEAD
 - **AND** the command does not depend on ambient `PATH` command discovery.
-
-### Requirement: Change creation resolves lineage before effects
-
-ETHOS SHALL resolve every declared predecessor digest to a valid immutable
-Commitment carrier in the exact base Git tree before creating or moving a Work
-Lane ref, materializing a worktree, or acquiring a Lease. The resulting lineage
-graph SHALL be derived from Commitment and Git facts without a graph database,
-successor back-links, or another semantic root.
-
-#### Scenario: Fresh lane starts from historical predecessors
-
-- **GIVEN** a fresh Change Commitment names one or more Commitment digests that
-  resolve in the exact selected base tree
-- **WHEN** `ethos lane start` evaluates dry-run or apply
-- **THEN** both modes admit the same Commitment and predecessor set
-- **AND** apply creates only the existing ref, worktree, carrier, and Lease
-  effects
-
-#### Scenario: A predecessor cannot be resolved
-
-- **WHEN** any predecessor digest is malformed, absent, ambiguous, or does not
-  identify a valid Commitment in the exact base tree
-- **THEN** lane start fails before any ref, worktree, carrier, or Lease effect
-- **AND** the result identifies the offending predecessor without falling back
-  to mutable worktree or historical-state guesses
-
-### Requirement: Change start recovery preserves exact lineage
-
-In-lane Change rollover SHALL bind the complete canonical predecessor set into
-its prepared request and successor Commitment identity. Recovery and
-Attestation SHALL accept only the exact requested set, while requiring the old
-Lease-bound Commitment digest to remain a member.
-
-#### Scenario: Retry observes the exact successor lineage
-
-- **WHEN** retry or recovery observes the exact successor Commitment, Git
-  effect, Lease transition, and complete requested predecessor set
-- **THEN** it recognizes or completes the original transition
-- **AND** it emits an Attestation bound to that successor Commitment digest
-
-#### Scenario: Predecessor set drifts across a retry
-
-- **WHEN** a retry observes a successor with any predecessor added, removed, or
-  substituted relative to the prepared request
-- **THEN** recovery fails closed as request or effect identity mismatch
-- **AND** it does not advance the Lease or emit a successful Attestation
-
-### Requirement: Change lineage permits concurrency without global serialization
-
-Governed Change lineage SHALL be a partial order. ETHOS SHALL serialize only
-conflicting effects at their exact Git ref or scoped authority boundary and
-SHALL NOT infer a repository-wide total order from predecessor edges.
-
-#### Scenario: Independent successors proceed concurrently
-
-- **GIVEN** two successor Commitments share a predecessor but have satisfied
-  dependencies and disjoint scopes and effects
-- **WHEN** they operate on distinct admitted refs or scopes
-- **THEN** both may proceed without an artificial predecessor chain between
-  them
-- **AND** each later integration remains guarded by its own exact-CAS boundary
-
-### Requirement: Repository Commitment admission is precise and pre-effect
-ETHOS SHALL observe the repository Commitment through one strict current-schema
-owner before any fresh Work Lane effect. The observation SHALL distinguish an
-absent carrier, unreadable or syntactically invalid bytes, an unsupported schema,
-semantic validation failure, and repository identity mismatch. Every consumer
-SHALL preserve that classification instead of translating it to absence.
-
-#### Scenario: Present obsolete carrier is not reported missing
-- **WHEN** the exact repository tree contains `.ethos/commitment.toml` but the carrier does not satisfy the current Commitment schema
-- **THEN** ETHOS reports the precise unsupported or invalid carrier state
-- **AND** it does not report `repository_commitment_missing`
-
-#### Scenario: Fresh lane dry-run and apply share preflight
-- **WHEN** fresh Work Lane creation targets a repository whose Commitment cannot be admitted
-- **THEN** dry-run and apply return the same primary blocker from the same repository identity and tree
-- **AND** apply creates no ref, worktree, Lease, or Change carrier
-
-#### Scenario: Zero-effect failure has a truthful receipt
-- **WHEN** fresh Work Lane creation fails before its first effect
-- **THEN** the result preserves the original admission failure
-- **AND** it reports the observed absence of transaction residue
-- **AND** it does not report cleanup or compensation failure
-
-#### Scenario: Downstream consumers preserve producer classification
-- **WHEN** plan, proof, publication, or lane admission consumes a failed repository Commitment observation
-- **THEN** each projection retains the same precise primary blocker
-- **AND** no consumer reclassifies invalid presence as missing absence
 
 ### Requirement: Git-common hook runtime activation is singular
 

@@ -229,91 +229,6 @@ publication as separate facts, using current state vocabulary only.
 - **AND** hosted CI success is not claimed
 - **AND** the payload does not expose retired publish-state vocabulary
 
-### Requirement: Commitment rebind coordinates are publicly derived
-
-ETHOS SHALL provide a read-only derive operation that converts the current
-owned Work Lane observations and one exact compatible signed target commit into
-a digest-bound Commitment-rebind request receipt.
-
-#### Scenario: Exact target is derived
-
-- **GIVEN** one valid Lease is held by the invocation actor and exactly one
-  signed dangling target commit represents the staged Commitment transition
-- **WHEN** rebind derivation runs
-- **THEN** ETHOS returns the old and new carrier paths, bytes digests, semantic
-  digests, HEAD, tree, index, overlay, Lease generation, target OID, receipt
-  path, and receipt digest
-- **AND** the caller supplies business intent rather than copying those internal
-  coordinates.
-
-#### Scenario: Target derivation is ambiguous
-
-- **WHEN** zero or more than one compatible signed target is observable
-- **THEN** derivation blocks without selecting one
-- **AND** it reports the observed candidate OIDs and the unique public next
-  command when a mechanical next step exists.
-
-### Requirement: Commitment rebind apply consumes an exact receipt
-
-ETHOS SHALL allow rebind dry-run and apply to consume a derive receipt and SHALL
-revalidate all mutable coordinates before effect execution.
-
-#### Scenario: Unchanged receipt applies
-
-- **WHEN** receipt-bound apply observes the same holder, Lease generation, HEAD,
-  tree, index, overlay, target commit, signature trust, and carrier semantics
-- **THEN** the existing exact Git and Lease transaction applies
-- **AND** the terminal receipt binds the derive receipt digest and all effects.
-
-#### Scenario: Any coordinate drift fails closed
-
-- **WHEN** any receipt-bound coordinate changes before dry-run or apply
-- **THEN** ETHOS reports a typed `missing`, `mismatch`, `stale`, `drift`, or
-  `authority_denied` blocker naming observed and expected values
-- **AND** no Git ref or Lease effect is applied.
-
-### Requirement: Commitment rebind failures are directly actionable
-
-ETHOS SHALL recognize active Commitment transitions and exact physical archive
-relocations as distinct lifecycle conditions and project one typed remediation
-rather than a generic ref, bytes, or adoption instruction.
-
-#### Scenario: Normal commit creates a valid dangling target
-
-- **WHEN** hook admission prevents the Work Lane ref from advancing because the
-  active Commitment changed but the signed target object was created
-- **THEN** ETHOS reports `commitment_rebind_required`
-- **AND** it returns the valid target OID, old and new carrier digests, partial
-  effects, and the one copy-safe derive command
-- **AND** it tells the caller not to repeat the commit.
-
-#### Scenario: Exact archive relocation is not rebound
-
-- **GIVEN** the Lease still names the pre-archive HEAD and active Commitment
-  carrier
-- **AND** its direct child moves the same Commitment bytes into exactly one
-  valid dated archive with only the official archive path set
-- **WHEN** Commitment rebind derivation evaluates that child
-- **THEN** it reports `archive_transition_requires_archive_change`
-- **AND** it does not create a Commitment-rebind receipt
-- **AND** it returns the exact `ethos lane archive-change` recovery command.
-
-#### Scenario: Archive-like target is not exact
-
-- **WHEN** a proposed target has the wrong parent, changed Commitment semantics,
-  multiple matching archive carriers, or extra non-archive paths
-- **THEN** derivation fails closed without selecting an archive recovery target
-- **AND** it does not mint a rebind or archive authority.
-
-#### Scenario: Structured remediation remains bounded
-
-- **WHEN** a lifecycle blocker is emitted
-- **THEN** its remediation identifies the owner, reason, observed and expected
-  values, whether mutation or user decision is required, retryability, and one
-  existing public next command
-- **AND** full diagnostics remain available through an immutable artifact
-  reference rather than an unbounded default payload.
-
 ### Requirement: Attestation record and query project one set contract
 
 The public command plane SHALL expose one narrow record/query surface over the
@@ -409,30 +324,6 @@ command without requiring digest archaeology.
 - **THEN** the result reports `verdict=pass` with no repair action
 - **AND** status, JSON, and hook inspection consume the same runtime binding rather than deriving separate remedies
 
-### Requirement: Start Change accepts explicit predecessor identities
-
-`ethos lane start-change` SHALL accept repeatable predecessor Commitment digests
-and SHALL add the current Lease-bound Commitment digest mandatorily. The public
-request, dry-run, apply, recovery, and result SHALL refer to the same complete
-canonical predecessor set.
-
-#### Scenario: One successor joins several predecessors
-
-- **GIVEN** the current owned Work Lane Commitment and additional historical
-  Commitments resolve in the exact base Git tree
-- **WHEN** the caller repeats `--predecessor <digest>` during `start-change`
-- **THEN** the new Commitment contains the current digest and every additional
-  digest exactly once in canonical order
-- **AND** the public result identifies that same predecessor set
-
-#### Scenario: Caller repeats or includes the current predecessor
-
-- **WHEN** explicit predecessor input contains a duplicate or the current
-  Lease-bound Commitment digest
-- **THEN** the command rejects the ambiguous request before mutation
-- **AND** it identifies the exact duplicate or redeclared-current-predecessor
-  defect without silently normalizing caller input
-
 ### Requirement: Hook installation reports repository-family convergence
 
 `ethos hook install` SHALL project one Git-common activation operation rather
@@ -492,31 +383,28 @@ projection SHALL NOT manufacture a verdict from facts-only data.
 
 ### Requirement: Current Work Lane authority has one fresh resolver
 
-ETHOS SHALL resolve current tracked-write authority from the current branch/ref
-HEAD and tree, invocation actor, exact Lease generation, and the exact
-Lease-bound Commitment. Historical transition Attestations SHALL NOT mint,
-revoke, or replace that current authority.
+ETHOS SHALL resolve tracked-write authority from the current worktree, branch
+role, invocation actor, and exact four-field Lease. It SHALL read HEAD, tree,
+index, changed paths, and official OpenSpec intent as fresh facts. Historical
+transition Attestations SHALL provide provenance only and SHALL NOT mint,
+revoke, or replace current authority.
 
 #### Scenario: Current binding is exact without historical transition evidence
 
-- **GIVEN** the invocation actor owns a valid Lease whose ID, epoch, expected
-  HEAD/tree, carrier bytes, and Commitment digest match the current Work Lane
-- **AND** the requested paths are covered by that Commitment
-- **WHEN** historical start, rebind, or archive effect Attestations are absent
-- **THEN** status, plan, prewrite, and pre-commit project the same passing
-  current-authority coordinates
-- **AND** no surface reports change_generation_authority_missing.
+- **GIVEN** the invocation actor owns a valid Lease for the current Work Lane
+- **AND** the current checkout has one valid active official OpenSpec Change
+- **WHEN** status, plan, prewrite, or pre-commit resolves authority
+- **THEN** every surface projects the same passing Lease and fresh repository facts
+- **AND** no carrier, rebind, or historical effect record is required
 
 #### Scenario: Current binding is stale or ambiguous
 
-- **WHEN** any required actor, Lease generation, HEAD/tree, carrier bytes, or
-  Commitment digest coordinate is missing or mismatched
+- **WHEN** the actor, Lease generation, branch role, Git facts, or selected official Change is missing or ambiguous
 - **THEN** every consuming surface fails closed with the same first exact reason
-- **AND** historical transition evidence cannot override the mismatch.
+- **AND** historical transition evidence cannot override the mismatch
 
 #### Scenario: Historical transition evidence remains provenance
 
 - **WHEN** valid transition Attestations are available
-- **THEN** generation path attribution and effect verification may cite them
-- **AND** removing them changes provenance detail only, not a valid current
-  authoring verdict.
+- **THEN** path attribution and effect verification may cite them
+- **AND** removing them changes provenance detail only, not a valid current authoring verdict

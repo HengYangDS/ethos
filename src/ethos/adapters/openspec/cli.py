@@ -13,13 +13,10 @@ from typing import Any
 import nodejs_wheel
 import yaml
 
-from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_command
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
-OFFICIAL_VERSION = ""
-OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
 _SOURCE_COMMAND_LENGTH = 2
 
@@ -39,6 +36,26 @@ _DISTRIBUTION_ENTRY = _DISTRIBUTION_PACKAGE.parent / "bin" / "openspec.js"
 _PACKAGE = _SOURCE_ROOT / "node_modules" / "@fission-ai" / "openspec" / "package.json"
 _ENTRY = _PACKAGE.parent / "bin" / "openspec.js"
 _LOCK = _SOURCE_ROOT / "package-lock.json"
+
+
+def _json_object(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _declared_version(path: Path) -> str:
+    declaration = _json_object(path)
+    dependencies = declaration.get("dependencies", {})
+    return str(dependencies.get(OFFICIAL_PACKAGE) or "") if isinstance(dependencies, dict) else ""
+
+
+OFFICIAL_VERSION = _declared_version(
+    _SOURCE_DECLARATION if _SOURCE_DECLARATION.is_file() else _DISTRIBUTION_DECLARATION
+)
+OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"
 
 
 def _packaged_node() -> str | None:
@@ -232,47 +249,6 @@ def run_json(
     }
 
 
-def new_change_command(change: str) -> tuple[str, ...]:
-    """Return the repository-locked official command for creating one Change."""
-    command = openspec_base_command()
-    if command is None:
-        message = "openspec_official_cli_missing"
-        raise ValueError(message)
-    return (*command, "new", "change", change, "--json")
-
-
-def new_change_result_valid(root: Path, change: str, result: dict[str, Any]) -> bool:
-    """Validate one official new-change result against the repository path."""
-    payload = result.get("json")
-    created = payload.get("change") if isinstance(payload, dict) else None
-    if not isinstance(created, dict):
-        return False
-    expected = (root / "openspec" / "changes" / change).resolve()
-    try:
-        actual = Path(str(created.get("path") or "")).resolve()
-    except OSError:
-        return False
-    return (
-        result.get("exit_code") == 0
-        and not result.get("parse_error")
-        and created.get("id") == change
-        and actual == expected
-        and (expected / ".openspec.yaml").is_file()
-    )
-
-
-def active_change_gaps(root: Path) -> list[str]:
-    """Return official CLI gaps that prevent starting a new Change."""
-    command = openspec_base_command()
-    if command is None:
-        return ["openspec_official_cli_missing"]
-    listed = run_json(root, command, ("list", "--json"))
-    rows = official_change_rows(listed.get("json", {}))
-    if listed.get("exit_code") != 0 or listed.get("parse_error") or rows is None:
-        return ["openspec_list_unreadable"]
-    return ["openspec_active_change_present"] if rows else []
-
-
 def archive_command(
     root: Path,
     change: str,
@@ -328,23 +304,3 @@ def archive_result(
         and archive_path.endswith(f"-{change}")
     )
     return ([] if valid else ["openspec_archive_result_invalid"], archive_path)
-
-
-def _json_object(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
-
-
-def _declared_version(path: Path) -> str:
-    declaration = _json_object(path)
-    dependencies = declaration.get("dependencies", {})
-    return str(dependencies.get(OFFICIAL_PACKAGE) or "") if isinstance(dependencies, dict) else ""
-
-
-OFFICIAL_VERSION = _declared_version(
-    _SOURCE_DECLARATION if _SOURCE_DECLARATION.is_file() else _DISTRIBUTION_DECLARATION
-)
-OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"

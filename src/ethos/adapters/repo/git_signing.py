@@ -92,34 +92,3 @@ def create_git_commit(
         completed.stdout,
         str(gaps[0]) if gaps else "git_effect_signed_commit_missing",
     )
-
-
-def commit_metadata(
-    root: Path,
-    commit: str,
-    *,
-    run: Callable[..., Any] = run_git,
-) -> dict[str, str] | None:
-    """Return exact author and committer metadata for one commit."""
-    completed = run(
-        root,
-        "show",
-        "-s",
-        "--format=%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI",
-        commit,
-        check=False,
-    )
-    if completed.returncode:
-        return None
-    fields = completed.stdout.rstrip("\n").split("\0")
-    if len(fields) != 6:
-        return None
-    author, author_email, authored_at, committer, committer_email, committed_at = fields
-    return {
-        "GIT_AUTHOR_NAME": author,
-        "GIT_AUTHOR_EMAIL": author_email,
-        "GIT_AUTHOR_DATE": authored_at,
-        "GIT_COMMITTER_NAME": committer,
-        "GIT_COMMITTER_EMAIL": committer_email,
-        "GIT_COMMITTER_DATE": committed_at,
-    }

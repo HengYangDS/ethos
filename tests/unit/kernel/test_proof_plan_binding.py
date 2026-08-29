@@ -187,6 +187,63 @@ def test_unknown_proof_payload_kind_cannot_authorize(tmp_path: Path) -> None:
     _assert_proof(repo, head, gap="proof_attestation_payload_kind_invalid")
 
 
+def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    plan = proof_plan(repo, head=head)
+    checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes)
+    valid = _issue(repo, head, plan=plan, checks=checks)
+
+    plan_payload = plan.model_dump(mode="json")
+    invalid_plan = plan_payload | {"digest": "0" * 64}
+    body_cases = (
+        ({**valid.payload.body, "plan": None}, "proof_attestation_plan_missing"),
+        (
+            {**valid.payload.body, "plan": invalid_plan},
+            "proof_attestation_plan_digest_mismatch",
+        ),
+        (
+            {**valid.payload.body, "required_gaps": "invalid"},
+            "proof_attestation_required_gaps_invalid",
+        ),
+    )
+    for body, expected in body_cases:
+        assert proof_statement_gaps(_reissue(valid, body=body), checks) == [expected]
+
+    failed_check = checks[0] | {"verdict": "block", "trust_bearing": False}
+    result_gaps = proof_statement_gaps(
+        _reissue(
+            valid,
+            verdict="block",
+            body={
+                **valid.payload.body,
+                "claim": {"objective": "prove repository", "verdict": "block"},
+            },
+        ),
+        (failed_check, *checks[1:]),
+    )
+    assert "proof_attestation_verdict_block" in result_gaps
+    assert "proof_attestation_check_not_passed" in result_gaps
+
+    nonconformant = checks[0] | {"action_id": "other", "command": ["other"]}
+    gate_gaps = proof_statement_gaps(valid, (nonconformant, *checks[1:]))
+    assert "proof_attestation_check_plan_mismatch" in gate_gaps
+    assert f"proof_gate_not_policy_conformant:{plan.nodes[0].id}" in gate_gaps
+
+    for field, value, expected in (
+        ("scope", [], "proof_attestation_scope_mismatch"),
+        ("plane", "hosted", "proof_attestation_plane_mismatch"),
+        ("context", {}, "proof_attestation_context_mismatch"),
+    ):
+        assert expected in proof_statement_gaps(
+            _reissue(valid, body={**valid.payload.body, field: value}),
+            checks,
+        )
+    assert "trust_bearing_proof_missing" in proof_statement_gaps(
+        valid,
+        tuple(check | {"trust_bearing": False} for check in checks),
+    )
+
+
 @pytest.mark.parametrize("case", ["descriptor", "digest"])
 def test_proof_artifact_binding_drift_fails_closed(tmp_path: Path, case: str) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")

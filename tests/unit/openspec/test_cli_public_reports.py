@@ -145,3 +145,108 @@ def test_official_cli_reports_effective_version_mismatch(monkeypatch, tmp_path):
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["openspec_effective_version_mismatch"]
     assert report["version"] == "unexpected"
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    [
+        ({}, ["openspec_status_artifact_graph_missing"]),
+        ({"artifacts": []}, ["openspec_status_artifact_graph_missing"]),
+        ({"artifacts": [{"id": "proposal"}]}, ["openspec_status_artifact_graph_invalid"]),
+        (
+            {"artifacts": [{"id": "proposal", "status": "done", "requires": []}]},
+            [],
+        ),
+    ],
+)
+def test_status_contract_requires_the_official_artifact_graph(payload, expected):
+    assert cli.status_contract_gaps(payload) == expected
+
+
+@pytest.mark.parametrize(
+    ("operation", "payload", "expected"),
+    [
+        ("archive", {}, ["openspec_archive_instructions_invalid"]),
+        ("archive", {"changeName": "x", "root": {}}, []),
+        ("apply", {"changeName": "x", "root": {}}, ["openspec_apply_instructions_invalid"]),
+        (
+            "apply",
+            {
+                "changeName": "x",
+                "root": {},
+                "state": "ready",
+                "progress": {},
+                "tasks": [],
+                "instruction": "continue",
+            },
+            [],
+        ),
+    ],
+)
+def test_instruction_contracts_are_operation_specific(operation, payload, expected):
+    assert cli.instructions_contract_gaps(operation, payload) == expected
+
+
+def test_config_contract_rejects_machine_global_store_selection():
+    assert cli.config_contract_gaps({"defaultStore": "/tmp/global"}) == [
+        "openspec_default_store_forbidden"
+    ]
+    assert cli.config_contract_gaps({}) == []
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        ("schema: spec-driven\n", ("openspec", "archive", "change", "--yes", "--json")),
+        (
+            "schema: spec-driven\nskip_specs: true\n",
+            ("openspec", "archive", "change", "--yes", "--skip-specs", "--json"),
+        ),
+        ("invalid: [", ("openspec", "archive", "change", "--yes", "--json")),
+    ],
+)
+def test_archive_command_uses_only_the_official_change_declaration(tmp_path, metadata, expected):
+    marker = tmp_path / "openspec/changes/change/.openspec.yaml"
+    marker.parent.mkdir(parents=True)
+    marker.write_text(metadata, encoding="utf-8")
+
+    assert cli.archive_command(tmp_path, "change") == expected
+
+
+@pytest.mark.parametrize(
+    ("result", "expected_gaps", "expected_path"),
+    [
+        (
+            {
+                "exit_code": 0,
+                "parse_error": "",
+                "json": {
+                    "archive": {
+                        "change": "change",
+                        "path": "openspec/changes/archive/2026-08-29-change",
+                    }
+                },
+            },
+            [],
+            "openspec/changes/archive/2026-08-29-change",
+        ),
+        ({"exit_code": 1, "parse_error": "", "json": {}}, ["openspec_archive_result_invalid"], ""),
+        (
+            {
+                "exit_code": 0,
+                "parse_error": "",
+                "json": {"archive": {"change": "other", "path": "/outside"}},
+            },
+            ["openspec_archive_result_invalid"],
+            "",
+        ),
+    ],
+)
+def test_archive_result_accepts_only_the_exact_repository_archive(
+    tmp_path, result, expected_gaps, expected_path
+):
+    path = result.get("json", {}).get("archive", {}).get("path")
+    if isinstance(path, str) and path.startswith("openspec/"):
+        result["json"]["archive"]["path"] = (tmp_path / path).as_posix()
+
+    assert cli.archive_result(tmp_path, "change", result) == (expected_gaps, expected_path)

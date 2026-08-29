@@ -16,7 +16,6 @@ import ethos.domain.status as status_domain
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import run_gate_waves
-from ethos.adapters.mutation.lane_lifecycle.archive_recovery import archive_recovery_next_action
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
@@ -24,9 +23,9 @@ from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_binding
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import observation_verdict
@@ -180,11 +179,11 @@ def resolve_generation(repo: Path, *, change: str | None = None) -> CurrentGener
     status = dict(status)
     status["changed_paths"] = list(change_scope_paths_from_status(repo, status))
     try:
-        repository = load_repository_commitment(repo)
+        repository = repository_identity(repo)
         return current_generation_binding(
             repo,
             status=status,
-            repository_id=repository.id,
+            repository_id=repository,
             authority=authority,
             change=change,
         )
@@ -308,11 +307,9 @@ def _proof_next_action(
     return "ethos plan --changed --json"
 
 
-def _proof_plan_error_next_action(repo: Path, gap: str) -> str:
+def _proof_plan_error_next_action(gap: str) -> str:
     """Resolve one exact public recovery command for plan-construction failure."""
-    return archive_recovery_next_action(repo, gap) or (
-        "ethos lane status --json" if gap.startswith("lease_head_stale:") else "ethos adopt"
-    )
+    return "ethos lane status --json" if gap.startswith("lease_") else "ethos adopt"
 
 
 def _issue_proof_or_emit_gap(
@@ -386,7 +383,7 @@ def prove(
                 verdict="block",
                 state="gapped",
                 required_gaps=(str(exc),),
-                next_action=_proof_plan_error_next_action(repo, str(exc)),
+                next_action=_proof_plan_error_next_action(str(exc)),
             ),
             json_output=json_output,
         )

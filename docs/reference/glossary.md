@@ -40,10 +40,8 @@ is derived from this source; it is not the source.
 
 ## Commitment
 
-The persistent semantic entity that owns immutable intent, authority references,
-subjects, scope, permissions, hypotheses, and dependencies. Its identity is
-content-derived; it does not own workflow state, and changed intent creates a
-new Commitment.
+A transient deterministic value compiled from one exact official OpenSpec
+projection. It contains only `schema_version`, `id`, and `acceptance`.
 
 ## Facts
 
@@ -53,8 +51,8 @@ store.
 
 ## TransitionPlan
 
-The deterministic, transient plan compiled from a Commitment, current
-Facts, and prior Attestations. It is executed or discarded, never
+The deterministic, transient plan compiled from Commitment, current Facts,
+policy, and applicable Attestations. It is executed or discarded, never
 promoted into a persistent lifecycle owner.
 
 ## Attestation
@@ -90,6 +88,21 @@ The coordination checkout that should remain clean in routine work.
 ## Work Lane
 
 An isolated lane for tracked mutation.
+
+## Lease
+
+The expiring relationship between one Work Lane and one holder. Its complete
+state is `lane_ref`, `holder_ref`, `generation`, and `expires_at`.
+
+## Proposal Ref
+
+A governed remote review-ref projection of a proved object, never a local
+authoring lane.
+
+## Exact CAS
+
+A compare-and-swap effect that rechecks fresh source and target ref facts before
+mutation and verifies the observed result afterward.
 
 ## Candidate
 

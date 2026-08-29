@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import sqlite3
 import subprocess
-import uuid
 from contextlib import closing
 from datetime import UTC
 from datetime import datetime
@@ -24,10 +23,10 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.destination_objects import i
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import lease_binding
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import require
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import validated_handoff_acknowledgement
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
@@ -57,7 +56,7 @@ def apply_handoff_import(
     branch, head = str(manifest["source_lane_ref"]), str(manifest["source_head"])
     worktree_path = destination.with_name(f"{destination.name}-{branch.replace('/', '-')}")
     observed = observe_lease(state_database(destination), branch)
-    lease = _recover_import_lease(observed, manifest, target_holder_ref)
+    lease = _recover_import_lease(observed, target_holder_ref)
     compensate_on_failure = observed.state == "missing"
     with import_objects(destination, package, manifest) as (object_environment, prepared_pack):
         try:
@@ -89,24 +88,17 @@ def apply_handoff_import(
                 lease,
                 object_environment=object_environment,
             )
-            commitment = load_lease_bound_commitment(
-                destination,
-                lease=lease,
-                environment=object_environment,
-            )
             object_attestation = install_pack(
                 destination,
                 prepared_pack,
-                commitment_digest=commitment.digest(),
+                commitment_digest=None,
                 head=head,
-                repository_id=commitment.subjects[0],
+                repository_id=repository_identity(destination),
             )
         except (OSError, RuntimeError, sqlite3.Error, subprocess.SubprocessError, ValueError):
             if compensate_on_failure:
                 lease = lease or _recover_import_lease(
-                    observe_lease(state_database(destination), branch),
-                    manifest,
-                    target_holder_ref,
+                    observe_lease(state_database(destination), branch), target_holder_ref
                 )
             if lease and compensate_on_failure:
                 compensate_failed_import(
@@ -131,20 +123,11 @@ def apply_handoff_import(
 
 def _recover_import_lease(
     observed: LeaseObservation,
-    manifest: dict[str, Any],
     target_holder_ref: str,
 ) -> dict[str, Any]:
     if observed.state == "missing":
         return {}
     record = observed.record()
-    expected = {
-        "holder_ref": target_holder_ref,
-        "expected_head": str(manifest["source_head"]),
-        "expected_tree": str(manifest["source_tree"]),
-        "base_commitment_path": str(manifest["base_commitment_path"]),
-        "base_commitment_bytes_sha256": str(manifest["base_commitment_bytes_sha256"]),
-        "base_commitment_digest": str(manifest["base_commitment_digest"]),
-    }
     require(
         (
             "handoff_import_lease_unknown"
@@ -152,7 +135,7 @@ def _recover_import_lease(
             else "handoff_import_lease_conflict"
         ),
         holds=observed.state in {"valid", "expired"}
-        and all(record.get(key) == value for key, value in expected.items()),
+        and record.get("holder_ref") == target_holder_ref,
     )
     return record
 
@@ -166,7 +149,7 @@ def _acquire_or_recover_lease(
     branch = str(manifest["source_lane_ref"])
     observed = observe_lease(state_database(destination), branch)
     if observed.state != "missing":
-        recovered = _recover_import_lease(observed, manifest, target_holder_ref)
+        recovered = _recover_import_lease(observed, target_holder_ref)
         if observed.state == "expired":
             return _resume_import_lease(destination, manifest, target_holder_ref, recovered), False
         return recovered, False
@@ -188,29 +171,15 @@ def _acquire_or_recover_lease(
         "handoff_destination_orphan_carrier",
         holds=ref.returncode == 1 and not os.path.lexists(worktree_path) and not worktree,
     )
-    identity = {
-        "lane_incarnation_id": f"lane-incarnation:{uuid.uuid4()}",
-        "lease_id": f"lease:{uuid.uuid4()}",
-    }
     now = datetime.now(UTC)
     return (
         acquire_lease(
             state_database(destination),
             lease=LaneLease(
-                lane_incarnation_id=identity["lane_incarnation_id"],
-                lease_id=identity["lease_id"],
                 lane_ref=branch,
                 holder_ref=HolderRef.parse(target_holder_ref),
-                epoch=1,
-                issued_at=now,
-                renewed_at=now,
+                generation=1,
                 expires_at=now + timedelta(days=1),
-                expected_head=str(manifest["source_head"]),
-                expected_tree=str(manifest["source_tree"]),
-                base_commitment_path=str(manifest["base_commitment_path"]),
-                base_commitment_bytes_sha256=str(manifest["base_commitment_bytes_sha256"]),
-                base_commitment_digest=str(manifest["base_commitment_digest"]),
-                path_scope=(),
             ),
         ),
         True,
@@ -229,11 +198,8 @@ def _resume_import_lease(
             operation="resume",
             branch=str(manifest["source_lane_ref"]),
             holder_ref=holder_ref,
-            lease_id=str(lease["lease_id"]),
-            expected_epoch=int(lease["epoch"]),
-            expect_head=str(manifest["source_head"]),
-            expected_expires_at=str(lease["expires_at"]),
-            expected_payload_sha256=str(lease["payload_sha256"]),
+            generation=int(lease["generation"]),
+            expires_at=str(lease["expires_at"]),
             apply=True,
             ttl_seconds=86_400,
         ),
@@ -257,14 +223,9 @@ def _ensure_import_ref(
         require("handoff_destination_ref_conflict", holds=observed.stdout.strip() == head)
         return
     effect = GitEffect(updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)})
-    authority = load_lease_bound_commitment(
-        destination,
-        lease=lease,
-        environment=object_environment,
-    )
     plan = compile_observed_git_effect(
         destination,
-        authority,
+        None,
         effect,
         head=run_git(destination, "rev-parse", "HEAD").stdout.strip(),
         prior_attestations={},
@@ -275,6 +236,7 @@ def _ensure_import_ref(
             "execution_branch": run_git(destination, "branch", "--show-current").stdout.strip(),
         },
         values={"lease_generation": lease_generation(lease)},
+        environment=object_environment,
     )
     execute_git_effect(
         destination,
@@ -317,7 +279,6 @@ def _verify_destination_identity(
     destination: Path,
     worktree: Path,
     manifest: dict[str, Any],
-    lease: dict[str, Any],
     *,
     object_environment: dict[str, str],
 ) -> None:
@@ -331,12 +292,10 @@ def _verify_destination_identity(
         ).stdout.strip(),
         run_git(worktree, "rev-parse", "HEAD", env=object_environment).stdout.strip(),
         run_git(worktree, "rev-parse", "HEAD^{tree}", env=object_environment).stdout.strip(),
-        str(lease.get("expected_head") or head),
-        str(lease.get("expected_tree") or tree),
     )
     require(
         "handoff_destination_identity_drift",
-        holds=actual == (head, head, tree, head, tree),
+        holds=actual == (head, head, tree),
     )
 
 
@@ -359,7 +318,6 @@ def _validate_import(
             destination,
             worktree,
             manifest,
-            lease,
             object_environment=object_environment,
         )
         return validated_handoff_acknowledgement(

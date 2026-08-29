@@ -6,7 +6,6 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-import tomli_w
 
 import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
@@ -17,6 +16,7 @@ from ethos.contracts.semantic import Facts
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 from tests.support.semantic import commitment_fixture
 
 
@@ -30,9 +30,7 @@ def _cas_plan(repo: Path, old: str, new: str):
         values={"refs": {"refs/heads/dev": old}, "assertions": {}},
     )
     authority = commitment_fixture(
-        id="authority:test:git-effect",
-        intent="Apply exact ref CAS.",
-        subjects=(facts.repository,),
+        id="authority:test:git-effect", acceptance=("acceptance:fixture",)
     )
     return effect, compile_git_effect_plan(
         authority,
@@ -146,19 +144,8 @@ def test_exact_ref_cas_compensates_a_failed_postcondition(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    repository = repo / ".ethos/commitment.toml"
-    repository.parent.mkdir(parents=True, exist_ok=True)
-    repository.write_text(
-        tomli_w.dumps(
-            commitment_fixture(
-                id="repository:repo",
-                intent="Govern.",
-                subjects=("repository:repo",),
-            ).model_dump(mode="python")
-        ),
-        encoding="utf-8",
-    )
-    git(repo, "add", ".ethos/commitment.toml")
+    write_test_profile(repo)
+    git(repo, "add", ".ethos/profile.toml")
     git(repo, "commit", "-m", "declare repository identity")
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")

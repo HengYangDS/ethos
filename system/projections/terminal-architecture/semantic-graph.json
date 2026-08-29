@@ -13,13 +13,6 @@
       "docs/architecture/transition-plan.md",
       "docs/architecture/runner-and-mutation.md"
     ],
-    "basis": {
-      "repository": "repository:ethos",
-      "branch": "candidate/dev",
-      "head": "c17d34d0ff1bbf1c599bcde7163d72ec0fee67f3",
-      "tree": "01a2425bfbd9c2de73947bb9eaa647c4dc0fd891",
-      "remote_sync": "unverified"
-    },
     "exclusions": [
       "SDD carrier",
       "agent orchestrator",
@@ -29,8 +22,7 @@
       "generic VCS implementation"
     ],
     "method": "capability may compound; authority, evidence, and accepted reality remain distinct",
-    "primary_reality_boundary": "ethos_repo",
-    "workspace_authority_manifest": "../../terminal-authority-manifest.yaml"
+    "primary_reality_boundary": "ethos_repo"
   },
   "vocabulary": {
     "maturity": {
@@ -137,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "8a31e54ca336fc54a87d4d92324cf6f6b38216cdee02194cef2bf418aaeafb11"
+      "sha256": "28cfb33c9ba2aeff5fb28746977753166b76d725adee28dab8202286f93d9968"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -147,17 +139,17 @@
     "transition_plan": {
       "path": "docs/architecture/transition-plan.md",
       "authority": "current transient planning semantics",
-      "sha256": "fdfd8c1726c72fe65d85f154ddd141cfd8a12a7b71eed87a73d5eb092c679875"
+      "sha256": "286ed8828b61bd40460cd6504b3d66aa3ede56ace9971223942c1987f105de9e"
     },
     "runner_mutation": {
       "path": "docs/architecture/runner-and-mutation.md",
       "authority": "current runner, Work Lane, closeout, verifier and peer mutation boundaries",
-      "sha256": "e6e2a2bf22123ad08c3dc1681921cd82719dd1a847112e5c32e5ab2c0f07845e"
+      "sha256": "294c90d416dbe8cdbd10454a841e96d502f81d108b1365e25551b6ce011c5fcb"
     },
     "local_state": {
       "path": "docs/architecture/local-state.md",
       "authority": "current host-local coordination boundary",
-      "sha256": "fb54066ce227071930cb5349e1aa824bff3b043a5a15c2ef8c451c6a7b43a359"
+      "sha256": "8941a5008f310b49b8b853f337879125b28c7aaf0671365ef26dcd682c4e6494"
     },
     "adoption": {
       "path": "docs/architecture/adoption-profiles.md",
@@ -179,25 +171,25 @@
       "authority": "optional independent trust-domain boundary",
       "sha256": "7e0867fa8c532f7d865993a911f5e4ad21822ac4c34f24e6fdfe03632a8fe4c0"
     },
-    "commitment_contract": {
+    "contracts": {
       "path": "openspec/specs/contracts/spec.md",
-      "authority": "current immutable predecessor-set, fork/join and lineage/dependency semantics",
+      "authority": "current Commitment and Attestation contracts",
       "sha256": "9ed308579d3f85facee14b5c91b8a1c265bec035372a7f56734679b73c375c3b"
     },
-    "lineage_governance": {
+    "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
-      "authority": "current exact-tree predecessor resolution and scoped concurrency semantics",
+      "authority": "current repository lifecycle, proof, publication, and cleanup semantics",
       "sha256": "6d3fcd2e948a0d9187b25a416a90f0dcf4500de658cc851ba00152a8d424bcef"
     },
-    "lineage_command": {
+    "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",
-      "authority": "current public predecessor selection and canonical request semantics",
-      "sha256": "53d0a0570a43641b1b0328a7a9d1fdb1b0f0d3b0ebc38489830c27906963332c"
+      "authority": "current public command and result semantics",
+      "sha256": "5a16caedd8130c9a68f794f47eb1b47dbeb388c730ba35fb667a101a98c5a42c"
     },
-    "evolution_campaign": {
+    "learning_relations": {
       "path": "docs/governance/evolution-campaign.md",
-      "authority": "current hypothesis, experiment, learning and successor-Commitment semantics",
-      "sha256": "d809b4734d85a39f1ff1a8d29184045910977374fc5611583c51619b561256f1"
+      "authority": "current OpenSpec-native research and derived relation semantics",
+      "sha256": "22d253393a9b42f486366464dfc6ea925e39772c6888f802e2ba54fdaa352224"
     }
   },
   "nodes": {
@@ -224,16 +216,15 @@
       "semantics": "External authority binding for principal, subject, scope and validity."
     },
     "commitment_n": {
-      "kind": "durable_root",
-      "root_concept": "Commitment",
+      "kind": "transient_ir",
       "maturity": "canonical",
-      "label": "Commitment n",
+      "label": "Compiled Commitment",
       "layer": "semantic_lineage",
       "required_visible": true,
       "evidence": [
         "product_contract"
       ],
-      "semantics": "Immutable intent, subject, scope, invariants, acceptance and authority reference."
+      "semantics": "Transient normalized acceptance with exactly schema version, Change identity, and acceptance, compiled from one exact official OpenSpec Change snapshot."
     },
     "fresh_facts": {
       "kind": "observation",
@@ -258,7 +249,7 @@
         "product_contract",
         "transition_plan"
       ],
-      "semantics": "Selected verifier-bound statements whose exact predicates, bindings and validity apply."
+      "semantics": "Exact verifier-bound statements selected by the current TransitionPlan only when their predicates, bindings, and validity change admission."
     },
     "compile_plan": {
       "kind": "transient_ir",
@@ -400,8 +391,7 @@
         "runner_mutation",
         "local_state"
       ],
-      "commitment_cardinality": "exactly_one_base_digest",
-      "semantics": "One admitted, bounded candidate reality in one linked worktree, bound to one immutable base Commitment digest."
+      "semantics": "One linked worktree coordinated by one four-field Lease; current Git and official OpenSpec facts are observed afresh for every operation."
     },
     "linked_worktree": {
       "kind": "coordination",
@@ -424,7 +414,7 @@
         "runner_mutation",
         "local_state"
       ],
-      "semantics": "Holder, generation, expiry and exact binding; coordinates access but grants no semantic authority."
+      "semantics": "The expiring lane-to-holder relation: lane identity, holder identity, generation, and expiry only."
     },
     "git_common_state": {
       "kind": "coordination",
@@ -434,8 +424,8 @@
       "required_visible": true,
       "evidence": [
         "local_state",
-        "lineage_governance",
-        "lineage_command"
+        "repository_governance",
+        "command_plane"
       ],
       "semantics": "Shared Lease, transaction, receipt and runtime projection below one Git common directory; it coordinates a repository family but owns no semantic truth."
     },
@@ -447,8 +437,8 @@
       "required_visible": true,
       "evidence": [
         "local_state",
-        "lineage_governance",
-        "lineage_command"
+        "repository_governance",
+        "command_plane"
       ],
       "activation_cardinality": "exactly_one_per_git_common_directory",
       "config_owner": "repository_common",
@@ -467,8 +457,8 @@
       "required_visible": true,
       "evidence": [
         "local_state",
-        "lineage_governance",
-        "lineage_command"
+        "repository_governance",
+        "command_plane"
       ],
       "required_consumer_observations": [
         "effective_config",
@@ -486,8 +476,8 @@
       "layer": "projection",
       "required_visible": true,
       "evidence": [
-        "lineage_command",
-        "lineage_governance"
+        "command_plane",
+        "repository_governance"
       ],
       "semantics": "One hook-install operation reports the common hooks path, immutable runtime identity, every linked worktree checked or repaired, and exact retained or removed generations."
     },
@@ -511,7 +501,7 @@
       "evidence": [
         "runner_mutation"
       ],
-      "semantics": "One lane result with exact Commitment, base, scope, Lease, prewrite and proof bindings; eligible for one serialized candidate-ref integration attempt."
+      "semantics": "One proved lane HEAD with its transient plan and exact evidence, eligible for one freshly rechecked candidate-ref CAS attempt."
     },
     "candidate_state": {
       "kind": "repository_state",
@@ -748,28 +738,6 @@
       "semantics": "Persistent verifier-bound statement of what was observed, decided, proved or effected; mints no authority.",
       "reality_boundary": "ethos_repo"
     },
-    "authorized_selection": {
-      "kind": "selection",
-      "maturity": "terminal",
-      "label": "Authorized selection",
-      "layer": "semantic_lineage",
-      "required_visible": true,
-      "evidence": [
-        "product_contract"
-      ],
-      "semantics": "A newly authorized subject selects predecessor and applicable Attestation identities; permission is reacquired, never inherited."
-    },
-    "commitment_next": {
-      "kind": "durable_root",
-      "root_concept": "Commitment",
-      "maturity": "terminal",
-      "label": "Commitment n+1",
-      "layer": "semantic_lineage",
-      "required_visible": true,
-      "evidence": [
-        "product_contract"
-      ]
-    },
     "recovery_anchor": {
       "kind": "recovery",
       "maturity": "terminal",
@@ -780,18 +748,7 @@
         "product_contract",
         "runner_mutation"
       ],
-      "semantics": "Durable roots and reachable Git state from which a successor can freshly reconstruct; no privileged jump to effect."
-    },
-    "successor_actor": {
-      "kind": "execution",
-      "maturity": "terminal",
-      "label": "Successor actor",
-      "layer": "transient_agency",
-      "required_visible": true,
-      "evidence": [
-        "product_contract"
-      ],
-      "semantics": "New actor that must freshly observe, compile and reacquire applicable authority."
+      "semantics": "Reachable Git state and durable Attestations from which the same operation can freshly observe, recompile, and resume without inherited permission."
     },
     "model_gap": {
       "kind": "recovery",
@@ -890,7 +847,7 @@
         "adoption"
       ],
       "reality_boundary": "greenfield_repo",
-      "semantics": "Declaration-first binding, minimal owner-native scaffold and first bounded Commitment; not a monolithic ETHOS template."
+      "semantics": "Declaration-first binding, minimal owner-native scaffold, and first official OpenSpec Change; not a monolithic ETHOS template."
     },
     "greenfield_cas": {
       "kind": "effect_aperture",
@@ -990,55 +947,6 @@
       "reality_boundary": "ethos_repo",
       "semantics": "Repository-local judgment over imported protocol grammar and fresh local facts; neither grammar nor remote claims decide local truth."
     },
-    "predecessor_set": {
-      "kind": "observation",
-      "maturity": "current",
-      "label": "Canonical predecessor set",
-      "layer": "change_lineage",
-      "required_visible": true,
-      "evidence": [
-        "commitment_contract",
-        "lineage_governance",
-        "lineage_command"
-      ],
-      "semantics": "Immutable backward Commitment identities resolved in the exact selected Git tree before effects."
-    },
-    "change_lineage": {
-      "kind": "repository_state",
-      "maturity": "current",
-      "label": "Commitment partial order",
-      "layer": "change_lineage",
-      "required_visible": true,
-      "evidence": [
-        "commitment_contract",
-        "lineage_governance"
-      ],
-      "semantics": "Immutable backward-linked fork/join partial order derived from Commitment carriers; it is neither execution dependencies nor global serialization, and owns no mutable successor index."
-    },
-    "scoped_concurrency": {
-      "kind": "coordination",
-      "maturity": "current",
-      "label": "Scoped concurrency",
-      "layer": "candidate_worlds",
-      "required_visible": true,
-      "evidence": [
-        "lineage_governance",
-        "product_contract"
-      ],
-      "semantics": "Disjoint scopes and effects may proceed concurrently; only conflicting exact Git or authority boundaries serialize."
-    },
-    "scope_effect_binding": {
-      "kind": "observation",
-      "maturity": "current",
-      "label": "Scope / effect binding",
-      "layer": "candidate_worlds",
-      "required_visible": true,
-      "evidence": [
-        "product_contract",
-        "runner_mutation"
-      ],
-      "semantics": "Exact declared paths, resource scopes, and effects used to admit concurrency and reject overlap before a tracked write."
-    },
     "prewrite_admission": {
       "kind": "verdict",
       "maturity": "current",
@@ -1048,7 +956,7 @@
       "evidence": [
         "runner_mutation"
       ],
-      "semantics": "Fresh path, repository-root, Lease-generation, holder, worktree, and expected-HEAD gate before tracked mutation.",
+      "semantics": "Fresh repository-root, branch-role, actor, four-field Lease, Git-state, changed-path, and official OpenSpec gate before tracked mutation.",
       "verdict": "pass",
       "phase": "prewrite"
     },
@@ -1061,30 +969,8 @@
       "evidence": [
         "runner_mutation"
       ],
-      "semantics": "Executed proof bound to the Lane result HEAD and Commitment; it cannot authorize another Lane or repository.",
+      "semantics": "Executed proof bound to one lane result HEAD, transient Commitment, and exact repository facts; it cannot authorize another lane or repository.",
       "plane": "local"
-    },
-    "selection_hold": {
-      "kind": "projection",
-      "maturity": "canonical",
-      "label": "Hold",
-      "layer": "semantic_lineage",
-      "required_visible": true,
-      "evidence": [
-        "product_contract"
-      ],
-      "semantics": "Authorized selection may preserve an unresolved obligation without minting a successor Commitment."
-    },
-    "selection_done": {
-      "kind": "projection",
-      "maturity": "canonical",
-      "label": "Done",
-      "layer": "semantic_lineage",
-      "required_visible": true,
-      "evidence": [
-        "product_contract"
-      ],
-      "semantics": "Authorized selection may close the bounded obligation when the evidence supports no successor."
     },
     "owner_native_artifacts": {
       "kind": "repository_state",
@@ -1511,7 +1397,7 @@
         "product_contract",
         "runner_mutation"
       ],
-      "semantics": "Re-observes the candidate ref, selected lane HEAD, ancestry, scope, Lease and proof immediately before integration.",
+      "semantics": "Re-observes candidate ref, selected lane HEAD, ancestry, current Lease, transient Commitment, and proof immediately before integration.",
       "reality_boundary": "ethos_candidate_ref"
     },
     "candidate_admitted_runner": {
@@ -1591,57 +1477,6 @@
       ],
       "semantics": "A remaining Work Lane whose expected candidate base no longer equals the advanced candidate HEAD; it must refresh its base and re-prove before another integration attempt."
     },
-    "lane_relation_judgment": {
-      "kind": "observation",
-      "maturity": "current",
-      "label": "Lane relation judgment",
-      "layer": "candidate_worlds",
-      "required_visible": true,
-      "evidence": [
-        "product_contract",
-        "runner_mutation",
-        "evolution_campaign"
-      ],
-      "semantics": "Fresh scope/effect and hypothesis relations classify concurrent lanes as cooperative, comparative, dependent, or conflicting; no lane gains static priority."
-    },
-    "lane_experiment_protocol": {
-      "kind": "transient_ir",
-      "maturity": "current",
-      "label": "Experiment protocol",
-      "layer": "candidate_worlds",
-      "required_visible": true,
-      "evidence": [
-        "product_contract",
-        "evolution_campaign"
-      ],
-      "semantics": "Commitment-bound hypotheses, falsifiers, comparison method, and stopping rule for alternative lanes; it is not a lifecycle authority."
-    },
-    "lane_comparative_claim": {
-      "kind": "proof_claim",
-      "maturity": "current",
-      "label": "Comparative evidence claim",
-      "layer": "proof_field",
-      "required_visible": true,
-      "evidence": [
-        "product_contract",
-        "evolution_campaign"
-      ],
-      "semantics": "Exact-bound evidence compares alternative lane outcomes against the Commitment experiment protocol; evidence informs selection but grants no authority.",
-      "plane": "local"
-    },
-    "lane_disposition": {
-      "kind": "selection",
-      "maturity": "current",
-      "label": "Authorized lane disposition",
-      "layer": "candidate_worlds",
-      "required_visible": true,
-      "evidence": [
-        "product_contract",
-        "runner_mutation",
-        "evolution_campaign"
-      ],
-      "semantics": "Fresh authorized judgment may admit, continue through refresh and re-proof, hold uncertainty, or retire a superseded lane after absorption and retirement proof."
-    },
     "lane_retirement": {
       "kind": "recovery",
       "maturity": "current",
@@ -1650,47 +1485,17 @@
       "required_visible": true,
       "evidence": [
         "runner_mutation",
-        "evolution_campaign"
+        "learning_relations"
       ],
       "semantics": "A landed or superseded Lane may be retired only by its explicit exact-HEAD lifecycle transaction; non-selection alone never deletes it."
     }
   },
   "edges": [
     {
-      "id": "subject-delegates-commitment",
-      "from": "authorized_subject",
-      "to": "commitment_n",
-      "kind": "delegates",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract"
-      ],
-      "maturity": "canonical",
-      "plane": "authority",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "applicable_authority"
-    },
-    {
-      "id": "authority-binds-commitment",
-      "from": "authority_reference",
-      "to": "commitment_n",
-      "kind": "binds",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract"
-      ],
-      "maturity": "canonical",
-      "plane": "authority",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "applicable_authority"
-    },
-    {
       "id": "carrier-realizes-commitment",
       "from": "openspec_carrier",
       "to": "commitment_n",
-      "kind": "realizes",
+      "kind": "compiles",
       "required_visible": false,
       "source_ids": [
         "product_contract",
@@ -1979,23 +1784,6 @@
       "guard": "scope_and_lease"
     },
     {
-      "id": "commitment-binds-lane",
-      "from": "commitment_n",
-      "to": "work_lane",
-      "kind": "binds",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract",
-        "runner_mutation",
-        "local_state"
-      ],
-      "maturity": "current",
-      "plane": "coordination",
-      "flow_class": "coordination",
-      "effect_capable": false,
-      "guard": "scope_and_lease"
-    },
-    {
       "id": "base-binds-lane",
       "from": "exact_base",
       "to": "work_lane",
@@ -2041,7 +1829,7 @@
       "plane": "coordination",
       "flow_class": "coordination",
       "effect_capable": false,
-      "guard": "scope_and_lease"
+      "guard": "lease"
     },
     {
       "id": "local-state-coordinates-lease",
@@ -2067,8 +1855,8 @@
       "required_visible": true,
       "source_ids": [
         "local_state",
-        "lineage_governance",
-        "lineage_command"
+        "repository_governance",
+        "command_plane"
       ],
       "maturity": "current",
       "plane": "coordination",
@@ -2084,8 +1872,8 @@
       "required_visible": true,
       "source_ids": [
         "local_state",
-        "lineage_governance",
-        "lineage_command"
+        "repository_governance",
+        "command_plane"
       ],
       "maturity": "current",
       "plane": "coordination",
@@ -2101,8 +1889,8 @@
       "required_visible": true,
       "source_ids": [
         "local_state",
-        "lineage_governance",
-        "lineage_command"
+        "repository_governance",
+        "command_plane"
       ],
       "maturity": "current",
       "plane": "coordination",
@@ -2117,8 +1905,8 @@
       "kind": "projects",
       "required_visible": true,
       "source_ids": [
-        "lineage_command",
-        "lineage_governance"
+        "command_plane",
+        "repository_governance"
       ],
       "maturity": "current",
       "plane": "projection",
@@ -2565,66 +2353,6 @@
       "guard": "none"
     },
     {
-      "id": "attestation-to-selection",
-      "from": "attestation_n",
-      "to": "authorized_selection",
-      "kind": "preserves",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract"
-      ],
-      "maturity": "terminal",
-      "plane": "semantic",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "none"
-    },
-    {
-      "id": "subject-to-selection",
-      "from": "authorized_subject",
-      "to": "authorized_selection",
-      "kind": "reauthorizes",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract"
-      ],
-      "maturity": "terminal",
-      "plane": "authority",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "applicable_authority"
-    },
-    {
-      "id": "selection-to-next-commitment",
-      "from": "authorized_selection",
-      "to": "commitment_next",
-      "kind": "delegates",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract"
-      ],
-      "maturity": "terminal",
-      "plane": "semantic",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "none"
-    },
-    {
-      "id": "commitment-to-selection",
-      "from": "commitment_n",
-      "to": "authorized_selection",
-      "kind": "binds",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract"
-      ],
-      "maturity": "terminal",
-      "plane": "semantic",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "none"
-    },
-    {
       "id": "loss-interrupts-session",
       "from": "session_host",
       "to": "executor_loss",
@@ -2644,22 +2372,6 @@
       "from": "executor_loss",
       "to": "recovery_anchor",
       "kind": "recovers",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract",
-        "runner_mutation"
-      ],
-      "maturity": "terminal",
-      "plane": "recovery",
-      "flow_class": "continuity",
-      "effect_capable": false,
-      "guard": "fresh_reentry"
-    },
-    {
-      "id": "commitment-to-recovery-anchor",
-      "from": "commitment_n",
-      "to": "recovery_anchor",
-      "kind": "preserves",
       "required_visible": true,
       "source_ids": [
         "product_contract",
@@ -2718,38 +2430,6 @@
       "flow_class": "continuity",
       "effect_capable": false,
       "guard": "fresh_reentry"
-    },
-    {
-      "id": "recovery-to-successor",
-      "from": "recovery_anchor",
-      "to": "successor_actor",
-      "kind": "recovers",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract",
-        "runner_mutation"
-      ],
-      "maturity": "terminal",
-      "plane": "recovery",
-      "flow_class": "continuity",
-      "effect_capable": false,
-      "guard": "fresh_reentry"
-    },
-    {
-      "id": "successor-observes",
-      "from": "successor_actor",
-      "to": "fresh_facts",
-      "kind": "observes",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract",
-        "transition_plan"
-      ],
-      "maturity": "terminal",
-      "plane": "semantic",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "none"
     },
     {
       "id": "model-gap-to-promotion",
@@ -3082,94 +2762,6 @@
       "guard": "repository_boundary"
     },
     {
-      "id": "commitment-binds-predecessors",
-      "from": "commitment_n",
-      "to": "predecessor_set",
-      "kind": "binds",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract",
-        "commitment_contract",
-        "lineage_governance",
-        "lineage_command"
-      ],
-      "maturity": "current",
-      "plane": "semantic",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "none"
-    },
-    {
-      "id": "exact-tree-resolves-predecessors",
-      "from": "exact_base",
-      "to": "predecessor_set",
-      "kind": "binds",
-      "required_visible": true,
-      "source_ids": [
-        "runner_mutation",
-        "commitment_contract",
-        "lineage_governance",
-        "lineage_command"
-      ],
-      "maturity": "current",
-      "plane": "semantic",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "none"
-    },
-    {
-      "id": "predecessors-derive-lineage",
-      "from": "predecessor_set",
-      "to": "change_lineage",
-      "kind": "derives",
-      "required_visible": true,
-      "source_ids": [
-        "commitment_contract",
-        "lineage_governance",
-        "lineage_command"
-      ],
-      "maturity": "current",
-      "plane": "semantic",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "none"
-    },
-    {
-      "id": "lineage-enables-scoped-concurrency",
-      "from": "change_lineage",
-      "to": "scoped_concurrency",
-      "kind": "coordinates",
-      "required_visible": true,
-      "source_ids": [
-        "commitment_contract",
-        "lineage_governance",
-        "product_contract"
-      ],
-      "maturity": "current",
-      "plane": "coordination",
-      "flow_class": "coordination",
-      "effect_capable": false,
-      "guard": "scope_and_lease"
-    },
-    {
-      "id": "scoped-concurrency-coordinates-lanes",
-      "from": "scoped_concurrency",
-      "to": "work_lane",
-      "kind": "coordinates",
-      "required_visible": true,
-      "source_ids": [
-        "lineage_governance",
-        "product_contract",
-        "runner_mutation",
-        "local_state"
-      ],
-      "maturity": "current",
-      "plane": "coordination",
-      "flow_class": "coordination",
-      "effect_capable": false,
-      "guard": "scope_and_lease"
-    },
-    {
       "id": "subject-authorizes-effect-evaluation",
       "from": "authorized_subject",
       "to": "effect_evaluation",
@@ -3267,23 +2859,6 @@
       "guard": "scope_and_lease"
     },
     {
-      "id": "scope-effect-binds-lane",
-      "from": "scope_effect_binding",
-      "to": "work_lane",
-      "kind": "binds",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract",
-        "runner_mutation",
-        "local_state"
-      ],
-      "maturity": "current",
-      "plane": "coordination",
-      "flow_class": "coordination",
-      "effect_capable": false,
-      "guard": "scope_and_lease"
-    },
-    {
       "id": "lane-evaluates-prewrite",
       "from": "work_lane",
       "to": "prewrite_admission",
@@ -3297,7 +2872,7 @@
       "plane": "coordination",
       "flow_class": "coordination",
       "effect_capable": false,
-      "guard": "scope_and_lease"
+      "guard": "fresh_facts_and_lease"
     },
     {
       "id": "worktree-binds-prewrite",
@@ -3328,7 +2903,7 @@
       "plane": "coordination",
       "flow_class": "coordination",
       "effect_capable": false,
-      "guard": "scope_and_lease"
+      "guard": "lease"
     },
     {
       "id": "lane-witnesses-proof",
@@ -3360,52 +2935,6 @@
       "flow_class": "evidence",
       "effect_capable": false,
       "guard": "claim_scope"
-    },
-    {
-      "id": "selection-to-hold",
-      "from": "authorized_selection",
-      "to": "selection_hold",
-      "kind": "projects",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract"
-      ],
-      "maturity": "terminal",
-      "plane": "projection",
-      "flow_class": "projection",
-      "effect_capable": false,
-      "guard": "none"
-    },
-    {
-      "id": "selection-to-done",
-      "from": "authorized_selection",
-      "to": "selection_done",
-      "kind": "projects",
-      "required_visible": true,
-      "source_ids": [
-        "product_contract"
-      ],
-      "maturity": "terminal",
-      "plane": "projection",
-      "flow_class": "projection",
-      "effect_capable": false,
-      "guard": "none"
-    },
-    {
-      "id": "accepted-next-to-selection",
-      "from": "accepted_next",
-      "to": "authorized_selection",
-      "kind": "binds",
-      "required_visible": true,
-      "source_ids": [
-        "runner_mutation",
-        "product_contract"
-      ],
-      "maturity": "terminal",
-      "plane": "semantic",
-      "flow_class": "control",
-      "effect_capable": false,
-      "guard": "none"
     },
     {
       "id": "ethos-contains-native-artifacts",
@@ -4297,185 +3826,6 @@
       "guard": "fresh_reentry"
     },
     {
-      "id": "commitment-binds-experiment-protocol",
-      "from": "commitment_n",
-      "to": "lane_experiment_protocol",
-      "kind": "binds",
-      "required_visible": false,
-      "plane": "semantic",
-      "guard": "none",
-      "source_ids": [
-        "product_contract",
-        "evolution_campaign"
-      ],
-      "maturity": "current",
-      "flow_class": "control",
-      "effect_capable": false
-    },
-    {
-      "id": "scope-effect-informs-lane-relation",
-      "from": "scope_effect_binding",
-      "to": "lane_relation_judgment",
-      "kind": "binds",
-      "required_visible": false,
-      "plane": "coordination",
-      "guard": "scope_and_lease",
-      "source_ids": [
-        "product_contract",
-        "runner_mutation"
-      ],
-      "maturity": "current",
-      "flow_class": "coordination",
-      "effect_capable": false
-    },
-    {
-      "id": "experiment-informs-lane-relation",
-      "from": "lane_experiment_protocol",
-      "to": "lane_relation_judgment",
-      "kind": "binds",
-      "required_visible": false,
-      "plane": "semantic",
-      "guard": "none",
-      "source_ids": [
-        "product_contract",
-        "evolution_campaign"
-      ],
-      "maturity": "current",
-      "flow_class": "control",
-      "effect_capable": false
-    },
-    {
-      "id": "lanes-enter-relation-judgment",
-      "from": "work_lane",
-      "to": "lane_relation_judgment",
-      "kind": "coordinates",
-      "required_visible": false,
-      "plane": "coordination",
-      "guard": "scope_and_lease",
-      "source_ids": [
-        "product_contract",
-        "runner_mutation"
-      ],
-      "maturity": "current",
-      "flow_class": "coordination",
-      "effect_capable": false
-    },
-    {
-      "id": "lane-proof-forms-comparative-claim",
-      "from": "lane_proof_claim",
-      "to": "lane_comparative_claim",
-      "kind": "returns",
-      "required_visible": false,
-      "plane": "proof",
-      "guard": "claim_scope",
-      "source_ids": [
-        "product_contract",
-        "evolution_campaign"
-      ],
-      "maturity": "current",
-      "flow_class": "evidence",
-      "effect_capable": false
-    },
-    {
-      "id": "experiment-binds-comparative-claim",
-      "from": "lane_experiment_protocol",
-      "to": "lane_comparative_claim",
-      "kind": "binds",
-      "required_visible": false,
-      "plane": "proof",
-      "guard": "claim_scope",
-      "source_ids": [
-        "product_contract",
-        "evolution_campaign"
-      ],
-      "maturity": "current",
-      "flow_class": "evidence",
-      "effect_capable": false
-    },
-    {
-      "id": "relation-binds-lane-disposition",
-      "from": "lane_relation_judgment",
-      "to": "lane_disposition",
-      "kind": "binds",
-      "required_visible": false,
-      "plane": "semantic",
-      "guard": "none",
-      "source_ids": [
-        "product_contract",
-        "runner_mutation",
-        "evolution_campaign"
-      ],
-      "maturity": "current",
-      "flow_class": "control",
-      "effect_capable": false
-    },
-    {
-      "id": "comparison-informs-lane-disposition",
-      "from": "lane_comparative_claim",
-      "to": "lane_disposition",
-      "kind": "returns",
-      "required_visible": false,
-      "plane": "proof",
-      "guard": "claim_scope",
-      "source_ids": [
-        "product_contract",
-        "evolution_campaign"
-      ],
-      "maturity": "current",
-      "flow_class": "evidence",
-      "effect_capable": false
-    },
-    {
-      "id": "disposition-selects-candidate-attempt",
-      "from": "lane_disposition",
-      "to": "candidate_integration_evaluation",
-      "kind": "selects",
-      "required_visible": false,
-      "plane": "control",
-      "guard": "candidate_integration_gate",
-      "source_ids": [
-        "product_contract",
-        "runner_mutation",
-        "evolution_campaign"
-      ],
-      "maturity": "current",
-      "flow_class": "control",
-      "effect_capable": false
-    },
-    {
-      "id": "disposition-can-hold",
-      "from": "lane_disposition",
-      "to": "selection_hold",
-      "kind": "projects",
-      "required_visible": false,
-      "plane": "projection",
-      "guard": "none",
-      "source_ids": [
-        "product_contract",
-        "evolution_campaign"
-      ],
-      "maturity": "current",
-      "flow_class": "projection",
-      "effect_capable": false
-    },
-    {
-      "id": "disposition-admits-retirement",
-      "from": "lane_disposition",
-      "to": "lane_retirement",
-      "kind": "selects",
-      "required_visible": false,
-      "plane": "recovery",
-      "guard": "fresh_reentry",
-      "source_ids": [
-        "product_contract",
-        "runner_mutation",
-        "evolution_campaign"
-      ],
-      "maturity": "current",
-      "flow_class": "continuity",
-      "effect_capable": false
-    },
-    {
       "id": "candidate-attestation-binds-retirement",
       "from": "candidate_effect_attestation",
       "to": "lane_retirement",
@@ -4489,6 +3839,23 @@
       "maturity": "current",
       "flow_class": "continuity",
       "effect_capable": false
+    },
+    {
+      "id": "recovery-reobserves",
+      "from": "recovery_anchor",
+      "to": "fresh_facts",
+      "kind": "observes",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract",
+        "runner_mutation",
+        "transition_plan"
+      ],
+      "maturity": "current",
+      "plane": "semantic",
+      "flow_class": "control",
+      "effect_capable": false,
+      "guard": "fresh_reentry"
     }
   ],
   "invariants": [
@@ -4498,7 +3865,7 @@
     },
     {
       "id": "G02",
-      "statement": "Commitment and Attestation are the only durable semantic root concepts."
+      "statement": "Attestation is the only durable semantic result; Commitment, Facts, and TransitionPlan are transient exact-input values."
     },
     {
       "id": "G03",
@@ -4542,15 +3909,15 @@
     },
     {
       "id": "G13",
-      "statement": "An Attestation never automatically creates a successor Commitment; authorized selection reacquires authority."
+      "statement": "An Attestation never grants current authority; every later operation re-observes facts and recompiles its own plan."
     },
     {
       "id": "G14",
-      "statement": "Actor, session or host loss does not break Commitment, Attestation or version lineages."
+      "statement": "Actor, session, host, tool, or platform loss does not break reachable Git history or durable Attestation evidence."
     },
     {
       "id": "G15",
-      "statement": "Each Work Lane generation binds exactly one base Commitment digest and exact candidate base."
+      "statement": "Each Work Lane is coordinated only by its four-field Lease; Git and official OpenSpec facts are observed afresh."
     },
     {
       "id": "G16",
@@ -4571,10 +3938,6 @@
     {
       "id": "G20",
       "statement": "OpenSpec and Git realize the selected terminal design but are carriers, not ETHOS semantic roots."
-    },
-    {
-      "id": "G21",
-      "statement": "Commitment predecessors form an immutable partial order: fork and join are allowed, lineage is distinct from execution dependencies, and only conflicting scoped effects serialize."
     },
     {
       "id": "G22",
@@ -4598,11 +3961,11 @@
     },
     {
       "id": "G27",
-      "statement": "Responsibility and accepted-reality lineages outlive actor, session, host, tool, and platform loss without transferring authority."
+      "statement": "Reachable Git history and durable Attestations outlive actor, session, host, tool, and platform loss without transferring authority."
     },
     {
       "id": "G28",
-      "statement": "Concurrent candidate preparation preserves a complete Commitment, plan, Lane, exact base, Lease, scope/effect, prewrite, and proof tuple per generation."
+      "statement": "Concurrent Work Lanes preserve their own Lease, fresh Git and OpenSpec facts, transient plan, and exact proof without a predicted-scope ledger."
     },
     {
       "id": "G29",
@@ -4610,7 +3973,7 @@
     },
     {
       "id": "G30",
-      "statement": "Work Lanes support both cooperative parallelism and comparative racing; integration, refresh, hold, and superseded retirement are relation-aware dispositions, and non-selection never implies automatic deletion."
+      "statement": "Concurrent Work Lanes prepare independently; candidate integration selects one exact proved object per CAS, while refresh, hold, and retirement follow current facts rather than a persisted lane-mode state."
     }
   ],
   "gates": {
@@ -4623,7 +3986,7 @@
         "fresh_facts",
         "transition_plan"
       ],
-      "required_claim_selector": "all applicable scoped prior Attestations selected by the Commitment",
+      "required_claim_selector": "all applicable scoped prior Attestations selected by the current plan and policy",
       "output": "action_pass",
       "failure_outputs": [
         "action_block",
@@ -4690,10 +4053,9 @@
         "transition_plan",
         "candidate_bundle",
         "candidate_state",
-        "lane_proof_claim",
-        "lane_disposition"
+        "lane_proof_claim"
       ],
-      "required_claim_selector": "the one selected Lane claim whose exact Commitment, candidate base, scope, Lease, HEAD and proof apply",
+      "required_claim_selector": "the one selected Lane claim whose exact transient Commitment, candidate base, current Lease, HEAD and proof apply",
       "output": "candidate_integration_pass",
       "failure_outputs": [
         "candidate_integration_block",
@@ -4809,53 +4171,6 @@
       "maturity": "current"
     }
   },
-  "lineages": {
-    "responsibility": {
-      "kind": "responsibility",
-      "members": [
-        "commitment_n",
-        "attestation_n",
-        "authorized_selection",
-        "commitment_next"
-      ],
-      "ordering": "immutable Commitment predecessor partial order with fork/join; scoped Attestations inform explicit reauthorization but never inherit permission",
-      "survives": [
-        "actor",
-        "session",
-        "host",
-        "tool",
-        "platform"
-      ],
-      "source_ids": [
-        "product_contract",
-        "commitment_contract",
-        "lineage_governance"
-      ],
-      "maturity": "current"
-    },
-    "accepted_reality": {
-      "kind": "accepted_reality",
-      "members": [
-        "accepted_n",
-        "repo_cas",
-        "accepted_next",
-        "recovery_anchor"
-      ],
-      "ordering": "per-repository exact-CAS linearization from accepted state to accepted state with an open future",
-      "survives": [
-        "actor",
-        "session",
-        "host",
-        "tool",
-        "platform"
-      ],
-      "source_ids": [
-        "product_contract",
-        "runner_mutation"
-      ],
-      "maturity": "current"
-    }
-  },
   "repository_worlds": {
     "brownfield": {
       "repository_node": "brownfield_repo",
@@ -4914,69 +4229,6 @@
       "maturity": "terminal"
     }
   },
-  "candidate_generations": {
-    "generation_alpha": {
-      "commitment": "commitment_alpha",
-      "plan": "transition_plan_alpha",
-      "lane": "work_lane_alpha",
-      "exact_base": "candidate_state",
-      "lease": "lease_alpha",
-      "scope_effect": "scope_effect_alpha",
-      "prewrite": "prewrite_alpha",
-      "proof_claim": "lane_proof_alpha",
-      "source_ids": [
-        "product_contract",
-        "runner_mutation"
-      ],
-      "maturity": "terminal"
-    },
-    "generation_beta": {
-      "commitment": "commitment_beta",
-      "plan": "transition_plan_beta",
-      "lane": "work_lane_beta",
-      "exact_base": "candidate_state",
-      "lease": "lease_beta",
-      "scope_effect": "scope_effect_beta",
-      "prewrite": "prewrite_beta",
-      "proof_claim": "lane_proof_beta",
-      "source_ids": [
-        "product_contract",
-        "runner_mutation"
-      ],
-      "maturity": "terminal"
-    },
-    "generation_gamma": {
-      "commitment": "commitment_gamma",
-      "plan": "transition_plan_gamma",
-      "lane": "work_lane_gamma",
-      "exact_base": "candidate_state",
-      "lease": "lease_gamma",
-      "scope_effect": "scope_effect_gamma",
-      "prewrite": "prewrite_gamma",
-      "proof_claim": "lane_proof_gamma",
-      "source_ids": [
-        "product_contract",
-        "runner_mutation"
-      ],
-      "maturity": "terminal"
-    },
-    "generation_delta": {
-      "commitment": "commitment_delta",
-      "plan": "transition_plan_delta",
-      "lane": "work_lane_delta",
-      "exact_base": "candidate_state",
-      "lease": "lease_delta",
-      "scope_effect": "scope_effect_delta",
-      "prewrite": "prewrite_delta",
-      "proof_claim": "lane_proof_delta",
-      "source_ids": [
-        "product_contract",
-        "runner_mutation",
-        "evolution_campaign"
-      ],
-      "maturity": "terminal"
-    }
-  },
   "publication_target": {
     "target_node": "publication_remote",
     "effect_contract_id": "publication_effect",
@@ -4987,28 +4239,5 @@
       "product_contract"
     ],
     "maturity": "current"
-  },
-  "lane_modes": {
-    "cooperative": {
-      "relation": "disjoint_or_ordered_scope_effects",
-      "meaning": "Different bounded directions may progress concurrently; multiple proved results may enter the candidate train over successive exact-CAS advances.",
-      "post_advance": [
-        "already_integrated",
-        "refresh_and_reprove_if_still_applicable",
-        "hold_if_blocked"
-      ],
-      "selection_cardinality": "zero_or_one_per_candidate_cas; many_over_time"
-    },
-    "comparative": {
-      "relation": "alternative_hypotheses_or_implementations",
-      "meaning": "Racing lanes generate comparable evidence; an authorized judgment may select at most one result for a candidate attempt.",
-      "unselected_dispositions": [
-        "continue_experiment",
-        "hold_uncertainty",
-        "retire_superseded_only_after_absorption_and_retirement_proof"
-      ],
-      "selection_cardinality": "zero_or_one_selected_result"
-    },
-    "law": "Concurrency prepares possibilities; relation-aware evidence and authority determine disposition. Non-selection is not failure, refresh, or deletion."
   }
 }

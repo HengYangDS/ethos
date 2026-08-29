@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -14,9 +15,34 @@ from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
+from tests.support.runtime_scenarios import create_fixture_python
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 from tests.support.runtime_scenarios import runtime_executable
+
+
+def test_fixture_python_is_bounded_and_executes_current_ethos(tmp_path: Path) -> None:
+    runtime = tmp_path / "python"
+
+    create_fixture_python(runtime)
+
+    payload = tuple(path for path in runtime.rglob("*") if path.is_file())
+    assert len(payload) <= 5
+    completed = subprocess.run(
+        (
+            runtime_executable(runtime, "python").as_posix(),
+            "-B",
+            "-I",
+            "-c",
+            "import ethos; print(ethos.__file__)",
+        ),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == (Path.cwd() / "src/ethos/__init__.py").as_posix()
 
 
 def test_runtime_inventory_hashes_actual_bytes_without_location_aliases(tmp_path: Path) -> None:

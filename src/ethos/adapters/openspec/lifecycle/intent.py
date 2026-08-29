@@ -3,13 +3,9 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
-
-from ethos.adapters.repo.attestation_set import read_attestation_set
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Commitment
@@ -46,11 +42,7 @@ def compile_intent_context(
     return {
         "change": status.get("changeName", ""),
         "schema": status.get("schemaName", ""),
-        "intent": commitment.intent,
-        "invariants": list(commitment.invariants),
         "acceptance": list(commitment.acceptance),
-        "risks": list(commitment.risks),
-        "assumptions": [value.model_dump(mode="json") for value in commitment.hypotheses],
         "negative_scope": _negative_scope(root, values),
         "ambiguities": _open_questions(root, values),
         "conflicts": conflicts,
@@ -128,52 +120,3 @@ def _negative_scope(root: Path, values: object) -> list[str]:
 
 def _open_questions(root: Path, values: object) -> list[str]:
     return _section_items(root, values, "Open Questions")
-
-
-def selected_input_gaps(
-    root: Path,
-    change: str,
-    identities: tuple[str, ...],
-    *,
-    expected_root: str | None = None,
-) -> tuple[str, list[str]]:
-    """Validate selected-input dispositions bound to one successor Commitment."""
-    if not identities:
-        return "", []
-    try:
-        selected_root, selected = read_attestation_set(root)
-    except (OSError, TypeError, ValueError) as error:
-        return "", [str(error)]
-    if expected_root is not None and selected_root != expected_root:
-        return selected_root, ["selected_attestation_set_changed"]
-    members = {item.id: item for item in selected}
-    owner = f"change:{change}"
-    now = datetime.now(UTC)
-    gaps: list[str] = []
-    for identity in identities:
-        item = members.get(identity)
-        if item is None:
-            gaps.append(f"selected_attestation_missing:{identity}")
-            continue
-        relations = {(r.kind, r.target_kind, r.target_id) for r in item.relations}
-        disposed = {
-            target
-            for kind, target_kind, target in relations
-            if kind == "relation:disposes" and target_kind == "semantic:attestation"
-        }
-        valid = (
-            item.verdict == "pass"
-            and not item.payload.body.get("required_gaps")
-            and (item.valid_from or item.issued_at) <= now
-            and (item.valid_until is None or now <= item.valid_until)
-            and item.predicate == "selection:input"
-            and item.payload.kind == "selection:disposition"
-            and item.payload.body.get("disposition") == "semantic-owner"
-            and item.payload.body.get("owner") == owner
-            and ("relation:selected-for", "semantic:commitment", owner) in relations
-            and disposed == {item.subject}
-            and disposed <= members.keys()
-        )
-        if not valid:
-            gaps.append(f"selected_attestation_disposition_invalid:{identity}")
-    return selected_root, gaps

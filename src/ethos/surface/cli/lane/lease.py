@@ -1,4 +1,4 @@
-"""Generation-bound Lane Lease commands and request projection."""
+"""Generation-bound Lane Lease commands."""
 
 import pathlib
 from typing import Annotated
@@ -32,7 +32,7 @@ lane_app.command(_app)
 
 
 class LeaseCommandOptions(BaseModel):
-    """Fields shared by lease-backed Cyclopts commands."""
+    """Fields shared by Lease-backed commands."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -42,31 +42,23 @@ class LeaseCommandOptions(BaseModel):
 
 
 class LeaseProofOptions(LeaseCommandOptions):
-    """Exact generation proof required by lease transitions."""
+    """The four exact Lease coordinates required by a transition."""
 
-    lease_id: Annotated[str, Parameter(name="--lease-id")]
-    epoch: Annotated[int, Parameter(name="--epoch")]
-    expect_head: Annotated[str, Parameter(name="--expect-head")]
-    expected_expires_at: Annotated[str, Parameter(name="--expires-at")]
-    expected_payload_sha256: Annotated[str, Parameter(name="--payload-sha256")]
+    generation: Annotated[int, Parameter(name="--generation")]
+    expires_at: Annotated[str, Parameter(name="--expires-at")]
 
 
 class DeclaredLeaseOperationOptions(LeaseProofOptions):
-    """A named lease operation bound to one branch."""
+    """A named Lease operation bound to one branch and holder."""
 
     command: ClassVar[str] = ""
     operation: ClassVar[str] = ""
 
     branch: Annotated[str, Parameter(name="--branch")]
-
-
-class LeaseHolderOperationOptions(DeclaredLeaseOperationOptions):
-    """A branch lease operation bound to its current holder."""
-
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
 
 
-class _RenewOptions(LeaseHolderOperationOptions):
+class _RenewOptions(DeclaredLeaseOperationOptions):
     command = "lane lease renew"
     operation = "renew"
 
@@ -81,25 +73,20 @@ class _ResumeOptions(_RenewOptions):
 
 
 class TakeoverOptions(LeaseProofOptions):
-    """Exact accepted authorization for one exceptional holder change."""
+    """An accepted authorization for one exceptional holder change."""
 
     branch: Annotated[str, Parameter(name="--branch")]
     source_holder_ref: Annotated[str, Parameter(name="--source-holder-ref")]
     target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")]
-    expected_lane_incarnation_id: Annotated[str, Parameter(name="--lane-incarnation-id")]
-    expected_tree: Annotated[str, Parameter(name="--expect-tree")]
-    expected_dirty_content_sha256: Annotated[str, Parameter(name="--dirty-content-sha256")]
     source_state: Annotated[Literal["quiesced", "source_lost"], Parameter(name="--source-state")]
     authorization: Annotated[pathlib.Path, Parameter(name="--authorization")]
     ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
 
 
 def emit_lease_result(command: str, report: dict[str, object], *, json_output: bool) -> None:
-    """Project one lease transition through the command result contract."""
+    """Project one Lease transition through the command result contract."""
     lease = report.get("lease")
-    offer = report.get("handoff_offer")
-    summary_source = lease if isinstance(lease, dict) and lease else offer
-    summary_payload = summary_source if isinstance(summary_source, dict) else {}
+    summary = lease if isinstance(lease, dict) else {}
     emit(
         EthosResult(
             command=command,
@@ -107,9 +94,9 @@ def emit_lease_result(command: str, report: dict[str, object], *, json_output: b
             state=str(report["state"]),
             summary={
                 "branch": report["branch"],
-                "lease_id": str(summary_payload.get("lease_id") or ""),
-                "epoch": integer(summary_payload.get("epoch")),
-                "holder_ref": str(summary_payload.get("holder_ref") or ""),
+                "generation": integer(summary.get("generation")),
+                "holder_ref": str(summary.get("holder_ref") or ""),
+                "expires_at": str(summary.get("expires_at") or ""),
             },
             diagnostics=tuple(
                 cast("dict[str, Any]", item)
@@ -125,45 +112,40 @@ def emit_lease_result(command: str, report: dict[str, object], *, json_output: b
 
 
 def execute_declared_lease_operation(options: DeclaredLeaseOperationOptions) -> None:
-    """Compile declared options into the strict lease request contract."""
-    values = options.model_dump(exclude={"root", "json_output"})
-    values["expected_epoch"] = values.pop("epoch")
+    """Compile declared options into the minimal Lease request."""
     report = execute_lease_operation(
         root=resolve_root(options.root),
-        request=LeaseOperationRequest(operation=options.operation, **values),
+        request=LeaseOperationRequest(
+            operation=options.operation,
+            **options.model_dump(exclude={"root", "json_output"}),
+        ),
     )
     emit_lease_result(options.command, report, json_output=options.json_output)
 
 
 @_app.command(name="renew")
 def lane_lease_renew(options: Annotated[_RenewOptions, Parameter(name="*")]) -> None:
-    """Renew one exact unexpired local lease generation."""
+    """Renew one exact unexpired local Lease generation."""
     execute_declared_lease_operation(options)
 
 
 @_app.command(name="resume")
 def lane_lease_resume(options: Annotated[_ResumeOptions, Parameter(name="*")]) -> None:
-    """Resume an expired lease for the same holder and generation."""
+    """Resume an expired Lease for the same holder and generation."""
     execute_declared_lease_operation(options)
 
 
 @_app.command(name="takeover")
 def lane_lease_takeover(options: Annotated[TakeoverOptions, Parameter(name="*")]) -> None:
-    """Apply one accepted exact-CAS Lease takeover without transcript authority."""
+    """Apply one accepted exact-CAS Lease takeover."""
     report = execute_lease_takeover(
         root=resolve_root(options.root),
         request=LeaseTakeoverRequest(
             branch=options.branch,
             source_holder_ref=options.source_holder_ref,
             target_holder_ref=options.target_holder_ref,
-            lease_id=options.lease_id,
-            expected_lane_incarnation_id=options.expected_lane_incarnation_id,
-            expected_epoch=options.epoch,
-            expect_head=options.expect_head,
-            expected_tree=options.expected_tree,
-            expected_expires_at=options.expected_expires_at,
-            expected_payload_sha256=options.expected_payload_sha256,
-            expected_dirty_content_sha256=options.expected_dirty_content_sha256,
+            generation=options.generation,
+            expires_at=options.expires_at,
             source_state=options.source_state,
             authorization=Attestation.model_validate_json(
                 options.authorization.read_text(encoding="utf-8")

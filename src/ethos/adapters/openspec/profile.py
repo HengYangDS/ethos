@@ -12,8 +12,6 @@ from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.openspec.observation import (
     protected_branch_active_change_required_gaps as observed_protected_branch_gaps,
 )
-from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -27,14 +25,11 @@ def load_profile_commitment(
     change_id: str | None = None,
     tree_ref: str | None = None,
 ) -> Commitment:
-    """Load the selected active change or the repository base Commitment."""
-    if openspec_profile_enabled(root, tree_ref=tree_ref):
-        try:
-            return load_openspec_commitment(root, change_id=change_id, tree_ref=tree_ref)
-        except ValueError as error:
-            if change_id is not None or str(error) != "commitment_missing":
-                raise
-    return load_commitment(root, change_id=change_id, tree_ref=tree_ref)
+    """Compile the selected official OpenSpec Change into a Commitment."""
+    if not openspec_profile_enabled(root, tree_ref=tree_ref):
+        msg = "openspec_profile_not_enabled"
+        raise ValueError(msg)
+    return load_openspec_commitment(root, change_id=change_id, tree_ref=tree_ref)
 
 
 def load_work_lane_commitment(
@@ -43,26 +38,9 @@ def load_work_lane_commitment(
     lease: dict[str, object],
     change_id: str | None = None,
 ) -> Commitment:
-    """Load current intent or the exact archived carrier bound by the Lease."""
-    prior = load_lease_bound_commitment(root, lease=lease)
-    selected_change = change_id
-    try:
-        selected = load_profile_commitment(root, change_id=selected_change)
-    except ValueError as error:
-        expected = prior.id.removeprefix("change:") if change_id is None else change_id
-        if (
-            str(error) not in {"commitment_missing", f"commitment_missing:{expected}"}
-            or prior.id != f"change:{expected}"
-        ):
-            raise
-        return prior
-    if (
-        change_id is None
-        and prior.id.startswith("change:")
-        and not selected.id.startswith("change:")
-    ):
-        return prior
-    return selected
+    """Compile current intent; the Lease carries no Commitment binding."""
+    del lease
+    return load_profile_commitment(root, change_id=change_id)
 
 
 def completed_active_changes_report(root: Path) -> dict[str, object]:

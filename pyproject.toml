@@ -68,7 +68,6 @@ packages = ["src/ethos"]
 "uv.lock" = "ethos/data/runtime-project/uv.lock"
 "VERSION" = "ethos/data/runtime-project/VERSION"
 "system/schemas/kernel" = "ethos/data/schemas/kernel"
-"tests/fixtures/semantic-contract/vectors.json" = "ethos/data/semantic-contract/vectors.json"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 path = "tools/ci/openspec_runtime_hook.py"
@@ -87,7 +86,6 @@ include = [
   "/pyproject.toml",
   "/uv.lock",
   "/VERSION",
-  "/tests/fixtures/semantic-contract/vectors.json",
   "/tools/ci/openspec_runtime_hook.py",
 ]
 

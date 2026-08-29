@@ -6,8 +6,8 @@ from typing import cast
 
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_binding
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts
@@ -39,7 +39,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
             current_generation_binding(
                 repo,
                 status=observed,
-                repository_id=load_repository_commitment(repo).id,
+                repository_id=repository_identity(repo),
                 authority=authority,
             ).scope
             if observed.get("role") == ROLE_WORK_LANE

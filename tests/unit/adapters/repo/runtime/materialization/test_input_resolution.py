@@ -151,6 +151,7 @@ def test_runtime_tool_forces_copy_link_mode(
     uv.write_text("tool", encoding="utf-8")
     monkeypatch.setattr(sys, "executable", python.as_posix())
     monkeypatch.setenv("UV_LINK_MODE", "hardlink")
+    monkeypatch.setenv("UV_CACHE_DIR", (tmp_path / "ambient-cache").as_posix())
     observed: dict[str, str] = {}
 
     def run(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -162,6 +163,7 @@ def test_runtime_tool_forces_copy_link_mode(
     runtime_inputs.run_runtime_tool(source, "pip", "install", "package.whl")
 
     assert observed["UV_LINK_MODE"] == "copy"
+    assert observed["UV_CACHE_DIR"] == (source / "build/runtime/tool-cache/uv").as_posix()
 
 
 def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_writing(

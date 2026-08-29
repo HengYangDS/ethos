@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import posixpath
+import re
+import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
 
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
@@ -15,6 +19,7 @@ from ethos.repository.policy.references.declarations import native_owned_referen
 from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from ethos.repository.policy.references.python_syntax import complete_python_tree
+from ethos.repository.policy.references.python_syntax import module_name
 from ethos.repository.registry.docs.registry import build_docs_registry
 
 if TYPE_CHECKING:
@@ -28,6 +33,15 @@ SemanticCategory = Literal[
     "conflict",
     "unknown",
 ]
+
+_PATH_REFERENCE = re.compile(
+    r"(?<![A-Za-z0-9_.@+-])(?:\.\.?/)*[A-Za-z0-9_.@+-]+(?:/[A-Za-z0-9_.@+-]+)*"
+)
+_CHANGE_SPEC = re.compile(r"^openspec/changes/[^/]+/specs/(.+)/spec\.md$")
+_REQUIREMENT = re.compile(r"^### Requirement: (.+)$", re.MULTILINE)
+_REMOVED_REQUIREMENTS = re.compile(
+    r"^## REMOVED Requirements\s*$([\s\S]*?)(?=^## |\Z)", re.MULTILINE
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +91,7 @@ def repository_semantic_closure(
 ) -> dict[str, object]:
     """Prove current native reference ownership and relation closure."""
     observation = observe_repository_references(root)
-    files = observation.files
+    files = _effective_reference_files(observation.files)
     parsed_files = {
         path: complete_python_tree(text)
         for path, text in files.items()
@@ -95,6 +109,7 @@ def repository_semantic_closure(
         *_duplicate_command_owners(command_owners),
         *_missing_command_parents(command_owners),
         *_orphan_consumers(owners, consumption.sources),
+        *_retired_reference_consumers(root, files),
         *_superseded_current_carriers(root, files),
         *_declaration_findings(contract_report),
         *_unknown_carriers((*observation.unreadable_paths, *consumption.unknown_paths)),
@@ -135,6 +150,35 @@ def repository_semantic_closure(
         },
         "required_gaps": required_gaps,
     }
+
+
+def _effective_reference_files(files: dict[str, str]) -> dict[str, str]:
+    """Apply active official removals before inspecting current spec consumers."""
+    removed: dict[str, set[str]] = {}
+    for path, text in files.items():
+        match = _CHANGE_SPEC.fullmatch(path)
+        section = _REMOVED_REQUIREMENTS.search(text)
+        if match is None or section is None:
+            continue
+        removed.setdefault(match[1], set()).update(_REQUIREMENT.findall(section[1]))
+    effective = dict(files)
+    for capability, titles in removed.items():
+        path = f"openspec/specs/{capability}/spec.md"
+        if path in effective:
+            effective[path] = _without_requirements(effective[path], titles)
+    return effective
+
+
+def _without_requirements(text: str, titles: set[str]) -> str:
+    matches = tuple(_REQUIREMENT.finditer(text))
+    if not matches or not titles:
+        return text
+    retained = [text[: matches[0].start()]]
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        if match[1] not in titles:
+            retained.append(text[match.start() : end])
+    return "".join(retained)
 
 
 def _duplicate_command_owners(
@@ -202,6 +246,105 @@ def _orphan_consumers(
                 )
             )
     return findings
+
+
+def _retired_reference_consumers(
+    root: Path,
+    files: dict[str, str],
+) -> list[SemanticClosureFinding]:
+    findings = []
+    for retired_path in _retired_paths_since_candidate(root):
+        path_sources = tuple(
+            sorted(
+                source
+                for source, text in files.items()
+                if _references_path(source, text, retired_path)
+            )
+        )
+        if path_sources:
+            findings.append(
+                SemanticClosureFinding(
+                    category="superseded",
+                    relation="consumer",
+                    kind="path",
+                    identity=retired_path,
+                    sources=path_sources,
+                )
+            )
+        if not retired_path.endswith(".py"):
+            continue
+        retired_module = module_name(retired_path)
+        if not retired_module or not all(part.isidentifier() for part in retired_module.split(".")):
+            continue
+        module_pattern = re.compile(
+            rf"(?<![A-Za-z0-9_.]){re.escape(retired_module)}(?![A-Za-z0-9_])"
+        )
+        module_sources = tuple(
+            sorted(source for source, text in files.items() if module_pattern.search(text))
+        )
+        if module_sources:
+            findings.append(
+                SemanticClosureFinding(
+                    category="superseded",
+                    relation="consumer",
+                    kind="import",
+                    identity=retired_module,
+                    sources=module_sources,
+                )
+            )
+    return findings
+
+
+def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:
+    candidate = load_branch_role_policy(root).candidate_branch
+    try:
+        completed = subprocess.run(
+            [
+                "git",
+                "diff",
+                "--no-ext-diff",
+                "--name-status",
+                "-z",
+                "--find-renames",
+                "--diff-filter=DR",
+                f"refs/heads/{candidate}",
+                "HEAD",
+                "--",
+            ],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return ()
+    if completed.returncode != 0:
+        return ()
+    fields = completed.stdout.split("\0")
+    retired = []
+    index = 0
+    while index < len(fields) and fields[index]:
+        status = fields[index]
+        index += 1
+        if index >= len(fields):
+            return ()
+        retired.append(fields[index])
+        index += 2 if status.startswith("R") else 1
+    return tuple(sorted(set(retired)))
+
+
+def _references_path(source: str, text: str, retired_path: str) -> bool:
+    source_parent = posixpath.dirname(source)
+    for match in _PATH_REFERENCE.finditer(text):
+        value = match.group().rstrip(".")
+        observed = (
+            posixpath.normpath(posixpath.join(source_parent, value))
+            if value.startswith(("./", "../"))
+            else posixpath.normpath(value)
+        )
+        if observed == retired_path:
+            return True
+    return False
 
 
 def _superseded_current_carriers(

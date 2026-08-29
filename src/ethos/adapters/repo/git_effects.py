@@ -30,7 +30,7 @@ from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 
-_COMMIT_TRANSITION_ENVIRONMENT = frozenset({"ETHOS_ARCHIVE_TRANSITION"})
+_COMMIT_TRANSITION_ENVIRONMENT = frozenset()
 
 if TYPE_CHECKING:
     from typing import Any
@@ -208,13 +208,9 @@ def execute_git_effect(
         require_live_lease(
             root,
             plan,
-            environment=environment,
             detached_branch=detached_branch,
-            recovering=True,
         )
-        intents = _claim_effect_intents(
-            root, plan, effect, phase="recover", missing_ok=True
-        )
+        intents = _claim_effect_intents(root, plan, effect, phase="recover", missing_ok=True)
         _clear_claimed_intents(root, intents)
         return attestation
     observed, recovering, repository = _admit_git_effect(
@@ -350,16 +346,13 @@ def _admit_git_effect(
         require_live_lease(
             root,
             plan,
-            environment=environment,
             detached_branch=detached_branch,
-            recovering=True,
         )
         return observed, True, ""
     require_plan_prestate(
         root,
         plan,
         effect,
-        environment=environment,
         detached_branch=detached_branch,
     )
     repository = resolve_git_effect_repository(

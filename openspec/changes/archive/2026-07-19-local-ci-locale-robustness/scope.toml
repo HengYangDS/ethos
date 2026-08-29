@@ -1,9 +1,0 @@
-schema_version = 1
-paths = [
-  "evidence/claims/local-ci-locale-robustness-20260719.toml",
-  "evidence/chronicle/local-ci-locale-robustness-20260719/**",
-  "evidence/parity/generic-shadow.json",
-  "openspec/changes/local-ci-locale-robustness-20260719/**",
-  "openspec/specs/quality/spec.md",
-  "tests/unit/cli/lane/test_cross_host_handoff.py",
-]

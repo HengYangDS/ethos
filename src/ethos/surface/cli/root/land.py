@@ -186,17 +186,8 @@ def _land_expected_state(
         "target_ref": f"refs/heads/{policy.candidate_branch}",
         "target_head": str(candidate.get("head") or ""),
         "holder_ref": str(closeout_support.get("holder_ref") or ""),
-        "lease_id": str(closeout_support.get("lease_id") or ""),
-        "lease_epoch": integer(closeout_support.get("lease_epoch")),
-        "lease_expected_head": str(closeout_support.get("lease_expected_head") or ""),
-        "lease_expected_tree": str(closeout_support.get("lease_expected_tree") or ""),
-        "lease_base_commitment_path": str(closeout_support.get("lease_base_commitment_path") or ""),
-        "lease_base_commitment_bytes_sha256": str(
-            closeout_support.get("lease_base_commitment_bytes_sha256") or ""
-        ),
-        "lease_base_commitment_digest": str(closeout_support.get("base_commitment_digest") or ""),
+        "lease_generation": integer(closeout_support.get("lease_generation")),
         "lease_expires_at": str(closeout_support.get("lease_expires_at") or ""),
-        "lease_payload_sha256": str(closeout_support.get("lease_payload_sha256") or ""),
     }
 
 

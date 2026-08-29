@@ -247,8 +247,6 @@ def _change_report(
         for item in artifacts
         if isinstance(item, dict) and item.get("status") not in {"done", "skipped"}
     ]
-    contract = scope.commitment_report(root, name)
-    gaps.extend(string_sequence(contract.get("required_gaps")))
     if logical_change_identifier_issue(name):
         gaps.append(f"openspec_active_change_identifier_invalid:{name}")
     return {

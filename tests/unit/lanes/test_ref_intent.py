@@ -114,11 +114,7 @@ def _effect_plan(proof):
     old, new = _oid("old"), _oid("new")
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
     return compile_git_effect_plan(
-        commitment_fixture(
-            id="commitment:test:ref-effect",
-            intent="Test one exact proof-bound ref effect.",
-            subjects=("repository:test",),
-        ),
+        commitment_fixture(id="commitment:test:ref-effect", acceptance=("acceptance:fixture",)),
         Facts(
             repository="repository:test",
             head=old,

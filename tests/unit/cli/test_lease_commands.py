@@ -31,11 +31,11 @@ def test_declared_lease_cli_compiles_exact_request_and_emits_json(
             "state": "planned",
             "branch": request.branch,
             "lease": {},
-            "handoff_offer": {},
             "required_gaps": [],
         }
 
     monkeypatch.setattr(lease_cli, "execute_lease_operation", execute)
+    monkeypatch.setattr(lease_cli, "resolve_root", lambda root: root)
     completed = run_ethos_raw(
         "lane",
         "lease",
@@ -46,16 +46,10 @@ def test_declared_lease_cli_compiles_exact_request_and_emits_json(
         "work/example",
         "--holder-ref",
         "agent:test:case:holder",
-        "--lease-id",
-        "lease:example",
-        "--epoch",
+        "--generation",
         "3",
-        "--expect-head",
-        "a" * 40,
         "--expires-at",
         "2026-08-10T00:00:00+00:00",
-        "--payload-sha256",
-        "b" * 64,
         "--json",
     )
 
@@ -67,43 +61,33 @@ def test_declared_lease_cli_compiles_exact_request_and_emits_json(
         "planned",
     )
     assert captured["root"] == tmp_path
-    assert captured["request"].expected_epoch == 3
+    assert captured["request"].generation == 3
     assert captured["request"].operation == operation
 
 
-@pytest.mark.parametrize(
-    "report",
-    [
-        {
-            "verdict": "pass",
-            "state": "renewed",
-            "branch": "work/example",
-            "lease": {"lease_id": "lease:example", "epoch": 2, "holder_ref": "holder"},
-            "handoff_offer": {},
-            "diagnostics": [{"severity": "info"}, "ignored"],
-            "required_gaps": [],
-        },
-        {
-            "verdict": "pass",
-            "state": "handoff_offered",
-            "branch": "work/example",
-            "lease": {},
-            "handoff_offer": {"lease_id": "lease:example", "epoch": 2, "holder_ref": "holder"},
-            "required_gaps": [],
-        },
-    ],
-)
-def test_lease_result_summary_uses_applied_lease_or_offer(monkeypatch, report) -> None:
+def test_lease_result_summary_uses_the_minimal_applied_lease(monkeypatch) -> None:
     emitted = []
     monkeypatch.setattr(lease_cli, "emit", lambda result, **_kwargs: emitted.append(result))
+    report = {
+        "verdict": "pass",
+        "state": "renewed",
+        "branch": "work/example",
+        "lease": {
+            "generation": 2,
+            "holder_ref": "holder",
+            "expires_at": "2026-08-10T00:00:00+00:00",
+        },
+        "diagnostics": [{"severity": "info"}, "ignored"],
+        "required_gaps": [],
+    }
 
     emit_lease_result("lane lease test", report, json_output=True)
 
     assert emitted[0].summary == {
         "branch": "work/example",
-        "lease_id": "lease:example",
-        "epoch": 2,
+        "generation": 2,
         "holder_ref": "holder",
+        "expires_at": "2026-08-10T00:00:00+00:00",
     }
 
 
@@ -150,14 +134,8 @@ def test_takeover_cli_loads_authorization_and_projects_exact_request(
         branch="work/example",
         source_holder_ref="agent:test:case:source",
         target_holder_ref="agent:test:case:target",
-        lease_id="lease:example",
-        epoch=4,
-        expect_head="a" * 40,
-        expected_tree="b" * 40,
-        expected_expires_at="2026-08-10T00:00:00+00:00",
-        expected_payload_sha256="c" * 64,
-        expected_lane_incarnation_id="lane-incarnation:example",
-        expected_dirty_content_sha256="d" * 64,
+        generation=4,
+        expires_at="2026-08-10T00:00:00+00:00",
         source_state="source_lost",
         authorization=path,
     )
@@ -167,4 +145,4 @@ def test_takeover_cli_loads_authorization_and_projects_exact_request(
     assert captured["command"] == "lane lease takeover"
     assert captured["json_output"] is True
     assert captured["request"].authorization == authorization
-    assert captured["request"].expected_epoch == 4
+    assert captured["request"].generation == 4

@@ -19,14 +19,14 @@ def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
         resource="work/example:packages/example.py",
         expected_state={
             "head": "a" * 40,
-            "lease_id": "lease:01",
-            "epoch": 2,
+            "holder_ref": "agent:codex:task:example",
+            "generation": 2,
         },
     )
     basis = DecisionBasis(
         enforcement_boundary="local_process_guard",
         identity_basis="holder_ref_equality",
-        state_bindings=("root", "path", "head", "lease_id", "epoch"),
+        state_bindings=("root", "path", "head", "holder_ref", "generation"),
         evidence_boundary="current_local_observation",
         verifier_provenance="incumbent_runner",
         time_basis="local_observation_time",
@@ -44,7 +44,7 @@ def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
 
     payload = decision.to_payload()
     assert payload["verdict"] == "pass"
-    assert payload["subject"]["expected_state"]["epoch"] == 2
+    assert payload["subject"]["expected_state"]["generation"] == 2
     assert payload["decision_basis"]["enforcement_boundary"] == "local_process_guard"
     assert payload["next_action"] == ""
     assert "next" not in payload

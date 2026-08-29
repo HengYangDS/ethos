@@ -83,75 +83,6 @@ def test_manifest_rejects_missing_or_tampered_artifacts(
     assert expected in gaps
 
 
-@pytest.mark.parametrize(
-    ("commitment_error", "expected"),
-    [
-        ("lease_base_commitment_digest_mismatch", "handoff_export_base_commitment_digest_mismatch"),
-        ("invalid_commitment", "handoff_export_base_commitment_invalid"),
-    ],
-)
-def test_export_snapshot_translates_commitment_failures(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    commitment_error: str,
-    expected: str,
-) -> None:
-    database = tmp_path / "state.sqlite"
-    sqlite3.connect(database).close()
-    lease = SimpleNamespace(
-        lane_incarnation_id="lane:1",
-        base_commitment_path="openspec/changes/example/commitment.toml",
-        base_commitment_bytes_sha256="b" * 64,
-        base_commitment_digest="d" * 64,
-        to_payload=dict,
-    )
-    handoff = CrossHostHandoff(
-        source_lane_ref="work/example",
-        source_head="a" * 40,
-        source_tree="e" * 40,
-        source_holder_ref=HolderRef.parse("agent:test:case:source"),
-        target_holder_ref=HolderRef.parse("agent:test:case:target"),
-        dirty_content_sha256="c" * 64,
-        source_lane_incarnation_id=lease.lane_incarnation_id,
-        source_lease_id="lease:1",
-        source_lease_epoch=1,
-        source_lease_expires_at="2026-08-10T00:00:00+00:00",
-        source_lease_payload_sha256="f" * 64,
-        base_commitment_path=lease.base_commitment_path,
-        base_commitment_bytes_sha256=lease.base_commitment_bytes_sha256,
-        base_commitment_digest=lease.base_commitment_digest,
-        context_digest="9" * 64,
-    )
-    monkeypatch.setattr(
-        handoff_package,
-        "run_git",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=handoff.source_head),
-    )
-    monkeypatch.setattr(
-        handoff_package, "dirty_content_sha256", lambda _repo: handoff.dirty_content_sha256
-    )
-    monkeypatch.setattr(handoff_package, "state_database", lambda _repo: database)
-    monkeypatch.setattr(handoff_package, "lease_binding", lambda *_args: object())
-    monkeypatch.setattr(
-        handoff_package,
-        "expected_current_lease",
-        lambda *_args, **_kwargs: (None, lease),
-    )
-
-    def reject_commitment(*_args, **_kwargs):
-        raise ValueError(commitment_error)
-
-    monkeypatch.setattr(handoff_package, "load_lease_bound_commitment", reject_commitment)
-
-    with pytest.raises(ValueError, match=f"^{expected}$"):
-        handoff_package.write_handoff_package(
-            repo=tmp_path,
-            handoff=handoff,
-            context="context",
-            output_root=tmp_path / "packages",
-        )
-
-
 def test_export_snapshot_collapses_lease_cas_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -164,14 +95,8 @@ def test_export_snapshot_collapses_lease_cas_failure(
         source_holder_ref=HolderRef.parse("agent:test:case:source"),
         target_holder_ref=HolderRef.parse("agent:test:case:target"),
         dirty_content_sha256="c" * 64,
-        source_lane_incarnation_id="lane:1",
-        source_lease_id="lease:1",
-        source_lease_epoch=1,
+        source_lease_generation=1,
         source_lease_expires_at="2026-08-10T00:00:00+00:00",
-        source_lease_payload_sha256="f" * 64,
-        base_commitment_path="openspec/changes/example/commitment.toml",
-        base_commitment_bytes_sha256="b" * 64,
-        base_commitment_digest="d" * 64,
         context_digest="9" * 64,
     )
     monkeypatch.setattr(
@@ -186,7 +111,7 @@ def test_export_snapshot_collapses_lease_cas_failure(
     monkeypatch.setattr(handoff_package, "lease_binding", lambda *_args: object())
 
     def reject_lease(*_args, **_kwargs):
-        message = "lease_epoch_stale"
+        message = "lease_generation_stale"
         raise ValueError(message)
 
     monkeypatch.setattr(handoff_package, "expected_current_lease", reject_lease)

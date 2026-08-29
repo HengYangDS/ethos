@@ -138,7 +138,6 @@ class RepositoryProfileDeclaration(_ProfileModel):
     """The one typed repository binding shared by every profile reader."""
 
     profile_id: NonEmpty
-    commitment: RepositoryPath = ".ethos/commitment.toml"
     openspec: OpenSpecPolicy | None = None
     normative_sources: RepositoryPathTuple = ()
     roots: RepositoryRoots = Field(default_factory=RepositoryRoots)
@@ -222,7 +221,6 @@ def profile_evidence_roots(root: Path) -> tuple[str, ...]:
     roots = declaration.roots
     candidates = [
         ".ethos/profile.toml",
-        declaration.commitment,
         *((declaration.proof.gate_registry,) if declaration.proof.gate_registry else ()),
         roots.rules,
         *declaration.normative_sources,

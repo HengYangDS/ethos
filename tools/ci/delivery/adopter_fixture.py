@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import shutil
-import tomllib
 from collections.abc import Callable
 from typing import TYPE_CHECKING
-
-import tomli_w
 
 from ethos.adapters.repo.git import run_command
 
@@ -24,45 +20,6 @@ def _required_executable(name: str) -> str:
         message = f"required executable is unavailable: {name}"
         raise RuntimeError(message)
     return executable
-
-
-def commitment_carrier(
-    wheel: Path,
-    python: Path,
-    *,
-    commitment_id: str,
-    intent: str,
-    subjects: tuple[str, ...],
-    scope: tuple[str, ...],
-    run: CommandRunner,
-) -> str:
-    """Derive one strict Commitment carrier from the packaged semantic vector."""
-    vector = json.loads(
-        run(
-            str(python),
-            "-I",
-            "-c",
-            "import importlib.resources,sys; "
-            "sys.path.insert(0, sys.argv[1]); "
-            "print(importlib.resources.files('ethos').joinpath("
-            "'data/semantic-contract/vectors.json').read_text())",
-            str(wheel),
-        )
-    )
-    payload = tomllib.loads(vector["commitment"]["carrier_toml"])
-    required = ("id", "intent", "subjects", "scope", "dependencies")
-    if not all(key in payload for key in required):
-        message = "packaged semantic contract vector has no structured commitment fields"
-        raise RuntimeError(message)
-    payload.update(id=commitment_id, intent=intent, subjects=list(subjects), scope=list(scope))
-    for key, value in payload.items():
-        if (
-            key not in {"subjects", "scope"}
-            and isinstance(value, list)
-            and all(isinstance(item, str) for item in value)
-        ):
-            payload[key] = []
-    return tomli_w.dumps(payload)
 
 
 def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> None:
@@ -88,8 +45,6 @@ def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> No
 
 def materialize_adopter(
     root: Path,
-    wheel: Path,
-    python: Path,
     *,
     openspec_config: Path,
     run: CommandRunner,
@@ -105,18 +60,6 @@ def materialize_adopter(
     change.mkdir(parents=True)
     (root / ".ethos/profile.toml").write_text(
         'profile_id = "installed-cli-adopter"\n\n[openspec]\nmaterial_paths = ["**"]\n',
-        encoding="utf-8",
-    )
-    (root / ".ethos/commitment.toml").write_text(
-        commitment_carrier(
-            wheel,
-            python,
-            commitment_id="repository:installed-cli-adopter",
-            intent="Govern the installed CLI adopter.",
-            subjects=("repository:installed-cli-adopter",),
-            scope=("**",),
-            run=run,
-        ),
         encoding="utf-8",
     )
     dev = root / "dev"
@@ -140,16 +83,31 @@ capabilities = ["repository", "publication"]
         encoding="utf-8",
     )
     shutil.copy2(openspec_config, root / "openspec/config.yaml")
-    (change / "commitment.toml").write_text(
-        commitment_carrier(
-            wheel,
-            python,
-            commitment_id="change:smoke-change",
-            intent="Exercise installed CLI repository binding.",
-            subjects=("repository:installed-cli-adopter",),
-            scope=("README.md",),
-            run=run,
-        ),
+    (change / ".openspec.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
+    (change / "proposal.md").write_text(
+        "## Why\n\nExercise the installed package lifecycle.\n\n"
+        "## What Changes\n\n- Add one package-smoke change.\n\n"
+        "## Out of Scope\n\n- Product behavior.\n",
+        encoding="utf-8",
+    )
+    (change / "design.md").write_text(
+        "## Context\n\nPackage-only lifecycle proof.\n\n"
+        "## Decision\n\nUse only official OpenSpec artifacts.\n",
+        encoding="utf-8",
+    )
+    (change / "tasks.md").write_text(
+        "## 1. Package smoke\n\n- [x] 1.1 Exercise installed lifecycle.\n",
+        encoding="utf-8",
+    )
+    spec = change / "specs/package-smoke/spec.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text(
+        "## ADDED Requirements\n\n"
+        "### Requirement: Installed lifecycle\n\n"
+        "The installed package SHALL govern an official OpenSpec Change.\n\n"
+        "#### Scenario: Package smoke runs\n\n"
+        "- **WHEN** the installed lifecycle executes\n"
+        "- **THEN** no parallel intent carrier is required\n",
         encoding="utf-8",
     )
     (root / "README.md").write_text("# installed CLI adopter\n", encoding="utf-8")

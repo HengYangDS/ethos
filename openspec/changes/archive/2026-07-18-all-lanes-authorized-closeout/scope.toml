@@ -1,2 +1,0 @@
-schema_version = 1
-paths = [".config/checks/format/selection.toml", "docs/plans/all-lanes-authorized-closeout-20260718.md", "evidence/claims/all-lanes-authorized-closeout-20260718.toml", "evidence/chronicle/all-lanes-authorized-closeout-20260718/**", "evidence/parity/generic-shadow.json", "openspec/changes/all-lanes-authorized-closeout-20260718/**", "openspec/specs/repository-governance/spec.md", "openspec/specs/repository-governance/capability.toml", "packages/ethos/src/ethos/adapters/shadow/execution.py", "tests/unit/product/parity/test_runners.py"]

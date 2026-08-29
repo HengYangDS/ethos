@@ -47,20 +47,36 @@ derive checkable constraints from this section; they do not own product meaning.
 
 ## Semantic Kernel
 
-The only durable semantic roots are:
+The semantic values are:
 
 | Root | Owns | Excludes |
 | --- | --- | --- |
-| `Commitment` | immutable intent, subject, scope, invariants, acceptance propositions, and authority reference | mutable workflow state or reusable permission |
+| `Commitment` | transient normalized acceptance intent with exactly `schema_version`, `id`, and `acceptance`, compiled from one exact official OpenSpec Change snapshot | persistence, a second tracked intent carrier, authoring scope, dependency graph, mutable workflow state, or reusable permission |
 | `Attestation` | verifier-bound observation, judgment, proof, or effect with predicate, bindings, validity, and evidence | an implicit authority or closed predicate taxonomy |
 
-`Facts` are fresh, context-bound observations. `TransitionPlan` is deterministic,
-transient IR bound to exact inputs. Neither is a durable semantic root.
+Only `Attestation` is a durable semantic result. `Commitment`, `Facts`, and
+`TransitionPlan` are transient values bound to exact inputs.
 
 Semantic validity belongs to typed meaning, not carrier presentation. The kernel
 validates members, duplicates, references, and conflicts, then normalizes
 unordered collections before identity. Exact canonical-byte checks remain
 confined to readers for already content-addressed envelopes.
+
+`Commitment` is a compiled value, not an ETHOS-authored file. Mutation-capable
+repositories use the official OpenSpec Change artifacts as the sole tracked
+intent, specification, design, task-progress, and archive carrier. ETHOS
+normalizes the exact official projection selected from one Git tree into a
+Commitment for planning and proof; it never asks an author to repeat that
+meaning in another tracked schema.
+
+The compiled Commitment contains only semantics that affect acceptance. It does
+not own anticipated paths, relation records, research DSLs, authority
+references, risks, or progress. Exact changed paths and Git
+coordinates are fresh `Facts` bound by a `TransitionPlan`. A dependency is an
+explicit plan input only when its satisfaction changes current admission;
+related Changes are query projections, not persisted fields. Research questions
+and procedures remain native OpenSpec design/spec/task content, while
+observations and conclusions are Attestations.
 
 ```text
 (Commitment, Facts, prior Attestations) -> TransitionPlan -> new Attestations
@@ -126,6 +142,13 @@ This topology names Git resource roles, not semantic entities. Dirty, foreign,
 unknown, unbound, or stale resource state is observe-only until fresh facts and
 bindings admit a transition.
 
+A Lease is only the expiring compare-and-swap relationship between one lane and
+its current holder. Its authoritative state is the lane identity, holder,
+generation, and expiry. It does not persist HEAD, tree, index, worktree,
+OpenSpec identity, Commitment, path scope, handoff workflow, or effect outcome.
+Those belong to fresh Facts, transient compilation, exact effect intent,
+Attestations, and post-observation.
+
 ### Binding Taxonomy
 
 A binding is explicit and exact in its authority query:
@@ -142,10 +165,11 @@ Bindings do not transfer authority between proof planes. A fresh binding may
 establish currentness only for its declared subject, predicate, scope, plane,
 and validity boundary.
 
-Proof admission may bind an exact repository Commitment before mutable
-dependencies or conflicts are evaluated. Historical Attestations remain
-queryable, but a proof bound to another authority cannot invalidate candidate
-acceptance. Conflicts within the selected authority remain fail-closed.
+Proof admission binds the compiled Commitment identity and exact repository
+Facts before mutable dependencies or conflicts are evaluated. Historical
+Attestations remain queryable, but proof for another input cannot invalidate
+candidate acceptance. Conflicts within the selected authority remain
+fail-closed.
 
 ### Configuration Boundaries
 
@@ -168,6 +192,19 @@ mutation-capable adoption nevertheless pins verified OpenSpec as the sole
 Change, design, spec, task-progress, dependency, and archive carrier. The
 official CLI owns those semantics. A repository may omit OpenSpec only while it
 remains observation-only; material governed mutation then fails closed.
+
+Before ETHOS introduces any carrier, schema, persisted record, command-local
+receipt, lifecycle state, or semantic type, the design must answer all three
+questions affirmatively:
+
+1. Is the obligation absent from official OpenSpec, Git, Commitment,
+   TransitionPlan, Attestation, and the existing effect adapters?
+2. Would deleting the proposed entity make a required invariant mechanically
+   unprovable rather than merely less convenient?
+3. Does the entity have one bounded owner and an explicit terminal deletion or
+   retention condition?
+
+Failure of any question means the entity is not admitted.
 
 ### First-Hour UX
 
@@ -212,25 +249,27 @@ absence reason. A refinement may change a carrier only after its invariant,
 owner, acceptance, and verifier remain traceable. This preserves intent while
 allowing deletion of redundant prose and mechanisms.
 
-## Bounded Change And Successor Granularity
+## Bounded Change Granularity
 
-One Commitment binds one bounded OpenSpec Change, Work Lane generation, and
-`tasks.md` progress owner. It is too large when its open obligations cannot be
-ordered, reviewed, proved, and closed as one coherent intent. Split only when
-each successor can land a useful semantic outcome without duplicating scope,
-authority, or progress. Moving an obligation never counts as implementing it.
+One official OpenSpec Change owns one bounded intent and its task progress. It is
+too large when its open obligations cannot be ordered, reviewed, proved, and
+closed as one coherent outcome. Split only when each resulting Change can land a
+useful semantic outcome without duplicating authority or progress. Moving an
+obligation never counts as implementing it.
 
 New intent does not expand an active Change merely because it arrives before
-closeout. Record it as a non-authorizing Attestation; a dependency-linked
-successor Commitment may select it after the current boundary closes. The
-successor names predecessor and selected Attestation identities and owns its own
-Change, lane generation, task list, acceptance, and proof.
+closeout. Create another official Change after the current atomic boundary, or
+record a non-authorizing Attestation when only evidence must survive. ETHOS does
+not persist relationship fields merely to narrate history: Git and official
+archive facts already provide sequence, and related Changes are query projections.
+When a specific prior result is a genuine admission prerequisite, the current
+TransitionPlan selects its exact Attestation and fails closed if it is absent.
 
-Only Commitments whose declared dependencies are satisfied and whose scopes and
-effects do not conflict may run concurrently. Capacity, risk, overlap, and proof
-cost select concurrency; there is no fixed global WIP number. Integration remains
-a short exact-CAS boundary. No queue, mutable program state, parallel task list,
-progress store, or lifecycle ledger selects current work.
+Concurrency is decided from fresh lane ownership, exact candidate effects, and
+current conflicts rather than predicted path globs. Capacity, risk, overlap, and
+proof cost may inform the decision, but no queue, mutable program state,
+parallel task list, dependency ledger, or lifecycle database selects current
+work. Integration remains a short exact-CAS boundary.
 
 ## Projection Homomorphism
 

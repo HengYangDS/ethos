@@ -1,9 +1,0 @@
-schema_version = 1
-paths = [
-  "docs/plans/ownerless-scope-retirement-authority-20260720.md",
-  "evidence/claims/ownerless-scope-retirement-authority-20260720.toml",
-  "evidence/chronicle/ownerless-scope-retirement-authority-20260720/**",
-  "openspec/changes/ownerless-scope-retirement-authority-20260720/**",
-  "openspec/changes/archive/2026-07-19-ownerless-scope-retirement-authority/**",
-  "openspec/specs/repository-governance/spec.md",
-]

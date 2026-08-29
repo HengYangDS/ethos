@@ -16,9 +16,9 @@ workflow or truth store.
 
 See also: [Kernel Model](../concepts/kernel-model.md), [Declarative Governance Compiler](declarative-governance-compiler.md), and [Protocol Contracts](protocol-contracts.md).
 
-A `TransitionPlan` is the transient, deterministic projection of one
-`Commitment` against freshly observed `Facts` and applicable `Attestations`. It
-orders checks, decisions, and effects; it is neither persisted intent nor a
+A `TransitionPlan` is the transient, deterministic projection of one three-field
+`Commitment`, freshly observed `Facts`, policy, and applicable `Attestations`.
+It orders checks, decisions, and effects; it is neither persisted intent nor a
 second workflow state.
 
 ```text
@@ -27,7 +27,7 @@ Commitment + Facts + Attestations
   -> compile checks, decisions, and effects
   -> topologically order nodes
   -> evaluate pass | block | unknown
-  -> exact-CAS effects
+  -> exact ref-intent CAS effects
   -> post-observe and attest
 ```
 

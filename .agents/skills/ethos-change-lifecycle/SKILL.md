@@ -93,5 +93,5 @@ promotion != absolute correctness (only: a bounded claim was admitted).
 ## Trust Boundary
 
 This skill is a workflow package projection. Repository truth — source, tests,
-schemas, OpenSpec records, Commitments, Attestations, and ETHOS command JSON — remains the
-source of truth above any command output or skill text.
+schemas, official OpenSpec records, Attestations, and fresh ETHOS observations —
+remains above any skill text. Commitment is compiled transiently.

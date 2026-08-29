@@ -5,19 +5,17 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-import tomli_w
 
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git_effect_admission import require_effect_permission
+from ethos.adapters.repo.profile import repository_identity
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Facts
-from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.semantic import commitment_fixture
+from tests.support.governed_repository import write_test_profile
 
 ZERO_OID = "0" * 40
 HOLDER = "agent:test:lane-start"
@@ -25,20 +23,10 @@ HOLDER = "agent:test:lane-start"
 
 def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
     repo = init_git_repo(tmp_path / "repo")
-    repository_id = f"repository:{repo.name}"
-    commit_fixture_file(
-        repo,
-        ".ethos/commitment.toml",
-        tomli_w.dumps(
-            commitment_fixture(
-                id=repository_id,
-                intent="Govern.",
-                subjects=(repository_id,),
-            ).model_dump(mode="python")
-        ),
-        "declare identity",
-    )
-    repository_id = load_repository_commitment(repo).id
+    write_test_profile(repo)
+    git(repo, "add", ".ethos/profile.toml")
+    git(repo, "commit", "-m", "declare profile")
+    repository_id = repository_identity(repo)
     base = git(repo, "rev-parse", "HEAD")
     desired = git(repo, "commit-tree", "HEAD^{tree}", "-p", base, "-m", "lane carrier")
     branch = "work/example"
@@ -76,16 +64,9 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
         policy |= {"source_branch": source_branch, "source_head": source_head}
     generation = {
         "branch": branch,
-        "lease_id": "lease:test",
-        "epoch": 1,
+        "generation": 1,
         "holder_ref": HOLDER,
-        "expected_head": base if flaw == "desired" else desired,
-        "expected_tree": git(repo, "rev-parse", "HEAD^{tree}"),
-        "base_commitment_path": ".ethos/commitment.toml",
-        "base_commitment_bytes_sha256": "c" * 64,
-        "base_commitment_digest": "a" * 64,
         "expires_at": "2026-08-11T00:00:00+00:00",
-        "payload_sha256": "b" * 64,
     }
     facts = Facts(
         repository=repository_id,
@@ -98,13 +79,8 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
             "lease_generation": generation,
         },
     )
-    commitment = commitment_fixture(
-        id="authority:test:lane-start",
-        intent="Create one leased work lane.",
-        subjects=(repository_id,),
-    )
     return compile_git_effect_plan(
-        commitment,
+        None,
         facts,
         prior_attestations={},
         policy=policy,

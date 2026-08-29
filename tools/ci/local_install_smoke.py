@@ -288,16 +288,13 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
         str(python),
         "-I",
         "-c",
-        "import importlib.resources,json,sys,tempfile; from pathlib import Path; "
-        "from ethos.contracts.semantic import load_commitment_file; "
+        "import json,sys; "
+        "from ethos.contracts.semantic import Commitment; "
         "from ethos.result import EthosResult; "
         "result=EthosResult.from_payload(json.loads(sys.argv[1])); "
         "assert result.command=='status' and result.verdict in {'pass','block','unknown'}; "
-        "vectors=json.loads(importlib.resources.files('ethos').joinpath("
-        "'data/semantic-contract/vectors.json').read_text()); "
-        "carrier=Path(tempfile.mkdtemp())/'commitment.toml'; "
-        "carrier.write_text(vectors['commitment']['carrier_toml']); "
-        "commitment=load_commitment_file(carrier); "
+        "commitment=Commitment(schema_version=3,id='change:package-smoke',"
+        "acceptance=('installed_sdk_constructs_commitment',)); "
         " print(commitment.digest())",
         status_json,
         cwd=adopter,
@@ -340,8 +337,6 @@ def run(session: nox.Session) -> None:
     )
     adopter_head = materialize_adopter(
         adopter,
-        wheel,
-        _venv_executable(smoke, "python"),
         openspec_config=ROOT / "openspec/config.yaml",
         run=_run,
     )

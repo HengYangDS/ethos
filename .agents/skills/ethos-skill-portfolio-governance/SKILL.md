@@ -23,8 +23,9 @@ manifests, projection drift controls, or the skill creation process.
 5. Generate OpenSpec Skills and host-supported slash commands with the pinned
    official OpenSpec workflow; characterize the generated version and official
    status/instructions calls instead of copying templates into ETHOS.
-6. Route durable truth to source, tests, schemas, docs, OpenSpec, Commitments,
-   or Attestations; a skill must not create a shadow task store or lifecycle ledger.
+6. Route tracked intent to official OpenSpec and durable proof to Attestations;
+   source, tests, schemas, and docs retain their native authority. A skill must
+   not create a shadow task store or lifecycle ledger.
    Treat matched evaluation as evidence, never task or progress state.
 7. Run the current proof gate and changed-scope plan before claiming portfolio
    readiness.
@@ -39,4 +40,5 @@ uv run ethos plan --changed --json
 ## Trust Boundary
 
 This skill governs skill projections only. Repository truth remains in source,
-tests, schemas, docs, OpenSpec, Commitments, Attestations, and ETHOS command JSON.
+tests, schemas, docs, official OpenSpec, Attestations, and fresh ETHOS command
+observations. Compiled Commitment values are transient inputs.

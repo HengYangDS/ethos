@@ -13,8 +13,8 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import revoke_cross
 from ethos.contracts.coordination import CrossHostHandoffExportRequest
 from ethos.contracts.coordination import CrossHostHandoffImportRequest
 from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
+from ethos.surface.cli.lane.lease import DeclaredLeaseOperationOptions
 from ethos.surface.cli.lane.lease import LeaseCommandOptions
-from ethos.surface.cli.lane.lease import LeaseHolderOperationOptions
 from ethos.surface.cli.lane.lease import LeaseProofOptions
 from ethos.surface.cli.lane.lease import emit_lease_result
 from ethos.surface.cli.lane.lease import execute_declared_lease_operation
@@ -25,26 +25,18 @@ _app = App(name="handoff", help="Local and cross-host Work Lane handoff.")
 lane_app.command(_app)
 
 
-class _OfferOptions(LeaseHolderOperationOptions):
-    command = "lane handoff offer"
-    operation = "handoff_offer"
+class _TransferOptions(DeclaredLeaseOperationOptions):
+    command = "lane handoff transfer"
+    operation = "transfer"
 
     target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")]
-
-
-class _AcceptOptions(LeaseHolderOperationOptions):
-    command = "lane handoff accept"
-    operation = "handoff_accept"
-
-    target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")]
-    offer_id: Annotated[str, Parameter(name="--offer-id")]
     ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
-    holder_quiesced: Annotated[bool, Parameter(name="--confirm-holder-quiesced")] = False
 
 
-class _ExportOptions(_OfferOptions):
+class _ExportOptions(_TransferOptions):
     command = "lane handoff export"
 
+    expect_head: Annotated[str, Parameter(name="--expect-head")]
     context_text: Annotated[str, Parameter(name="--context-text")] = ""
     context_file: Annotated[pathlib.Path | None, Parameter(name="--context-file")] = None
     output_root: Annotated[pathlib.Path | None, Parameter(name="--output-root")] = None
@@ -63,17 +55,12 @@ class _RevokeOptions(LeaseProofOptions):
     package: Annotated[pathlib.Path, Parameter(name="--package")]
     acknowledgement: Annotated[pathlib.Path, Parameter(name="--acknowledgement")]
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
+    expect_head: Annotated[str, Parameter(name="--expect-head")]
 
 
-@_app.command(name="offer")
-def lane_handoff_offer(options: Annotated[_OfferOptions, Parameter(name="*")]) -> None:
-    """Offer one same-common-directory holder handoff."""
-    execute_declared_lease_operation(options)
-
-
-@_app.command(name="accept")
-def lane_handoff_accept(options: Annotated[_AcceptOptions, Parameter(name="*")]) -> None:
-    """Accept one exact handoff offer after explicit quiescence confirmation."""
+@_app.command(name="transfer")
+def lane_handoff_transfer(options: Annotated[_TransferOptions, Parameter(name="*")]) -> None:
+    """Transfer one exact local Lease generation to a new holder."""
     execute_declared_lease_operation(options)
 
 
@@ -86,10 +73,8 @@ def lane_handoff_export(options: Annotated[_ExportOptions, Parameter(name="*")])
             branch=options.branch,
             holder_ref=options.holder_ref,
             target_holder_ref=options.target_holder_ref,
-            lease_id=options.lease_id,
-            epoch=options.epoch,
-            expected_expires_at=options.expected_expires_at,
-            expected_payload_sha256=options.expected_payload_sha256,
+            generation=options.generation,
+            expires_at=options.expires_at,
             expect_head=options.expect_head,
             context_text=options.context_text,
             context_file=options.context_file.as_posix() if options.context_file else None,
@@ -116,18 +101,16 @@ def lane_handoff_import(options: Annotated[_ImportOptions, Parameter(name="*")])
 
 @_app.command(name="revoke-source")
 def lane_handoff_revoke_source(options: Annotated[_RevokeOptions, Parameter(name="*")]) -> None:
-    """Revoke the exact source lease after destination acknowledgement."""
+    """Revoke the exact source Lease after destination acknowledgement."""
     report = revoke_cross_host_source(
         CrossHostHandoffSourceRevocationRequest(
             root=resolve_root(options.root).as_posix(),
             package=options.package.as_posix(),
             acknowledgement=options.acknowledgement.as_posix(),
             holder_ref=options.holder_ref,
-            lease_id=options.lease_id,
-            epoch=options.epoch,
+            generation=options.generation,
+            expires_at=options.expires_at,
             expect_head=options.expect_head,
-            expected_expires_at=options.expected_expires_at,
-            expected_payload_sha256=options.expected_payload_sha256,
             apply=options.apply,
         )
     )

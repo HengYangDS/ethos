@@ -17,13 +17,13 @@ from pydantic import ConfigDict
 import ethos.domain.prove as prove_domain
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
+from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstrap_candidate
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import (
     refresh_candidate_from_accepted,
 )
+from ethos.adapters.mutation.lane_lifecycle.start import start_work_lane
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh import refresh_work_lane_base
-from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.mutation.worktree.detached_cleanup import housekeeping_worktrees
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.verdict import Verdict
@@ -67,8 +67,6 @@ class _RefreshBase(AppliedLaneCommandOptions):
 
 class _Start(AppliedLaneCommandOptions):
     command = "lane start"
-    source_root: Annotated[str | None, Parameter(name="--source-root")] = None
-    commitment: Annotated[str | None, Parameter(name="--commitment")] = None
     path: Annotated[str | None, Parameter(name="--path")] = None
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
 
@@ -107,10 +105,7 @@ def _status_action(report: dict[str, object], verdict: Verdict) -> str:
     return action or (
         "ethos lane prewrite <path>"
         if report.get("role") == "work_lane"
-        else (
-            "ethos lane start <name> --commitment <commitment.toml> "
-            "--holder-ref <holder-ref> --apply --json"
-        )
+        else ("ethos lane start <name> --holder-ref <holder-ref> --apply --json")
     )
 
 
@@ -166,15 +161,12 @@ _SUMMARIES: dict[str, Summary] = {
 _ACTIONS: dict[str, Action] = {
     "lane status": _status_action,
     "lane candidate": _actions(
-        "ethos lane start <name> --commitment <commitment.toml> "
-        "--holder-ref <holder-ref> --apply --json",
+        "ethos lane start <name> --holder-ref <holder-ref> --apply --json",
         "ethos status",
     ),
     "lane prewrite": _prewrite_action,
     "lane start": _start_action,
     "lane refresh-base": _refresh_action,
-    "lane rebind-commitment": _report_action,
-    "lane rebind-commitment derive": _report_action,
     "lane retire superseded": _retirement_action,
     "lane retire landed": _retirement_action,
 }
@@ -351,8 +343,6 @@ def start(
     report = start_work_lane(
         root=resolve_root(options.root),
         name=name,
-        source_root=Path(options.source_root) if options.source_root is not None else None,
-        commitment_path=Path(options.commitment) if options.commitment is not None else None,
         path=Path(options.path) if options.path is not None else None,
         holder_ref=options.holder_ref,
         apply=options.apply,

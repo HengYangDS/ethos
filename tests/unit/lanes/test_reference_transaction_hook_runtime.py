@@ -17,7 +17,7 @@ from ethos.adapters.repo.worktree_effects import restore_rejected_checkout_proje
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos.adapters.store.state.schema import state_database
-from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -258,7 +258,7 @@ def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(
 ) -> None:
     """Ordinary commits never use an unabortable hook to rewrite Lease authority."""
     repo = init_git_repo(tmp_path / "repo")
-    commit_active_commitment(repo)
+    commit_active_change(repo)
     lane = tmp_path / "lane"
     branch = "work/current"
     holder = "agent:test:case:fresh-lane-head"
@@ -267,11 +267,8 @@ def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(
     acquire_lease(
         state_database(repo),
         lease=exact_lease(
-            repo=repo,
             branch=branch,
             holder_ref=holder,
-            expected_head=start,
-            carrier="openspec/changes/fixture-change/commitment.toml",
         ),
     )
     hooks = repo / ".git/test-hooks"
@@ -319,7 +316,7 @@ raise SystemExit(
     head = git(lane, "rev-parse", "HEAD")
     assert head != start
     after = leases_by_branch(lane)[branch]
-    assert after["payload_sha256"] == before["payload_sha256"]
+    assert after == before
     authority = resolve_current_authority(
         root=lane,
         branch=branch,

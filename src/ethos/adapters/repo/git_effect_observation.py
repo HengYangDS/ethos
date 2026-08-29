@@ -6,10 +6,10 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.commitment import observe_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_head
+from ethos.adapters.repo.profile import repository_identity
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_utc_time
@@ -58,7 +58,6 @@ def resolve_git_effect_repository(
     allow_absent_prestate: bool = False,
 ) -> str:
     """Resolve one repository identity across every revision touched by an effect."""
-    env = dict(environment or {})
     revisions = {
         str(before["head"]),
         *(update.expected for update in effect.updates.values()),
@@ -68,17 +67,12 @@ def resolve_git_effect_repository(
     expected = {update.expected for update in effect.updates.values()}
     identities = set()
     for revision in revisions:
-        observation = observe_repository_commitment(
-            root,
-            tree_ref=revision,
-            environment=env,
-        )
-        if observation.state == "valid":
-            identities.add(observation.require().id)
-        elif allow_absent_prestate and revision in expected and observation.state == "missing":
-            continue
-        else:
-            raise ValueError(observation.gap)
+        try:
+            identities.add(repository_identity(root, tree_ref=revision, environment=environment))
+        except ValueError:
+            if allow_absent_prestate and revision in expected:
+                continue
+            raise
     if len(identities) != 1:
         raise ValueError(_MISMATCH)
     return identities.pop()
@@ -86,13 +80,14 @@ def resolve_git_effect_repository(
 
 def compile_observed_git_effect(
     root: Path,
-    commitment: Commitment,
+    commitment: Commitment | None,
     effect: GitEffect,
     *,
     head: str,
     policy: JsonObject,
     prior_attestations: JsonObject | None = None,
     values: Mapping[str, object] | None = None,
+    environment: Mapping[str, str] | None = None,
 ) -> TransitionPlan:
     """Compile one Git effect directly from fresh repository observations."""
     extra = dict(values or {})
@@ -106,9 +101,9 @@ def compile_observed_git_effect(
     return compile_git_effect_plan(
         commitment,
         Facts(
-            repository=commitment.id,
+            repository=repository_identity(root, tree_ref=head, environment=environment),
             head=head,
-            tree=current_tree(root, head),
+            tree=current_tree(root, head, environment=environment),
             observed_at=datetime.now(UTC),
             values={
                 **extra,

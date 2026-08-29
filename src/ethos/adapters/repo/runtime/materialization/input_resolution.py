@@ -136,6 +136,7 @@ def run_runtime_tool(source: Path, *args: str) -> subprocess.CompletedProcess[st
         env={
             **os.environ,
             "PYTHONDONTWRITEBYTECODE": "1",
+            "UV_CACHE_DIR": (source / "build/runtime/tool-cache/uv").as_posix(),
             "UV_LINK_MODE": "copy",
             "VIRTUAL_ENV": Path(sys.prefix).as_posix(),
             "ETHOS_BUILD_NODE": (

@@ -13,7 +13,7 @@ binding manifest: it tells ETHOS which repository surfaces to read, which local
 state roots are host-local, and which optional policies are explicitly active.
 
 The profile does not own repository truth. Source, tests, package metadata,
-machine contracts, docs, rules, evidence, OpenSpec records, Commitments,
+machine contracts, docs, rules, evidence, official OpenSpec records,
 Attestations, and repo-local projections keep their native authority according
 to the governed repository's own order.
 
@@ -86,68 +86,29 @@ normative_sources = ["guidelines.md"]
 ETHOS includes these files in evidence-root candidates but does not copy,
 relocate, or otherwise redefine their native authority.
 
-## Material OpenSpec Scope
+## OpenSpec Applicability
 
-Every adopter profile SHALL declare a non-empty `[openspec].material_paths`
-list. These portable repository-relative glob patterns identify edits that
-require an active Commitment. Missing or empty declarations fail with
-`openspec_material_paths_missing`; malformed declarations fail with
-`openspec_material_paths_invalid`. ETHOS does not interpret an empty list as
-an opt-out.
+Every mutation-capable adopter declares the repository paths for which official
+OpenSpec lifecycle evidence is required. These paths classify applicability;
+they do not predict or authorize the files a Change may modify.
 
-For every changed material path, `ethos lane prewrite`, `ethos plan --changed`,
-and `ethos prove` use the same official-OpenSpec selected Change list and the
-same `openspec/changes/<id>/commitment.toml` scope. A valid contract covering the path admits it; otherwise the stable diagnostic
-is `openspec_material_path_uncovered:<path>`.
+`ethos lane prewrite`, `ethos plan --changed`, and `ethos prove` consume the same
+official selected Change and fresh Git diff. ETHOS compiles the exact official
+projection into a transient Commitment containing only `schema_version`, `id`,
+and `acceptance`. It derives changed paths from Git rather than a second scope
+carrier.
 
-```toml
-# openspec/changes/<change-id>/commitment.toml
-schema_version = 1
-id = "change:<change-id>"
-intent = "Describe the intended outcome."
-subjects = ["repository:self"]
-scope = [
-  ".ethos/profile.toml",
-  "openspec/changes/<change-id>/**",
-  "docs/governance/**",
-]
-```
+Work ownership is independent: a Lease contains only `lane_ref`, `holder_ref`,
+`generation`, and `expires_at`. Lane creation, archive, continuation, handoff,
+and retirement observe the current Lease and Git state, compile one exact ref
+intent, recheck source and target immediately before compare-and-swap, and
+post-observe the result. No Lease field mirrors HEAD, tree, OpenSpec, Commitment,
+paths, workflow progress, or effect outcome.
 
-Create the first Change through the normal Work Lane start path. After a Change
-has been archived, an existing owned lane starts its next atomic generation with
-the public exact transition:
-
-```bash
-ethos lane start-change <change-id> \
-  --intent "<bounded intent>" \
-  --scope "<repository-relative glob>" \
-  --expect-head "$(git rev-parse HEAD)" \
-  --apply --json
-```
-
-If the forward fix already exists in the lane, stage exactly that bounded
-overlay, run the command once without `--apply`, and pass the returned
-`overlay.digest` back as `--expected-overlay-digest` when applying. ETHOS then
-commits the overlay and the new Commitment together; unstaged, uncovered, or
-changed bytes are rejected without consuming the transition.
-
-The transition requires the current holder, a valid Lease bound to the archived
-Commitment, an exact clean HEAD/tree, and no active Change. It uses the locked
-official OpenSpec creator, commits the new Change and Commitment through normal
-hooks, then advances the Lease HEAD/tree/carrier/epoch and emits typed effect
-evidence. A retry recognizes the completed effect or resumes the exact
-post-commit/pre-rebind state; different holders, stale observations, drift, and
-unrelated replay remain fail closed. No bootstrap exception, unarchive path,
-manual state edit, or second scope-write path exists.
-
-An existing owned lane replaces an immutable Commitment through
-`ethos lane rebind-commitment`. Rebind authority belongs to that public
-operation's exact same-holder Lease transition, not to a permission that the old
-Commitment must anticipate. The operation can therefore introduce a newly
-required permission without a bootstrap cycle, while remaining bound to one
-branch ref, old/new Commitment digests, carrier bytes, Lease generation,
-HEAD/tree/index, overlay, and target commit. The authority is not inherited by
-ordinary Git effects and any coordinate drift fails closed.
+If official intent changes, ETHOS recompiles the current projection.
+Authorization still depends on current ownership, applicable policy, fresh Git
+facts, proof, and the exact effect plan; there is no separate binding-repair
+lifecycle or manual state-edit path.
 
 ## Optional Declarations
 

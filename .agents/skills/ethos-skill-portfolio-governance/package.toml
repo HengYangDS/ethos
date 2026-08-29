@@ -9,7 +9,7 @@ include = [
   "references/portfolio-design.md",
 ]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:e3a8b4575d391d2549a7dfc7d4540d46de949e6067936599956f07f97755b02b"
+expected_digest = "sha256:8976d9658f23aee5063c619b06be28c72f10f9656e603870787413ef668b5f02"
 
 [quality]
 placeholder_allowed = false

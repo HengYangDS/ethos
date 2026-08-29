@@ -70,9 +70,7 @@ def test_run_plan_checks_executes_safe_wave_concurrently_in_plan_order(
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     nodes = tuple(PlanNode(id=node_id, kind="check", command=(node_id,)) for node_id in ("a", "b"))
-    commitment = commitment_fixture(
-        id="repository:test", intent="Parallel proof.", subjects=("repository:test",)
-    )
+    commitment = commitment_fixture(id="repository:test", acceptance=("acceptance:fixture",))
     plan = compile_plan(
         commitment,
         Facts(

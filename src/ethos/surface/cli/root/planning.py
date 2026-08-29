@@ -4,20 +4,16 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
-from typing import TYPE_CHECKING
-from typing import Annotated
 from typing import cast
-
-from cyclopts import Parameter
 
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.start_effect import current_generation_binding
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.plan import compile_plan
@@ -34,45 +30,45 @@ from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-
-def _non_negative(_type: type[int], value: int | None) -> None:
-    if value is not None and value < 0:
-        msg = "proof node capacity must be non-negative"
-        raise ValueError(msg)
-
-
-def _peer_proof_cost(repo: Path, lane: dict[str, object]) -> int | None:
-    paths = tuple(string_sequence(lane.get("path_scope")))
-    if lane.get("scope_state") != "bounded" or not paths:
-        return None
-    _rules, gates, gaps = matching_rule_gates(repo, paths)
-    if gaps:
-        return None
-    gate_ids = tuple(str(gate.get("id") or "") for gate in gates)
-    return len(resolve_gate_policy(repo, gate_ids=gate_ids).nodes)
-
 
 @app.command
 def plan(
     *,
     changed: bool = False,
     change: str | None = None,
-    proof_node_capacity: Annotated[
-        int | None,
-        Parameter(name="--proof-node-capacity", validator=_non_negative),
-    ] = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Compile deterministic TransitionPlan."""
     repo = resolve_root(root)
     status_payload, authority = workspace_status_observation(repo)
+    closeout_action = closeout_command_from_status(repo, status_payload)
+    if closeout_action:
+        candidate = cast("dict[str, object]", status_payload.get("candidate") or {})
+        emit(
+            EthosResult(
+                command="plan",
+                verdict="pass",
+                state="planned",
+                summary={"changed": changed, "operation": "accepted_closeout"},
+                next_action=closeout_action,
+                data={
+                    "authority": authority.projection() if authority is not None else {},
+                    "accepted_head": str(status_payload.get("head") or ""),
+                    "candidate_branch": str(candidate.get("branch") or ""),
+                    "candidate_head": str(candidate.get("head") or ""),
+                    "closeout_support": cast(
+                        "dict[str, object]", status_payload.get("closeout_support") or {}
+                    ),
+                },
+            ),
+            json_output=json_output,
+            enforce=False,
+        )
+        return
     head = str(status_payload.get("head") or "")
     try:
-        repository = load_repository_commitment(repo)
+        repository = repository_identity(repo)
     except ValueError as exc:
         gap = str(exc)
         emit(
@@ -81,7 +77,7 @@ def plan(
                 verdict="block",
                 state="gapped",
                 required_gaps=(gap,),
-                next_action="install or repair the current repository Commitment",
+                next_action="repair .ethos/profile.toml",
             ),
             json_output=json_output,
             enforce=False,
@@ -91,7 +87,7 @@ def plan(
         generation = current_generation_binding(
             repo,
             status=status_payload,
-            repository_id=repository.id,
+            repository_id=repository,
             authority=authority,
             change=change,
             changed=changed,
@@ -134,7 +130,7 @@ def plan(
         )
     tree = current_tree(repo, head)
     facts = Facts(
-        repository=repository.id,
+        repository=repository,
         head=head,
         tree=tree,
         observed_at=datetime.now(UTC),
@@ -164,15 +160,10 @@ def plan(
         else {}
     )
     foreign = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes") or [])
-    peers = [lane | {"proof_cost": _peer_proof_cost(repo, lane)} for lane in foreign]
     candidate = cast("dict[str, object]", status_payload.get("candidate") or {})
     candidate_branch = str(candidate.get("branch") or "candidate/dev")
     strategy = collaboration_competition_projection(
-        peers,
-        commitment_digest=commitment.digest(),
-        risks=commitment.risks,
-        proof_cost=len(policy.nodes),
-        proof_capacity=proof_node_capacity,
+        foreign,
         observed_at=facts.observed_at,
         candidate=ref_progress(repo, candidate_branch, observed_at=facts.observed_at)
         | {"behind_accepted": candidate.get("behind_accepted", 0)},
@@ -193,7 +184,7 @@ def plan(
     skill_activation = compile_skill_activation(
         cast("dict[str, object]", playbooks.get("registry") or {}),
         operation="plan",
-        subjects=tuple(str(subject) for subject in commitment.subjects),
+        subjects=(commitment.id,),
         changed_paths=paths,
     )
     required_gaps = tuple(
@@ -212,7 +203,6 @@ def plan(
         and not rule_validation_gaps
         and skill_activation.verdict == "pass"
     )
-    closeout_action = closeout_command_from_status(repo, status_payload)
     authority_projection = authority.projection() if authority is not None else {}
     result = EthosResult(
         command="plan",
@@ -233,7 +223,7 @@ def plan(
             else (
                 "repair .ethos/rules.toml and rerun ethos plan --json"
                 if rule_validation_gaps
-                else "repair the selected Commitment carrier"
+                else "repair or select the official OpenSpec Change"
             )
         ),
         data={

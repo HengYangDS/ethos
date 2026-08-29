@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.input_resolution as runtime_inputs
+import ethos.adapters.repo.runtime.materialization.python_image as python_image
 
 
 def _completed(code: int, stdout: str = "", stderr: str = ""):
@@ -60,7 +61,15 @@ def test_source_wheel_resolution_requires_exactly_one_output(
     monkeypatch.setattr(runtime_inputs.subprocess, "run", build)
     with pytest.raises(ValueError, match="hook_runtime_wheel_invalid"):
         runtime_inputs.resolve_runtime_wheel(source, wheel_dir)
-    assert commands[0][1:] == ("sync", "--locked", "--offline", "--check", "--active")
+    assert commands[0][1:] == (
+        "sync",
+        "--locked",
+        "--offline",
+        "--check",
+        "--active",
+        "--no-install-project",
+        "--inexact",
+    )
     assert "--no-build-isolation" in commands[1]
 
 
@@ -163,7 +172,69 @@ def test_runtime_tool_forces_copy_link_mode(
     runtime_inputs.run_runtime_tool(source, "pip", "install", "package.whl")
 
     assert observed["UV_LINK_MODE"] == "copy"
-    assert observed["UV_CACHE_DIR"] == (source / "build/runtime/tool-cache/uv").as_posix()
+    assert observed["UV_CACHE_DIR"] == (tmp_path / "ambient-cache").as_posix()
+
+
+def test_locked_closure_prefills_owned_cache_then_installs_offline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source, work, interpreter = tmp_path / "source", tmp_path / "work", tmp_path / "python"
+    wheel, cache = tmp_path / "ethos.whl", tmp_path / "cache"
+    source.mkdir()
+    interpreter.write_text("python", encoding="utf-8")
+    wheel.write_bytes(b"wheel")
+    commands: list[tuple[str, ...]] = []
+    cache_ready = False
+
+    def run(
+        _source: Path,
+        *command: str,
+        cache_dir: Path | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        nonlocal cache_ready
+        assert cache_dir == cache
+        commands.append(command)
+        if command[0] == "export":
+            output = Path(command[command.index("--output-file") + 1])
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text("package==1 --hash=sha256:abc\n", encoding="utf-8")
+        elif command[:2] == ("pip", "sync") and "--offline" not in command:
+            target = Path(command[command.index("--target") + 1])
+            target.mkdir(parents=True)
+            (target / "package.py").write_text("cached\n", encoding="utf-8")
+            cache_ready = True
+        elif "--offline" in command:
+            assert cache_ready
+        return _completed(0)
+
+    monkeypatch.setattr(python_image, "run_runtime_tool", run)
+
+    requirements = python_image.prepare_locked_requirements(
+        source,
+        work,
+        interpreter,
+        cache_dir=cache,
+    )
+    python_image.install_locked_runtime(
+        source,
+        interpreter,
+        wheel,
+        requirements,
+        cache_dir=cache,
+    )
+
+    assert [command[:2] for command in commands] == [
+        ("export", "--locked"),
+        ("pip", "sync"),
+        ("pip", "sync"),
+        ("pip", "install"),
+    ]
+    assert "--offline" not in commands[1]
+    assert "--target" in commands[1]
+    assert "--require-hashes" in commands[1]
+    assert "--offline" in commands[2]
+    assert "--offline" in commands[3]
+    assert not (work / "dependency-preflight").exists()
 
 
 def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_writing(
@@ -188,7 +259,18 @@ def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_
     with pytest.raises(ValueError, match="source environment drift"):
         runtime_inputs.resolve_runtime_wheel(source, wheel_dir)
 
-    assert commands == [(uv.as_posix(), "sync", "--locked", "--offline", "--check", "--active")]
+    assert commands == [
+        (
+            uv.as_posix(),
+            "sync",
+            "--locked",
+            "--offline",
+            "--check",
+            "--active",
+            "--no-install-project",
+            "--inexact",
+        )
+    ]
     assert not wheel_dir.parent.exists()
 
 

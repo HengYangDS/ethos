@@ -40,7 +40,7 @@ def test_hook_install_emits_fail_closed_error_surface(
     monkeypatch.setattr(
         hook_commands,
         "install_hook_launchers",
-        lambda _root: (_ for _ in ()).throw(failure),
+        lambda _root, **_kwargs: (_ for _ in ()).throw(failure),
     )
     monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
 
@@ -72,7 +72,7 @@ def test_hook_install_emits_runtime_binding_on_success(
         },
     }
     monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(hook_commands, "install_hook_launchers", lambda _root: runtime)
+    monkeypatch.setattr(hook_commands, "install_hook_launchers", lambda _root, **_kwargs: runtime)
     monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
 
     hook_commands.install()
@@ -94,5 +94,39 @@ def test_hook_install_emits_runtime_binding_on_success(
         "linked_worktrees_checked": 2,
         "linked_worktrees_repaired": 1,
         "generated_paths_removed": 1,
+        "generation_cleanup": "",
+        "legacy_runtime_locator": "",
+        "state_transition": "",
     }
     assert result.next_action == ""
+
+
+def test_hook_install_blocks_until_deferred_cleanup_converges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    emitted: list[object] = []
+    runtime = {
+        "hooks_path": str(tmp_path / "hooks"),
+        "python": str(tmp_path / "python"),
+        "scripts": ["pre-commit", "pre-push", "reference-transaction"],
+        "required_gaps": ["hook_runtime_cleanup_deferred"],
+        "linked_worktrees": [],
+        "generation_cleanup": {
+            "state": "deferred",
+            "checked": [str(tmp_path / "old")],
+            "removed": [],
+            "retained": [str(tmp_path / "current")],
+            "deferred": [str(tmp_path / "old")],
+            "error": "cleanup failed",
+        },
+    }
+    monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: tmp_path)
+    monkeypatch.setattr(hook_commands, "install_hook_launchers", lambda _root, **_kwargs: runtime)
+    monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
+
+    hook_commands.install()
+
+    result = emitted[-1]
+    assert (result.verdict, result.state) == ("block", "blocked")
+    assert result.required_gaps == ("hook_runtime_cleanup_deferred",)
+    assert result.next_action == f"ethos hook install --root {tmp_path.resolve()} --json"

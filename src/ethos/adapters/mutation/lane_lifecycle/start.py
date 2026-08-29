@@ -25,6 +25,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import (
 )
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import add_worktree
+from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import observe_lease
@@ -169,6 +170,7 @@ def _revoke_started_lease(repo: Path, *, branch: str, holder_ref: str, generatio
 def _rollback_start(
     repo: Path,
     *,
+    policy: BranchRolePolicy,
     branch: str,
     target: Path,
     head: str,
@@ -178,15 +180,9 @@ def _rollback_start(
 ) -> list[str]:
     gaps: list[str] = []
     if os.path.lexists(target):
-        removed = run_git(
-            repo,
-            "worktree",
-            "remove",
-            "--force",
-            target.as_posix(),
-            check=False,
-        )
-        if removed.returncode:
+        try:
+            remove_worktree(repo, target, branch=branch, head=head, force=True)
+        except ValueError:
             gaps.append("lane_start_worktree_cleanup_failed")
     if lease is not None and not _revoke_started_lease(
         repo,
@@ -196,15 +192,15 @@ def _rollback_start(
     ):
         gaps.append("lane_start_lease_cleanup_failed")
     if ref_created:
-        deleted = run_git(
-            repo,
-            "update-ref",
-            "-d",
-            f"refs/heads/{branch}",
-            head,
-            check=False,
-        )
-        if deleted.returncode:
+        try:
+            _delete_started_ref(
+                repo,
+                policy=policy,
+                branch=branch,
+                head=head,
+                holder_ref=holder_ref,
+            )
+        except ValueError:
             gaps.append("lane_start_ref_cleanup_failed")
     return gaps
 
@@ -235,6 +231,35 @@ def _create_ref(
         },
     )
     return execute_git_effect(repo, plan, issuer=holder_ref)
+
+
+def _delete_started_ref(
+    repo: Path,
+    *,
+    policy: BranchRolePolicy,
+    branch: str,
+    head: str,
+    holder_ref: str,
+) -> None:
+    zero = "0" * len(head)
+    effect = GitEffect(
+        updates={f"refs/heads/{branch}": GitRefUpdate(expected=head, desired=zero)},
+        assertions={f"refs/heads/{policy.candidate_branch}": head},
+    )
+    plan = compile_observed_git_effect(
+        repo,
+        None,
+        effect,
+        head=head,
+        prior_attestations={},
+        policy={
+            "operation": "lane.start.compensate",
+            "subject": branch,
+            "holder_ref": holder_ref,
+            "candidate_branch": policy.candidate_branch,
+        },
+    )
+    execute_git_effect(repo, plan, issuer=holder_ref)
 
 
 def _runner_bootstrap(target: Path) -> dict[str, str]:
@@ -310,6 +335,7 @@ def start_work_lane(
     except (OSError, ValueError) as error:
         cleanup_gaps = _rollback_start(
             repo,
+            policy=policy,
             branch=branch,
             target=target,
             head=head,

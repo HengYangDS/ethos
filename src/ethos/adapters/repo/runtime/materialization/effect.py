@@ -28,6 +28,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
     observe_runtime_environment,
 )
 from ethos.adapters.repo.runtime.materialization.python_image import materialize_python_image
+from ethos.adapters.repo.runtime.materialization.python_image import prepare_locked_requirements
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_entrypoint
 from ethos.adapters.repo.runtime.selection import runtime_python
@@ -53,6 +54,7 @@ def materialize_runtime(
     package_source = build_source or Path(__file__).resolve().parents[6]
     project = build_source or resolve_runtime_project(package_source)
     runtime_root = Path(git_common_dir(repo)) / "ethos" / "runtime"
+    cache_dir = runtime_root.parent / "cache" / "uv"
     if runtime_root.parent.is_symlink() or runtime_root.is_symlink():
         _fail("hook_runtime_root_invalid")
     work = runtime_root / f".build-{uuid.uuid4().hex}"
@@ -66,7 +68,12 @@ def materialize_runtime(
         )
         if reusable := _reusable_runtime(repo, expected_build, environment):
             return reusable / "python"
-        wheel = resolve_runtime_wheel(package_source, work / "wheel")
+        wheel = resolve_runtime_wheel(package_source, work / "wheel", cache_dir=cache_dir)
+        locked_requirements = (
+            prepare_locked_requirements(project, work, interpreter, cache_dir=cache_dir)
+            if build_source is not None
+            else None
+        )
         artifact = materialize_package_wheel(
             repo,
             wheel,
@@ -81,7 +88,8 @@ def materialize_runtime(
             artifact,
             environment,
             python_facts=python_facts,
-            locked=build_source is not None,
+            locked_requirements=locked_requirements,
+            cache_dir=cache_dir,
         )
         return target / "python"
     finally:
@@ -130,8 +138,10 @@ def materialize_runtime_generation(
     environment: RuntimeEnvironment,
     *,
     python_facts: dict[str, str] | None = None,
-    locked: bool,
+    locked_requirements: Path | None,
+    cache_dir: Path | None = None,
 ) -> Path:
+    del work
     staging = runtime_root / f".runtime-build-{uuid.uuid4().hex}"
     try:
         materialize_python_image(
@@ -139,9 +149,9 @@ def materialize_runtime_generation(
             source,
             interpreter,
             artifact.path,
-            work,
             python_facts=python_facts,
-            locked=locked,
+            locked_requirements=locked_requirements,
+            cache_dir=cache_dir,
         )
         _seal_runtime_payload(staging)
         runtime_files = runtime_file_inventory(staging)

@@ -208,16 +208,17 @@ def _openspec_governance_report(
     selected = selected_change(rows, request.change) if rows is not None else None
     completed_change = _completed_change(rows)
     official_selected = selected if selected != completed_change else None
+    active_selected = official_selected or completed_change
     status = openspec_status_result(
         root,
         base_command,
-        official_selected or completed_change,
+        active_selected,
         openspec_cli.run_json,
     )
     archive_scope = (
         lease_bound_archive_scope_report(
             root,
-            changed_paths=request.changed_paths,
+            changed_paths=(),
             requested_change=request.change,
             official_change_complete=completed_change is not None,
             completion_artifacts=artifact_output_paths(root, status.get("json", {})),
@@ -227,18 +228,6 @@ def _openspec_governance_report(
         and (not rows or (len(rows) == 1 and rows[0]["status"] == "complete"))
         else None
     )
-    post_archive_scope = (
-        lease_bound_archive_scope_report(
-            root,
-            changed_paths=request.changed_paths,
-            requested_change=request.change,
-            official_change_complete=completed_change is not None,
-            completion_artifacts=artifact_output_paths(root, status.get("json", {})),
-        )
-        if archive_scope is None and rows == []
-        else None
-    )
-    archive_scope = post_archive_scope or archive_scope
     archived_change = (
         str(archive_scope["changes"][0]["name"])
         if archive_scope and archive_scope.get("changes")
@@ -249,9 +238,9 @@ def _openspec_governance_report(
         openspec_cli.run_json(
             root,
             base_command,
-            ("instructions", "apply", "--change", selected, "--json"),
+            ("instructions", "apply", "--change", active_selected, "--json"),
         )
-        if selected
+        if active_selected
         else {}
     )
     archive = (

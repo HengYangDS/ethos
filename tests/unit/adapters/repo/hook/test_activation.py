@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import sys
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -33,6 +35,36 @@ def _materialized(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return repo, runtime, Path(git_common_dir(repo))
 
 
+def _legacy_state(common: Path) -> Path:
+    database = common / "ethos/state.sqlite"
+    database.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "lane_ref": "work/example",
+        "holder_ref": "agent:test:case:owner",
+        "epoch": 3,
+        "expires_at": "2026-08-31T00:00:00+00:00",
+    }
+    with closing(sqlite3.connect(database)) as connection:
+        connection.execute(
+            "create table leases ("
+            "id text primary key, subject text not null, owner text not null, "
+            "expires_at text not null, payload_json text not null)"
+        )
+        connection.execute("create unique index leases_subject_unique on leases(subject)")
+        connection.execute(
+            "insert into leases values (?, ?, ?, ?, ?)",
+            (
+                "lease:legacy",
+                "work/example",
+                "agent:test:case:owner",
+                "2026-08-31T00:00:00+00:00",
+                json.dumps(payload, sort_keys=True),
+            ),
+        )
+        connection.commit()
+    return database
+
+
 def test_hook_install_observes_runtime_bytes_only_at_admission_and_post_observe(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -51,6 +83,143 @@ def test_hook_install_observes_runtime_bytes_only_at_admission_and_post_observe(
 
     assert installed["required_gaps"] == []
     assert observed == [runtime.parent, runtime.parent]
+
+
+def test_hook_install_migrates_state_before_returning_current_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
+    database = _legacy_state(common)
+
+    installed = install_hook_launchers(repo)
+
+    assert installed["state_transition"] == {
+        "before": "legacy",
+        "after": "current",
+        "state": "migrated",
+        "row_count": 1,
+    }
+    with closing(sqlite3.connect(database)) as connection:
+        assert connection.execute(
+            "select lane_ref, holder_ref, generation, expires_at from leases"
+        ).fetchall() == [
+            (
+                "work/example",
+                "agent:test:case:owner",
+                3,
+                "2026-08-31T00:00:00+00:00",
+            )
+        ]
+
+
+def test_hook_install_rolls_back_staged_state_when_activation_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
+    database = _legacy_state(common)
+    before = database.read_bytes()
+    monkeypatch.setattr(
+        hook_activation,
+        "_require_common_activation",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("activation failed")),
+    )
+
+    with pytest.raises(ValueError, match="activation failed"):
+        install_hook_launchers(repo)
+
+    assert database.read_bytes() == before
+    assert not database.with_name("state.sqlite-wal").exists()
+    assert not database.with_name("state.sqlite-shm").exists()
+    with closing(sqlite3.connect(database)) as connection:
+        assert tuple(row[1] for row in connection.execute("pragma table_xinfo(leases)")) == (
+            "id",
+            "subject",
+            "owner",
+            "expires_at",
+            "payload_json",
+        )
+
+
+def test_hook_install_restores_activation_when_state_commit_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, runtime, common = _materialized(tmp_path, monkeypatch)
+    database = _legacy_state(common)
+    before = database.read_bytes()
+    selector = common / "ethos/runtime/CURRENT"
+    activation_keys = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
+    configured = hook_activation.config_effects.config_values(repo, activation_keys, scope="local")
+    connect = sqlite3.connect
+
+    class CommitFailure:
+        def __init__(self, path: Path) -> None:
+            self.connection = connect(path)
+
+        def __getattr__(self, name: str) -> object:
+            return getattr(self.connection, name)
+
+        def close(self) -> None:
+            self.connection.close()
+
+        def commit(self) -> None:
+            message = "commit failed"
+            raise sqlite3.OperationalError(message)
+
+    monkeypatch.setattr(hook_activation.sqlite3, "connect", CommitFailure)
+
+    with pytest.raises(ValueError, match="state_activation_failed:commit failed"):
+        install_hook_launchers(repo)
+
+    assert not selector.exists()
+    assert (
+        hook_activation.config_effects.config_values(repo, activation_keys, scope="local")
+        == configured
+    )
+    assert database.read_bytes() == before
+    assert runtime.parent.is_dir()
+
+
+def test_hook_install_failure_restores_absent_state_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
+    database = common / "ethos/state.sqlite"
+    monkeypatch.setattr(
+        hook_activation,
+        "_require_common_activation",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("activation failed")),
+    )
+
+    with pytest.raises(ValueError, match="activation failed"):
+        install_hook_launchers(repo)
+
+    assert not database.exists()
+    assert not database.with_name("state.sqlite-wal").exists()
+    assert not database.with_name("state.sqlite-shm").exists()
+
+
+def test_hook_install_reports_deferred_generation_cleanup_after_successful_activation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, runtime, common = _materialized(tmp_path, monkeypatch)
+    stale = common / "ethos/runtime" / ("b" * 64)
+    stale.mkdir(parents=True)
+    monkeypatch.setattr(
+        hook_activation,
+        "_apply_generation_cleanup",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("cleanup failed")),
+    )
+
+    installed = install_hook_launchers(repo)
+
+    assert (common / "ethos/runtime/CURRENT").read_text(encoding="ascii") == (
+        f"{runtime.parent.name}\n"
+    )
+    assert installed["state_transition"]["after"] == "current"
+    assert installed["generation_cleanup"]["state"] == "deferred"
+    assert installed["generation_cleanup"]["error"] == "cleanup failed"
+    assert installed["required_gaps"] == ["hook_runtime_cleanup_deferred"]
+    assert installed["current"] is True
 
 
 def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
@@ -600,7 +769,13 @@ def test_install_restores_runtime_selector_with_exact_cas_when_activation_fails(
         "materialize_runtime",
         lambda *_args, **_kwargs: runtime,
     )
-    monkeypatch.setattr(hook_activation, "activate_runtime", lambda *_args, **_kwargs: None)
+
+    def select_runtime(*_args: object, **_kwargs: object) -> None:
+        selector = common / "ethos/runtime/CURRENT"
+        selector.parent.mkdir(parents=True, exist_ok=True)
+        selector.write_bytes(f"{runtime_digest}\n".encode("ascii"))
+
+    monkeypatch.setattr(hook_activation, "activate_runtime", select_runtime)
 
     def fail_config(*_args: object, **_kwargs: object) -> None:
         message = "activation failed"
@@ -621,11 +796,44 @@ def test_install_restores_runtime_selector_with_exact_cas_when_activation_fails(
     selected = f"{runtime_digest}\n".encode("ascii")
     assert restored == [(None, selected)]
 
+
+def test_failed_activation_reports_compensation_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
+
     def fail(*_args: object, **_kwargs: object) -> None:
         message = "compensation"
         raise ValueError(message)
 
     monkeypatch.setattr(hook_activation, "_restore_activation", fail)
     monkeypatch.setattr(hook_activation, "restore_runtime_selection", fail)
+
     with pytest.raises(ValueError, match="hook_runtime_activation_compensation_failed"):
         vars(hook_activation)["_restore_failed_activation"](repo, common, {}, {}, None)
+
+
+def test_install_does_not_restore_an_unchanged_selector_when_selection_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, runtime, common = _materialized(tmp_path, monkeypatch)
+    selector = common / "ethos/runtime/CURRENT"
+    assert not selector.exists()
+    restored: list[object] = []
+    monkeypatch.setattr(
+        hook_activation,
+        "activate_runtime",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("selection failed")),
+    )
+    monkeypatch.setattr(
+        hook_activation,
+        "restore_runtime_selection",
+        lambda *_args, **_kwargs: restored.append(object()),
+    )
+
+    with pytest.raises(ValueError, match="selection failed"):
+        install_hook_launchers(repo)
+
+    assert not selector.exists()
+    assert runtime.parent.is_dir()
+    assert restored == []

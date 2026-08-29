@@ -107,9 +107,10 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
 
     def install(
         _source: Path,
-        _work: Path,
         python: Path,
         _wheel: Path,
+        _requirements: Path,
+        **_kwargs: object,
     ) -> None:
         scripts = python.parent
         for name in ("ethos", "uv"):
@@ -127,7 +128,11 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
     )
 
     runtime_python_image.materialize_python_image(
-        target, tmp_path, interpreter, tmp_path / "ethos.whl", tmp_path / "work", locked=True
+        target,
+        tmp_path,
+        interpreter,
+        tmp_path / "ethos.whl",
+        locked_requirements=tmp_path / "requirements.txt",
     )
 
     assert (target / "bin/python").read_bytes() == b"python-runtime"
@@ -147,7 +152,7 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
 ) -> None:
     args, observed = _generation_case(tmp_path, monkeypatch)
     runtime_root, *_, environment = args
-    target = runtime_materialization.materialize_runtime_generation(*args, locked=False)
+    target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
 
     assert len(observed) == 2
     assert observed[0].name.startswith(".runtime-build-")
@@ -158,7 +163,10 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
         path.is_symlink() or stat.S_IMODE(path.stat().st_mode) & 0o222 == 0
         for path in target.rglob("*")
     )
-    assert runtime_materialization.materialize_runtime_generation(*args, locked=False) == target
+    assert (
+        runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
+        == target
+    )
     is_dir = Path.is_dir
     mode = stat.S_IMODE(runtime_root.stat().st_mode)
     runtime_root.chmod(mode | stat.S_IWUSR)
@@ -172,7 +180,10 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
         context.setattr(
             Path, "rename", lambda _path, _target: (_ for _ in ()).throw(FileExistsError)
         )
-        assert runtime_materialization.materialize_runtime_generation(*args, locked=False) == target
+        assert (
+            runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
+            == target
+        )
     runtime_root.chmod(mode)
     with monkeypatch.context() as context:
         context.setattr(runtime_materialization, "runtime_file_inventory", lambda _root: {})
@@ -193,7 +204,9 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     )
     with pytest.raises(ValueError, match="hook_runtime_entrypoint_smoke_failed"):
         runtime_materialization.materialize_runtime_generation(
-            *args[:-1], _environment(architecture_name="other"), locked=False
+            *args[:-1],
+            _environment(architecture_name="other"),
+            locked_requirements=None,
         )
     assert {path for path in runtime_root.iterdir() if path.is_dir()} == {target}
 
@@ -237,7 +250,7 @@ def test_runtime_reuse_rejects_architecture_drift(
         runtime_materialization, "observe_runtime_environment", lambda *_args, **_kwargs: drifted
     )
 
-    def rebuild_required(*_args: object) -> Path:
+    def rebuild_required(*_args: object, **_kwargs: object) -> Path:
         message = "architecture rebuild required"
         raise RuntimeError(message)
 

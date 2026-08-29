@@ -25,10 +25,10 @@ def materialize_python_image(
     source: Path,
     interpreter: Path,
     wheel: Path,
-    work: Path,
     *,
     python_facts: dict[str, str] | None = None,
-    locked: bool,
+    locked_requirements: Path | None,
+    cache_dir: Path | None = None,
 ) -> None:
     """Build a relocatable Python image from exact interpreter and wheel inputs."""
     facts = python_facts or observe_python_facts(interpreter)
@@ -41,29 +41,75 @@ def materialize_python_image(
     python = runtime_python(target)
     if not python.is_file():
         _fail("hook_runtime_python_missing")
-    if locked:
-        install_locked_runtime(source, work, python, wheel)
+    if locked_requirements is not None:
+        install_locked_runtime(
+            source,
+            python,
+            wheel,
+            locked_requirements,
+            cache_dir=cache_dir,
+        )
     else:
         _require_package_runtime_source(source, interpreter, wheel, facts)
     _remove_non_runtime_residue(target)
     _rewrite_console_scripts(target)
 
 
-def install_locked_runtime(source: Path, work: Path, python: Path, wheel: Path) -> None:
-    """Install the exact locked dependency closure and wheel into one image."""
+def prepare_locked_requirements(
+    source: Path,
+    work: Path,
+    interpreter: Path,
+    *,
+    cache_dir: Path | None = None,
+) -> Path:
+    """Export once and fill the owned cache before offline installation."""
     requirements = work / "locked-requirements.txt"
-    commands = (
-        (
-            "export",
-            "--locked",
-            "--offline",
-            "--no-dev",
-            "--no-emit-project",
-            "--format",
-            "requirements-txt",
-            "--output-file",
+    preflight = work / "dependency-preflight"
+    tool_options = {} if cache_dir is None else {"cache_dir": cache_dir}
+    run_runtime_tool(
+        source,
+        "export",
+        "--locked",
+        "--offline",
+        "--no-dev",
+        "--no-emit-project",
+        "--format",
+        "requirements-txt",
+        "--output-file",
+        requirements.as_posix(),
+        **tool_options,
+    )
+    try:
+        run_runtime_tool(
+            source,
+            "pip",
+            "sync",
+            "--target",
+            preflight.as_posix(),
+            "--break-system-packages",
+            "--require-hashes",
+            "--strict",
+            "--python",
+            interpreter.as_posix(),
             requirements.as_posix(),
-        ),
+            **tool_options,
+        )
+    finally:
+        shutil.rmtree(preflight, ignore_errors=True)
+    return requirements
+
+
+def install_locked_runtime(
+    source: Path,
+    python: Path,
+    wheel: Path,
+    requirements: Path,
+    *,
+    cache_dir: Path | None = None,
+) -> None:
+    """Install one already-proven locked dependency closure into one image."""
+    tool_options = {} if cache_dir is None else {"cache_dir": cache_dir}
+    commands = (
         (
             "pip",
             "sync",
@@ -87,7 +133,7 @@ def install_locked_runtime(source: Path, work: Path, python: Path, wheel: Path) 
         ),
     )
     for command in commands:
-        run_runtime_tool(source, *command)
+        run_runtime_tool(source, *command, **tool_options)
 
 
 def render_console_script(name: str) -> str:

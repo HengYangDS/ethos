@@ -190,3 +190,8 @@ def test_public_boundary_normalizes_contract_failures_without_traceback(
         "blocked",
     )
     assert payload["required_gaps"] == [str(error)]
+    if str(error).startswith("state_schema_"):
+        schema = payload["data"]["state_schema"]
+        assert schema["expected_state"] == "current"
+        assert schema["observed_state"] in {"absent", "current", "legacy", "incompatible"}
+        assert payload["next_action"].startswith("ethos hook install --root ")

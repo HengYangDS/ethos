@@ -203,7 +203,7 @@ def resolve_generation_scope(repo: Path) -> CurrentGenerationScope:
 
 def _proof_context(
     repo: Path, options: _ProofOptions
-) -> tuple[str, dict[str, object], CurrentGenerationScope, dict[str, object]]:
+) -> tuple[str, dict[str, object], CurrentGenerationBinding | None, dict[str, object]]:
     """Observe the repository and OpenSpec lifecycle once for governed proof."""
     current_head = git.current_head(repo)
     audit = status_domain.audit_for_root(repo, openspec_mode="deep" if options.full else "shape")
@@ -224,7 +224,7 @@ def _proof_context(
         if openspec_profile_enabled(repo, tree_ref=current_head)
         else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
     )
-    return current_head, audit, generation_scope, openspec_lifecycle
+    return current_head, audit, generation, openspec_lifecycle
 
 
 def run_plan_checks(
@@ -364,7 +364,12 @@ def prove(
     repo = resolve_root(root)
     if _emit_host_gate_observation(repo=repo, options=options, json_output=json_output):
         return
-    current_head, audit, generation_scope, openspec_lifecycle = _proof_context(repo, options)
+    current_head, audit, generation, openspec_lifecycle = _proof_context(repo, options)
+    generation_scope = (
+        generation.scope
+        if generation is not None
+        else CurrentGenerationScope((), {}, gaps=("change_generation_binding_invalid",))
+    )
     changed_paths = generation_scope.paths
     try:
         plan = proof_plan(
@@ -374,7 +379,7 @@ def prove(
             gate_ids=options.gate,
             full=options.full,
             changed_paths=generation_scope.paths,
-            generation_scope=generation_scope,
+            generation_binding=generation,
         )
     except ValueError as exc:
         emit(

@@ -111,7 +111,9 @@ def current_generation_binding(
     try:
         commitment = load_profile_commitment(root, change_id=change)
     except ValueError as error:
-        if str(error) != "openspec_active_change_missing":
+        missing = "openspec_active_change_missing"
+        selected_missing = f"openspec_show_failed:{change}" if change is not None else ""
+        if str(error) not in {missing, selected_missing}:
             raise
         archived = attested_archive_transition(
             root,
@@ -122,19 +124,13 @@ def current_generation_binding(
             raise
         commitment, archive_authority = archived
     observed_paths = change_scope_paths_from_status(root, status) if changed else ()
-    authorized_paths = archive_authority.get("authorized_paths")
-    paths = (
-        tuple(str(path) for path in authorized_paths)
-        if archive_authority and isinstance(authorized_paths, list | tuple)
-        else observed_paths
-    )
     scope = current_generation_scope(
         root,
         head=str(status.get("head") or ""),
         repository_id="",
         commitment=commitment,
         lease=authority.lease if authority is not None else {},
-        fallback_paths=paths,
+        fallback_paths=observed_paths,
         current_binding=work_lane,
     )
     if archive_authority:

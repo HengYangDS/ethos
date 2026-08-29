@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import os
 import shutil
+import sqlite3
 import stat
 import sys
 import uuid
+from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NoReturn
@@ -27,6 +29,8 @@ from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
+from ethos.adapters.store.state.schema import prepare_state_transition
+from ethos.adapters.store.state.schema import state_database
 
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
@@ -41,18 +45,23 @@ def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
     raise ValueError(reason) from cause
 
 
-def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRuntimeBinding:
+def install_hook_launchers(
+    root: Path,
+    *,
+    python: Path | None = None,
+    reset_state: bool = False,
+    authorized: bool = False,
+) -> HookRuntimeBinding:
     """Install and activate one common-dir hook/runtime generation."""
+    if reset_state and not authorized:
+        _fail("state_reset_authorization_required")
     repo = root.resolve()
     source_python = python or Path(sys.executable)
     if not source_python.is_absolute() or not source_python.is_file():
         _fail("hook_runtime_python_invalid")
     expected_build, build_source = expected_runtime_build(repo)
     runtime = runtime_materialization.materialize_runtime(
-        repo,
-        source_python,
-        expected_build=expected_build,
-        build_source=build_source,
+        repo, source_python, expected_build=expected_build, build_source=build_source
     )
     common = Path(git_common_dir(repo))
     hooks = materialize_hook_launchers(common / "ethos" / "hooks")
@@ -60,57 +69,146 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
     linked = _linked_worktree_paths(repo)
     common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
     current_before = _runtime_selection_bytes(common)
+    binding, cleanup_plan, state_transition, worktrees_before = _activate_with_state(
+        repo,
+        common,
+        runtime.parent,
+        hooks,
+        linked,
+        common_before=common_before,
+        current_before=current_before,
+        reset_state=reset_state,
+        expected_build=expected_build,
+    )
+    cast("dict[str, object]", binding)["state_transition"] = state_transition
+    legacy_locator = _retire_legacy_locator(common)
+    cast("dict[str, object]", binding)["legacy_runtime_locator"] = legacy_locator
+    cast("dict[str, object]", binding)["linked_worktrees"] = [
+        {
+            "path": worktree.as_posix(),
+            "state": (
+                "repaired"
+                if common_before != _common_activation(hooks)
+                or any(worktrees_before[worktree].values())
+                else "checked"
+            ),
+        }
+        for worktree in linked
+    ]
+    cleanup = _cleanup_after_activation(
+        common,
+        cleanup_plan,
+        expected_current=f"{runtime.parent.name}\n".encode("ascii"),
+    )
+    if cleanup["state"] == "deferred" or legacy_locator["state"] == "retained":
+        binding["required_gaps"].append("hook_runtime_cleanup_deferred")
+        cast("dict[str, object]", binding)["next_action"] = "ethos hook install --json"
+    cast("dict[str, object]", binding)["generation_cleanup"] = cleanup
+    return binding
+
+
+def _activate_with_state(
+    repo: Path,
+    common: Path,
+    runtime: Path,
+    hooks: Path,
+    linked: tuple[Path, ...],
+    *,
+    common_before: dict[str, tuple[str, ...]],
+    current_before: bytes | None,
+    reset_state: bool,
+    expected_build: BuildIdentity,
+) -> tuple[
+    HookRuntimeBinding,
+    dict[str, tuple[Path, ...]],
+    dict[str, object],
+    dict[Path, dict[str, tuple[str, ...]]],
+]:
+    database = state_database(repo)
+    database.parent.mkdir(parents=True, exist_ok=True)
+    database_existed = database.exists()
     worktrees_before: dict[Path, dict[str, tuple[str, ...]]] = {}
+    activated = False
     try:
-        binding, cleanup_plan = _activate_common_runtime(
-            repo,
-            common,
-            runtime.parent,
-            hooks,
-            linked,
-            worktrees_before,
-            expected_build=expected_build,
-        )
-    except (OSError, ValueError) as error:
-        try:
+        with closing(sqlite3.connect(database)) as connection:
+            connection.execute("begin immediate")
+            state_transition = prepare_state_transition(connection, reset=reset_state)
+            activated = True
+            binding, cleanup_plan = _activate_common_runtime(
+                repo,
+                common,
+                runtime,
+                hooks,
+                linked,
+                worktrees_before,
+                expected_build=expected_build,
+            )
+            connection.commit()
+    except (OSError, RuntimeError, sqlite3.Error, ValueError) as error:
+        if activated:
             _restore_failed_activation(
                 repo,
                 common,
                 common_before,
                 worktrees_before,
                 current_before,
-                selected_runtime=f"{runtime.parent.name}\n".encode("ascii"),
+                selected_runtime=f"{runtime.name}\n".encode("ascii"),
             )
-        except ValueError as compensation_error:
-            raise compensation_error from error
+        if not database_existed:
+            database.unlink(missing_ok=True)
+            _remove_state_sidecars(database)
+        if isinstance(error, sqlite3.Error):
+            _fail(f"state_activation_failed:{error}", error)
         raise
+    if not database_existed:
+        _remove_state_sidecars(database)
+    return binding, cleanup_plan, state_transition, worktrees_before
+
+
+def _retire_legacy_locator(common: Path) -> dict[str, object]:
     legacy = common / "ethos-runtime-python"
     present = legacy.exists() or legacy.is_symlink()
-    if present:
-        legacy.unlink()
-    cast("dict[str, object]", binding)["legacy_runtime_locator"] = {
-        "path": legacy.as_posix(),
-        "state": "retired" if present else "absent",
-        "removed": present,
+    try:
+        if present:
+            legacy.unlink()
+    except OSError as error:
+        message = str(error) or error.__class__.__name__
+        return {"path": legacy.as_posix(), "state": "retained", "removed": False, "error": message}
+    state = "retired" if present else "absent"
+    return {"path": legacy.as_posix(), "state": state, "removed": present}
+
+
+def _cleanup_after_activation(
+    common: Path,
+    plan: dict[str, tuple[Path, ...]],
+    *,
+    expected_current: bytes,
+) -> dict[str, object]:
+    try:
+        cleanup = _apply_generation_cleanup(common, plan, expected_current=expected_current)
+    except (OSError, ValueError) as error:
+        if isinstance(error, ValueError) and str(error) == "hook_runtime_current_stale":
+            raise
+        return _deferred_cleanup(plan, error)
+    else:
+        return {"state": "complete", **cleanup}
+
+
+def _deferred_cleanup(
+    plan: dict[str, tuple[Path, ...]], error: OSError | ValueError
+) -> dict[str, object]:
+    paths = {key: [path.as_posix() for path in value] for key, value in plan.items()}
+    return paths | {
+        "state": "deferred",
+        "removed": [],
+        "deferred": [path.as_posix() for path in plan["removed"] if path.exists()],
+        "error": str(error) or error.__class__.__name__,
     }
-    expected_common = _expected_common_activation(hooks)
-    cast("dict[str, object]", binding)["linked_worktrees"] = [
-        {
-            "path": worktree.as_posix(),
-            "state": (
-                "repaired"
-                if common_before != expected_common or any(worktrees_before[worktree].values())
-                else "checked"
-            ),
-        }
-        for worktree in linked
-    ]
-    cast("dict[str, object]", binding)["generation_cleanup"] = _apply_generation_cleanup(
-        common,
-        cleanup_plan,
-        expected_current=f"{runtime.parent.name}\n".encode("ascii"),
-    )
-    return binding
+
+
+def _remove_state_sidecars(database: Path) -> None:
+    for suffix in ("-wal", "-shm"):
+        database.with_name(database.name + suffix).unlink(missing_ok=True)
 
 
 def materialize_hook_launchers(generations: Path) -> Path:
@@ -201,17 +299,9 @@ def _activate_common_runtime(
     )
     for worktree in linked:
         config_effects.unset_worktree_config(worktree, _WORKTREE_ACTIVATION_KEYS)
-    _require_common_activation(
-        repo,
-        linked,
-        hooks,
-    )
+    _require_common_activation(repo, linked, hooks)
     cleanup_plan = _generation_cleanup_plan(repo, hooks, runtime, selected_runtime=selected)
-    binding = hook_runtime_binding(
-        repo,
-        expected_build=expected_build,
-        selected_runtime=selected,
-    )
+    binding = hook_runtime_binding(repo, expected_build=expected_build, selected_runtime=selected)
     if binding["hooks_path"] != hooks.as_posix():
         _fail("hook_runtime_activation_drift")
     if binding["required_gaps"]:
@@ -237,7 +327,9 @@ def _restore_failed_activation(
     except (OSError, ValueError) as error:
         errors.append(str(error) or error.__class__.__name__)
     try:
-        restore_runtime_selection(common, current_before, expected_current=selected_runtime)
+        current = _runtime_selection_bytes(common)
+        if current != current_before:
+            restore_runtime_selection(common, current_before, expected_current=selected_runtime)
     except (OSError, ValueError) as error:
         errors.append(str(error) or error.__class__.__name__)
     if errors:
@@ -252,6 +344,14 @@ def _runtime_selection_bytes(common: Path) -> bytes | None:
         return None
     except OSError as error:
         _fail("hook_runtime_current_invalid", error)
+
+
+def _common_activation(hooks: Path) -> dict[str, tuple[str, ...]]:
+    return {
+        "extensions.worktreeConfig": ("true",),
+        "gc.packRefs": ("false",),
+        "core.hooksPath": (hooks.as_posix(),),
+    }
 
 
 def _linked_worktree_paths(root: Path) -> tuple[Path, ...]:
@@ -269,30 +369,21 @@ def _linked_worktree_paths(root: Path) -> tuple[Path, ...]:
     return paths
 
 
-def _expected_common_activation(hooks: Path) -> dict[str, tuple[str, ...]]:
-    return {
-        "extensions.worktreeConfig": ("true",),
-        "gc.packRefs": ("false",),
-        "core.hooksPath": (hooks.as_posix(),),
-    }
-
-
 def _require_common_activation(
     root: Path,
     worktrees: tuple[Path, ...],
     hooks: Path,
 ) -> None:
-    if config_effects.config_values(
-        root, _ACTIVATION_KEYS, scope="local"
-    ) != _expected_common_activation(hooks):
+    if config_effects.config_values(root, _ACTIVATION_KEYS, scope="local") != _common_activation(
+        hooks
+    ):
         _fail("hook_runtime_common_activation_drift")
-    empty = dict.fromkeys(_WORKTREE_ACTIVATION_KEYS, ())
-    for worktree in worktrees:
-        if (
-            config_effects.config_values(worktree, _WORKTREE_ACTIVATION_KEYS, scope="worktree")
-            != empty
-        ):
-            _fail("hook_runtime_worktree_activation_drift")
+    if any(
+        config_effects.config_values(worktree, _WORKTREE_ACTIVATION_KEYS, scope="worktree")
+        != dict.fromkeys(_WORKTREE_ACTIVATION_KEYS, ())
+        for worktree in worktrees
+    ):
+        _fail("hook_runtime_worktree_activation_drift")
 
 
 def _restore_activation(
@@ -352,48 +443,50 @@ def _generated_directories(root: Path) -> tuple[Path, ...]:
         return ()
     if not root.is_dir():
         _fail("hook_runtime_generation_root_invalid")
-    generated: list[Path] = []
-    for path in root.iterdir():
-        if len(path.name) != 64 or set(path.name) - set("0123456789abcdef"):
-            continue
-        if path.is_symlink() or runtime_filesystem.is_junction(path) or not path.is_dir():
-            _fail("hook_runtime_generation_root_invalid")
-        generated.append(path)
-    return tuple(generated)
+    generated = tuple(
+        path
+        for path in root.iterdir()
+        if len(path.name) == 64 and not set(path.name) - set("0123456789abcdef")
+    )
+    if any(
+        path.is_symlink() or runtime_filesystem.is_junction(path) or not path.is_dir()
+        for path in generated
+    ):
+        _fail("hook_runtime_generation_root_invalid")
+    return generated
 
 
 def _legacy_hook_directories(common: Path) -> tuple[Path, ...]:
     """Return exact directories created by the retired hook layout."""
     prefix = "ethos-hooks-"
-    generated: list[Path] = []
-    for path in common.iterdir():
-        matches = path.name == "ethos-hooks" or (
+    generated = tuple(
+        path
+        for path in common.iterdir()
+        if path.name == "ethos-hooks"
+        or (
             path.name.startswith(prefix)
             and len(path.name.removeprefix(prefix)) == 64
             and not set(path.name.removeprefix(prefix)) - set("0123456789abcdef")
         )
-        if not matches:
-            continue
-        if path.is_symlink() or runtime_filesystem.is_junction(path) or not path.is_dir():
-            _fail("hook_runtime_generation_root_invalid")
-        generated.append(path)
-    return tuple(generated)
+    )
+    if any(
+        path.is_symlink() or runtime_filesystem.is_junction(path) or not path.is_dir()
+        for path in generated
+    ):
+        _fail("hook_runtime_generation_root_invalid")
+    return generated
 
 
 def _consumer_text(root: Path, common: Path) -> str:
     texts = [_process_commands(root)]
     for name in _ACTIVE_CONSUMER_DIRECTORIES:
         directory = common / "ethos" / name
-        if directory.is_symlink():
-            _fail("hook_runtime_consumers_unknown")
         if not directory.exists():
             continue
-        if not directory.is_dir():
+        if directory.is_symlink() or not directory.is_dir():
             _fail("hook_runtime_consumers_unknown")
         for path in (item for item in directory.rglob("*") if not item.is_dir()):
-            if path.is_symlink():
-                _fail("hook_runtime_consumers_unknown")
-            if not path.is_file():
+            if path.is_symlink() or not path.is_file():
                 _fail("hook_runtime_consumers_unknown")
             try:
                 texts.append(path.read_text(encoding="utf-8"))
@@ -420,13 +513,9 @@ def _config_text(root: Path) -> str:
 
 
 def _process_commands(root: Path) -> str:
+    windows = "Get-CimInstance Win32_Process | % CommandLine"
     command = (
-        (
-            "powershell.exe",
-            "-NoProfile",
-            "-Command",
-            "Get-CimInstance Win32_Process | % CommandLine",
-        )
+        ("powershell.exe", "-NoProfile", "-Command", windows)
         if os.name == "nt"
         else ("ps", "-axo", "command=")
     )

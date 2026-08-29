@@ -90,20 +90,14 @@ def create_fixture_python(target: Path) -> None:
     scripts.mkdir(parents=True)
     source_python = Path(sys.executable).absolute()
     fixture_python = scripts / ("python.exe" if os.name == "nt" else "python")
-    if os.name == "nt":
-        shutil.copy2(source_python, fixture_python)
-        target.joinpath("pyvenv.cfg").write_text(
-            f"home = {Path(sys.base_prefix).as_posix()}\n"
-            "include-system-site-packages = false\n"
-            f"version = {platform.python_version()}\n"
-            f"executable = {source_python.as_posix()}\n",
-            encoding="utf-8",
-        )
-    else:
-        fixture_python.write_text(
-            f'#!/bin/sh\nexec {source_python.as_posix()!r} "$@"\n',
-            encoding="utf-8",
-        )
+    shutil.copy2(source_python, fixture_python)
+    target.joinpath("pyvenv.cfg").write_text(
+        f"home = {Path(sys.base_prefix).as_posix()}\n"
+        "include-system-site-packages = false\n"
+        f"version = {platform.python_version()}\n"
+        f"executable = {source_python.as_posix()}\n",
+        encoding="utf-8",
+    )
     fixture_python.chmod(0o755)
     version = f"python{sys.version_info.major}.{sys.version_info.minor}"
     relative_site = (
@@ -113,7 +107,7 @@ def create_fixture_python(target: Path) -> None:
     source_site = Path(sys.prefix) / relative_site
     site_packages.mkdir(parents=True, exist_ok=True)
     (site_packages / "ethos-fixture.pth").write_text(
-        f"{source_site.resolve().as_posix()}\n{(REPOSITORY_ROOT / 'src').as_posix()}\n",
+        f"{(REPOSITORY_ROOT / 'src').as_posix()}\n{source_site.resolve().as_posix()}\n",
         encoding="utf-8",
     )
     if os.name == "nt":
@@ -179,7 +173,11 @@ def materialize_runtime_case(
     wheel = tmp_path / "ethos-test.whl"
     wheel.write_bytes(b"wheel")
     source_python = Path(sys.executable)
-    monkeypatch.setattr(runtime_materialization, "resolve_runtime_wheel", lambda *_args: wheel)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "resolve_runtime_wheel",
+        lambda *_args, **_kwargs: wheel,
+    )
     identity = package_identity or runtime_build_identity(REPOSITORY_ROOT)
     monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda *_args: identity)
     monkeypatch.setattr(
@@ -196,13 +194,14 @@ def materialize_runtime_case(
         _source: Path,
         _interpreter: Path,
         _wheel: Path,
-        _work: Path,
         *,
         python_facts: dict[str, str] | None = None,
-        locked: bool,
+        locked_requirements: Path | None,
+        cache_dir: Path | None = None,
     ) -> None:
         assert python_facts is not None
-        assert locked is False
+        assert locked_requirements is None
+        assert cache_dir is not None
         runtime_python = runtime_executable(target, "python")
         runtime_python.parent.mkdir(parents=True)
         runtime_python.write_bytes(b"python")

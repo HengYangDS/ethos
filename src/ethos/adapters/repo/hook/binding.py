@@ -47,9 +47,10 @@ class HookRuntimeBinding(TypedDict):
     python: str
     scripts: list[str]
     required_gaps: list[str]
-    generation_cleanup: NotRequired[dict[str, list[str]]]
+    generation_cleanup: NotRequired[dict[str, object]]
     legacy_runtime_locator: NotRequired[dict[str, object]]
     linked_worktrees: NotRequired[list[dict[str, str]]]
+    state_transition: NotRequired[dict[str, object]]
 
 
 def hook_launcher(name: str) -> str:

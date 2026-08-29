@@ -115,7 +115,7 @@ def test_hook_install_failure_is_public_block(
     monkeypatch.setattr(
         commands,
         "install_hook_launchers",
-        lambda _root: (_ for _ in ()).throw(OSError("read-only filesystem")),
+        lambda _root, **_kwargs: (_ for _ in ()).throw(OSError("read-only filesystem")),
     )
     commands.install(root=tmp_path, json_output=True)
     result = results.pop()

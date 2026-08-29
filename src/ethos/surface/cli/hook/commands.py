@@ -19,6 +19,7 @@ from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook_runtime import execute_hook
+from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
@@ -264,15 +265,23 @@ def run_hook(
 @_app.command
 def install(
     *,
+    reset_state: Annotated[bool, Parameter(name="--reset-state")] = False,
+    authorize: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Converge the repository-family hook runtime through Git-common activation."""
     repo = resolve_root(root)
     try:
-        runtime = install_hook_launchers(repo)
-    except (OSError, ValueError) as error:
-        gaps = (f"hook_install_failed:{error}",)
+        runtime = install_hook_launchers(
+            repo,
+            reset_state=reset_state,
+            authorized=authorize,
+        )
+    except (OSError, RuntimeError, ValueError) as error:
+        reason = str(error).strip() or error.__class__.__name__
+        state_failure = reason.startswith("state_")
+        gaps = (reason,) if state_failure else (f"hook_install_failed:{reason}",)
         runtime = {
             "hooks_path": "",
             "python": "",
@@ -280,11 +289,24 @@ def install(
             "linked_worktrees": [],
             "generation_cleanup": {"checked": [], "removed": [], "retained": []},
         }
+        if state_failure:
+            try:
+                runtime["state_schema"] = state_schema_report(repo)
+            except (OSError, ValueError):
+                runtime["state_schema"] = {
+                    "expected_state": "current",
+                    "observed_state": "unavailable",
+                }
     else:
-        gaps = ()
+        gaps = tuple(str(gap) for gap in runtime.get("required_gaps", []))
     linked = runtime.get("linked_worktrees", [])
     cleanup = runtime.get("generation_cleanup")
     removed = cleanup.get("removed", []) if isinstance(cleanup, dict) else []
+    removed_count = len(removed) if isinstance(removed, list) else 0
+    cleanup_state = str(cleanup.get("state") or "") if isinstance(cleanup, dict) else ""
+    legacy = runtime.get("legacy_runtime_locator")
+    legacy_state = str(legacy.get("state") or "") if isinstance(legacy, dict) else ""
+    state_transition = runtime.get("state_transition")
     result = EthosResult(
         command="hook install",
         verdict="block" if gaps else "pass",
@@ -298,14 +320,31 @@ def install(
             "linked_worktrees_repaired": sum(
                 item.get("state") == "repaired" for item in linked if isinstance(item, dict)
             ),
-            "generated_paths_removed": len(removed),
+            "generated_paths_removed": removed_count,
+            "generation_cleanup": cleanup_state,
+            "legacy_runtime_locator": legacy_state,
+            "state_transition": (
+                str(state_transition.get("state") or "")
+                if isinstance(state_transition, dict)
+                else ""
+            ),
         },
         required_gaps=gaps,
         next_action=(
-            ""
-            if not gaps
-            else f"ethos hook install --root {shlex.quote(repo.resolve().as_posix())} --json"
+            _hook_install_recovery_command(repo, gaps[0])
+            if gaps
+            else _hook_install_recovery_command(repo, "")
+            if cleanup_state == "deferred" or legacy_state == "retained"
+            else ""
         ),
         data=runtime,
     )
     emit(result, json_output=json_output, enforce=True)
+
+
+def _hook_install_recovery_command(repo: pathlib.Path, gap: str) -> str:
+    command = ["ethos", "hook", "install", "--root", repo.resolve().as_posix()]
+    if gap in {"state_schema_migration_requires_reset", "state_reset_authorization_required"}:
+        command.extend(("--reset-state", "--authorize"))
+    command.append("--json")
+    return shlex.join(command)

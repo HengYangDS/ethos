@@ -89,7 +89,7 @@ def dependency_order(graph: dict[str, tuple[str, ...]]) -> tuple[str, ...]:
 class PlanInputs(_PlanModel):
     """Exact inputs bound by one public TransitionPlan projection."""
 
-    commitment: Digest
+    commitment: Digest | None
     facts: Digest
     prior_attestations: Digest = EMPTY_ATTESTATION_SET_DIGEST
     policy: Digest
@@ -168,7 +168,7 @@ class TransitionPlan(_PlanModel):
     inputs: PlanInputs = Field(json_schema_extra={"readOnly": True})
     request: JsonObject
     authority: JsonObject
-    commitment: JsonObject
+    commitment: JsonObject | None
     prior_attestations: JsonObject
     policy: JsonObject
     effect: JsonObject
@@ -296,7 +296,12 @@ class TransitionPlan(_PlanModel):
         inputs: PlanInputs, closure: dict[str, object], facts: JsonObject
     ) -> tuple[dict[str, object], dict[str, object]]:
         """Derive request and exact authority from the already-bound closure."""
-        commitment = Commitment.model_validate(closure["commitment"], strict=False)
+        commitment_payload = closure["commitment"]
+        commitment = (
+            Commitment.model_validate(commitment_payload, strict=False)
+            if commitment_payload is not None
+            else None
+        )
         fact_value = mutable_json(facts)
         policy = mutable_json(closure["policy"])
         if not isinstance(fact_value, dict) or not isinstance(policy, dict):
@@ -307,7 +312,9 @@ class TransitionPlan(_PlanModel):
         request = {
             "operation": operation,
             "repository": str(fact_value.get("repository") or ""),
-            "subject": commitment.id,
+            "subject": commitment.id
+            if commitment is not None
+            else str(policy.get("subject") or ""),
             "head": str(fact_value.get("head") or ""),
             "tree": str(fact_value.get("tree") or ""),
             "effect_digest": effect_digest,
@@ -315,7 +322,9 @@ class TransitionPlan(_PlanModel):
         authority = {
             "operation": operation,
             "actor": str(policy.get("actor") or ""),
-            "subject": commitment.id,
+            "subject": commitment.id
+            if commitment is not None
+            else str(policy.get("subject") or ""),
             "commitment_digest": inputs.commitment,
             "facts_digest": inputs.facts,
             "policy_digest": inputs.policy,
@@ -356,7 +365,11 @@ class TransitionPlan(_PlanModel):
             message = "transition_plan_facts_invalid"
             raise TypeError(message)
         try:
-            commitment = Commitment.model_validate(mutable_json(self.commitment), strict=False)
+            commitment = (
+                Commitment.model_validate(mutable_json(self.commitment), strict=False)
+                if self.commitment is not None
+                else None
+            )
             facts = Facts.model_validate(
                 {
                     **{str(name): value for name, value in fact_values.items()},
@@ -372,9 +385,10 @@ class TransitionPlan(_PlanModel):
         except (TypeError, ValueError) as error:
             message = "transition_plan_closure_invalid"
             raise ValueError(message) from error
-        validate_proof_plan(self, commitment, facts)
+        if commitment is not None:
+            validate_proof_plan(self, commitment, facts)
         if self.inputs != PlanInputs(
-            commitment=commitment.digest(),
+            commitment=commitment.digest() if commitment is not None else None,
             facts=facts.digest(),
             prior_attestations=canonical_json_digest(self.prior_attestations),
             policy=canonical_json_digest(self.policy),
@@ -403,7 +417,7 @@ class TransitionPlan(_PlanModel):
 
 
 def compile_git_effect_plan(
-    commitment: Commitment,
+    commitment: Commitment | None,
     facts: Facts,
     *,
     prior_attestations: JsonObject,
@@ -413,14 +427,14 @@ def compile_git_effect_plan(
     """Compile one self-contained plan around one exact Git CAS effect."""
     return TransitionPlan.compile(
         inputs=PlanInputs(
-            commitment=commitment.digest(),
+            commitment=commitment.digest() if commitment is not None else None,
             facts=facts.digest(),
             prior_attestations=canonical_json_digest(prior_attestations),
             policy=canonical_json_digest(policy),
             effect=effect.digest(),
         ),
         closure={
-            "commitment": commitment.identity_projection(),
+            "commitment": commitment.identity_projection() if commitment is not None else None,
             "prior_attestations": prior_attestations,
             "policy": policy,
             "effect": effect.model_dump(mode="json"),
@@ -441,6 +455,7 @@ def git_effect_from_plan(plan: TransitionPlan) -> GitEffect:
         message = (
             "git_effect_plan_mismatch"
             if "transition_plan_closure_mismatch" in str(error)
+            or "transition_plan_semantics_mismatch" in str(error)
             or "transition_plan_digest_mismatch" in str(error)
             else "git_effect_plan_invalid"
         )
@@ -491,7 +506,7 @@ def compile_plan(
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=nodes,
         required_gaps=tuple(
-            dict.fromkeys((*required_gaps, *commitment_fact_gaps(commitment, facts, attestations)))
+            dict.fromkeys((*required_gaps, *commitment_fact_gaps(facts, attestations)))
         ),
     )
 

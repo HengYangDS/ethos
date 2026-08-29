@@ -14,5 +14,6 @@ command plane.
 | OpenSpec lifecycle | official `openspec` CLI | Official command JSON |
 | Repo-local skills | `playbooks-v2` proof gate | Proof result |
 
-Repository source, tests, schemas, docs, OpenSpec, Commitments, and Attestations remain
-above this map. The map routes work; it does not create durable truth.
+Repository source, tests, schemas, docs, official OpenSpec, and Attestations
+remain above this map. Commitment is compiled transiently. The map routes work;
+it does not create durable truth.

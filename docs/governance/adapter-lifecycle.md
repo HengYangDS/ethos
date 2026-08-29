@@ -17,8 +17,9 @@ Lifecycle:
 candidate -> experimental -> active -> deprecated -> retired
 ```
 
-Retiring an adapter must not alter Subject, Commitment, Change, Evidence,
-Attestation, or Evolution semantics.
+Retiring an adapter must not alter official OpenSpec intent, compiled
+Commitment acceptance, Git facts, evidence, Attestations, or transition
+semantics.
 
 Status: see front matter.
 

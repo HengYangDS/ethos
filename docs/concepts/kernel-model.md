@@ -21,10 +21,10 @@ See also: [Command Plane](../reference/command-plane.md) and
 (Commitment, Facts, prior Attestations) -> TransitionPlan -> new Attestations
 ```
 
-Commitment and Attestation are the persistent semantic entities;
-Facts is freshly observed and TransitionPlan is transient. Acceptance
-propositions live inside the effective Commitment or an Attestation, and
-historical views are derived projections rather than entities or truth stores.
+Official OpenSpec is the sole tracked intent carrier. Commitment is its
+transient three-field compilation; Facts is freshly observed and TransitionPlan
+is transient. Attestation is the durable semantic result. Historical views are
+derived projections rather than entities or truth stores.
 
 Model Promotion remains the named conflict adjudication defined by the
 [canonical owner](../governance/product-design-contract.md#model-promotion). This

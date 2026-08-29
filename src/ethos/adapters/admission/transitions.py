@@ -4,19 +4,8 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
-from typing import Literal
-from typing import cast
 
-from ethos.adapters.admission.commitment_rebind_transition import commitment_rebind_gap
-from ethos.adapters.admission.commitment_rebind_transition import commitment_rebind_operation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
-from ethos.adapters.mutation.remediation.guidance import commitment_rebind_remediation
-from ethos.adapters.openspec.lifecycle.archive_effect import lease_bound_archive_transition_fields
-from ethos.adapters.openspec.lifecycle.archive_effect import prepared_archive_ref_authority
-from ethos.adapters.repo.commitment import commitment_binding_mismatch
-from ethos.adapters.repo.commitment import exact_commitment_fields
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.commitment import relocated_commitment_fields
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import observe_lease
@@ -76,6 +65,8 @@ def _prepared_work_lane_ref_transition_report(
     observation = observe_lease(state_database(repo), branch)
     lease = {} if observation.state == "missing" else observation.record()
     update = GitRefUpdate(expected=old_value, desired=new_value)
+    if report := _executor_intent_report(repo, phase, ref_name, update):
+        return report
     if not lease:
         return _missing_lease_report(
             repo=repo,
@@ -95,15 +86,10 @@ def _prepared_work_lane_ref_transition_report(
             [f"lane_ref_observation_stale:{expected_ref}!={observed_ref}"],
         )
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    lease_head = new_value if old_zero else old_value
-    target_head = old_value if new_zero else new_value
-    gaps, target = _work_lane_ref_transition_facts(
-        repo,
+    gaps = _work_lane_ref_transition_gaps(
         branch,
         lease,
         actor,
-        lease_head,
-        target_head,
     )
     if phase == "prepared" and new_zero and not gaps:
         intent = claim_ref_intent(
@@ -129,17 +115,6 @@ def _prepared_work_lane_ref_transition_report(
             gaps.append(
                 "work_lane_ref_create_no_ref_intent" if gap == "ref_intent_missing" else gap
             )
-    report = _commitment_rebind_report(
-        repo=repo,
-        phase=phase,
-        update=update,
-        lease=lease,
-        target=target,
-        gaps=gaps,
-        terminal=old_zero or new_zero,
-    )
-    if report is not None:
-        return report
     reason = (
         "lane_creation_saga_started"
         if old_zero
@@ -155,6 +130,32 @@ def _prepared_work_lane_ref_transition_report(
         lease,
         gaps,
         reason if not gaps else "",
+    )
+
+
+def _executor_intent_report(
+    root: Path,
+    phase: str,
+    ref_name: str,
+    update: GitRefUpdate,
+) -> dict[str, object] | None:
+    if phase != "prepared":
+        return None
+    intent = claim_ref_intent(
+        root=root,
+        ref_name=ref_name,
+        update=update,
+        operation="",
+        phase="prepared",
+    )
+    if not intent.get("present") or intent.get("gap"):
+        return None
+    return _admit(
+        phase,
+        ref_name,
+        update.expected,
+        update.desired,
+        "executor_ref_intent_admitted",
     )
 
 
@@ -180,28 +181,6 @@ def _missing_lease_report(
     new_zero: bool,
 ) -> dict[str, object]:
     ref_name = f"refs/heads/{branch}"
-    actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    archive_authority = (
-        prepared_archive_ref_authority(
-            repo,
-            branch=branch,
-            old_value=update.expected,
-            new_value=update.desired,
-            actor=actor,
-        )
-        if phase == "prepared" and not new_zero and not _is_zero_oid(update.expected)
-        else None
-    )
-    if archive_authority is not None:
-        report = _admit(
-            phase,
-            ref_name,
-            update.expected,
-            update.desired,
-            "exact_prepared_archive_effect",
-        )
-        report["mutation_authority"] = archive_authority
-        return report
     operation = "lane.retire" if new_zero else "lane.retire.compensate"
     intent = (
         claim_ref_intent(
@@ -232,74 +211,6 @@ def _missing_lease_report(
             [f"work_lane_missing_lease:{branch}"],
         )
     )
-
-
-def _commitment_rebind_report(
-    *,
-    repo: Path,
-    phase: str,
-    update: GitRefUpdate,
-    lease: dict[str, object],
-    target: dict[str, str],
-    gaps: list[str],
-    terminal: bool,
-) -> dict[str, object] | None:
-    if terminal or not gaps or any(gap not in _COMMITMENT_REBIND_GAPS for gap in gaps):
-        return None
-    ref_name = f"refs/heads/{lease.get('lane_ref') or ''}"
-    operation = commitment_rebind_operation(repo, update, lease, target)
-    intent = claim_ref_intent(
-        root=repo,
-        ref_name=ref_name,
-        update=update,
-        operation=operation,
-        phase=cast(
-            "Literal['prepared', 'committed', 'aborted']",
-            {"committed": "committed", "aborted": "aborted"}.get(phase, "prepared"),
-        ),
-    )
-    gap = str(intent["gap"] or "")
-    if gap:
-        if gap == "ref_intent_missing" and phase == "prepared":
-            report = _report(
-                phase,
-                ref_name,
-                update.expected,
-                update.desired,
-                lease,
-                ["commitment_rebind_required"],
-                "commitment_rebind_required",
-            )
-            return report | commitment_rebind_remediation(update.desired)
-        if gap != "ref_intent_missing":
-            gaps[:] = [gap]
-        return None
-    if gap := commitment_rebind_gap(
-        repo,
-        lease,
-        target,
-        old_value=update.expected,
-        new_value=update.desired,
-    ):
-        gaps[:] = [gap]
-        return None
-    reason = {
-        "committed": "commitment_rebind_pending",
-        "aborted": "commitment_rebind_aborted",
-    }.get(phase, "commitment_rebind_admitted")
-    report = _admit(phase, ref_name, update.expected, update.desired, reason)
-    if phase == "committed":
-        report["state"] = "commitment_rebind_pending"
-    return report
-
-
-_COMMITMENT_REBIND_GAPS = frozenset(
-    {
-        "lease_base_commitment_path_mismatch",
-        "lease_base_commitment_bytes_mismatch",
-        "lease_base_commitment_digest_mismatch",
-    }
-)
 
 
 def _is_zero_oid(value: str) -> bool:
@@ -350,16 +261,13 @@ def _transition_verdict(gaps: list[str]) -> Verdict:
     return "unknown" if all(gap.startswith("work_lane_lease_unknown:") for gap in gaps) else "block"
 
 
-def _work_lane_ref_transition_facts(
-    root: Path,
+def _work_lane_ref_transition_gaps(
     branch: str,
     lease: dict[str, object],
     actor: str,
-    lease_head: str,
-    target_head: str,
-) -> tuple[list[str], dict[str, str]]:
+) -> list[str]:
     if not lease:
-        return [f"work_lane_missing_lease:{branch}"], {}
+        return [f"work_lane_missing_lease:{branch}"]
     lease_state = str(lease.get("lease_state") or "missing")
     if lease_state != "valid":
         return [
@@ -367,51 +275,15 @@ def _work_lane_ref_transition_facts(
                 "unknown": f"work_lane_lease_unknown:{branch}",
                 "expired": f"work_lane_lease_expired:{branch}",
             }.get(lease_state, f"work_lane_missing_lease:{branch}")
-        ], {}
-    target: dict[str, str] = {}
-    contract_gap = ""
-    try:
-        _ = load_lease_bound_commitment(root, lease=lease, head=lease_head)
-        try:
-            target = exact_commitment_fields(
-                root,
-                head=target_head,
-                carrier=str(lease.get("base_commitment_path") or ""),
-            )
-        except ValueError as exc:
-            if str(exc) != "commitment_carrier_missing":
-                raise
-            target = lease_bound_archive_transition_fields(root, target_head=target_head) or {}
-            if not target:
-                target = relocated_commitment_fields(
-                    root,
-                    old_head=lease_head,
-                    new_head=target_head,
-                    lease=lease,
-                )
-        mismatch = commitment_binding_mismatch(target, lease)
-        contract_gap = {
-            "base_commitment_bytes_sha256": "lease_base_commitment_bytes_mismatch",
-            "base_commitment_digest": "lease_base_commitment_digest_mismatch",
-        }.get(mismatch, "")
-    except ValueError as exc:
-        fallback = (
-            str(exc) if str(exc).startswith("lease_") else "lease_base_commitment_digest_mismatch"
-        )
-        contract_gap = {
-            "commitment_carrier_path_invalid": "lease_base_commitment_path_mismatch",
-            "commitment_carrier_missing": "lease_base_commitment_path_mismatch",
-            "commitment_head_unreadable": "lease_expected_tree_mismatch",
-        }.get(str(exc), fallback)
+        ]
     checks = (
         (
             not (holder := str(lease.get("holder_ref") or "")) or holder != actor,
             f"lease_holder_mismatch:{branch}",
         ),
         (
-            not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1,
+            integer_value(lease.get("generation")) < 1,
             f"lease_generation_missing:{branch}",
         ),
-        (bool(contract_gap), contract_gap),
     )
-    return [gap for failed, gap in checks if failed], target
+    return [gap for failed, gap in checks if failed]

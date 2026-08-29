@@ -1,33 +1,28 @@
 from __future__ import annotations
 
-from datetime import UTC
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.surface.cli.hook.commands as hook_commands
 from ethos.adapters.admission.git_admission import push_admission_report
-from ethos.adapters.mutation.proof import persist_proof_attestation
-from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
-from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import Commitment
-from ethos.contracts.semantic import Facts
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import issue_conformant_proof
 from tests.support.governed_repository import seed_executed_proof
+from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lane_scenarios import add_candidate_worktree
 from tests.support.openspec_lifecycle import stub_official_archive_state
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -55,54 +50,55 @@ def _closeout(
     return runner(*command, cwd=repo)
 
 
-def _add_archived_proof(candidate: Path, head: str) -> None:
-    base = proof_plan(candidate, head=head, changed_paths=("README.md",))
-    proof = issue_conformant_proof(candidate, head, plan=base, issued_at=datetime.now(UTC))
-    values = dict(base.facts["values"])
-    effect_identity = "d" * 64
-    plan = compile_plan(
-        Commitment.model_validate(dict(base.commitment)).model_copy(
-            update={"id": "change:historical-closeout"}
-        ),
-        Facts.model_validate(
-            base.facts
-            | {
-                "observed_at": datetime.now(UTC),
-                "values": values | {"change_id": "historical-closeout"},
-            }
-        ),
-        base.nodes,
-        policy=dict(base.policy),
-        prior_attestations={
-            "openspec_archive": {
-                "predicate": "effect:openspec-archive",
-                "attestation_id": "a" * 64,
-                "commitment_digest": "b" * 64,
-                "effect_digest": "c" * 64,
-                "effect_identity": effect_identity,
-                "input": {"effect_identity": effect_identity},
-                "output": {"changed_paths": ["README.md"]},
-                "authorized_paths": ["README.md"],
-            }
-        },
+def _archived_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    prepare: Callable[[Path], None] | None = None,
+) -> tuple[Path, Path, str, str]:
+    fixture = start_adopted_work_lane(tmp_path)
+    accepted_head = git(fixture.repository, "rev-parse", "HEAD")
+    commit_fixture_file(fixture.worktree, "README.md", "# candidate change\n", "candidate change")
+    if prepare is not None:
+        prepare(fixture.worktree)
+        commit_fixture(fixture.worktree, "prepare candidate change")
+    head = commit_fixture_file(
+        fixture.worktree,
+        "openspec/changes/fixture-change/tasks.md",
+        "- [x] Exercise fixture lifecycle\n",
+        "complete fixture change",
     )
-    payload = proof.model_dump(mode="python", exclude={"id"}) | {
-        "commitment_digest": plan.inputs.commitment,
-        "facts_digest": plan.inputs.facts,
-        "plan_digest": plan.digest,
-        "policy_digest": plan.inputs.policy,
-        "effect_digest": plan.inputs.effect,
-        "payload": {
-            "kind": proof.payload.kind,
-            "body": proof.payload.body | {"plan": plan.model_dump(mode="json")},
-        },
-    }
-    persist_proof_attestation(candidate, Attestation.issue(payload))
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    seed_executed_proof(fixture.worktree, head)
+    run_ethos(
+        "lane",
+        "archive-change",
+        "--change",
+        "fixture-change",
+        "--expect-head",
+        head,
+        "--apply",
+        "--json",
+        cwd=fixture.worktree,
+    )
+    archived_head = git(fixture.worktree, "rev-parse", "HEAD")
+    seed_executed_proof(fixture.worktree, archived_head)
+    run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        archived_head,
+        "--json",
+        cwd=fixture.worktree,
+    )
+    return fixture.repository, fixture.candidate, accepted_head, archived_head
 
 
-def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path: Path) -> None:
-    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
-    _add_archived_proof(candidate, candidate_head)
+def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, candidate, accepted_head, candidate_head = _archived_candidate(tmp_path, monkeypatch)
     payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
     assert payload["state"] == "accepted_validated"
     resolution = payload["data"]["closeout_resolution"]
@@ -149,8 +145,7 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
 def test_status_plan_closeout_and_hook_share_exact_apply_command(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
-    _add_archived_proof(candidate, candidate_head)
+    repo, candidate, accepted_head, candidate_head = _archived_candidate(tmp_path, monkeypatch)
 
     closeout = _closeout(repo)
     status = run_ethos("status", "--json", cwd=repo)
@@ -181,15 +176,16 @@ def test_status_plan_closeout_and_hook_share_exact_apply_command(
 
     gapped = run_ethos("plan", "--json", cwd=repo)
     assert (gapped["verdict"], gapped["required_gaps"], gapped["next_action"]) == (
-        "block",
-        ["model_gap"],
+        "pass",
+        [],
         expected,
     )
 
 
-def test_land_closeout_rejects_stale_candidate_coordinate(tmp_path: Path) -> None:
-    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
-    _add_archived_proof(candidate, candidate_head)
+def test_land_closeout_rejects_stale_candidate_coordinate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _candidate, accepted_head, _candidate_head = _archived_candidate(tmp_path, monkeypatch)
     expected = _closeout(repo)["next_action"]
     payload = _closeout(
         repo,
@@ -210,28 +206,23 @@ def test_land_closeout_rejects_stale_candidate_coordinate(tmp_path: Path) -> Non
     assert git(repo, "rev-parse", "dev") == accepted_head
 
 
-def test_land_closeout_defers_control_replacement_without_signed_receipt(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    profile = candidate / ".ethos" / "profile.toml"
-    profile.write_text(
-        profile.read_text(encoding="utf-8") + '\n[independent_verification]\nmode = "required"\n',
-        encoding="utf-8",
+def test_land_closeout_defers_control_replacement_without_signed_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def prepare(worktree: Path) -> None:
+        profile = worktree / ".ethos" / "profile.toml"
+        profile.write_text(
+            profile.read_text(encoding="utf-8")
+            + '\n[independent_verification]\nmode = "required"\n',
+            encoding="utf-8",
+        )
+        path = worktree / "src" / "ethos" / "adapters" / "admission"
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "new_control.py").write_text("CONTROL = 'candidate'\n", encoding="utf-8")
+
+    repo, _candidate, _accepted_head, candidate_head = _archived_candidate(
+        tmp_path, monkeypatch, prepare=prepare
     )
-    path = candidate / "src" / "ethos" / "adapters" / "admission"
-    path.mkdir(parents=True, exist_ok=True)
-    (path / "new_control.py").write_text("CONTROL = 'candidate'\n", encoding="utf-8")
-    git(candidate, "add", ".")
-    git(
-        candidate,
-        "commit",
-        "-m",
-        "replace admission control",
-    )
-    candidate_head = git(candidate, "rev-parse", "HEAD")
-    seed_executed_proof(candidate, candidate_head)
     payload = run_ethos_blocked(
         "land",
         "--closeout",
@@ -265,8 +256,7 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(tmp_pat
 def test_land_closeout_audits_candidate_content_before_fast_forward(
     tmp_path: Path, monkeypatch
 ) -> None:
-    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
-    seed_executed_proof(candidate, candidate_head)
+    repo, candidate, accepted_head, _candidate_head = _archived_candidate(tmp_path, monkeypatch)
 
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
         assert openspec_mode == "shape"
@@ -305,8 +295,7 @@ def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_pro
 def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
     tmp_path: Path, monkeypatch
 ) -> None:
-    repo, candidate, _accepted_head, _candidate_head = _closeout_repo(tmp_path, changed=True)
-    seed_executed_proof(candidate, _candidate_head)
+    repo, candidate, _accepted_head, _candidate_head = _archived_candidate(tmp_path, monkeypatch)
 
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
         assert root.resolve() == candidate.resolve()

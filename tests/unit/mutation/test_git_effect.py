@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
-import tomli_w
 
 import ethos.adapters.repo.attestation_set as attestation_set
 import ethos.adapters.repo.git_effect_admission as admission
@@ -325,14 +324,9 @@ ZERO_OID, ZERO_DIGEST = "0" * 40, "0" * 64
 
 def fixture(root: Path, identity: str = "repository:repo") -> SimpleNamespace:
     repo = init_git_repo(root / "repo")
-    carrier = tomli_w.dumps(
-        commitment_fixture(
-            id=identity,
-            intent="Govern.",
-            subjects=(identity,),
-        ).model_dump(mode="python")
-    )
-    commit_fixture_file(repo, ".ethos/commitment.toml", carrier, "declare identity")
+    write_test_profile(repo, profile_id=identity.removeprefix("repository:"))
+    git(repo, "add", ".ethos/profile.toml")
+    git(repo, "commit", "-m", "declare repository identity")
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     return SimpleNamespace(repo=repo, old=old, new=new, effect=effect(old, new))
@@ -362,9 +356,7 @@ def plan(
         },
     )
     authority = commitment_fixture(
-        id="authority:test:git-effect",
-        intent="Apply CAS.",
-        subjects=(identity,),
+        id="authority:test:git-effect", acceptance=("acceptance:fixture",)
     )
     return compile_git_effect_plan(
         authority,
@@ -409,19 +401,12 @@ def proof_plan(case: Any, value: GitEffect | None = None) -> TransitionPlan:
     )
 
 
-def generation(case: Any, branch: str) -> dict[str, object]:
+def generation(branch: str) -> dict[str, object]:
     return {
         "branch": branch,
-        "lease_id": "lease:test",
-        "epoch": 1,
+        "generation": 1,
         "holder_ref": ISSUER,
-        "expected_head": case.old,
-        "expected_tree": git(case.repo, "rev-parse", "HEAD^{tree}"),
-        "base_commitment_path": ".ethos/commitment.toml",
-        "base_commitment_bytes_sha256": "c" * 64,
-        "base_commitment_digest": "a" * 64,
         "expires_at": "2026-08-02T00:00:00+00:00",
-        "payload_sha256": "b" * 64,
     }
 
 
@@ -512,15 +497,15 @@ def test_repository_worktree_identity_matrix(tmp_path: Path, kind: str) -> None:
         root = tmp_path / "linked"
         git(case.repo, "worktree", "add", "--detach", str(root), "dev")
     elif kind == "dirty":
-        carrier = root / ".ethos/commitment.toml"
-        carrier.write_text(carrier.read_text().replace(identity, "repository:dirty"))
+        profile = root / ".ethos/profile.toml"
+        profile.write_text(profile.read_text().replace("portable", "dirty"))
     elif kind == "changed":
         git(root, "checkout", "-q", "-b", "change")
-        carrier = root / ".ethos/commitment.toml"
+        profile = root / ".ethos/profile.toml"
         case.new = commit_fixture_file(
             root,
-            str(carrier.relative_to(root)),
-            carrier.read_text().replace(identity, "repository:changed"),
+            str(profile.relative_to(root)),
+            profile.read_text().replace("portable", "changed"),
             "change",
         )
         git(root, "checkout", "-q", "dev")
@@ -544,23 +529,28 @@ def test_repository_worktree_identity_matrix(tmp_path: Path, kind: str) -> None:
         )
 
 
-def test_git_effect_repository_resolution_preserves_unsupported_schema(
+def test_git_effect_repository_resolution_rejects_invalid_profile_schema(
     tmp_path: Path,
 ) -> None:
     case = fixture(tmp_path)
-    carrier = case.repo / ".ethos/commitment.toml"
-    unsupported = commit_fixture_file(
+    carrier = case.repo / ".ethos/profile.toml"
+    carrier.write_text('profile_id = ""\n', encoding="utf-8")
+    git(case.repo, "add", ".ethos/profile.toml")
+    unsupported = git(
         case.repo,
-        str(carrier.relative_to(case.repo)),
-        'id = "repository:repo"\n',
-        "obsolete repository commitment",
+        "commit-tree",
+        git(case.repo, "write-tree"),
+        "-p",
+        case.old,
+        "-m",
+        "invalid repository profile",
     )
     git(case.repo, "reset", "--hard", case.old)
     changed = effect(case.old, unsupported)
 
     with pytest.raises(
         ValueError,
-        match=r"repository_commitment_schema_unsupported:\.ethos/commitment\.toml",
+        match=r"repository_profile_invalid:\.ethos/profile\.toml",
     ):
         resolve_git_effect_repository(
             case.repo,
@@ -622,31 +612,26 @@ def test_ref_recovery_and_cas_failure_matrix(tmp_path: Path, kind: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("state", "binding", "epoch", "recover", "detached"),
-    [
-        (a, b, 1, r, 0)
-        for a, b in [("expired", "expired"), ("unknown", "unknown"), ("valid", "mismatch")]
-        for r in (0, 1)
-    ]
-    + [("valid", "bound", 2, 0, 0), ("valid", "bound", 1, 0, 1)],
+    ("state", "current_generation", "recover", "detached"),
+    [(state, 1, recover, 0) for state in ("expired", "unknown") for recover in (0, 1)]
+    + [("valid", 2, recover, 0) for recover in (0, 1)]
+    + [("valid", 1, 0, 1)],
 )
 def test_stale_lease_recovery_and_detached_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     state: str,
-    binding: str,
-    epoch: int,
+    current_generation: int,
     recover: int,
     detached: int,
 ) -> None:
     case = fixture(tmp_path)
     branch = "work/example" if detached else "dev"
-    recorded = generation(case, branch)
+    recorded = generation(branch)
     current = recorded | {
-        "epoch": epoch,
+        "generation": current_generation,
         "lane_ref": branch,
         "lease_state": state,
-        "commitment_binding": binding,
     }
     carried = plan(case.repo, case.effect, values={"lease_generation": recorded})
     monkeypatch.setenv("ETHOS_ACTOR", ISSUER)

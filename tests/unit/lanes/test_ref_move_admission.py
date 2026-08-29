@@ -15,7 +15,7 @@ from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import canonical_json_digest
-from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -23,20 +23,18 @@ from tests.support.governed_repository import init_git_repo
 if TYPE_CHECKING:
     from pathlib import Path
 
-_CARRIER = "openspec/changes/fixture-change/commitment.toml"
 _HOLDER = "agent:codex:thread:first"
 
 
 def _lease(repo: Path, branch: str, head: str, holder: str = _HOLDER):
-    item = exact_lease(
-        repo=repo, branch=branch, holder_ref=holder, expected_head=head, carrier=_CARRIER
-    )
+    del head
+    item = exact_lease(branch=branch, holder_ref=holder)
     return acquire_lease(state_database(repo), lease=item)
 
 
 def _lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     repo = init_git_repo(tmp_path / "repo")
-    commit_active_commitment(repo)
+    commit_active_change(repo)
     candidate, lane = tmp_path / "candidate", tmp_path / "lane"
     git(repo, "worktree", "add", "-b", "candidate/dev", str(candidate), "dev")
     git(repo, "worktree", "add", "-b", "work/current", str(lane), "dev")
@@ -66,12 +64,7 @@ def _expect(report: dict[str, object], verdict: str, gap: str | None = None) -> 
 
 
 def _assert_lease_unchanged(stored: dict[str, object], initial: dict[str, object]) -> None:
-    assert stored["expected_head"] == initial["expected_head"]
-    assert stored["expected_tree"] == initial["expected_tree"]
-    assert stored["base_commitment_path"] == initial["base_commitment_path"]
-    assert stored["base_commitment_bytes_sha256"] == initial["base_commitment_bytes_sha256"]
-    assert stored["base_commitment_digest"] == initial["base_commitment_digest"]
-    assert stored["payload_sha256"] == initial["payload_sha256"]
+    assert stored == initial
 
 
 @pytest.mark.parametrize(
@@ -127,7 +120,7 @@ def test_terminal_zero_oid_transitions_are_observation_only(
 @pytest.mark.parametrize("case", ["create", "delete"])
 def test_ref_intent_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    commit_active_commitment(repo)
+    commit_active_change(repo)
     branch, holder = "work/zero-bound", "agent:test:case:zero-bound"
     head, zero = git(repo, "rev-parse", "HEAD"), "0" * 40
     _lease(repo, branch, head, holder)
@@ -155,7 +148,7 @@ def test_ref_intent_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case
     )
     report = _report(repo, "prepared", zero, head, branch)
     _expect(report, "pass")
-    assert report["decision"]["reason"] == "lane_creation_saga_started"
+    assert report["decision"]["reason"] == "executor_ref_intent_admitted"
     assert intent["nonce"]
 
 
@@ -170,7 +163,7 @@ def test_prepared_transition_validates_current_ref_and_lease(
     report = _report(lane, "prepared", head, target, "work/current")
     _expect(report, "pass")
     assert report["decision"]["action"] == "allow"
-    assert report["lease"]["epoch"] == 1
+    assert report["lease"]["generation"] == 1
     stale = "c" * 40
     _expect(
         _report(lane, "prepared", stale, target, "work/current"),
@@ -199,32 +192,36 @@ def test_terminal_transition_does_not_mutate_lease(
 
 
 @pytest.mark.parametrize("case", ["exact", "content", "duplicate", "rewrite"])
-def test_commitment_policy_matrix(
+def test_ref_admission_does_not_duplicate_openspec_content_policy(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
 ) -> None:
     _repo, candidate, lane, head, initial = _lane(tmp_path, monkeypatch)
-    relocated = candidate / "records/fixture-change/commitment.toml"
+    source = candidate / "openspec/changes/fixture-change/tasks.md"
+    relocated = candidate / "records/fixture-change/tasks.md"
     if case == "rewrite":
-        relocated = candidate / _CARRIER
+        relocated = source
     else:
         relocated.parent.mkdir(parents=True)
-        git(candidate, "mv", _CARRIER, str(relocated.relative_to(candidate)))
+        git(
+            candidate,
+            "mv",
+            str(source.relative_to(candidate)),
+            str(relocated.relative_to(candidate)),
+        )
     if case in {"content", "rewrite"}:
         relocated.write_text(relocated.read_text().replace("Exercise", "Rewrite"))
         git(candidate, "add", str(relocated.relative_to(candidate)))
     if case == "duplicate":
-        duplicate = candidate / "records/fixture-change-copy/commitment.toml"
+        duplicate = candidate / "records/fixture-change-copy/tasks.md"
         duplicate.parent.mkdir(parents=True)
         shutil.copyfile(relocated, duplicate)
         git(candidate, "add", str(duplicate.relative_to(candidate)))
     target = _commit(candidate, "marker")
     report = _report(lane, "prepared", head, target, "work/current")
     stored = leases_by_branch(lane)["work/current"]
-    if case == "exact":
-        _expect(report, "pass")
-    else:
-        _expect(report, "block", "commitment_rebind_required")
-        assert report["next_action"] == (
-            f"ethos lane rebind-commitment derive --target-commit {target} --json"
-        )
+    _expect(report, "pass")
+    assert report["decision"] == {
+        "action": "allow",
+        "reason": "work_lane_ref_transition_admitted",
+    }
     _assert_lease_unchanged(stored, initial)

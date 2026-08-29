@@ -50,10 +50,9 @@ def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tu
     monkeypatch.setattr(landing, "leases_by_branch", lambda _root: {"work/example": {}})
     monkeypatch.setattr(
         landing,
-        "load_lease_bound_commitment",
+        "load_openspec_commitment",
         lambda *_args, **_kwargs: SimpleNamespace(digest=lambda: "digest"),
     )
-    monkeypatch.setattr(landing, "load_repository_commitment", lambda *_args, **_kwargs: object())
     monkeypatch.setattr(landing, "compile_observed_git_effect", lambda *_args, **_kwargs: plan)
     return candidate, plan
 

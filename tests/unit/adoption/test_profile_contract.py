@@ -34,7 +34,6 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
     rendered = render_repository_profile(declaration)
 
     assert rendered == 'profile_id = "sample<repo&\\""\n'
-    assert declaration.commitment == ".ethos/commitment.toml"
     assert declaration.openspec is None
     with pytest.raises(ValidationError):
         declaration.profile_id = "mutable"
@@ -54,28 +53,7 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
     assert loaded.state == "valid"
     assert loaded.declaration is not None
     assert loaded.declaration.profile_id == 'sample<repo&"'
-    assert loaded.declaration.commitment == ".ethos/commitment.toml"
     assert loaded.declaration.openspec is None
-
-
-def test_profile_can_explicitly_select_commitment_and_openspec_carriers(tmp_path: Path) -> None:
-    _write_profile(
-        tmp_path,
-        'profile_id = "self"\n'
-        'commitment = "governance/commitment.toml"\n\n'
-        "[openspec]\n"
-        'material_paths = ["docs/**"]\n\n'
-        "[proof]\n"
-        'gate_registry = "system/gates.toml"\n',
-    )
-
-    declaration = load_repository_profile(tmp_path).declaration
-
-    assert declaration is not None
-    assert declaration.commitment == "governance/commitment.toml"
-    assert declaration.openspec is not None
-    assert declaration.openspec.material_paths == ("docs/**",)
-    assert declaration.proof.gate_registry == "system/gates.toml"
 
 
 @pytest.mark.parametrize(
@@ -206,7 +184,6 @@ def test_profile_includes_declared_normative_sources_without_root_escape(tmp_pat
 
     assert profile_evidence_roots(tmp_path) == (
         ".ethos/profile.toml",
-        ".ethos/commitment.toml",
         "rules",
         "guidelines.md",
         "evidence",

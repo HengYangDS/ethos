@@ -21,10 +21,7 @@ def prewrite_next_action(admission: dict[str, object]) -> str:
             else "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
         )
     if reason.startswith("work_lane_missing_lease:"):
-        return (
-            "ethos lane start <name> --commitment <commitment.toml> "
-            "--holder-ref <holder-ref> --apply --json"
-        )
+        return "ethos lane status --json"
     editor = string_mapping(admission.get("editor_root"))
     if editor.get("reason") == "editor_root_missing":
         expected = str(editor.get("expected") or "")
@@ -35,34 +32,6 @@ def prewrite_next_action(admission: dict[str, object]) -> str:
 def archive_recovery_command(change: str, expect_head: str) -> str:
     """Return the sole public continuation for an observed archive effect."""
     return f"ethos lane archive-change --change {change} --expect-head {expect_head} --apply --json"
-
-
-def commitment_rebind_remediation(target_commit: str) -> dict[str, object]:
-    """Project the dedicated hook recovery for one valid dangling target."""
-    next_command = f"ethos lane rebind-commitment derive --target-commit {target_commit} --json"
-    return {
-        "target_commit": target_commit,
-        "target_commit_valid": True,
-        "partial_effects": {
-            "commit_object_created": True,
-            "ref_updated": False,
-            "lease_updated": False,
-            "index_updated": False,
-        },
-        "next_action": next_command,
-        "remediation": [
-            {
-                "gap": "commitment_rebind_required",
-                "kind": "authority_denied",
-                "owner": "lane rebind-commitment",
-                "reason": "active Commitment bytes or semantics changed",
-                "retryable": True,
-                "mutation": False,
-                "user_decision_required": False,
-                "next_command": next_command,
-            }
-        ],
-    }
 
 
 def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, object]]:

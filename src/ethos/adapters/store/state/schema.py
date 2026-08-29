@@ -13,35 +13,14 @@ if TYPE_CHECKING:
 SCHEMA = (
     """
     create table if not exists leases (
-      id text primary key,
-      subject text not null,
-      owner text not null,
-      expires_at text not null,
-      payload_json text not null
+      lane_ref text primary key,
+      holder_ref text not null,
+      generation integer not null check (generation >= 1),
+      expires_at text not null
     )
     """,
-    "create unique index leases_subject_unique on leases(subject)",
 )
-_CANONICAL_LEASE_TABLE_SQL = (
-    "CREATE TABLE leases (\n"
-    "      id text primary key,\n"
-    "      subject text not null,\n"
-    "      owner text not null,\n"
-    "      expires_at text not null,\n"
-    "      payload_json text not null\n"
-    "    )"
-)
-_CANONICAL_SUBJECT_INDEX_SQL = "CREATE UNIQUE INDEX leases_subject_unique on leases(subject)"
-
-_TABLE_COLUMNS = {
-    "leases": (
-        ("id", "TEXT", 0, None, 1, 0),
-        ("subject", "TEXT", 1, None, 0, 0),
-        ("owner", "TEXT", 1, None, 0, 0),
-        ("expires_at", "TEXT", 1, None, 0, 0),
-        ("payload_json", "TEXT", 1, None, 0, 0),
-    ),
-}
+_COLUMNS = ("lane_ref", "holder_ref", "generation", "expires_at")
 
 
 def _lease_table_exists(connection: sqlite3.Connection) -> bool:
@@ -53,69 +32,26 @@ def _lease_table_exists(connection: sqlite3.Connection) -> bool:
     )
 
 
-def _normalized_sql(sql: str) -> str:
-    return " ".join(sql.upper().split())
-
-
-def _subject_unique_indexes(connection: sqlite3.Connection) -> list[tuple[bool, str, bool]]:
-    indexes: list[tuple[bool, str, bool]] = []
-    for row in connection.execute("pragma index_list(leases)"):
-        if not row[2]:
-            continue
-        keys = [
-            column
-            for column in connection.execute(
-                "select seqno, cid, name, desc, coll, key "
-                "from pragma_index_xinfo(?) order by seqno",
-                (row[1],),
-            )
-            if column[5]
-        ]
-        if len(keys) == 1 and str(keys[0][2]) == "subject":
-            indexes.append((bool(row[4]), str(keys[0][4]).upper(), bool(keys[0][3])))
-    return indexes
+def _column_names(connection: sqlite3.Connection) -> tuple[str, ...]:
+    return tuple(str(row[1]) for row in connection.execute("pragma table_xinfo(leases)"))
 
 
 def _validate_lease_schema(connection: sqlite3.Connection) -> None:
-    table = connection.execute(
-        "select sql from sqlite_master where type = 'table' and name = 'leases'"
-    ).fetchone()
-    index = connection.execute(
-        "select sql from sqlite_master where type = 'index' and name = 'leases_subject_unique'"
-    ).fetchone()
-    if table is None or _normalized_sql(str(table[0])) != _normalized_sql(
-        _CANONICAL_LEASE_TABLE_SQL
-    ):
-        message = "state_schema_lease_table_definition_mismatch"
-        raise RuntimeError(message)
-    if index is None or _normalized_sql(str(index[0])) != _normalized_sql(
-        _CANONICAL_SUBJECT_INDEX_SQL
-    ):
-        message = "state_schema_lease_subject_unique_missing"
-        raise RuntimeError(message)
-    indexes = _subject_unique_indexes(connection)
-    if indexes != [(False, "BINARY", False)]:
-        message = "state_schema_lease_subject_unique_missing"
-        raise RuntimeError(message)
-    actual = tuple(
-        (
-            str(row[1]),
-            str(row[2]).upper(),
-            int(row[3]),
-            row[4],
-            int(row[5]),
-            int(row[6]),
-        )
-        for row in connection.execute("pragma table_xinfo(leases)")
+    if _column_names(connection) != _COLUMNS:
+        msg = "state_schema_lease_table_definition_mismatch"
+        raise RuntimeError(msg)
+    indexes = tuple(
+        (bool(row[2]), str(row[3]), bool(row[4]))
+        for row in connection.execute("pragma index_list(leases)")
     )
-    if actual != _TABLE_COLUMNS["leases"]:
-        message = "state_schema_lease_table_definition_mismatch"
-        raise RuntimeError(message)
+    if indexes != ((True, "pk", False),):
+        msg = "state_schema_lease_index_present"
+        raise RuntimeError(msg)
     if connection.execute(
         "select 1 from sqlite_master where type = 'trigger' and tbl_name = 'leases'"
     ).fetchone():
-        message = "state_schema_lease_trigger_present"
-        raise RuntimeError(message)
+        msg = "state_schema_lease_trigger_present"
+        raise RuntimeError(msg)
 
 
 def read_only_state_uri(db_path: Path) -> str:
@@ -127,8 +63,8 @@ def local_state_root(root: Path) -> Path:
     """Return the Git-common state root inside the Git common directory."""
     common = git_common_dir(root)
     if not common:
-        message = "git_common_directory_unavailable"
-        raise ValueError(message)
+        msg = "git_common_directory_unavailable"
+        raise ValueError(msg)
     return Path(common) / "ethos"
 
 
@@ -138,19 +74,17 @@ def state_database(root: Path) -> Path:
 
 
 def initialize_state_connection(connection: sqlite3.Connection) -> None:
-    """Create or validate the lease-owned subset of shared local state."""
+    """Create or validate the one minimal Lease relation inside a transaction."""
     if not connection.in_transaction:
-        message = "state_schema_transaction_required"
-        raise RuntimeError(message)
+        msg = "state_schema_transaction_required"
+        raise RuntimeError(msg)
     if not _lease_table_exists(connection):
-        for statement in SCHEMA:
-            connection.execute(statement)
-        return
+        connection.execute(SCHEMA[0])
     _validate_lease_schema(connection)
 
 
 def validate_current_lease_schema(connection: sqlite3.Connection) -> bool:
-    """Validate an existing lease table; report absence as an empty projection."""
+    """Validate an existing terminal Lease table without mutating it."""
     if not _lease_table_exists(connection):
         return False
     _validate_lease_schema(connection)

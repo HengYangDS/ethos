@@ -54,24 +54,24 @@
       "authority": "optional independent trust-domain boundary"
     },
     {
-      "id": "commitment_contract",
+      "id": "contracts",
       "path": "openspec/specs/contracts/spec.md",
-      "authority": "current immutable predecessor-set, fork/join and lineage/dependency semantics"
+      "authority": "current Commitment and Attestation contracts"
     },
     {
-      "id": "lineage_governance",
+      "id": "repository_governance",
       "path": "openspec/specs/repository-governance/spec.md",
-      "authority": "current exact-tree predecessor resolution and scoped concurrency semantics"
+      "authority": "current repository lifecycle, proof, publication, and cleanup semantics"
     },
     {
-      "id": "lineage_command",
+      "id": "command_plane",
       "path": "openspec/specs/command-plane/spec.md",
-      "authority": "current public predecessor selection and canonical request semantics"
+      "authority": "current public command and result semantics"
     },
     {
-      "id": "evolution_campaign",
+      "id": "learning_relations",
       "path": "docs/governance/evolution-campaign.md",
-      "authority": "current hypothesis, experiment, learning and successor-Commitment semantics"
+      "authority": "current OpenSpec-native research and derived relation semantics"
     }
   ],
   "documents": {

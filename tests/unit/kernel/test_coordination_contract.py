@@ -53,43 +53,22 @@ def test_repository_relative_path_rejects_noncanonical_values(value: str) -> Non
         TypeAdapter(RepositoryRelativePath).validate_python(value)
 
 
-def test_lane_lease_binds_local_incarnation_holder_generation_and_head() -> None:
+def test_lane_lease_binds_only_lane_holder_generation_and_expiry() -> None:
     now = datetime(2026, 7, 10, tzinfo=UTC)
     lease = LaneLease(
-        lane_incarnation_id="lane-incarnation:01",
-        lease_id="lease:01",
         lane_ref="work/example",
         holder_ref=HolderRef.parse("agent:claude:session:abc"),
-        epoch=3,
-        issued_at=now,
-        renewed_at=now,
+        generation=3,
         expires_at=now,
-        expected_head="a" * 40,
-        expected_tree="c" * 40,
-        base_commitment_path="openspec/changes/example/commitment.toml",
-        base_commitment_bytes_sha256="d" * 64,
-        base_commitment_digest="b" * 64,
-        path_scope=("packages/example.py",),
     )
 
     payload = lease.to_payload()
 
     assert payload == {
-        "lane_incarnation_id": "lane-incarnation:01",
-        "lease_id": "lease:01",
         "lane_ref": "work/example",
         "holder_ref": "agent:claude:session:abc",
-        "epoch": 3,
-        "issued_at": now.isoformat(),
-        "renewed_at": now.isoformat(),
+        "generation": 3,
         "expires_at": now.isoformat(),
-        "expected_head": "a" * 40,
-        "expected_tree": "c" * 40,
-        "base_commitment_path": "openspec/changes/example/commitment.toml",
-        "base_commitment_bytes_sha256": "d" * 64,
-        "base_commitment_digest": "b" * 64,
-        "path_scope": ["packages/example.py"],
-        "handoff": None,
     }
     assert LaneLease.from_payload(payload) == lease
 
@@ -97,36 +76,21 @@ def test_lane_lease_binds_local_incarnation_holder_generation_and_head() -> None
 def _lease_payload(**updates: object) -> dict[str, object]:
     now = datetime(2026, 7, 10, tzinfo=UTC).isoformat()
     return {
-        "lane_incarnation_id": "lane-incarnation:01",
-        "lease_id": "lease:01",
         "lane_ref": "work/example",
         "holder_ref": "agent:claude:session:abc",
-        "epoch": 1,
-        "issued_at": now,
-        "renewed_at": now,
+        "generation": 1,
         "expires_at": now,
-        "expected_head": "a" * 40,
-        "expected_tree": "c" * 40,
-        "base_commitment_path": "openspec/changes/example/commitment.toml",
-        "base_commitment_bytes_sha256": "d" * 64,
-        "base_commitment_digest": "b" * 64,
-        "path_scope": [],
-        "handoff": None,
     } | updates
 
 
 @pytest.mark.parametrize(
     "payload",
     [
-        pytest.param({}, id="missing-base-digest"),
-        pytest.param({"base_commitment_digest": "not-a-digest"}, id="bad-base-digest"),
+        pytest.param({}, id="missing-fields"),
+        pytest.param({"generation": 0}, id="bad-generation"),
         pytest.param(
-            {"base_commitment_digest": "b" * 64, "claim_id": "retired"},
-            id="retired-claim-field",
-        ),
-        pytest.param(
-            {"base_commitment_digest": "b" * 64, "path": "/tmp/worktree"},
-            id="redundant-worktree-path",
+            {"generation": 1, "parallel_authority": "forbidden"},
+            id="extra-authority-field",
         ),
     ],
 )
@@ -135,7 +99,7 @@ def test_lane_lease_rejects_missing_malformed_or_legacy_wire_fields(
 ) -> None:
     candidate = _lease_payload(**payload)
     if not payload:
-        candidate.pop("base_commitment_digest")
+        candidate.pop("generation")
 
     with pytest.raises((ValueError, ValidationError)):
         LaneLease.from_payload(candidate)
@@ -143,33 +107,27 @@ def test_lane_lease_rejects_missing_malformed_or_legacy_wire_fields(
 
 def test_lane_lease_rejects_non_json_python_wire_values() -> None:
     with pytest.raises(TypeError, match="lane_lease_payload_type_invalid"):
-        LaneLease.from_payload(_lease_payload(path_scope=("src/**",)))
+        LaneLease.from_payload(_lease_payload(expires_at=datetime(2026, 7, 10, tzinfo=UTC)))
 
 
 @pytest.mark.parametrize(
-    ("lanes", "risks", "capacity", "candidate", "state", "reason"),
+    ("lanes", "candidate", "state", "reason"),
     [
-        ([], (), 3, {}, "independent", "no_peer_work_lanes"),
+        ([], {}, "independent", "no_peer_work_lanes"),
         (
             [{"branch": "work/unknown", "coordination_state": "unknown"}],
-            (),
-            3,
             {},
             "await_facts",
             "peer_scope_unknown",
         ),
         (
             [{"branch": "work/conflict", "coordination_state": "overlap"}],
-            (),
-            3,
             {},
             "collaborate",
             "overlapping_intents_require_coordination",
         ),
         (
             [{"branch": "work/disjoint", "coordination_state": "disjoint"}],
-            (),
-            3,
             {},
             "independent",
             "peer_scopes_disjoint",
@@ -179,77 +137,23 @@ def test_lane_lease_rejects_non_json_python_wire_values() -> None:
                 {
                     "branch": "work/same",
                     "coordination_state": "overlap",
-                    "base_commitment_digest": "digest",
-                    "proof_cost": 1,
-                }
-            ],
-            (),
-            3,
-            {},
-            "collaborate",
-            "competition_has_no_declared_risk_basis",
-        ),
-        (
-            [
-                {
-                    "branch": "work/same",
-                    "coordination_state": "overlap",
-                    "base_commitment_digest": "digest",
-                }
-            ],
-            ("collision",),
-            None,
-            {},
-            "await_facts",
-            "proof_capacity_or_cost_missing",
-        ),
-        (
-            [
-                {
-                    "branch": "work/same",
-                    "coordination_state": "overlap",
-                    "base_commitment_digest": "digest",
-                    "proof_cost": 3,
-                }
-            ],
-            ("collision",),
-            3,
-            {"behind_accepted": 1},
-            "collaborate",
-            "proof_capacity_below_alternative_cost",
-        ),
-        (
-            [
-                {
-                    "branch": "work/same",
-                    "coordination_state": "overlap",
-                    "base_commitment_digest": "digest",
-                    "proof_cost": 1,
                     "lease": {"issued_at": "2026-07-09T00:00:00+00:00"},
                 }
             ],
-            ("collision",),
-            3,
             {"latest_advance_age_seconds": 20, "latest_interval_seconds": 10},
-            "compete",
-            "alternative_realizations_admitted",
+            "collaborate",
+            "overlapping_intents_require_coordination",
         ),
     ],
 )
 def test_collaboration_competition_public_state_matrix(
     lanes: list[dict[str, object]],
-    risks: tuple[str, ...],
-    capacity: int | None,
     candidate: dict[str, object],
     state: str,
     reason: str,
 ) -> None:
     result = collaboration_competition_projection(
         lanes,
-        commitment_digest="digest",
-        risks=risks,
-        proof_cost=1,
-        proof_capacity=capacity,
         observed_at=datetime(2026, 7, 10, tzinfo=UTC),
         candidate=candidate,
     )

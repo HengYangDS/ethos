@@ -71,12 +71,6 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
             "resolve conflict",
         ),
         (
-            "lane rebind-commitment",
-            {"verdict": "pass", "next_action": "continue"},
-            "ready",
-            "continue",
-        ),
-        (
             "lane retire landed",
             {"verdict": "block", "required_gaps": ["lease_stale"]},
             "blocked",
@@ -152,8 +146,6 @@ def test_public_lifecycle_commands_forward_exact_reports(
         "example",
         SimpleNamespace(
             root=tmp_path,
-            source_root=None,
-            commitment=None,
             path=None,
             holder_ref="agent:test:case:owner",
             apply=True,

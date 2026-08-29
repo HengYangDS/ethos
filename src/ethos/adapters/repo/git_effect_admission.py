@@ -41,7 +41,6 @@ def require_plan_prestate(
     plan: TransitionPlan,
     effect: GitEffect,
     *,
-    environment: Mapping[str, str] | None = None,
     detached_branch: str = "",
 ) -> None:
     """Reject a carried plan whose exact mutation facts have gone stale."""
@@ -54,7 +53,6 @@ def require_plan_prestate(
     require_live_lease(
         root,
         plan,
-        environment=environment,
         detached_branch=detached_branch,
     )
     head = str(plan.facts.get("head") or "")
@@ -76,43 +74,19 @@ def require_live_lease(
     root: Path,
     plan: TransitionPlan,
     *,
-    environment: Mapping[str, str] | None = None,
     detached_branch: str = "",
-    recovering: bool = False,
 ) -> None:
-    """Admit an exact live Lease generation and its execution identity."""
+    """Admit an exact live minimal Lease generation and execution identity."""
     values = plan.facts.get("values")
     facts = values if isinstance(values, Mapping) else {}
     generation = facts.get("lease_generation")
     if not isinstance(generation, Mapping):
         return
     branch = str(generation.get("branch") or "")
-    current = leases_by_branch(root, object_environment=dict(environment or {})).get(branch, {})
+    current = leases_by_branch(root).get(branch, {})
     live = lease_generation(current)
-    stable = ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
-    recovery_match = recovering and all(generation.get(key) == live.get(key) for key in stable)
-    successor = facts.get("lease_successor")
     operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
-    if isinstance(successor, Mapping):
-        recovery_match = (
-            recovery_match
-            and set(successor) == set(live) - {"payload_sha256"}
-            and all(
-                mutable_json(live.get(key)) == mutable_json(value)
-                for key, value in successor.items()
-            )
-        )
-    else:
-        recovery_match = recovery_match and (
-            generation.get("epoch") == live.get("epoch")
-            and live.get("expected_head")
-            in {generation.get("expected_head"), plan.facts.get("head")}
-        )
-    if (
-        current.get("lease_state") != "valid"
-        or current.get("commitment_binding") != "bound"
-        or not (mutable_json(generation) == mutable_json(live) or recovery_match)
-    ):
+    if current.get("lease_state") != "valid" or mutable_json(generation) != mutable_json(live):
         message = "git_effect_lease_generation_stale"
         raise ValueError(message)
     actor = (

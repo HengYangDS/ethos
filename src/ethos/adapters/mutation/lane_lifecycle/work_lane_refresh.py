@@ -7,16 +7,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -200,6 +201,7 @@ def _refresh_work_lane(
         )
     except (OSError, ValueError) as error:
         try:
+            compensate_git_worktree(root, head=current_head)
             _attach_work_lane(root, branch, current_head)
             restore_gap: list[str] = []
         except (OSError, ValueError):
@@ -255,9 +257,7 @@ def _refresh_work_lane(
         previous_head=current_head,
         rebase_attestation=rebase_attestation.model_dump(mode="json"),
         ref_attestation=ref_attestation.model_dump(mode="json"),
-        attachment_attestation=cast("Attestation", attachment_attestation).model_dump(
-            mode="json"
-        ),
+        attachment_attestation=cast("Attestation", attachment_attestation).model_dump(mode="json"),
     )
 
 
@@ -279,7 +279,6 @@ def _rebase_attestation(
 ) -> Attestation:
     before = {"branch": branch, "head": previous, "candidate_head": candidate_head}
     after = {"branch": "detached", "head": head, "candidate_head": candidate_head}
-    repository = load_repository_commitment(root, tree_ref=head)
     return issue_native_effect(
         root,
         effect=NativeEffect(
@@ -291,8 +290,8 @@ def _rebase_attestation(
             after=after,
         ),
         state="applied",
-        commitment_digest=repository.digest(),
-        repository_id=repository.id,
+        commitment_digest=None,
+        repository_id=repository_identity(root, tree_ref=head),
     )
 
 
@@ -355,7 +354,7 @@ def _refresh_transition_plan(
     )
     return compile_observed_git_effect(
         root,
-        load_repository_commitment(root, tree_ref=rebased_head),
+        None,
         effect,
         head=rebased_head,
         prior_attestations={"rebase": rebase_attestation.model_dump(mode="json")},

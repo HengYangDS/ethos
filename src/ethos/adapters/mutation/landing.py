@@ -13,8 +13,7 @@ from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
@@ -201,7 +200,7 @@ def _candidate_plan(root: Path, *, status=None):
         )
     branch = str(workspace_status(root, include_foreign_path_scope=False)["branch"])
     lease = leases_by_branch(root).get(branch, {})
-    authority = load_lease_bound_commitment(root, lease=lease)
+    authority = load_openspec_commitment(root, tree_ref=current_head)
     if proof.commitment_digest != authority.digest():
         message = "proof_attestation_authority_binding_mismatch"
         raise ValueError(message)
@@ -306,8 +305,6 @@ def _candidate_transition_plan(
     if not prior_attestations.get("proof"):
         message = "candidate_prior_proof_missing"
         raise ValueError(message)
-    candidate_head = next(iter(effect.updates.values())).expected
-    load_repository_commitment(root, tree_ref=candidate_head)
     return compile_observed_git_effect(
         root,
         authority,

@@ -22,9 +22,7 @@ if TYPE_CHECKING:
 
 def _plan(*, gap: str = ""):
     commitment = commitment_fixture(
-        id="repository:proof-command",
-        intent="Exercise the proof command.",
-        subjects=("repository:proof-command",),
+        id="repository:proof-command", acceptance=("acceptance:fixture",)
     )
     return compile_plan(
         commitment,
@@ -342,9 +340,7 @@ def test_resolve_generation_uses_the_shared_active_carrier_selector(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, invalid: bool
 ) -> None:
     commitment = commitment_fixture(
-        id="repository:proof-command",
-        intent="Exercise the proof command.",
-        subjects=("repository:proof-command",),
+        id="repository:proof-command", acceptance=("acceptance:fixture",)
     )
     binding = CurrentGenerationBinding({}, commitment, CurrentGenerationScope(("a.py",), {}))
     authority = object()
@@ -357,9 +353,7 @@ def test_resolve_generation_uses_the_shared_active_carrier_selector(
         ),
     )
     monkeypatch.setattr(proof_cli, "change_scope_paths_from_status", lambda *_args: ("a.py",))
-    monkeypatch.setattr(
-        proof_cli, "load_repository_commitment", lambda *_args, **_kwargs: commitment
-    )
+    monkeypatch.setattr(proof_cli, "repository_identity", lambda *_args, **_kwargs: commitment.id)
 
     def select(*_args, **kwargs):
         assert kwargs["authority"] is authority
@@ -380,11 +374,7 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
 ) -> None:
     emitted = []
     scope = CurrentGenerationScope(("a.py",), {})
-    commitment = commitment_fixture(
-        id="change:proof-command",
-        intent="Exercise the proof command.",
-        subjects=("repository:proof-command",),
-    )
+    commitment = commitment_fixture(id="change:proof-command", acceptance=("acceptance:fixture",))
     binding = CurrentGenerationBinding({}, commitment, scope)
     audit = {
         "verdict": "pass",

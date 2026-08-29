@@ -1,419 +1,248 @@
 from __future__ import annotations
 
-import json
 import sqlite3
 from contextlib import closing
-from io import StringIO
 from typing import TYPE_CHECKING
 from typing import cast
 
 import pytest
 
-import ethos.adapters.mutation.lane_lifecycle.archive_change as archive_owner
-import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation as rebind_derivation
-import ethos.adapters.openspec.cli as openspec_cli
-import ethos.adapters.openspec.lifecycle.archive_effect as archive_effect
-from ethos.adapters.admission.git_admission import hook_admission_report
-from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.admission.transitions import work_lane_ref_transition_report
-from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
-from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.openspec.lifecycle.archive_effect import archive_transition_environment
-from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
-from ethos.adapters.repo.hook_runtime import execute_hook
-from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.workspace import workspace_status
+import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
+import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
+from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
+from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.admission import HookAdmissionRequest
-from tests.support.ethos_cli_runner import run_ethos
-from tests.support.governed_repository import commit_fixture_file
+from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import git_effect_from_plan
 from tests.support.governed_repository import git
-from tests.support.governed_repository import start_adopted_work_lane
-from tests.support.openspec_lifecycle import OpenSpecLifecycle
-from tests.support.openspec_lifecycle import add_archive_collision
-from tests.support.openspec_lifecycle import advance_lease
 from tests.support.openspec_lifecycle import assert_lifecycle_outcome
 from tests.support.openspec_lifecycle import completed_lifecycle
-from tests.support.openspec_lifecycle import stage_archive
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-
-def _attested_effect_identity(report: dict[str, object]) -> str:
-    """Read the typed effect identity from one archive Attestation projection."""
-    attestation = cast("dict[str, object]", report["attestation"])
-    payload = cast("dict[str, object]", attestation["payload"])
-    body = cast("dict[str, object]", payload["body"])
-    inputs = cast("dict[str, object]", body["input"])
-    return cast("str", inputs["effect_identity"])
+    from tests.support.openspec_lifecycle import OpenSpecLifecycle
 
 
-def test_archive_change_owns_official_archive_commit_and_lease_transition(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _repo, _candidate, _source, worktree = start_adopted_work_lane(
-        tmp_path,
-        scope=("openspec/changes/fixture-change/**",),
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    new_delta = worktree / "openspec/changes/fixture-change/specs/projected-text/spec.md"
-    new_delta.parent.mkdir(parents=True)
-    new_delta.write_text(
-        "## ADDED Requirements\n\n"
-        "### Requirement: Project canonical text\n\n"
-        "The archive effect SHALL project repository-canonical text.\n\n"
-        "#### Scenario: New canonical spec is projected\n\n"
-        "- **WHEN** the completed Change is archived\n"
-        "- **THEN** the projected spec has one terminal newline\n",
-        encoding="utf-8",
-    )
-    git(worktree, "add", new_delta.relative_to(worktree).as_posix())
-    previous_head = git(worktree, "rev-parse", "HEAD")
-    git(worktree, "commit", "-m", "declare new projected capability")
-    declared_head = git(worktree, "rev-parse", "HEAD")
-    transition = work_lane_ref_transition_report(
-        root=worktree,
-        phase="committed",
-        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
-        old_value=previous_head,
-        new_value=declared_head,
-    )
-    assert transition["state"] == "lease_ref_advanced"
-    completed_head = _complete_change(worktree)
+@pytest.fixture(autouse=True)
+def _avoid_unrelated_runtime_materialization(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep archive tests on lifecycle semantics, not self-host runtime setup."""
     monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
-        lambda _root, head: [] if head == completed_head else ["proof_not_proven"],
+        "ethos.adapters.mutation.lane_lifecycle.start.install_hook_launchers",
+        lambda _root: {},
     )
-    prepared_effect_identities: list[str] = []
-    native_environment = archive_owner.archive_transition_environment
 
-    def capture_prepared_effect(
-        root: Path,
-        *,
-        change: str,
-        head: str,
-        changed_paths: tuple[str, ...],
-        official_change_complete: bool,
-        completion_artifacts: tuple[str, ...],
-    ) -> dict[str, str]:
-        environment = native_environment(
-            root,
+
+def _stage_exact_archive(lifecycle: OpenSpecLifecycle) -> str:
+    archive_path = "openspec/changes/archive/2026-08-04-fixture-change"
+    target = lifecycle.worktree / archive_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    lifecycle.active.rename(target)
+    git(lifecycle.worktree, "add", "--all")
+    return archive_path
+
+
+def _staged_postimage(root: Path, *, head: str, change: str) -> ArchivePostimage:
+    with observe_worktree_postimage(root, previous=head) as observed:
+        archive_root = next(
+            path.rsplit("/", 1)[0]
+            for path in observed.changed_paths
+            if path.startswith("openspec/changes/archive/") and path.endswith("/proposal.md")
+        )
+        return ArchivePostimage(
             change=change,
             head=head,
-            changed_paths=changed_paths,
-            official_change_complete=official_change_complete,
-            completion_artifacts=completion_artifacts,
+            scope={
+                "archive_path": archive_root,
+                "changed_paths": observed.changed_paths,
+                "tree": observed.tree,
+            },
+            active_present=False,
         )
-        payload = json.loads(environment["ETHOS_ARCHIVE_TRANSITION"])
-        prepared_effect_identities.append(str(payload["effect_identity"]))
-        return environment
 
-    monkeypatch.setattr(archive_owner, "archive_transition_environment", capture_prepared_effect)
 
-    report = archive_change(
-        root=worktree,
-        change="fixture-change",
-        expect_head=completed_head,
+def _compiled_archive_plan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[OpenSpecLifecycle, TransitionPlan, str, str]:
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    archive_path = _stage_exact_archive(lifecycle)
+    tree = git(lifecycle.worktree, "write-tree")
+    target = git(
+        lifecycle.worktree,
+        "commit-tree",
+        tree,
+        "-p",
+        lifecycle.completed_head,
+        "-m",
+        "chore(openspec): archive fixture-change",
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "archive_postimage_scope_report",
+        lambda *_args, **_kwargs: {"verdict": "pass", "archive_path": archive_path},
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "load_profile_commitment",
+        lambda *_args, **_kwargs: commitment_fixture(id="change:fixture-change"),
+    )
+    plan = archive_effect.compile_archive_plan(
+        lifecycle.worktree,
+        lifecycle.branch,
+        "fixture-change",
+        lifecycle.completed_head,
+        target,
+        lifecycle.lease,
+    )
+    return lifecycle, plan, target, archive_path
+
+
+def test_archive_plan_is_one_common_git_ref_effect(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    lifecycle, plan, target, archive_path = _compiled_archive_plan(tmp_path, monkeypatch)
+
+    assert plan.policy["operation"] == "git.ref.compare-and-swap"
+    assert plan.policy["transition"] == "openspec.archive"
+    assert plan.policy["branch"] == lifecycle.branch
+    update = git_effect_from_plan(plan).updates[f"refs/heads/{lifecycle.branch}"]
+    assert (update.expected, update.desired) == (lifecycle.completed_head, target)
+    values = cast("dict[str, object]", plan.facts["values"])
+    assert values["archive_path"] == archive_path
+
+
+def test_archive_executor_replay_recognizes_the_durable_effect_without_reexecution(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    lifecycle, plan, target, archive_path = _compiled_archive_plan(tmp_path, monkeypatch)
+    issued = archive_effect.execute_git_effect(
+        lifecycle.worktree,
+        plan,
+        issuer=str(lifecycle.lease["holder_ref"]),
+    )
+    assert issued.predicate == "effect:git-ref-update"
+    assert git(lifecycle.worktree, "rev-parse", "HEAD") == target
+
+    native_execute = archive_effect.execute_git_effect
+    calls = {"execute": 0}
+
+    def execute(*args: object, **kwargs: object):
+        calls["execute"] += 1
+        return native_execute(*args, **kwargs)
+
+    monkeypatch.setattr(archive_effect, "execute_git_effect", execute)
+    monkeypatch.setattr(
+        archive,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {"required_gaps": []},
+    )
+
+    recovered = archive_effect.complete_archive(
+        lifecycle.worktree,
+        lifecycle.branch,
+        "fixture-change",
+        plan,
+        target,
+        apply=True,
+    )
+    replayed = archive_effect.complete_archive(
+        lifecycle.worktree,
+        lifecycle.branch,
+        "fixture-change",
+        plan,
+        target,
         apply=True,
     )
 
-    archived_head = git(worktree, "rev-parse", "HEAD")
-    assert report["verdict"] == "pass", json.dumps(report, indent=2, default=str)
-    assert report["state"] == "archived"
-    assert report["previous_head"] == completed_head
-    assert report["head"] == archived_head
-    archive_path = cast("str", report["archive_path"])
-    assert archive_path.endswith("-fixture-change")
-    assert report["tool_version"] == "1.10.0"
-    assert report["required_gaps"] == []
-    assert_lifecycle_outcome(report, "committed", "not_required", "absent")
-    assert len(prepared_effect_identities) == 1
-    assert _attested_effect_identity(report) == prepared_effect_identities[0]
-    assert not (worktree / "openspec/changes/fixture-change").exists()
-    assert (worktree / archive_path / "commitment.toml").is_file()
-    for projected_spec in (
-        worktree / "openspec/specs/contracts/spec.md",
-        worktree / "openspec/specs/projected-text/spec.md",
-    ):
-        projected_bytes = projected_spec.read_bytes()
-        assert projected_bytes.endswith(b"\n")
-        assert not projected_bytes.endswith(b"\n\n")
-    assert git(worktree, "status", "--short") == ""
-    changed_paths = change_scope_paths_from_status(worktree, workspace_status(worktree))
-    changed_plan = openspec_governance_report(
-        worktree,
-        lifecycle=True,
-        changed_paths=changed_paths,
-        require_workspace=False,
-    )
-    assert changed_plan["verdict"] == "pass", changed_plan
-    assert changed_plan["required_gaps"] == []
-    assert changed_plan["lifecycle"]["scope_binding"]["state"] == "post_archive_closeout"
-    plan = proof_plan(
-        worktree,
-        head=archived_head,
-        changed_paths=changed_paths,
-    )
-    assert plan.verdict == "pass"
-    assert plan.prior_attestations["openspec_archive"]["predicate"] == ("effect:openspec-archive")
-    assert (
-        plan.prior_attestations["openspec_archive"]["effect_identity"]
-        == (prepared_effect_identities[0])
-    )
+    assert recovered["state"] == "recognized"
+    assert replayed["state"] == "recognized"
+    assert calls == {"execute": 0}
+    assert recovered["attestation"] == replayed["attestation"]
+    assert recovered["attestation"]["predicate"] == "effect:git-ref-update"
+    assert recovered["archive_path"] == archive_path
+    for field in ("lane_ref", "holder_ref", "generation", "expires_at"):
+        assert replayed["lease"][field] == recovered["lease"][field]
 
 
-@pytest.mark.parametrize(
-    ("ownerless", "ready_state"),
-    [(False, "ready_to_finalize_archive"), (True, "ready_to_finalize_ownerless_archive")],
-)
-def test_archive_change_finalizes_an_exact_official_postimage(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    *,
-    ownerless: bool,
-    ready_state: str,
+def test_archive_common_effect_rejects_cas_drift_before_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """One exact official post-image resumes with or without its live Lease."""
+    lifecycle, plan, target, _archive_path = _compiled_archive_plan(tmp_path, monkeypatch)
+    drift = git(
+        lifecycle.worktree,
+        "commit-tree",
+        "HEAD^{tree}",
+        "-p",
+        lifecycle.completed_head,
+        "-m",
+        "drift",
+    )
+    git(
+        lifecycle.worktree,
+        "update-ref",
+        f"refs/heads/{lifecycle.branch}",
+        drift,
+        lifecycle.completed_head,
+    )
+
+    with pytest.raises(ValueError, match=r"git_effect_(plan_prestate_stale|cas_mismatch)"):
+        archive_effect.execute_git_effect(
+            lifecycle.worktree,
+            plan,
+            issuer=str(lifecycle.lease["holder_ref"]),
+        )
+
+    assert git(lifecycle.worktree, "rev-parse", lifecycle.branch) == drift
+    assert git(lifecycle.worktree, "rev-parse", lifecycle.branch) != target
+
+
+def test_archive_change_blocks_when_the_work_lane_lease_is_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    archive_path = lifecycle.stage_official_archive()
-    if ownerless:
-        with closing(sqlite3.connect(state_database(lifecycle.worktree))) as connection, connection:
-            connection.execute("delete from leases where subject = ?", (lifecycle.branch,))
-    assert not lifecycle.active.exists()
-    assert (lifecycle.worktree / archive_path / "commitment.toml").is_file()
-    assert (lifecycle.branch in leases_by_branch(lifecycle.worktree)) is not ownerless
-    status = git(lifecycle.worktree, "status", "--short")
-    index_tree = git(lifecycle.worktree, "write-tree")
-    invocations: list[tuple[str, ...]] = []
-    native_run_json = openspec_cli.run_json
+    with closing(sqlite3.connect(state_database(lifecycle.worktree))) as connection, connection:
+        connection.execute("delete from leases where lane_ref = ?", (lifecycle.branch,))
 
-    def observe_run_json(
-        root: Path, base: tuple[str, ...], args: tuple[str, ...]
-    ) -> dict[str, object]:
-        invocations.append(args)
-        return native_run_json(root, base, args)
-
-    monkeypatch.setattr(openspec_cli, "run_json", observe_run_json)
-
-    planned = archive_change(
+    report = archive.archive_change(
         root=lifecycle.worktree,
         change="fixture-change",
         expect_head=lifecycle.completed_head,
+        apply=True,
     )
 
-    assert planned["verdict"] == "pass", json.dumps(planned, indent=2, default=str)
-    assert planned["state"] == ready_state
-    assert planned["required_gaps"] == []
+    assert report["state"] == "lease_missing"
+    assert report["required_gaps"] == [f"work_lane_missing_lease:{lifecycle.branch}"]
     assert_lifecycle_outcome(
-        planned,
+        report,
         "zero_effect",
         "not_required",
         "absent",
-        (
-            "ethos lane archive-change --change fixture-change "
-            f"--expect-head {lifecycle.completed_head} --apply --json"
-        ),
+        "ethos lane status --json",
+        user_decision_required=True,
     )
-    assert git(lifecycle.worktree, "status", "--short") == status
-    assert git(lifecycle.worktree, "write-tree") == index_tree
-
-    report = archive_change(
-        root=lifecycle.worktree,
-        change="fixture-change",
-        expect_head=lifecycle.completed_head,
-        apply=True,
-    )
-
-    assert report["verdict"] == "pass", json.dumps(report, indent=2, default=str)
-    assert report["state"] == "archived"
-    assert report["previous_head"] == lifecycle.completed_head
-    assert report["archive_path"] == archive_path
-    if ownerless:
-        assert report["lease"] == {}
-        attestation = cast("dict[str, object]", report["attestation"])
-        assert attestation["predicate"] == "effect:openspec-archive"
-    assert_lifecycle_outcome(report, "committed", "not_required", "absent")
-    assert (lifecycle.branch in leases_by_branch(lifecycle.worktree)) is not ownerless
-    assert git(lifecycle.worktree, "status", "--short") == ""
-    assert not any(args and args[0] == "archive" for args in invocations)
+    assert lifecycle.head == lifecycle.completed_head
+    assert lifecycle.active.is_dir()
 
 
-def test_committed_standalone_archive_recovers_lease_attestation_and_proof(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """One exact committed archive remains recoverable after controller loss."""
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    archive_path = "openspec/changes/archive/2026-08-04-fixture-change"
-    (lifecycle.worktree / archive_path).parent.mkdir(parents=True, exist_ok=True)
-    lifecycle.active.rename(lifecycle.worktree / archive_path)
-    git(lifecycle.worktree, "add", "--all")
-    git(lifecycle.worktree, "commit", "-m", "archive outside the controller")
-    archived_head = lifecycle.head
-    planned = archive_change(
-        root=lifecycle.worktree,
-        change="fixture-change",
-        expect_head=lifecycle.completed_head,
-    )
-    assert planned["state"] == "ready_to_recover_archive_lease", planned
-    assert planned["next_action"] == (
-        "ethos lane archive-change --change fixture-change "
-        f"--expect-head {lifecycle.completed_head} --apply --json"
-    )
-    rebind = run_ethos(
-        "lane",
-        "rebind-commitment",
-        "derive",
-        "--root",
-        lifecycle.worktree.as_posix(),
-        "--target-commit",
-        archived_head,
-        "--json",
-        cwd=lifecycle.worktree,
-    )
-    assert (rebind["data"]["state"], rebind["next_action"]) == (
-        "archive_recovery_required",
-        planned["next_action"],
-    )
-    recovered = archive_change(
-        root=lifecycle.worktree,
-        change="fixture-change",
-        expect_head=lifecycle.completed_head,
-        apply=True,
-    )
-    assert recovered["state"] == "archive_attestation_recovered"
-    paths = tuple(cast("list[str]", recovered["changed_paths"]))
-    plan = proof_plan(lifecycle.worktree, head=archived_head, changed_paths=paths)
-    assert plan.verdict == "pass"
-
-
-@pytest.mark.parametrize(
-    "mode", ["wrong-parent", "skipped-lease-parent", "semantic-drift", "ambiguous"]
-)
-def test_archive_recovery_derivation_fails_closed_for_nonexact_targets(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: str
-) -> None:
-    """Only one direct, byte-identical carrier relocation routes to archive recovery."""
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    if mode == "skipped-lease-parent":
-        git(lifecycle.worktree, "commit", "--allow-empty", "-m", "unobserved intermediate")
-    archive_path = lifecycle.worktree / "openspec/changes/archive/2026-08-04-fixture-change"
-    archive_path.parent.mkdir(parents=True, exist_ok=True)
-    lifecycle.active.rename(archive_path)
-    if mode == "semantic-drift":
-        commitment = archive_path / "commitment.toml"
-        commitment.write_text(
-            commitment.read_text(encoding="utf-8").replace(
-                "Exercise the governed fixture lifecycle.", "Drift the archived intent."
-            ),
-            encoding="utf-8",
-        )
-    elif mode == "ambiguous":
-        duplicate = lifecycle.worktree / "openspec/changes/archive/2026-08-05-fixture-change"
-        duplicate.parent.mkdir(parents=True, exist_ok=True)
-        duplicate.write_bytes((archive_path / "commitment.toml").read_bytes())
-    git(lifecycle.worktree, "add", "--all")
-    git(lifecycle.worktree, "commit", "-m", "nonexact archive transition")
-    target = lifecycle.head
-    if mode == "wrong-parent":
-        git(lifecycle.worktree, "commit", "--allow-empty", "-m", "unrelated child")
-        target = lifecycle.head
-    report = rebind_derivation.derive_commitment_rebind(
-        root=lifecycle.worktree,
-        target_commit=target,
-        repair_change_identity=False,
-    )
-    assert report["state"] == "blocked"
-    assert not report["next_action"]
-
-
-def test_ownerless_archive_postimage_blocks_bare_commit_with_exact_recovery_command(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """A materialized archive without its Lease names one governed continuation."""
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    lifecycle.stage_official_archive()
-    with closing(sqlite3.connect(state_database(lifecycle.worktree))) as connection, connection:
-        connection.execute("delete from leases where subject = ?", (lifecycle.branch,))
-    changed_paths = change_scope_paths_from_status(
-        lifecycle.worktree, workspace_status(lifecycle.worktree)
-    )
-
-    report = prewrite_guard(
-        root=lifecycle.worktree,
-        paths=[lifecycle.worktree / path for path in changed_paths],
-        editor_root=lifecycle.worktree,
-        require_editor_root=True,
-    )
-
-    assert report["verdict"] == "block"
-    gaps = cast("list[object]", report["required_gaps"])
-    assert f"work_lane_missing_lease:{lifecycle.branch}" in gaps
-    assert report["next_action"] == (
-        "ethos lane archive-change --change fixture-change "
-        f"--expect-head {lifecycle.completed_head} --apply --json"
-    )
-    hook = hook_admission_report(
-        HookAdmissionRequest(
-            root=lifecycle.worktree.as_posix(),
-            layer="pre-tool",
-            paths=tuple((lifecycle.worktree / path).as_posix() for path in changed_paths),
-            editor_root=lifecycle.worktree.as_posix(),
-            expected_root=lifecycle.worktree.as_posix(),
-            require_editor_root=True,
-            command="git commit",
-        )
-    )
-    assert hook["verdict"] == "block"
-    assert hook["next_action"] == report["next_action"]
-    git(lifecycle.worktree, "add", "--all")
-    assert (
-        execute_hook(
-            lifecycle.worktree,
-            "pre-commit",
-            (),
-            stdin=StringIO(""),
-        )
-        == 1
-    )
-    hook_error = json.loads(capsys.readouterr().err)
-    assert hook_error["next_action"] == report["next_action"]
-
-
-def test_archive_change_rejects_unrelated_overlay_beside_official_archive(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """Only the exact official post-image can consume archive finalization authority."""
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    lifecycle.stage_official_archive()
-    (lifecycle.worktree / "README.md").write_text("unrelated\n", encoding="utf-8")
-
-    report = archive_change(
-        root=lifecycle.worktree,
-        change="fixture-change",
-        expect_head=lifecycle.completed_head,
-    )
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["openspec_archive_delta_invalid"]
-
-
-def test_archive_finalization_commit_failure_restores_only_the_real_index(
+def test_archive_finalization_failure_restores_the_exact_staged_postimage(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    archive_path = lifecycle.stage_official_archive()
+    archive_path = _stage_exact_archive(lifecycle)
     index_tree = git(lifecycle.worktree, "write-tree")
     status = git(lifecycle.worktree, "status", "--short")
+    monkeypatch.setattr(archive, "archive_postimage", _staged_postimage)
+    monkeypatch.setattr(archive, "_archive_coordinate_gaps", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.archive_change.commit_git_worktree",
-        lambda *_args, **_kwargs: {"verdict": "block", "error": "hook rejected"},
+        archive,
+        "create_git_commit",
+        lambda *_args, **_kwargs: type(
+            "Result", (), {"returncode": 1, "stdout": "", "stderr": "hook rejected"}
+        )(),
     )
 
-    report = archive_change(
+    report = archive.archive_change(
         root=lifecycle.worktree,
         change="fixture-change",
         expect_head=lifecycle.completed_head,
@@ -421,155 +250,8 @@ def test_archive_finalization_commit_failure_restores_only_the_real_index(
     )
 
     assert report["required_gaps"] == ["openspec_archive_commit_failed"]
+    assert report["effect_state"] == "mutated"
+    assert report["compensation_state"] == "completed"
     assert git(lifecycle.worktree, "write-tree") == index_tree
     assert git(lifecycle.worktree, "status", "--short") == status
-    assert (lifecycle.worktree / archive_path / "commitment.toml").is_file()
-
-
-@pytest.mark.parametrize(
-    "failure",
-    [pytest.param("stale_head", id="stale-head"), pytest.param("invalid_delta", id="compensate")],
-)
-def test_archive_collision_failures_preserve_history_and_active_generation(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    failure: str,
-) -> None:
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    collision, collision_head, historical_tree = add_archive_collision(lifecycle)
-    monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
-        lambda _root, head: [] if head == collision_head else ["proof_not_proven"],
-    )
-    if failure == "invalid_delta":
-        monkeypatch.setattr(
-            archive_effect,
-            "archive_postimage_scope_report",
-            lambda *_args, **_kwargs: None,
-        )
-    report = archive_change(
-        root=lifecycle.worktree,
-        change="fixture-change",
-        expect_head="f" * 40 if failure == "stale_head" else collision_head,
-        apply=True,
-    )
-
-    assert report["required_gaps"] == [
-        "expect_head_mismatch" if failure == "stale_head" else "openspec_archive_delta_invalid"
-    ]
-    assert lifecycle.head == collision_head
-    assert (
-        git(
-            lifecycle.worktree,
-            "rev-parse",
-            "HEAD:"
-            f"{report.get('preserved_archive_path') or collision.relative_to(lifecycle.worktree)}",
-        )
-        == historical_tree
-    )
-    assert lifecycle.active.is_dir()
-    assert git(lifecycle.worktree, "status", "--short") == ""
-
-
-def test_archive_collision_preserves_history_and_commits_the_new_generation(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    collision, collision_head, historical_tree = add_archive_collision(lifecycle)
-    monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
-        lambda _root, head: [] if head == collision_head else ["proof_not_proven"],
-    )
-
-    report = archive_change(
-        root=lifecycle.worktree,
-        change="fixture-change",
-        expect_head=collision_head,
-        apply=True,
-    )
-
-    assert report["verdict"] == "pass", json.dumps(report, indent=2, default=str)
-    preservation = str(report["preserved_archive_path"])
-    assert preservation != collision.relative_to(lifecycle.worktree).as_posix()
-    assert git(lifecycle.worktree, "rev-parse", f"HEAD:{preservation}") == historical_tree
-    archive_path = cast("str", report["archive_path"])
-    lease = cast("dict[str, object]", report["lease"])
-    assert git(lifecycle.worktree, "rev-parse", f"HEAD:{archive_path}")
-    assert lease["base_commitment_path"] == f"{archive_path}/commitment.toml"
-    assert not lifecycle.active.exists()
-    assert git(lifecycle.worktree, "status", "--short") == ""
-
-
-def _historical_archive(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> OpenSpecLifecycle:
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    stage_archive(lifecycle.worktree)
-    git(lifecycle.worktree, "commit", "-m", "historical archive without governed owner")
-    advance_lease(lifecycle.worktree, lifecycle.completed_head)
-    return lifecycle
-
-
-def test_archive_change_restores_tree_when_official_output_is_tampered(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    original = openspec_cli.run_json
-
-    def tampered(root: Path, command: tuple[str, ...], args: tuple[str, ...]):
-        result = original(root, command, args)
-        if args[0] == "archive" and result["exit_code"] == 0:
-            result["json"]["archive"]["change"] = "other-change"
-        return result
-
-    monkeypatch.setattr(openspec_cli, "run_json", tampered)
-    report = lifecycle.apply_archive()
-
-    assert report["required_gaps"] == ["openspec_archive_result_invalid"]
-    assert lifecycle.head == lifecycle.completed_head
-    assert lifecycle.active.is_dir()
-    assert git(lifecycle.worktree, "status", "--short") == ""
-
-
-def _complete_change(worktree: Path) -> str:
-    tasks = worktree / "openspec/changes/fixture-change/tasks.md"
-    return commit_fixture_file(
-        worktree,
-        tasks.relative_to(worktree).as_posix(),
-        tasks.read_text(encoding="utf-8").replace("- [ ]", "- [x]"),
-        "complete fixture change",
-    )
-
-
-def test_governance_rejects_a_stale_archive_owner_intent(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    worktree = start_adopted_work_lane(tmp_path).worktree
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    head = git(worktree, "rev-parse", "HEAD")
-    changed_paths = stage_archive(worktree)
-    monkeypatch.setenv(
-        "ETHOS_ARCHIVE_TRANSITION",
-        archive_transition_environment(
-            worktree,
-            change="fixture-change",
-            head=head,
-            changed_paths=changed_paths,
-            official_change_complete=True,
-            completion_artifacts=("openspec/changes/fixture-change/tasks.md",),
-        )["ETHOS_ARCHIVE_TRANSITION"],
-    )
-    (worktree / "README.md").write_text("# Drift\n", encoding="utf-8")
-    git(worktree, "add", "README.md")
-
-    report = openspec_governance_report(
-        worktree,
-        lifecycle=True,
-        changed_paths=(*changed_paths, "README.md"),
-        require_workspace=False,
-    )
-
-    gaps = report["required_gaps"]
-    assert gaps
-    assert "openspec_active_change_missing" not in gaps
-    assert all(str(gap).startswith("openspec_material_path_uncovered:") for gap in gaps)
-    assert "openspec_material_path_uncovered:README.md" in gaps
+    assert (lifecycle.worktree / archive_path / "proposal.md").is_file()

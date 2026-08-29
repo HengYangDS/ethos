@@ -27,11 +27,10 @@ and role-policy `branch_bindings`. Release root and accepted root are separate
 semantic roles. The role order is
 release_root -> accepted_root -> candidate -> work_lane. Governed `proposal/*` publication refs are not local role bindings. Bindings
 are ordered by that semantic order, then by branch name for additional bound
-branches. Work Lane bindings include `lease_state`,
-`base_commitment_digest`, and `commitment_binding`. The Lease state vocabulary
-is exactly `valid`, `expired`, `unknown`, or `missing`; non-Work-Lane bindings use
-`none`. This keeps invalid persisted state observable without converting it or
-collapsing it to absence.
+branches. Work Lane bindings project the four-field Lease relation and a
+`lease_state` of exactly `valid`, `expired`, `unknown`, or `missing`;
+non-Work-Lane bindings use `none`. This keeps invalid persisted state observable
+without mirroring Git or OpenSpec inside Lease state.
 
 `ethos status --json` and `ethos lane status --json` validate the live
 workspace-status payload before emitting it. The validation verdict is reported
@@ -61,13 +60,13 @@ Skills V2 adds three provider-neutral schemas:
 `data.closeout_support` is part of the workspace-status schema. It exposes
 whether the current checkout can be locally closed out to the configured
 candidate branch, the target worktree path, the planned operation, the strict
-Lease observation, its immutable base Commitment digest when valid or
-expired, and the same required-gap vocabulary used by mutation admission.
+Lease observation, fresh Git coordinates, and the same required-gap vocabulary
+used by mutation admission.
 
 Terminal semantic contracts are explicit:
 
-- `commitment.schema.json` governs immutable intent, repository subject,
-  material scope, invariants, acceptance, and authority references.
+- `commitment.schema.json` governs the transient compiled
+  `schema_version`/`id`/`acceptance` value.
 - `attestation.schema.json` governs one open-predicate statement with explicit
   evidence bindings; predicates carry meaning without a closed variant taxonomy.
 - `facts.schema.json` governs freshly observed repository facts.

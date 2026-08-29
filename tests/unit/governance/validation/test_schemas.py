@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from ethos.repository.audit import REQUIRED_SCHEMAS
+from ethos.repository.policy.schema import load_schema
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
@@ -17,6 +18,19 @@ from tests.support.literal_cases import literal_case
 
 ROLE_POLICY_SAMPLE = literal_case("governance.validation.test_schemas:assign:ROLE_POLICY_SAMPLE:0")
 ROOT = Path(__file__).resolve().parents[4]
+
+
+def test_schema_loader_uses_active_product_checkout_not_adopter_schema(tmp_path) -> None:
+    source = load_schema("workspace-status.schema.json", root=ROOT)
+    schema_dir = tmp_path / "system" / "schemas" / "kernel"
+    schema_dir.mkdir(parents=True)
+    (schema_dir / "workspace-status.schema.json").write_text("{}\n", encoding="utf-8")
+
+    adopter = load_schema("workspace-status.schema.json", root=tmp_path)
+
+    assert source["title"] == "ETHOS Workspace Status"
+    assert adopter["title"] == "ETHOS Workspace Status"
+    assert adopter != {}
 
 
 def test_schema_validation_report_covers_all_ethos_schemas() -> None:

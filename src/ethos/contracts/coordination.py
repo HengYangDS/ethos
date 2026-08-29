@@ -5,7 +5,6 @@ They do not model users, teams, permissions, or durable repository truth.
 """
 
 import json
-from dataclasses import dataclass
 from typing import Annotated
 from typing import Any
 from typing import Literal
@@ -19,7 +18,6 @@ from pydantic import JsonValue
 from pydantic import TypeAdapter
 from pydantic import ValidationError
 from pydantic import field_validator
-from pydantic import model_validator
 
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.value import FrozenTuple
@@ -43,82 +41,6 @@ _REPOSITORY_RELATIVE_PATH_PATTERN = (
     r"))*$"
 )
 RepositoryRelativePath = Annotated[str, Field(pattern=_REPOSITORY_RELATIVE_PATH_PATTERN)]
-
-
-@dataclass(frozen=True, slots=True)
-class LeaseOperation:
-    """Exact coordination semantics for one public Lease operation."""
-
-    effect_fields: tuple[str, ...]
-    kind: Literal["refresh", "offer", "accept"]
-    actor_field: Literal["holder_ref", "target_holder_ref"]
-    applied_state: str
-    require_expired: bool = False
-
-
-LEASE_OPERATIONS = {
-    "renew": LeaseOperation(
-        effect_fields=(
-            "holder_ref",
-            "expected_epoch",
-            "expected_expires_at",
-            "expected_payload_sha256",
-            "ttl_seconds",
-        ),
-        kind="refresh",
-        actor_field="holder_ref",
-        applied_state="renewed",
-    ),
-    "resume": LeaseOperation(
-        effect_fields=(
-            "holder_ref",
-            "expected_epoch",
-            "expected_expires_at",
-            "expected_payload_sha256",
-            "ttl_seconds",
-        ),
-        kind="refresh",
-        actor_field="holder_ref",
-        applied_state="resumed",
-        require_expired=True,
-    ),
-    "handoff_offer": LeaseOperation(
-        effect_fields=(
-            "holder_ref",
-            "expected_epoch",
-            "expected_expires_at",
-            "expected_payload_sha256",
-            "target_holder_ref",
-        ),
-        kind="offer",
-        actor_field="holder_ref",
-        applied_state="handoff_offered",
-    ),
-    "handoff_accept": LeaseOperation(
-        effect_fields=(
-            "holder_ref",
-            "target_holder_ref",
-            "offer_id",
-            "expected_epoch",
-            "expected_expires_at",
-            "expected_payload_sha256",
-            "holder_quiesced",
-            "ttl_seconds",
-        ),
-        kind="accept",
-        actor_field="target_holder_ref",
-        applied_state="handoff_accepted",
-    ),
-}
-
-
-def lease_operation(identifier: str) -> LeaseOperation:
-    """Return one exact supported Lease operation or fail closed."""
-    try:
-        return LEASE_OPERATIONS[identifier]
-    except KeyError:
-        message = f"lease_operation_unknown:{identifier}"
-        raise ValueError(message) from None
 
 
 class HolderRef(BaseModel):
@@ -154,76 +76,28 @@ class HolderRef(BaseModel):
         return f"{self.kind}:{self.namespace}:{self.instance_kind}:{self.opaque_id}"
 
 
-class LeaseHandoffOffer(BaseModel):
-    """One exact pending holder transfer offer inside a Lane Lease."""
-
-    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
-
-    offer_id: str = Field(min_length=1)
-    target_holder_ref: str = Field(min_length=1)
-    offered_at: AwareDatetime
-
-    @field_validator("target_holder_ref")
-    @classmethod
-    def validate_target_holder_ref(cls, value: str) -> str:
-        return HolderRef.parse(value).serialize()
-
-
 class LaneLease(BaseModel):
-    """One current cooperative writer lease in one Git common directory."""
+    """One expiring lane-to-holder coordination relation."""
 
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
-    lane_incarnation_id: str = Field(min_length=1)
-    lease_id: str = Field(min_length=1)
     lane_ref: str = Field(min_length=1)
     holder_ref: HolderRef
-    epoch: int = Field(ge=1)
-    issued_at: AwareDatetime
-    renewed_at: AwareDatetime
+    generation: int = Field(ge=1)
     expires_at: AwareDatetime
-    expected_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    expected_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    base_commitment_path: RepositoryRelativePath
-    base_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    base_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    path_scope: FrozenTuple[str] = ()
-    handoff: LeaseHandoffOffer | None = None
 
     @field_validator("holder_ref", mode="before")
     @classmethod
     def parse_holder_ref(cls, value: object) -> object:
         return HolderRef.parse(value) if isinstance(value, str) else value
 
-    @model_validator(mode="after")
-    def validate_times(self) -> Self:
-        """Keep renewal and expiry ordered without claiming clock authority."""
-        if self.renewed_at < self.issued_at:
-            msg = "renewed_at must not precede issued_at"
-            raise ValueError(msg)
-        if self.expires_at < self.renewed_at:
-            msg = "expires_at must not precede renewed_at"
-            raise ValueError(msg)
-        return self
-
     def to_payload(self) -> dict[str, Any]:
-        """Return the complete canonical persisted Lease payload."""
+        """Return the minimal canonical persisted Lease payload."""
         return {
-            "lane_incarnation_id": self.lane_incarnation_id,
-            "lease_id": self.lease_id,
             "lane_ref": self.lane_ref,
             "holder_ref": self.holder_ref.serialize(),
-            "epoch": self.epoch,
-            "issued_at": self.issued_at.isoformat(),
-            "renewed_at": self.renewed_at.isoformat(),
+            "generation": self.generation,
             "expires_at": self.expires_at.isoformat(),
-            "expected_head": self.expected_head,
-            "expected_tree": self.expected_tree,
-            "base_commitment_path": self.base_commitment_path,
-            "base_commitment_bytes_sha256": self.base_commitment_bytes_sha256,
-            "base_commitment_digest": self.base_commitment_digest,
-            "path_scope": list(self.path_scope),
-            "handoff": self.handoff.model_dump(mode="json") if self.handoff else None,
         }
 
     @classmethod
@@ -261,17 +135,11 @@ class CrossHostHandoff(BaseModel):
     source_lane_ref: str = Field(min_length=1)
     source_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     source_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    base_commitment_path: RepositoryRelativePath
-    base_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     target_holder_ref: HolderRef
     context_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     dirty_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    source_lane_incarnation_id: str = Field(min_length=1)
-    source_lease_id: str = Field(min_length=1)
-    source_lease_epoch: int = Field(ge=1)
+    source_lease_generation: int = Field(ge=1)
     source_lease_expires_at: str = Field(min_length=1)
-    source_lease_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    base_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_holder_ref: HolderRef
     artifacts: FrozenTuple[HandoffArtifact] = ()
 
@@ -281,25 +149,16 @@ class CrossHostHandoff(BaseModel):
             "source_lane_ref": self.source_lane_ref,
             "source_head": self.source_head,
             "source_tree": self.source_tree,
-            "base_commitment_path": self.base_commitment_path,
-            "base_commitment_bytes_sha256": self.base_commitment_bytes_sha256,
             "target_holder_ref": self.target_holder_ref.serialize(),
             "context_digest": self.context_digest,
             "dirty_content_sha256": self.dirty_content_sha256,
-            "base_commitment_digest": self.base_commitment_digest,
             "source_lease_binding": {
-                "lane_incarnation_id": self.source_lane_incarnation_id,
-                "lease_id": self.source_lease_id,
-                "epoch": self.source_lease_epoch,
+                "lane_ref": self.source_lane_ref,
                 "holder_ref": self.source_holder_ref.serialize(),
-                "expected_head": self.source_head,
+                "generation": self.source_lease_generation,
                 "expires_at": self.source_lease_expires_at,
-                "payload_sha256": self.source_lease_payload_sha256,
             },
             "artifacts": [artifact.model_dump(mode="json") for artifact in self.artifacts],
-            "transfers_source_lease": False,
-            "destination_creates_local_incarnation": True,
-            "truth_boundary": "content_addressed_context_until_promoted",
         }
 
 
@@ -312,10 +171,8 @@ class CrossHostHandoffExportRequest(BaseModel):
     branch: str = Field(min_length=1)
     holder_ref: str = Field(min_length=1)
     target_holder_ref: str = Field(min_length=1)
-    lease_id: str = Field(min_length=1)
-    epoch: int = Field(ge=1)
-    expected_expires_at: str = Field(min_length=1)
-    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    generation: int = Field(ge=1)
+    expires_at: str = Field(min_length=1)
     expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     context_text: str = ""
     context_file: str | None = None
@@ -343,10 +200,8 @@ class CrossHostHandoffSourceRevocationRequest(BaseModel):
     package: str
     acknowledgement: str
     holder_ref: str = Field(min_length=1)
-    lease_id: str = Field(min_length=1)
-    epoch: int = Field(ge=1)
-    expected_expires_at: str = Field(min_length=1)
-    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    generation: int = Field(ge=1)
+    expires_at: str = Field(min_length=1)
     expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     apply: bool = False
 
@@ -357,19 +212,19 @@ class LeaseOperationRequest(BaseModel):
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     operation: str = Field(min_length=1)
-    branch: str
-    holder_ref: str
-    lease_id: str
-    expected_epoch: int | None
-    expect_head: str
-    expected_expires_at: str = Field(min_length=1)
-    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    branch: str = Field(min_length=1)
+    holder_ref: str = Field(min_length=1)
+    generation: int = Field(ge=1)
+    expires_at: str = Field(min_length=1)
     apply: bool = False
-    ttl_seconds: int = 86_400
+    ttl_seconds: int = Field(gt=0, default=86_400)
     target_holder_ref: str = ""
-    offer_id: str = ""
-    holder_quiesced: bool = False
     contrary_decision: bool = False
+
+    @field_validator("holder_ref", "target_holder_ref")
+    @classmethod
+    def validate_holder_refs(cls, value: str) -> str:
+        return HolderRef.parse(value).serialize() if value else value
 
 
 class LeaseTakeoverRequest(BaseModel):
@@ -380,14 +235,8 @@ class LeaseTakeoverRequest(BaseModel):
     branch: str = Field(min_length=1)
     source_holder_ref: str = Field(min_length=1)
     target_holder_ref: str = Field(min_length=1)
-    lease_id: str = Field(min_length=1)
-    expected_lane_incarnation_id: str = Field(min_length=1)
-    expected_epoch: int = Field(ge=1)
-    expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    expected_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    expected_expires_at: str = Field(min_length=1)
-    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    expected_dirty_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    generation: int = Field(ge=1)
+    expires_at: str = Field(min_length=1)
     source_state: Literal["quiesced", "source_lost"]
     authorization: Attestation
     ttl_seconds: int = Field(gt=0, default=86_400)
@@ -397,33 +246,3 @@ class LeaseTakeoverRequest(BaseModel):
     @classmethod
     def validate_holder_ref(cls, value: str) -> str:
         return HolderRef.parse(value).serialize()
-
-
-class CommitmentRebindRequest(BaseModel):
-    """Exact old-generation request for one immutable Commitment replacement."""
-
-    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
-
-    branch: str = Field(min_length=1)
-    holder_ref: str = Field(min_length=1)
-    lease_id: str = Field(min_length=1)
-    expected_lane_incarnation_id: str = Field(min_length=1)
-    expected_epoch: int = Field(ge=1)
-    expected_issued_at: str = Field(min_length=1)
-    expected_renewed_at: str = Field(min_length=1)
-    expected_expires_at: str = Field(min_length=1)
-    expected_path_scope: FrozenTuple[str] = ()
-    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    expected_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    expected_commitment_path: RepositoryRelativePath
-    expected_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    expected_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    expect_index_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    expected_working_overlay_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    target_commit: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    new_commitment_path: RepositoryRelativePath
-    new_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    new_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    repair_change_identity: bool = False
-    apply: bool = False

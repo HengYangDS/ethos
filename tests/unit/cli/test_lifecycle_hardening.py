@@ -16,30 +16,30 @@ from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_work_lane
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_work_lane_commitment_never_falls_back_from_an_invalid_lease(
+def test_work_lane_commitment_ignores_lease_payload_and_compiles_current_intent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def invalid_lease(*_args: object, **_kwargs: object) -> None:
-        message = "lease_expected_tree_mismatch"
-        raise ValueError(message)
-
-    monkeypatch.setattr(openspec_profile, "load_lease_bound_commitment", invalid_lease)
+    commitment = object()
     monkeypatch.setattr(
         openspec_profile,
         "load_profile_commitment",
-        lambda *_args, **_kwargs: pytest.fail("invalid Lease must stop carrier selection"),
+        lambda *_args, **_kwargs: commitment,
     )
 
-    with pytest.raises(ValueError, match="lease_expected_tree_mismatch"):
-        openspec_profile.load_work_lane_commitment(tmp_path, lease={})
+    assert (
+        openspec_profile.load_work_lane_commitment(
+            tmp_path,
+            lease={},
+        )
+        is commitment
+    )
 
 
 def _diverged_candidate_repo(tmp_path: Path) -> tuple[Path, Path, str, str]:
@@ -96,9 +96,7 @@ def test_lane_candidate_refresh_recovers_after_interrupted_projection(
     arguments = _refresh_arguments(accepted_head)
     failed_report = run_ethos_blocked(*arguments, cwd=repo)
     assert bool(list(ref_intent_dir(repo).glob("*.json"))) is effect_persisted
-    assert git(repo, "rev-parse", "candidate/dev") == (
-        accepted_head if effect_persisted else old_candidate_head
-    )
+    assert git(repo, "rev-parse", "candidate/dev") == accepted_head
     recovered = run_ethos(*arguments, cwd=repo)
     assert failed_report["required_gaps"] == ["candidate_refresh_from_accepted_failed"]
     assert failed_report["data"]["previous_head"] == old_candidate_head
@@ -133,7 +131,7 @@ def test_lane_candidate_bootstrap_recovers_after_worktree_creation_precedes_inte
     ]
     recovered = run_ethos(*arguments, cwd=repo)
 
-    assert recovered["state"] == "present"
+    assert recovered["state"] == "bootstrapped"
     assert hook_runtime_binding(candidate)["required_gaps"] == []
     assert not list(ref_intent_dir(repo).glob("*.json"))
 
@@ -142,7 +140,7 @@ def test_lane_refresh_recovers_after_ref_cas_precedes_branch_attachment(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    _repo, candidate, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     previous = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -186,7 +184,7 @@ def test_lane_refresh_restores_original_branch_when_ref_cas_is_rejected_after_re
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    _repo, candidate, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     previous = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -218,7 +216,6 @@ def test_lane_refresh_restores_original_branch_when_ref_cas_is_rejected_after_re
 
 def test_land_closeout_reports_actionable_candidate_divergence(tmp_path: Path) -> None:
     repo, _candidate, accepted_head, _old_candidate_head = _diverged_candidate_repo(tmp_path)
-    seed_executed_proof(repo, accepted_head)
 
     payload = run_ethos_blocked(
         "land",

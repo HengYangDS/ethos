@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import lease_binding
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import require
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -89,7 +88,6 @@ def remove_import_carriers(
             destination,
             worktree_path,
             manifest,
-            lease,
             object_environment=object_environment,
         )
         status = run_git(
@@ -133,15 +131,10 @@ def remove_import_carriers(
         actual = run_git(destination, "rev-parse", ref, env=object_environment).stdout.strip()
         require("handoff_import_compensation_failed", holds=actual == head)
         effect = GitEffect(updates={ref: GitRefUpdate(expected=head, desired="0" * len(head))})
-        authority = load_lease_bound_commitment(
-            destination,
-            lease=lease,
-            environment=object_environment,
-        )
         execution_head = run_git(destination, "rev-parse", "HEAD").stdout.strip()
         plan = compile_observed_git_effect(
             destination,
-            authority,
+            None,
             effect,
             head=execution_head,
             prior_attestations={},

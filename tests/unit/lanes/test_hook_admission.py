@@ -27,6 +27,7 @@ from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import HookAdmissionRequest
 from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import conformant_proof_check
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -227,11 +228,7 @@ def test_prewrite_state_matrix(tmp_path: Path, state: str, role: str, reason: st
         assert report["admission"]["error"] == reason
     elif state == "work_missing_lease":
         assert report["admission"]["work_lane_lease"]["verdict"] == "block"
-        next_action = (
-            "ethos lane start <name> --commitment <commitment.toml> "
-            "--holder-ref <holder-ref> --apply --json"
-        )
-        assert report["next_action"] == next_action
+        assert report["next_action"] == "ethos lane status --json"
 
 
 @pytest.mark.parametrize(("actor", "state", "action", "reason"), _cases("prewrite_actor_states"))
@@ -273,12 +270,11 @@ def test_prewrite_actor_lease_matrix(
             "branch": "work/feature",
             "holder_ref": "agent:test:case:agent-a",
             "invocation_holder_ref": actor,
-            "epoch": 1,
+            "generation": 1,
             "reason": reason,
         },
     )
-    assert lease["lease_id"].startswith("lease:")
-    assert lease["expected_head"] == git(leased_worktree, "rev-parse", "HEAD")
+    assert lease["current_head"] == git(leased_worktree, "rev-parse", "HEAD")
     if state == "blocked":
         next_action = (
             "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, "
@@ -507,42 +503,24 @@ def test_push_topology_and_proof_state_matrix(tmp_path: Path) -> None:
     assert "publication_topology_declaration_invalid" in report["required_gaps"]
     write_publication_topology(repo)
     head = git(repo, "rev-parse", "HEAD")
-    for ref, gap in (
-        ("refs/heads/dev", "repository_commitment_missing"),
+    for ref, gaps in (
+        (
+            "refs/heads/dev",
+            (
+                "accepted_advance_not_candidate_validated",
+                "accepted_ref_move_not_fast_forward",
+                "accepted_closeout_effect_not_attested",
+            ),
+        ),
         (
             "refs/heads/work/feature",
-            "publication_ref_unavailable:branch:work_lane:refs/heads/work/feature",
+            ("publication_ref_unavailable:branch:work_lane:refs/heads/work/feature",),
         ),
     ):
         report = push_admission_report(root=repo, target_ref=ref, pushed_head=head)
         _assert(report, {"verdict": "block", "state": "blocked"})
         assert "ok" not in report
-        assert any(gap in str(item) for item in report["required_gaps"])
-
-
-def test_push_admission_preserves_unsupported_repository_commitment(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    carrier = repo / ".ethos/commitment.toml"
-    carrier.write_text('id = "repository:obsolete"\n', encoding="utf-8")
-    git(repo, "add", ".ethos/commitment.toml")
-    git(repo, "commit", "-m", "record obsolete repository commitment")
-    head = git(repo, "rev-parse", "HEAD")
-
-    report = push_admission_report(
-        root=repo,
-        target_ref="refs/heads/dev",
-        pushed_head=head,
-    )
-
-    assert report["proof_admission"]["required_gaps"] == [
-        "repository_commitment_schema_unsupported:.ethos/commitment.toml",
-        "hook_runtime_current_missing",
-    ]
-    assert (
-        "repository_commitment_schema_unsupported:.ethos/commitment.toml" in report["required_gaps"]
-    )
-    assert not any("repository_commitment_missing" in gap for gap in report["required_gaps"])
+        assert all(gap in report["required_gaps"] for gap in gaps)
 
 
 @pytest.mark.parametrize(("author", "committer", "verdict"), _cases("identity_states"))
@@ -644,7 +622,7 @@ def test_proof_artifact_root_uses_only_digest_bound_artifact_paths(tmp_path: Pat
     )
     assert state_database(repo) == common / "ethos/state.sqlite"
     assert proof_artifact_root(repo) == common / "ethos"
-    head = git(repo, "rev-parse", "HEAD")
+    head = commit_active_change(repo, change_id="proof-artifact-root")
     attestation = _proof_for_head(repo, head)
     selected = persist_proof_attestation(repo, attestation)
     assert selected["root"]
@@ -660,7 +638,7 @@ def test_proof_artifact_root_uses_only_digest_bound_artifact_paths(tmp_path: Pat
 def test_attestation_validity_matrix(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
+    head = commit_active_change(repo, change_id="attestation-validity")
     assert proof_attestation(repo, head) is None
     assert proof_gaps(repo, head) == ["proof_not_proven"]
     gate = resolve_gate_policy(repo, tree_ref=head).gate_ids[0]

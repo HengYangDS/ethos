@@ -12,9 +12,10 @@ from typing import cast
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.publication.attestation import terminal_publication_result
-from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.git_object import GitObjectKind
 from ethos.adapters.repo.git_object import observe_git_object
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
@@ -315,9 +316,9 @@ def compile_remote_publication_request(
     *, root: Path, effect: PublicationEffect, proof: dict[str, object]
 ) -> TransitionPlan:
     """Compile fresh remote observations into the common TransitionPlan."""
-    commitment = load_repository_commitment(root, tree_ref=effect.source.peeled_commit)
+    commitment = load_openspec_commitment(root, tree_ref=effect.source.peeled_commit)
     facts = Facts(
-        repository=commitment.id,
+        repository=repository_identity(root, tree_ref=effect.source.peeled_commit),
         head=effect.source.peeled_commit,
         tree=effect.source.tree_oid,
         observed_at=datetime.now(UTC),

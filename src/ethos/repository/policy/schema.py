@@ -45,9 +45,17 @@ def _product_schema_dir() -> Path:
     ).resolve()
 
 
+def _source_schema_dir() -> Path | None:
+    """Return schemas beside the active source runner, never from an adopter."""
+    source_root = Path(__file__).resolve().parents[4]
+    schema_dir = source_root / "system" / "schemas" / "kernel"
+    return schema_dir if schema_dir.is_dir() else None
+
+
 def load_schema(name: str, *, root: Path | None = None) -> dict[str, Any]:
     del root
-    return json.loads((_product_schema_dir() / name).read_text(encoding="utf-8"))
+    schema_dir = _source_schema_dir() or _product_schema_dir()
+    return json.loads((schema_dir / name).read_text(encoding="utf-8"))
 
 
 def schema_validation_report(root: Path | None = None) -> dict[str, object]:
@@ -55,7 +63,7 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
     gaps: list[str] = []
     schemas: dict[str, dict[str, object]] = {}
     local_schema_dir = _schema_dir(repo)
-    schema_dir = _product_schema_dir()
+    schema_dir = _source_schema_dir() or _product_schema_dir()
     retired_schema = local_schema_dir / "capability-profile.schema.json"
     if retired_schema.exists():
         gaps.append("schema_retired:capability-profile.schema.json")

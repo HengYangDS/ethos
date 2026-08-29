@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tomllib
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
@@ -8,13 +7,9 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
-import tomli_w
 
-import ethos.adapters.mutation.lane_start_carrier as lane_start_carrier
 import ethos.adapters.mutation.proof as proof_module
 import ethos.adapters.mutation.proof_admission as proof_admission
-import ethos.adapters.openspec.profile as openspec_profile
-import tests.support.governed_repository as governed_repository
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
@@ -25,7 +20,6 @@ from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
@@ -96,28 +90,6 @@ def _assert_proof(
 ) -> None:
     assert proof_attestation(root, head) == selected
     assert proof_gaps(root, head) == ([] if gap is None else [gap])
-
-
-def test_work_lane_proof_plan_uses_the_current_active_commitment(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(governed_repository, "install_fixture_hook_runtime", lambda _root: {})
-    monkeypatch.setattr(lane_start_carrier, "install_hook_launchers", lambda _root: {})
-    holder = "agent:test:case:current-commitment"
-    root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
-    lease = proof_module.leases_by_branch(root)["work/feature"]
-    carrier = root / str(lease["base_commitment_path"])
-    current = Commitment.model_validate(tomllib.loads(carrier.read_text()))
-    carrier.write_text(
-        tomli_w.dumps(
-            current.model_copy(update={"acceptance": ("current",)}).model_dump(mode="python")
-        )
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", holder)
-    plan = proof_plan(root, head=git(root, "rev-parse", "HEAD"))
-    dated = Commitment.model_validate(plan.commitment | {"id": "change:20260809-proof-binding"})
-    monkeypatch.setattr(openspec_profile, "load_lease_bound_commitment", lambda *_a, **_k: dated)
-    proof_plan(root, head=git(root, "rev-parse", "HEAD"))
 
 
 def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path) -> None:
@@ -315,8 +287,7 @@ def test_proof_issuance_rejects_nonadmitted_plan_and_result_drift(tmp_path: Path
     ("state", "gap"),
     [
         ("expired", "work_lane_lease_expired"),
-        ("head", "lease_head_stale"),
-        ("actor", "lease_actor_mismatch"),
+        ("actor", "lease_holder_mismatch"),
     ],
 )
 def test_work_lane_proof_plan_requires_current_lease_generation(
@@ -332,8 +303,6 @@ def test_work_lane_proof_plan_requires_current_lease_generation(
     monkeypatch.setenv("ETHOS_ACTOR", "other" if state == "actor" else holder)
     if state == "expired":
         lease["lease_state"] = "expired"
-    elif state == "head":
-        lease["expected_head"] = "0" * 40
     monkeypatch.setattr(
         proof_module,
         "leases_by_branch",
@@ -394,79 +363,61 @@ def test_persistence_identity_and_self_contained_closure(
         "load_profile_commitment",
         lambda *_a, **_k: (_ for _ in ()).throw(AssertionError()),
     )
-    monkeypatch.setattr(
-        proof_module,
-        "load_repository_commitment",
-        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError()),
-    )
     _assert_proof(repo, head, selected=record)
 
 
-def test_repository_authority_ignores_a_retired_work_lane_proof(
+def test_repository_transition_ignores_an_unarchived_work_lane_proof(
     tmp_path: Path,
 ) -> None:
     fixture = start_adopted_work_lane(tmp_path)
     head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
-    historical = _issue(fixture.worktree, head)
+    historical_plan = proof_plan(fixture.worktree, head=head, changed_paths=("FEATURE.md",))
+    historical = _issue(fixture.worktree, head, plan=historical_plan)
     persist_proof_attestation(fixture.worktree, historical)
     git(fixture.candidate, "reset", "--hard", head)
-    historical_plan = proof_plan(fixture.candidate, head=head)
     values = dict(historical_plan.facts["values"])
     values["change_id"] = ""
     values.pop("lease_generation", None)
-    repository_plan = compile_plan(
-        load_repository_commitment(fixture.candidate, tree_ref=head),
+    archive_plan = compile_plan(
+        Commitment.model_validate(dict(historical_plan.commitment)),
         Facts.model_validate(
             historical_plan.facts | {"observed_at": datetime.now(UTC), "values": values}
         ),
         historical_plan.nodes,
         policy=dict(historical_plan.policy),
+        prior_attestations={
+            "openspec_archive": {
+                "predicate": "effect:git-ref-update",
+                "attestation_id": "a" * 64,
+                "effect_digest": "c" * 64,
+                "plan_digest": "d" * 64,
+                "claim": {"operation": "openspec.archive", "effect": "c" * 64},
+                "source": "archive_commit",
+                "authorized_paths": ["FEATURE.md"],
+            }
+        },
     )
-    repository = _reissue(
+    archived = _reissue(
         historical,
-        commitment_digest=repository_plan.inputs.commitment,
-        facts_digest=repository_plan.inputs.facts,
-        plan_digest=repository_plan.digest,
-        policy_digest=repository_plan.inputs.policy,
-        effect_digest=repository_plan.inputs.effect,
-        body=historical.payload.body | {"plan": repository_plan.model_dump(mode="json")},
+        commitment_digest=archive_plan.inputs.commitment,
+        facts_digest=archive_plan.inputs.facts,
+        plan_digest=archive_plan.digest,
+        policy_digest=archive_plan.inputs.policy,
+        effect_digest=archive_plan.inputs.effect,
+        body=historical.payload.body | {"plan": archive_plan.model_dump(mode="json")},
     )
-    persist_proof_attestation(fixture.candidate, repository)
-    assert historical.commitment_digest != repository.commitment_digest
-    assert proof_gaps(fixture.candidate, head) == ["stale_binding"]
+    persist_proof_attestation(fixture.candidate, archived)
 
-    selected, gaps = proof_admission.proof_attestation(
-        fixture.candidate,
-        head,
-        repository=load_repository_commitment(fixture.candidate, tree_ref=head),
-        store=proof_artifact_root(fixture.candidate),
-    )
+    selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
 
     assert gaps == []
-    assert selected == repository
-    wrong = load_repository_commitment(fixture.candidate, tree_ref=head).model_copy(
-        update={"acceptance": ("wrong",)}
-    )
-    observed_commitments = ",".join(
-        sorted((historical.commitment_digest, repository.commitment_digest))
-    )
-    assert proof_admission.proof_attestation(
-        fixture.candidate,
-        head,
-        repository=wrong,
-        store=proof_artifact_root(fixture.candidate),
-    )[1] == [
-        (
-            "proof_attestation_commitment_mismatch:"
-            f"expected={wrong.digest()}:observed={observed_commitments}"
-        )
-    ]
-    checks, gaps = artifact_checks(proof_artifact_root(fixture.candidate), repository)
+    assert selected == archived
+    checks, gaps = artifact_checks(proof_artifact_root(fixture.candidate), archived)
     assert checks is not None
     assert gaps == []
     former = _reissue(
-        repository,
-        body=dict(repository.payload.body) | {"head": head},
+        archived,
+        body=dict(archived.payload.body) | {"head": head},
     )
     assert proof_statement_gaps(former, checks) == ["model_gap"]
 
@@ -475,7 +426,6 @@ def _archive_bound_work_proof(tmp_path: Path) -> tuple[object, str, Attestation]
     fixture = start_adopted_work_lane(tmp_path)
     head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
     base = proof_plan(fixture.worktree, head=head, changed_paths=("FEATURE.md",))
-    effect_identity = "d" * 64
     archived = compile_plan(
         Commitment.model_validate(dict(base.commitment)),
         Facts.model_validate(base.facts | {"observed_at": datetime.now(UTC)}),
@@ -483,13 +433,12 @@ def _archive_bound_work_proof(tmp_path: Path) -> tuple[object, str, Attestation]
         policy=dict(base.policy),
         prior_attestations={
             "openspec_archive": {
-                "predicate": "effect:openspec-archive",
+                "predicate": "effect:git-ref-update",
                 "attestation_id": "a" * 64,
-                "commitment_digest": "b" * 64,
                 "effect_digest": "c" * 64,
-                "effect_identity": effect_identity,
-                "input": {"effect_identity": effect_identity},
-                "output": {"changed_paths": ["FEATURE.md"]},
+                "plan_digest": "d" * 64,
+                "claim": {"operation": "openspec.archive", "effect": "c" * 64},
+                "source": "archive_commit",
                 "authorized_paths": ["FEATURE.md"],
             }
         },
@@ -510,36 +459,37 @@ def test_repository_transition_uses_archive_proof_after_lease_retirement(
     assert gaps == []
 
 
-@pytest.mark.parametrize("conflict", [False, True])
-def test_repository_transition_rejects_wrong_or_conflicting_archive_authority(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, conflict: bool
-) -> None:
-    fixture, head, _proof = _archive_bound_work_proof(tmp_path)
-    monkeypatch.setattr(proof_admission, "leases_by_branch", lambda _root: {})
-    repository = load_repository_commitment(fixture.candidate, tree_ref=head).model_copy(
-        update={"id": "repository:other", "subjects": ("repository:other",)}
-    )
-    if conflict:
-        proof = _proof
-        persist_proof_attestation(
-            fixture.candidate,
-            _reissue(
-                proof,
-                verifier="agent:test:case:conflict",
-                body=proof.payload.body | {"claim": {"objective": "conflict", "verdict": "pass"}},
-            ),
-        )
-        repository = load_repository_commitment(fixture.candidate, tree_ref=head)
-    selected, gaps = proof_admission.proof_attestation(
-        fixture.candidate, head, repository=repository, store=proof_artifact_root(fixture.candidate)
-    )
+def test_repository_transition_requires_archive_authority(tmp_path: Path) -> None:
+    fixture = start_adopted_work_lane(tmp_path)
+    head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
+    proof = _issue(fixture.worktree, head)
+    persist_proof_attestation(fixture.worktree, proof)
+    git(fixture.candidate, "reset", "--hard", head)
+
+    selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
+
     assert selected is None
-    expected = (
-        f"proof_attestation_assertion_conflict:{repository.id}"
-        if conflict
-        else "proof_attestation_repository_mismatch:repository:other"
+    assert gaps == ["proof_archive_authority_missing"]
+
+
+def test_repository_transition_rejects_conflicting_archive_proofs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture, head, proof = _archive_bound_work_proof(tmp_path)
+    monkeypatch.setattr(proof_admission, "leases_by_branch", lambda _root: {})
+    persist_proof_attestation(
+        fixture.candidate,
+        _reissue(
+            proof,
+            verifier="agent:test:case:conflict",
+            body=proof.payload.body | {"claim": {"objective": "conflict", "verdict": "pass"}},
+        ),
     )
-    assert gaps == [expected]
+
+    selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
+
+    assert selected is None
+    assert gaps == ["contradiction"]
 
 
 def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(tmp_path: Path) -> None:

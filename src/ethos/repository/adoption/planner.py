@@ -4,25 +4,17 @@ import hashlib
 import os
 import stat
 import tempfile
-import tomllib
-import uuid
 from pathlib import Path
 
-import tomli_w
-from pydantic import ValidationError
-
 from ethos.contracts.openspec.models import OpenSpecPolicy
-from ethos.contracts.semantic import Commitment
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import render_repository_profile
 
 PROFILE_PATH = ".ethos/profile.toml"
-COMMITMENT_PATH = ".ethos/commitment.toml"
 OPENSPEC_CONFIG_PATH = "openspec/config.yaml"
-OPENSPEC_SPECS_PATH = "openspec/specs/README.md"
 APPLY_CRITERIA = (
-    "planned_files contains only the adopter profile, Commitment, and OpenSpec bindings",
+    "planned_files contains only the adopter profile and official OpenSpec config",
     "existing nonempty binding content is not replaced",
     "rollback path is understood before apply",
 )
@@ -32,39 +24,31 @@ def adoption_plan(
     root: Path,
     *,
     apply: bool = False,
-    repository_id: str | None = None,
     expect_plan_digest: str | None = None,
 ) -> dict[str, object]:
-    repository_id = repository_id or f"repository:id-{uuid.uuid4()}"
     current_profile = _current_binding(root, root / PROFILE_PATH)
-    current_commitment = _current_binding(root, root / COMMITMENT_PATH)
-    repository_id = _repository_id(current_commitment) or repository_id
+    existing_profile = load_repository_profile(root)
+    profile_id = (
+        existing_profile.declaration.profile_id
+        if existing_profile.state == "valid" and existing_profile.declaration is not None
+        else root.resolve().name
+    )
     profile = render_repository_profile(
-        RepositoryProfileDeclaration.bootstrap(root.resolve().name).model_copy(
+        RepositoryProfileDeclaration.bootstrap(profile_id).model_copy(
             update={"openspec": OpenSpecPolicy(material_paths=("**",))}
         )
     )
-    commitment = _repository_commitment(repository_id)
     openspec = _openspec_config(root.resolve().name)
     contents: dict[str, str] = {
         PROFILE_PATH: current_profile[0]
         if isinstance(current_profile[0], str) and _existing_profile_is_valid(root, current_profile)
         else profile,
-        COMMITMENT_PATH: current_commitment[0]
-        if isinstance(current_commitment[0], str)
-        and _existing_commitment_is_valid(current_commitment)
-        else commitment,
         OPENSPEC_CONFIG_PATH: _current_binding(root, root / OPENSPEC_CONFIG_PATH)[0] or openspec,
-        OPENSPEC_SPECS_PATH: _current_binding(root, root / OPENSPEC_SPECS_PATH)[0]
-        or "# Specifications\n",
     }
     current_openspec = _current_binding(root, root / OPENSPEC_CONFIG_PATH)
-    current_specs = _current_binding(root, root / OPENSPEC_SPECS_PATH)
     bindings = {
         PROFILE_PATH: (*current_profile, contents[PROFILE_PATH]),
-        COMMITMENT_PATH: (*current_commitment, contents[COMMITMENT_PATH]),
         OPENSPEC_CONFIG_PATH: (*current_openspec, contents[OPENSPEC_CONFIG_PATH]),
-        OPENSPEC_SPECS_PATH: (*current_specs, contents[OPENSPEC_SPECS_PATH]),
     }
     conflicts = [
         path
@@ -113,7 +97,7 @@ def adoption_plan(
         _apply_bindings(pending)
     return {
         "root": str(root),
-        "repository_id": repository_id,
+        "repository_id": f"repository:{profile_id}",
         "plan_digest": plan_digest,
         "planned_files": list(contents),
         "read_files": list(contents),
@@ -133,31 +117,10 @@ def adoption_plan(
         ),
         "rollback": {
             "mode": "remove_generated_binding_or_restore_git_state",
-            "planned_files": [PROFILE_PATH, COMMITMENT_PATH],
+            "planned_files": [PROFILE_PATH, OPENSPEC_CONFIG_PATH],
             "generated_files": generated,
         },
     }
-
-
-def _repository_commitment(repository_id: str) -> str:
-    commitment = Commitment(
-        schema_version=2,
-        id=repository_id,
-        intent="Govern repository change through ETHOS.",
-        subjects=(repository_id,),
-        scope=("**",),
-        invariants=(),
-        acceptance=(),
-        risks=(),
-        authority_refs=(PROFILE_PATH,),
-        predecessors=(),
-        selected_attestations=(),
-        dependencies=(),
-        hypotheses=(),
-        falsifiers=(),
-        experiment_protocols=(),
-    )
-    return tomli_w.dumps(commitment.model_dump(mode="python"))
 
 
 def _openspec_config(repository: str) -> str:
@@ -175,28 +138,6 @@ def _openspec_config(repository: str) -> str:
 def _existing_profile_is_valid(root: Path, binding: tuple[str | None, bool, bool]) -> bool:
     current, _exists, safe = binding
     return bool(current and safe and load_repository_profile(root).state == "valid")
-
-
-def _existing_commitment_is_valid(binding: tuple[str | None, bool, bool]) -> bool:
-    current, _exists, safe = binding
-    if not current or not safe:
-        return False
-    try:
-        commitment = Commitment.model_validate(tomllib.loads(current))
-    except (tomllib.TOMLDecodeError, ValidationError):
-        return False
-    return commitment.id.startswith("repository:") and commitment.subjects == (commitment.id,)
-
-
-def _repository_id(binding: tuple[str | None, bool, bool]) -> str:
-    current, _exists, _safe = binding
-    if not current:
-        return ""
-    try:
-        value = tomllib.loads(current).get("id")
-    except tomllib.TOMLDecodeError:
-        return ""
-    return str(value) if isinstance(value, str) and value.startswith("repository:") else ""
 
 
 def _current_binding(root: Path, target: Path) -> tuple[str | None, bool, bool]:

@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.profile import repository_identity
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -309,11 +309,7 @@ def _attestation(
     predicate = "effect:git-worktree-index" if operation == "read-tree" else "effect:git-worktree"
     input_observation = _canonical_observation(path, branch, head, before)
     output_observation = _canonical_observation(path, branch, head, after)
-    repository = load_repository_commitment(
-        root,
-        tree_ref=head,
-        environment=dict(environment or {}),
-    )
+    repository = repository_identity(root, tree_ref=head, environment=environment)
     return issue_native_effect(
         root,
         effect=NativeEffect(
@@ -331,8 +327,8 @@ def _attestation(
             after=output_observation,
         ),
         state=state,
-        commitment_digest=repository.digest(),
-        repository_id=repository.id,
+        commitment_digest=None,
+        repository_id=repository,
     )
 
 

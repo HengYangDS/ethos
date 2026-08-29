@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.accepted as accepted
-from ethos.adapters.repo.commitment import RepositoryCommitmentObservation
 from ethos.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
@@ -45,18 +44,11 @@ def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     monkeypatch.setattr(accepted, "is_ancestor", lambda *_args: True)
     monkeypatch.setattr(accepted, "proof_for_repository_transition", lambda *_a: (_Proof(), []))
     monkeypatch.setattr(accepted, "sweep_stale_ref_intents", lambda *_args: [])
-    monkeypatch.setattr(
-        accepted,
-        "observe_repository_commitment",
-        lambda *_args, **_kwargs: RepositoryCommitmentObservation(
-            "valid", ".ethos/commitment.toml", object()
-        ),
-    )
     monkeypatch.setattr(accepted, "worktree_sync_gap", lambda *_args: "")
     monkeypatch.setattr(accepted, "ref_worktree_paths", lambda *_args: ())
 
-    def compile_plan(_root, _authority, effect, **kwargs):
-        captured.update(effect=effect, kwargs=kwargs)
+    def compile_plan(_root, authority, effect, **kwargs):
+        captured.update(commitment=authority, effect=effect, kwargs=kwargs)
         return SimpleNamespace(effect=effect)
 
     monkeypatch.setattr(accepted, "compile_observed_git_effect", compile_plan)
@@ -74,6 +66,20 @@ def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
         lambda *_args, **_kwargs: {"mode": "accepted_ff", "worktree_sync": "synced"},
     )
     return captured
+
+
+def test_candidate_promotion_uses_proof_without_repository_commitment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured = _prime(monkeypatch)
+
+    report = _promote(tmp_path)
+
+    assert report["verdict"] == "pass"
+    assert captured["commitment"] is None
+    assert captured["kwargs"]["prior_attestations"] == {
+        "proof": {"predicate": "proof:execution", "verdict": "pass"}
+    }
 
 
 def test_candidate_promotion_rejects_divergence_before_proof_lookup(
@@ -141,17 +147,12 @@ def test_candidate_promotion_reports_transition_and_git_effect_failures(
     _prime(monkeypatch)
     monkeypatch.setattr(
         accepted,
-        "observe_repository_commitment",
-        lambda _root, *, tree_ref: (
-            RepositoryCommitmentObservation("valid", ".ethos/commitment.toml", object())
-            if tree_ref == CANDIDATE
-            else RepositoryCommitmentObservation("unsupported_schema", ".ethos/commitment.toml")
-        ),
+        "compile_observed_git_effect",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("profile invalid")),
     )
     transition = _promote(tmp_path)
-    expected = "repository_commitment_schema_unsupported:.ethos/commitment.toml"
-    assert transition["required_gaps"] == [expected]
-    assert transition["stderr"] == expected
+    assert transition["required_gaps"] == ["accepted_transition_invalid"]
+    assert transition["stderr"] == "profile invalid"
 
     _prime(monkeypatch)
     monkeypatch.setattr(

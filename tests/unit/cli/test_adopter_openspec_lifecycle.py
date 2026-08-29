@@ -33,7 +33,7 @@
   "commands": [
     ["config", "list"], ["doctor", "--json"], ["list", "--json"],
     ["status", "--change"], ["instructions", "apply"],
-    ["instructions", "archive"], ["validate", "--all"]
+    ["instructions", "archive"], ["validate", "--all"], ["show", "active"]
   ],
   "view": {
     "status": {
@@ -79,7 +79,6 @@ from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
 from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import official_config_report
-from tests.support.ethos_cli_runner import run_ethos
 from tests.support.semantic import commitment_fixture
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -170,18 +169,7 @@ def test_package_intent_claim_matrix(tmp_path):
     _write(spec, "## ADDED Requirements\n\n### Requirement: Portable result\n")
     context, gaps = compile_intent_context(
         tmp_path,
-        commitment=commitment_fixture(
-            id="change:example",
-            intent="Prove portable results.",
-            subjects=("repository:example",),
-            hypotheses=(
-                {
-                    "id": "hypothesis:bounded-input",
-                    "kind": "hypothesis:causal",
-                    "body": {"proposition": "A bounded input remains serializable."},
-                },
-            ),
-        ),
+        commitment=commitment_fixture(id="change:example", acceptance=("acceptance:fixture",)),
         config={},
         status={"changeName": "example", "schemaName": "spec-driven", "artifacts": []},
         apply={"contextFiles": {"behavior-contracts": [str(spec)]}, "tasks": []},
@@ -189,13 +177,7 @@ def test_package_intent_claim_matrix(tmp_path):
     assert gaps == ()
     assert context["requirements"] == ["contracts:Portable result"]
     assert "requirement_edges" not in context
-    assert context["assumptions"] == [
-        {
-            "id": "hypothesis:bounded-input",
-            "kind": "hypothesis:causal",
-            "body": {"proposition": "A bounded input remains serializable."},
-        }
-    ]
+    assert "assumptions" not in context
     json.dumps(context)
 
 
@@ -256,7 +238,10 @@ def test_adopter_completed_scope_claim_matrix(tmp_path):
     ]
     binding = reports[0]["scope_binding"]
     assert [item["name"] for item in reports[0]["changes"]] == ["completed-change"]
-    assert [item["scope_binding"]["state"] for item in reports] == ["covered", "covered"]
+    assert [item["scope_binding"]["state"] for item in reports] == [
+        "attributed",
+        "attributed",
+    ]
     assert (binding["covered_paths"], binding["required_gaps"]) == (
         [{"path": "docs/governance/new-policy.md", "changes": ["completed-change"]}],
         [],
@@ -276,6 +261,22 @@ def test_adopter_lifecycle_claim_matrix(monkeypatch, tmp_path):
         apply,
         {"changeName": "active", "root": root},
         {"items": [], "summary": {}},
+        {
+            "id": "active",
+            "deltas": [
+                {
+                    "spec": "contracts",
+                    "requirements": [
+                        {
+                            "text": "The active change remains governed.",
+                            "scenarios": [
+                                {"rawText": "- **WHEN** it is selected\n- **THEN** it compiles"}
+                            ],
+                        }
+                    ],
+                }
+            ],
+        },
     ]
     command_payloads = dict(
         zip((" ".join(row) for row in MATRIX["commands"]), payloads, strict=True)
@@ -306,32 +307,3 @@ def test_adopter_lifecycle_claim_matrix(monkeypatch, tmp_path):
         ["ready"],
         ["openspec_completed_change_unarchived:ready"],
     )
-
-
-def test_adopter_plan_claim_matrix_rejects_legacy_commitment_carrier(tmp_path):
-    repo = _repo(tmp_path)
-    data = run_ethos("plan", "--root", repo.as_posix(), "--json")["data"]
-    assert ("transition_plan" in data, "workflow_runtime" in data, "domain_contracts" in data) == (
-        True,
-        False,
-        False,
-    )
-    assert not {"status", "plan", "prove"} & {
-        node["id"] for node in data["transition_plan"]["nodes"]
-    }
-    carrier = repo / "governance/commitment.toml"
-    _write(
-        carrier,
-        'schema_version = 1\nid = "change:foreign"\nintent = "foreign"\n'
-        'subjects = ["repository:foreign"]\nscope = ["**"]\n',
-    )
-    fixture.git(repo, "add", ".")
-    fixture.git(repo, "commit", "-m", "foreign contract")
-    (repo / ".ethos/profile.toml").write_text(
-        'profile_id = "adopter"\ncommitment = "governance/commitment.toml"\n'
-    )
-    fixture.git(repo, "add", ".ethos/profile.toml")
-    fixture.git(repo, "commit", "-m", "select foreign contract")
-    blocked = run_ethos("plan", "--change", "foreign", "--root", repo.as_posix(), "--json")
-    assert (blocked["verdict"], blocked["state"]) == ("block", "gapped")
-    assert "commitment_invalid:governance/commitment.toml" in blocked["required_gaps"]

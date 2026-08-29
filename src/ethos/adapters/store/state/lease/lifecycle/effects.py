@@ -1,4 +1,4 @@
-"""Lane Lease revocation effects."""
+"""Exact Lane Lease retirement effects."""
 
 from __future__ import annotations
 
@@ -7,13 +7,11 @@ from contextlib import closing
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease_from_connection
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.contracts.coordination import LaneLease
     from ethos.contracts.coordination import LeaseOperationRequest
 
 
@@ -22,7 +20,7 @@ def revoke_lease(
     *,
     request: LeaseOperationRequest,
 ) -> dict[str, Any]:
-    """Delete one exact local lease generation after a completed handoff saga."""
+    """Delete one exact local Lease generation."""
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")
@@ -36,55 +34,24 @@ def revoke_lease_from_connection(
     *,
     request: LeaseOperationRequest,
 ) -> dict[str, Any]:
-    """Delete one request-bound Lease generation inside the active transaction."""
-    row, lease = expected_current_lease(
+    """Delete one request-bound Lease generation inside an active transaction."""
+    row, _lease = expected_current_lease(
         connection,
         request=request,
-        require_expired=False,
+        require_expired=None,
     )
     cursor = connection.execute(
-        "delete from leases where id = ? and subject = ? and owner = ? "
-        "and expires_at = ? and payload_json = ?",
-        (row.id, row.subject, row.owner, row.expires_at, row.payload_json),
+        "delete from leases where lane_ref = ? and holder_ref = ? "
+        "and generation = ? and expires_at = ?",
+        (row.lane_ref, row.holder_ref, row.generation, row.expires_at),
     )
     if cursor.rowcount != 1:
-        message = f"lease_maintenance_candidate_drift:{row.id}"
-        raise ValueError(message)
+        msg = f"lease_generation_stale:{row.lane_ref}"
+        raise ValueError(msg)
     return {
         "revoked": True,
-        "subject": request.branch,
-        "lane_incarnation_id": lease.lane_incarnation_id,
-        "lease_id": row.id,
-        "holder_ref": request.holder_ref,
-        "epoch": lease.epoch,
-        "expected_head": lease.expected_head,
-        "expected_tree": lease.expected_tree,
-        "base_commitment_path": lease.base_commitment_path,
-        "base_commitment_bytes_sha256": lease.base_commitment_bytes_sha256,
-        "base_commitment_digest": lease.base_commitment_digest,
+        "lane_ref": row.lane_ref,
+        "holder_ref": row.holder_ref,
+        "generation": row.generation,
         "expires_at": row.expires_at,
-        "payload_sha256": row.payload_sha256,
     }
-
-
-def replace_lease_authority(
-    db_path: Path,
-    *,
-    request: LeaseOperationRequest,
-    lease: LaneLease,
-) -> dict[str, object]:
-    """Atomically move one exact writable authority to its same-holder successor."""
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute("pragma foreign_keys = on")
-        connection.execute("begin immediate")
-        revoked = revoke_lease_from_connection(connection, request=request)
-        if (
-            revoked["holder_ref"] != lease.holder_ref.serialize()
-            or revoked["base_commitment_digest"] != lease.base_commitment_digest
-            or revoked["subject"] == lease.lane_ref
-        ):
-            message = "lane_successor_lease_authority_mismatch"
-            raise ValueError(message)
-        acquired = acquire_lease_from_connection(connection, lease=lease)
-        connection.commit()
-    return acquired

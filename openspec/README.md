@@ -1,22 +1,17 @@
 # ETHOS OpenSpec Workspace
 
-This workspace is the ETHOS case and specification carrier. It uses the
-official OpenSpec workspace model with repository guardrails for proposal
-intent, Commitment binding, active-carrier observation, and self-profile
-authoring.
+This workspace uses official OpenSpec artifacts as the sole tracked carrier for
+change intent, requirements, design, task progress, validation, and archive
+history.
 
 OpenSpec is the selected native carrier for the ETHOS self profile and every
 mutation-capable adopter, but it is not part of the vendor-neutral semantic
 kernel or a second ETHOS public command plane. Observation-only repositories may
 omit it. The official OpenSpec CLI owns workspace authoring, validation, and
-archival; ETHOS consumes official active-carrier observations in `status`,
-`plan`, `prove`, and `land` without re-exposing or predicting those operations.
+archive operations; ETHOS consumes exact official observations without adding a
+tracked change schema.
 
 ## Product Protocol
-
-```text
-case = Commitment + proposal + design + tasks + spec deltas
-```
 
 - Accepted capability identity and behavior live only at
   `openspec/specs/<capability>/spec.md`.
@@ -25,8 +20,6 @@ case = Commitment + proposal + design + tasks + spec deltas
 - Active Change IDs are date-free lower-kebab identifiers that start with a
   letter; intent lives under `openspec/changes/<change-id>/`.
 - Changed behavior lives in that Change's delta specs.
-- `commitment.toml` and its Commitment own active intent, repository subject,
-  scope, invariants, acceptance, permissions, and publication policy.
 - Historical carriers use exactly one archive date:
   `openspec/changes/archive/YYYY-MM-DD-<change-id>/`.
 - Archived changes are history after closeout, not reusable active work
@@ -36,12 +29,18 @@ Every non-trivial self-profile governance mutation should have one selected
 active Change. A completed Change remains active and blocks integration until
 the owner-native archive operation removes it from official active state.
 
-One Commitment binds one bounded Change, Work Lane generation, and `tasks.md`
-progress owner. A successor Commitment may declare dependencies and select exact
-Attestations after its predecessor closes; it owns a new Change and cannot mutate
-the predecessor's tasks. Never create a successor merely to move unchecked work,
-and never mark migration as implementation. Archived changes remain inert and do
-not participate in the current verdict.
+ETHOS compiles one exact official Change projection into a transient Commitment
+containing only `schema_version`, `id`, and `acceptance`. Changed paths and
+repository coordinates are fresh Git Facts. Work ownership is the separate
+four-field Lease relation: `lane_ref`, `holder_ref`, `generation`, and
+`expires_at`.
+
+One official Change owns one bounded intent and its task progress. Sequence and
+dependencies are derived from official artifacts, Git history, and selected
+Attestations only when they affect current admission; ETHOS persists no parallel
+relation record. Research questions and procedures stay in official proposal,
+design, spec, or task content. Results and completed proof are Attestations.
+Archived Changes remain inert and do not participate in a current verdict.
 
 OpenSpec checkboxes own obligations that can be completed before archive. An
 archive, proof of the resulting HEAD, candidate or protected-ref advance, hosted
@@ -58,8 +57,8 @@ openspec validate --all --strict --json
 ethos plan --changed --json
 ```
 
-ETHOS validates proposal intent, accepted spec identity, Commitment binding,
-and scope while consuming official `doctor`, `list`, `status`, and strict
-`validate` observations. ETHOS does not invoke or predict archive. Historical
-archive bytes remain non-authorizing history and are not re-evaluated to decide
-a current transition.
+ETHOS validates and compiles the exact official projection while consuming
+official `doctor`, `list`, `status`, and strict `validate` observations. It
+derives changed paths and ref coordinates from fresh Git facts. Historical
+archive bytes remain non-authorizing history and are not scanned as an active
+database.

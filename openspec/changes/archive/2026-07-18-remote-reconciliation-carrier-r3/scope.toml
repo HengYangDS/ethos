@@ -1,2 +1,0 @@
-schema_version = 1
-paths = ["openspec/changes/archive/2026-07-18-remote-reconciliation-carrier-r3/**", "evidence/claims/remote-reconciliation-carrier-r3-20260718.toml", "evidence/chronicle/remote-reconciliation-carrier-r3-20260718/**", ".config/checks/evidence/closeout.toml"]

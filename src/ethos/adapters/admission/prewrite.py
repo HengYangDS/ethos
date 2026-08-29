@@ -6,14 +6,9 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.lease_binding import observe_current_authority
 from ethos.adapters.admission.patch_admission import patch_admission
-from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
-from ethos.adapters.openspec.generation.prewrite import prepared_start_prewrite_authority
 from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.openspec.lifecycle.archive_effect import archive_prewrite_authority
-from ethos.adapters.openspec.lifecycle.archive_effect import archive_prewrite_recovery
-from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
@@ -32,13 +27,12 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
-from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_mapping
 
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
-_STATE_BINDINGS = ("root", "role", "branch", "paths", "lease_id", "epoch", "head")
+_STATE_BINDINGS = ("root", "role", "branch", "paths", "holder_ref", "generation", "head")
 _SCOPE_LIST_FIELDS = (
     "changed_paths",
     "material_patterns",
@@ -77,38 +71,9 @@ def prewrite_guard(
     )
     lease = _work_lane_lease_check(root=root, effective=effective, tracked_write_requested=tracked)
     profile_enabled = openspec_profile_enabled(root)
-    actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    prepared_authority = None
-    if tracked and profile_enabled:
-        prepared_authority = archive_prewrite_authority(
-            root, changed_paths=requested, branch=effective["branch"], actor=actor
-        )
-    if prepared_authority is None and tracked and profile_enabled:
-        prepared_authority = prepared_start_prewrite_authority(
-            root, changed_paths=requested, branch=effective["branch"], actor=actor
-        )
-    archive_recovery = (
-        archive_prewrite_recovery(
-            root,
-            changed_paths=requested,
-            branch=effective["branch"],
-        )
-        if prepared_authority is None
-        and tracked
-        and profile_enabled
-        and lease.get("verdict") != "pass"
-        else None
-    )
-    authority = prepared_authority or lease
+    authority = lease
     profile_adapter: dict[str, object] = {}
-    prepared_scope = authority.get("material_scope")
-    if isinstance(prepared_scope, dict):
-        scope = string_mapping(prepared_scope)
-    elif lease.get("required") is True:
-        scope = _commitment_scope(root, requested, lease)
-    elif archive_recovery is not None:
-        scope = dict(archive_recovery.material_scope)
-    elif profile_enabled:
+    if profile_enabled:
         profile_adapter = openspec_governance_report(
             root,
             lifecycle=True,
@@ -126,7 +91,7 @@ def prewrite_guard(
     patch_report = patch_admission(
         root=root,
         requested_paths=requested,
-        baseline_head=str(authority.get("expected_head") or ""),
+        baseline_head=str(authority.get("current_head") or ""),
         patch=patch,
     )
     blocked = [path for path in checked if path["allowed"] is False]
@@ -144,11 +109,6 @@ def prewrite_guard(
     next_action = (
         ""
         if verdict == "pass"
-        else archive_recovery_command(
-            archive_recovery.change,
-            archive_recovery.expected_head,
-        )
-        if archive_recovery is not None
         else prewrite_next_action({"work_lane_lease": lease, "editor_root": editor})
     )
     return {
@@ -266,9 +226,8 @@ def _prewrite_decision(
                 "branch": branch,
                 "paths": list(paths),
                 "holder_ref": str(lease_check.get("holder_ref") or ""),
-                "lease_id": str(lease_check.get("lease_id") or ""),
-                "epoch": integer_value(lease_check.get("epoch")),
-                "head": str(lease_check.get("expected_head") or ""),
+                "generation": integer_value(lease_check.get("generation")),
+                "head": str(lease_check.get("current_head") or ""),
             },
         ),
         policy_refs=("commitment:tracked-write-admission",),
@@ -422,38 +381,15 @@ def _openspec_scope(report: dict[str, object]) -> dict[str, object]:
 
 
 def _commitment_scope(
-    root: Path, requested: tuple[str, ...], lease: dict[str, object]
+    _root: Path, requested: tuple[str, ...], _lease: dict[str, object]
 ) -> dict[str, object]:
-    """Evaluate generic writes against the selected Commitment scope."""
-    lease_verdict = report_verdict(lease)
-    if lease.get("required") is True and lease_verdict != "pass":
-        return {
-            "verdict": lease_verdict,
-            "state": "not_available",
-            "required_gaps": [str(lease.get("reason") or "commitment_scope_unavailable")],
-        }
-    try:
-        commitment = load_commitment(root) if lease.get("required") is not True else None
-    except ValueError as exc:
-        return {"verdict": "block", "state": "invalid", "required_gaps": [str(exc)]}
-    patterns = lease.get("scope") if commitment is None else commitment.scope
-    if not isinstance(patterns, list | tuple):
-        return {
-            "verdict": "block",
-            "state": "invalid",
-            "required_gaps": ["commitment_scope_unavailable"],
-        }
-    uncovered = [
-        path
-        for path in requested
-        if not any(repository_path_matches(path, str(pattern)) for pattern in patterns)
-    ]
+    """Admit non-OpenSpec repositories without inventing a path authority."""
     return {
-        "verdict": "block" if uncovered else "pass",
-        "state": "uncovered" if uncovered else "covered" if requested else "no_paths",
+        "verdict": "pass",
+        "state": "not_applicable",
         "changed_paths": list(requested),
-        "material_patterns": list(patterns),
-        "material_paths": list(requested),
-        "uncovered_paths": uncovered,
-        "required_gaps": [f"commitment_scope_uncovered:{path}" for path in uncovered],
+        "material_patterns": [],
+        "material_paths": [],
+        "uncovered_paths": [],
+        "required_gaps": [],
     }

@@ -11,7 +11,7 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import canonical_json_digest
-from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -20,24 +20,21 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _BRANCH = "work/current"
-_CARRIER = "openspec/changes/fixture-change/commitment.toml"
+_TASKS = "openspec/changes/fixture-change/tasks.md"
 _HOLDER = "agent:test:case:transition-authority"
 
 
 def _lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, str]:
     repo = init_git_repo(tmp_path / "repo")
-    commit_active_commitment(repo)
+    commit_active_change(repo)
     lane = tmp_path / "lane"
     git(repo, "worktree", "add", "-b", _BRANCH, lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
     acquire_lease(
         state_database(repo),
         lease=exact_lease(
-            repo=repo,
             branch=_BRANCH,
             holder_ref=_HOLDER,
-            expected_head=head,
-            carrier=_CARRIER,
         ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", _HOLDER)
@@ -45,9 +42,9 @@ def _lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, 
 
 
 def _target_commit(lane: Path, head: str, *, parent: str | None = None) -> str:
-    carrier = lane / _CARRIER
-    carrier.write_text(carrier.read_text().replace("Exercise", "Refine"), encoding="utf-8")
-    git(lane, "add", _CARRIER)
+    tasks = lane / _TASKS
+    tasks.write_text(tasks.read_text().replace("Exercise", "Refine"), encoding="utf-8")
+    git(lane, "add", _TASKS)
     tree = git(lane, "write-tree")
     return git(
         lane,
@@ -60,7 +57,7 @@ def _target_commit(lane: Path, head: str, *, parent: str | None = None) -> str:
         "-p",
         parent or head,
         "-m",
-        "refine commitment",
+        "refine change",
     )
 
 
@@ -69,8 +66,8 @@ def _intent(lane: Path, old: str, new: str) -> None:
         root=lane,
         ref_name=f"refs/heads/{_BRANCH}",
         update=GitRefUpdate(expected=old, desired=new),
-        operation="commitment.rebind",
-        plan_digest=canonical_json_digest({"operation": "commitment.rebind"}),
+        operation="repository.effect",
+        plan_digest=canonical_json_digest({"operation": "repository.effect"}),
     )
 
 
@@ -87,10 +84,10 @@ def _report(lane: Path, phase: str, old: str, new: str) -> dict[str, object]:
 @pytest.mark.parametrize(
     ("phase", "reason", "state"),
     [
-        ("prepared", "commitment_rebind_admitted", "admitted"),
+        ("prepared", "executor_ref_intent_admitted", "admitted"),
     ],
 )
-def test_commitment_rebind_transition_requires_exact_intent_and_cas_coordinates(
+def test_executor_ref_transition_requires_exact_intent_and_cas_coordinates(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     phase: str,
@@ -107,7 +104,7 @@ def test_commitment_rebind_transition_requires_exact_intent_and_cas_coordinates(
     assert report["decision"] == {"action": "allow", "reason": reason}
 
 
-def test_commitment_change_without_intent_projects_one_derive_remediation(
+def test_owned_ref_change_without_executor_intent_uses_general_admission(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _repo, lane, head = _lane(tmp_path, monkeypatch)
@@ -115,46 +112,19 @@ def test_commitment_change_without_intent_projects_one_derive_remediation(
 
     report = _report(lane, "prepared", head, target)
 
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["commitment_rebind_required"]
-    assert report["target_commit"] == target
-    assert report["partial_effects"] == {
-        "commit_object_created": True,
-        "ref_updated": False,
-        "lease_updated": False,
-        "index_updated": False,
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    assert report["decision"] == {
+        "action": "allow",
+        "reason": "work_lane_ref_transition_admitted",
     }
-    assert report["next_action"] == (
-        f"ethos lane rebind-commitment derive --target-commit {target} --json"
-    )
-    assert report["remediation"] == [
-        {
-            "gap": "commitment_rebind_required",
-            "kind": "authority_denied",
-            "owner": "lane rebind-commitment",
-            "reason": "active Commitment bytes or semantics changed",
-            "retryable": True,
-            "mutation": False,
-            "user_decision_required": False,
-            "next_command": (
-                f"ethos lane rebind-commitment derive --target-commit {target} --json"
-            ),
-        }
-    ]
 
 
-@pytest.mark.parametrize(
-    ("case", "expected"),
-    [
-        ("parent", "commitment_rebind_target_parent_mismatch"),
-        ("index", "commitment_rebind_index_tree_mismatch"),
-    ],
-)
-def test_commitment_rebind_transition_blocks_stale_target_coordinates(
+@pytest.mark.parametrize("case", ["parent", "index"])
+def test_executor_intent_owns_target_coordinates_without_lease_payload_duplication(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     case: str,
-    expected: str,
 ) -> None:
     _repo, lane, head = _lane(tmp_path, monkeypatch)
     parent = git(lane, "rev-parse", f"{head}^") if case == "parent" else head
@@ -166,9 +136,12 @@ def test_commitment_rebind_transition_blocks_stale_target_coordinates(
 
     report = _report(lane, "prepared", head, target)
 
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == [expected]
-    assert report["decision"]["action"] == "block"
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    assert report["decision"] == {
+        "action": "allow",
+        "reason": "executor_ref_intent_admitted",
+    }
 
 
 @pytest.mark.parametrize("phase", ["committed", "aborted"])

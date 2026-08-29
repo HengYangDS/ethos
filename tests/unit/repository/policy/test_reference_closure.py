@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,6 +19,32 @@ def _write(root: Path, relative: str, content: str) -> None:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.strip() + "\n", encoding="utf-8")
+
+
+def _git(root: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
+def _commit_candidate_baseline(root: Path) -> None:
+    _git(root, "init", "-b", "dev")
+    _git(root, "config", "user.name", "ETHOS Tests")
+    _git(root, "config", "user.email", "tests@example.invalid")
+    _git(root, "add", ".")
+    _git(root, "commit", "-m", "test: establish candidate baseline")
+    _git(root, "branch", "candidate/dev")
+    _git(root, "switch", "-c", "work/reference-closure")
+
+
+def _commit_current_tree(root: Path) -> None:
+    _git(root, "add", "--all")
+    _git(root, "commit", "-m", "test: retire reference owner")
 
 
 def test_repository_reference_closure_preserves_duplicate_command_owners(
@@ -134,6 +161,206 @@ version = "1"
     assert report["required_gaps"] == [
         "semantic_consumer_orphan:import:external_sdk:src/example/runtime.py"
     ]
+
+
+def test_repository_reference_closure_rejects_deleted_path_consumers(tmp_path: Path) -> None:
+    """An active carrier cannot keep consuming a path deleted after candidate."""
+    _write(
+        tmp_path,
+        "system/surfaces.toml",
+        """
+schema = "system/schemas/contracts/surfaces.schema.json"
+
+[[surface]]
+name = "runtime"
+carrier = "src/example"
+""",
+    )
+    _write(tmp_path, "src/example/retired.py", "VALUE = 1")
+    _commit_candidate_baseline(tmp_path)
+    (tmp_path / "src/example/retired.py").unlink()
+    _commit_current_tree(tmp_path)
+
+    assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
+
+    _write(
+        tmp_path,
+        "docs/reference/runtime.md",
+        "Use [the runtime owner](../../src/example/retired.py).",
+    )
+    report = repository_semantic_closure(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert {
+        "relation": "consumer",
+        "kind": "path",
+        "identity": "src/example/retired.py",
+        "sources": ["docs/reference/runtime.md"],
+    } in report["superseded"]
+
+
+def test_repository_reference_closure_applies_active_removed_requirement(
+    tmp_path: Path,
+) -> None:
+    """An official REMOVED delta defines the current effective specification."""
+    retired_path = ".ethos" + "/commitment.toml"
+    _write(
+        tmp_path,
+        "system/surfaces.toml",
+        """
+schema = "system/schemas/contracts/surfaces.schema.json"
+
+[[surface]]
+name = "specs"
+carrier = "openspec/specs"
+""",
+    )
+    _write(tmp_path, retired_path, "schema_version = 1")
+    _write(
+        tmp_path,
+        "openspec/specs/repository-governance/spec.md",
+        f"""
+## Requirements
+
+### Requirement: Repository Commitment admission is precise and pre-effect
+
+The current tree reads `{retired_path}` before every effect.
+
+#### Scenario: Commitment exists
+
+- **WHEN** the carrier is present
+- **THEN** admission proceeds
+""",
+    )
+    _commit_candidate_baseline(tmp_path)
+    (tmp_path / retired_path).unlink()
+    _write(
+        tmp_path,
+        "openspec/changes/remove-commitment/specs/repository-governance/spec.md",
+        """
+## REMOVED Requirements
+
+### Requirement: Repository Commitment admission is precise and pre-effect
+
+**Reason**: Official OpenSpec is the sole tracked intent.
+
+**Migration**: Compile transient acceptance from the active Change.
+""",
+    )
+    _commit_current_tree(tmp_path)
+
+    assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
+
+
+def test_repository_reference_closure_retains_unremoved_neighbor_requirement(
+    tmp_path: Path,
+) -> None:
+    """An active removal cannot hide a current requirement that still consumes a path."""
+    retired_path = ".ethos" + "/commitment.toml"
+    _write(
+        tmp_path,
+        "system/surfaces.toml",
+        """
+schema = "system/schemas/contracts/surfaces.schema.json"
+
+[[surface]]
+name = "specs"
+carrier = "openspec/specs"
+""",
+    )
+    _write(tmp_path, retired_path, "schema_version = 1")
+    _write(
+        tmp_path,
+        "openspec/specs/repository-governance/spec.md",
+        f"""
+## Requirements
+
+### Requirement: Repository Commitment admission is precise and pre-effect
+
+The current tree reads `{retired_path}` before every effect.
+
+#### Scenario: Commitment exists
+
+- **WHEN** the carrier is present
+- **THEN** admission proceeds
+
+### Requirement: Repository audit reports tracked intent residue
+
+The audit reports `{retired_path}` while any current consumer remains.
+
+#### Scenario: A consumer remains
+
+- **WHEN** the retired carrier is deleted
+- **THEN** the audit blocks closeout
+""",
+    )
+    _commit_candidate_baseline(tmp_path)
+    (tmp_path / retired_path).unlink()
+    _write(
+        tmp_path,
+        "openspec/changes/remove-commitment/specs/repository-governance/spec.md",
+        """
+## REMOVED Requirements
+
+### Requirement: Repository Commitment admission is precise and pre-effect
+
+**Reason**: Official OpenSpec is the sole tracked intent.
+
+**Migration**: Compile transient acceptance from the active Change.
+""",
+    )
+    _commit_current_tree(tmp_path)
+
+    report = repository_semantic_closure(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert {
+        "relation": "consumer",
+        "kind": "path",
+        "identity": retired_path,
+        "sources": ["openspec/specs/repository-governance/spec.md"],
+    } in report["superseded"]
+
+
+def test_repository_reference_closure_rejects_renamed_module_consumers(tmp_path: Path) -> None:
+    """An exact rename cannot leave imports of the old Python module name."""
+    _write(
+        tmp_path,
+        "system/surfaces.toml",
+        """
+schema = "system/schemas/contracts/surfaces.schema.json"
+
+[[surface]]
+name = "runtime"
+carrier = "src/example"
+""",
+    )
+    _write(
+        tmp_path,
+        "pyproject.toml",
+        """
+[project]
+name = "example"
+version = "1"
+""",
+    )
+    _write(tmp_path, "src/example/legacy.py", "VALUE = 1")
+    _commit_candidate_baseline(tmp_path)
+    _git(tmp_path, "mv", "src/example/legacy.py", "src/example/current.py")
+    _commit_current_tree(tmp_path)
+
+    assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
+
+    _write(tmp_path, "src/example/consumer.py", "from example.legacy import VALUE")
+    report = repository_semantic_closure(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert {
+        "relation": "consumer",
+        "kind": "import",
+        "identity": "example.legacy",
+        "sources": ["src/example/consumer.py"],
+    } in report["superseded"]
 
 
 def test_repository_reference_closure_ignores_prohibited_command_examples(

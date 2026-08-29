@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.admission.patch_admission as admission
-from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 def _repository(tmp_path: Path) -> tuple[Path, str]:
     repo = init_git_repo(tmp_path / "repo")
     (repo / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    commit_active_commitment(repo, scope=("module.py", "new.py"))
+    commit_active_change(repo)
     return repo, git(repo, "rev-parse", "HEAD")
 
 
@@ -99,28 +99,13 @@ def test_patch_admission_blocks_when_postimage_reference_observation_fails(
     assert report["references"] == {}
 
 
-@pytest.mark.parametrize("scope", ["not-a-list", "invalid-toml"])
-def test_patch_admission_does_not_invent_scope_from_invalid_commitment(
-    tmp_path: Path, scope: str
+def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_closure(
+    tmp_path: Path,
 ) -> None:
-    repo, _head = _repository(tmp_path)
-    carrier = repo / "openspec/changes/fixture-change/commitment.toml"
-    if scope == "not-a-list":
-        carrier.write_text(carrier.read_text().replace("scope = [", 'scope = "'), encoding="utf-8")
-    else:
-        carrier.write_text("[invalid\n", encoding="utf-8")
-    git(repo, "add", carrier.as_posix())
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "corrupt commitment fixture",
-    )
+    repo = init_git_repo(tmp_path / "repo")
+    commit_active_change(repo)
     head = git(repo, "rev-parse", "HEAD")
+    path = "new.py"
     patch = (
         "diff --git a/new.py b/new.py\n"
         "new file mode 100644\n"
@@ -129,26 +114,6 @@ def test_patch_admission_does_not_invent_scope_from_invalid_commitment(
         "@@ -0,0 +1 @@\n"
         "+VALUE = 1\n"
     )
-
-    report = admission.patch_admission(
-        root=repo,
-        requested_paths=("new.py",),
-        baseline_head=head,
-        patch=patch,
-    )
-
-    assert report["verdict"] == "block"
-    assert report["reason"] == "product_path_not_admitted_at_baseline:new.py"
-
-
-def test_patch_admission_accepts_new_file_covered_by_recursive_commitment_scope(
-    tmp_path: Path,
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    commit_active_commitment(repo, scope=("openspec/changes/fixture-change/**",))
-    head = git(repo, "rev-parse", "HEAD")
-    path = "openspec/changes/fixture-change/design.md"
-    patch = _patch(repo, path, "# Design\n")
 
     report = admission.patch_admission(
         root=repo,

@@ -7,7 +7,6 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from ethos.contracts.value import mutable_json
-from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
@@ -26,33 +25,27 @@ _FACT_FIELDS = {
 
 
 def archive_authority_valid(value: object) -> bool:
-    """Return whether one proof carries a complete selected archive effect projection."""
+    """Return whether one proof carries a common Git-effect archive projection."""
     if not isinstance(value, Mapping):
         return False
     authorized = value.get("authorized_paths")
-    before = value.get("input")
-    output = value.get("output")
-    effect_identity = value.get("effect_identity")
     digests = (
         value.get("attestation_id"),
-        value.get("commitment_digest"),
         value.get("effect_digest"),
-        effect_identity,
+        value.get("plan_digest"),
     )
     return (
-        value.get("predicate") == "effect:openspec-archive"
+        value.get("predicate") == "effect:git-ref-update"
+        and value.get("source") == "archive_commit"
+        and value.get("claim", {}).get("operation") == "openspec.archive"
         and all(
             isinstance(digest, str) and len(digest) == 64 and set(digest) <= set("0123456789abcdef")
             for digest in digests
         )
-        and isinstance(before, Mapping)
-        and before.get("effect_identity") == effect_identity
-        and isinstance(output, Mapping)
         and isinstance(authorized, tuple | list)
         and bool(authorized)
         and all(isinstance(path, str) and path for path in authorized)
         and len(set(authorized)) == len(authorized)
-        and tuple(output.get("changed_paths", ())) == tuple(authorized)
     )
 
 
@@ -83,33 +76,21 @@ def archive_scope_gaps(
 
 
 def commitment_fact_gaps(
-    commitment: Commitment,
     facts: Facts,
     prior_attestations: Mapping[str, object],
 ) -> tuple[str, ...]:
     """Return commitment/fact authority gaps for one proof closure."""
     gaps: list[str] = []
     archive = prior_attestations.get("openspec_archive")
-    authorized = (
+    (
         tuple(str(path) for path in archive.get("authorized_paths", ()))
         if isinstance(archive, Mapping)
         else ()
     )
-    if commitment.subjects and facts.repository not in commitment.subjects:
-        gaps.append("repository_subject_mismatch")
     changed = facts.values.get("changed_paths", ())
     gaps.extend(archive_scope_gaps(facts.model_dump(mode="python"), prior_attestations))
-    if commitment.scope and (
-        not isinstance(changed, tuple | list) or any(not _valid_path(path) for path in changed)
-    ):
+    if not isinstance(changed, tuple | list) or any(not _valid_path(path) for path in changed):
         gaps.append("changed_paths_invalid")
-    elif commitment.scope and any(
-        path not in authorized
-        and not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
-        for path in changed
-        if isinstance(path, str)
-    ):
-        gaps.append("change_scope_exceeded")
     return tuple(gaps)
 
 
@@ -119,6 +100,9 @@ def validate_proof_plan(
     facts: Facts,
 ) -> None:
     """Reject a proof plan whose carried semantic projections diverge."""
+    if mutable_json(plan.commitment) != mutable_json(commitment.identity_projection()):
+        message = "transition_plan_semantics_mismatch"
+        raise ValueError(message)
     policy = mutable_json(plan.policy)
     gates = policy.get("gates") if isinstance(policy, dict) else None
     fact_gate_ids = facts.values.get("gate_ids")
@@ -135,7 +119,7 @@ def validate_proof_plan(
     if effect != mutable_json(expected_effect):
         message = "transition_plan_effect_mismatch"
         raise ValueError(message)
-    semantic_gaps = commitment_fact_gaps(commitment, facts, plan.prior_attestations)
+    semantic_gaps = commitment_fact_gaps(facts, plan.prior_attestations)
     if any(gap not in plan.required_gaps for gap in semantic_gaps):
         message = "transition_plan_semantics_mismatch"
         raise ValueError(message)

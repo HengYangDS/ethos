@@ -122,7 +122,6 @@ def _foreign_lane_payload(
     lease = cast("dict[str, object]", context["lease"])
     dirty_paths = cast("tuple[str, ...]", context["dirty_paths"])
     lease_state = str(lease.get("lease_state") or "missing")
-    base_digest = str(lease.get("base_commitment_digest") or "")
     return {
         **{name: worktree[name] for name in ("path", "head", "branch", "role", "worktree_binding")},
         "git_lock": {
@@ -133,8 +132,6 @@ def _foreign_lane_payload(
         "lease": {key: value for key, value in lease_generation(lease).items() if key != "branch"}
         | {"mints_authority": False},
         "lease_state": lease_state,
-        "base_commitment_digest": base_digest if lease_state in {"valid", "expired"} else "",
-        "commitment_binding": str(lease.get("commitment_binding") or lease_state),
         "relation_to_accepted": str(context["relation_to_accepted"]),
         "next_action": FOREIGN_WORK_LANE_NEXT_ACTION,
         "dirty": None if context["scope_state"] == "deferred" else bool(dirty_paths),
@@ -195,14 +192,10 @@ def coordination_gaps(
 def collaboration_competition_projection(
     foreign_work_lanes: list[dict[str, object]],
     *,
-    commitment_digest: str,
-    risks: tuple[str, ...],
-    proof_cost: int,
-    proof_capacity: int | None,
     observed_at: datetime,
     candidate: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """Derive collaboration or competition from current resource facts."""
+    """Derive coordination from current lane ownership and path conflicts."""
     branches = [str(lane.get("branch") or "") for lane in foreign_work_lanes]
     overlap = [lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"]
     unknown = [
@@ -210,14 +203,6 @@ def collaboration_competition_projection(
         for lane in foreign_work_lanes
         if lane.get("coordination_state") in {"deferred", "unknown"}
     ]
-    alternatives = [
-        lane
-        for lane in overlap
-        if commitment_digest and lane.get("base_commitment_digest") == commitment_digest
-    ]
-    conflicts = [lane for lane in overlap if lane not in alternatives]
-    costs = [lane.get("proof_cost") for lane in alternatives]
-    total_cost = proof_cost + sum(cost for cost in costs if isinstance(cost, int))
     now = observed_at
     queue_age = {
         branch: _queue_age_seconds(lane, now)
@@ -242,39 +227,25 @@ def collaboration_competition_projection(
         if stalled
         else "open"
     )
-    available_capacity = None if proof_capacity is None else max(0, proof_capacity - proof_cost)
     if not foreign_work_lanes:
         state, reason = "independent", "no_peer_work_lanes"
     elif unknown:
         state, reason = "await_facts", "peer_scope_unknown"
-    elif conflicts:
+    elif overlap:
         state, reason = "collaborate", "overlapping_intents_require_coordination"
-    elif not alternatives:
-        state, reason = "independent", "peer_scopes_disjoint"
-    elif not risks:
-        state, reason = "collaborate", "competition_has_no_declared_risk_basis"
-    elif proof_capacity is None or any(not isinstance(cost, int) for cost in costs):
-        state, reason = "await_facts", "proof_capacity_or_cost_missing"
-    elif total_cost > proof_capacity:
-        state, reason = "collaborate", "proof_capacity_below_alternative_cost"
     else:
-        state, reason = "compete", "alternative_realizations_admitted"
+        state, reason = "independent", "peer_scopes_disjoint"
     return {
         "state": state,
         "reason": reason,
-        "proof_capacity": proof_capacity,
-        "proof_cost": total_cost,
-        "risk_count": len(risks),
         "peer_count": len(foreign_work_lanes),
-        "alternative_count": len(alternatives),
-        "conflict_count": len(conflicts),
+        "overlap_count": len(overlap),
         "unknown_count": len(unknown),
         "branches": branches,
         "admission_order": admission_order,
         "queue_age_seconds": queue_age,
         "backpressure": backpressure,
         "candidate_progress": progress,
-        "proof_capacity_available": available_capacity,
     }
 
 

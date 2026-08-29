@@ -11,10 +11,10 @@ from typing import Any
 
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import require
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import verified_package_snapshot
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.profile import repository_identity
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -57,7 +57,7 @@ def import_objects(
             head,
             str(manifest["source_tree"]),
         )
-        _verify_import_contract(isolated, manifest)
+        _verify_import_contract(destination, isolated, manifest)
         environment = object_environment(destination, isolated)
         with _prepared_pack(destination, isolated, head) as pack:
             yield environment, pack
@@ -155,7 +155,7 @@ def install_pack(
     destination: Path,
     candidates: list[Path],
     *,
-    commitment_digest: str,
+    commitment_digest: str | None,
     head: str,
     repository_id: str,
 ) -> dict[str, object]:
@@ -209,21 +209,16 @@ def install_pack(
     ).model_dump(mode="json")
 
 
-def _verify_import_contract(repository: Path, manifest: dict[str, Any]) -> None:
+def _verify_import_contract(
+    destination: Path,
+    source_objects: Path,
+    manifest: dict[str, Any],
+) -> None:
+    """Reject a package whose committed repository identity differs."""
     try:
-        load_lease_bound_commitment(
-            repository,
-            lease=manifest
-            | {
-                "expected_head": manifest["source_head"],
-                "expected_tree": manifest["source_tree"],
-            },
-        )
-    except ValueError as error:
-        gap = {
-            "lease_expected_tree_mismatch": "handoff_base_commitment_tree_mismatch",
-            "lease_base_commitment_path_mismatch": "handoff_base_commitment_path_mismatch",
-            "lease_base_commitment_bytes_mismatch": "handoff_base_commitment_bytes_mismatch",
-            "lease_base_commitment_digest_mismatch": "handoff_base_commitment_digest_mismatch",
-        }.get(str(error), "handoff_base_commitment_invalid")
-        raise ValueError(gap) from None
+        source = repository_identity(source_objects, tree_ref=str(manifest["source_head"]))
+        target = repository_identity(destination)
+    except ValueError:
+        msg = "handoff_repository_identity_invalid"
+        raise ValueError(msg) from None
+    require("handoff_repository_identity_mismatch", holds=source == target)

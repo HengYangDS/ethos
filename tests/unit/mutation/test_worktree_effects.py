@@ -126,4 +126,6 @@ def test_local_config_attests_apply_and_terminal_recognition(tmp_path) -> None:
     assert recognized.payload.body["result"]["state"] == "recognized"
     assert recognized.payload.body["output"] == values
     assert recognized.predicate == "effect:git-config"
+    assert recognized.commitment_digest is None
+    assert recognized.payload.body["repository"] == "repository:repo"
     assert git(repo, "config", "--local", "--get", "core.hooksPath") == ".githooks"

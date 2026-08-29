@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.profile import repository_identity
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -25,7 +25,6 @@ def set_local_config(root: Path, values: dict[str, str]) -> Attestation:
     if after != values:
         message = "git_config_effect_postcondition_failed"
         raise ValueError(message)
-    repository = load_repository_commitment(root)
     return issue_native_effect(
         root,
         effect=NativeEffect(
@@ -37,8 +36,8 @@ def set_local_config(root: Path, values: dict[str, str]) -> Attestation:
             after=after,
         ),
         state=state,
-        commitment_digest=repository.digest(),
-        repository_id=repository.id,
+        commitment_digest=None,
+        repository_id=repository_identity(root),
     )
 
 

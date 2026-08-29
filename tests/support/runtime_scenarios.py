@@ -9,7 +9,6 @@ import shutil
 import subprocess
 import sys
 import uuid
-import venv
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -36,12 +35,13 @@ from ethos.repository.release.identity import build_identity
 if TYPE_CHECKING:
     import pytest
 
+    from ethos.adapters.repo.hook.binding import HookRuntimeBinding
     from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
-def install_fixture_hook_runtime(root: Path) -> dict[str, object]:
+def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
     """Install a small valid runtime for non-runtime governance fixtures."""
     common = Path(git_common_dir(root))
     runtime_root = common / "ethos/runtime"
@@ -52,7 +52,7 @@ def install_fixture_hook_runtime(root: Path) -> dict[str, object]:
     build = expected_runtime_build(root)[0]
     environment = observe_runtime_environment(REPOSITORY_ROOT, Path(sys.executable))
     try:
-        _create_fixture_python(staging / "python")
+        create_fixture_python(staging / "python")
         runtime_files = runtime_file_inventory(staging)
         digest = runtime_digest(
             wheel_sha256=wheel_sha256,
@@ -84,9 +84,27 @@ def install_fixture_hook_runtime(root: Path) -> dict[str, object]:
         shutil.rmtree(staging, ignore_errors=True)
 
 
-def _create_fixture_python(target: Path) -> None:
+def create_fixture_python(target: Path) -> None:
     """Create an executable fixture image backed by the test environment."""
-    venv.EnvBuilder(with_pip=False, symlinks=False).create(target)
+    scripts = target / ("Scripts" if os.name == "nt" else "bin")
+    scripts.mkdir(parents=True)
+    source_python = Path(sys.executable).absolute()
+    fixture_python = scripts / ("python.exe" if os.name == "nt" else "python")
+    if os.name == "nt":
+        shutil.copy2(source_python, fixture_python)
+        target.joinpath("pyvenv.cfg").write_text(
+            f"home = {Path(sys.base_prefix).as_posix()}\n"
+            "include-system-site-packages = false\n"
+            f"version = {platform.python_version()}\n"
+            f"executable = {source_python.as_posix()}\n",
+            encoding="utf-8",
+        )
+    else:
+        fixture_python.write_text(
+            f'#!/bin/sh\nexec {source_python.as_posix()!r} "$@"\n',
+            encoding="utf-8",
+        )
+    fixture_python.chmod(0o755)
     version = f"python{sys.version_info.major}.{sys.version_info.minor}"
     relative_site = (
         Path("Lib/site-packages") if os.name == "nt" else Path(f"lib/{version}/site-packages")
@@ -99,7 +117,7 @@ def _create_fixture_python(target: Path) -> None:
         encoding="utf-8",
     )
     if os.name == "nt":
-        launcher = Path(sys.executable).with_name("ethos.exe")
+        launcher = source_python.with_name("ethos.exe")
         if not launcher.is_file():
             message = "fixture_hook_runtime_launcher_missing"
             raise ValueError(message)

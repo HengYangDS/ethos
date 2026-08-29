@@ -6,8 +6,7 @@ import os
 from pathlib import Path
 from typing import cast
 
-from ethos.adapters.mutation.lanes import default_candidate_path
-from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.mutation.lane_lifecycle.start import default_worktree_path
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import recover_plan
@@ -60,11 +59,11 @@ def _candidate_plan(
     )
     return compile_observed_git_effect(
         root,
-        load_repository_commitment(root, tree_ref=desired),
+        None,
         effect,
         head=desired,
         prior_attestations={},
-        policy={"operation": operation},
+        policy={"operation": operation, "subject": candidate_branch},
     )
 
 
@@ -96,7 +95,7 @@ def bootstrap_candidate(
     status = workspace_status(repo)
     head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
     issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
-    target = (path or default_candidate_path(repo, policy.candidate_branch)).resolve()
+    target = (path or default_worktree_path(repo, policy.candidate_branch)).resolve()
     details = {"path": target.as_posix()}
     gap = (
         "candidate_bootstrap_requires_clean_accepted_root"
@@ -263,9 +262,7 @@ def refresh_candidate_from_accepted(
             git_effect_from_plan(plan).updates[f"refs/heads/{policy.candidate_branch}"].expected
         )
         execute_git_effect(repo, plan, issuer=issuer)
-        _sync_candidate_worktree(
-            repo, path, policy.candidate_branch, head, previous, head
-        )
+        _sync_candidate_worktree(repo, path, policy.candidate_branch, head, previous, head)
     except (OSError, ValueError) as error:
         message = str(error)
         gap = (

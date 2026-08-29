@@ -341,17 +341,9 @@ def _non_git_status(
         "target_path": "",
         "operation": "",
         "holder_ref": "",
-        "lease_id": "",
-        "lease_epoch": 0,
-        "lease_expected_head": "",
-        "lease_expected_tree": "",
-        "lease_base_commitment_path": None,
-        "lease_base_commitment_bytes_sha256": "",
+        "lease_generation": 0,
         "lease_expires_at": "",
-        "lease_payload_sha256": "",
         "lease_state": "none",
-        "base_commitment_digest": "",
-        "commitment_binding": "not_applicable",
         "required_gaps": ["protected_root_mutation", "git_repository_missing"],
     }
     provenance = {

@@ -9,7 +9,7 @@
     "allowed_han_sequences": [
       "问道"
     ],
-    "purpose": "Show ETHOS as a repository-native constitutional narrow waist: bounded intent and authority produce relation-aware cooperative or comparative Work Lanes; evidence governs admission, refresh, hold, or retirement; candidate and accepted refs advance through distinct exact-CAS boundaries; durable grounds preserve recovery, succession, and autonomous adoption.",
+    "purpose": "Show ETHOS as a repository-native constitutional narrow waist: official OpenSpec intent compiles into a transient Commitment; fresh facts and bounded authority admit exact effects; post-observation yields durable Attestations; accepted Git reality advances only by exact CAS.",
     "false_readings_to_prevent": [
       "workflow engine",
       "central CAS or truth service",
@@ -25,7 +25,7 @@
     "nucleus": "accepted_repository_reality_axis",
     "primary_axes": [
       "accepted_reality_axis",
-      "durable_ground_lineage"
+      "attestation_evidence_lineage"
     ],
     "fields": [
       "entry_conditions",
@@ -38,11 +38,11 @@
     ],
     "mandatory_topology": [
       "accepted repository reality is the dominant horizontal axis",
-      "Commitment and Attestation form the only durable ground lineage",
-      "authority is bounded and visibly terminates before fresh selection",
+      "official OpenSpec intent compiles into a transient Commitment and only Attestation is durable semantic evidence",
+      "authority is bounded and does not pass through evidence or execution",
       "candidate Work Lanes branch from one exact candidate base and remain isolated until proof",
       "fresh recheck and exact Git CAS form one local effect joint",
-      "actor session host skill and native tool loss cannot break semantic or accepted-reality continuity",
+      "actor session host skill and native tool loss cannot break accepted-reality continuity because recovery re-observes and recompiles",
       "Brownfield and Greenfield are entry conditions; self-governance and autonomous peer adoption use the same kernel without privileged paths",
       "publication remote is an outward effect target, never an autonomous adopter or truth owner",
       "OpenSpec and Git are selected carriers; Skills and native tools are capabilities only"
@@ -64,14 +64,7 @@
         "candidate-cas-label",
         "cas-label",
         "compact-label",
-        "comparative",
-        "comparative-branch",
-        "cooperative",
-        "cooperative-branch",
-        "gate-detail",
-        "lane-disposition-label",
-        "lane-mode-label",
-        "successor-detail"
+        "gate-detail"
       ],
       "families": {
         "canvas_field": {
@@ -144,11 +137,11 @@
             "authority-seed",
             "succession-flow"
           ],
-          "purpose": "Show bounded authorization, its exact termination, and explicit successor selection.",
+          "purpose": "Show bounded authorization and its exact termination before effect execution.",
           "constraints": [
-            "single exact rupture",
+            "single exact boundary",
             "no inherited authority",
-            "successor requires authorized selection"
+            "evidence and execution mint no authority"
           ]
         },
         "durable_grounds": {
@@ -164,11 +157,11 @@
             "root-stem",
             "attest-rise"
           ],
-          "purpose": "Show Commitment and Attestation as durable grounds across effect and succession.",
+          "purpose": "Show durable Attestation evidence across post-observation and recovery.",
           "constraints": [
             "attestation follows post-observation",
-            "grounds do not grant authority",
-            "direction is explicit where causal"
+            "evidence does not grant authority",
+            "recovery re-observes current facts"
           ]
         },
         "transaction_flow": {
@@ -811,7 +804,7 @@
     "commitment_n": {
       "view_id": "commitment",
       "mode": "direct",
-      "semantic_role": "durable-root"
+      "semantic_role": "transient-ir"
     },
     "fresh_facts": {
       "view_id": "action-joint",
@@ -892,11 +885,6 @@
       "view_id": "worlds",
       "mode": "contained",
       "semantic_role": "coordination"
-    },
-    "scope_effect_binding": {
-      "view_id": "worlds",
-      "mode": "contained",
-      "semantic_role": "scope-effect-binding"
     },
     "prewrite_admission": {
       "view_id": "worlds",
@@ -1033,35 +1021,10 @@
       "mode": "direct",
       "semantic_role": "durable-root"
     },
-    "authorized_selection": {
-      "view_id": "reauthorization",
-      "mode": "direct",
-      "semantic_role": "reauthorization"
-    },
-    "selection_hold": {
-      "view_id": "reauthorization",
-      "mode": "contained",
-      "semantic_role": "hold-without-successor"
-    },
-    "selection_done": {
-      "view_id": "reauthorization",
-      "mode": "contained",
-      "semantic_role": "bounded-obligation-done"
-    },
-    "commitment_next": {
-      "view_id": "commitment-next",
-      "mode": "direct",
-      "semantic_role": "durable-root"
-    },
     "recovery_anchor": {
       "view_id": "recovery",
       "mode": "contained",
       "semantic_role": "recovery"
-    },
-    "successor_actor": {
-      "view_id": "recovery",
-      "mode": "contained",
-      "semantic_role": "actor"
     },
     "model_gap": {
       "view_id": "recovery",
@@ -1163,21 +1126,6 @@
       "mode": "contained",
       "semantic_role": "local-conformance-judgment"
     },
-    "predecessor_set": {
-      "view_id": "worlds",
-      "mode": "contained",
-      "semantic_role": "lineage-input"
-    },
-    "change_lineage": {
-      "view_id": "worlds",
-      "mode": "contained",
-      "semantic_role": "lineage"
-    },
-    "scoped_concurrency": {
-      "view_id": "worlds",
-      "mode": "contained",
-      "semantic_role": "coordination"
-    },
     "publication_remote": {
       "view_id": "publication-remote",
       "mode": "direct",
@@ -1263,26 +1211,6 @@
       "mode": "contained",
       "semantic_role": "stale-lane-recovery"
     },
-    "lane_relation_judgment": {
-      "view_id": "worlds",
-      "mode": "contained",
-      "semantic_role": "lane-relation"
-    },
-    "lane_experiment_protocol": {
-      "view_id": "worlds",
-      "mode": "contained",
-      "semantic_role": "experiment-protocol"
-    },
-    "lane_comparative_claim": {
-      "view_id": "proof",
-      "mode": "contained",
-      "semantic_role": "comparative-evidence"
-    },
-    "lane_disposition": {
-      "view_id": "worlds",
-      "mode": "contained",
-      "semantic_role": "lane-disposition"
-    },
     "lane_retirement": {
       "view_id": "worlds",
       "mode": "contained",
@@ -1290,14 +1218,6 @@
     }
   },
   "edge_projection": {
-    "subject-delegates-commitment": {
-      "view_edge_id": "authority-to-commitment",
-      "mode": "direct"
-    },
-    "authority-binds-commitment": {
-      "view_edge_id": "authority-to-commitment",
-      "mode": "direct"
-    },
     "carrier-realizes-commitment": {
       "view_edge_id": "commitment-internal",
       "mode": "contained"
@@ -1370,17 +1290,9 @@
       "view_edge_id": "agency-to-worlds",
       "mode": "direct"
     },
-    "commitment-binds-lane": {
-      "view_edge_id": "commitment-to-worlds",
-      "mode": "direct"
-    },
     "plan-binds-lane": {
       "view_edge_id": "action-joint-to-worlds",
       "mode": "direct"
-    },
-    "scope-effect-binds-lane": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
     },
     "base-binds-lane": {
       "view_edge_id": "worlds-internal",
@@ -1542,34 +1454,6 @@
       "view_edge_id": "commitment-to-attestation",
       "mode": "direct"
     },
-    "attestation-to-selection": {
-      "view_edge_id": "attestation-internal",
-      "mode": "contained"
-    },
-    "accepted-next-to-selection": {
-      "view_edge_id": "accepted-next-to-reauthorization",
-      "mode": "direct"
-    },
-    "subject-to-selection": {
-      "view_edge_id": "authority-to-attestation",
-      "mode": "direct"
-    },
-    "selection-to-hold": {
-      "view_edge_id": "reauthorization-internal",
-      "mode": "contained"
-    },
-    "selection-to-done": {
-      "view_edge_id": "reauthorization-internal",
-      "mode": "contained"
-    },
-    "selection-to-next-commitment": {
-      "view_edge_id": "attestation-internal",
-      "mode": "contained"
-    },
-    "commitment-to-selection": {
-      "view_edge_id": "commitment-to-attestation",
-      "mode": "direct"
-    },
     "loss-interrupts-session": {
       "view_edge_id": "agency-to-recovery",
       "mode": "direct"
@@ -1577,10 +1461,6 @@
     "loss-to-recovery-anchor": {
       "view_edge_id": "recovery-internal",
       "mode": "contained"
-    },
-    "commitment-to-recovery-anchor": {
-      "view_edge_id": "commitment-to-recovery",
-      "mode": "direct"
     },
     "attestation-to-recovery-anchor": {
       "view_edge_id": "attestation-to-recovery",
@@ -1592,14 +1472,6 @@
     },
     "outcome-unknown-to-recovery": {
       "view_edge_id": "accepted-next-to-recovery",
-      "mode": "direct"
-    },
-    "recovery-to-successor": {
-      "view_edge_id": "recovery-internal",
-      "mode": "contained"
-    },
-    "successor-observes": {
-      "view_edge_id": "recovery-to-action-joint",
       "mode": "direct"
     },
     "model-gap-to-promotion": {
@@ -1697,26 +1569,6 @@
     "grammar-narrows-ethos": {
       "view_edge_id": "grammar-to-self",
       "mode": "direct"
-    },
-    "commitment-binds-predecessors": {
-      "view_edge_id": "commitment-to-worlds",
-      "mode": "contained"
-    },
-    "exact-tree-resolves-predecessors": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
-    },
-    "predecessors-derive-lineage": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
-    },
-    "lineage-enables-scoped-concurrency": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
-    },
-    "scoped-concurrency-coordinates-lanes": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
     },
     "publication-remote-local-cas": {
       "view_edge_id": "peer-internal",
@@ -1830,46 +1682,6 @@
       "view_edge_id": "candidate-refresh-cycle",
       "mode": "direct"
     },
-    "commitment-binds-experiment-protocol": {
-      "view_edge_id": "commitment-to-worlds",
-      "mode": "direct"
-    },
-    "scope-effect-informs-lane-relation": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
-    },
-    "experiment-informs-lane-relation": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
-    },
-    "lanes-enter-relation-judgment": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
-    },
-    "lane-proof-forms-comparative-claim": {
-      "view_edge_id": "proof-internal",
-      "mode": "contained"
-    },
-    "experiment-binds-comparative-claim": {
-      "view_edge_id": "worlds-to-proof",
-      "mode": "direct"
-    },
-    "relation-binds-lane-disposition": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
-    },
-    "comparison-informs-lane-disposition": {
-      "view_edge_id": "proof-to-worlds",
-      "mode": "direct"
-    },
-    "disposition-selects-candidate-attempt": {
-      "view_edge_id": "worlds-to-candidate-gate",
-      "mode": "direct"
-    },
-    "disposition-admits-retirement": {
-      "view_edge_id": "worlds-internal",
-      "mode": "contained"
-    },
     "candidate-attestation-binds-retirement": {
       "view_edge_id": "candidate-refresh-cycle",
       "mode": "direct"
@@ -1893,6 +1705,10 @@
     "common-activation-projects-family-report": {
       "view_edge_id": "worlds-internal",
       "mode": "contained"
+    },
+    "recovery-reobserves": {
+      "view_edge_id": "recovery-to-action-joint",
+      "mode": "direct"
     }
   },
   "omitted_edges": {
@@ -1967,9 +1783,6 @@
     },
     "adopter-peer-post-to-attestation": {
       "reason": "The complete adopter-peer boundary-local transaction law remains in the semantic model and is represented by the repeated local aperture without duplicating the magnified transaction."
-    },
-    "disposition-can-hold": {
-      "reason": "The Hold disposition is named inside the Lane relation field; it does not create a successor or cross-field transition."
     }
   },
   "forbidden_aggregations": [
@@ -2139,7 +1952,7 @@
       "edge_obstacle": true
     },
     "commitment": {
-      "role": "durable-ground",
+      "role": "transient-intent",
       "tone": "commitment",
       "shape": "root",
       "copy_id": "commitment",
@@ -2604,88 +2417,6 @@
           "x": 0.5,
           "y": 1
         },
-        "successor": {
-          "x": 1,
-          "y": 1
-        },
-        "generation": {
-          "x": 1,
-          "y": 1
-        }
-      },
-      "edge_obstacle": true
-    },
-    "reauthorization": {
-      "role": "succession",
-      "tone": "authority",
-      "shape": "joint",
-      "copy_id": "reauthorization",
-      "rect": {
-        "x": 5200,
-        "y": 520,
-        "width": 320,
-        "height": 260
-      },
-      "ports": {
-        "north": {
-          "x": 0.5,
-          "y": 0
-        },
-        "east": {
-          "x": 1,
-          "y": 0.5
-        },
-        "south": {
-          "x": 0.5,
-          "y": 1
-        },
-        "west": {
-          "x": 0,
-          "y": 0.5
-        },
-        "incoming": {
-          "x": 0,
-          "y": 1
-        },
-        "outgoing": {
-          "x": 1,
-          "y": 1
-        }
-      },
-      "edge_obstacle": true
-    },
-    "commitment-next": {
-      "role": "durable-ground",
-      "tone": "commitment",
-      "shape": "root",
-      "copy_id": "commitment-next",
-      "rect": {
-        "x": 5570,
-        "y": 520,
-        "width": 330,
-        "height": 260
-      },
-      "ports": {
-        "north": {
-          "x": 0.5,
-          "y": 0
-        },
-        "east": {
-          "x": 1,
-          "y": 0.5
-        },
-        "south": {
-          "x": 0.5,
-          "y": 1
-        },
-        "west": {
-          "x": 0,
-          "y": 0.5
-        },
-        "incoming": {
-          "x": 0,
-          "y": 1
-        },
         "generation": {
           "x": 1,
           "y": 1
@@ -3053,16 +2784,6 @@
     }
   },
   "visual_edges": {
-    "authority-to-commitment|authority|commitment": {
-      "view_edge_id": "authority-to-commitment",
-      "source": "authority",
-      "target": "commitment",
-      "source_port": "east",
-      "target_port": "west",
-      "routing": "curve",
-      "class_name": "ground",
-      "marker": false
-    },
     "commitment-internal|commitment|commitment": {
       "view_edge_id": "commitment-internal",
       "source": "commitment",
@@ -3143,16 +2864,6 @@
       "class_name": "support",
       "marker": false
     },
-    "commitment-to-worlds|commitment|worlds": {
-      "view_edge_id": "commitment-to-worlds",
-      "source": "commitment",
-      "target": "worlds",
-      "source_port": "south",
-      "target_port": "north",
-      "routing": "curve",
-      "class_name": "ground",
-      "marker": false
-    },
     "action-joint-to-worlds|action-joint|worlds": {
       "view_edge_id": "action-joint-to-worlds",
       "source": "action-joint",
@@ -3193,16 +2904,6 @@
       "class_name": "internal",
       "marker": false
     },
-    "commitment-to-effect-joint|commitment|effect-joint": {
-      "view_edge_id": "commitment-to-effect-joint",
-      "source": "commitment",
-      "target": "effect-joint",
-      "source_port": "east",
-      "target_port": "west",
-      "routing": "curve",
-      "class_name": "ground",
-      "marker": false
-    },
     "authority-to-effect-joint|authority|effect-joint": {
       "view_edge_id": "authority-to-effect-joint",
       "source": "authority",
@@ -3211,16 +2912,6 @@
       "target_port": "west",
       "routing": "curve",
       "class_name": "ground",
-      "marker": false
-    },
-    "action-joint-to-effect-joint|action-joint|effect-joint": {
-      "view_edge_id": "action-joint-to-effect-joint",
-      "source": "action-joint",
-      "target": "effect-joint",
-      "source_port": "east",
-      "target_port": "west",
-      "routing": "orthogonal",
-      "class_name": "support",
       "marker": false
     },
     "effect-joint-internal|effect-joint|effect-joint": {
@@ -3263,66 +2954,6 @@
       "class_name": "ground",
       "marker": false
     },
-    "attestation-internal|attestation|reauthorization": {
-      "view_edge_id": "attestation-internal",
-      "source": "attestation",
-      "target": "reauthorization",
-      "source_port": "east",
-      "target_port": "west",
-      "routing": "curve",
-      "class_name": "ground",
-      "marker": false
-    },
-    "accepted-next-to-reauthorization|accepted-next|reauthorization": {
-      "view_edge_id": "accepted-next-to-reauthorization",
-      "source": "accepted-next",
-      "target": "reauthorization",
-      "source_port": "north",
-      "target_port": "south",
-      "routing": "orthogonal",
-      "class_name": "support",
-      "marker": false
-    },
-    "authority-to-attestation|authority|reauthorization": {
-      "view_edge_id": "authority-to-attestation",
-      "source": "authority",
-      "target": "reauthorization",
-      "source_port": "east",
-      "target_port": "west",
-      "routing": "curve",
-      "class_name": "ground",
-      "marker": false
-    },
-    "reauthorization-internal|reauthorization|reauthorization": {
-      "view_edge_id": "reauthorization-internal",
-      "source": "reauthorization",
-      "target": "reauthorization",
-      "source_port": "south",
-      "target_port": "north",
-      "routing": "loop",
-      "class_name": "internal",
-      "marker": false
-    },
-    "attestation-internal|reauthorization|commitment-next": {
-      "view_edge_id": "attestation-internal",
-      "source": "reauthorization",
-      "target": "commitment-next",
-      "source_port": "north",
-      "target_port": "south",
-      "routing": "curve",
-      "class_name": "ground",
-      "marker": false
-    },
-    "commitment-to-attestation|commitment|reauthorization": {
-      "view_edge_id": "commitment-to-attestation",
-      "source": "commitment",
-      "target": "reauthorization",
-      "source_port": "east",
-      "target_port": "west",
-      "routing": "curve",
-      "class_name": "ground",
-      "marker": false
-    },
     "agency-to-recovery|agency|recovery": {
       "view_edge_id": "agency-to-recovery",
       "source": "agency",
@@ -3341,16 +2972,6 @@
       "target_port": "north",
       "routing": "loop",
       "class_name": "internal",
-      "marker": false
-    },
-    "commitment-to-recovery|commitment|recovery": {
-      "view_edge_id": "commitment-to-recovery",
-      "source": "commitment",
-      "target": "recovery",
-      "source_port": "south",
-      "target_port": "north",
-      "routing": "curve",
-      "class_name": "ground",
       "marker": false
     },
     "attestation-to-recovery|attestation|recovery": {
@@ -3661,16 +3282,6 @@
       "target_port": "refresh",
       "routing": "curve",
       "class_name": "recovery",
-      "marker": false
-    },
-    "proof-to-candidate-gate|proof|candidate-gate": {
-      "view_edge_id": "proof-to-candidate-gate",
-      "source": "proof",
-      "target": "candidate-gate",
-      "source_port": "outgoing",
-      "target_port": "incoming",
-      "routing": "orthogonal",
-      "class_name": "support",
       "marker": false
     },
     "cas-to-accepted-next|cas|accepted-next": {
@@ -4051,24 +3662,6 @@
           "y": 850
         }
       ]
-    },
-    {
-      "id": "attestation-reauthorization",
-      "source_node": "attestation",
-      "source_port": "successor",
-      "target_node": "reauthorization",
-      "target_port": "incoming",
-      "class_name": "succession-flow",
-      "marker": false
-    },
-    {
-      "id": "reauthorization-next",
-      "source_node": "reauthorization",
-      "source_port": "outgoing",
-      "target_node": "commitment-next",
-      "target_port": "incoming",
-      "class_name": "succession-flow",
-      "marker": false
     },
     {
       "id": "recovery-compile",

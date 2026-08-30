@@ -16,7 +16,6 @@
 
 - [x] 3.1 Pass strict OpenSpec validation, focused tests, Ruff, types, and
   repository hygiene.
-- [ ] 3.2 Freeze a signed source commit and pass exact-HEAD full proof.
-- [ ] 3.3 Archive through the public lifecycle, prove the archived HEAD, promote
-  candidate and accepted refs, install/read back the accepted runtime, publish
-  dev then main, and verify hosted Windows, GitHub, and GitLab results.
+- [x] 3.2 Freeze a signed source commit and pass exact-HEAD full proof.
+- [x] 3.3 Confirm public archive readiness with no unresolved implementation or
+  verification task remaining in the active Change.

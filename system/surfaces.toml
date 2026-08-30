@@ -28,6 +28,7 @@ inputs = [
   "PATH",
   "PYTEST_CURRENT_TEST",
   "PYTEST_XDIST_WORKER",
+  "SYSTEMROOT",
   "TMPDIR",
   "USER",
 ]

@@ -6,10 +6,34 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"
 
-if ! command -v git >/dev/null 2>&1 || ! ldconfig -p 2>/dev/null | grep -q 'libatomic\.so\.1'; then
-	apt-get update
-	apt-get install -y --no-install-recommends git libatomic1
-fi
+case "$(uname -s)" in
+Linux)
+	missing_packages=()
+	if ! command -v git >/dev/null 2>&1; then missing_packages+=(git); fi
+	if ! command -v ldconfig >/dev/null 2>&1 ||
+		! ldconfig -p 2>/dev/null | grep -q 'libatomic\.so\.1'; then
+		missing_packages+=(libatomic1)
+	fi
+	if ((${#missing_packages[@]})); then
+		if ! command -v apt-get >/dev/null 2>&1; then
+			printf 'missing Linux prerequisites and apt-get is unavailable: %s\n' "${missing_packages[*]}" >&2
+			exit 1
+		fi
+		apt-get update
+		apt-get install -y --no-install-recommends "${missing_packages[@]}"
+	fi
+	;;
+Darwin)
+	if ! command -v git >/dev/null 2>&1; then
+		echo "Git is required to bootstrap ETHOS on Darwin" >&2
+		exit 1
+	fi
+	;;
+*)
+	printf 'unsupported Python bootstrap operating system: %s\n' "$(uname -s)" >&2
+	exit 1
+	;;
+esac
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 required_uv="$(

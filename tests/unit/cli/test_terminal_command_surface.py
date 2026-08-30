@@ -272,6 +272,7 @@ def test_lane_status_exposes_observations_without_closeout_residue_plane(
     serialized = json.dumps(payload)
     assert "ok" not in payload
     assert "ok" not in payload["data"]
+    assert "next_action" not in payload["data"]
     assert payload["data"]["verdict"] == payload["verdict"]
     for retired in (
         "closeout_disposition",

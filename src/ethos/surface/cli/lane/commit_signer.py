@@ -2,22 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from typing import Annotated
 
 from cyclopts import Parameter
 
 from ethos.adapters.repo.git_object import authorize_configured_commit_signer
-from ethos.adapters.repo.git_object import commit_trust_setup_action
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
 from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result
 from ethos.surface.cli.root_binding import resolve_root
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from ethos.contracts.verdict import Verdict
 
 
 class CommitSignerTrustOptions(AppliedLaneCommandOptions):
@@ -25,14 +18,6 @@ class CommitSignerTrustOptions(AppliedLaneCommandOptions):
     target_commit: Annotated[str, Parameter(name="--target-commit")]
     expected_anchor_sha256: Annotated[str, Parameter(name="--expected-anchor-sha256")]
     authorize: bool = False
-
-
-def _trust_action(
-    root: Path, target_commit: str, report: dict[str, object], verdict: Verdict
-) -> str:
-    if verdict == "pass" and report.get("state") == "signer_authorized":
-        return ""
-    return commit_trust_setup_action(root, target_commit)
 
 
 @lane_app.command(name="trust-commit-signer")
@@ -49,9 +34,6 @@ def trust_commit_signer(options: Annotated[CommitSignerTrustOptions, Parameter(n
     project_lane_result(
         options.command,
         report,
-        actions=lambda current, verdict: _trust_action(
-            root, options.target_commit, current, verdict
-        ),
         enforce=options.apply,
         json_output=options.json_output,
     )

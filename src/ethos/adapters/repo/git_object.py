@@ -201,31 +201,33 @@ def authorize_configured_commit_signer(
     if apply and not authorized:
         gaps.append("authorization_required")
     if gaps or not apply:
-        return _authorization_report(
+        report = _authorization_report(
             revision,
             anchor,
             digest,
             gaps,
             "blocked" if gaps else "ready_to_authorize_signer",
         )
+        return report | {"next_action": commit_trust_setup_action(root, revision)}
     anchor = cast("Path", anchor)
     try:
         _replace_anchor(anchor, current, candidate)
     except (OSError, ValueError) as error:
-        return _authorization_report(
+        report = _authorization_report(
             revision,
             anchor,
             hashlib.sha256(anchor.read_bytes()).hexdigest(),
             [str(error) or "commit_trust_anchor_write_failed"],
             "blocked",
         )
+        return report | {"next_action": commit_trust_setup_action(root, revision)}
     return _authorization_report(
         revision,
         anchor,
         hashlib.sha256(candidate).hexdigest(),
         [],
         "signer_authorized",
-    )
+    ) | {"next_action": ""}
 
 
 def commit_trust_setup_action(root: Path, revision: str) -> str:

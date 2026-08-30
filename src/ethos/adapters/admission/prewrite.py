@@ -4,16 +4,13 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.lease_binding import observe_current_authority
+from ethos.adapters.admission.current.authority import observe_current_authority
+from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.admission.patch_admission import patch_admission
-from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
-from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -29,10 +26,9 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
-from ethos.normalization.coercion import string_mapping
 
 if TYPE_CHECKING:
-    from ethos.adapters.admission.lease_binding import CurrentAuthority
+    from ethos.adapters.admission.current.authority import CurrentAuthority
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "holder_ref", "generation", "head")
@@ -80,31 +76,27 @@ def prewrite_guard(
     lease = current_authority.projection()
     profile_enabled = openspec_profile_enabled(root)
     authority = lease
-    profile_adapter: dict[str, object] = {}
     if profile_enabled:
-        profile_adapter = openspec_governance_report(
+        resolution = resolve_current_resolution(
             root,
-            lifecycle=True,
-            changed_paths=requested,
-            require_workspace=False,
+            status={
+                "role": effective["role"],
+                "head": current_authority.current_head,
+                "changed_paths": list(requested),
+            },
+            authority=current_authority,
+            changed=False,
         )
-        try:
-            generation = current_generation_binding(
-                root,
-                status={
-                    "role": effective["role"],
-                    "head": current_authority.current_head,
-                },
-                repository_id=repository_identity(root),
-                authority=current_authority,
+        if resolution.verdict != "pass":
+            scope = resolution.scope_report(requested)
+            scope.update(
+                verdict=resolution.verdict,
+                required_gaps=list(resolution.required_gaps),
+                next_action=resolution.next_action,
+                user_decision_required=resolution.user_decision_required,
             )
-        except ValueError:
-            scope = _openspec_scope(profile_adapter)
         else:
-            if generation.scope.archive_authority:
-                scope = generation.scope_report(requested)
-            else:
-                scope = _openspec_scope(profile_adapter)
+            scope = resolution.scope_report(requested)
     else:
         scope = _commitment_scope(root, requested, lease)
     editor = _editor_root_check(
@@ -130,11 +122,21 @@ def prewrite_guard(
         required_gaps=tuple(gaps),
     )
     decision = _prewrite_decision(root, effective, checked, authority, verdict, tuple(gaps))
-    next_action = (
-        ""
-        if verdict == "pass"
-        else prewrite_next_action({"work_lane_lease": lease, "editor_root": editor})
-    )
+    next_action = ""
+    user_decision_required = False
+    if verdict != "pass":
+        if report_verdict(authority) != "pass":
+            next_action, user_decision_required = current_authority.recovery(root)
+        if not next_action and report_verdict(scope) != "pass":
+            next_action = str(scope.get("next_action") or "")
+            user_decision_required = bool(scope.get("user_decision_required", False))
+        if not next_action and editor.get("reason") == "editor_root_missing":
+            next_action = (
+                f"ethos lane prewrite <path> --editor-root {editor['expected']} "
+                "--require-editor-root --json"
+            )
+        if not next_action:
+            next_action = "ethos lane prewrite <path>"
     return {
         "verdict": decision.verdict,
         "error": gaps[0] if gaps else "",
@@ -155,6 +157,7 @@ def prewrite_guard(
         "decision": decision.to_payload(),
         "required_gaps": gaps,
         "next_action": next_action,
+        "user_decision_required": user_decision_required,
     }
 
 
@@ -387,20 +390,6 @@ def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
     explicit = next((gap for reason, gap in priority if reason in reasons), "")
     residual = next((reason for reason in reasons if reason != "protected_lane_tracked_write"), "")
     return explicit or residual or ("protected_lane_prewrite_blocked" if blocked_paths else "")
-
-
-def _openspec_scope(report: dict[str, object]) -> dict[str, object]:
-    """Return scope projected by the optional ETHOS self-profile adapter."""
-    lifecycle = report.get("lifecycle")
-    scope = lifecycle.get("scope_binding") if isinstance(lifecycle, dict) else None
-    if isinstance(scope, dict):
-        return string_mapping(scope)
-    return {
-        "verdict": "unknown",
-        "state": "not_available",
-        **{key: [] for key in _SCOPE_LIST_FIELDS},
-        "required_gaps": ["openspec_scope_unavailable"],
-    }
 
 
 def _commitment_scope(

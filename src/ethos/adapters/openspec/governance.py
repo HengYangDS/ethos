@@ -294,6 +294,7 @@ def _openspec_governance_report(
     )
     required_gaps.extend(str(gap) for gap in lifecycle_payload["required_gaps"])
     intent_context: dict[str, object] = {}
+    contract = None
     if official_selected:
         try:
             contract = load_openspec_commitment(root, change_id=official_selected)
@@ -325,6 +326,7 @@ def _openspec_governance_report(
         "required_gaps": required_gaps,
         "advisory_gaps": advisory_gaps,
         "intent_context": intent_context,
+        "commitment": contract.model_dump(mode="json") if contract is not None else {},
         "lifecycle": {
             "enabled": request.lifecycle,
             "changes": lifecycle_payload["changes"],

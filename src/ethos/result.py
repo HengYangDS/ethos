@@ -1,6 +1,5 @@
 import hashlib
 import json
-import shlex
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -14,7 +13,6 @@ from pydantic import Field
 from pydantic import computed_field
 from pydantic import model_validator
 
-from ethos.contracts.admission import ethos_command_mutates
 from ethos.contracts.value import FrozenTuple
 from ethos.contracts.value import JsonObject
 from ethos.contracts.verdict import Verdict
@@ -36,10 +34,10 @@ class EthosResult(BaseModel):
         "diagnostics",
         "required_gaps",
         "next_action",
+        "user_decision_required",
         "data",
     )
     _DERIVED_FIELDS: ClassVar[tuple[str, ...]] = (
-        "user_decision_required",
         "continuation",
         "missing_facts_or_evidence",
     )
@@ -60,6 +58,7 @@ class EthosResult(BaseModel):
     diagnostics: FrozenTuple[JsonObject] = ()
     required_gaps: tuple[str, ...] = ()
     next_action: str = ""
+    user_decision_required: bool = False
     governance_context: JsonObject | None = None
     data: JsonObject = Field(default_factory=dict)
 
@@ -77,23 +76,6 @@ class EthosResult(BaseModel):
             raise ValueError(_BLOCK_WITHOUT_REASON)
         require_closed_verdict(self.verdict, self.required_gaps, adverse)
         return self
-
-    @computed_field
-    @property
-    def user_decision_required(self) -> bool:
-        """Derive whether the sole continuation crosses an authority boundary."""
-        return (
-            ethos_command_mutates(tuple(shlex.split(self.next_action)))
-            or "obtain handoff" in self.next_action
-            or any(
-                gap in {"handoff_required", "authorization_required"}
-                or gap.endswith(
-                    ("_confirmation_required", "_receipt_required", "_authority_required")
-                )
-                or "holder_mismatch" in gap
-                for gap in self.required_gaps
-            )
-        )
 
     @computed_field
     @property

@@ -31,6 +31,15 @@ class CurrentAuthority:
     head_source: str = "head"
     required: bool = True
 
+    def recovery(self, root: Path) -> tuple[str, bool]:
+        """Return the sole public recovery command and decision boundary."""
+        holder = str(self.lease.get("holder_ref") or "").strip()
+        if self.reason.startswith("invocation_actor_missing:") and holder:
+            return f"export ETHOS_ACTOR={holder}", False
+        if self.reason.startswith("lease_holder_mismatch:") and holder:
+            return f"export ETHOS_ACTOR={holder}", True
+        return f"ethos lane status --root {root.resolve().as_posix()} --json", False
+
     def projection(self) -> dict[str, object]:
         """Project the same minimal authority for readers, guards, and hooks."""
         return {

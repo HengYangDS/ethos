@@ -68,6 +68,11 @@ def _report(
     }
     state = "blocked" if gaps else "cleaned" if removed else "ready" if apply else "planned"
     required_gaps = sorted(set(gaps))
+    next_action = (
+        "ethos lane housekeeping --authorize --apply --json"
+        if not required_gaps and summary["removable_count"] and not apply
+        else ""
+    )
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
         "state": state,
@@ -76,6 +81,7 @@ def _report(
         "temporary_roots": [path.as_posix() for path in roots],
         "removed_paths": removed,
         "required_gaps": required_gaps,
+        "next_action": next_action,
     }
 
 

@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.admission.lease_binding import CurrentAuthority
-from ethos.adapters.admission.lease_binding import resolve_current_authority
+from ethos.adapters.admission.current.authority import CurrentAuthority
+from ethos.adapters.admission.current.authority import resolve_current_authority
 from ethos.adapters.repo.coordination import ForeignLaneContext
 from ethos.adapters.repo.coordination import branch_path_scope
 from ethos.adapters.repo.coordination import coordination_gaps
@@ -305,6 +305,7 @@ def _stage_gates(
         "blocked_stage": blocked,
         "blocker_owner": owner,
         "next_action": next_action,
+        "user_decision_required": stale,
     }
 
 

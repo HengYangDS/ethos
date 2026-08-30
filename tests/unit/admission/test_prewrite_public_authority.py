@@ -6,9 +6,9 @@ import pytest
 
 import ethos.adapters.admission.prewrite as prewrite
 import ethos.adapters.repo.runtime.binding as runtime_binding_adapter
-from ethos.adapters.admission.lease_binding import CurrentAuthority
-from ethos.adapters.openspec.start_effect import CurrentGenerationBinding
-from ethos.adapters.openspec.start_effect import CurrentGenerationScope
+from ethos.adapters.admission.current.authority import CurrentAuthority
+from ethos.adapters.admission.current.resolution import CurrentResolution
+from ethos.adapters.admission.current.resolution import CurrentScope
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -130,16 +130,22 @@ def test_prewrite_projects_unknown_openspec_scope_fail_closed(
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
     monkeypatch.setattr(
         prewrite,
-        "openspec_governance_report",
-        lambda *_args, **_kwargs: {"verdict": "unknown", "required_gaps": ["carrier_unreadable"]},
+        "resolve_current_resolution",
+        lambda *_args, **_kwargs: CurrentResolution(
+            verdict="unknown",
+            authority=None,
+            commitment=None,
+            scope=CurrentScope(()),
+            required_gaps=("carrier_unreadable",),
+        ),
     )
 
     report = prewrite.prewrite_guard(root=tmp_path, paths=[], editor_root=tmp_path)
 
     assert report["verdict"] == "unknown"
     assert report["material_scope"]["state"] == "not_available"
-    assert report["material_scope"]["required_gaps"] == ["openspec_scope_unavailable"]
-    assert report["required_gaps"] == ["openspec_scope_unavailable"]
+    assert report["material_scope"]["required_gaps"] == ["carrier_unreadable"]
+    assert report["required_gaps"] == ["carrier_unreadable"]
 
 
 def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
@@ -164,12 +170,14 @@ def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
     monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
     monkeypatch.setattr(
         prewrite,
-        "openspec_governance_report",
-        lambda *_args, **_kwargs: {
-            "verdict": "pass",
-            "required_gaps": [],
-            "lifecycle": {
-                "scope_binding": {
+        "resolve_current_resolution",
+        lambda *_args, **_kwargs: CurrentResolution(
+            verdict="pass",
+            authority=authority,
+            commitment=commitment_fixture(id="change:example"),
+            scope=CurrentScope(
+                paths=("README.md",),
+                material_scope={
                     "verdict": "pass",
                     "state": "attributed",
                     "changed_paths": ["README.md"],
@@ -180,9 +188,9 @@ def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
                     "uncovered_paths": [],
                     "required_gaps": [],
                     "advisory_gaps": [],
-                }
-            },
-        },
+                },
+            ),
+        ),
     )
     report = prewrite.prewrite_guard(
         root=tmp_path,
@@ -199,21 +207,6 @@ def test_prewrite_reuses_exact_archive_generation_binding(
 ) -> None:
     _bind_common(monkeypatch, tmp_path)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    monkeypatch.setattr(
-        prewrite,
-        "openspec_governance_report",
-        lambda *_args, **_kwargs: {
-            "verdict": "block",
-            "required_gaps": ["openspec_active_change_missing"],
-            "lifecycle": {
-                "scope_binding": {
-                    "verdict": "block",
-                    "state": "unattributed",
-                    "required_gaps": ["openspec_active_change_missing"],
-                }
-            },
-        },
-    )
     lease = {
         "lane_ref": "work/example",
         "holder_ref": "agent:test:case:owner",
@@ -236,17 +229,20 @@ def test_prewrite_reuses_exact_archive_generation_binding(
     )
     monkeypatch.setattr(
         prewrite,
-        "current_generation_binding",
-        lambda *_args, **_kwargs: CurrentGenerationBinding(
-            lease=lease,
+        "resolve_current_resolution",
+        lambda *_args, **_kwargs: CurrentResolution(
+            verdict="pass",
+            authority=authority,
             commitment=commitment_fixture(id="change:example"),
-            scope=CurrentGenerationScope(
+            scope=CurrentScope(
                 paths=("README.md",),
-                archive_authority={"attestation_id": "c" * 64},
+                archive_authority={
+                    "attestation_id": "c" * 64,
+                    "authorized_paths": ["README.md"],
+                },
             ),
         ),
     )
-    monkeypatch.setattr(prewrite, "repository_identity", lambda _root: "repository:test")
 
     report = prewrite.prewrite_guard(
         root=tmp_path,
@@ -279,26 +275,17 @@ def test_prewrite_archive_authority_rejects_unattested_path(
     monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
     monkeypatch.setattr(
         prewrite,
-        "openspec_governance_report",
-        lambda *_args, **_kwargs: {
-            "verdict": "block",
-            "required_gaps": ["openspec_active_change_missing"],
-            "lifecycle": {"scope_binding": {}},
-        },
-    )
-    monkeypatch.setattr(
-        prewrite,
-        "current_generation_binding",
-        lambda *_args, **_kwargs: CurrentGenerationBinding(
-            lease=authority.lease,
+        "resolve_current_resolution",
+        lambda *_args, **_kwargs: CurrentResolution(
+            verdict="pass",
+            authority=authority,
             commitment=commitment_fixture(id="change:example"),
-            scope=CurrentGenerationScope(
+            scope=CurrentScope(
                 paths=("openspec/changes/archive/2026-08-29-example/tasks.md",),
                 archive_authority={"attestation_id": "c" * 64},
             ),
         ),
     )
-    monkeypatch.setattr(prewrite, "repository_identity", lambda _root: "repository:test")
 
     report = prewrite.prewrite_guard(
         root=tmp_path,

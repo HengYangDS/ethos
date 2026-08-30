@@ -1,33 +1,5 @@
 from __future__ import annotations
 
-from ethos.normalization.coercion import string_mapping
-
-
-def prewrite_next_action(admission: dict[str, object]) -> str:
-    """Return the unique public recovery action for one prewrite block."""
-    lease = string_mapping(admission.get("work_lane_lease"))
-    reason = str(lease.get("reason") or "")
-    holder = str(lease.get("holder_ref") or "").strip()
-    if reason.startswith("invocation_actor_missing:"):
-        return (
-            f"set ETHOS_ACTOR={holder} and rerun the blocked command"
-            if holder
-            else "set ETHOS_ACTOR to the current holder_ref and rerun the blocked command"
-        )
-    if reason.startswith("lease_holder_mismatch:"):
-        return (
-            f"set ETHOS_ACTOR={holder} and rerun the blocked command, or obtain handoff"
-            if holder
-            else "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
-        )
-    if reason.startswith("work_lane_missing_lease:"):
-        return "ethos lane status --json"
-    editor = string_mapping(admission.get("editor_root"))
-    if editor.get("reason") == "editor_root_missing":
-        expected = str(editor.get("expected") or "")
-        return f"ethos lane prewrite <path> --editor-root {expected} --require-editor-root --json"
-    return "ethos lane prewrite <path>"
-
 
 def archive_recovery_command(change: str, expect_head: str) -> str:
     """Return the sole public continuation for an observed archive effect."""

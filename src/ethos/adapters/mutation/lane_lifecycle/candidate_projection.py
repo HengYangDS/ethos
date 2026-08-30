@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 from pathlib import Path
 from typing import cast
 
@@ -96,7 +97,14 @@ def bootstrap_candidate(
     head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
     issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
     target = (path or default_worktree_path(repo, policy.candidate_branch)).resolve()
-    details = {"path": target.as_posix()}
+    status_action = f"ethos status --root {shlex.quote(repo.as_posix())} --json"
+    start_action = "ethos lane start --help"
+    apply_action = (
+        "ethos lane candidate "
+        f"--path {shlex.quote(target.as_posix())} --expect-head {head} "
+        f"--apply --root {shlex.quote(repo.as_posix())} --json"
+    )
+    details = {"path": target.as_posix(), "next_action": status_action}
     gap = (
         "candidate_bootstrap_requires_clean_accepted_root"
         if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]
@@ -124,6 +132,8 @@ def bootstrap_candidate(
             "blocked" if gaps else "present",
             gaps,
             path=str(candidate["worktree_path"]),
+            next_action=status_action if gaps else start_action,
+            user_decision_required=not gaps,
         )
     if not apply or target.exists():
         gaps = [] if not apply else ["candidate_worktree_path_exists"]
@@ -132,7 +142,7 @@ def bootstrap_candidate(
             head,
             "blocked" if gaps else "planned",
             gaps,
-            **details,
+            **(details | {"next_action": status_action if gaps else apply_action}),
         )
     operation = "candidate.bootstrap"
     try:
@@ -170,7 +180,13 @@ def bootstrap_candidate(
         return _report(
             policy.candidate_branch, head, "blocked", [gap], stderr=str(error), **details
         )
-    return _report(policy.candidate_branch, head, "bootstrapped", [], **details)
+    return _report(
+        policy.candidate_branch,
+        head,
+        "bootstrapped",
+        [],
+        **(details | {"next_action": start_action, "user_decision_required": True}),
+    )
 
 
 def _sync_candidate_worktree(
@@ -206,6 +222,12 @@ def refresh_candidate_from_accepted(
     previous = str(candidate.get("head") or "")
     path = Path(str(candidate.get("worktree_path") or ""))
     details = {"previous_head": previous, "path": str(path)}
+    status_action = f"ethos status --root {shlex.quote(repo.as_posix())} --json"
+    refresh_action = (
+        "ethos lane candidate --refresh-from-accepted --apply --authorize "
+        f"--expect-head {head} --root {shlex.quote(repo.as_posix())} --json"
+    )
+    start_action = "ethos lane start --help"
     gaps = [
         gap
         for gap, present in (
@@ -242,12 +264,28 @@ def refresh_candidate_from_accepted(
             )
             gaps.append(gap)
     if gaps:
-        return _report(policy.candidate_branch, head, "blocked", gaps, **details)
+        return _report(
+            policy.candidate_branch,
+            head,
+            "blocked",
+            gaps,
+            **(details | {"next_action": status_action}),
+        )
     if previous == head and plan is None:
-        return _report(policy.candidate_branch, head, "base_current", [], **details)
+        return _report(
+            policy.candidate_branch,
+            head,
+            "base_current",
+            [],
+            **(details | {"next_action": start_action, "user_decision_required": True}),
+        )
     if not apply:
         return _report(
-            policy.candidate_branch, head, "ready_to_refresh_from_accepted", [], **details
+            policy.candidate_branch,
+            head,
+            "ready_to_refresh_from_accepted",
+            [],
+            **(details | {"next_action": refresh_action, "user_decision_required": True}),
         )
     try:
         plan = plan or _candidate_plan(
@@ -273,4 +311,10 @@ def refresh_candidate_from_accepted(
             else "candidate_refresh_from_accepted_failed"
         )
         return _report(policy.candidate_branch, head, "blocked", [gap], stderr=message, **details)
-    return _report(policy.candidate_branch, head, "refreshed_from_accepted", [], **details)
+    return _report(
+        policy.candidate_branch,
+        head,
+        "refreshed_from_accepted",
+        [],
+        **(details | {"next_action": start_action, "user_decision_required": True}),
+    )

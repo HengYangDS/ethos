@@ -86,6 +86,7 @@ def _report_result(
         summary=summary,
         required_gaps=required_gaps,
         next_action=next_action,
+        user_decision_required=bool(report.get("user_decision_required", False)),
         data=report,
     )
 

@@ -6,9 +6,7 @@ from datetime import UTC
 from datetime import datetime
 from typing import cast
 
-from ethos.adapters.openspec.commitment import openspec_profile_enabled
-from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.openspec.start_effect import current_generation_binding
+from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
@@ -84,25 +82,26 @@ def plan(
         )
         return
     try:
-        generation = current_generation_binding(
+        generation = resolve_current_resolution(
             repo,
             status=status_payload,
-            repository_id=repository,
             authority=authority,
             change=change,
             changed=changed,
         )
     except ValueError as exc:
-        gap = str(exc)
-        if gap == INVALID_PROFILE_ERROR:
+        if str(exc) == INVALID_PROFILE_ERROR:
             raise
+        raise
+    if generation.verdict != "pass" or generation.commitment is None:
         emit(
             EthosResult(
                 command="plan",
-                verdict="block",
+                verdict=generation.verdict,
                 state="gapped",
-                required_gaps=(gap,),
-                next_action="repair or select the Commitment carrier",
+                required_gaps=generation.required_gaps,
+                next_action=generation.next_action,
+                user_decision_required=generation.user_decision_required,
             ),
             json_output=json_output,
             enforce=False,
@@ -111,23 +110,8 @@ def plan(
     commitment, generation_scope = generation.commitment, generation.scope
     paths = generation_scope.paths
     matched_rules, required_gates, rule_validation_gaps = matching_rule_gates(repo, paths)
-    profile_adapter: dict[str, object] = {}
-    intent_context: dict[str, object] = {}
-    intent_gaps: tuple[str, ...] = ()
-    if openspec_profile_enabled(repo):
-        profile_adapter = openspec_governance_report(
-            repo,
-            change=change or generation.change_id,
-            lifecycle=True,
-            changed_paths=paths,
-            require_workspace=False,
-        )
-        intent_context = cast("dict[str, object]", profile_adapter.get("intent_context") or {})
-        intent_gaps = tuple(
-            gap
-            for gap in string_sequence(profile_adapter.get("required_gaps"))
-            if gap == "model_gap"
-        )
+    profile_adapter = generation.openspec
+    intent_context = cast("dict[str, object]", profile_adapter.get("intent_context") or {})
     tree = current_tree(repo, head)
     facts = Facts(
         repository=repository,
@@ -175,9 +159,7 @@ def plan(
         policy=policy.projection,
         prior_attestations=prior_attestations,
         required_gaps=tuple(
-            dict.fromkeys(
-                (*generation_scope.gaps, *rule_validation_gaps, *policy.gaps, *intent_gaps)
-            )
+            dict.fromkeys((*generation_scope.gaps, *rule_validation_gaps, *policy.gaps))
         ),
     )
     playbooks = playbooks_report(repo)

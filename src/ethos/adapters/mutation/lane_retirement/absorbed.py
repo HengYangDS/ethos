@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -138,6 +139,16 @@ def retire_absorbed_ref(
         "mutation": mutation,
         "required_gaps": required_gaps,
     }
+    report |= _continuation(
+        repo,
+        branch=branch,
+        expect_head=expect_head,
+        accepted_head=accepted_head,
+        authorize=authorize,
+        confirm_irreversible=confirm_irreversible,
+        apply=apply,
+        required_gaps=required_gaps,
+    )
 
     def block_effect(current: dict[str, object], error: OSError | ValueError) -> dict[str, object]:
         return _block_effect_report(
@@ -306,8 +317,57 @@ def _project_retirement_postcondition(
             "verdict": "block",
             "state": "blocked",
             "required_gaps": ["absorbed_ref_postcondition_failed"],
+            "next_action": "ethos lane status --json",
         }
-    return report | {"state": "retired_absorbed_ref", "retired": observed}
+    return report | {
+        "state": "retired_absorbed_ref",
+        "retired": observed,
+        "next_action": "ethos status --json",
+        "user_decision_required": False,
+    }
+
+
+def _continuation(
+    repo: Path,
+    *,
+    branch: str,
+    expect_head: str,
+    accepted_head: str,
+    authorize: bool,
+    confirm_irreversible: bool,
+    apply: bool,
+    required_gaps: list[str],
+) -> dict[str, object]:
+    if required_gaps:
+        decision_required = any(
+            gap in {"authorization_required", "irreversible_confirmation_required"}
+            for gap in required_gaps
+        )
+        if set(required_gaps).issubset(
+            {"authorization_required", "irreversible_confirmation_required"}
+        ):
+            action = _apply_command(repo, branch, expect_head, accepted_head)
+        else:
+            action = f"ethos lane status --root {shlex.quote(repo.as_posix())} --json"
+        return {"next_action": action, "user_decision_required": decision_required}
+    if not apply or not authorize or not confirm_irreversible:
+        return {
+            "next_action": _apply_command(repo, branch, expect_head, accepted_head),
+            "user_decision_required": True,
+        }
+    return {
+        "next_action": f"ethos status --root {shlex.quote(repo.as_posix())} --json",
+        "user_decision_required": False,
+    }
+
+
+def _apply_command(repo: Path, branch: str, expect_head: str, accepted_head: str) -> str:
+    return (
+        "ethos lane retire absorbed-ref "
+        f"--branch {shlex.quote(branch)} --expect-head {expect_head} "
+        f"--accepted-head {accepted_head} --authorize --confirm-irreversible --apply "
+        f"--root {shlex.quote(repo.as_posix())} --json"
+    )
 
 
 def _require_recovery_plan(digest: str, intent: dict[str, object]) -> None:

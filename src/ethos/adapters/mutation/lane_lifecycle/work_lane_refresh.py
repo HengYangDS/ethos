@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -82,10 +83,17 @@ def refresh_work_lane_base(
     candidate_path = str(candidate.get("worktree_path") or "")
     if branch == "detached" and apply:
         try:
-            return _recover_work_lane(root, policy.candidate_branch, candidate_head, candidate_path)
+            result = _recover_work_lane(
+                root, policy.candidate_branch, candidate_head, candidate_path
+            )
+            return _with_action(root, result, apply=apply)
         except ValueError as error:
             context = ("detached", policy.candidate_branch, candidate_head, candidate_path)
-            return _report(context, current_head, "blocked", [str(error)])
+            return _with_action(
+                root,
+                _report(context, current_head, "blocked", [str(error)]),
+                apply=apply,
+            )
     context = (branch, policy.candidate_branch, candidate_head, candidate_path)
 
     gaps = [
@@ -108,14 +116,45 @@ def refresh_work_lane_base(
         if present
     )
     if gaps:
-        return _report(context, current_head, "blocked", gaps)
+        return _with_action(
+            root,
+            _report(context, current_head, "blocked", gaps),
+            apply=apply,
+        )
     if is_ancestor(root, candidate_head, current_head):
         result = _report(context, current_head, "base_current", [])
     elif not apply:
         result = _report(context, current_head, "ready_to_refresh_base", [])
     else:
         result = _refresh_work_lane(root, context, current_head)
-    return result
+    return _with_action(root, result, apply=apply)
+
+
+def _with_action(root: Path, report: dict[str, object], *, apply: bool) -> dict[str, object]:
+    """Attach the operation-owned continuation before CLI projection."""
+    gaps = tuple(str(item) for item in cast("list[object]", report.get("required_gaps", [])))
+    state = str(report.get("state") or "")
+    head = str(report.get("head") or "")
+    exact_refresh = (
+        "ethos lane refresh-base --apply --authorize "
+        f"--expect-head {head} --root {shlex.quote(root.resolve().as_posix())} --json"
+    )
+    if report.get("next_action"):
+        action = str(report["next_action"])
+    elif not gaps and state == "ready_to_refresh_base":
+        action = exact_refresh
+    elif not gaps:
+        action = f"ethos land --root {shlex.quote(root.resolve().as_posix())} --json"
+    elif "authorization_required" in gaps:
+        action = exact_refresh
+    else:
+        action = f"ethos status --root {shlex.quote(root.resolve().as_posix())} --json"
+    return report | {
+        "next_action": action,
+        "user_decision_required": (
+            (not apply and state == "ready_to_refresh_base") or "authorization_required" in gaps
+        ),
+    }
 
 
 def _refresh_work_lane(
@@ -173,7 +212,7 @@ def _refresh_work_lane(
             "blocked",
             ["refresh_base_postcondition_failed"],
             previous_head=current_head,
-            next_action="inspect current Git ancestry and runner, signing, or hook diagnostics",
+            next_action=(f"ethos status --root {shlex.quote(root.resolve().as_posix())} --json"),
             stderr="candidate head is not an ancestor of refreshed work-lane head",
         )
     rebase_attestation = _rebase_attestation(
@@ -238,7 +277,9 @@ def _refresh_work_lane(
             post_gaps,
             previous_head=current_head,
             next_action=(
-                "retry this exact refresh command to restore the Work Lane projection"
+                "ethos lane refresh-base --apply --authorize "
+                f"--expect-head {refreshed_head} "
+                f"--root {shlex.quote(root.resolve().as_posix())} --json"
                 if attachment_error
                 else ""
             ),

@@ -228,7 +228,7 @@ def test_prewrite_state_matrix(tmp_path: Path, state: str, role: str, reason: st
         assert report["admission"]["error"] == reason
     elif state == "work_missing_lease":
         assert report["admission"]["work_lane_lease"]["verdict"] == "block"
-        assert report["next_action"] == "ethos lane status --json"
+        assert report["next_action"] == f"ethos lane status --root {root.resolve()} --json"
 
 
 @pytest.mark.parametrize(("actor", "state", "action", "reason"), _cases("prewrite_actor_states"))
@@ -276,10 +276,7 @@ def test_prewrite_actor_lease_matrix(
     )
     assert lease["current_head"] == git(leased_worktree, "rev-parse", "HEAD")
     if state == "blocked":
-        next_action = (
-            "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, "
-            "or obtain handoff"
-        )
+        next_action = "export ETHOS_ACTOR=agent:test:case:agent-a"
         assert report["next_action"] == next_action
 
 

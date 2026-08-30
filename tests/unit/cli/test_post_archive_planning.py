@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
-import ethos.adapters.openspec.start_effect as start_effect
-from ethos.adapters.openspec.start_effect import current_generation_scope
+import ethos.adapters.admission.current.resolution as resolution_adapter
+from ethos.adapters.admission.current.authority import CurrentAuthority
+from ethos.adapters.admission.current.resolution import current_scope
+from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from tests.support.semantic import commitment_fixture
 
@@ -12,27 +13,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_post_archive_planning_uses_fresh_git_paths_not_an_archived_carrier(
-    tmp_path: Path,
-) -> None:
+def test_post_archive_planning_uses_fresh_git_paths_not_an_archived_carrier() -> None:
     paths = (
         "openspec/changes/archive/2026-08-28-fixture-change/proposal.md",
         "openspec/changes/archive/2026-08-28-fixture-change/tasks.md",
         "openspec/specs/contracts/spec.md",
     )
-    lease = {
-        "lane_ref": "work/fixture-change",
-        "holder_ref": "agent:test",
-        "generation": 1,
-        "expires_at": "2026-08-29T00:00:00Z",
-    }
-
-    scope = current_generation_scope(
-        tmp_path,
-        head="a" * 40,
-        repository_id="repository:test",
+    scope = current_scope(
         commitment=commitment_fixture(id="change:fixture-change"),
-        lease=lease,
         fallback_paths=paths,
     )
 
@@ -45,44 +33,22 @@ def test_post_archive_planning_uses_fresh_git_paths_not_an_archived_carrier(
     assert {item.state for item in scope.attributions} == {"observed"}
 
 
-def test_post_archive_planning_ignores_lease_payload_beyond_coordination(
-    tmp_path: Path,
-) -> None:
+def test_post_archive_planning_ignores_lease_payload_beyond_coordination() -> None:
     commitment = commitment_fixture(id="change:fixture-change")
     paths = ("openspec/changes/archive/2026-08-28-fixture-change/design.md",)
-    first = current_generation_scope(
-        tmp_path,
-        head="a" * 40,
-        repository_id="repository:test",
+    first = current_scope(
         commitment=commitment,
-        lease={
-            "lane_ref": "work/fixture-change",
-            "holder_ref": "agent:first",
-            "generation": 1,
-            "expires_at": "2026-08-29T00:00:00Z",
-        },
         fallback_paths=paths,
     )
-    second = current_generation_scope(
-        tmp_path,
-        head="b" * 40,
-        repository_id="repository:test",
+    second = current_scope(
         commitment=commitment,
-        lease={
-            "lane_ref": "work/fixture-change",
-            "holder_ref": "agent:second",
-            "generation": 9,
-            "expires_at": "2026-09-01T00:00:00Z",
-        },
         fallback_paths=paths,
     )
 
     assert first == second
 
 
-def test_current_generation_binding_recovers_exact_archive_effect(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_current_resolution_recovers_exact_archive_effect(monkeypatch, tmp_path: Path) -> None:
     head = "a" * 40
     archive_paths = (
         "openspec/changes/archive/2026-08-29-fixture-change/tasks.md",
@@ -111,37 +77,48 @@ def test_current_generation_binding_recovers_exact_archive_effect(
         assert change == "fixture-change"
         return commitment, archive_authority
 
-    monkeypatch.setattr(start_effect, "load_profile_commitment", load)
+    monkeypatch.setattr(resolution_adapter, "load_profile_commitment", load)
     monkeypatch.setattr(
-        start_effect,
+        resolution_adapter,
         "change_scope_paths_from_status",
         lambda *_args: observed_paths,
     )
     monkeypatch.setattr(
-        start_effect,
+        resolution_adapter,
         "attested_archive_transition",
         archived,
-        raising=False,
     )
-    authority = SimpleNamespace(
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "pass",
+            "required_gaps": [],
+            "lifecycle": {"scope_binding": {}},
+        },
+    )
+    authority = CurrentAuthority(
         verdict="pass",
         reason="matched",
+        branch="work/fixture-change",
+        actor="agent:test",
         lease={
             "lane_ref": "work/fixture-change",
             "holder_ref": "agent:test",
             "generation": 1,
             "expires_at": "2026-08-30T00:00:00Z",
         },
+        current_head=head,
+        current_tree="b" * 40,
     )
 
-    binding = start_effect.current_generation_binding(
+    resolution = resolve_current_resolution(
         tmp_path,
         status={"role": ROLE_WORK_LANE, "head": head},
-        repository_id="repository:test",
         authority=authority,
         change="fixture-change",
     )
 
-    assert binding.commitment == commitment
-    assert binding.scope.paths == observed_paths
-    assert binding.scope.archive_authority == archive_authority
+    assert resolution.commitment == commitment
+    assert resolution.scope.paths == observed_paths
+    assert resolution.scope.archive_authority == archive_authority

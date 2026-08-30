@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import sqlite3
 from contextlib import closing
 from datetime import UTC
@@ -293,16 +294,28 @@ def start_work_lane(
         observed_at=datetime.now(UTC),
     )
     if target_block is not None:
-        return target_block
+        return target_block | {
+            "next_action": f"ethos status --root {shlex.quote(repo.as_posix())} --json"
+        }
     try:
         holder_ref = HolderRef.parse(holder_ref).serialize()
     except ValueError:
-        return _blocked(branch, target, "holder_ref_invalid")
+        return _blocked(branch, target, "holder_ref_invalid") | {
+            "next_action": "ethos lane start --help",
+            "user_decision_required": True,
+        }
     candidate, admission_block = _admit(repo, branch=branch, target=target)
     if admission_block is not None:
-        return admission_block
+        return admission_block | {
+            "next_action": f"ethos status --root {shlex.quote(repo.as_posix())} --json"
+        }
     head = str(candidate["head"])
     if not apply:
+        apply_action = (
+            f"ethos lane start {shlex.quote(name)} --path {shlex.quote(target.as_posix())} "
+            f"--holder-ref {shlex.quote(holder_ref)} --apply "
+            f"--root {shlex.quote(repo.as_posix())} --json"
+        )
         return {
             "verdict": "pass",
             "state": "planned",
@@ -313,6 +326,7 @@ def start_work_lane(
             "path": target.as_posix(),
             "runner_bootstrap": _runner_bootstrap(target),
             "required_gaps": [],
+            "next_action": apply_action,
         }
     lease: dict[str, object] | None = None
     ref_created = False
@@ -371,6 +385,7 @@ def start_work_lane(
         "hook_runtime": hook_runtime,
         "runner_bootstrap": _runner_bootstrap(target),
         "required_gaps": [],
+        "next_action": _runner_bootstrap(target)["next_action"],
     }
 
 

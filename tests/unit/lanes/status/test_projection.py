@@ -81,6 +81,7 @@ def test_unbound_ref_projects_recovery_facts_without_commitment_mirrors(tmp_path
     status = workspace_status(repo, include_foreign_path_scope=False)
     unbound = status["unbound_work_lane_refs"]
 
+    assert "next_action" not in status
     assert len(unbound) == 1
     assert set(unbound[0]) == {
         "branch",

@@ -9,7 +9,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.proof_admission
-from ethos.adapters.admission.lease_binding import resolve_current_authority
+from ethos.adapters.admission.current.authority import resolve_current_authority
+from ethos.adapters.admission.current.resolution import current_scope
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
@@ -18,7 +19,6 @@ from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.profile import load_profile_commitment
-from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_branch
@@ -42,7 +42,7 @@ from ethos.contracts.value import mutable_json
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.adapters.openspec.start_effect import CurrentGenerationBinding
+    from ethos.adapters.admission.current.resolution import CurrentResolution
     from ethos.contracts.semantic import Commitment
 
 
@@ -293,7 +293,7 @@ def proof_plan(
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
     changed_paths: tuple[str, ...] = (),
-    generation_binding: CurrentGenerationBinding | None = None,
+    generation_binding: CurrentResolution | None = None,
 ) -> TransitionPlan:
     """Compile the exact commitment-, fact-, and policy-bound proof plan."""
     branch = binding_branch if binding_branch is not None else current_branch(root)
@@ -332,12 +332,8 @@ def proof_plan(
         generation_binding.scope
         if generation_binding is not None
         else (
-            current_generation_scope(
-                root,
-                head=head,
-                repository_id=repository,
+            current_scope(
                 commitment=commitment,
-                lease=lease,
                 fallback_paths=changed_paths,
             )
             if work_lane and changed_paths and commitment is not None

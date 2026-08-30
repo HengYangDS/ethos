@@ -217,6 +217,87 @@ def test_governance_observes_archive_effect_separately_from_generation_scope(mon
     assert report["lifecycle"]["scope_binding"] == archive_scope
 
 
+def test_governance_keeps_completed_unarchived_change_as_current_intent(monkeypatch, tmp_path):
+    root = _repo(tmp_path)
+    monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(
+        governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
+    )
+    status = {
+        "changeName": "complete",
+        "schemaName": "spec-driven",
+        "changeRoot": str(root / "openspec/changes/complete"),
+        "isComplete": True,
+        "artifactPaths": {"specs": {"existingOutputPaths": []}},
+        "artifacts": [{"id": "tasks", "status": "done", "requires": []}],
+        "root": {"path": str(root), "source": "nearest"},
+    }
+    apply = {
+        "changeName": "complete",
+        "state": "all_done",
+        "progress": {"total": 1, "complete": 1, "remaining": 0},
+        "tasks": [{"id": "1", "description": "done", "done": True}],
+        "instruction": "Archive the completed change.",
+        "root": {"path": str(root), "source": "nearest"},
+    }
+    show = {
+        "id": "complete",
+        "deltas": [
+            {
+                "spec": "contracts",
+                "operation": "ADDED",
+                "requirements": [
+                    {
+                        "text": "The completed change remains current until archive.",
+                        "scenarios": [
+                            {
+                                "rawText": "- **WHEN** closeout starts\n"
+                                "- **THEN** its acceptance remains available"
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+    payloads = {
+        ("config", "list"): {},
+        ("doctor",): {"root": {"healthy": True}},
+        ("list",): {
+            "changes": [
+                {
+                    "name": "complete",
+                    "completedTasks": 1,
+                    "totalTasks": 1,
+                    "status": "complete",
+                }
+            ]
+        },
+        ("status", "--change"): status,
+        ("instructions", "apply"): apply,
+        ("instructions", "archive"): {
+            "changeName": "complete",
+            "root": {"path": str(root), "source": "nearest"},
+        },
+        ("validate",): {"items": [], "summary": {}},
+        ("show",): show,
+    }
+
+    def run_completed(_root, _base, args):
+        key = args[:2] if args[:2] in payloads else args[:1]
+        return _receipt(payload=payloads[key])
+
+    monkeypatch.setattr(cli, "run_json", run_completed)
+
+    report = governance.openspec_governance_report(root, lifecycle=True)
+
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    assert report["change"] == "complete"
+    assert report["commitment"]["id"] == "change:complete"
+    assert report["lifecycle"]["changes"][0]["progress"]["remaining"] == 0
+
+
 def test_governance_reports_invalid_commitment_and_artifact_paths(monkeypatch, tmp_path):
     root = _repo(tmp_path)
     monkeypatch.setattr(

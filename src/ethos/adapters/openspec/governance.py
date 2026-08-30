@@ -121,14 +121,6 @@ def _active_identifier_rejected_report(
     }
 
 
-def _completed_change(rows: list[dict[str, str]] | None) -> str | None:
-    return (
-        rows[0]["name"]
-        if rows is not None and len(rows) == 1 and rows[0]["status"] == "complete"
-        else None
-    )
-
-
 def _openspec_governance_report(
     root: Path,
     *,
@@ -205,14 +197,11 @@ def _openspec_governance_report(
         )
     list_result = openspec_cli.run_json(root, base_command, ("list", "--json"))
     rows = official_change_rows(list_result["json"])
-    selected = selected_change(rows, request.change) if rows is not None else None
-    completed_change = _completed_change(rows)
-    official_selected = selected if selected != completed_change else None
-    active_selected = official_selected or completed_change
+    current_change = selected_change(rows, request.change) if rows is not None else None
     status = openspec_status_result(
         root,
         base_command,
-        active_selected,
+        current_change,
         openspec_cli.run_json,
     )
     archive_scope = (
@@ -220,12 +209,9 @@ def _openspec_governance_report(
             root,
             changed_paths=(),
             requested_change=request.change,
-            official_change_complete=completed_change is not None,
             completion_artifacts=artifact_output_paths(root, status.get("json", {})),
         )
-        if official_selected is None
-        and rows is not None
-        and (not rows or (len(rows) == 1 and rows[0]["status"] == "complete"))
+        if rows == []
         else None
     )
     archived_change = (
@@ -233,23 +219,23 @@ def _openspec_governance_report(
         if archive_scope and archive_scope.get("changes")
         else None
     )
-    selected = selected or archived_change
+    selected = current_change or archived_change
     apply = (
         openspec_cli.run_json(
             root,
             base_command,
-            ("instructions", "apply", "--change", active_selected, "--json"),
+            ("instructions", "apply", "--change", current_change, "--json"),
         )
-        if active_selected
+        if current_change
         else {}
     )
     archive = (
         openspec_cli.run_json(
             root,
             base_command,
-            ("instructions", "archive", "--change", official_selected, "--json"),
+            ("instructions", "archive", "--change", current_change, "--json"),
         )
-        if official_selected
+        if current_change
         else {}
     )
     validate = openspec_cli.run_json(
@@ -264,10 +250,10 @@ def _openspec_governance_report(
             list_result=list_result,
             status=status,
             validate=validate,
-            selected=official_selected,
+            selected=current_change,
         )
     )
-    if official_selected:
+    if current_change:
         required_gaps.extend(openspec_cli.status_contract_gaps(status["json"]))
         required_gaps.extend(openspec_cli.instructions_contract_gaps("apply", apply["json"]))
         required_gaps.extend(openspec_cli.instructions_contract_gaps("archive", archive["json"]))
@@ -295,11 +281,11 @@ def _openspec_governance_report(
     required_gaps.extend(str(gap) for gap in lifecycle_payload["required_gaps"])
     intent_context: dict[str, object] = {}
     contract = None
-    if official_selected:
+    if current_change:
         try:
-            contract = load_openspec_commitment(root, change_id=official_selected)
+            contract = load_openspec_commitment(root, change_id=current_change)
         except ValueError:
-            required_gaps.append(f"commitment_invalid:{official_selected}")
+            required_gaps.append(f"commitment_invalid:{current_change}")
         else:
             intent_context, intent_gaps = compile_intent_context(
                 root,

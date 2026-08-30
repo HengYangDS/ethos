@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
@@ -77,6 +78,130 @@ def test_removed_requirements_do_not_become_acceptance_obligations() -> None:
         "authority:requirement:Official OpenSpec is the sole tracked intent carrier.",
         "authority:scenario:- **WHEN** selected\n- **THEN** compile",
     )
+
+
+def test_official_completed_spec_free_projection_compiles_minimal_commitment() -> None:
+    projection = {
+        "id": "dependency-refresh",
+        "deltas": [
+            {
+                "spec": "BREAKING",
+                "operation": "MODIFIED",
+                "description": "lock the repository package to the stable release.",
+            }
+        ],
+    }
+    status = {
+        "changeName": "dependency-refresh",
+        "isComplete": True,
+        "artifacts": [
+            {"id": "proposal", "status": "done", "requires": []},
+            {"id": "specs", "status": "skipped", "requires": ["proposal"]},
+            {"id": "design", "status": "done", "requires": ["proposal"]},
+            {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
+        ],
+    }
+    apply = {
+        "changeName": "dependency-refresh",
+        "state": "all_done",
+        "progress": {"total": 3, "complete": 3, "remaining": 0},
+    }
+    artifact_digests = {
+        name: hashlib.sha256(name.encode()).hexdigest()
+        for name in ("metadata", "proposal", "design", "tasks")
+    }
+
+    first = commitment_from_projection(
+        "dependency-refresh",
+        projection,
+        status=status,
+        apply=apply,
+        artifact_digests=artifact_digests,
+    )
+    second = commitment_from_projection(
+        "dependency-refresh",
+        projection,
+        status=status,
+        apply=apply,
+        artifact_digests=artifact_digests,
+    )
+
+    assert first == second
+    assert first.acceptance == (
+        f"openspec:artifact:design:sha256:{artifact_digests['design']}",
+        f"openspec:artifact:metadata:sha256:{artifact_digests['metadata']}",
+        f"openspec:artifact:proposal:sha256:{artifact_digests['proposal']}",
+        f"openspec:artifact:tasks:sha256:{artifact_digests['tasks']}",
+        "openspec:change:dependency-refresh",
+        "openspec:specs:skipped",
+    )
+
+
+@pytest.mark.parametrize(
+    ("status", "apply"),
+    [
+        (
+            {
+                "changeName": "minimal-authority",
+                "isComplete": True,
+                "artifacts": [
+                    {"id": "proposal", "status": "done", "requires": []},
+                    {"id": "specs", "status": "done", "requires": ["proposal"]},
+                    {"id": "design", "status": "done", "requires": ["proposal"]},
+                    {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
+                ],
+            },
+            {
+                "changeName": "minimal-authority",
+                "state": "all_done",
+                "progress": {"total": 1, "complete": 1, "remaining": 0},
+            },
+        ),
+        (
+            {
+                "changeName": "minimal-authority",
+                "isComplete": True,
+                "artifacts": [
+                    {"id": "proposal", "status": "done", "requires": []},
+                    {"id": "specs", "status": "skipped", "requires": ["proposal"]},
+                    {"id": "design", "status": "done", "requires": ["proposal"]},
+                    {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
+                ],
+            },
+            {
+                "changeName": "minimal-authority",
+                "state": "ready",
+                "progress": {"total": 1, "complete": 0, "remaining": 1},
+            },
+        ),
+    ],
+)
+def test_zero_requirement_projection_requires_completed_official_spec_free_lifecycle(
+    status: dict[str, object],
+    apply: dict[str, object],
+) -> None:
+    projection = {
+        "id": "minimal-authority",
+        "deltas": [
+            {
+                "spec": "not-a-capability",
+                "operation": "MODIFIED",
+                "description": "official show emitted proposal prose rather than requirements",
+            }
+        ],
+    }
+
+    with pytest.raises(ValueError, match="openspec_acceptance_missing"):
+        commitment_from_projection(
+            "minimal-authority",
+            projection,
+            status=status,
+            apply=apply,
+            artifact_digests={
+                name: hashlib.sha256(name.encode()).hexdigest()
+                for name in ("metadata", "proposal", "design", "tasks")
+            },
+        )
 
 
 @pytest.mark.parametrize(
@@ -174,6 +299,62 @@ def test_load_commitment_selects_one_active_change_and_checks_digest(
     assert loaded == expected
     with pytest.raises(ValueError, match="commitment_digest_mismatch"):
         compilation.load_openspec_commitment(tmp_path, expected_digest="f" * 64)
+
+
+def test_load_commitment_composes_repository_locked_spec_free_projections(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "openspec").mkdir()
+    (tmp_path / "openspec/config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
+    change_root = tmp_path / "openspec/changes/dependency-refresh"
+    change_root.mkdir(parents=True)
+    for name, content in {
+        ".openspec.yaml": "schema: spec-driven\nskip_specs: true\n",
+        "proposal.md": """## Why
+
+Refresh the dependency.
+
+## What Changes
+
+- Use the stable package.
+
+## Capabilities
+
+### New Capabilities
+
+None.
+
+### Modified Capabilities
+
+None.
+
+## Impact
+
+Supply chain only.
+""",
+        "design.md": "## Decisions\n\nUse the stable package.\n",
+        "tasks.md": "- [x] Refresh and prove the package.\n",
+    }.items():
+        (change_root / name).write_text(content, encoding="utf-8")
+
+    monkeypatch.setattr(compilation, "openspec_profile_enabled", lambda *_a, **_k: True)
+
+    loaded = compilation.load_openspec_commitment(tmp_path)
+
+    assert loaded.acceptance == (
+        *(
+            f"openspec:artifact:{kind}:sha256:"
+            f"{hashlib.sha256((change_root / filename).read_bytes()).hexdigest()}"
+            for kind, filename in (
+                ("design", "design.md"),
+                ("metadata", ".openspec.yaml"),
+                ("proposal", "proposal.md"),
+                ("tasks", "tasks.md"),
+            )
+        ),
+        "openspec:change:dependency-refresh",
+        "openspec:specs:skipped",
+    )
 
 
 @pytest.mark.parametrize(

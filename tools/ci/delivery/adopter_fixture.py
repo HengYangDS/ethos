@@ -82,6 +82,7 @@ capabilities = ["repository", "publication"]
 """,
         encoding="utf-8",
     )
+    (root / ".gitattributes").write_text("line-ending-*.txt -text\n", encoding="utf-8")
     shutil.copy2(openspec_config, root / "openspec/config.yaml")
     (change / ".openspec.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
     (change / "proposal.md").write_text(

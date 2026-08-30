@@ -8,11 +8,16 @@ import stat
 import subprocess
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 
 import tools.ci.python_test_gate as python_test_gate
 from tools.ci.dependency_hygiene import declaration_gaps
+
+if TYPE_CHECKING:
+    import nox
 
 ROOT = Path(__file__).resolve().parents[2]
 NODE_POLICY = tomllib.loads((ROOT / ".config/checks/node/runtime.toml").read_text(encoding="utf-8"))
@@ -180,7 +185,7 @@ def test_coverage_floor_reuses_the_test_run_configuration(tmp_path, monkeypatch)
         def run(*command: str, **_kwargs: object) -> None:
             commands.append(command)
 
-    gate.enforce_floor(Session())  # type: ignore[invalid-argument-type]
+    gate.enforce_floor(cast("nox.Session", Session()))
 
     assert commands == [
         (
@@ -251,9 +256,9 @@ def test_python_basetemp_ownership(tmp_path, monkeypatch, failure, ownership) ->
     )
     if failure:
         with pytest.raises(RuntimeError, match=failure):
-            gate.run_tests(object())  # type: ignore[invalid-argument-type]
+            gate.run_tests(cast("nox.Session", object()))
     else:
-        gate.run_tests(object())  # type: ignore[invalid-argument-type]
+        gate.run_tests(cast("nox.Session", object()))
 
     assert (gate.s.basetemp.exists(), cache.is_dir()) == (ownership == "external", True)
 

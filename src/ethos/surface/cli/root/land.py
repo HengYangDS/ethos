@@ -144,6 +144,7 @@ def _closeout_result(
         ),
         required_gaps=gaps,
         next_action=mutation_next_action,
+        user_decision_required=resolution.user_decision_required,
         governance_context=repository_context(audit_root),
         data={
             "repository_audit": audit,

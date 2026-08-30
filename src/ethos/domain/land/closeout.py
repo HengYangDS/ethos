@@ -79,6 +79,7 @@ class CloseoutResolution(BaseModel):
     verdict: Verdict
     required_gaps: tuple[str, ...]
     next_action: str
+    user_decision_required: bool
 
 
 def closeout_apply_command(
@@ -223,6 +224,11 @@ def closeout_resolution(
         verdict=verdict,
         required_gaps=gaps,
         next_action=next_action,
+        user_decision_required=(
+            "candidate_diverged_from_accepted" in gaps
+            or "authorization_required" in gaps
+            or "independent_verification_receipt_required" in gaps
+        ),
     )
 
 

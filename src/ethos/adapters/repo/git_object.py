@@ -12,6 +12,8 @@ from typing import cast
 
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
+from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 
 GitObjectKind = Literal["commit", "annotated-tag"]
 
@@ -133,7 +135,7 @@ def trust_anchor(root: Path, configured: str) -> tuple[Path | None, list[str]]:
             ["git_object_trust_anchor_missing"]
             if not resolved.is_file()
             else ["git_object_trust_anchor_unprotected"]
-            if not _protected_from_current_identity(resolved)
+            if not protected_from_untrusted_write(resolved)
             else []
         )
     return resolved, gaps
@@ -272,12 +274,6 @@ def _type(root: Path, object_oid: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def _protected_from_current_identity(path: Path) -> bool:
-    target = path.stat()
-    parent = path.parent.stat()
-    return not target.st_mode & 0o022 and not parent.st_mode & 0o022
-
-
 def _configured_commit_trust_anchor(root: Path) -> tuple[Path | None, list[str]]:
     configured = run_git(
         root,
@@ -352,7 +348,7 @@ def _replace_anchor(anchor: Path, expected: bytes, candidate: bytes) -> None:
             stream.write(candidate)
             stream.flush()
             os.fsync(stream.fileno())
-        temporary.chmod(0o600)
+        protect_for_current_identity(temporary)
         if anchor.read_bytes() != expected:
             message = "commit_trust_anchor_stale"
             raise ValueError(message)

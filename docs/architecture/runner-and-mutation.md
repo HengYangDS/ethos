@@ -98,7 +98,7 @@ an exact live-Lease CAS: a missing Lease blocks and never masquerades as replay.
 `ethos lane archive-change` closes the lifecycle edge that cannot be split
 between an external archive process and a later Git commit. It requires the
 same-holder Lease and proof for the pre-archive HEAD, runs official OpenSpec
-`1.10.0`, admits only its exact rename/spec delta, commits through ordinary
+`1.11.0`, admits only its exact rename/spec delta, commits through ordinary
 hooks, and attests the post-state. The archived HEAD remains plan/proof/land
 capable because acceptance is compiled from its exact official projection.
 Unbound Work Lane refs are observations only. Status preserves their exact ref,

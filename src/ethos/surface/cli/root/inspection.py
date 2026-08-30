@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import cast
 
-from ethos.adapters.openspec.start_effect import CurrentGenerationScope
-from ethos.adapters.openspec.start_effect import current_generation_binding
+from ethos.adapters.admission.current.resolution import CurrentScope
+from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
-from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts
@@ -34,21 +33,16 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
     repo = resolve_root(root)
     observed, authority = workspace_status_observation(repo, include_foreign_path_scope=False)
-    try:
-        generation_scope = (
-            current_generation_binding(
-                repo,
-                status=observed,
-                repository_id=repository_identity(repo),
-                authority=authority,
-            ).scope
-            if observed.get("role") == ROLE_WORK_LANE
-            else CurrentGenerationScope((), {})
+    resolution = (
+        resolve_current_resolution(
+            repo,
+            status=observed,
+            authority=authority,
         )
-    except ValueError:
-        generation_scope = CurrentGenerationScope(
-            (), {}, gaps=("change_generation_binding_invalid",)
-        )
+        if observed.get("role") == ROLE_WORK_LANE
+        else None
+    )
+    generation_scope = resolution.scope if resolution is not None else CurrentScope(())
     validation = workspace_status_validation(repo, observed)
     landing = cast("dict[str, object]", observed.get("landing_readiness") or {})
     generation_gaps = (
@@ -61,7 +55,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
             (
                 *string_sequence(observed.get("required_gaps")),
                 *workspace_status_validation_gaps(validation),
-                *generation_gaps,
+                *(resolution.required_gaps if resolution is not None else generation_gaps),
                 *(
                     ("change_scope_exceeded",)
                     if any(item.state == "uncovered" for item in generation_scope.attributions)
@@ -103,6 +97,23 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     compact_coordination = data["coordination"]
     verdict = reduce_verdicts(report_verdict(validation), required_gaps=gaps)
     closeout_action = closeout_command_from_status(repo, observed)
+    stage_gates = cast("dict[str, object]", observed.get("stage_gates") or {})
+    stage_action = str(stage_gates.get("next_action") or "")
+    scope_exceeded = any(item.state == "uncovered" for item in generation_scope.attributions)
+    next_action = closeout_action or (
+        "repair the selected Commitment scope for the uncovered current-generation paths"
+        if scope_exceeded
+        else resolution.next_action
+        if resolution is not None and resolution.next_action
+        else stage_action
+    )
+    user_decision_required = (
+        resolution.user_decision_required
+        if resolution is not None and resolution.next_action
+        else bool(stage_gates.get("user_decision_required", False))
+        if next_action == stage_action
+        else False
+    )
     result = EthosResult(
         command="status",
         verdict=verdict,
@@ -128,15 +139,8 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
         },
         diagnostics=(validation,),
         required_gaps=gaps,
-        next_action=closeout_action
-        or (
-            "repair the selected Commitment scope for the uncovered current-generation paths"
-            if any(item.state == "uncovered" for item in generation_scope.attributions)
-            else str(
-                cast("dict[str, object]", observed.get("stage_gates") or {}).get("next_action")
-                or ""
-            )
-        ),
+        next_action=next_action,
+        user_decision_required=user_decision_required,
         governance_context=repository_context(repo),
         data=data,
     )

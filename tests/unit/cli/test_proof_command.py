@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.surface.cli.root.proof as proof_cli
-from ethos.adapters.openspec.start_effect import CurrentGenerationBinding
-from ethos.adapters.openspec.start_effect import CurrentGenerationScope
+from ethos.adapters.admission.current.resolution import CurrentResolution
+from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
@@ -134,7 +134,12 @@ def _arrange(
         "summary": {"change_count": 0},
     }
     commitment = commitment_fixture(id="change:proof-command", acceptance=("acceptance:fixture",))
-    binding = CurrentGenerationBinding({}, commitment, CurrentGenerationScope(("changed.py",), {}))
+    binding = CurrentResolution(
+        verdict="pass",
+        authority=None,
+        commitment=commitment,
+        scope=CurrentScope(("changed.py",)),
+    )
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: repo)
     monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
     monkeypatch.setattr(
@@ -337,14 +342,18 @@ def test_prove_emits_the_issuance_gap_without_a_second_result(
     assert emitted[0].required_gaps == ("proof_binding_invalid",)
 
 
-@pytest.mark.parametrize("invalid", [False, True])
-def test_resolve_generation_uses_the_shared_active_carrier_selector(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, invalid: bool
+def test_resolve_generation_uses_the_current_resolution_owner(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     commitment = commitment_fixture(
         id="repository:proof-command", acceptance=("acceptance:fixture",)
     )
-    binding = CurrentGenerationBinding({}, commitment, CurrentGenerationScope(("a.py",), {}))
+    resolution = CurrentResolution(
+        verdict="pass",
+        authority=None,
+        commitment=commitment,
+        scope=CurrentScope(("a.py",)),
+    )
     authority = object()
     monkeypatch.setattr(
         proof_cli,
@@ -354,20 +363,16 @@ def test_resolve_generation_uses_the_shared_active_carrier_selector(
             authority,
         ),
     )
-    monkeypatch.setattr(proof_cli, "change_scope_paths_from_status", lambda *_args: ("a.py",))
-    monkeypatch.setattr(proof_cli, "repository_identity", lambda *_args, **_kwargs: commitment.id)
 
     def select(*_args, **kwargs):
         assert kwargs["authority"] is authority
-        assert kwargs["status"]["changed_paths"] == ["a.py"]
-        if invalid:
-            message = "invalid"
-            raise ValueError(message)
-        return binding
+        assert kwargs["status"]["head"] == "a" * 40
+        assert kwargs["changed"] is True
+        return resolution
 
-    monkeypatch.setattr(proof_cli, "current_generation_binding", select)
+    monkeypatch.setattr(proof_cli, "resolve_current_resolution", select)
 
-    assert proof_cli.resolve_generation(tmp_path) == (None if invalid else binding)
+    assert proof_cli.resolve_generation(tmp_path) == resolution
 
 
 @pytest.mark.parametrize("openspec", [False, True])
@@ -375,16 +380,8 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, openspec: bool
 ) -> None:
     emitted = []
-    scope = CurrentGenerationScope(("a.py",), {})
+    scope = CurrentScope(("a.py",))
     commitment = commitment_fixture(id="change:proof-command", acceptance=("acceptance:fixture",))
-    binding = CurrentGenerationBinding({}, commitment, scope)
-    audit = {
-        "verdict": "pass",
-        "mode": "repository",
-        "governance_context": {"contract": "governed_repository"},
-        "required_gaps": [],
-        "openspec": {"mode": "deep"},
-    }
     lifecycle = {
         "verdict": "pass",
         "change": "proof-command",
@@ -392,16 +389,32 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
         "required_gaps": [],
         "summary": {"change_count": 1},
     }
+    binding = CurrentResolution(
+        verdict="pass",
+        authority=None,
+        commitment=commitment,
+        scope=scope,
+        openspec=lifecycle if openspec else {},
+    )
+    audit = {
+        "verdict": "pass",
+        "mode": "repository",
+        "governance_context": {"contract": "governed_repository"},
+        "required_gaps": [],
+        "openspec": {"mode": "deep"},
+    }
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
     monkeypatch.setattr(proof_cli.git, "current_head", lambda _root: "a" * 40)
     monkeypatch.setattr(proof_cli.status_domain, "audit_for_root", lambda *_args, **_kwargs: audit)
     monkeypatch.setattr(proof_cli, "resolve_generation", lambda *_args, **_kwargs: binding)
-    monkeypatch.setattr(proof_cli, "openspec_profile_enabled", lambda *_args, **_kwargs: openspec)
     monkeypatch.setattr(
         proof_cli,
         "openspec_governance_report",
-        lambda *_args, **_kwargs: lifecycle,
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("proof must reuse CurrentResolution OpenSpec observation")
+        ),
+        raising=False,
     )
 
     def compile_plan(*_args, **kwargs):

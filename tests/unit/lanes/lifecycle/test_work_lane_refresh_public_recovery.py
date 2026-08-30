@@ -330,7 +330,8 @@ def test_refresh_public_attachment_failure_is_reported(
 
     assert report["required_gaps"] == ["refresh_base_worktree_attach_failed"]
     assert report["next_action"] == (
-        "retry this exact refresh command to restore the Work Lane projection"
+        "ethos lane refresh-base --apply --authorize "
+        f"--expect-head {REBASED} --root {tmp_path.resolve().as_posix()} --json"
     )
     stderr = str(report["stderr"])
     assert "attachment" in stderr or "branch" in stderr

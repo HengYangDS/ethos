@@ -73,6 +73,7 @@ def test_ethos_result_derives_one_non_persistent_continuation(
         state="ready" if verdict == "pass" else "blocked",
         required_gaps=required_gaps,
         next_action=next_action,
+        user_decision_required=expected == "await-user",
     )
 
     assert result.continuation == expected
@@ -96,41 +97,35 @@ def test_ethos_result_requires_user_decision_for_authority_bearing_action() -> N
         command="lane housekeeping",
         state="planned",
         next_action="ethos lane housekeeping --authorize --apply --json",
+        user_decision_required=True,
     )
 
     assert result.user_decision_required is True
     assert result.continuation == "await-user"
 
 
-@pytest.mark.parametrize(
-    "next_action",
-    literal_case(
-        "kernel.test_result_contract_model:parametrize:test_ethos_result_recognizes_mutation_flag_forms:1"
-    ),
-)
-def test_ethos_result_recognizes_mutation_flag_forms(next_action: str) -> None:
-    result = _result(next_action=next_action)
+def test_ethos_result_does_not_infer_user_decision_from_action_text() -> None:
+    result = _result(
+        state="planned",
+        next_action="ethos lane housekeeping --authorize --apply --json",
+        user_decision_required=False,
+    )
 
-    assert result.user_decision_required is True
-    assert result.continuation == "await-user"
+    assert result.user_decision_required is False
+    assert result.continuation == "continue"
 
 
-@pytest.mark.parametrize(
-    "required_gap",
-    literal_case(
-        "kernel.test_result_contract_model:parametrize:test_ethos_result_awaits_external_decisions_named_by_gap:2"
-    ),
-)
-def test_ethos_result_awaits_external_decisions_named_by_gap(required_gap: str) -> None:
+def test_ethos_result_does_not_infer_user_decision_from_gap_spelling() -> None:
     result = _result(
         verdict="block",
         state="blocked",
-        required_gaps=(required_gap,),
-        next_action="satisfy the reported governance gap",
+        required_gaps=("maintainer_authority_required",),
+        next_action="ethos status --json",
+        user_decision_required=False,
     )
 
-    assert result.user_decision_required is True
-    assert result.continuation == "await-user"
+    assert result.user_decision_required is False
+    assert result.continuation == "blocked"
 
 
 def test_ethos_result_round_trips_its_public_payload() -> None:
@@ -139,6 +134,7 @@ def test_ethos_result_round_trips_its_public_payload() -> None:
         state="blocked",
         required_gaps=("candidate_base_stale",),
         next_action="ethos lane refresh-base --apply --authorize --json",
+        user_decision_required=True,
     )
 
     assert EthosResult.from_payload(result.to_dict()) == result

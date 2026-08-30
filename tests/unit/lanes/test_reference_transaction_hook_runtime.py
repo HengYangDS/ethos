@@ -10,7 +10,7 @@ import sys
 from contextlib import closing
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.lease_binding import resolve_current_authority
+from ethos.adapters.admission.current.authority import resolve_current_authority
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.worktree_effects import restore_rejected_checkout_projection

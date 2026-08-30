@@ -13,19 +13,16 @@ from cyclopts import Parameter
 
 import ethos.adapters.repo.git as git
 import ethos.domain.status as status_domain
+from ethos.adapters.admission.current.resolution import CurrentResolution
+from ethos.adapters.admission.current.resolution import CurrentScope
+from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import run_gate_waves
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.openspec.commitment import openspec_profile_enabled
-from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.openspec.start_effect import CurrentGenerationScope
-from ethos.adapters.openspec.start_effect import current_generation_binding
-from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import observation_verdict
@@ -42,7 +39,6 @@ from ethos.surface.cli.root_binding import resolve_root
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.adapters.openspec.start_effect import CurrentGenerationBinding
     from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
 KNOWN_PROOF_SCOPES = frozenset(
@@ -173,55 +169,41 @@ def _emit_host_gate_observation(*, repo: Path, options: _ProofOptions, json_outp
     return True
 
 
-def resolve_generation(repo: Path, *, change: str | None = None) -> CurrentGenerationBinding | None:
+def resolve_generation(repo: Path, *, change: str | None = None) -> CurrentResolution | None:
     """Resolve the selected logical Change and current-generation scope."""
     status, authority = workspace_status_observation(repo, include_foreign_path_scope=False)
-    status = dict(status)
-    status["changed_paths"] = list(change_scope_paths_from_status(repo, status))
     try:
-        repository = repository_identity(repo)
-        return current_generation_binding(
+        return resolve_current_resolution(
             repo,
             status=status,
-            repository_id=repository,
             authority=authority,
             change=change,
+            changed=True,
         )
     except ValueError:
         return None
 
 
-def resolve_generation_scope(repo: Path) -> CurrentGenerationScope:
+def resolve_generation_scope(repo: Path) -> CurrentScope:
     """Observe one current Change generation scope for this proof invocation."""
     generation = resolve_generation(repo)
     return (
         generation.scope
         if generation is not None
-        else CurrentGenerationScope((), {}, gaps=("change_generation_binding_invalid",))
+        else CurrentScope((), gaps=("change_generation_binding_invalid",))
     )
 
 
 def _proof_context(
     repo: Path, options: _ProofOptions
-) -> tuple[str, dict[str, object], CurrentGenerationBinding | None, dict[str, object]]:
+) -> tuple[str, dict[str, object], CurrentResolution | None, dict[str, object]]:
     """Observe the repository and OpenSpec lifecycle once for governed proof."""
     current_head = git.current_head(repo)
     audit = status_domain.audit_for_root(repo, openspec_mode="deep" if options.full else "shape")
     generation = resolve_generation(repo, change=options.change)
-    generation_scope = (
-        generation.scope
-        if generation is not None
-        else CurrentGenerationScope((), {}, gaps=("change_generation_binding_invalid",))
-    )
-    openspec_lifecycle = (
-        openspec_governance_report(
-            repo,
-            change=options.change or (generation.change_id if generation is not None else None),
-            lifecycle=True,
-            changed_paths=generation_scope.paths,
-            require_workspace=False,
-        )
-        if openspec_profile_enabled(repo, tree_ref=current_head)
+    openspec_lifecycle: dict[str, object] = (
+        dict(generation.openspec)
+        if generation is not None and generation.openspec
         else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
     )
     return current_head, audit, generation, openspec_lifecycle
@@ -368,7 +350,7 @@ def prove(
     generation_scope = (
         generation.scope
         if generation is not None
-        else CurrentGenerationScope((), {}, gaps=("change_generation_binding_invalid",))
+        else CurrentScope((), gaps=("change_generation_binding_invalid",))
     )
     changed_paths = generation_scope.paths
     try:

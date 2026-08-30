@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from typing import TYPE_CHECKING
 from typing import ClassVar
 from typing import Literal
@@ -178,12 +179,15 @@ def retire_linked_work_lane(
         "required_gaps": required_gaps,
         **({"lanes": lanes} if mode == "landed" else {"lane": lane}),
     }
+    report |= _continuation(
+        repo,
+        mode=mode,
+        request=request,
+        report=report,
+        authority=authority,
+    )
     if required_gaps:
-        return report | (
-            {"next_action": "set ETHOS_ACTOR to the current holder_ref or obtain handoff"}
-            if "foreign_work_lane_retire_authority_required" in required_gaps
-            else {}
-        )
+        return report
     if not request.apply:
         return report
 
@@ -216,7 +220,49 @@ def retire_linked_work_lane(
     return report | {
         "state": "retired" if mode == "landed" else "retired_superseded",
         "retired": observed,
+        "next_action": f"ethos status --root {shlex.quote(repo.as_posix())} --json",
+        "user_decision_required": False,
     }
+
+
+def _continuation(
+    repo: Path,
+    *,
+    mode: Literal["landed", "superseded"],
+    request: LinkedRetirementRequest,
+    report: dict[str, object],
+    authority: dict[str, object],
+) -> dict[str, object]:
+    """Return the sole public continuation owned by linked retirement."""
+    gaps = tuple(string_sequence(report.get("required_gaps")))
+    holder = effects.holder_ref(authority)
+    if "foreign_work_lane_retire_authority_required" in gaps and holder:
+        return {
+            "next_action": f"export ETHOS_ACTOR={shlex.quote(holder)}",
+            "user_decision_required": True,
+        }
+    if gaps:
+        return {
+            "next_action": f"ethos lane status --root {shlex.quote(repo.as_posix())} --json",
+            "user_decision_required": "authorization_required" in gaps,
+        }
+    if request.apply:
+        return {
+            "next_action": f"ethos status --root {shlex.quote(repo.as_posix())} --json",
+            "user_decision_required": False,
+        }
+    parts = ["ethos", "lane", "retire", mode]
+    for option, value in (
+        ("--branch", request.branch),
+        ("--path", request.path if mode == "superseded" else None),
+        ("--expect-head", request.expect_head),
+        ("--absorbed-by", request.absorbed_by if mode == "superseded" else None),
+        ("--reason", request.reason if mode == "superseded" else None),
+    ):
+        if value:
+            parts.extend((option, shlex.quote(value)))
+    parts.extend(("--authorize", "--apply", "--root", shlex.quote(repo.as_posix()), "--json"))
+    return {"next_action": " ".join(parts), "user_decision_required": True}
 
 
 def _retirement_target(

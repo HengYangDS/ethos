@@ -17,7 +17,6 @@ from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -427,7 +426,8 @@ def _prewrite_report(
         reason,
         gaps,
     )
-    blocked["next_action"] = str(admission.get("next_action") or prewrite_next_action(admission))
+    blocked["next_action"] = str(admission.get("next_action") or "")
+    blocked["user_decision_required"] = bool(admission.get("user_decision_required", False))
     return blocked
 
 

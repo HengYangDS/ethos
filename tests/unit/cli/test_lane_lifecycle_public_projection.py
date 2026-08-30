@@ -20,7 +20,11 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
     [
         (
             "lane status",
-            {"verdict": "pass", "role": "work_lane"},
+            {
+                "verdict": "pass",
+                "role": "work_lane",
+                "next_action": "ethos lane prewrite <path>",
+            },
             "ready",
             "ethos lane prewrite <path>",
         ),
@@ -50,13 +54,17 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
         ),
         (
             "lane start",
-            {"verdict": "pass", "runner_bootstrap": {}},
+            {"verdict": "pass", "next_action": "ethos lane prewrite <path>"},
             "ready",
             "ethos lane prewrite <path>",
         ),
         (
             "lane refresh-base",
-            {"verdict": "pass", "state": "refreshed"},
+            {
+                "verdict": "pass",
+                "state": "refreshed",
+                "next_action": "ethos land --json",
+            },
             "refreshed",
             "ethos land --json",
         ),
@@ -72,7 +80,11 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
         ),
         (
             "lane retire landed",
-            {"verdict": "block", "required_gaps": ["lease_stale"]},
+            {
+                "verdict": "block",
+                "required_gaps": ["lease_stale"],
+                "next_action": "ethos lane status",
+            },
             "blocked",
             "ethos lane status",
         ),
@@ -100,19 +112,15 @@ def test_public_projection_accepts_explicit_and_computed_actions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     results = _capture(monkeypatch)
-    report = {"verdict": "pass", "state": "planned"}
+    report = {
+        "verdict": "pass",
+        "state": "planned",
+        "next_action": "apply exact owner plan",
+    }
 
-    lifecycle.project_lane_result(
-        "lane custom", report, actions="apply exact plan", json_output=True
-    )
-    lifecycle.project_lane_result(
-        "lane custom",
-        report,
-        actions=lambda _report, verdict: f"verdict={verdict}",
-        json_output=True,
-    )
+    lifecycle.project_lane_result("lane candidate", report, json_output=True)
 
-    assert [result.next_action for result in results] == ["apply exact plan", "verdict=pass"]
+    assert results[0].next_action == "apply exact owner plan"
 
 
 def test_public_lifecycle_commands_forward_exact_reports(

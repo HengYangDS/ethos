@@ -80,59 +80,11 @@ class _ArchiveChange(AppliedLaneCommandOptions):
 _DEFAULT_HOUSEKEEPING = _Housekeeping()
 _DEFAULT_REFRESH_BASE = _RefreshBase()
 
-
 Summary = Callable[[dict[str, object]], dict[str, object]]
-Action = Callable[[dict[str, object], Verdict], str]
 
 
 def _fields(*names: str) -> Summary:
     return lambda report: {name: report.get(name, "") for name in names}
-
-
-def _actions(success: str, blocked: str = "") -> Action:
-    return lambda _report, verdict: success if verdict == "pass" else blocked
-
-
-def _status_action(report: dict[str, object], verdict: Verdict) -> str:
-    gates = cast("dict[str, object]", report.get("stage_gates") or {})
-    action = str(gates.get("next_action") or "")
-    if verdict != "pass":
-        return action or (
-            "ethos lane prewrite <path>"
-            if report.get("role") == "work_lane"
-            else "ethos status --json"
-        )
-    return action or (
-        "ethos lane prewrite <path>"
-        if report.get("role") == "work_lane"
-        else ("ethos lane start <name> --holder-ref <holder-ref> --apply --json")
-    )
-
-
-def _start_action(report: dict[str, object], verdict: Verdict) -> str:
-    if verdict != "pass":
-        return ""
-    bootstrap = cast("dict[str, object]", report.get("runner_bootstrap") or {})
-    return str(bootstrap.get("next_action") or "ethos lane prewrite <path>")
-
-
-def _refresh_action(report: dict[str, object], verdict: Verdict) -> str:
-    action = str(report.get("next_action") or "")
-    if verdict == "pass":
-        return action or "ethos land --json"
-    return action or "ethos status --json"
-
-
-def _report_action(report: dict[str, object], _verdict: Verdict) -> str:
-    return str(report.get("next_action") or "")
-
-
-def _prewrite_action(report: dict[str, object], verdict: Verdict) -> str:
-    return "" if verdict == "pass" else str(report.get("next_action") or "")
-
-
-def _retirement_action(_report: dict[str, object], verdict: Verdict) -> str:
-    return "ethos status" if verdict == "pass" else "ethos lane status"
 
 
 def _public_state(command: str, report: dict[str, object], verdict: Verdict) -> str:
@@ -158,18 +110,6 @@ _SUMMARIES: dict[str, Summary] = {
     "lane refresh-base": _fields("branch", "candidate_branch", "head", "candidate_head"),
     "lane archive-change": _fields("branch", "change", "head", "archive_path"),
 }
-_ACTIONS: dict[str, Action] = {
-    "lane status": _status_action,
-    "lane candidate": _actions(
-        "ethos lane start <name> --holder-ref <holder-ref> --apply --json",
-        "ethos status",
-    ),
-    "lane prewrite": _prewrite_action,
-    "lane start": _start_action,
-    "lane refresh-base": _refresh_action,
-    "lane retire superseded": _retirement_action,
-    "lane retire landed": _retirement_action,
-}
 
 
 def project_lane_result(
@@ -178,17 +118,11 @@ def project_lane_result(
     *,
     summary: dict[str, object] | None = None,
     diagnostics: tuple[dict[str, object], ...] = (),
-    actions: str | Action | None = None,
+    data: dict[str, object] | None = None,
     enforce: bool = False,
     json_output: bool,
 ) -> None:
     verdict = report_verdict(report)
-    if actions is None:
-        next_action = _ACTIONS.get(command, _actions(""))(report, verdict)
-    elif isinstance(actions, str):
-        next_action = actions
-    else:
-        next_action = actions(report, verdict)
     required_gaps = tuple(string_sequence(report.get("required_gaps")))
     result = EthosResult(
         command=command,
@@ -197,8 +131,9 @@ def project_lane_result(
         summary=summary or _SUMMARIES.get(command, lambda _report: {})(report),
         diagnostics=diagnostics,
         required_gaps=required_gaps,
-        next_action=next_action,
-        data=report,
+        next_action=str(report.get("next_action") or ""),
+        user_decision_required=bool(report.get("user_decision_required", False)),
+        data=report if data is None else data,
     )
     emit(result, json_output=json_output, enforce=enforce)
 
@@ -221,6 +156,8 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
         required_gaps=gaps,
     )
     stage_gates = cast("dict[str, object]", report.get("stage_gates") or {})
+    action = str(stage_gates.get("next_action") or "")
+    user_decision_required = bool(stage_gates.get("user_decision_required", False))
     summary = {
         "branch": report["branch"],
         "role": report["role"],
@@ -231,13 +168,18 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
         "dirty_foreign_work_lane_count": sum(lane.get("dirty") is True for lane in foreign),
         "coordination_advisory_count": len(coordination_gaps),
         "coordination_blocking": any(gap.startswith("coordination_gap:") for gap in gaps),
-        "coordination_next_action": str(stage_gates.get("next_action") or ""),
+        "coordination_next_action": action,
     }
     project_lane_result(
         "lane status",
-        report,
+        report
+        | {
+            "next_action": action,
+            "user_decision_required": user_decision_required,
+        },
         summary=summary,
         diagnostics=(validation,),
+        data=report,
         json_output=json_output,
     )
 
@@ -250,15 +192,9 @@ def housekeeping(
     report = housekeeping_worktrees(
         root=resolve_root(options.root), authorized=options.authorize, apply=options.apply
     )
-    removable = integer(cast("dict[str, object]", report["summary"]).get("removable_count"))
     project_lane_result(
         options.command,
         report,
-        actions=lambda _report, verdict: (
-            "ethos lane housekeeping --authorize --apply --json"
-            if verdict == "pass" and removable and not options.apply
-            else ""
-        ),
         enforce=options.apply,
         json_output=options.json_output,
     )

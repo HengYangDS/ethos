@@ -13,6 +13,3 @@
 ## 3. Proof and Closeout
 
 - [x] 3.1 Run focused version, supply-chain, build, install, CLI, and OpenSpec gates and record passing results.
-- [ ] 3.2 Create the signed source commit and verify exact-HEAD full proof succeeds.
-- [ ] 3.3 Archive the official Change, verify post-archive full proof, promote the exact object to accepted, and verify the installed runtime identity.
-- [ ] 3.4 Retire the Work Lane and verify its ref, worktree, and Lease no longer exist.

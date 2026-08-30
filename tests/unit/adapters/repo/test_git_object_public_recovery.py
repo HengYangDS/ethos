@@ -69,6 +69,62 @@ def test_commit_payload_missing_separator_fails_closed(
 
 
 @pytest.mark.parametrize(
+    ("status", "expected_verdict", "expected_gaps"),
+    [
+        (
+            (
+                'Good "git" signature for owner@example.com with ED25519 key SHA256:abc=\n'
+                "additional verifier detail"
+            ),
+            "pass",
+            [],
+        ),
+        (
+            (
+                'Good "git" signature for owner@example.com with ED25519 key SHA256:abc=\r\n'
+                "additional verifier detail"
+            ),
+            "pass",
+            [],
+        ),
+        (
+            'Good "git" signature for owner@example.com with ED25519 key',
+            "block",
+            ["git_object_signature_observation_unavailable"],
+        ),
+    ],
+)
+def test_git_object_trust_requires_a_portable_terminal_signature_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+    expected_verdict: str,
+    expected_gaps: list[str],
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    anchor = _trust_root(tmp_path) / "allowed-signers"
+    anchor.write_text("owner@example.com ssh-ed25519 AAAA\n", encoding="utf-8")
+    anchor.chmod(0o600)
+
+    def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
+        if args[:4] == ("config", "--path", "--get", "gpg.ssh.allowedSignersFile"):
+            return SimpleNamespace(returncode=0, stdout=anchor.as_posix(), stderr="")
+        if args == ("version",):
+            return SimpleNamespace(returncode=0, stdout="git version test", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr=status)
+
+    monkeypatch.setattr(identity, "run_git", run_git)
+
+    report = identity.verify_git_object_trust(repo, "revision", "commit")
+
+    assert report["verdict"] == expected_verdict
+    assert report["required_gaps"] == expected_gaps
+    assert report["principal"] == ("owner@example.com" if expected_verdict == "pass" else "")
+    assert report["fingerprint"] == ("SHA256:abc=" if expected_verdict == "pass" else "")
+
+
+@pytest.mark.parametrize(
     ("configured", "expected"),
     [
         ("relative/allowed-signers", "commit_trust_anchor_not_absolute"),

@@ -201,43 +201,34 @@ def resolve_current_resolution(
     archive_authority: JsonObject = {}
     try:
         projected = official.get("commitment")
-        commitment = (
-            Commitment.model_validate(projected)
-            if isinstance(projected, dict)
-            else load_profile_commitment(root, change_id=change)
-        )
-    except ValueError as error:
-        gap = str(error)
-        missing = "openspec_active_change_missing"
-        selected_missing = f"openspec_show_failed:{change}" if change is not None else ""
-        if gap in {missing, selected_missing}:
-            archived = attested_archive_transition(
+        archived = (
+            attested_archive_transition(
                 root,
                 head=str(status.get("head") or ""),
                 change=change,
             )
-            if archived is not None:
-                commitment, archive_authority = archived
-            else:
-                return CurrentResolution(
-                    verdict="block",
-                    authority=authority,
-                    commitment=None,
-                    scope=CurrentScope(()),
-                    openspec=official,
-                    required_gaps=(gap,),
-                    next_action=_intent_action(root, gap, change),
-                )
+            if not projected
+            else None
+        )
+        if archived is not None:
+            commitment, archive_authority = archived
         else:
-            return CurrentResolution(
-                verdict="block",
-                authority=authority,
-                commitment=None,
-                scope=CurrentScope(()),
-                openspec=official,
-                required_gaps=(gap,),
-                next_action=_intent_action(root, gap, change),
+            commitment = (
+                Commitment.model_validate(projected)
+                if isinstance(projected, dict) and projected
+                else load_profile_commitment(root, change_id=change)
             )
+    except ValueError as error:
+        gap = str(error)
+        return CurrentResolution(
+            verdict="block",
+            authority=authority,
+            commitment=None,
+            scope=CurrentScope(()),
+            openspec=official,
+            required_gaps=(gap,),
+            next_action=_intent_action(root, gap, change),
+        )
     scope = current_scope(
         commitment=commitment,
         fallback_paths=observed_paths,

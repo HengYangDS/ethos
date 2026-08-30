@@ -4,7 +4,7 @@ source_refs = ["system/gates.toml"]
 
 [proof_sets]
 default = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
-full = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
+full = ["repository-audit", "repository-hygiene", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
 
 [[gates]]
 id = "repository-audit"
@@ -23,6 +23,24 @@ tool_adapter = "ethos-repository-audit"
 writes_files = false
 network_policy = "offline"
 version_source = "product"
+
+[[gates]]
+id = "repository-hygiene"
+registries = ["runtime", "quality"]
+kind = "governance"
+command = ["{python}", "-m", "nox", "-s", "repository_hygiene"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["python-code", "config", "markdown-docs"]
+dimensions = ["repository-hygiene", "suppression-policy"]
+execution_mode = "adapter"
+evidence_class = "contract"
+trust_bearing = true
+tool_adapter = "repository-hygiene"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
 
 [[gates]]
 id = "evidence-freshness"

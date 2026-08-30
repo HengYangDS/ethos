@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import tomllib
 from pathlib import Path
 
 from tools.ci.repository_hygiene import audit
@@ -40,6 +41,21 @@ def test_repository_hygiene_is_one_python_nox_owner() -> None:
     coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
     assert "exclude_lines =\n" in coverage
     assert not (ROOT / "tools/ci/scripts/run-repository-hygiene.sh").exists()
+
+
+def test_full_proof_includes_the_repository_hygiene_owner_once() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    full = declaration["proof_sets"]["full"]
+    gates = {item["id"]: item for item in declaration["gates"]}
+
+    assert full.count("repository-hygiene") == 1
+    assert gates["repository-hygiene"]["command"] == [
+        "{python}",
+        "-m",
+        "nox",
+        "-s",
+        "repository_hygiene",
+    ]
 
 
 def test_repository_hygiene_rejects_global_ignored_ds_store(tmp_path: Path) -> None:

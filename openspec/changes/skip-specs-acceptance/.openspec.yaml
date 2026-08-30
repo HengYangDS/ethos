@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-30
+goal: Make valid OpenSpec skip_specs changes compile deterministic acceptance
+  and remain provable through archive.

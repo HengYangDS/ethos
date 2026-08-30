@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -67,16 +68,34 @@ def openspec_profile_enabled(repo: Path, *, tree_ref: str | None = None) -> bool
     return profile.declaration is not None and profile.declaration.openspec is not None
 
 
-def commitment_from_projection(change: str, projection: object) -> Commitment:
-    """Compile only acceptance propositions from official ``show --json`` output."""
+def commitment_from_projection(
+    change: str,
+    projection: object,
+    *,
+    status: object = None,
+    apply: object = None,
+    artifact_digests: dict[str, str] | None = None,
+) -> Commitment:
+    """Compile acceptance propositions from official OpenSpec JSON projections."""
     if not isinstance(projection, dict) or projection.get("id") != change:
         msg = f"openspec_show_invalid:{change}"
         raise ValueError(msg)
     deltas = projection.get("deltas")
-    if not isinstance(deltas, list) or not deltas:
+    if not isinstance(deltas, list):
         msg = f"openspec_acceptance_missing:{change}"
-        raise ValueError(msg)
-    acceptance = tuple(item for delta in deltas for item in _acceptance_items(change, delta))
+        raise TypeError(msg)
+    spec_free_projection = not deltas or all(
+        isinstance(delta, dict) and "requirements" not in delta for delta in deltas
+    )
+    if spec_free_projection:
+        acceptance = _spec_free_acceptance(
+            change,
+            status=status,
+            apply=apply,
+            artifact_digests=artifact_digests,
+        )
+    else:
+        acceptance = tuple(item for delta in deltas for item in _acceptance_items(change, delta))
     if not acceptance:
         msg = f"openspec_acceptance_missing:{change}"
         raise ValueError(msg)
@@ -85,6 +104,62 @@ def commitment_from_projection(change: str, projection: object) -> Commitment:
         id=f"change:{change}",
         acceptance=acceptance,
     )
+
+
+def _spec_free_acceptance(
+    change: str,
+    *,
+    status: object,
+    apply: object,
+    artifact_digests: dict[str, str] | None,
+) -> tuple[str, ...]:
+    if not isinstance(status, dict) or not isinstance(apply, dict):
+        return ()
+    artifacts = status.get("artifacts")
+    if not isinstance(artifacts, list):
+        return ()
+    states = {
+        str(artifact.get("id") or ""): str(artifact.get("status") or "")
+        for artifact in artifacts
+        if isinstance(artifact, dict)
+    }
+    digests = artifact_digests or {}
+    names = ("metadata", "proposal", "design", "tasks")
+    if (
+        status.get("changeName") != change
+        or status.get("isComplete") is not True
+        or states.get("proposal") != "done"
+        or states.get("specs") != "skipped"
+        or states.get("design") != "done"
+        or states.get("tasks") != "done"
+        or apply.get("changeName") != change
+        or apply.get("state") != "all_done"
+        or set(digests) != set(names)
+        or any(
+            len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest)
+            for digest in digests.values()
+        )
+    ):
+        return ()
+    return (
+        f"openspec:change:{change}",
+        "openspec:specs:skipped",
+        *(f"openspec:artifact:{name}:sha256:{digests[name]}" for name in names),
+    )
+
+
+def _spec_free_artifact_digests(root: Path, change: str) -> dict[str, str]:
+    change_root = root / "openspec" / "changes" / change
+    paths = (
+        ("metadata", change_root / ".openspec.yaml"),
+        ("proposal", change_root / "proposal.md"),
+        ("design", change_root / "design.md"),
+        ("tasks", change_root / "tasks.md"),
+    )
+    try:
+        return {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in paths}
+    except OSError:
+        return {}
 
 
 def _acceptance_items(change: str, delta: object) -> tuple[str, ...]:
@@ -216,5 +291,30 @@ def load_openspec_commitment(
                 return archived
             msg = f"openspec_show_failed:{change_id}"
             raise ValueError(msg)
-        commitment = commitment_from_projection(change_id, result.get("json"))
+        payload = result.get("json")
+        deltas = payload.get("deltas") if isinstance(payload, dict) else None
+        spec_free = isinstance(deltas, list) and (
+            not deltas
+            or all(isinstance(delta, dict) and "requirements" not in delta for delta in deltas)
+        )
+        if spec_free:
+            status = openspec_cli.run_json(
+                projection,
+                command,
+                ("status", "--change", change_id, "--json"),
+            )
+            apply = openspec_cli.run_json(
+                projection,
+                command,
+                ("instructions", "apply", "--change", change_id, "--json"),
+            )
+            commitment = commitment_from_projection(
+                change_id,
+                payload,
+                status=status.get("json"),
+                apply=apply.get("json"),
+                artifact_digests=_spec_free_artifact_digests(projection, change_id),
+            )
+        else:
+            commitment = commitment_from_projection(change_id, payload)
     return _accepted_commitment(commitment, expected_digest=expected_digest)

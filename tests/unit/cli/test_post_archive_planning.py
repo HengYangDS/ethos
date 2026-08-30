@@ -26,7 +26,6 @@ def test_post_archive_planning_uses_fresh_git_paths_not_an_archived_carrier() ->
 
     assert scope.paths == paths
     assert scope.selected_carrier == ""
-    assert scope.start_authority == {}
     assert scope.archive_authority == {}
     assert [item.path for item in scope.attributions] == list(paths)
     assert {item.source for item in scope.attributions} == {"git_changed_path"}

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.admission.prewrite as admission_prewrite
+import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.contracts.admission import HookAdmissionRequest
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -128,6 +130,38 @@ def test_unknown_editor_component(worktree: Path, monkeypatch: pytest.MonkeyPatc
     assert report["verdict"] == "unknown"
     assert report["required_gaps"] == []
     assert "ok" not in report
+
+
+def test_owned_lane_bootstraps_only_official_change_artifacts(worktree: Path) -> None:
+    previous = worktree / "openspec/changes/fixture-change"
+    shutil.rmtree(previous)
+    metadata = "openspec/changes/bootstrap-test/.openspec.yaml"
+
+    initial = _guard(worktree, (metadata,))
+
+    assert initial["verdict"] == "pass"
+    assert initial["material_scope"]["state"] == "official_change_bootstrap"
+    assert initial["next_action"] == "openspec new change bootstrap-test --json"
+
+    command = openspec_cli.openspec_base_command()
+    assert command is not None
+    created = openspec_cli.run_json(
+        worktree,
+        command,
+        ("new", "change", "bootstrap-test", "--json"),
+    )
+    assert created["exit_code"] == 0
+
+    proposal = _guard(worktree, ("openspec/changes/bootstrap-test/proposal.md",))
+    sidecar = _guard(worktree, ("openspec/changes/bootstrap-test/README.md",))
+    product = _guard(worktree, ("src/product.py",))
+
+    assert proposal["verdict"] == "pass"
+    assert proposal["next_action"] == (
+        "openspec instructions proposal --change bootstrap-test --json"
+    )
+    assert sidecar["verdict"] == "block"
+    assert product["verdict"] == "block"
 
 
 def test_cli_path_token(worktree: Path) -> None:

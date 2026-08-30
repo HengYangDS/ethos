@@ -138,11 +138,7 @@ def plan(
     gate_ids = tuple(str(gate.get("id") or "") for gate in required_gates)
     policy = resolve_gate_policy(repo, gate_ids=gate_ids)
     archive_authority = generation_scope.archive_authority
-    prior_attestations = ({"openspec_archive": archive_authority} if archive_authority else {}) | (
-        {"openspec_change_start": generation_scope.start_authority}
-        if generation_scope.start_authority
-        else {}
-    )
+    prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}
     foreign = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes") or [])
     candidate = cast("dict[str, object]", status_payload.get("candidate") or {})
     candidate_branch = str(candidate.get("branch") or "candidate/dev")

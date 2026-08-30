@@ -37,6 +37,14 @@ class ArchivePostimage(NamedTuple):
     active_present: bool
 
 
+class AttestedArchive(NamedTuple):
+    """One validated archive effect and its distance from the current HEAD."""
+
+    distance: int
+    commitment: Commitment
+    authority: dict[str, object]
+
+
 def attested_archive_transition(
     root: Path,
     *,
@@ -48,66 +56,113 @@ def attested_archive_transition(
         _identity, attestations = read_attestation_set(root)
     except ValueError:
         return None
-    matches: list[tuple[Commitment, dict[str, object]]] = []
+    matches: list[AttestedArchive] = []
     for attestation in attestations:
-        if attestation.predicate != "effect:git-ref-update":
-            continue
-        try:
-            plan = plan_from_attestation(attestation)
-            effect = git_effect_from_plan(plan)
-            if plan.policy.get("transition") != "openspec.archive":
-                continue
-            archived_change = str(plan.policy.get("change") or "")
-            branch = str(plan.policy.get("branch") or "")
-            update = effect.updates.get(f"refs/heads/{branch}")
-            if (
-                not archived_change
-                or not branch
-                or update is None
-                or update.desired != head
-                or (change is not None and archived_change != change)
-                or plan.commitment is None
-            ):
-                continue
-            validate_git_effect_attestation(
-                root,
-                effect,
-                attestation,
-                issuer=attestation.verifier,
-                plan=plan,
-                current_postconditions=False,
-            )
-            if current_tree(root, head) == "":
-                continue
-            commitment = Commitment.model_validate(dict(plan.commitment))
-            values = plan.facts.get("values")
-            facts = values if isinstance(values, Mapping) else {}
-            paths = tuple(str(path) for path in facts.get("changed_paths", ()))
-            if not paths:
-                continue
-        except (TypeError, ValueError):
-            continue
-        matches.append(
-            (
-                commitment,
-                {
-                    "predicate": "effect:git-ref-update",
-                    "attestation_id": attestation.id,
-                    "effect_digest": str(attestation.effect_digest or ""),
-                    "plan_digest": plan.digest,
-                    "claim": {
-                        "operation": "openspec.archive",
-                        "effect": str(attestation.effect_digest or ""),
-                    },
-                    "source": "archive_commit",
-                    "authorized_paths": list(paths),
-                },
-            )
-        )
-    if len(matches) > 1:
+        match = _attested_archive(root, head=head, change=change, attestation=attestation)
+        if match is not None:
+            matches.append(match)
+    if not matches:
+        return None
+    nearest = min(match.distance for match in matches)
+    selected = [match for match in matches if match.distance == nearest]
+    if len(selected) > 1:
         msg = "openspec_archive_attestation_ambiguous"
         raise ValueError(msg)
-    return matches[0] if matches else None
+    match = selected[0]
+    return match.commitment, match.authority
+
+
+def _attested_archive(
+    root: Path,
+    *,
+    head: str,
+    change: str | None,
+    attestation: Any,
+) -> AttestedArchive | None:
+    """Validate one archive effect as a current-history intent source."""
+    if attestation.predicate != "effect:git-ref-update":
+        return None
+    try:
+        plan = plan_from_attestation(attestation)
+        effect = git_effect_from_plan(plan)
+        archived_change = str(plan.policy.get("change") or "")
+        branch = str(plan.policy.get("branch") or "")
+        update = effect.updates.get(f"refs/heads/{branch}")
+        desired = str(update.desired) if update is not None else ""
+        distance = _ancestor_distance(root, desired, head)
+        values = plan.facts.get("values")
+        facts = values if isinstance(values, Mapping) else {}
+        paths = tuple(str(path) for path in facts.get("changed_paths", ()))
+        if (
+            plan.policy.get("transition") != "openspec.archive"
+            or not archived_change
+            or not branch
+            or update is None
+            or (change is not None and archived_change != change)
+            or plan.commitment is None
+            or distance is None
+            or current_tree(root, desired) == ""
+            or not paths
+        ):
+            return None
+        validate_git_effect_attestation(
+            root,
+            effect,
+            attestation,
+            issuer=attestation.verifier,
+            plan=plan,
+            current_postconditions=False,
+        )
+        commitment = Commitment.model_validate(dict(plan.commitment))
+    except (TypeError, ValueError):
+        return None
+    return AttestedArchive(
+        distance,
+        commitment,
+        {
+            "predicate": "effect:git-ref-update",
+            "attestation_id": attestation.id,
+            "effect_digest": str(attestation.effect_digest or ""),
+            "plan_digest": plan.digest,
+            "claim": {
+                "operation": "openspec.archive",
+                "effect": str(attestation.effect_digest or ""),
+            },
+            "source": "archive_commit",
+            "authorized_paths": list(paths),
+        },
+    )
+
+
+def _ancestor_distance(root: Path, ancestor: str, descendant: str) -> int | None:
+    """Return the exact Git distance when the archive effect remains in history."""
+    if not ancestor or not descendant:
+        return None
+    if (
+        run_git(
+            root,
+            "merge-base",
+            "--is-ancestor",
+            ancestor,
+            descendant,
+            check=False,
+            observation=True,
+        ).returncode
+        != 0
+    ):
+        return None
+    result = run_git(
+        root,
+        "rev-list",
+        "--count",
+        f"{ancestor}..{descendant}",
+        check=False,
+        observation=True,
+    )
+    try:
+        return int(result.stdout.strip()) if result.returncode == 0 else None
+    except ValueError:
+        return None
 
 
 def archive_postimage(root: Path, *, head: str, change: str) -> ArchivePostimage | None:

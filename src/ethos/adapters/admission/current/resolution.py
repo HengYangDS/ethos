@@ -183,7 +183,18 @@ def resolve_current_resolution(
         if isinstance(lifecycle, dict) and isinstance(lifecycle.get("scope_binding"), dict)
         else {}
     )
-    if official_verdict != "pass":
+    projected = official.get("commitment")
+    archived = (
+        attested_archive_transition(
+            root,
+            head=str(status.get("head") or ""),
+            change=change,
+        )
+        if not projected
+        and (official_verdict == "pass" or official_gaps == ("openspec_active_change_missing",))
+        else None
+    )
+    if official_verdict != "pass" and archived is None:
         gap = official_gaps[0] if official_gaps else "openspec_scope_unavailable"
         return CurrentResolution(
             verdict=official_verdict,
@@ -200,18 +211,11 @@ def resolve_current_resolution(
         )
     archive_authority: JsonObject = {}
     try:
-        projected = official.get("commitment")
-        archived = (
-            attested_archive_transition(
-                root,
-                head=str(status.get("head") or ""),
-                change=change,
-            )
-            if not projected
-            else None
-        )
         if archived is not None:
             commitment, archive_authority = archived
+            official = dict(official)
+            official["verdict"] = "pass"
+            official["required_gaps"] = []
         else:
             commitment = (
                 Commitment.model_validate(projected)

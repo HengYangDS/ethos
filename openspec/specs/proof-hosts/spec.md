@@ -4,7 +4,9 @@
 
 ETHOS SHALL keep conformance, parity, sample repository, schema compatibility,
 and migration replay proof separate from runtime packages.
+
 ## Requirements
+
 ### Requirement: Proof Separation
 ETHOS SHALL host conformance fixtures and parity proof helpers outside the
 runtime semantic packages.
@@ -104,3 +106,16 @@ requirements.
 - **AND** the envelope SHALL report a provider_not_configured observation gap
 - **AND** the absent provider configuration SHALL NOT become a repository proof
   failure or a hosted success claim
+
+### Requirement: Host conformance controls repository-local Git semantics
+
+ETHOS SHALL make portable host-conformance assertions independent of ambient
+Git text-conversion defaults by declaring the exact repository-local semantics
+required by each fixture.
+
+#### Scenario: CRLF bytes are tested on a Windows-style Git configuration
+
+- **WHEN** the adopter fixture stages a CRLF byte sequence while
+  `core.autocrlf=true`
+- **THEN** its tracked fixture policy preserves the exact bytes in the index
+- **AND** the working tree and staged blob round-trip identically.

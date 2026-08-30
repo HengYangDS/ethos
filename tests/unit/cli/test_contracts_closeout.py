@@ -199,7 +199,7 @@ def test_status_plan_closeout_and_hook_share_exact_apply_command(
         emitted[-1].next_action,
     } == {expected}
     monkeypatch.setattr(
-        "ethos.surface.cli.root.planning.openspec_governance_report",
+        "ethos.adapters.admission.current.resolution.openspec_governance_report",
         lambda *_args, **_kwargs: {
             "verdict": "block",
             "required_gaps": ["model_gap"],

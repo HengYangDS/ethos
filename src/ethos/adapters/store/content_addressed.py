@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 from stat import S_ISREG
 
+_DIRECTORY_FSYNC_SUPPORTED = os.name == "posix"
+
 
 def write_content_addressed(path: Path, payload: bytes, *, collision: str) -> Path:
     """Publish complete immutable bytes or reject an identity collision."""
@@ -20,11 +22,12 @@ def write_content_addressed(path: Path, payload: bytes, *, collision: str) -> Pa
             os.fsync(stream.fileno())
         try:
             os.link(temporary, path)
-            directory = os.open(path.parent, os.O_RDONLY)
-            try:
-                os.fsync(directory)
-            finally:
-                os.close(directory)
+            if _DIRECTORY_FSYNC_SUPPORTED:
+                directory = os.open(path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(directory)
+                finally:
+                    os.close(directory)
         except FileExistsError:
             try:
                 if not S_ISREG(path.lstat().st_mode):

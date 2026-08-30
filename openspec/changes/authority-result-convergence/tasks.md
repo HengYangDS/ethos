@@ -12,5 +12,5 @@
 ## 3. Closeout
 
 - [x] 3.1 Run strict OpenSpec validation, Ruff, type/import/module-layout checks, and the focused affected test set
-- [ ] 3.2 Commit the exact terminal tree, run one exact-HEAD full proof, archive the Change, and rerun fresh proof after durable archive finalization
+- [x] 3.2 Commit the exact terminal tree, run one exact-HEAD full proof, archive the Change, and rerun fresh proof after durable archive finalization
 - [ ] 3.3 Advance candidate and accepted refs by exact CAS, install and read back the immutable runtime, and retire the Work Lane with no Lease/ref/worktree residue

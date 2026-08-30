@@ -9,6 +9,7 @@ from typing import cast
 
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
+from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_scope_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -49,7 +50,6 @@ class CurrentScope:
     """Fresh changed paths associated with one selected official Change."""
 
     paths: tuple[str, ...]
-    start_authority: JsonObject = field(default_factory=dict)
     archive_authority: JsonObject = field(default_factory=dict)
     attributions: tuple[PathAttribution, ...] = ()
     selected_carrier: str = ""
@@ -148,6 +148,7 @@ def resolve_current_resolution(
     authority: CurrentAuthority | None = None,
     change: str | None = None,
     changed: bool = True,
+    prewrite_paths: tuple[str, ...] = (),
 ) -> CurrentResolution:
     """Resolve current authority, official intent, paths, gap, and action once."""
     work_lane = status.get("role") == ROLE_WORK_LANE
@@ -184,6 +185,29 @@ def resolve_current_resolution(
         else {}
     )
     projected = official.get("commitment")
+    bootstrap_scope = (
+        official_change_bootstrap_scope_report(
+            official=official,
+            requested_paths=prewrite_paths,
+        )
+        if not projected
+        else {}
+    )
+    if prewrite_paths and bootstrap_scope:
+        bootstrap_gaps = tuple(string_sequence(bootstrap_scope.get("required_gaps")))
+        return CurrentResolution(
+            verdict="block" if bootstrap_gaps else "pass",
+            authority=authority,
+            commitment=None,
+            scope=CurrentScope(
+                prewrite_paths,
+                gaps=bootstrap_gaps,
+                material_scope=bootstrap_scope,
+            ),
+            openspec=official,
+            required_gaps=bootstrap_gaps,
+            next_action=str(bootstrap_scope.get("next_action") or ""),
+        )
     archived = (
         attested_archive_transition(
             root,
@@ -207,7 +231,8 @@ def resolve_current_resolution(
             ),
             openspec=official,
             required_gaps=official_gaps or (gap,),
-            next_action=_intent_action(root, gap, change),
+            next_action=str(bootstrap_scope.get("next_action") or "")
+            or _intent_action(root, gap, change),
         )
     archive_authority: JsonObject = {}
     try:

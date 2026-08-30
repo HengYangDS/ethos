@@ -3086,8 +3086,8 @@ identity, and provider presentation SHALL remain separate observations.
 
 ### Requirement: Lifecycle effect finalization authorizes exact transition paths
 
-ETHOS SHALL use one verified OpenSpec lifecycle-effect authority for Change
-start, official archive, canonical-spec projection, and post-archive closeout.
+ETHOS SHALL use one verified OpenSpec lifecycle-effect authority for official
+archive, canonical-spec projection, and post-archive closeout.
 The authority SHALL bind repository identity, the transient Commitment digest,
 previous and resulting Git facts, exact changed paths, official OpenSpec result,
 and terminal effect Attestation. Status, plan, prove, land, prewrite, and hooks
@@ -3111,12 +3111,6 @@ the same public operation by exact CAS.
 - **WHEN** the official result, exact Git facts, effect Attestation, or changed path set is missing, ambiguous, stale, or tampered
 - **THEN** ETHOS reports the first exact missing coordinate and one public next command
 - **AND** it does not infer authority from an archive path or historical lane
-
-#### Scenario: Multi-commit Change start recovers its exact successor
-
-- **WHEN** an exact Change-start Git effect is durable and later projection failed
-- **THEN** retry recognizes the same plan and completes projection forward
-- **AND** it creates no second commit, lineage record, or OpenSpec invocation
 
 #### Scenario: Finalization state is classified before mutation
 

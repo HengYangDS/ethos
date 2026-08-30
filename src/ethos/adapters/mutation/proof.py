@@ -376,8 +376,6 @@ def proof_plan(
         else {}
     )
     prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}
-    if observed_scope is not None and observed_scope.start_authority:
-        prior_attestations["openspec_change_start"] = observed_scope.start_authority
     return compile_plan(
         commitment,
         facts,

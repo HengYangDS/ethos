@@ -86,6 +86,7 @@ def prewrite_guard(
             },
             authority=current_authority,
             changed=False,
+            prewrite_paths=requested,
         )
         if resolution.verdict != "pass":
             scope = resolution.scope_report(requested)
@@ -122,7 +123,7 @@ def prewrite_guard(
         required_gaps=tuple(gaps),
     )
     decision = _prewrite_decision(root, effective, checked, authority, verdict, tuple(gaps))
-    next_action = ""
+    next_action = str(scope.get("next_action") or "")
     user_decision_required = False
     if verdict != "pass":
         if report_verdict(authority) != "pass":

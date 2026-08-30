@@ -8,7 +8,6 @@ import sys
 import tomllib
 import zipfile
 from email.parser import Parser
-from importlib import import_module
 from pathlib import Path
 
 import pytest
@@ -21,6 +20,7 @@ from ethos.repository.release.identity import load_build_identity_bytes
 from ethos.repository.release.identity import product_version
 from ethos.repository.release.identity import projected_package_versions
 from ethos.repository.release.identity import wheel_build_identity
+from tools.ci.toolchain.node import node_runtime
 
 
 def test_version_file_is_the_single_product_owner_and_manifests_are_projections() -> None:
@@ -184,7 +184,7 @@ def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
 
 
 def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
-    node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
+    node, npm_cli = node_runtime()
     output.mkdir()
     subprocess.run(
         (
@@ -199,8 +199,8 @@ def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
         cwd=repo,
         env={
             **os.environ,
-            "ETHOS_BUILD_NODE": str(node_root / "bin" / "node"),
-            "ETHOS_BUILD_NPM_CLI": str(node_root / "lib/node_modules/npm/bin/npm-cli.js"),
+            "ETHOS_BUILD_NODE": str(node),
+            "ETHOS_BUILD_NPM_CLI": str(npm_cli),
         },
         check=True,
     )

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import stat
 import subprocess
 import tomllib
@@ -76,6 +77,57 @@ def test_python_bootstrap_derives_uv_version_from_project_owner() -> None:
     script = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
     assert 'required_uv="0.' not in script
     assert "pyproject.toml" in script
+
+
+def test_python_bootstrap_does_not_use_apt_get_on_darwin(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    script_dir = repo / "tools/ci/scripts"
+    script_dir.mkdir(parents=True)
+    shutil.copy2(ROOT / "tools/ci/scripts/bootstrap-python.sh", script_dir)
+    _write_fake_executable(
+        script_dir / "with-python-runtime.sh",
+        '#!/bin/sh\n[ "$1" != -- ] || shift\nexec "$@"\n',
+    )
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    apt_log = tmp_path / "apt-get.log"
+    _write_fake_executable(
+        fake_bin / "git",
+        f"#!/bin/sh\n[ \"$1 $2\" = 'rev-parse --show-toplevel' ] && printf '%s\\n' '{repo}'\n",
+    )
+    _write_fake_executable(fake_bin / "uname", "#!/bin/sh\nprintf 'Darwin\\n'\n")
+    _write_fake_executable(
+        fake_bin / "uv",
+        "#!/bin/sh\n"
+        "if [ \"$1\" = --version ]; then printf 'uv 0.12.7\\n'; exit 0; fi\n"
+        "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.7\\n'; exit 0; fi\n"
+        '[ "$1" = sync ] && exit 0\n'
+        "exit 2\n",
+    )
+    _write_fake_executable(fake_bin / "npx", "#!/bin/sh\nexit 0\n")
+    _write_fake_executable(
+        fake_bin / "apt-get",
+        f"#!/bin/sh\nprintf '%s\\n' \"$*\" >>'{apt_log}'\nexit 99\n",
+    )
+    openspec = repo / "node_modules/.bin/openspec"
+    openspec.parent.mkdir(parents=True)
+    _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.11.0\\n'\n")
+    (repo / "pyproject.toml").write_text(
+        '[dependency-groups]\ndev = ["uv>=0.12.7"]\n', encoding="utf-8"
+    )
+
+    result = subprocess.run(
+        ("/bin/bash", str(script_dir / "bootstrap-python.sh")),
+        cwd=repo,
+        env={**os.environ, "PATH": f"{fake_bin}:/bin:/usr/bin"},
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not apt_log.exists()
 
 
 def test_direct_python_bounds_equal_the_locked_resolution() -> None:

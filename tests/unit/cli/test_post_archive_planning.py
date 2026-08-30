@@ -90,8 +90,8 @@ def test_current_resolution_recovers_exact_archive_effect(monkeypatch, tmp_path:
         resolution_adapter,
         "openspec_governance_report",
         lambda *_args, **_kwargs: {
-            "verdict": "pass",
-            "required_gaps": [],
+            "verdict": "block",
+            "required_gaps": ["openspec_active_change_missing"],
             "commitment": {},
             "lifecycle": {"scope_binding": {}},
         },
@@ -121,3 +121,5 @@ def test_current_resolution_recovers_exact_archive_effect(monkeypatch, tmp_path:
     assert resolution.commitment == commitment
     assert resolution.scope.paths == observed_paths
     assert resolution.scope.archive_authority == archive_authority
+    assert resolution.openspec["verdict"] == "pass"
+    assert resolution.openspec["required_gaps"] == []

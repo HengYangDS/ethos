@@ -8,7 +8,6 @@ import shutil
 import subprocess
 import sys
 import tomllib
-from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -19,6 +18,7 @@ from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.contracts.semantic import Commitment
 from ethos.repository.release.identity import BuildIdentity
 from tools.ci.delivery.pipeline import DeliveryPipeline
+from tools.ci.toolchain.node import node_runtime
 
 if TYPE_CHECKING:
     import nox
@@ -146,13 +146,11 @@ def test_packaged_vector_carries_the_minimal_commitment_contract() -> None:
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
-    node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
+    node, npm_cli = node_runtime()
     bootstrap_environment: dict[str, str] = {
         **os.environ,
-        "ETHOS_BUILD_NODE": (
-            node_root / "bin" / ("node.exe" if os.name == "nt" else "node")
-        ).as_posix(),
-        "ETHOS_BUILD_NPM_CLI": (node_root / "lib/node_modules/npm/bin/npm-cli.js").as_posix(),
+        "ETHOS_BUILD_NODE": str(node),
+        "ETHOS_BUILD_NPM_CLI": str(npm_cli),
     }
     bootstrap_environment.pop("PYTHONPATH", None)
     source_ethos = _python_home_executable(Path(sys.executable).parent.parent, "ethos")

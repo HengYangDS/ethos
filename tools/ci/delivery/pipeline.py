@@ -5,7 +5,6 @@ from __future__ import annotations
 import shutil
 import tempfile
 from dataclasses import dataclass
-from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,6 +12,7 @@ from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 from tools.ci.local_install_smoke import prepare_supply
 from tools.ci.local_install_smoke import run as run_install_smoke
+from tools.ci.toolchain.node import node_runtime
 
 if TYPE_CHECKING:
     import nox
@@ -31,13 +31,8 @@ class DeliveryPipeline:
     @classmethod
     def from_runtime(cls, runtime: ProjectRuntime) -> DeliveryPipeline:
         """Bind the wheel's locked Node and npm build inputs."""
-        supply = Path(import_module("nodejs_wheel").__file__).resolve().parent
-        suffix = ".exe" if __import__("os").name == "nt" else ""
-        return cls(
-            runtime,
-            supply / "bin" / f"node{suffix}",
-            supply / "lib/node_modules/npm/bin/npm-cli.js",
-        )
+        node, npm_cli = node_runtime()
+        return cls(runtime, node, npm_cli)
 
     def build(self, session: nox.Session) -> None:
         """Materialize exactly one offline wheel through Hatchling and uv."""

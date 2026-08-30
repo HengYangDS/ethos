@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_command
+from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -25,14 +26,17 @@ def _required_executable(name: str) -> str:
 def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> None:
     ssh_keygen = _required_executable("ssh-keygen")
     signer = root.parent / "product-signer"
-    trust_anchor = root.parent / "allowed-signers"
+    trust_root = root.parent / "trust"
+    trust_root.mkdir(mode=0o700)
+    trust_anchor = trust_root / "allowed-signers"
     run(ssh_keygen, "-q", "-t", "ed25519", "-N", "", "-f", str(signer))
     public_key = signer.with_suffix(".pub").read_text(encoding="utf-8").strip()
     trust_anchor.write_text(
         f'ethos-install-smoke@example.invalid namespaces="git" {public_key}\n',
         encoding="utf-8",
     )
-    trust_anchor.chmod(0o600)
+    protect_for_current_identity(trust_root)
+    protect_for_current_identity(trust_anchor)
     for name, value in (
         ("gpg.format", "ssh"),
         ("gpg.ssh.program", ssh_keygen),

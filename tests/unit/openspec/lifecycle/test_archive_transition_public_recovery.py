@@ -175,6 +175,51 @@ def test_committed_archive_scope_is_inferred_without_a_lease_or_carrier(
     assert report["changes"] == [{"name": CHANGE, "path": ARCHIVE}]
 
 
+def test_archive_attestation_remains_current_for_descendant_head(monkeypatch, tmp_path) -> None:
+    desired = "c" * 40
+    current = "d" * 40
+
+    def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
+        if args[:3] == ("merge-base", "--is-ancestor", desired):
+            return SimpleNamespace(returncode=0, stdout="")
+        if args == ("rev-list", "--count", f"{desired}..{current}"):
+            return SimpleNamespace(returncode=0, stdout="2\n")
+        return SimpleNamespace(returncode=1, stdout="")
+
+    plan = SimpleNamespace(
+        policy={"transition": "openspec.archive", "change": CHANGE, "branch": "work/change"},
+        commitment={"schema_version": 3, "id": f"change:{CHANGE}", "acceptance": ["done"]},
+        facts={"values": {"changed_paths": [f"{ARCHIVE}/tasks.md"]}},
+        digest="plan",
+    )
+    effect = SimpleNamespace(
+        updates={
+            "refs/heads/work/change": SimpleNamespace(desired=desired),
+        }
+    )
+    attestation = SimpleNamespace(
+        predicate="effect:git-ref-update",
+        verifier="agent:test",
+        id="attestation",
+        effect_digest="effect",
+    )
+    monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ({}, [attestation]))
+    monkeypatch.setattr(archive, "plan_from_attestation", lambda _attestation: plan)
+    monkeypatch.setattr(archive, "git_effect_from_plan", lambda _plan: effect)
+    monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        archive, "current_tree", lambda _root, commit: "tree" if commit == desired else ""
+    )
+    monkeypatch.setattr(archive, "run_git", run_git)
+
+    recovered = archive.attested_archive_transition(tmp_path, head=current)
+
+    assert recovered is not None
+    commitment, authority = recovered
+    assert commitment.id == f"change:{CHANGE}"
+    assert authority["attestation_id"] == "attestation"
+
+
 def test_archive_scope_rejects_invalid_profile(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

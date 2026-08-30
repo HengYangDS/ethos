@@ -6,6 +6,7 @@ import json
 import sys
 from pathlib import Path
 
+from ethos.adapters.openspec.cli import OFFICIAL_VERSION
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 
@@ -32,7 +33,10 @@ def version_text() -> str:
                 "diagnostics": [],
                 "required_gaps": [],
                 "next_action": "",
-                "data": {"identity": projection},
+                "data": {
+                    "identity": projection,
+                    "openspec_version": OFFICIAL_VERSION,
+                },
                 "user_decision_required": False,
                 "continuation": "done",
                 "missing_facts_or_evidence": [],
@@ -42,7 +46,8 @@ def version_text() -> str:
         )
     return (
         f"ethos {identity.product_version} "
-        f"({identity.distribution_version}; {identity.source_commit[:12]})"
+        f"({identity.distribution_version}; {identity.source_commit[:12]}; "
+        f"OpenSpec {OFFICIAL_VERSION})"
     )
 
 

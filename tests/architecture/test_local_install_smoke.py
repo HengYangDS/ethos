@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -17,6 +18,8 @@ from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.contracts.semantic import Commitment
 from ethos.repository.release.identity import BuildIdentity
+from tools.ci.delivery.adopter_fixture import line_ending_conformance
+from tools.ci.delivery.adopter_fixture import materialize_adopter
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.node import node_runtime
 
@@ -101,6 +104,29 @@ def test_package_gate_order_and_offline_contract_have_one_machine_owner() -> Non
     assert smoke["depends_on"] == ["build"]
     assert smoke["network_policy"] == "offline"
     assert smoke["writes_files"] is True
+
+
+def test_adopter_line_endings_ignore_host_autocrlf() -> None:
+    def run(*command: str, cwd: Path | None = None) -> str:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    with TemporaryDirectory(prefix="ethos-line-ending-") as directory:
+        root = Path(directory)
+        adopter = root / "adopter"
+        materialize_adopter(
+            adopter,
+            openspec_config=ROOT / "openspec/config.yaml",
+            run=run,
+        )
+        run("git", "config", "core.autocrlf", "true", cwd=adopter)
+
+        assert line_ending_conformance(adopter, run=run) == ["lf", "crlf"]
 
 
 def test_package_only_runtime_behavior_remains_owned_by_install_smoke() -> None:

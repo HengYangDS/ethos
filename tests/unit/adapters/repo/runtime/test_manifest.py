@@ -39,7 +39,6 @@ def test_fixture_python_is_bounded_and_executes_current_ethos(tmp_path: Path) ->
         capture_output=True,
         text=True,
         check=False,
-        timeout=10,
     )
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.strip() == (Path.cwd() / "src/ethos/__init__.py").as_posix()

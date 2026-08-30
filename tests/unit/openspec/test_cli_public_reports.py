@@ -16,6 +16,10 @@ def _completed(*, stdout: str = "", stderr: str = "", returncode: int = 0):
     return subprocess.CompletedProcess((), returncode, stdout, stderr)
 
 
+def test_official_version_is_the_repository_locked_stable_release() -> None:
+    assert cli.OFFICIAL_VERSION == "1.11.0"
+
+
 def test_run_json_reports_object_malformed_array_and_empty_stdout(monkeypatch, tmp_path):
     outputs = (
         (json.dumps({"state": "ready"}), {"state": "ready"}, ""),

@@ -9,6 +9,17 @@ Commits.
 
 ### Changed
 
+- Advanced the next product identity to `0.2.0-alpha.3` and exposed the exact
+  bundled OpenSpec version through the public version surface.
+- Upgraded the repository-locked and runtime-bundled OpenSpec supply to 1.11.0.
+- Converged current Python and npm dependencies, Syft, uv CI images, and the
+  hosted Node LTS/current compatibility matrix on their verified stable
+  releases.
+
+## [0.2.0-alpha.2] - 2026-08-30
+
+### Changed
+
 - Repository acceptance, development package builds, and explicit releases now
   have separate identities; accepted source produces a unique PEP 440
   development build instead of silently claiming the release version.

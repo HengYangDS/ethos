@@ -208,19 +208,33 @@ def authorize_configured_commit_signer(
             gaps,
             "blocked" if gaps else "ready_to_authorize_signer",
         )
-        return report | {"next_action": commit_trust_setup_action(root, revision)}
+        return report | {
+            "next_action": commit_trust_setup_action(
+                root,
+                revision,
+                observed_anchor_sha256=digest,
+            )
+        }
     anchor = cast("Path", anchor)
     try:
         _replace_anchor(anchor, current, candidate)
     except (OSError, ValueError) as error:
+        observed = anchor.read_bytes()
+        observed_digest = hashlib.sha256(observed).hexdigest()
         report = _authorization_report(
             revision,
             anchor,
-            hashlib.sha256(anchor.read_bytes()).hexdigest(),
+            observed_digest,
             [str(error) or "commit_trust_anchor_write_failed"],
             "blocked",
         )
-        return report | {"next_action": commit_trust_setup_action(root, revision)}
+        return report | {
+            "next_action": commit_trust_setup_action(
+                root,
+                revision,
+                observed_anchor_sha256=observed_digest,
+            )
+        }
     return _authorization_report(
         revision,
         anchor,
@@ -230,12 +244,17 @@ def authorize_configured_commit_signer(
     ) | {"next_action": ""}
 
 
-def commit_trust_setup_action(root: Path, revision: str) -> str:
+def commit_trust_setup_action(
+    root: Path,
+    revision: str,
+    *,
+    observed_anchor_sha256: str | None = None,
+) -> str:
     """Return the exact authorization command for the configured trust anchor."""
     anchor, gaps = _configured_commit_trust_anchor(root)
     if anchor is None or gaps:
         return "git config --global gpg.ssh.allowedSignersFile <absolute-owner-only-path>"
-    digest = hashlib.sha256(anchor.read_bytes()).hexdigest()
+    digest = observed_anchor_sha256 or hashlib.sha256(anchor.read_bytes()).hexdigest()
     return (
         "ethos lane trust-commit-signer "
         f"--target-commit {revision} --expected-anchor-sha256 {digest} "

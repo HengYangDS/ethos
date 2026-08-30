@@ -345,7 +345,12 @@ def test_refresh_base_claim_matrix(
             payload["state"],
             payload["required_gaps"],
             payload["next_action"],
-        ) == ("pass", "base_refreshed", [], "ethos land --json")
+        ) == (
+            "pass",
+            "base_refreshed",
+            [],
+            f"ethos land --root {fixture.worktree.resolve().as_posix()} --json",
+        )
         data = payload["data"]
         assert (data["branch"], data["previous_head"], data["head"], data["candidate_head"]) == (
             "work/feature",

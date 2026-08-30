@@ -138,6 +138,8 @@ def test_package_only_runtime_behavior_remains_owned_by_install_smoke() -> None:
     assert '"publish",\n            "--ref"' in owner
     assert '"refs/heads/proposal/package-smoke"' in owner
     assert '"publish", "--proposal"' not in owner
+    assert "required_gaps={json.dumps(gaps)}" in owner
+    assert "command={' '.join(executed_args)}" in owner
 
 
 def test_install_smoke_prepares_frozen_supply_before_offline_install(

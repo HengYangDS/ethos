@@ -18,7 +18,7 @@ GitObjectKind = Literal["commit", "annotated-tag"]
 _SIGNATURE_HEADERS = (b"gpgsig ", b"gpgsig-sha256 ")
 _SSH_STATUS = re.compile(
     r'^Good "git" signature for (?P<principal>.+) with \S+ key '
-    r"(?P<fingerprint>SHA256:[A-Za-z0-9+/=]+)$",
+    r"(?P<fingerprint>SHA256:[A-Za-z0-9+/=]+)\r?$",
     re.MULTILINE,
 )
 

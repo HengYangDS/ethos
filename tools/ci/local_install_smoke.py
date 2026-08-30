@@ -217,7 +217,10 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
                 gap.startswith(("publication_topology_", "publication_source_invalid:"))
                 for gap in gaps
             ):
-                message = "installed full-ref publication plan is unavailable"
+                message = (
+                    "installed full-ref publication plan is unavailable: "
+                    f"command={' '.join(executed_args)} required_gaps={json.dumps(gaps)}"
+                )
                 raise RuntimeError(message)
         checked.append(" ".join(executed_args[:2]))
     return {

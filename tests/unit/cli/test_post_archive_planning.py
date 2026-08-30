@@ -66,11 +66,9 @@ def test_current_resolution_recovers_exact_archive_effect(monkeypatch, tmp_path:
         "authorized_paths": list(archive_paths),
     }
 
-    def load(_root: Path, *, change_id=None, tree_ref=None):
-        assert change_id == "fixture-change"
-        assert tree_ref is None
-        message = "openspec_show_failed:fixture-change"
-        raise ValueError(message)
+    def load(*_args, **_kwargs):
+        message = "the exact archive Attestation owns post-archive intent"
+        raise AssertionError(message)
 
     def archived(_root: Path, *, head: str, change: str | None):
         assert head == "a" * 40
@@ -94,6 +92,7 @@ def test_current_resolution_recovers_exact_archive_effect(monkeypatch, tmp_path:
         lambda *_args, **_kwargs: {
             "verdict": "pass",
             "required_gaps": [],
+            "commitment": {},
             "lifecycle": {"scope_binding": {}},
         },
     )

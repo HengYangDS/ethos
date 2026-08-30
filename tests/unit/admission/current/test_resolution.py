@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 import ethos.adapters.admission.current.resolution as resolution_adapter
 from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
@@ -100,3 +102,296 @@ def test_current_resolution_preserves_unknown_official_intent_without_reinterpre
     assert resolution.verdict == "unknown"
     assert resolution.commitment is None
     assert resolution.required_gaps == ("carrier_unreadable",)
+
+
+@pytest.mark.parametrize(
+    ("path", "verdict"),
+    [
+        ("openspec/changes/example/.openspec.yaml", "pass"),
+        ("openspec/changes/example/proposal.md", "pass"),
+        ("openspec/changes/example/specs/capability/spec.md", "pass"),
+        ("openspec/changes/example/design.md", "pass"),
+        ("openspec/changes/example/tasks.md", "pass"),
+        ("openspec/changes/example/README.md", "block"),
+        ("openspec/changes/other/proposal.md", "block"),
+        ("openspec/changes/archive/2026-08-30-example/tasks.md", "block"),
+        ("src/product.py", "block"),
+    ],
+)
+def test_current_resolution_projects_only_incomplete_official_change_artifacts_for_prewrite(
+    monkeypatch,
+    path: str,
+    verdict: str,
+) -> None:
+    change = "example"
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "change": change,
+            "official_cli": {"available": True},
+            "required_gaps": [f"openspec_status_incomplete:{change}"],
+            "lifecycle": {
+                "scope_binding": {
+                    "verdict": "pass",
+                    "state": "no_material_paths",
+                    "required_gaps": [],
+                },
+                "changes": [
+                    {
+                        "name": change,
+                        "path": f"openspec/changes/{change}",
+                        "artifacts": [
+                            {
+                                "id": "proposal",
+                                "outputPath": "proposal.md",
+                                "status": "ready",
+                                "requires": [],
+                            },
+                            {
+                                "id": "specs",
+                                "outputPath": "specs/**/*.md",
+                                "status": "blocked",
+                                "requires": ["proposal"],
+                            },
+                            {
+                                "id": "design",
+                                "outputPath": "design.md",
+                                "status": "blocked",
+                                "requires": ["proposal"],
+                            },
+                            {
+                                "id": "tasks",
+                                "outputPath": "tasks.md",
+                                "status": "blocked",
+                                "requires": ["specs", "design"],
+                            },
+                        ],
+                    }
+                ],
+            },
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {
+                        "changes": [
+                            {
+                                "name": change,
+                                "completedTasks": 0,
+                                "totalTasks": 1,
+                                "status": "in-progress",
+                            }
+                        ]
+                    },
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=(path,),
+    )
+
+    assert resolution.verdict == verdict
+    assert resolution.commitment is None
+    assert resolution.scope.material_scope["state"] == "official_change_bootstrap"
+    assert resolution.next_action == f"openspec instructions proposal --change {change} --json"
+
+
+def test_current_resolution_admits_only_one_new_official_metadata_path(monkeypatch) -> None:
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "official_cli": {"available": True},
+            "required_gaps": ["openspec_active_change_missing"],
+            "lifecycle": {"scope_binding": {}, "changes": []},
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {"changes": []},
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=("openspec/changes/example/.openspec.yaml",),
+    )
+
+    assert resolution.verdict == "pass"
+    assert resolution.next_action == "openspec new change example --json"
+
+
+@pytest.mark.parametrize(
+    "paths",
+    [
+        (
+            "openspec/changes/example/.openspec.yaml",
+            "openspec/changes/example/proposal.md",
+        ),
+        ("openspec/changes/Invalid/.openspec.yaml",),
+        ("openspec/changes/archive/.openspec.yaml",),
+    ],
+)
+def test_current_resolution_rejects_ambiguous_or_invalid_new_change_bootstrap(
+    monkeypatch,
+    paths: tuple[str, ...],
+) -> None:
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "official_cli": {"available": True},
+            "required_gaps": ["openspec_active_change_missing"],
+            "lifecycle": {"scope_binding": {}, "changes": []},
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {"changes": []},
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=paths,
+    )
+
+    assert resolution.verdict == "block"
+    assert resolution.required_gaps == ("openspec_active_change_missing",)
+
+
+def test_current_resolution_keeps_incomplete_official_change_blocked_outside_prewrite(
+    monkeypatch,
+) -> None:
+    change = "example"
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "change": change,
+            "official_cli": {"available": True},
+            "required_gaps": [f"openspec_status_incomplete:{change}"],
+            "lifecycle": {
+                "scope_binding": {},
+                "changes": [
+                    {
+                        "name": change,
+                        "artifacts": [
+                            {
+                                "id": "proposal",
+                                "outputPath": "proposal.md",
+                                "status": "ready",
+                                "requires": [],
+                            }
+                        ],
+                    }
+                ],
+            },
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {
+                        "changes": [
+                            {
+                                "name": change,
+                                "completedTasks": 0,
+                                "totalTasks": 1,
+                                "status": "in-progress",
+                            }
+                        ]
+                    },
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+    )
+
+    assert resolution.verdict == "block"
+    assert resolution.commitment is None
+    assert resolution.required_gaps == (f"openspec_status_incomplete:{change}",)
+    assert resolution.next_action == (f"openspec instructions proposal --change {change} --json")
+
+
+def test_current_resolution_does_not_bootstrap_completed_invalid_commitment(monkeypatch) -> None:
+    change = "example"
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "change": change,
+            "official_cli": {"available": True},
+            "required_gaps": [f"commitment_invalid:{change}"],
+            "lifecycle": {
+                "scope_binding": {},
+                "changes": [
+                    {
+                        "name": change,
+                        "artifacts": [
+                            {
+                                "id": "proposal",
+                                "outputPath": "proposal.md",
+                                "status": "done",
+                                "requires": [],
+                            }
+                        ],
+                    }
+                ],
+            },
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {
+                        "changes": [
+                            {
+                                "name": change,
+                                "completedTasks": 1,
+                                "totalTasks": 1,
+                                "status": "complete",
+                            }
+                        ]
+                    },
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=(f"openspec/changes/{change}/proposal.md",),
+    )
+
+    assert resolution.verdict == "block"
+    assert resolution.required_gaps == (f"commitment_invalid:{change}",)

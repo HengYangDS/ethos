@@ -202,6 +202,73 @@ def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
     assert report["material_scope"]["state"] == "attributed"
 
 
+def test_prewrite_passes_exact_requested_paths_to_current_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _bind_common(monkeypatch, tmp_path)
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="matched",
+        branch="work/example",
+        actor="agent:test:case:owner",
+        lease={
+            "lane_ref": "work/example",
+            "holder_ref": "agent:test:case:owner",
+            "generation": 1,
+            "expires_at": "2099-01-01T00:00:00+00:00",
+        },
+        current_head="a" * 40,
+        current_tree="b" * 40,
+    )
+    monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
+    monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
+    observed: list[tuple[str, ...]] = []
+
+    def resolve(*_args, **kwargs):
+        requested = tuple(kwargs["prewrite_paths"])
+        observed.append(requested)
+        return CurrentResolution(
+            verdict="pass",
+            authority=authority,
+            commitment=None,
+            scope=CurrentScope(
+                paths=requested,
+                material_scope={
+                    "verdict": "pass",
+                    "state": "official_change_bootstrap",
+                    "changed_paths": list(requested),
+                    "material_patterns": [],
+                    "material_paths": list(requested),
+                    "changes": [{"name": "example"}],
+                    "covered_paths": [
+                        {"path": candidate, "changes": ["example"]} for candidate in requested
+                    ],
+                    "uncovered_paths": [],
+                    "required_gaps": [],
+                    "advisory_gaps": [],
+                },
+            ),
+            next_action="openspec instructions proposal --change example --json",
+        )
+
+    monkeypatch.setattr(prewrite, "resolve_current_resolution", resolve)
+    paths = (
+        "openspec/changes/example/.openspec.yaml",
+        "openspec/changes/example/proposal.md",
+    )
+
+    report = prewrite.prewrite_guard(
+        root=tmp_path,
+        paths=[tmp_path / path for path in paths],
+        editor_root=tmp_path,
+    )
+
+    assert report["verdict"] == "pass"
+    assert observed == [paths]
+    assert report["material_scope"]["state"] == "official_change_bootstrap"
+
+
 def test_prewrite_reuses_exact_archive_generation_binding(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

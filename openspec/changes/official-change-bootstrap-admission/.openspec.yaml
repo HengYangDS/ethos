@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-30
+goal: Admit only the official OpenSpec artifacts required to bootstrap one bounded
+  Change in an owned Work Lane before its transient Commitment can exist.

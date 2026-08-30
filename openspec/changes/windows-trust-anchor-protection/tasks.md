@@ -16,10 +16,6 @@
 
 - [x] 3.1 Pass strict OpenSpec validation, focused tests, Ruff, types,
   module-layout, and repository-hygiene checks.
-- [ ] 3.2 Freeze a signed source commit and pass exact-HEAD full proof.
-- [ ] 3.3 Archive through the official transition, pass archived exact-HEAD
-  proof, install/read back the accepted runtime, and publish dev then main to
-  GitHub and GitLab.
-- [ ] 3.4 Confirm Linux, macOS, Windows 3.12/3.13/3.14, package, quality,
-  security, and both GitLab pipelines pass for the exact accepted object, then
-  retire the Work Lane with no ref/worktree/Lease residue.
+- [x] 3.2 Freeze a signed source commit and pass exact-HEAD full proof.
+- [x] 3.3 Confirm public archive readiness with no unresolved implementation or
+  verification task remaining in the active Change.

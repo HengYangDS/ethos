@@ -51,15 +51,16 @@ the Python package workspace.
 
 ### Requirement: Exact Node Runtime Compatibility Policy
 
-ETHOS SHALL keep exact npm-launcher compatibility releases in one repository
-policy and SHALL execute hosted compatibility acceptance through one reusable
-runner rather than provider-inline npm command bodies.
+ETHOS SHALL keep exact current LTS and current npm-launcher compatibility
+releases in one repository policy and SHALL execute hosted compatibility
+acceptance through one reusable runner rather than provider-inline npm command
+bodies.
 
 #### Scenario: Hosted npm compatibility is executed for an exact release
 
 - **WHEN** a hosted npm compatibility job runs
-- **THEN** `.config/checks/node/runtime.toml` declares Node 24.18.0 and Node
-  26.5.0 as the exact compatibility set
+- **THEN** `.config/checks/node/runtime.toml` declares Node 24.20.0 and Node
+  26.8.1 as the exact compatibility set
 - **AND** the provider selects one declared release through `NODE_VERSION`
 - **AND** the installer verifies the selected official archive against a
   policy-pinned SHA-256 value before extraction
@@ -69,7 +70,7 @@ runner rather than provider-inline npm command bodies.
   `npm ci --ignore-scripts`, `npm run ethos -- --version`, and
   `npm run test:npm` in that order
 - **AND** hosted provider YAML invokes the reusable owner instead of restating
-  the acceptance command body
+  the acceptance command body.
 
 ### Requirement: Reviewed Node Default Promotion
 
@@ -78,15 +79,21 @@ promotion and SHALL require a reviewed change for any default transition.
 
 #### Scenario: Compatibility expands without promoting packaging
 
-- **WHEN** Node 26.5.0 is added to hosted compatibility verification
-- **THEN** Node 24.18.0 remains the runtime policy default
-- **AND** the npm packaging job continues to use the Node 24.18.0 installer
-  default
-- **AND** Node 26.5.0 is recorded only as the next default candidate
-- **AND** 2026-10-28 is an earliest review trigger, not an automatic transition
+- **WHEN** a Node release is added only to hosted compatibility verification
+- **THEN** the existing runtime policy and npm packaging default remain
+  unchanged
 - **AND** promotion requires current release-status verification, successful
   hosted compatibility results, package evidence, and a separate reviewed
-  repository change
+  repository change.
+
+#### Scenario: Current stable release becomes the packaging default
+
+- **WHEN** Node 26.8.1 has current upstream release evidence and passes the
+  declared hosted compatibility acceptance
+- **THEN** Node 26.8.1 becomes the runtime policy and npm packaging default
+- **AND** Node 24.20.0 remains the exact LTS compatibility release
+- **AND** future default changes still require current release-status
+  verification, package evidence, and a separate reviewed repository change.
 
 ### Requirement: Node Runtime Authority Boundary
 
@@ -250,13 +257,22 @@ consumed declared `force_include` inputs.
 - **THEN** it creates no OpenSpec supply directory.
 
 ### Requirement: Product version has one repository authority
-ETHOS SHALL keep one tracked SemVer product-version value and SHALL derive every
-publishable distribution version and manifest projection from that value.
+ETHOS SHALL keep one tracked SemVer product-version value, SHALL advance that
+value whenever accepted product semantics advance incompatibly with the prior
+prerelease identity, and SHALL derive every publishable distribution version
+and manifest projection from that value.
 
 #### Scenario: Repository manifests are inspected
 - **WHEN** Python, root workspace, and launcher package metadata are compared
 - **THEN** they resolve to the one product-version authority
 - **AND** no manifest retains an independently editable product-version literal.
+
+#### Scenario: Accepted prerelease semantics advance
+- **WHEN** a newly accepted runtime contains product semantics not represented
+  by the previously accepted prerelease
+- **THEN** the repository product version advances to a greater SemVer value
+- **AND** exact source and artifact digests remain additional identities rather
+  than substitutes for that version.
 
 ### Requirement: Product, source, and artifact identities remain distinct
 ETHOS SHALL represent product version, distribution version, exact source

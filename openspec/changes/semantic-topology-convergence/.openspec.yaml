@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-08-31
+goal: Make module layout, documentation taxonomy, README usage, and semantic
+  projections reflect one authoritative product model; preserve necessary Change
+  lineage, experiment, scope, and proof semantics in existing owners rather than
+  parallel carriers.

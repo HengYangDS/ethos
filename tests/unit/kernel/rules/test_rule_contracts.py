@@ -21,8 +21,8 @@ def test_rule_contract_schemas_validate_minimal_payloads() -> None:
     rule = {
         "id": "starter.docs",
         "owner": "ethos",
-        "authority_ref": "docs/start/quickstart.md",
-        "contract_ref": "docs/start/quickstart.md",
+        "authority_ref": "docs/guides/quickstart.md",
+        "contract_ref": "docs/guides/quickstart.md",
         "path_globs": ["docs/**"],
         "severity": "advisory",
         "required_gates": ["docs-registry"],

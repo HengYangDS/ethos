@@ -16,7 +16,7 @@ reference, and planning truth.
 See also: [Documentation Root](README.md) and
 [Command Plane](reference/command-plane.md).
 
-Start with [Quickstart](start/quickstart.md), then read the
+Start with [Quickstart](guides/quickstart.md), then read the
 [Command Plane](reference/command-plane.md),
 [Product Design Contract](governance/product-design-contract.md), and
 [Terminal Governance Product Design](plans/terminal-governance-product-design.md).
@@ -25,7 +25,7 @@ Start with [Quickstart](start/quickstart.md), then read the
 
 | Audience | Start here | Then run | Boundary |
 | --- | --- | --- | --- |
-| Human operator | [Quickstart](start/quickstart.md) | `ethos status --json` | Reader view first; mutation requires Work Lane admission. |
+| Human operator | [Quickstart](guides/quickstart.md) | `ethos status --json` | Reader view first; mutation requires Work Lane admission. |
 | Coding agent | [AGENTS.md](../AGENTS.md) and a matching [rule](../rules/README.md) | `ethos status --json` | Repository truth outranks host memory and generated projections. |
 | Maintainer | [Command Plane](reference/command-plane.md) | `ethos prove --full --json` | Executed proof supports a bounded Attestation verdict. |
 | Adopter | [Adoption Profiles](architecture/adoption-profiles.md) | `ethos adopt --root <repo> --json` | One binding selects repository facts and proof depth. |
@@ -33,7 +33,7 @@ Start with [Quickstart](start/quickstart.md), then read the
 ## Maps
 
 - [Documentation Root](README.md)
-- [Quickstart](start/quickstart.md)
+- [Quickstart](guides/quickstart.md)
 - [Command Plane](reference/command-plane.md)
 - [Product Design Contract](governance/product-design-contract.md)
 - [Terminal Governance Product Design](plans/terminal-governance-product-design.md)

@@ -6,6 +6,7 @@ from ethos.adapters.gates.tool import module_layout_gate_report
 from ethos.repository.policy.layout.facades import module_facade_findings
 from ethos.repository.policy.layout.naming import ambiguous_module_findings
 from ethos.repository.policy.layout.naming import multiple_command_owner_findings
+from ethos.repository.policy.layout.policy import empty_package_findings
 from ethos.repository.policy.layout.policy import package_python_files
 from ethos.repository.policy.layout.policy import semantic_python_files
 
@@ -27,6 +28,25 @@ def test_module_facade_with_all_is_still_blocked(tmp_path) -> None:
     assert module_facade_findings(tmp_path, {"semantic_paths": ["."]})[0]["reasons"] == [
         "import_only"
     ]
+
+
+def test_empty_package_shell_without_consumers_is_blocked(tmp_path) -> None:
+    _write(tmp_path, "src/ethos/empty/__init__.py", '"""Marker only."""\n')
+
+    assert empty_package_findings(tmp_path, {"semantic_paths": ["."]}) == [
+        {
+            "gap": "module_layout_empty_package:src/ethos/empty",
+            "path": "src/ethos/empty",
+            "module": "ethos.empty",
+        }
+    ]
+
+
+def test_empty_package_with_a_public_import_boundary_is_retained(tmp_path) -> None:
+    _write(tmp_path, "src/ethos/empty/__init__.py", '"""Public namespace."""\n')
+    _write(tmp_path, "src/ethos/consumer.py", "import ethos.empty\n")
+
+    assert empty_package_findings(tmp_path, {"semantic_paths": ["."]}) == []
 
 
 def test_ambiguous_module_name_is_always_blocked(tmp_path) -> None:

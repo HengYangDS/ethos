@@ -15,7 +15,7 @@ Purpose: define the source of product judgment before reader-facing summaries,
 derived views, or attested evidence.
 
 See also: [Product Design Contract](product-design-contract.md), [Command Plane](../reference/command-plane.md),
-and [Quickstart](../start/quickstart.md).
+and [Quickstart](../guides/quickstart.md).
 
 ETHOS product judgment starts from current user instruction, repository truth,
 the exact official OpenSpec projection, fresh Facts, applicable policy, and

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 from pathlib import Path
 
+from ethos.contracts.semantic import Commitment
 from ethos.repository.design.integrity import design_integrity_report
+from ethos.repository.registry.docs.registry import build_docs_registry
 
 ROOT = Path(__file__).resolve().parents[2]
 DESIGN_DOCUMENTS = (
@@ -65,3 +68,52 @@ def test_current_change_uses_only_the_official_openspec_artifact_shape() -> None
             and not (artifact.startswith("specs/") and artifact.endswith(".md"))
         }
         assert not unsupported
+
+
+def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> None:
+    """Topology convergence does not recreate or widen semantic carriers.
+
+    The archived lineage Change is evidence of historical design, not a current
+    runtime owner.  The current kernel and official OpenSpec tree remain the
+    only sources available to current planning.
+    """
+    assert tuple(Commitment.model_fields) == ("schema_version", "id", "acceptance")
+
+    lineage_spec = ROOT / "openspec/changes/archive/2026-08-22-change-lineage-dag"
+    assert (lineage_spec / "specs/contracts/spec.md").is_file()
+    assert (lineage_spec / "specs/repository-governance/spec.md").is_file()
+
+    tracked = subprocess.check_output(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT,
+        text=True,
+    ).splitlines()
+    assert not any(
+        path.startswith("src/ethos/adapters/openspec/change_lineage/") for path in tracked
+    )
+    assert not any(path.startswith("src/ethos/contracts/change_lineage/") for path in tracked)
+    assert not any(
+        path.endswith("commitment.toml")
+        for path in tracked
+        if path.startswith("openspec/changes/semantic-topology-convergence/")
+    )
+
+    active_paths = {
+        path.relative_to(ROOT / "openspec/changes/semantic-topology-convergence").as_posix()
+        for path in (ROOT / "openspec/changes/semantic-topology-convergence").rglob("*")
+        if path.is_file()
+    }
+    assert active_paths <= {
+        ".openspec.yaml",
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+    } | {path for path in active_paths if path.startswith("specs/") and path.endswith(".md")}
+
+    registry = build_docs_registry(ROOT)
+    assert not any(entry["path"].startswith("openspec/changes/archive/") for entry in registry)
+    assert not any(
+        path.startswith("src/ethos/")
+        and any(token in path for token in ("lineage", "hypothesis", "experiment"))
+        for path in tracked
+    )

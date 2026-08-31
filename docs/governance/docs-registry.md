@@ -36,11 +36,20 @@ Archive material may preserve old vocabulary. Canonical docs must lead with the
 single `ethos ...` command plane.
 
 Superseded documents live only as explicit `docs/history/` carriers. Current
-architecture, governance, reference, start, and plan surfaces must not retain
+architecture, governance, reference, guides, and plan surfaces must not retain
 redirect or locator pages for retired concepts; they link directly to the
 historical carrier when historical context is necessary. Retirement removes
 only the redundant current-surface carrier, never immutable OpenSpec archives
 or historical evidence bytes.
+
+## Directory entrypoint rule
+
+`README.md` is retained only when it is the actual index, navigation entrypoint,
+or semantic boundary for its directory. A directory with one substantive child
+does not receive a README merely because the directory exists; an empty
+directory and a marker-only README are removed. If a README contains the only
+unique navigation or boundary meaning, absorb that meaning into the owning
+document before deleting it.
 
 ## Portability Boundary
 

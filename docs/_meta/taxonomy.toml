@@ -39,4 +39,4 @@ allowed = [
 "docs/concepts" = ["explanation", "index"]
 "docs/plans" = ["plan", "findings", "progress", "index"]
 "docs/research" = ["research", "plan", "index"]
-"docs/start" = ["how-to", "index"]
+"docs/guides" = ["how-to", "index"]

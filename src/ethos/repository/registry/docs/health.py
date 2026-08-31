@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import shlex
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.contracts.verdict import close_verdict
@@ -18,7 +19,6 @@ from ethos.repository.registry.docs.registry import docs_root
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
@@ -66,6 +66,7 @@ def docs_health_report(
         command_example_gaps(root, registry, command_validator) if command_validator else []
     )
     unindexed_plans = plan_index_gaps(root, registry)
+    readme_disposition = readme_disposition_gaps(root, registry)
     required_gaps = (
         missing
         + invalid_state
@@ -74,6 +75,7 @@ def docs_health_report(
         + visible_section_gaps
         + invalid_command_examples
         + unindexed_plans
+        + readme_disposition
     )
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
@@ -85,6 +87,7 @@ def docs_health_report(
         "missing_visible_sections": visible_section_gaps,
         "invalid_command_examples": invalid_command_examples,
         "unindexed_plans": unindexed_plans,
+        "readme_disposition": readme_disposition,
         "required_gaps": required_gaps,
         "registry": registry,
     }
@@ -102,6 +105,7 @@ def empty_docs_health_report(gap: str) -> dict[str, object]:
         "missing_visible_sections": [],
         "invalid_command_examples": [],
         "unindexed_plans": [],
+        "readme_disposition": [],
         "required_gaps": [gap],
         "registry": [],
     }
@@ -129,6 +133,25 @@ def plan_index_gaps(root: Path, registry: list[dict[str, str]]) -> list[str]:
         and entry["state"] in {"active", "planned"}
         and (root / entry["path"]).resolve() not in indexed
     ]
+
+
+def readme_disposition_gaps(root: Path, registry: list[dict[str, str]]) -> list[str]:
+    """Reject README files that only mark a directory with no meaningful children."""
+    by_parent: dict[Path, list[dict[str, str]]] = {}
+    for entry in registry:
+        path = root / entry["path"]
+        by_parent.setdefault(path.parent, []).append(entry)
+    gaps: list[str] = []
+    for entry in registry:
+        if Path(entry["path"]).name != "README.md":
+            continue
+        path = root / entry["path"]
+        children = [
+            child for child in by_parent.get(path.parent, []) if child["path"] != entry["path"]
+        ]
+        if not children and "canonical_for:" not in entry["relations"]:
+            gaps.append(f"docs_readme_without_children:{entry['path']}")
+    return gaps
 
 
 def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, str]]) -> list[str]:

@@ -12,9 +12,8 @@ to distinguish an invalid API call from a host-policy denial was lost.
 
 - Preserve the exact bounded Windows process result at the existing adapter
   boundary.
-- Correct the one native ACL operation from observed Hosted evidence.
-- Keep observation and establishment aligned on the same owner and DACL
-  invariant.
+- Make a proved diagnostic object observable through the existing Hosted
+  proposal projection.
 
 **Non-Goals:**
 
@@ -26,26 +25,25 @@ to distinguish an invalid API call from a host-policy denial was lost.
 
 The existing `trust_anchor` subpackage remains the only owner. A failed native
 operation raises one stable ETHOS code together with the child exit code and
-captured stderr. A `proposal/*` Hosted run supplies the missing Windows fact;
-the final implementation then changes only the native ACL program and its
-focused regression.
+captured stderr. A `proposal/*` Hosted run supplies the missing Windows fact to
+a separate repair successor; this diagnostic Change does not guess at or modify
+the ACL program.
 
 The Windows program continues to use the host security descriptor as authority.
-The final DACL must keep the current identity, Local System, and built-in
-Administrators as the only write-capable principals. Producer and verifier use
-the same product functions.
+Producer and verifier continue to use the same product functions.
 
 ## Risks / Trade-offs
 
-- **Hosted evidence requires one intermediate proposal projection.** This is a
-  deliberate diagnostic transition, not a second product implementation.
+- **Hosted evidence requires a proposal projection.** This is the normal
+  governed review projection of a proved candidate object, not a second product
+  implementation or an authoring lane.
 - **Native stderr can contain presentation noise.** The adapter retains a bounded
   single-line diagnostic sufficient to identify the failed Windows operation;
   it does not create persistent diagnostic state.
 
 ## Migration Plan
 
-Publish the diagnostic commit to an exact `proposal/*` ref, observe the Hosted
-Windows failure, apply the smallest native correction in this same Change, then
-prove, archive, accept, publish, and retire the lane. The old failed accepted
-object remains immutable history and is superseded by the corrected object.
+Prove and archive the diagnostic commit, land it to the local candidate, and
+publish that exact object to `proposal/*`. The resulting Hosted Windows stderr
+is the input to a separate bounded repair Change. The accepted failed object
+remains immutable history until that successor is proved and promoted.

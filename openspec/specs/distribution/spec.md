@@ -337,9 +337,10 @@ transition and SHALL reject rollback, source reuse, or artifact disagreement.
 ### Requirement: Hosted package construction uses platform-native locked inputs
 
 ETHOS SHALL bootstrap hosted prerequisites from the observed operating system
-and SHALL resolve wheel-build Node/npm inputs from the installed locked package
-layout through one validated owner. It SHALL NOT infer a Debian host from a
-missing Linux utility or reconstruct package paths independently at each caller.
+and SHALL resolve `nodejs-wheel` Node/npm inputs through one product-owned,
+validated resolver used by every source-build, package-only runtime, OpenSpec,
+and delivery consumer. It SHALL NOT infer a Debian host from a missing Linux
+utility or reconstruct package paths independently at each caller.
 
 #### Scenario: Darwin bootstrap does not enter Debian installation
 
@@ -360,18 +361,19 @@ missing Linux utility or reconstruct package paths independently at each caller.
 #### Scenario: Windows wheel build resolves the installed Node layout
 
 - **GIVEN** `nodejs-wheel-binaries` is installed from the repository lock on Windows
-- **WHEN** the delivery pipeline binds build inputs
+- **WHEN** runtime materialization, OpenSpec, or delivery binds Node inputs
 - **THEN** Node resolves to the package-root `node.exe`
-- **AND** npm resolves to the package-local `npm-cli.js`
-- **AND** both coordinates are validated before Hatch build isolation starts.
+- **AND** npm resolves to the package-local `npm-cli.js` when npm is required
+- **AND** the coordinates are validated before their consumer executes.
 
 #### Scenario: POSIX wheel build resolves the installed Node layout
 
 - **GIVEN** `nodejs-wheel-binaries` is installed from the repository lock on a
   supported POSIX host
-- **WHEN** the delivery pipeline binds build inputs
+- **WHEN** runtime materialization, OpenSpec, or delivery binds Node inputs
 - **THEN** Node resolves to the package-local `bin/node`
-- **AND** the same validated npm CLI coordinate is used by every build consumer.
+- **AND** npm resolves to the package-local `npm-cli.js` when npm is required
+- **AND** callers do not reconstruct either coordinate.
 
 ### Requirement: Content-addressed package publication is host portable
 

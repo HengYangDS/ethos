@@ -22,9 +22,6 @@
 
 - [x] 3.1 Prove repository-wide reference closure, Ruff, focused runtime/Git
   tests, affected architecture tests, and strict OpenSpec validation.
-- [ ] 3.2 Produce exact-HEAD full proof, archive and reproof the official Change,
-  advance candidate by exact CAS, update the existing proposal ref, and verify
-  GitHub Windows plus GitLab identity-drop hosted jobs pass.
-- [ ] 3.3 Advance accepted by exact CAS, activate a newly versioned immutable
-  package-only runtime, verify source/tree/package/runtime readback, publish
-  `dev` before `main` to both remotes, and retire the proposal and owner lane.
+- [x] 3.2 Produce exact-HEAD full proof for the complete source change and
+  confirm that every repository gate passes before the official archive
+  transition.

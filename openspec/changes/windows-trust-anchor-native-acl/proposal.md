@@ -10,10 +10,9 @@ the trust boundary.
 
 - Preserve the exact bounded native failure reason when Windows trust-anchor
   protection cannot be established.
-- Use that Hosted evidence to correct the existing Windows ACL operation at its
-  sole adapter boundary.
-- Prove both successful establishment and rejection of foreign write authority
-  on real Hosted Windows.
+- Publish the proved diagnostic object to the existing `proposal/*` Hosted
+  projection so the native failure can be observed without guessing or
+  weakening the trust boundary.
 
 ## Capabilities
 
@@ -29,5 +28,7 @@ None.
 ## Impact
 
 The change is limited to the existing trust-anchor adapter, its focused tests,
-the package-conformance fixture, and this official Change. It adds no dependency,
-parallel permission model, compatibility path, or persistent state.
+and this official Change. It adds no dependency, parallel permission model,
+compatibility path, or persistent state. Correcting the observed Windows ACL
+failure is a separate successor whose design must be derived from the captured
+native evidence.

@@ -10,11 +10,11 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-import nodejs_wheel
 import yaml
 
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_command
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
@@ -60,10 +60,11 @@ OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"
 
 def _packaged_node() -> str | None:
     """Resolve the platform Node payload installed with the Python distribution."""
-    package = resources.files(nodejs_wheel)
-    relative = ("node.exe",) if os.name == "nt" else ("bin", "node")
-    executable = Path(str(package.joinpath(*relative)))
-    return executable.as_posix() if executable.is_file() else None
+    try:
+        executable, _npm_cli = resolve_node_runtime()
+    except ValueError:
+        return None
+    return executable.as_posix()
 
 
 _SOURCE_NODE = _packaged_node()

@@ -9,7 +9,6 @@ import ethos.repository.audit as repository_audit_module
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.observation import openspec_shape_report
 from ethos.adapters.repo.git import git_files
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.context import repository_context
 from ethos.repository.profile import profile_gate_registry
@@ -22,16 +21,10 @@ def audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, obj
     """Dispatch from the profile's declared audit capability."""
     if profile_gate_registry(root):
         reporter = openspec_governance_report if openspec_mode == "deep" else None
-        write_admission_gaps = (
-            [str(gap) for gap in hook_runtime_binding(root)["required_gaps"]]
-            if (root / ".ethos/profile.toml").is_file()
-            else []
-        )
         return repository_audit_module.repository_audit(
             root,
             openspec_mode=openspec_mode,
             openspec_reporter=reporter,
-            write_admission_gaps=write_admission_gaps,
             tracked_documents=tuple(git_files(root, "*.md")),
             openspec_shape=openspec_shape_report(root),
         )

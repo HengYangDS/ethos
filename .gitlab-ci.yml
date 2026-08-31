@@ -211,12 +211,9 @@ ethos:verify:
     ETHOS_TEST_RUN_AS_GID: "65534"
   script:
     - source tools/ci/scripts/bootstrap-python.sh
-    # Make the runner checkout a real governed ETHOS working copy: wire the git
-    # identity and signing from .ethos/workspace.toml [commit_policy] and arm
-    # write-admission, so the dogfood signature/audit/prove gates and tests see the
-    # same setup a developer's checkout has.
+    # Configure the Git identity and signing used by source-level commit-policy tests.
+    # Repository proof does not activate Git-common mutation hooks or runtimes.
     - tools/ci/scripts/configure-git-checkout.sh
-    - tools/ci/scripts/with-python-runtime.sh -- uv run ethos hook install --json
     - node_modules/.bin/openspec --version
     - uv run --frozen --offline python -m nox -s tests
     - openspec validate --all --strict --json

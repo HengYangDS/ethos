@@ -102,6 +102,30 @@ def test_run_git_distinguishes_an_invalid_working_directory(
     assert getattr(error.value, "reason", "") == "working_directory_unavailable"
 
 
+def test_run_git_preserves_explicit_commit_identity_without_overriding_local_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(repo, "config", "user.name", "Canonical User")
+    git(repo, "config", "user.email", "canonical@example.invalid")
+    for role in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{role}_NAME", "Hosted Actor")
+        monkeypatch.setenv(f"GIT_{role}_EMAIL", "hosted@example.invalid")
+
+    (repo / "identity.txt").write_text("identity\n", encoding="utf-8")
+    run_git(repo, "add", "identity.txt")
+    run_git(repo, "commit", "-m", "test: preserve explicit identity")
+
+    assert run_git(repo, "config", "user.name").stdout.strip() == "Canonical User"
+    assert run_git(repo, "config", "user.email").stdout.strip() == "canonical@example.invalid"
+    assert run_git(repo, "show", "-s", "--format=%an <%ae>").stdout.strip() == (
+        "Hosted Actor <hosted@example.invalid>"
+    )
+    assert run_git(repo, "show", "-s", "--format=%cn <%ce>").stdout.strip() == (
+        "Hosted Actor <hosted@example.invalid>"
+    )
+
+
 @pytest.mark.parametrize(
     ("explicit", "expected_tail"),
     [
@@ -128,14 +152,8 @@ def test_run_git_preserves_one_complete_inherited_indexed_config_overlay(
         if key == "GIT_CONFIG_COUNT" or key.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")):
             monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("GIT_DIR", "/untrusted/repository")
-    monkeypatch.setenv("GIT_CONFIG_COUNT", "3")
-    for index, (key, value) in enumerate(
-        (
-            ("safe.directory", repo.as_posix()),
-            ("user.name", "Hosted Test"),
-            ("user.email", "hosted@example.invalid"),
-        )
-    ):
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    for index, (key, value) in enumerate((("safe.directory", repo.as_posix()),)):
         monkeypatch.setenv(f"GIT_CONFIG_KEY_{index}", key)
         monkeypatch.setenv(f"GIT_CONFIG_VALUE_{index}", value)
     monkeypatch.setattr(
@@ -152,14 +170,12 @@ def test_run_git_preserves_one_complete_inherited_indexed_config_overlay(
     environment = observed["env"]
     assert "GIT_DIR" not in environment
     assert environment["GIT_TERMINAL_PROMPT"] == "0"
-    assert environment["GIT_CONFIG_COUNT"] == str(3 + len(expected_tail))
+    assert environment["GIT_CONFIG_COUNT"] == str(1 + len(expected_tail))
     assert tuple(
         (environment[f"GIT_CONFIG_KEY_{index}"], environment[f"GIT_CONFIG_VALUE_{index}"])
-        for index in range(3 + len(expected_tail))
+        for index in range(1 + len(expected_tail))
     ) == (
         ("safe.directory", repo.as_posix()),
-        ("user.name", "Hosted Test"),
-        ("user.email", "hosted@example.invalid"),
         *expected_tail,
     )
     if "GIT_INDEX_FILE" in explicit:

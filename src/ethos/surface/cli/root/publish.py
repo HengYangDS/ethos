@@ -23,6 +23,7 @@ from ethos.adapters.mutation.remote_publication import load_remote_publication_r
 from ethos.adapters.mutation.remote_publication import observe_remote_publication_effect
 from ethos.adapters.mutation.remote_publication import persist_remote_publication_request
 from ethos.adapters.openspec.profile import protected_branch_active_change_required_gaps
+from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -156,7 +157,7 @@ def _publication_admission_gaps(
             pushed_head=current_head,
             remote_head=str(
                 _remote_ref_observation(observations, peer_id, target_ref).get(
-                    "object_oid", git.zero_oid(repo)
+                    "object_oid", zero_oid(repo)
                 )
             ),
             remote_name=remote,

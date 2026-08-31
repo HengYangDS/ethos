@@ -32,9 +32,7 @@ set_hypothesis_home_dir(
 
 @pytest.fixture(autouse=True)
 def _hermetic_git_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Bind a deterministic git identity so `git commit` in test repos never depends
-    on ambient global config (absent in CI). Covers both the author/committer used by
-    plumbing and the config-derived identity read by signature policy checks."""
+    """Bind deterministic commit identity without overriding repository policy."""
     git_template = tmp_path / "empty-git-template"
     git_template.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("GIT_AUTHOR_NAME", "ETHOS Test")
@@ -54,8 +52,6 @@ def _hermetic_git_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
         for key, value in (
             ("init.templateDir", git_template.as_posix()),
             ("core.fsmonitor", "false"),
-            ("user.name", "ETHOS Test"),
-            ("user.email", "test@example.invalid"),
         )
         if key not in declared
     )

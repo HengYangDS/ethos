@@ -14,6 +14,7 @@ from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.publication.attestation import terminal_publication_result
 from ethos.adapters.repo.git_object import GitObjectKind
 from ethos.adapters.repo.git_object import observe_git_object
+from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
@@ -31,7 +32,7 @@ from ethos.repository.release.publication import publication_source_version_gaps
 
 
 def _observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
-    zero = git.zero_oid(root)
+    zero = zero_oid(root)
     peeled_ref = f"{ref}^{{}}" if ref.startswith("refs/tags/") else ""
     completed = git.run_network_git(
         root,
@@ -204,7 +205,7 @@ def observe_remote_publication_effect(
             },
         }
     )
-    zero = git.zero_oid(root)
+    zero = zero_oid(root)
     observations: dict[str, dict[str, object]] = {}
     targets: list[PublicationTarget] = []
     gaps: list[str] = []

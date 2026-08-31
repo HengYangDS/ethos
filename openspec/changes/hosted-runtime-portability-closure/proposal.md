@@ -18,8 +18,9 @@ candidate can become accepted.
   constructing an immutable package-only Python runtime on every supported
   host, including Windows.
 - Let repository Git observations retain only the explicitly supplied exact
-  repository trust and deterministic commit identity while continuing to hide
-  ambient global and system Git configuration.
+  repository trust and explicit author/committer identity while continuing to
+  hide ambient global and system Git configuration and preserve repository-local
+  identity policy.
 - Add focused regressions for Windows package metadata/script discovery and
   Linux owner-different execution, then re-run both Hosted proof planes.
 - Do not add platform fallbacks, per-test Git configuration, alternate runtime
@@ -36,8 +37,8 @@ None.
 - `distribution`: package-only immutable runtime materialization must preserve
   the installed ETHOS console entrypoint across supported hosts.
 - `proof-hosts`: hosted execution under a reduced process identity must retain
-  the exact repository trust and deterministic Git identity declared by the
-  proof runner.
+  the exact repository trust and explicit commit identity declared by the
+  proof runner without overriding repository-local identity policy.
 
 ## Impact
 

@@ -40,10 +40,12 @@ distribution owns the entrypoint.
 ### Pass explicit Git configuration through the Git owner
 
 The proof runner already constructs a bounded indexed overlay containing exact
-repository trust and deterministic fixture settings. `run_git` will preserve
-that declared overlay when no call-specific replacement is supplied, while
-still removing ambient repository/ref/index overrides and forcing empty global
-and system configuration.
+repository trust and deterministic fixture settings, while the test process
+declares author/committer identity through Git's native environment. `run_git`
+will preserve those exact inputs, but will not project `user.name` or
+`user.email` over repository-local identity policy. It still removes ambient
+repository/ref/index overrides and forces empty global and system
+configuration.
 
 Alternative rejected: configure every failing test or change checkout
 ownership. Both bypass the shared execution boundary and make hosted behavior

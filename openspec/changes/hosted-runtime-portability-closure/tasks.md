@@ -5,9 +5,9 @@
   entrypoint; verify the focused test fails with
   `hook_runtime_entrypoint_missing` before the repair.
 - [x] 1.2 Add an identity-drop regression proving the shared Git boundary keeps
-  the runner's exact `safe.directory` and deterministic identity overlay while
-  hiding ambient Git configuration; verify the focused test fails with dubious
-  ownership before the repair.
+  the runner's exact `safe.directory` and explicit author/committer identity
+  while preserving repository-local identity policy and hiding ambient Git
+  configuration; verify the focused test fails before the repair.
 
 ## 2. Repair the unique owners
 

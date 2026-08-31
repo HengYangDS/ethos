@@ -20,8 +20,12 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from datetime import datetime
 
-_GIT_CONFIG_SOURCE_ENV = ("GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM")
-_GIT_CONFIG_INDEX_PREFIXES = ("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")
+_GIT_IDENTITY_ENV = (
+    "GIT_AUTHOR_NAME",
+    "GIT_AUTHOR_EMAIL",
+    "GIT_COMMITTER_NAME",
+    "GIT_COMMITTER_EMAIL",
+)
 GIT_EXECUTABLE_UNAVAILABLE = "git_executable_unavailable"
 GIT_PROCESS_SPAWN_FAILED = "git_process_spawn_failed"
 
@@ -35,47 +39,34 @@ class GitExecutionError(ValueError):
         self.reason = reason
 
 
-def _inherited_git_config_overlay(environment: Mapping[str, str]) -> dict[str, str]:
-    """Return one complete bounded indexed Git configuration overlay."""
+def _git_config_overlay(*environments: Mapping[str, str]) -> dict[str, str]:
+    """Validate and join explicit indexed Git configuration."""
     invalid = "git_config_overlay_invalid"
-    indexed = {
-        key: value
-        for key, value in environment.items()
-        if key == "GIT_CONFIG_COUNT" or key.startswith(_GIT_CONFIG_INDEX_PREFIXES)
-    }
-    if not indexed:
-        return {}
-    raw_count = indexed.get("GIT_CONFIG_COUNT")
-    if raw_count is None or not raw_count.isdecimal():
-        raise ValueError(invalid)
-    count = int(raw_count)
-    expected = {"GIT_CONFIG_COUNT"}
-    for index in range(count):
-        key_name = f"GIT_CONFIG_KEY_{index}"
-        value_name = f"GIT_CONFIG_VALUE_{index}"
-        expected.update((key_name, value_name))
-        key, value = indexed.get(key_name), indexed.get(value_name)
-        if not key or not value or (key == "safe.directory" and value == "*"):
+    entries: list[tuple[str, str]] = []
+    for environment in environments:
+        indexed = {
+            key
+            for key in environment
+            if key == "GIT_CONFIG_COUNT" or key.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))
+        }
+        if not indexed:
+            continue
+        count = environment.get("GIT_CONFIG_COUNT", "")
+        if not count.isdecimal():
             raise ValueError(invalid)
-    if set(indexed) != expected:
-        raise ValueError(invalid)
-    return indexed
-
-
-def _merge_git_config_overlays(
-    inherited: Mapping[str, str], supplied: Mapping[str, str]
-) -> dict[str, str]:
-    """Append one call-specific overlay to the runner-declared overlay."""
-    left = _inherited_git_config_overlay(inherited)
-    right = _inherited_git_config_overlay(supplied)
-    entries = []
-    for overlay in (left, right):
-        entries.extend(
-            ((overlay[f"GIT_CONFIG_KEY_{index}"], overlay[f"GIT_CONFIG_VALUE_{index}"]))
-            for index in range(int(overlay.get("GIT_CONFIG_COUNT", "0")))
-        )
-    if not entries:
-        return {}
+        expected = {"GIT_CONFIG_COUNT"} | {
+            f"GIT_CONFIG_{field}_{index}"
+            for index in range(int(count))
+            for field in ("KEY", "VALUE")
+        }
+        if indexed != expected:
+            raise ValueError(invalid)
+        for index in range(int(count)):
+            key = environment[f"GIT_CONFIG_KEY_{index}"]
+            value = environment[f"GIT_CONFIG_VALUE_{index}"]
+            if not key or not value or (key == "safe.directory" and value == "*"):
+                raise ValueError(invalid)
+            entries.append((key, value))
     merged = {"GIT_CONFIG_COUNT": str(len(entries))}
     for index, (key, value) in enumerate(entries):
         merged[f"GIT_CONFIG_KEY_{index}"] = key
@@ -137,14 +128,14 @@ def run_git(
     if observation and env:
         message = "git_observation_environment_override_forbidden"
         raise ValueError(message)
-    config_overlay = _merge_git_config_overlays(os.environ, env or {})
+    config_overlay = _git_config_overlay(os.environ, env or {})
     effective_env = (
         {"PATH": os.environ.get("PATH", os.defpath)}
         if observation
         else {
             key: value
             for key, value in os.environ.items()
-            if not key.startswith("GIT_")
+            if (not key.startswith("GIT_") or key in _GIT_IDENTITY_ENV)
             and not (key.startswith("ETHOS_") and key.endswith("_TRANSITION"))
         }
     )
@@ -280,23 +271,6 @@ def run_network_git(
     )
 
 
-def effective_git_config_value(root: Path, name: str) -> str:
-    """Read one effective Git config value without inheriting command overlays."""
-    effective_env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
-    effective_env.update(
-        {key: os.environ[key] for key in _GIT_CONFIG_SOURCE_ENV if key in os.environ}
-    )
-    effective_env.update({"LC_ALL": "C", "GIT_NO_REPLACE_OBJECTS": "1"})
-    completed = _execute(
-        root,
-        (git_executable(effective_env), "config", "--get", name),
-        text=True,
-        check=False,
-        env=effective_env,
-    )
-    return completed.stdout.strip() if completed.returncode == 0 else ""
-
-
 def repository_root(root: Path) -> Path:
     """Return the resolved Git worktree root for ``root``."""
     return Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
@@ -313,11 +287,6 @@ def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
 def current_branch(root: Path) -> str:
     """Return the current branch, or an empty string when HEAD is detached."""
     return git_stdout(root, "branch", "--show-current")
-
-
-def branch_ref_is_valid(root: Path, branch: str) -> bool:
-    """Return whether Git recognizes ``branch`` as a complete branch name."""
-    return git_stdout(root, "check-ref-format", "--branch", branch) == branch
 
 
 def current_head(root: Path) -> str:
@@ -359,23 +328,6 @@ def current_tree(
         env=environment,
     )
     return completed.stdout.strip() if completed.returncode == 0 else ""
-
-
-def object_format(root: Path) -> str:
-    """Return the repository object format reported by Git."""
-    completed = run_git(root, "rev-parse", "--show-object-format", check=False)
-    value = completed.stdout.strip() if completed.returncode == 0 else ""
-    return value if value in {"sha1", "sha256"} else ""
-
-
-def zero_oid(root: Path) -> str:
-    """Return the null object ID at the repository's native hash width."""
-    widths = {"sha1": 40, "sha256": 64}
-    width = widths.get(object_format(root))
-    if width is None:
-        message = "git_object_format_unavailable"
-        raise ValueError(message)
-    return "0" * width
 
 
 def git_stdout_checked(root: Path, *args: str) -> str:
@@ -498,16 +450,6 @@ def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> 
     return targets[0] if len(targets) == 1 else ""
 
 
-def exact_rename_source(root: Path, old_ref: str, new_ref: str, target: str) -> str:
-    """Return the sole source of one exact Git rename to ``target``."""
-    sources = tuple(
-        previous
-        for previous, current in _exact_rename_pairs(root, old_ref, new_ref)
-        if current == target
-    )
-    return sources[0] if len(sources) == 1 else ""
-
-
 def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dict[str, object]:
     """Project local HEAD versus the local remote-tracking ref without network IO."""
     branch_name = branch.strip()
@@ -576,11 +518,6 @@ def git_common_dir(root: Path) -> str:
     if not path.is_absolute():
         path = root / path
     return path.resolve().as_posix()
-
-
-def same_git_repository(left: Path, right: Path) -> bool:
-    """True when both paths resolve to the same underlying git repository."""
-    return bool(common := git_common_dir(left)) and common == git_common_dir(right)
 
 
 def git_files(root: Path, *patterns: str) -> list[str]:

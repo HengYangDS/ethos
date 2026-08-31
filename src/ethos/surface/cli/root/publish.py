@@ -23,7 +23,6 @@ from ethos.adapters.mutation.remote_publication import load_remote_publication_r
 from ethos.adapters.mutation.remote_publication import observe_remote_publication_effect
 from ethos.adapters.mutation.remote_publication import persist_remote_publication_request
 from ethos.adapters.openspec.profile import protected_branch_active_change_required_gaps
-from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -150,22 +149,20 @@ def _publication_admission_gaps(
     effect_gaps: tuple[str, ...],
     proof_admission: Mapping[str, object],
 ) -> tuple[tuple[str, ...], dict[str, dict[str, object]]]:
-    reports = {
-        f"{peer_id}:{target_ref}": push_admission_report(
-            root=repo,
-            target_ref=target_ref,
-            pushed_head=current_head,
-            remote_head=str(
-                _remote_ref_observation(observations, peer_id, target_ref).get(
-                    "object_oid", zero_oid(repo)
-                )
-            ),
-            remote_name=remote,
-            proof_admission=proof_admission,
-        )
-        for peer_id, remote in remotes.items()
-        for target_ref in target_refs
-    }
+    reports: dict[str, dict[str, object]] = {}
+    for peer_id, remote in remotes.items():
+        for target_ref in target_refs:
+            observation = _remote_ref_observation(observations, peer_id, target_ref)
+            if observation.get("state") == "unavailable":
+                continue
+            reports[f"{peer_id}:{target_ref}"] = push_admission_report(
+                root=repo,
+                target_ref=target_ref,
+                pushed_head=current_head,
+                remote_head=str(observation["object_oid"]),
+                remote_name=remote,
+                proof_admission=proof_admission,
+            )
     proof_gaps = set(string_sequence(proof_admission.get("required_gaps")))
     gaps = tuple(
         dict.fromkeys(
@@ -368,7 +365,17 @@ def _publish_projection(
     if effect is not None and effect.source.peeled_commit != current_head:
         gaps.append("remote_publication_receipt_head_mismatch")
     gaps = list(dict.fromkeys(gaps))
-    verdict: Verdict = "block" if gaps or local_verdict != "pass" else "pass"
+    unknown_gaps = tuple(
+        gap for gap in gaps if gap.startswith("publication_remote_observation_unavailable:")
+    )
+    blocking_gaps = tuple(gap for gap in gaps if gap not in unknown_gaps)
+    verdict: Verdict = (
+        "block"
+        if local_verdict == "block" or blocking_gaps
+        else "unknown"
+        if local_verdict == "unknown" or unknown_gaps
+        else "pass"
+    )
     execution: dict[str, object] = {"state": "not_applied", "required_gaps": []}
     if options.apply and verdict == "pass" and plan is not None:
         admitted = (
@@ -378,7 +385,7 @@ def _publish_projection(
         )
         execution = apply_remote_publication_effect(root=repo, plan=admitted)
         gaps = list(dict.fromkeys((*gaps, *string_sequence(execution.get("required_gaps")))))
-        verdict = "block" if gaps else "pass"
+        verdict = reduce_verdicts(verdict, report_verdict(execution))
     target_refs = (
         tuple(update.target_ref for update in effect.targets[0].updates)
         if effect is not None
@@ -387,8 +394,12 @@ def _publish_projection(
     state = (
         "published"
         if options.apply and verdict == "pass"
+        else str(execution.get("state") or "not_applied")
+        if options.apply and execution.get("state") != "not_applied"
         else "ready_to_publish"
         if verdict == "pass"
+        else "observation_unknown"
+        if verdict == "unknown"
         else "blocked"
     )
     proof_next_action = str(proof_admission.get("next_action") or "")
@@ -399,7 +410,19 @@ def _publish_projection(
         else ""
         if options.apply and verdict == "pass"
         else proof_next_action
-        or "ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json"
+        or " ".join(
+            (
+                "ethos",
+                "publish",
+                *(item for target_ref in target_refs for item in ("--ref", target_ref)),
+                "--probe-remote",
+                "--expect-head",
+                current_head,
+                "--root",
+                repo.resolve().as_posix(),
+                "--json",
+            )
+        )
     )
     effect_digest = effect.digest() if effect is not None else ""
     plan_digest = plan.digest if plan is not None else ""
@@ -439,7 +462,13 @@ def _publish_projection(
                 "mode": "publication_receipt_apply" if replay else "publication",
                 "target_refs": target_refs,
                 "source_head": current_head,
-                "remote_push": "applied" if state == "published" else "not_performed",
+                "remote_push": (
+                    "applied"
+                    if state == "published"
+                    else "outcome_unknown"
+                    if state == "outcome_unknown"
+                    else "not_performed"
+                ),
                 "declared_peer_count": len(effect.targets) if effect is not None else len(remotes),
                 "cross_provider_atomicity_claimed": False,
             },

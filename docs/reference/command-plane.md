@@ -15,7 +15,7 @@ boundaries.
 
 Canonical owner: [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
 
-See also: [Quickstart](../start/quickstart.md),
+See also: [Quickstart](../guides/quickstart.md),
 [Product Design Contract](../governance/product-design-contract.md#semantic-kernel), and
 [OpenSpec Governance](../governance/openspec-governance.md).
 

@@ -59,6 +59,27 @@ Splitting to game ELOC, moving the same mixture under several files, or retainin
 the old path as a facade is not remediation. "As few entities as necessary"
 means few semantic entities, not few files.
 
+### 1.2 Package shape decisions
+
+Use this order for a package that appears physically redundant:
+
+1. **Delete** a leaf package containing only a declaration-only `__init__.py`
+   when repository-wide observation finds no public import, resource,
+   registration, or namespace boundary.
+2. **Collapse** a package containing one implementation module only when the
+   package contributes no independent public namespace, resource,
+   registration, lifecycle, or reason-to-change boundary. Move consumers to the
+   concrete module, then remove the package; do not leave an alias.
+3. **Retain** a package when it owns a real boundary, even if it currently has
+   one module or only child packages. The boundary must be visible in its
+   consumers or packaging/runtime contract.
+4. **Split** only along distinct semantic owners or invariants. A same-level
+   `_core.py`/`_runtime.py`/`_helpers.py` family is not a semantic split by
+   itself; use a named subpackage when a real multi-owner boundary exists.
+
+Directory and file counts are evidence for review, never the decision rule.
+An `__init__.py` is not a marker and a README is not a directory marker.
+
 Command ownership follows the same rule. Concrete Cyclopts declarations own CLI
 names, parameters, help, and dispatch; `system/gates.toml` owns only proof-gate
 adapters. A `surface/cli/**/core.py` command owner, or one module that owns more

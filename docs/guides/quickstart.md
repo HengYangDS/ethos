@@ -1,5 +1,5 @@
 ---
-subject: docs:start
+subject: docs:guides
 role: how-to
 state: active
 relations:

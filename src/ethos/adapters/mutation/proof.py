@@ -35,6 +35,7 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
 from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
@@ -43,7 +44,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.adapters.admission.current.resolution import CurrentResolution
-    from ethos.contracts.semantic import Commitment
 
 
 def _proof_commitment(
@@ -150,7 +150,6 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         raise ValueError(msg)
     values = plan.facts.get("values")
     fact_values = values if isinstance(values, Mapping) else {}
-    change_id = str(fact_values.get("change_id") or "")
     branch = current_branch(root)
     lease = leases_by_branch(root).get(branch, {})
     work_lane = load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE
@@ -169,11 +168,10 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         )
         if authority.verdict != "pass":
             raise ValueError(authority.reason)
-    commitment = _proof_commitment(
-        root,
-        change_id=change_id or None,
-        head=head,
-        work_lane=work_lane,
+    commitment = (
+        Commitment.model_validate(mutable_json(plan.commitment), strict=False)
+        if plan.commitment is not None
+        else None
     )
     policy = resolve_gate_policy(
         root,

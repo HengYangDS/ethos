@@ -82,6 +82,32 @@ def test_docs_health_rejects_unindexed_plan(tmp_path: Path) -> None:
     assert report["unindexed_plans"] == ["unindexed_plan:docs/plans/orphan.md"]
 
 
+def test_docs_health_rejects_marker_only_readme(tmp_path: Path) -> None:
+    """A README must explain or navigate its directory, not mark its existence."""
+    readme = tmp_path / "docs" / "guides" / "README.md"
+    readme.parent.mkdir(parents=True)
+    readme.write_text(_document("docs:guides", "index", "canonical", "Guides"), encoding="utf-8")
+    report = docs_registry_report(tmp_path)
+
+    assert report["readme_disposition"] == ["docs_readme_without_children:docs/guides/README.md"]
+
+
+def test_docs_health_retains_a_boundary_readme_without_sibling_documents(tmp_path: Path) -> None:
+    """A README may be the sole document when it declares a real boundary."""
+    readme = tmp_path / "docs" / "evidence" / "README.md"
+    readme.parent.mkdir(parents=True)
+    readme.write_text(
+        _document("docs:evidence", "index", "canonical", "Evidence").replace(
+            "relations: none", "relations:\n  canonical_for: evidence documentation"
+        ),
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["readme_disposition"] == []
+
+
 def test_docs_health_reports_missing_invalid_and_duplicate_metadata(tmp_path: Path) -> None:
     docs = tmp_path / "docs" / "reference"
     docs.mkdir(parents=True)

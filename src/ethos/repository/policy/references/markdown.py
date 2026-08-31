@@ -203,7 +203,7 @@ def _requires_declared_commands(path: str) -> bool:
             "docs/concepts/",
             "docs/governance/",
             "docs/reference/",
-            "docs/start/",
+            "docs/guides/",
             "openspec/changes/",
             "openspec/specs/",
             "rules/",

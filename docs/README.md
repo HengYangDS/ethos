@@ -30,7 +30,7 @@ See also: [Product Index](index.md), [Docs Registry](governance/docs-registry.md
 | --- | --- |
 | `architecture/` | Product architecture and contract explanations. |
 | `governance/` | Product governance models and policies. |
-| `concepts/`, `plans/`, `research/`, `start/` | Product-specific explanation, planning, research, and onboarding. |
+| `concepts/`, `plans/`, `research/`, `guides/` | Product-specific explanation, planning, research, and onboarding. |
 
 Truth state is document metadata, not path topology. Use the explicit
 front matter vocabulary (`state: canonical`, `state: active`, `state: planned`,

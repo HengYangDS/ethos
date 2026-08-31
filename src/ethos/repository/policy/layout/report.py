@@ -15,6 +15,7 @@ from ethos.repository.policy.layout.naming import multiple_command_owner_finding
 from ethos.repository.policy.layout.policy import POLICY_PATH
 from ethos.repository.policy.layout.policy import configured_package_paths
 from ethos.repository.policy.layout.policy import configured_semantic_paths
+from ethos.repository.policy.layout.policy import empty_package_findings
 from ethos.repository.policy.layout.policy import load_policy
 
 if TYPE_CHECKING:
@@ -31,6 +32,7 @@ def module_layout_report(
     finding_groups: dict[str, list[dict[str, object]]] = {
         "ambiguous_module_findings": ambiguous_module_findings(root, policy, files),
         "ambiguous_package_findings": ambiguous_package_findings(root, policy, files),
+        "empty_package_findings": empty_package_findings(root, policy, files),
         "multiple_command_owner_findings": multiple_command_owner_findings(root, policy, files),
         "private_alias_findings": private_alias_findings(root, policy, files),
         "package_init_facade_findings": package_init_facade_findings(root, policy, files),

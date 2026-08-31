@@ -10,6 +10,8 @@ import pytest
 
 import ethos.adapters.mutation.proof as proof_module
 import ethos.adapters.mutation.proof_admission as proof_admission
+from ethos.adapters.admission.current.resolution import CurrentResolution
+from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
@@ -18,6 +20,7 @@ from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
+from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.plan import TransitionPlan
@@ -273,6 +276,37 @@ def test_proof_issuance_rechecks_live_facts(
     monkeypatch.setattr(proof_module, "current_tree", lambda *_args, **_kwargs: "0" * 40)
     with pytest.raises(ValueError, match="proof_attestation_live_facts_stale"):
         issue_conformant_proof(repo, head, plan=plan, issuer="agent:test:case:proof")
+
+
+def test_proof_issuance_reuses_the_plan_commitment_without_rereading_exact_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    write_active_commitment(repo, change_id="dirty-proof-binding")
+    head = git(repo, "rev-parse", "HEAD")
+    commitment = load_profile_commitment(repo, change_id="dirty-proof-binding")
+    plan = proof_plan(
+        repo,
+        head=head,
+        generation_binding=CurrentResolution(
+            verdict="pass",
+            authority=None,
+            commitment=commitment,
+            scope=CurrentScope(("openspec/changes/dirty-proof-binding/proposal.md",)),
+        ),
+    )
+    monkeypatch.setattr(
+        proof_module,
+        "load_profile_commitment",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("proof issuance must reuse the bound plan Commitment")
+        ),
+    )
+
+    attestation = issue_conformant_proof(repo, head, plan=plan)
+
+    assert attestation.commitment_digest == plan.inputs.commitment
 
 
 @pytest.mark.parametrize(

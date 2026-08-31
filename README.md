@@ -80,7 +80,7 @@ README / docs index / AGENTS.md -> status -> plan -> prove -> land -> publish
 ```
 
 - Humans start from this README, then the [docs index](docs/index.md) and
-  [quickstart](docs/start/quickstart.md).
+  [quickstart](docs/guides/quickstart.md).
 - Agents start from [AGENTS.md](AGENTS.md), load the matching rule and skill,
   then run `ethos status --json` before planning mutation.
 - Both treat `ethos status` as a reader view: it makes role, capability, foreign

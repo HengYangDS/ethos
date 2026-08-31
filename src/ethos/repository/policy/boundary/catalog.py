@@ -34,7 +34,7 @@ PRODUCT_SURFACES = (
     "docs/governance",
     "docs/reference",
     "docs/plans",
-    "docs/start",
+    "docs/guides",
     "evidence/README.md",
     "openspec/README.md",
     "openspec/config.yaml",

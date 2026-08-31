@@ -522,7 +522,9 @@ native authorization model proves that the anchor and its parent cannot be
 modified by an untrusted identity. ETHOS-created anchors SHALL establish the
 same protection that observation requires. When native establishment fails,
 ETHOS SHALL preserve the bounded host-process reason needed to diagnose the
-failed authority operation.
+failed authority operation. A Windows PowerShell child SHALL resolve its native
+security module independently of an incompatible module path inherited from a
+different parent PowerShell edition.
 
 #### Scenario: POSIX anchor is owner-protected
 
@@ -538,6 +540,14 @@ failed authority operation.
   operating-system administrative identities
 - **THEN** ETHOS admits the protection fact independent of emulated POSIX mode
   bits.
+
+#### Scenario: Windows parent shell exports an incompatible module path
+
+- **WHEN** ETHOS launches Windows PowerShell from a parent process whose
+  `PSModulePath` belongs to another PowerShell edition
+- **THEN** the child reconstructs its native module path and loads the security
+  commands required to establish and observe the DACL
+- **AND** unrelated inherited environment values remain available.
 
 #### Scenario: Windows anchor is foreign-writable
 

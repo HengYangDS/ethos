@@ -90,3 +90,35 @@ def test_remote_availability_classifies_git_exit_status(
     assert observed["available"] is (returncode == 0)
     if returncode:
         assert (observed["exit_code"], observed["reason"]) == (23, "ls_remote_failed")
+
+
+def test_run_command_removes_only_explicit_inherited_environment_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    observed: dict[str, str] = {}
+    monkeypatch.setenv("PSModulePath", "pwsh-modules")
+    monkeypatch.setenv("ETHOS_PRESERVED", "inherited")
+
+    def capture_execute(
+        _root: Path,
+        command: tuple[str, ...],
+        *,
+        env: dict[str, str],
+        **_kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        observed.update(env)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(git_adapter, "_execute", capture_execute)
+
+    git_adapter.run_command(
+        repo,
+        ("tool",),
+        env={"ETHOS_ADDED": "explicit"},
+        remove_env=("PSModulePath",),
+    )
+
+    assert "PSModulePath" not in observed
+    assert observed["ETHOS_PRESERVED"] == "inherited"
+    assert observed["ETHOS_ADDED"] == "explicit"

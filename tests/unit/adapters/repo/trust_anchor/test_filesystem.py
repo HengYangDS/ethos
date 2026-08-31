@@ -129,6 +129,26 @@ def test_windows_protection_failure_preserves_native_reason(
         protect_for_current_identity(target, platform_name="nt")
 
 
+def test_windows_native_process_rebuilds_its_module_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fake_powershell(tmp_path, {})
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
+    target = tmp_path / "trust"
+    target.mkdir()
+    observed: dict[str, object] = {}
+
+    def capture_run_command(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed.update(kwargs)
+        return subprocess.CompletedProcess(("powershell.exe",), 0, "", "")
+
+    monkeypatch.setattr(trust_anchor_filesystem, "run_command", capture_run_command)
+
+    protect_for_current_identity(target, platform_name="nt")
+
+    assert observed["remove_env"] == ("PSModulePath",)
+
+
 def test_posix_protection_preserves_directory_traversal(tmp_path: Path) -> None:
     parent = tmp_path / "trust"
     parent.mkdir()

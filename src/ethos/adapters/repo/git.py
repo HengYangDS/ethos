@@ -162,12 +162,18 @@ def run_command(
     check: bool = False,
     timeout: float | None = None,
     env: Mapping[str, str] | None = None,
+    remove_env: tuple[str, ...] = (),
 ) -> subprocess.CompletedProcess[Any]:
     """Run one exact argv command without a shell or inherited Git overrides."""
     if not capture_output:
         message = "command_capture_output_required"
         raise ValueError(message)
-    effective_env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    removed = {key.casefold() for key in remove_env}
+    effective_env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("GIT_") and key.casefold() not in removed
+    }
     effective_env.update({"PATH": os.environ.get("PATH", os.defpath), **(env or {})})
     return _execute(
         root,

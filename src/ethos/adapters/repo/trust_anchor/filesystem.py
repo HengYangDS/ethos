@@ -142,6 +142,7 @@ def _run_windows(path: Path, script: str) -> subprocess.CompletedProcess[str] | 
             ),
             check=False,
             env={"ETHOS_TRUST_ANCHOR_PATH": str(path)},
+            remove_env=("PSModulePath",),
             timeout=30,
         )
     except (OSError, subprocess.TimeoutExpired, ValueError):

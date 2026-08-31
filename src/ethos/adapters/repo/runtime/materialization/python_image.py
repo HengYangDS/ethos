@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
-from importlib.metadata import distributions
+import subprocess
 from pathlib import Path
 from typing import NoReturn
 
@@ -235,28 +235,42 @@ def _remove_non_runtime_residue(runtime: Path) -> None:
 
 def console_script_entries(python: Path) -> dict[str, str]:
     """Discover the unique console-script entries installed in one image."""
-    site_packages = (
-        python.parent.parent / "Lib/site-packages"
-        if os.name == "nt"
-        else next(iter((python.parent.parent / "lib").glob("python*/site-packages")), None)
+    script = (
+        "import json;from importlib.metadata import entry_points;"
+        "print(json.dumps([[entry.name,entry.value] "
+        "for entry in entry_points(group='console_scripts')]))"
     )
-    if site_packages is None or not site_packages.is_dir():
+    try:
+        completed = subprocess.run(
+            (python.as_posix(), "-B", "-I", "-c", script),
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        rows = json.loads(completed.stdout)
+    except (OSError, TypeError, ValueError) as error:
+        _fail("hook_runtime_entrypoint_missing", error)
+    if completed.returncode or not isinstance(rows, list):
         _fail("hook_runtime_entrypoint_missing")
     entries: dict[str, str] = {}
-    for package in distributions(path=[site_packages.as_posix()]):
-        for entry in package.entry_points:
-            if entry.group != "console_scripts":
-                continue
-            name = entry.name
-            if (
-                not name
-                or Path(name).name != name
-                or "/" in name
-                or "\\" in name
-                or name in entries
-            ):
-                _fail("hook_runtime_console_script_invalid")
-            entries[name] = entry.value
+    for row in rows:
+        if (
+            not isinstance(row, list)
+            or len(row) != 2
+            or not all(isinstance(value, str) for value in row)
+        ):
+            _fail("hook_runtime_console_script_invalid")
+        name, value = row
+        if (
+            not name
+            or not value
+            or Path(name).name != name
+            or "/" in name
+            or "\\" in name
+            or name in entries
+        ):
+            _fail("hook_runtime_console_script_invalid")
+        entries[name] = value
     return entries
 
 

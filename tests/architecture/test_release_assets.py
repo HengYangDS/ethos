@@ -269,6 +269,49 @@ def test_python_basetemp_ownership(tmp_path, monkeypatch, failure, ownership) ->
     assert (gate.s.basetemp.exists(), cache.is_dir()) == (ownership == "external", True)
 
 
+def test_identity_drop_projects_repository_git_identity(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    settings = python_test_gate.Settings(
+        head="a" * 40,
+        evidence=tmp_path / "evidence",
+        basetemp=tmp_path / "pytest",
+        basetemp_owned=True,
+        workers=None,
+        shards=None,
+        durations=0,
+        timeout=None,
+        lock_wait=0,
+        identity=(65534, 65534),
+    )
+    values = {
+        "user.name": "ETHOS Hosted Tests",
+        "user.email": "hosted-tests@example.invalid",
+    }
+    monkeypatch.setattr(python_test_gate, "ROOT", root)
+    monkeypatch.setattr(
+        python_test_gate,
+        "run_git",
+        lambda _root, *args, **_kwargs: type(
+            "Result", (), {"returncode": 0, "stdout": values[args[-1]] + "\n", "stderr": ""}
+        )(),
+    )
+
+    gate = python_test_gate.PythonTestGate(settings)
+    environment = vars(python_test_gate.PythonTestGate)["_env"](gate)
+    count = int(environment["GIT_CONFIG_COUNT"])
+    overlay = tuple(
+        (environment[f"GIT_CONFIG_KEY_{index}"], environment[f"GIT_CONFIG_VALUE_{index}"])
+        for index in range(count)
+    )
+
+    assert ("safe.directory", root.as_posix()) in overlay
+    assert ("user.name", values["user.name"]) in overlay
+    assert ("user.email", values["user.email"]) in overlay
+    assert all(value for _, value in overlay)
+    assert environment["GIT_TERMINAL_PROMPT"] == "0"
+
+
 def _write_fake_executable(path: Path, body: str) -> None:
     path.write_text(body, encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IXUSR)

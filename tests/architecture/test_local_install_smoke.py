@@ -67,6 +67,23 @@ def _assert_runtime_manifest(report: dict[str, object], repo: Path) -> None:
     assert manifest["runtime_digest"] == report["runtime_digest"]
 
 
+def test_host_conformance_git_overlay_is_platform_portable() -> None:
+    count = int(os.environ["GIT_CONFIG_COUNT"])
+    entries = [
+        (os.environ[f"GIT_CONFIG_KEY_{index}"], os.environ[f"GIT_CONFIG_VALUE_{index}"])
+        for index in range(count)
+    ]
+
+    assert entries == [
+        ("init.templateDir", os.environ["GIT_CONFIG_VALUE_0"]),
+        ("core.fsmonitor", "false"),
+    ]
+    assert all(value for _, value in entries)
+    assert os.environ["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert os.environ["GIT_CONFIG_NOSYSTEM"] == "1"
+    assert os.environ["GIT_TERMINAL_PROMPT"] == "0"
+
+
 def _prove_relocated_runtime(
     *,
     runtime_ethos: Path,

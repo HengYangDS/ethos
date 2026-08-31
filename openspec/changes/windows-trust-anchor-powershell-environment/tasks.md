@@ -12,13 +12,3 @@
   removal and use it only at the Windows trust-anchor process boundary.
 - [x] 2.2 Pass focused trust-anchor and runner tests, Ruff, format, and strict
   OpenSpec validation.
-
-## 3. Closure
-
-- [ ] 3.1 Freeze a signed source commit and pass exact-HEAD affected and full
-  proof.
-- [ ] 3.2 Archive and reprove, promote by exact CAS, activate and read back the
-  immutable runtime, publish `dev` then `main` to both peers, and verify Hosted
-  Windows protection across Python 3.12, 3.13, and 3.14.
-- [ ] 3.3 Remove the diagnostic proposal projection and retire the Work Lane with
-  no ref, worktree, Lease, or process residue.

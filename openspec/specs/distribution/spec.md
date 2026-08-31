@@ -351,9 +351,10 @@ missing Linux utility or reconstruct package paths independently at each caller.
 #### Scenario: Linux bootstrap repairs supported prerequisites
 
 - **GIVEN** the shared Python bootstrap executes on Linux
-- **WHEN** Git or `libatomic.so.1` is missing and `apt-get` is available
-- **THEN** it installs only those declared host prerequisites before repository
-  bootstrap continues
+- **WHEN** Git, `libatomic.so.1`, or the signing policy's `ssh-keygen` executable
+  is missing and `apt-get` is available
+- **THEN** it installs only the corresponding declared host prerequisite before
+  repository bootstrap continues
 - **AND** absence of the selected package manager fails with a precise diagnostic.
 
 #### Scenario: Windows wheel build resolves the installed Node layout

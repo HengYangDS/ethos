@@ -24,7 +24,8 @@ their native subject layout under the portable Docs Registry contract.
 - **THEN** it SHALL live under the `guides` function root as `docs/guides/quickstart.md`
 - **AND** links, stable-path metadata, taxonomy metadata, registry output, and
   command examples SHALL resolve to that path
-- **AND** `docs/start/` SHALL not remain as a historical habit or redirect root
+- **AND** the former onboarding root SHALL not remain as a historical habit or
+  redirect root
 
 #### Scenario: A documentation directory needs a README
 

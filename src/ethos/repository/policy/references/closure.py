@@ -258,6 +258,7 @@ def _retired_reference_consumers(
             sorted(
                 source
                 for source, text in files.items()
+                if not _is_change_intent_source(source)
                 if _references_path(source, text, retired_path)
             )
         )
@@ -280,7 +281,11 @@ def _retired_reference_consumers(
             rf"(?<![A-Za-z0-9_.]){re.escape(retired_module)}(?![A-Za-z0-9_])"
         )
         module_sources = tuple(
-            sorted(source for source, text in files.items() if module_pattern.search(text))
+            sorted(
+                source
+                for source, text in files.items()
+                if not _is_change_intent_source(source) and module_pattern.search(text)
+            )
         )
         if module_sources:
             findings.append(
@@ -293,6 +298,18 @@ def _retired_reference_consumers(
                 )
             )
     return findings
+
+
+def _is_change_intent_source(source: str) -> bool:
+    """Return whether a file records proposed change intent, not current use.
+
+    Active OpenSpec Change documents may name a retired path while explaining
+    the migration and its proof boundary. That text is authoritative intent,
+    but it is not a live repository consumer of the retired path. Treating it
+    as one makes a deletion-only move impossible and turns the Change itself
+    into a false superseded-consumer finding.
+    """
+    return source.startswith("openspec/changes/")
 
 
 def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:

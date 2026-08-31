@@ -4,7 +4,7 @@ See `proposal.md` and the modified requirements. The repository already has
 module-layout checks, a Docs Registry, official OpenSpec artifacts,
 Commitment/Attestation contracts, and projection export checks. These owners do
 not yet form one repository-wide closure for physical layout and documentation
-movement. `docs/start/quickstart.md` also remains despite the functional
+movement. The former onboarding root also remains despite the functional
 placement decision to use `guides`.
 
 ## Goals / Non-Goals
@@ -54,7 +54,7 @@ initializer. Both confuse physical shape with semantics.
 
 Use the Docs Registry metadata for subject, role, state, and relation. For
 ETHOS, onboarding is a guide, so the canonical first-run document is
-`docs/guides/quickstart.md`; the old `docs/start` path is removed rather than
+`docs/guides/quickstart.md`; the former onboarding path is removed rather than
 redirected. Adopter layouts remain profile-native because semantic isomorphism
 does not require physical uniformity.
 

@@ -29,5 +29,5 @@
 ## 6. Repository-wide closure and proof
 
 - [x] 6.1 Search the complete repository for every retired path, symbol, suffix facade, placeholder README, stale taxonomy/stable-path entry, and unsupported projection reference; verify missing, duplicate, orphan, superseded-active, and conflict counts are zero for this Change's scope.
-- [ ] 6.2 Run the affected test set and the existing quality graph once the candidate tree is frozen; verify warnings, type errors, formatting drift, link errors, and generated projection drift are zero.
-- [ ] 6.3 Execute exact-HEAD full proof with the repository-locked toolchain and preserve the proof receipt; verify the proof binds the final HEAD, tree, policy, OpenSpec artifacts, and projection inputs.
+- [x] 6.2 Run the affected test set and the existing quality graph once the candidate tree is frozen; verify warnings, type errors, formatting drift, link errors, and generated projection drift are zero.
+- [x] 6.3 Execute exact-HEAD full proof with the repository-locked toolchain and preserve the proof receipt; verify the proof binds the final HEAD, tree, policy, OpenSpec artifacts, and projection inputs.

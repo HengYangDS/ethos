@@ -520,7 +520,9 @@ gaps when the expected full-ref transition plan is unavailable.
 ETHOS SHALL admit a repository-external Git trust anchor only when the host's
 native authorization model proves that the anchor and its parent cannot be
 modified by an untrusted identity. ETHOS-created anchors SHALL establish the
-same protection that observation requires.
+same protection that observation requires. When native establishment fails,
+ETHOS SHALL preserve the bounded host-process reason needed to diagnose the
+failed authority operation.
 
 #### Scenario: POSIX anchor is owner-protected
 
@@ -544,3 +546,9 @@ same protection that observation requires.
 - **THEN** ETHOS reports `git_object_trust_anchor_unprotected`
 - **AND** does not infer protection from `chmod`, platform name, or successful
   signature verification alone.
+
+#### Scenario: Windows protection operation fails
+
+- **WHEN** the native Windows operation cannot establish the required DACL
+- **THEN** ETHOS fails closed with `git_object_trust_anchor_protection_failed`
+- **AND** preserves the child exit code and bounded native error text.

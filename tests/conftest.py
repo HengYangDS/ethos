@@ -5,9 +5,7 @@ to `git commit` in throwaway repos, which fails when the runner has no global
 user.name/user.email (the case in CI's clean container — the dominant cause of
 "passes locally, red in CI"). Binding GIT_AUTHOR_*/GIT_COMMITTER_* per test makes
 the suite self-contained instead of depending on the developer's ambient machine
-config. The fixture also disables commit signing through Git's environment-backed
-config so global `commit.gpgsign=true` cannot make temporary test commits depend
-on local keys. System and user Git config are hidden entirely, while
+config. System and user Git config are hidden entirely, while
 `init.templateDir` points to a repository-owned empty template directory so
 temporary test repositories never inherit developer-global hooks such as
 pre-commit. Repository-local config remains authoritative so hook tests exercise
@@ -45,12 +43,10 @@ def _hermetic_git_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setenv("GIT_COMMITTER_EMAIL", "test@example.invalid")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    monkeypatch.setenv("GIT_CONFIG_COUNT", "3")
-    monkeypatch.setenv("GIT_CONFIG_KEY_0", "credential.helper")
-    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "")
-    monkeypatch.setenv("GIT_CONFIG_KEY_1", "init.templateDir")
-    monkeypatch.setenv("GIT_CONFIG_VALUE_1", git_template.as_posix())
-    monkeypatch.setenv("GIT_CONFIG_KEY_2", "core.fsmonitor")
-    monkeypatch.setenv("GIT_CONFIG_VALUE_2", "false")
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "2")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "init.templateDir")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", git_template.as_posix())
+    monkeypatch.setenv("GIT_CONFIG_KEY_1", "core.fsmonitor")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_1", "false")
     monkeypatch.setenv("GIT_TERMINAL_PROMPT", "0")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")

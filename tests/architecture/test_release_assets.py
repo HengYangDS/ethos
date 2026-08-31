@@ -84,6 +84,12 @@ def test_python_bootstrap_derives_uv_version_from_project_owner() -> None:
     assert "pyproject.toml" in script
 
 
+def test_python_bootstrap_supplies_the_declared_linux_signing_tool() -> None:
+    script = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
+    assert "command -v ssh-keygen" in script
+    assert "missing_packages+=(openssh-client)" in script
+
+
 def test_python_bootstrap_does_not_use_apt_get_on_darwin(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     script_dir = repo / "tools/ci/scripts"

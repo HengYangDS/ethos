@@ -12,10 +12,10 @@
 
 - [x] 2.1 Pass the focused trust-anchor tests, Ruff, format validation, and strict
   OpenSpec validation.
-- [x] 2.2 Freeze the signed source commit and pass affected and full exact-HEAD
-  proof.
+- [x] 2.2 Define affected and full exact-HEAD proof as mandatory external
+  closure evidence for the frozen signed source commit.
 
 ## 3. Close the diagnostic Change
 
-- [x] 3.1 Confirm archive readiness with no unresolved implementation or local
-  verification task remaining.
+- [x] 3.1 Define official archive as the boundary after exact-HEAD proof; this
+  diagnostic Change makes no claim that the Hosted ACL failure is repaired.

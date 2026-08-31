@@ -55,7 +55,7 @@ def test_commit_environment_rejects_invalid_signing_program(
     )
     monkeypatch.setattr(
         git_signing,
-        "effective_git_config_value",
+        "_config",
         lambda *_args: "relative-signer",
     )
 
@@ -68,7 +68,7 @@ def test_create_git_commit_rejects_unknown_signing_policy(
 ) -> None:
     monkeypatch.setattr(
         git_signing,
-        "effective_git_config_value",
+        "_config",
         lambda *_args: "sometimes",
     )
 

@@ -25,6 +25,17 @@ _SSH_STATUS = re.compile(
 )
 
 
+def zero_oid(root: Path) -> str:
+    """Return the null object ID at the repository's native hash width."""
+    completed = run_git(root, "rev-parse", "--show-object-format", check=False)
+    object_format = completed.stdout.strip() if completed.returncode == 0 else ""
+    width = {"sha1": 40, "sha256": 64}.get(object_format)
+    if width is None:
+        message = "git_object_format_unavailable"
+        raise ValueError(message)
+    return "0" * width
+
+
 def observe_git_object(root: Path, revision: str, kind: GitObjectKind) -> dict[str, object]:
     """Return exact identity and trusted-signature facts for one local Git object."""
     object_oid = _resolve(root, revision)

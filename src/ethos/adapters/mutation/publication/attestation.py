@@ -78,6 +78,7 @@ def terminal_publication_result(
     )
     selected = record_attestations(root, (attestation,))
     return {
+        "verdict": verdict,
         "state": state,
         "required_gaps": list(required_gaps),
         "observations": observations,

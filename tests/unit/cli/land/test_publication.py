@@ -8,6 +8,7 @@ import pytest
 
 import ethos.adapters.mutation.proof as proof_adapter
 import ethos.adapters.mutation.publication.attestation as publication_attestation
+import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.mutation.remote_publication as remote_publication
 import ethos.repository.release.publication as release_publication
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -364,8 +365,8 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
         )
     monkeypatch.setattr(remote_publication, "observe_git_object", lambda *_args: observation)
     monkeypatch.setattr(
-        remote_publication,
-        "_observe_remote_ref",
+        publication_observation,
+        "observe_remote_ref",
         lambda *_args: {"state": "unavailable", "object_oid": "", "required_gaps": []},
     )
     effect, _observations, gaps = remote_publication.observe_remote_publication_effect(
@@ -376,7 +377,7 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
         ref_admissions={"refs/heads/dev": {}},
     )
     assert effect is None
-    assert gaps == ("publication_remote_unavailable:gitlab:origin",)
+    assert gaps == ("publication_remote_observation_unavailable:gitlab:origin:refs/heads/dev",)
 
     store = local_state_root(repo) / "requests/publication"
     store.mkdir(parents=True)
@@ -399,6 +400,189 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
         remote_publication.load_remote_publication_request(
             repo, str(store / f"{digest}.json"), digest
         )
+
+
+def test_remote_ref_timeout_preserves_the_missing_fact_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    command = ("/opt/git/bin/git", "ls-remote", "origin", "refs/heads/dev")
+    monkeypatch.setattr(
+        remote_publication,
+        "observe_git_object",
+        lambda *_args: {
+            "kind": "commit",
+            "object_oid": head,
+            "peeled_commit": head,
+            "tree_oid": git(repo, "rev-parse", "HEAD^{tree}"),
+            "signature": {
+                "verdict": "pass",
+                "principal": "test",
+                "fingerprint": "SHA256:key",
+                "trust_anchor_sha256": "a" * 64,
+                "verifier": "git verify-commit",
+                "verifier_version": "1",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        remote_publication.git,
+        "run_network_git",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            subprocess.TimeoutExpired(command, 30.0, output="", stderr="transport stalled")
+        ),
+    )
+
+    effect, observations, gaps = remote_publication.observe_remote_publication_effect(
+        root=repo,
+        source_ref=head,
+        target_refs=("refs/heads/dev",),
+        remotes={"gitlab": "origin"},
+        ref_admissions={"refs/heads/dev": {}},
+    )
+    observed = observations["gitlab"]["refs"]["refs/heads/dev"]
+
+    assert effect is None
+    assert gaps == ("publication_remote_observation_unavailable:gitlab:origin:refs/heads/dev",)
+    assert observed == {
+        "kind": "git_remote_ref_observation",
+        "remote": "origin",
+        "ref": "refs/heads/dev",
+        "state": "unavailable",
+        "reason": "timeout",
+        "object_oid": "",
+        "peeled_commit": "",
+        "tree_oid": "",
+        "command": list(command),
+        "cwd": repo.resolve().as_posix(),
+        "timeout_seconds": 30,
+        "stderr": "transport stalled",
+    }
+
+
+def test_publish_unknown_remote_never_invents_non_fast_forward(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "ethos.adapters.openspec.cli.openspec_base_command",
+        lambda: ("openspec",),
+    )
+    repo, _remotes, head = _branch_publication_fixture(tmp_path, source_branch="dev")
+    monkeypatch.setattr(
+        publication_observation,
+        "observe_remote_ref",
+        lambda _root, remote, ref: {
+            "kind": "git_remote_ref_observation",
+            "remote": remote,
+            "ref": ref,
+            "state": "unavailable",
+            "reason": "timeout",
+            "object_oid": "",
+            "peeled_commit": "",
+            "tree_oid": "",
+            "command": ["git", "ls-remote", remote, ref],
+            "cwd": repo.resolve().as_posix(),
+            "timeout_seconds": 30,
+            "stderr": "transport stalled",
+        },
+    )
+
+    payload = run_ethos(
+        "publish",
+        "--ref",
+        "refs/heads/dev",
+        "--probe-remote",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["verdict"] == "unknown"
+    assert payload["required_gaps"] == [
+        "publication_remote_observation_unavailable:gitlab:origin:refs/heads/dev",
+        "publication_remote_observation_unavailable:github:github:refs/heads/dev",
+    ]
+    assert payload["missing_facts_or_evidence"] == payload["required_gaps"]
+    assert payload["data"]["push_admission"] == {}
+    assert not any("non_fast_forward" in gap for gap in payload["required_gaps"])
+
+
+def test_publish_apply_preflight_unknown_performs_no_push(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, remotes, head = _branch_publication_fixture(tmp_path)
+    receipt = _branch_publication(repo, head)["data"]["request_receipt"]
+    monkeypatch.setattr(
+        publication_observation,
+        "observe_remote_ref",
+        lambda _root, remote, ref: {
+            "kind": "git_remote_ref_observation",
+            "remote": remote,
+            "ref": ref,
+            "state": "unavailable",
+            "reason": "timeout",
+            "object_oid": "",
+            "peeled_commit": "",
+            "tree_oid": "",
+            "command": ["git", "ls-remote", remote, ref],
+            "cwd": repo.resolve().as_posix(),
+            "timeout_seconds": 30,
+            "stderr": "transport stalled",
+        },
+    )
+
+    result = _receipt(repo, receipt, head, blocked=True)
+
+    assert (result["verdict"], result["state"]) == ("unknown", "preflight_unknown")
+    assert result["summary"]["remote_push"] == "not_performed"
+    assert result["missing_facts_or_evidence"] == result["required_gaps"]
+    assert {_proposal_ref(remote) for remote in remotes.values()} == {""}
+
+
+def test_publish_post_observation_unknown_reports_the_applied_peer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, remotes, head = _branch_publication_fixture(tmp_path)
+    receipt = _branch_publication(repo, head)["data"]["request_receipt"]
+    original = remote_publication.git.run_network_git
+    origin_push_applied = False
+
+    def run_network_git(
+        root: Path,
+        *args: str,
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        nonlocal origin_push_applied
+        if args and args[0] == "push":
+            completed = original(root, *args, **kwargs)
+            if "origin" in args and completed.returncode == 0:
+                origin_push_applied = True
+            return completed
+        if args and args[0] == "ls-remote" and args[1] == "origin" and origin_push_applied:
+            raise subprocess.TimeoutExpired(
+                ("git", *args),
+                30,
+                output="",
+                stderr="post-write observation stalled",
+            )
+        return original(root, *args, **kwargs)
+
+    monkeypatch.setattr(remote_publication.git, "run_network_git", run_network_git)
+
+    result = _receipt(repo, receipt, head, blocked=True)
+
+    assert (result["verdict"], result["state"]) == ("unknown", "outcome_unknown")
+    assert result["summary"]["remote_push"] == "outcome_unknown"
+    assert result["data"]["remote_effect"]["partial_effects"] == {
+        "applied_peers": [],
+        "failed_peer": "",
+        "pending_peers": ["gitlab", "github"],
+    }
+    assert result["data"]["remote_effect"]["attempts"][0]["state"] == "applied"
+    assert _proposal_ref(remotes["gitlab"]) == head
+    assert _proposal_ref(remotes["github"]) == ""
 
 
 def _signed_publication_fixture(

@@ -109,7 +109,6 @@ def repository_audit(
     *,
     openspec_mode: str = "deep",
     openspec_reporter: OpenSpecReporter | None = None,
-    write_admission_gaps: list[str] | None = None,
     tracked_documents: tuple[str, ...] = (),
     openspec_shape: dict[str, object] | None = None,
 ) -> dict[str, object]:
@@ -158,7 +157,6 @@ def repository_audit(
     system_contract_gaps = [
         str(gap) for gap in cast("list[str]", system_contracts["required_gaps"])
     ]
-    write_admission_gaps = list(write_admission_gaps or [])
     docs = {
         "verdict": observation_verdict(ok=not docs_missing and not docs_without_front_matter),
         "missing": docs_missing,
@@ -183,10 +181,6 @@ def repository_audit(
         "expected": list(REQUIRED_OPENSPEC_CAPABILITIES),
         "missing": openspec_capability_missing,
     }
-    write_admission = {
-        "verdict": observation_verdict(ok=not write_admission_gaps),
-        "required_gaps": write_admission_gaps,
-    }
     gaps = list(
         dict.fromkeys(
             docs_missing
@@ -201,7 +195,6 @@ def repository_audit(
             + openspec_gaps
             + playbook_gaps
             + system_contract_gaps
-            + write_admission_gaps
         )
     )
     return {
@@ -215,7 +208,6 @@ def repository_audit(
             report_verdict(design_integrity),
             report_verdict(openspec),
             report_verdict(system_contracts),
-            report_verdict(write_admission),
         ),
         "mode": "repository",
         "governance_context": repository_context(root),
@@ -228,6 +220,5 @@ def repository_audit(
         "design_integrity": design_integrity,
         "openspec": openspec,
         "system_contracts": system_contracts,
-        "write_admission": write_admission,
         "required_gaps": gaps,
     }

@@ -151,8 +151,6 @@ jobs:
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Configure governed checkout
         run: tools/ci/scripts/configure-git-checkout.sh
-      - name: Arm write admission
-        run: tools/ci/scripts/with-python-runtime.sh -- uv run ethos hook install --json
       - name: OpenSpec strict validation
         run: openspec validate --all --strict --json
       - name: HEAD-bound proof receipt

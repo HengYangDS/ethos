@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 from packaging.version import Version
 
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
@@ -20,7 +21,6 @@ from ethos.repository.release.identity import load_build_identity_bytes
 from ethos.repository.release.identity import product_version
 from ethos.repository.release.identity import projected_package_versions
 from ethos.repository.release.identity import wheel_build_identity
-from tools.ci.toolchain.node import node_runtime
 
 
 def test_version_file_is_the_single_product_owner_and_manifests_are_projections() -> None:
@@ -184,7 +184,7 @@ def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
 
 
 def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
-    node, npm_cli = node_runtime()
+    node, npm_cli = resolve_node_runtime()
     output.mkdir()
     subprocess.run(
         (

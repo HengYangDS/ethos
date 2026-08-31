@@ -16,12 +16,12 @@ from typing import cast
 import tools.ci.delivery.pipeline as delivery_pipeline
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.contracts.semantic import Commitment
 from ethos.repository.release.identity import BuildIdentity
 from tools.ci.delivery.adopter_fixture import line_ending_conformance
 from tools.ci.delivery.adopter_fixture import materialize_adopter
 from tools.ci.delivery.pipeline import DeliveryPipeline
-from tools.ci.toolchain.node import node_runtime
 
 if TYPE_CHECKING:
     import nox
@@ -191,7 +191,7 @@ def test_packaged_vector_carries_the_minimal_commitment_contract() -> None:
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
-    node, npm_cli = node_runtime()
+    node, npm_cli = resolve_node_runtime()
     bootstrap_environment: dict[str, str] = {
         **os.environ,
         "ETHOS_BUILD_NODE": str(node),

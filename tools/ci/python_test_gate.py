@@ -229,11 +229,14 @@ class PythonTestGate:
     def _env(self, data: Path | None = None) -> dict[str, str | None]:
         config = [
             ("core.fsmonitor", "false"),
-            ("credential.helper", ""),
-            ("init.templateDir", ""),
         ]
         config += (
-            [("safe.directory", str(ROOT)), ("safe.directory", str(ROOT / ".git"))]
+            [
+                ("safe.directory", str(ROOT)),
+                ("safe.directory", str(ROOT / ".git")),
+                ("user.name", self._git_config("user.name")),
+                ("user.email", self._git_config("user.email")),
+            ]
             if self.s.identity
             else []
         )
@@ -243,6 +246,7 @@ class PythonTestGate:
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_COUNT": str(len(config)),
+            "GIT_TERMINAL_PROMPT": "0",
             "PYTHONDONTWRITEBYTECODE": "1",
             "UV_PROJECT_ENVIRONMENT": str(ROOT / ".venv"),
         }
@@ -254,6 +258,15 @@ class PythonTestGate:
                 "XDG_CACHE_HOME": str(self.identity_home / ".cache"),
             }
         return env
+
+    @staticmethod
+    def _git_config(name: str) -> str:
+        observed = run_git(ROOT, "config", "--local", "--get", name, check=False)
+        value = observed.stdout.strip()
+        if observed.returncode or not value:
+            message = f"test identity requires repository-local {name}"
+            raise RuntimeError(message)
+        return value
 
     def _command(self) -> tuple[str, ...]:
         prefix = (

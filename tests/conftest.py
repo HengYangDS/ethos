@@ -43,10 +43,25 @@ def _hermetic_git_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setenv("GIT_COMMITTER_EMAIL", "test@example.invalid")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    monkeypatch.setenv("GIT_CONFIG_COUNT", "2")
-    monkeypatch.setenv("GIT_CONFIG_KEY_0", "init.templateDir")
-    monkeypatch.setenv("GIT_CONFIG_VALUE_0", git_template.as_posix())
-    monkeypatch.setenv("GIT_CONFIG_KEY_1", "core.fsmonitor")
-    monkeypatch.setenv("GIT_CONFIG_VALUE_1", "false")
+    count = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
+    entries = [
+        (os.environ[f"GIT_CONFIG_KEY_{index}"], os.environ[f"GIT_CONFIG_VALUE_{index}"])
+        for index in range(count)
+    ]
+    declared = {key for key, _value in entries}
+    entries.extend(
+        (key, value)
+        for key, value in (
+            ("init.templateDir", git_template.as_posix()),
+            ("core.fsmonitor", "false"),
+            ("user.name", "ETHOS Test"),
+            ("user.email", "test@example.invalid"),
+        )
+        if key not in declared
+    )
+    monkeypatch.setenv("GIT_CONFIG_COUNT", str(len(entries)))
+    for index, (key, value) in enumerate(entries):
+        monkeypatch.setenv(f"GIT_CONFIG_KEY_{index}", key)
+        monkeypatch.setenv(f"GIT_CONFIG_VALUE_{index}", value)
     monkeypatch.setenv("GIT_TERMINAL_PROMPT", "0")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")

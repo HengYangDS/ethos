@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 _GIT_CONFIG_SOURCE_ENV = ("GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM")
+_GIT_CONFIG_INDEX_PREFIXES = ("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")
 GIT_EXECUTABLE_UNAVAILABLE = "git_executable_unavailable"
 GIT_PROCESS_SPAWN_FAILED = "git_process_spawn_failed"
 
@@ -32,6 +33,54 @@ class GitExecutionError(ValueError):
         super().__init__(code)
         self.code = code
         self.reason = reason
+
+
+def _inherited_git_config_overlay(environment: Mapping[str, str]) -> dict[str, str]:
+    """Return one complete bounded indexed Git configuration overlay."""
+    invalid = "git_config_overlay_invalid"
+    indexed = {
+        key: value
+        for key, value in environment.items()
+        if key == "GIT_CONFIG_COUNT" or key.startswith(_GIT_CONFIG_INDEX_PREFIXES)
+    }
+    if not indexed:
+        return {}
+    raw_count = indexed.get("GIT_CONFIG_COUNT")
+    if raw_count is None or not raw_count.isdecimal():
+        raise ValueError(invalid)
+    count = int(raw_count)
+    expected = {"GIT_CONFIG_COUNT"}
+    for index in range(count):
+        key_name = f"GIT_CONFIG_KEY_{index}"
+        value_name = f"GIT_CONFIG_VALUE_{index}"
+        expected.update((key_name, value_name))
+        key, value = indexed.get(key_name), indexed.get(value_name)
+        if not key or not value or (key == "safe.directory" and value == "*"):
+            raise ValueError(invalid)
+    if set(indexed) != expected:
+        raise ValueError(invalid)
+    return indexed
+
+
+def _merge_git_config_overlays(
+    inherited: Mapping[str, str], supplied: Mapping[str, str]
+) -> dict[str, str]:
+    """Append one call-specific overlay to the runner-declared overlay."""
+    left = _inherited_git_config_overlay(inherited)
+    right = _inherited_git_config_overlay(supplied)
+    entries = []
+    for overlay in (left, right):
+        entries.extend(
+            ((overlay[f"GIT_CONFIG_KEY_{index}"], overlay[f"GIT_CONFIG_VALUE_{index}"]))
+            for index in range(int(overlay.get("GIT_CONFIG_COUNT", "0")))
+        )
+    if not entries:
+        return {}
+    merged = {"GIT_CONFIG_COUNT": str(len(entries))}
+    for index, (key, value) in enumerate(entries):
+        merged[f"GIT_CONFIG_KEY_{index}"] = key
+        merged[f"GIT_CONFIG_VALUE_{index}"] = value
+    return merged
 
 
 def git_executable(environment: Mapping[str, str]) -> str:
@@ -88,6 +137,7 @@ def run_git(
     if observation and env:
         message = "git_observation_environment_override_forbidden"
         raise ValueError(message)
+    config_overlay = _merge_git_config_overlays(os.environ, env or {})
     effective_env = (
         {"PATH": os.environ.get("PATH", os.defpath)}
         if observation
@@ -106,7 +156,9 @@ def run_git(
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_ATTR_NOSYSTEM": "1",
+            "GIT_TERMINAL_PROMPT": "0",
             **(env or {}),
+            **config_overlay,
         }
     )
     return _execute(

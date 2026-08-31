@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
@@ -77,13 +79,17 @@ def test_console_script_discovery_and_rewrite_matrix(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     python = _file(tmp_path / "runtime/bin/python", b"python")
-    _fails("entrypoint_missing", python_image.console_script_entries, python)
-    (tmp_path / "runtime/lib/python3.14/site-packages").mkdir(parents=True)
 
     def entries(*items: tuple[str, str]) -> None:
-        rows = [SimpleNamespace(group=group, name=name, value="v") for group, name in items]
         monkeypatch.setattr(
-            python_image, "distributions", lambda **_k: (SimpleNamespace(entry_points=rows),)
+            subprocess,
+            "run",
+            lambda *_a, **_k: subprocess.CompletedProcess(
+                (),
+                0,
+                json.dumps([[name, "v"] for group, name in items if group == "console_scripts"]),
+                "",
+            ),
         )
 
     entries(("other", "ignored"), ("console_scripts", "ethos"))
@@ -111,6 +117,32 @@ def test_console_script_discovery_and_rewrite_matrix(
     rewrite(tmp_path / "runtime")
     assert not legacy.exists()
     assert ethos.read_text().startswith("#!/bin/sh")
+
+
+def test_console_script_discovery_uses_the_target_interpreter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    python = _file(tmp_path / "runtime/Scripts/python.exe", b"python")
+    observed: dict[str, object] = {}
+
+    def execute(command: tuple[str, ...], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed["command"] = command
+        observed.update(kwargs)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            json.dumps([["ethos", "ethos.cli:main"]]),
+            "",
+        )
+
+    monkeypatch.setattr(subprocess, "run", execute)
+
+    assert python_image.console_script_entries(python) == {"ethos": "ethos.cli:main"}
+    assert observed["command"][0] == python.as_posix()
+    assert observed["command"][1:4] == ("-B", "-I", "-c")
+    assert observed["capture_output"] is True
+    assert observed["check"] is False
+    assert observed["text"] is True
 
 
 def test_package_runtime_source_identity_matrix(

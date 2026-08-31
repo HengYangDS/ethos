@@ -74,10 +74,10 @@ def test_host_conformance_git_overlay_is_platform_portable() -> None:
         for index in range(count)
     ]
 
-    assert entries == [
-        ("init.templateDir", os.environ["GIT_CONFIG_VALUE_0"]),
-        ("core.fsmonitor", "false"),
-    ]
+    assert ("core.fsmonitor", "false") in entries
+    assert ("user.name", "ETHOS Test") in entries
+    assert ("user.email", "test@example.invalid") in entries
+    assert len([key for key, _value in entries if key == "init.templateDir"]) == 1
     assert all(value for _, value in entries)
     assert os.environ["GIT_CONFIG_GLOBAL"] == os.devnull
     assert os.environ["GIT_CONFIG_NOSYSTEM"] == "1"

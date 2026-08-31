@@ -199,6 +199,37 @@ carrier = "src/example"
     } in report["superseded"]
 
 
+def test_repository_reference_closure_does_not_treat_change_intent_as_a_live_consumer(
+    tmp_path: Path,
+) -> None:
+    """OpenSpec migration prose names old paths without consuming them."""
+    _write(
+        tmp_path,
+        "system/surfaces.toml",
+        """
+schema = "system/schemas/contracts/surfaces.schema.json"
+
+[[surface]]
+name = "runtime"
+carrier = "src/example"
+""",
+    )
+    _write(tmp_path, "src/example/retired.py", "VALUE = 1")
+    _commit_candidate_baseline(tmp_path)
+    (tmp_path / "src/example/retired.py").unlink()
+    _write(
+        tmp_path,
+        "openspec/changes/remove-retired/specs/runtime/spec.md",
+        ""
+        "## MODIFIED Requirements\n\n"
+        "### Requirement: Remove retired module\n\n"
+        "The old `src/example/retired.py` path is removed from the runtime.\n",
+    )
+    _commit_current_tree(tmp_path)
+
+    assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
+
+
 def test_repository_reference_closure_applies_active_removed_requirement(
     tmp_path: Path,
 ) -> None:

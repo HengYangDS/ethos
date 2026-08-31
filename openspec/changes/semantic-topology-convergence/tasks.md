@@ -7,7 +7,7 @@
 
 - [x] 2.1 Produce one frozen-HEAD inventory of Python packages, implementation modules, imports, public symbols, docs, links, metadata, rules, skills, OpenSpec artifacts, and generated projection consumers; verify the inventory is reproducible from repository files.
 - [x] 2.2 Classify empty packages, single-module packages, initializer-only parent packages, suffix families, facades, and private imports by owner, consumer, boundary, and reason to change; verify every proposed deletion has a concrete replacement owner.
-- [x] 2.3 Classify every docs directory and README by navigation, boundary, index, or placeholder purpose; verify the classification covers `docs/start`, `docs/guides`, all stable paths, and all registry entries.
+- [x] 2.3 Classify every docs directory and README by navigation, boundary, index, or placeholder purpose; verify the classification covers the former onboarding root, `docs/guides`, all stable paths, and all registry entries.
 
 ## 3. Converge Python topology
 
@@ -17,7 +17,7 @@
 
 ## 4. Converge documentation topology
 
-- [x] 4.1 Move `docs/start/quickstart.md` to `docs/guides/quickstart.md` and update the Docs Registry taxonomy, stable paths, indexes, cross-links, command examples, tests, and generated projection inputs; verify repository-wide link closure and one canonical quickstart path.
+- [x] 4.1 Move the onboarding document to `docs/guides/quickstart.md` and update the Docs Registry taxonomy, stable paths, indexes, cross-links, command examples, tests, and generated projection inputs; verify repository-wide link closure and one canonical quickstart path.
 - [x] 4.2 Absorb unique README navigation into the owning parent or child document, delete placeholder README files, empty directories, `.gitkeep`, and stale redirect paths; verify each remaining README has a concrete index or boundary consumer.
 - [x] 4.3 Run the existing docs registry, Markdown, stable-path, architecture-projection, and command-example checks; verify source identity, role/state metadata, and all projection paths agree.
 

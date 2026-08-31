@@ -21,8 +21,8 @@ existing authoritative owners.
   move callers to the selected concrete owner and delete the superseded path.
 - Make documentation taxonomy and README use follow function, authority, and
   navigation need rather than inherited directory habit.
-- Resolve the previously discussed first-run placement by moving
-  `quickstart.md` from `docs/start/` to `docs/guides/`, updating all links,
+- Resolve the previously discussed first-run placement by moving the
+  onboarding document to `docs/guides/`, updating all links,
   stable paths, taxonomy, registry projections, and tests together.
 - Preserve the existing authority boundary without claiming that a missing
   public derived view is already a product feature. This Change creates no
@@ -35,8 +35,8 @@ existing authoritative owners.
 - Recompute and verify repository projections from the selected authoritative
   sources, with repository-wide reference closure before proof.
 
-**BREAKING**: retired Python import paths and the `docs/start/quickstart.md`
-path are removed without compatibility facades or redirects.
+**BREAKING**: retired Python import paths and the former onboarding path are
+removed without compatibility facades or redirects.
 
 ## Capabilities
 

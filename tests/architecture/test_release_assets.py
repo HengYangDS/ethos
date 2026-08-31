@@ -13,7 +13,10 @@ from typing import cast
 
 import pytest
 
+import tools.ci.local_ci as local_ci
 import tools.ci.python_test_gate as python_test_gate
+from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
+from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from tools.ci.dependency_hygiene import declaration_gaps
 
 if TYPE_CHECKING:
@@ -143,6 +146,16 @@ def test_python_bootstrap_does_not_use_apt_get_on_darwin(tmp_path: Path) -> None
 
 def test_direct_python_bounds_equal_the_locked_resolution() -> None:
     assert declaration_gaps() == []
+
+
+def test_local_ci_logs_use_declared_disposable_runtime_home() -> None:
+    declaration = load_generated_artifact_topology_declaration(
+        ROOT / "system/policies/generated-artifact-topology.toml"
+    )
+    relative = local_ci.LOG_ROOT.relative_to(ROOT).as_posix()
+
+    assert relative == "build/runtime/work/local-ci/logs"
+    assert path_policy_from_declaration(relative, declaration)["decision"] == "allow"
 
 
 def test_direct_node_declarations_equal_the_lock_root() -> None:

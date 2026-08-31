@@ -89,7 +89,14 @@ def protect_for_current_identity(path: Path, *, platform_name: str | None = None
         return
     completed = _run_windows(path, _WINDOWS_PROTECT)
     if completed is None or completed.returncode:
-        message = "git_object_trust_anchor_protection_failed"
+        if completed is None:
+            message = "git_object_trust_anchor_protection_failed:native_observer_unavailable"
+        else:
+            stderr = " ".join(completed.stderr.split())[:512]
+            message = (
+                "git_object_trust_anchor_protection_failed:"
+                f"exit_code={completed.returncode}:stderr={stderr}"
+            )
         raise OSError(message)
 
 

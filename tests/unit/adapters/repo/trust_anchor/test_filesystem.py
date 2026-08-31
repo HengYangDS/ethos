@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.repo.trust_anchor.filesystem as trust_anchor_filesystem
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 
@@ -98,6 +99,34 @@ def test_windows_protection_fails_closed_without_native_observer(
     anchor.write_text("unknown\n", encoding="utf-8")
 
     assert not protected_from_untrusted_write(anchor, platform_name="nt")
+
+
+def test_windows_protection_failure_preserves_native_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fake_powershell(tmp_path, {})
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
+    target = tmp_path / "trust"
+    target.mkdir()
+    monkeypatch.setattr(
+        trust_anchor_filesystem,
+        "run_command",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=("powershell.exe",),
+            returncode=5,
+            stdout="",
+            stderr="Set-Acl: Access is denied.\n",
+        ),
+    )
+
+    with pytest.raises(
+        OSError,
+        match=(
+            "git_object_trust_anchor_protection_failed:"
+            "exit_code=5:stderr=Set-Acl: Access is denied\\."
+        ),
+    ):
+        protect_for_current_identity(target, platform_name="nt")
 
 
 def test_posix_protection_preserves_directory_traversal(tmp_path: Path) -> None:

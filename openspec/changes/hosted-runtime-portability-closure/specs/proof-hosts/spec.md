@@ -30,7 +30,9 @@ while continuing to hide ambient global and system configuration.
 - **GIVEN** a hosted runner owns the checkout and then executes repository proof
   under a different declared UID and GID
 - **WHEN** ETHOS observes source identity or creates a deterministic test commit
-- **THEN** Git receives the runner-declared exact repository trust and commit
-  identity through the shared subprocess boundary
+- **THEN** Git receives the runner-declared exact repository trust and explicit
+  author/committer identity through the shared subprocess boundary
+- **AND** repository-local `user.name` and `user.email` remain authoritative for
+  identity policy
 - **AND** no ambient user Git configuration, broad trust rule, or per-test
   exception participates in the result.

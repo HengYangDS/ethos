@@ -8,13 +8,14 @@ import shutil
 import subprocess
 import sys
 import uuid
-from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
 from pathlib import Path
 from typing import NoReturn
 from urllib.parse import unquote
 from urllib.parse import urlparse
+
+import nodejs_wheel
 
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
@@ -30,6 +31,23 @@ def require_runtime_wheel_provenance() -> None:
     source = Path(__file__).resolve().parents[6]
     if not (source / "pyproject.toml").is_file():
         resolve_runtime_wheel(source, Path())
+
+
+def resolve_node_runtime(
+    *,
+    package_root: Path | None = None,
+    platform_name: str | None = None,
+) -> tuple[Path, Path]:
+    """Return validated Node and npm paths from the locked package supply."""
+    root = package_root or Path(str(nodejs_wheel.__file__)).resolve().parent
+    platform = platform_name or os.name
+    node = root / "node.exe" if platform == "nt" else root / "bin/node"
+    npm_cli = root / "lib/node_modules/npm/bin/npm-cli.js"
+    if not node.is_file() or (platform != "nt" and not os.access(node, os.X_OK)):
+        _fail(f"package-local Node executable is unavailable: {node}")
+    if not npm_cli.is_file():
+        _fail(f"package-local npm CLI is unavailable: {npm_cli}")
+    return node, npm_cli
 
 
 def resolve_runtime_wheel(source: Path, wheel_dir: Path, *, cache_dir: Path | None = None) -> Path:
@@ -141,16 +159,14 @@ def run_runtime_tool(
     cache_dir: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run the runtime-adjacent uv executable with pinned build inputs."""
-    node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
+    node, npm_cli = resolve_node_runtime()
     environment = {
         **os.environ,
         "PYTHONDONTWRITEBYTECODE": "1",
         "UV_LINK_MODE": "copy",
         "VIRTUAL_ENV": Path(sys.prefix).as_posix(),
-        "ETHOS_BUILD_NODE": (
-            node_root / "bin" / ("node.exe" if os.name == "nt" else "node")
-        ).as_posix(),
-        "ETHOS_BUILD_NPM_CLI": (node_root / "lib/node_modules/npm/bin/npm-cli.js").as_posix(),
+        "ETHOS_BUILD_NODE": node.as_posix(),
+        "ETHOS_BUILD_NPM_CLI": npm_cli.as_posix(),
     }
     if cache_dir is not None:
         environment["UV_CACHE_DIR"] = cache_dir.as_posix()

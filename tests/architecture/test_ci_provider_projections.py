@@ -25,6 +25,22 @@ def test_provider_commands_use_locked_offline_registry_sessions() -> None:
     assert "uv run --frozen --offline python -m nox -s tests" in texts[1]
 
 
+def test_hosted_repository_proof_does_not_activate_local_mutation_runtime() -> None:
+    texts = [
+        (ROOT / relative).read_text(encoding="utf-8")
+        for relative in (
+            ".config/ci/templates/hosted/github-actions.yml",
+            ".config/ci/templates/hosted/gitlab-ci.yml",
+            ".github/workflows/ci.yml",
+            ".gitlab-ci.yml",
+        )
+    ]
+
+    assert all("tools/ci/scripts/configure-git-checkout.sh" in text for text in texts)
+    assert all("tools/ci/scripts/run-head-bound-proof.sh" in text for text in texts)
+    assert all("ethos hook install" not in text for text in texts)
+
+
 def test_provider_emulators_are_digest_bound_and_fail_closed() -> None:
     config = tomllib.loads((ROOT / ".config/checks/ci/templates.toml").read_text(encoding="utf-8"))
     providers = {item["provider"]: item for item in config["projection"]}

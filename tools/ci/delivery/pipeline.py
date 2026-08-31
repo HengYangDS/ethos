@@ -8,11 +8,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 from tools.ci.local_install_smoke import prepare_supply
 from tools.ci.local_install_smoke import run as run_install_smoke
-from tools.ci.toolchain.node import node_runtime
 
 if TYPE_CHECKING:
     import nox
@@ -31,7 +31,7 @@ class DeliveryPipeline:
     @classmethod
     def from_runtime(cls, runtime: ProjectRuntime) -> DeliveryPipeline:
         """Bind the wheel's locked Node and npm build inputs."""
-        node, npm_cli = node_runtime()
+        node, npm_cli = resolve_node_runtime()
         return cls(runtime, node, npm_cli)
 
     def build(self, session: nox.Session) -> None:

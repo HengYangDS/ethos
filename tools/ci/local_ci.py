@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = ROOT / "build/evidence/local-ci/fallback.json"
+LOG_ROOT = ROOT / "build/runtime/work/local-ci/logs"
 COMMAND = "uv run --frozen --offline python -m nox -s local_ci"
 VERIFY_SESSIONS = (
     "format_check",
@@ -71,8 +72,7 @@ def _run_session(session: nox.Session, name: str) -> None:
 
 def _run_parallel_sessions(session: nox.Session) -> None:
     """Run independent read-only owners concurrently with bounded output."""
-    log_root = ROOT / "build/runtime/logs/local-ci"
-    log_root.mkdir(parents=True, exist_ok=True)
+    LOG_ROOT.mkdir(parents=True, exist_ok=True)
 
     def run(name: str) -> tuple[str, int, str]:
         completed = subprocess.run(
@@ -84,7 +84,7 @@ def _run_parallel_sessions(session: nox.Session) -> None:
             check=False,
         )
         output = f"{completed.stdout}{completed.stderr}"
-        (log_root / f"{name}.log").write_text(output, encoding="utf-8")
+        (LOG_ROOT / f"{name}.log").write_text(output, encoding="utf-8")
         return name, completed.returncode, output[-4000:]
 
     failures = []

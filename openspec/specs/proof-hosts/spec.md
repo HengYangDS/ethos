@@ -110,10 +110,12 @@ requirements.
 ### Requirement: Host conformance controls repository-local Git semantics
 
 ETHOS SHALL make portable host-conformance assertions independent of ambient
-Git configuration and text-conversion defaults by declaring the exact
-repository-local semantics required by each fixture. Indexed Git configuration
-passed through the process environment SHALL contain a complete key/value pair
-for every declared entry on every supported host.
+Git configuration, repository ownership, and text-conversion defaults by
+declaring the exact repository-local semantics required by each fixture.
+Indexed Git configuration passed through the process environment SHALL contain
+a complete key/value pair for every declared entry on every supported host.
+The shared Git execution boundary SHALL preserve only that explicit overlay
+while continuing to hide ambient global and system configuration.
 
 #### Scenario: CRLF bytes are tested on a Windows-style Git configuration
 
@@ -129,6 +131,18 @@ for every declared entry on every supported host.
   `GIT_CONFIG_VALUE_n`
 - **AND** global and system configuration remain hidden
 - **AND** credential prompting remains disabled.
+
+#### Scenario: Hosted proof drops process identity
+
+- **GIVEN** a hosted runner owns the checkout and then executes repository proof
+  under a different declared UID and GID
+- **WHEN** ETHOS observes source identity or creates a deterministic test commit
+- **THEN** Git receives the runner-declared exact repository trust and explicit
+  author/committer identity through the shared subprocess boundary
+- **AND** repository-local `user.name` and `user.email` remain authoritative for
+  identity policy
+- **AND** no ambient user Git configuration, broad trust rule, or per-test
+  exception participates in the result.
 
 ### Requirement: Hosted repository proof preserves source authority
 

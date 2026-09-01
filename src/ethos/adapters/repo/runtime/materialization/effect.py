@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ntpath
 import os
+import shlex
 import shutil
 import stat
 import subprocess
@@ -31,7 +32,6 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 from ethos.adapters.repo.runtime.materialization.python_image import materialize_python_image
 from ethos.adapters.repo.runtime.materialization.python_image import prepare_locked_requirements
 from ethos.adapters.repo.runtime.selection import current_runtime
-from ethos.adapters.repo.runtime.selection import runtime_entrypoint
 from ethos.adapters.repo.runtime.selection import runtime_python
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
@@ -191,11 +191,8 @@ def _finalize_runtime(
     runtime_files: dict[str, str],
 ) -> None:
     python = runtime_python(runtime / "python")
-    entrypoint = runtime_entrypoint(runtime / "python")
     if not python.is_file():
         _fail("hook_runtime_python_missing")
-    if not entrypoint.is_file():
-        _fail("hook_runtime_entrypoint_missing")
     (runtime / "manifest.json").write_bytes(
         runtime_manifest_bytes(
             digest=target.name,
@@ -271,14 +268,24 @@ def require_runtime_generation(
     if not all(_same_runtime_path(facts[key], prefix) for key in ("prefix", "base_prefix")):
         _fail("hook_runtime_python_not_relocatable")
     if smoke:
+        command = (python, "-B", "-I", "-m", "ethos.cli", "--version")
         completed = subprocess.run(
-            (runtime_entrypoint(runtime / "python"), "--version"),
+            command,
             capture_output=True,
             check=False,
             text=True,
         )
         if completed.returncode or not completed.stdout.strip():
-            _fail("hook_runtime_entrypoint_smoke_failed")
+            detail = ":".join(
+                (
+                    "hook_runtime_module_smoke_failed",
+                    f"command={shlex.join(tuple(str(part) for part in command))}",
+                    f"returncode={completed.returncode}",
+                    f"stdout={completed.stdout.strip()}",
+                    f"stderr={completed.stderr.strip()}",
+                )
+            )
+            _fail(detail)
 
 
 def _same_runtime_path(observed: str, expected: str) -> bool:

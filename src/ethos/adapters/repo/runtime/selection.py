@@ -43,7 +43,6 @@ class SelectedRuntime(NamedTuple):
     root: Path
     digest: str
     python: Path
-    entrypoint: Path
     manifest: Path
     wheel_sha256: str
     python_abi: str
@@ -153,7 +152,7 @@ def runtime_selection_transaction(
 def runtime_command(root: Path, *arguments: str) -> str:
     """Render one shell command through the repository's selected runtime."""
     selected = current_runtime(Path(git_common_dir(root.resolve())).resolve())
-    return shlex.join((selected.entrypoint.as_posix(), *arguments))
+    return shlex.join((selected.python.as_posix(), "-B", "-I", "-m", "ethos.cli", *arguments))
 
 
 def legacy_runtime_migration_source(common: Path) -> tuple[str, str] | None:
@@ -232,22 +231,15 @@ def require_selected_runtime(
         or identity.runtime_files != expected_files
     ):
         raise ValueError(_MANIFEST_INVALID)
-    entrypoint = runtime_entrypoint(runtime / "python")
     return SelectedRuntime(
         runtime,
         digest,
         python,
-        entrypoint,
         manifest,
         identity.wheel_sha256,
         *identity.environment,
         identity.build,
     )
-
-
-def runtime_entrypoint(interpreter_home: Path) -> Path:
-    """Return the ETHOS entrypoint inside one owned interpreter home."""
-    return runtime_scripts(interpreter_home) / ("ethos.exe" if os.name == "nt" else "ethos")
 
 
 def runtime_python(interpreter_home: Path) -> Path:

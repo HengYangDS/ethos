@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.repo.trust_anchor.filesystem as trust_anchor_filesystem
+from ethos.adapters.process import run_command
+from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 
@@ -174,9 +176,10 @@ def test_windows_native_acl_protection_rejects_foreign_writer(tmp_path: Path) ->
 
     assert protected_from_untrusted_write(anchor)
 
-    subprocess.run(
+    run_command(
+        anchor.parent,
         (
-            "powershell.exe",
+            windows_powershell(),
             "-NoLogo",
             "-NoProfile",
             "-NonInteractive",
@@ -191,9 +194,7 @@ def test_windows_native_acl_protection_rejects_foreign_writer(tmp_path: Path) ->
             ),
         ),
         check=True,
-        capture_output=True,
         env={**os.environ, "ETHOS_TRUST_ANCHOR_PATH": str(anchor)},
-        text=True,
     )
 
     assert not protected_from_untrusted_write(anchor)

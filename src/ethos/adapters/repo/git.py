@@ -16,6 +16,8 @@ from typing import Any
 from typing import Literal
 from typing import overload
 
+import ethos.adapters.process as process_adapter
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from datetime import datetime
@@ -33,10 +35,31 @@ GIT_PROCESS_SPAWN_FAILED = "git_process_spawn_failed"
 class GitExecutionError(ValueError):
     """Stable failure boundary for resolving or spawning the Git executable."""
 
-    def __init__(self, code: str, *, reason: str) -> None:
+    def __init__(
+        self,
+        code: str,
+        *,
+        reason: str,
+        command: tuple[str, ...] = (),
+        cwd: str = "",
+        cause: str = "",
+    ) -> None:
         super().__init__(code)
         self.code = code
         self.reason = reason
+        self.command = command
+        self.cwd = cwd
+        self.cause = cause
+
+    def evidence(self) -> dict[str, object]:
+        """Return the stable machine-readable Git execution failure evidence."""
+        return {
+            "code": self.code,
+            "reason": self.reason,
+            "command": list(self.command),
+            "cwd": self.cwd,
+            "cause": self.cause,
+        }
 
 
 def _git_config_overlay(*environments: Mapping[str, str]) -> dict[str, str]:
@@ -152,80 +175,25 @@ def run_git(
             **config_overlay,
         }
     )
-    return _execute(
-        root,
-        (git_executable(effective_env), *args),
-        text=text,
-        check=check,
-        env=effective_env,
-        stdin=stdin,
-    )
-
-
-def _execute(
-    root: Path,
-    command: tuple[str, ...],
-    *,
-    text: bool,
-    check: bool,
-    env: Mapping[str, str],
-    stdin: str | bytes | None = None,
-    timeout: float | None = None,
-) -> subprocess.CompletedProcess[Any]:
-    if not root.is_dir():
-        raise GitExecutionError(
-            GIT_PROCESS_SPAWN_FAILED,
-            reason="working_directory_unavailable",
-        )
+    command = (git_executable(effective_env), *args)
     try:
-        return subprocess.run(
+        return process_adapter.run_command(
+            root,
             command,
-            cwd=root,
             check=check,
             text=text,
-            capture_output=True,
-            env=env,
-            input=stdin,
-            timeout=timeout,
-            shell=False,
+            env=effective_env,
+            inherit_environment=False,
+            stdin=stdin,
         )
-    except OSError as error:
+    except process_adapter.ProcessExecutionError as error:
         raise GitExecutionError(
             GIT_PROCESS_SPAWN_FAILED,
-            reason="process_creation_failed",
+            reason=error.reason,
+            command=error.command,
+            cwd=error.cwd,
+            cause=error.cause,
         ) from error
-
-
-def run_command(
-    root: Path,
-    command: tuple[str, ...],
-    *,
-    text: bool = True,
-    capture_output: bool = True,
-    check: bool = False,
-    timeout: float | None = None,
-    env: Mapping[str, str] | None = None,
-    remove_env: tuple[str, ...] = (),
-) -> subprocess.CompletedProcess[Any]:
-    """Run one exact argv command without a shell or inherited Git overrides."""
-    if not capture_output:
-        message = "command_capture_output_required"
-        raise ValueError(message)
-    removed = {key.casefold() for key in remove_env}
-    effective_env = {
-        key: value
-        for key, value in os.environ.items()
-        if not key.startswith("GIT_") and key.casefold() not in removed
-    }
-    effective_env.update({"PATH": os.environ.get("PATH", os.defpath), **(env or {})})
-    return _execute(
-        root,
-        command,
-        text=text,
-        check=check,
-        timeout=timeout,
-        env=effective_env,
-    )
 
 
 def run_network_git(
@@ -261,14 +229,25 @@ def run_network_git(
             "GIT_TERMINAL_PROMPT": "0",
         }
     )
-    return _execute(
-        root,
-        (git_executable(effective_env), *args),
-        text=True,
-        check=check,
-        env=effective_env,
-        timeout=timeout,
-    )
+    command = (git_executable(effective_env), *args)
+    try:
+        return process_adapter.run_command(
+            root,
+            command,
+            text=True,
+            check=check,
+            env=effective_env,
+            inherit_environment=False,
+            timeout=timeout,
+        )
+    except process_adapter.ProcessExecutionError as error:
+        raise GitExecutionError(
+            GIT_PROCESS_SPAWN_FAILED,
+            reason=error.reason,
+            command=error.command,
+            cwd=error.cwd,
+            cause=error.cause,
+        ) from error
 
 
 def repository_root(root: Path) -> Path:

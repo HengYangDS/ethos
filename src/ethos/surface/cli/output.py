@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Annotated
 
 from cyclopts import Parameter
 
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
+
+if TYPE_CHECKING:
+    from ethos.adapters.process import ProcessExecutionError
 
 JsonFlag = Annotated[bool, Parameter(name="--json")]
 
@@ -56,20 +61,40 @@ def emit_invalid_repository_profile(*, command: str, json_output: bool, enforce:
     )
 
 
-def emit_git_execution_failure(*, command: str, code: str, reason: str, json_output: bool) -> None:
+def emit_process_execution_failure(
+    *, command: str, error: ProcessExecutionError, json_output: bool
+) -> None:
+    """Emit one stable fail-closed envelope for external process creation."""
+    emit(
+        EthosResult(
+            command=command,
+            verdict="block",
+            state="gapped",
+            required_gaps=(error.code,),
+            next_action="repair the reported process boundary and rerun the command",
+            data={"error_boundary": "process_execution", **error.evidence()},
+        ),
+        json_output=json_output,
+        enforce=True,
+    )
+
+
+def emit_git_execution_failure(
+    *, command: str, error: GitExecutionError, json_output: bool
+) -> None:
     """Emit one stable fail-closed envelope for Git execution infrastructure."""
     emit(
         EthosResult(
             command=command,
             verdict="block",
             state="gapped",
-            required_gaps=(code,),
+            required_gaps=(error.code,),
             next_action=(
                 "install Git on the effective PATH and rerun the command"
-                if code == "git_executable_unavailable"
+                if error.code == "git_executable_unavailable"
                 else "verify the repository root and rerun the command"
             ),
-            data={"error_boundary": "git_execution", "reason": reason},
+            data={"error_boundary": "git_execution", **error.evidence()},
         ),
         json_output=json_output,
         enforce=True,

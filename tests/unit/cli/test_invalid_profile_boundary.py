@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import ethos.cli as cli
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.cli import main
 from ethos.contracts.admission import root_command
@@ -139,7 +140,13 @@ def test_git_execution_failures_emit_structured_json_without_traceback(
     reason: str,
 ) -> None:
     def fail(_root: Path | None) -> Path:
-        raise GitExecutionError(code, reason=reason)
+        raise GitExecutionError(
+            code,
+            reason=reason,
+            command=("/usr/bin/git", "status"),
+            cwd=tmp_path.resolve().as_posix(),
+            cause="OSError: denied",
+        )
 
     monkeypatch.setattr("ethos.surface.cli.root.inspection.resolve_root", fail)
     monkeypatch.setattr(
@@ -157,6 +164,42 @@ def test_git_execution_failures_emit_structured_json_without_traceback(
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == [code]
     assert payload["data"]["reason"] == reason
+    assert payload["data"]["command"] == ["/usr/bin/git", "status"]
+    assert payload["data"]["cwd"] == tmp_path.resolve().as_posix()
+    assert payload["data"]["cause"] == "OSError: denied"
+
+
+def test_process_execution_failure_emits_structured_json_without_git_classification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fail(*_args: object, **_kwargs: object) -> None:
+        code = "native_windows_powershell_unavailable"
+        raise ProcessExecutionError(
+            code,
+            reason="native_executable_missing",
+            command=("C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",),
+            cwd=tmp_path.resolve().as_posix(),
+            cause="FileNotFoundError: missing",
+        )
+
+    monkeypatch.setattr(cli, "load_command_groups", fail)
+    monkeypatch.setattr(sys, "argv", ["ethos", "hook", "install", "--json"])
+
+    with pytest.raises(SystemExit, match="1"):
+        main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["required_gaps"] == ["native_windows_powershell_unavailable"]
+    assert payload["data"] == {
+        "error_boundary": "process_execution",
+        "code": "native_windows_powershell_unavailable",
+        "reason": "native_executable_missing",
+        "command": ["C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"],
+        "cwd": tmp_path.resolve().as_posix(),
+        "cause": "FileNotFoundError: missing",
+    }
 
 
 @pytest.mark.parametrize(

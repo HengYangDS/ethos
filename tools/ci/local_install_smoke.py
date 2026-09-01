@@ -15,8 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import run_command
 from tools.ci.delivery.adopter_fixture import line_ending_conformance
 from tools.ci.delivery.adopter_fixture import materialize_adopter
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -54,7 +54,7 @@ def _run(
     cwd: Path = ROOT,
     env: dict[str, str] | None = None,
 ) -> str:
-    completed = run_command(cwd, command, env=env)
+    completed = run_command(cwd, command, env=env, remove_env_prefixes=("GIT_",))
     if completed.returncode:
         detail = completed.stderr.strip() or completed.stdout.strip()
         rendered = " ".join(command)
@@ -145,7 +145,13 @@ def _independent_host_environment() -> tuple[dict[str, str], str]:
 def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
     """Run the installed reader and lane admission surface without a host control plane."""
     env, git = _independent_host_environment()
-    head = run_command(adopter, (git, "rev-parse", "HEAD"), env=env, check=True).stdout.strip()
+    head = run_command(
+        adopter,
+        (git, "rev-parse", "HEAD"),
+        env=env,
+        check=True,
+        remove_env_prefixes=("GIT_",),
+    ).stdout.strip()
     holder = "agent:test:package-only:independence"
     suffix = ("--root", str(adopter), "--json")
     commands = (
@@ -195,10 +201,20 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
     checked = []
     for args in commands:
         executed_args = args
-        completed = run_command(adopter, (str(ethos), *executed_args), env=env)
+        completed = run_command(
+            adopter,
+            (str(ethos), *executed_args),
+            env=env,
+            remove_env_prefixes=("GIT_",),
+        )
         if args[:2] == ("plan", "--changed") and completed.returncode != 0:
             executed_args = ("plan", "--root", str(adopter), "--json")
-            completed = run_command(adopter, (str(ethos), *executed_args), env=env)
+            completed = run_command(
+                adopter,
+                (str(ethos), *executed_args),
+                env=env,
+                remove_env_prefixes=("GIT_",),
+            )
         if "Traceback" in completed.stderr or "Traceback" in completed.stdout:
             message = "installed CLI emitted traceback without a host control plane"
             raise RuntimeError(message)
@@ -269,6 +285,7 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
     run_command(
         adopter,
         (str(ethos), "plan", "--changed", "--root", str(adopter), "--json"),
+        remove_env_prefixes=("GIT_",),
     )
     archive = (
         str(ethos),
@@ -282,8 +299,12 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
         str(adopter),
         "--json",
     )
-    run_command(adopter, archive)
-    run_command(adopter, (*archive[:-1], "--rebuild-from", head, "--json"))
+    run_command(adopter, archive, remove_env_prefixes=("GIT_",))
+    run_command(
+        adopter,
+        (*archive[:-1], "--rebuild-from", head, "--json"),
+        remove_env_prefixes=("GIT_",),
+    )
     status_json = _run(str(ethos), "status", "--root", str(adopter), "--json", cwd=adopter)
     sdk_digest = _run(
         str(python),

@@ -52,11 +52,18 @@ hashed Python supply before selector mutation. Runtime materialization SHALL
 preserve the platform-native standalone interpreter layout and SHALL compare
 observed Python prefixes by platform-native path identity so the selected Python
 executable identifies the generated image as both `sys.prefix` and
-`sys.base_prefix`, while its standard library, native
-libraries, and generated console scripts remain one executable image. Source
-package construction SHALL consume the repository-prepared OpenSpec production
-closure selected by the exact `package-lock.json` without invoking npm,
-accessing the network, or depending on an ambient npm cache.
+`sys.base_prefix`. The runtime's sole internal ETHOS execution authority SHALL
+be that authenticated Python executable invoking `-B -I -m ethos.cli`; generated
+console scripts are package projections and SHALL NOT define runtime identity,
+currentness, or internal ETHOS execution. Runtime materialization SHALL invoke
+the locked `uv` package as `<runtime-python> -B -I -m uv`, leaving platform-native
+binary discovery to that package instead of deriving a sibling executable path.
+Standalone Python resolution SHALL exclude the invoking project/runtime virtual
+environment from managed-interpreter selection.
+Source package construction SHALL consume
+the repository-prepared OpenSpec production closure selected by the exact
+`package-lock.json` without invoking npm, accessing the network, or depending on
+an ambient npm cache.
 
 #### Scenario: A locked artifact is absent from cache
 
@@ -85,8 +92,15 @@ accessing the network, or depending on an ambient npm cache.
 - **AND** executing the copy reports a path-identical generated image root as
   both `sys.prefix` and `sys.base_prefix`, regardless of equivalent Windows
   separator or case spelling
-- **AND** installed console scripts remain under `Scripts`
-- **AND** the selected `ethos.exe` entrypoint executes with that interpreter.
+- **AND** runtime post-observation and selected-runtime continuations execute
+  `python.exe -B -I -m ethos.cli`
+- **AND** relocating the generation does not depend on `Scripts/ethos.exe`.
+
+#### Scenario: Runtime module execution fails
+
+- **WHEN** the authenticated runtime Python cannot execute `ethos.cli`
+- **THEN** activation fails before selector mutation
+- **AND** evidence identifies the exact command, return code, stdout, and stderr.
 
 #### Scenario: A prepared OpenSpec production closure is packaged
 

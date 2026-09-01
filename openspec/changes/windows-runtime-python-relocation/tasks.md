@@ -11,7 +11,7 @@
 
 ## 3. Prove semantic and hosted closure
 
-- [ ] 3.1 Complete exact-HEAD full proof before official archive.
+- [x] 3.1 Complete exact-HEAD full proof before official archive.
 - [ ] 3.2 Archive the Change and repeat exact-HEAD full proof.
 - [ ] 3.3 Complete candidate and accepted CAS, activate and read back a new immutable runtime, and publish dev then main to both Forges.
 - [ ] 3.4 Require GitHub Windows Python 3.12, 3.13, and 3.14 hosted PASS before retiring the predecessor and successor Work Lanes.

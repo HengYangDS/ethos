@@ -19,5 +19,3 @@
   repository-wide reference checks.
 - [x] 3.2 Update the existing terminal design plan with the closed gap and
   remaining successor order.
-- [ ] 3.3 Complete signed exact-HEAD proof, official archive/reproof,
-  candidate/accepted CAS, runtime readback, and Work Lane retirement.

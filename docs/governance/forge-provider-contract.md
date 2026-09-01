@@ -76,7 +76,7 @@ rewrite, tag recreation, history mapping, or tree-only parity.
    publication SHALL remain separate evidence classes.
 1. **No provider ontology**: GitHub and GitLab profiles may add adapters,
    variables, templates, emulators, and publication checks; they SHALL NOT alter
-   `status -> plan -> prove -> land -> publish` semantics.
+   the shared result, continuation, or effect semantics.
 1. **Exact object projection**: peer adapters may authenticate transport, push
    an already existing local object under exact CAS, and observe the result.
    They SHALL NOT construct, rewrite, sign, or select a different product Git

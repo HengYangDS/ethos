@@ -5,14 +5,12 @@ source_of_truth = "repository"
 [coverage]
 required_primary_subjects = [
   "repository-governance",
-  "change-lifecycle",
   "skill-portfolio",
   "quality-gates",
   "adoption-profile",
 ]
 single_owner_subjects = [
   "repository-governance",
-  "change-lifecycle",
   "skill-portfolio",
   "quality-gates",
   "adoption-profile",
@@ -49,50 +47,6 @@ post_checks = [
   "ethos plan --changed --json",
   "ethos status --json",
 ]
-boundary = "workflow-package-projection"
-
-[[skill]]
-id = "ethos-change-lifecycle"
-path = ".agents/skills/ethos-change-lifecycle/SKILL.md"
-package_manifest = ".agents/skills/ethos-change-lifecycle/package.toml"
-subject = "change-lifecycle"
-operation = "prove"
-authority = "primary"
-lifecycle = "active"
-subjects = [
-  "change-lifecycle",
-  "status",
-  "plan",
-  "prove",
-  "land",
-  "publish",
-  "evidence",
-]
-path_globs = [
-  "src/**",
-  "docs/**",
-  "system/**",
-  "openspec/**",
-  "evidence/**",
-  "tests/**",
-]
-intent_tokens = [
-  "status",
-  "plan",
-  "prove",
-  "land",
-  "publish",
-  "readiness",
-  "evidence",
-  "change",
-  "loop",
-]
-pre_reads = ["AGENTS.md", "rules/mutation.md", "system/axioms.md"]
-during_rules = [
-  "read the decision verdict; never assume success",
-  "dry-run readiness is not executed proof",
-]
-post_checks = ["ethos status --json"]
 boundary = "workflow-package-projection"
 
 [[skill]]
@@ -206,7 +160,7 @@ post_checks = [
   "ethos prove --gate repository-audit --json",
   "ethos prove --json",
 ]
-requires = ["ethos-change-lifecycle"]
+requires = ["ethos-repository-governance"]
 boundary = "workflow-package-projection"
 
 [[skill]]

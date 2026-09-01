@@ -202,14 +202,9 @@ proved prerequisite, not convenience.
 ### Adopter Isomorphism And First-Hour UX
 
 The product repository and adopters run the same kernel through profiles and
-adapters, not product cloning. The first hour is deliberately small:
-
-```text
-status -> plan -> prove -> land -> publish
-```
-
-`status` is the read-only entrypoint. `adopt` proposes an explicit binding to
-that loop; an absent optional carrier remains an observed profile fact.
+adapters, not product cloning. `status` is the read-only entrypoint; its current
+result selects one continuation. `adopt` proposes an explicit binding to that
+model; an absent optional carrier remains an observed profile fact.
 
 ### Product Surfaces And Experience
 

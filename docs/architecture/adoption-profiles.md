@@ -45,10 +45,10 @@ presence is capability state, not a bootstrap prerequisite. Branch-role names,
 domain gates, provider state, and tool-native configuration remain adopter
 facts; adoption does not generate or normalize them.
 
-An adopted repository uses the same `status -> plan -> prove -> land -> publish`
-semantics as the product. The profile selects repository-owned facts and gates;
-it does not create a second command plane or copy adopter semantics into the ETHOS
-product runtime.
+An adopted repository uses the same result and continuation semantics as the
+product. The profile selects repository-owned facts and gates; it does not
+create a second command plane or copy adopter semantics into the ETHOS product
+runtime.
 
 Product release policy is likewise profile-bounded. Merely having a
 `pyproject.toml` does not make an adopter an ETHOS Python workspace. A

@@ -43,20 +43,10 @@ providers without becoming truth stores.
 ## First Hour
 
 The first hour is deliberately small. Start with the single bounded reader,
-then run the lifecycle loop:
-
-status is the read-only readiness view.
-
-```text
-status -> plan -> prove -> land -> publish
-```
+then follow the one continuation selected from current facts:
 
 ```bash
 ethos status
-ethos plan
-ethos prove
-ethos land
-ethos publish
 ```
 
 `ethos status` is the single bounded reader for current repository facts,
@@ -64,8 +54,8 @@ authority, gaps, coordination, and the next action. It does not mint repository
 truth.
 
 Start read-only with `ethos adopt --json`. Review the exact one-file binding
-plan, apply only when conflicts are empty and rollback is clear, then use the
-five-command loop above.
+plan, apply only when conflicts are empty and rollback is clear, then re-observe
+and follow the resulting continuation.
 
 Tracked `.ethos/` files declare repository bindings only. Mutable coordination,
 runtime state, and content-addressed local evidence live exclusively under the
@@ -73,19 +63,15 @@ repository's Git common directory.
 
 ## Human And Agent Discovery
 
-Use one discovery path, then branch by audience:
-
-```text
-README / docs index / AGENTS.md -> status -> plan -> prove -> land -> publish
-```
+Use one discovery path, then branch by audience.
 
 - Humans start from this README, then the [docs index](docs/index.md) and
   [quickstart](docs/guides/quickstart.md).
 - Agents start from [AGENTS.md](AGENTS.md), load the matching rule and skill,
   then run `ethos status --json` before planning mutation.
 - Both treat `ethos status` as a reader view: it makes role, capability, foreign
-  Work Lanes, unbound Work Lane refs, gaps, and next commands visible without
-  minting truth.
+  Work Lanes, unbound Work Lane refs, gaps, and the current continuation visible
+  without minting truth.
 - Foreign Work Lanes and unbound Work Lane refs are coordination signals.
   Visibility is collaboration, not authority; write, land, retire, or cleanup
   requires owner handoff or maintainer break-glass evidence.

@@ -6,11 +6,10 @@ truth = "repository-source-docs-rules-and-evidence"
 digest_algorithm = "sha256"
 include = [
   "SKILL.md",
-  "scripts/govern_check.py",
   "references/governance-map.md",
 ]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:642a64b19d9e26c256ebe96777ca941a99d5c758959d53b7ff7a09e14a0c57db"
+expected_digest = "sha256:fcd42af595c5cb5a7362436053871c9718a23736247a0efd8b2b19870f69ae5d"
 
 [quality]
 placeholder_allowed = false
@@ -30,8 +29,3 @@ command = ["ethos", "plan", "--changed", "--json"]
 id = "ethos.prove"
 kind = "command_proof"
 command = ["ethos", "prove", "--json"]
-
-[[capability]]
-id = "repository.govern-check"
-kind = "script_readonly"
-command = ["scripts/govern_check.py", "--root", "."]

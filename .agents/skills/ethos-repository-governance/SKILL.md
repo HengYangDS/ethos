@@ -12,34 +12,28 @@ Work Lanes, OpenSpec consumption, or adoption profiles.
 
 ## Workflow
 
-1. Read `AGENTS.md` and the relevant canonical docs before changing governance
-   behavior.
-2. Run `uv run ethos status --json` to classify checkout role, dirty state, and
-   write-readiness gaps.
-3. Run `uv run ethos plan --changed --json` to compile the changed-scope gates
-   and evidence requirements.
-4. Run the relevant `uv run ethos prove --gate <gate-id> --json` command first;
-   use `uv run ethos prove --full --json` when the full local proof plan is
-   required.
+1. Read `AGENTS.md`, then run `ethos status --json` in the target worktree.
+2. Read the result's `verdict`, `required_gaps`, singular `next_action`,
+   `continuation`, and `user_decision_required`; follow that result rather than
+   a remembered sequence.
+3. Load only the rule, OpenSpec Change, design document, or focused gate needed
+   for the current action.
+4. Before tracked mutation, obtain a passing `ethos lane prewrite` decision for
+   the exact target root and paths.
 5. Keep source, tests, schemas, docs, official OpenSpec, Attestations, and fresh
-   command observations above skill projections. Commitment is a transient
+   command observations above skill projections. Commitment is transient
    compilation, not another truth store.
 
 ## Evidence
 
-Use the current public command plane or the bundled owner script:
+Use the current public command plane:
 
 ```bash
-.agents/skills/ethos-repository-governance/scripts/govern_check.py --root .
-uv run ethos status --json
-uv run ethos plan --changed --json
-uv run ethos prove --json
+ethos status --json
 ```
 
 ## Bundled Resources
 
-- `scripts/govern_check.py` — deterministic read-only status -> plan -> prove
-  readiness summary. It never lands, publishes, or executes proof.
 - `references/governance-map.md` — a compact map from governance concern to its
   current owner.
 

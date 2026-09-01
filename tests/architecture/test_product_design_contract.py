@@ -20,6 +20,14 @@ DESIGN_DOCUMENTS = (
     "system/axioms.md",
 )
 
+AGENT_ENTRY_LINKS = (
+    "docs/governance/product-design-contract.md",
+    "rules/README.md",
+    ".agents/skills/activation.toml",
+    "openspec/",
+    "docs/index.md",
+)
+
 
 def _copy_design_documents(target: Path) -> tuple[str, ...]:
     for relative in DESIGN_DOCUMENTS:
@@ -68,6 +76,18 @@ def test_current_change_uses_only_the_official_openspec_artifact_shape() -> None
             and not (artifact.startswith("specs/") and artifact.endswith(".md"))
         }
         assert not unsupported
+
+
+def test_agent_entrypoint_is_thin_and_continuation_driven() -> None:
+    entrypoint = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    normalized = " ".join(entrypoint.split())
+
+    assert all(target in entrypoint for target in AGENT_ENTRY_LINKS)
+    assert "ethos status --json" in entrypoint
+    assert "current result" in normalized
+    assert "OpenSpec" in entrypoint
+    assert "Commitment is transient compilation" in entrypoint
+    assert entrypoint.count("ethos status --json") == 1
 
 
 def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> None:

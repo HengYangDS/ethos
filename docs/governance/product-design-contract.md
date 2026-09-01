@@ -45,6 +45,30 @@ only what changes action, keep authority separate from views, and retire a
 mechanism when its obligation disappears. [Engineering Axioms](../../system/axioms.md)
 derive checkable constraints from this section; they do not own product meaning.
 
+## Construction And Evolution Discipline
+
+ETHOS concentrates custom code on its irreducible value: compiling repository
+intent and fresh facts into admitted, exact, attestable effects. For every other
+need, inspect official carrier capability, language or platform facilities, and
+mature standards, libraries, tools, and frameworks before authoring a local
+replacement. Reuse is admitted only by current evidence that it reduces total
+semantic entities, maintenance, operational risk, and adopter burden; novelty,
+fashion, or fewer source lines alone is not a reason to add a dependency.
+
+The preferred implementation shape is declarative data plus pure extraction,
+normalization, compilation, and evaluation, with mutation isolated at explicit
+effect adapters. A DSL, framework, abstraction, or low-code layer is admitted
+only when it removes more product-specific machinery than it introduces and
+leaves one inspectable owner and verifier. Otherwise the smallest direct
+implementation is more truthful.
+
+Terminal correctness outranks historical compatibility. When a model boundary
+changes, migrate only still-live state whose meaning can be proved, move its
+unique invariant into the replacement owner, and delete aliases, shims,
+fallbacks, and retired schemas in the same bounded convergence sequence.
+Compatibility exists only when a current external contract explicitly requires
+it, with one owner and a tested removal condition.
+
 ## Semantic Kernel
 
 The semantic values are:
@@ -86,7 +110,8 @@ Change DAG exists only when the current official Change names a prior result as
 an admission prerequisite and the current `TransitionPlan` binds its exact Git
 object or Attestation. Git ancestry and the official OpenSpec archive provide
 history. A resolver may project predecessors, successors, ready work, and blocked
-work from those facts, but it never stores that projection as another graph.
+work from those facts, and the public reader exposes that query when it changes
+the next legal action, but it never stores the projection as another graph.
 
 A hypothesis, falsifier, or experiment procedure belongs in official OpenSpec
 design and tasks. Its execution occurs in an owned Work Lane selected for the
@@ -94,7 +119,8 @@ exploration when isolation is useful. Observations and conclusions become
 Attestations only when they must survive the execution. A later Change adopts a
 result by naming it as current intent and binding its evidence; neither
 `Commitment` nor `Lease` gains hypothesis, experiment, predecessor, or successor
-fields.
+fields. A negative or inconclusive result may still be retained as a
+verifier-bound Attestation; it does not become a new workflow state.
 
 ### OpenSpec Acceptance And Closeout
 
@@ -215,6 +241,15 @@ semantic state. It may create a signed descendant whose tree and compiled
 Commitment are unchanged and whose additional parent is an explicitly observed
 accepted peer head. Admission binds the exact parents, tree, signature, actor,
 and ref CAS; no merge-specific compatibility carrier is created.
+
+Parallel Work Lanes support both collaboration and competition. Agents
+coordinate before overlapping the same semantic owner when cooperation avoids
+duplicate work; independent alternatives may compete when the expected evidence
+gain justifies the duplication. Candidate selection chooses one result or a
+proved synthesis, and the losing or absorbed lanes are retired. A fixed WIP
+count, queue, or race record is not part of the semantic kernel; capacity limits
+are current operational policy derived from ownership, conflict, risk, and proof
+cost.
 
 ### Local Object Authority And Remote Projection
 
@@ -356,6 +391,13 @@ generation ownership to their exact pre-state. Immutable generations are never
 modified in place, and cleanup restores owner permissions only within the exact
 owned generation before deletion.
 
+One declared supply-chain source owns dependency and embedded-tool versions.
+Current stable releases are the default convergence target; an older version
+survives only with a named incompatibility, risk, owner, and revisit condition.
+The package lock, built runtime, `--version`, and status projections must expose
+the same selected OpenSpec and toolchain identities rather than silently using
+ambient or stale versions.
+
 ### Bounded Maintainer Recovery
 
 Normal governance must remain escapable when the governor itself is inconsistent.
@@ -395,6 +437,14 @@ admitted only when it proves a property Ruff does not already own. Configuration
 follows native tool resolution and one truthful evaluation root; another
 repository's directory shape is not a reason to copy it.
 
+Formatting, lint, schema, link, security, portability, and source-budget
+coverage apply to every admitted carrier for which the property is meaningful.
+Budgets are evaluated at the narrow owner where growth occurs; unrelated source
+classes cannot compensate for a local violation. Python implementation may use
+modern language features within the declared supported floor, while adapters
+preserve native macOS, Linux, and Windows behavior instead of assuming one
+shell, filesystem, or credential model.
+
 Every temporary, runtime, supply, test, and generated tree has one owner and a
 bounded lease or equivalent liveness fact. Normal completion uses structured
 finalization; kill or crash is recovered by a bounded scavenger that protects
@@ -413,13 +463,59 @@ readback are independent evidence planes. Generated commits must use a subject
 admitted by repository policy. A claim names exactly which planes were freshly
 verified; success in one never implies another.
 
+Independent verification is selected by the asserted risk, proof policy, or
+requested completion plane. It is not a universal second implementation or a
+default heavyweight blocker for every Change. When required, it uses an
+independent verifier and preserves that plane explicitly; when not required,
+its absence cannot invalidate a complete claim on another declared plane.
+
+Public prose, examples, diagrams, architecture projections, and brand assets
+are views of the same source meaning. They must remain faithful, legible,
+accessible, navigable, and restrained in accordance with `信、达、雅`; visual
+appeal never permits a second ontology or an unverified completion claim.
+
 ## Feedback Intent Preservation
 
-Every accepted feedback item has one of two durable outcomes: it is mapped to a
-named semantic owner with acceptance and proof, or it records an explicit
-absence reason. A refinement may change a carrier only after its invariant,
-owner, acceptance, and verifier remain traceable. This preserves intent while
-allowing deletion of redundant prose and mechanisms.
+Conversation and operational feedback are source material, not authority by
+volume or repetition. Recovery preserves each distinct semantic obligation,
+not every message or wording. Source classes are adjudicated as follows:
+
+- direct human guidance is design input; a later explicit instruction
+  supersedes an earlier one only on the same subject;
+- delegated material is separated into observation, inference, and proposed
+  remedy, so accepting an exact observation does not admit its diagnosis or
+  design automatically;
+- source, tests, Git history, runtime state, and hosted observations establish
+  implementation facts, but cannot reverse-define human intent; and
+- chat transcripts, host memory, agent summaries, generated classifications,
+  and temporary files remain non-authorizing context.
+
+Every distinct obligation receives exactly one disposition:
+
+| Disposition | Meaning and durable outcome |
+| --- | --- |
+| `accepted` | Map the meaning to one current semantic owner, acceptance boundary, and proof path. |
+| `superseded` | Name the later governing instruction on the same subject; do not keep both as current truth. |
+| `pending verification` | Name the missing fact, contradiction, or model gap; authorize no effect by guesswork. |
+| `rejected` | Record the reason in the governing official Change, without creating a current product carrier. |
+
+Accepted meaning is placed by lifetime, not by convenience:
+
+| Meaning | Unique carrier |
+| --- | --- |
+| Current product meaning and invariants | this Product Design Contract |
+| Unfinished dependency order, exit conditions, and proof boundaries | [Terminal Governance Product Design](../plans/terminal-governance-product-design.md) |
+| One bounded change, including recovery scope and adjudication | official OpenSpec `proposal`, `specs`, `design`, and `tasks` |
+| Irreducible rationale that remains useful across Changes | one necessary semantic Decision Record |
+| Executable admission or behavior | its source, schema, native configuration, rule, and test owner |
+| Raw transcripts, extracts, classifiers, and scratch matrices | owner-scoped temporary storage, deleted after coverage proof |
+
+A refinement may change a carrier only after its invariant, owner, acceptance,
+and verifier remain traceable and the replaced carrier can retire. Repeated
+operational lessons improve the narrow existing owner: product behavior and its
+regression test, an agent rule, or an already admitted reusable skill. They do
+not justify a new feedback ledger, registry, memory-backed authority, or skill
+whose only purpose is to restate product truth.
 
 ## Bounded Change Granularity
 
@@ -479,3 +575,9 @@ their rendered dashboards, indexes, and command output remain projections.
 12. Documentation, evidence, configuration, temporary resources, and physical
     modules survive only with one semantic owner, current consumers, and a
     provable lifecycle.
+13. Every recovered obligation is accepted, superseded, pending verification,
+    or rejected; only accepted meaning enters a current owner.
+14. Official and mature capabilities are evaluated before custom machinery;
+    declarative pure semantics stay separate from bounded effects.
+15. Compatibility residue, feedback ledgers, and memory-backed product truth do
+    not survive terminal convergence.

@@ -15,7 +15,19 @@ Purpose: define how agents load repository truth and avoid stale context.
 - Recompute repository root before acting on absolute paths.
 - Do not reuse context from another repository after the target path changes.
 - Treat host-local memory, IDE state, generated views, and chat output as
-  context only.
+  context only. They cannot authorize product behavior, mutation, proof,
+  retirement, or completion.
+- For broad feedback recovery, declare one finite source boundary in an
+  official OpenSpec Change. Preserve distinct semantic obligations rather than
+  message count; classify each as accepted, superseded, pending verification,
+  or rejected; and move accepted meaning to one existing owner. Do not create a
+  feedback ledger, registry, second roadmap, or memory-backed product truth.
+- Separate delegated material into observed fact, inference, and proposed
+  remedy. Verify observations against current repository or runtime facts and
+  never admit the proposed mechanism merely because the observation is valid.
+- A later direct instruction supersedes an earlier instruction only on the same
+  subject. Contradiction or missing evidence remains explicit and authorizes no
+  guessed mutation.
 - Use progressive disclosure: load the entrypoint and current status first,
   then only the rule, skill, OpenSpec Change, or direct reference selected by
   the task and current result. Do not bulk-load unrelated docs, archives,
@@ -29,6 +41,15 @@ Purpose: define how agents load repository truth and avoid stale context.
 - Use repo-local skills from `.agents/skills/` when activation matches.
 - Use official external skills as method packs; do not vendor their runtime
   instructions into repository truth.
+- Repeated failures must improve the narrow existing owner: product behavior and
+  its regression test, an executable rule, or an already-admitted reusable
+  skill. Do not create a skill solely to restate product truth.
+- Keep one writer for an authority surface. Do not dispatch another agent unless
+  the user or current procedure authorizes it and the delegated scope is
+  disjoint, bounded, and ownership-safe.
+- Optimize verified semantic transitions rather than command count. Reuse fresh
+  evidence until its inputs change, stop repeated broad scans, and run heavy
+  proof only at a frozen atomic boundary.
 - External method packs and execution runtimes may consume OpenSpec and ETHOS
   contracts, but may not create repository-local plan, task, progress, report,
   or lifecycle authority. OpenSpec alone owns Change intent, design,

@@ -10,11 +10,13 @@ relations:
 
 Status: canonical.
 
-Purpose: define how ETHOS turns documentation into mechanically checkable
-knowledge sedimentation.
+Purpose: define one mechanically checkable documentation structure and the
+placement rules that keep each current meaning under one owner.
 
-See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md),
-and [Glossary](../reference/glossary.md).
+See also: [Documentation Root](../README.md),
+[Product Design Contract](product-design-contract.md),
+[Terminal Governance Product Design](../plans/terminal-governance-product-design.md),
+and [Command Plane](../reference/command-plane.md).
 
 ETHOS documentation is governed as sedimented knowledge, not as a loose page
 pile. Every governed document declares Subject, Role, State, and Relation
@@ -25,6 +27,14 @@ quality entrypoint.
 Missing metadata is a required gap because agents need to distinguish canonical
 truth, active workflow notes, planned material, experimental material, and
 archived history before they act.
+
+`ledger` is not a document role. Raw feedback, transcripts, host memory, agent
+summaries, generated classifications, and temporary recovery matrices are
+non-authorizing inputs. A bounded recovery uses one official OpenSpec Change to
+classify each distinct obligation as accepted, superseded, pending verification,
+or rejected. Accepted meaning then moves to the Product Design Contract, the
+Terminal Governance Product Design, a necessary Decision Record, or its native
+executable owner; the recovery material is deleted after coverage proof.
 
 The registry lifecycle is:
 
@@ -50,6 +60,12 @@ does not receive a README merely because the directory exists; an empty
 directory and a marker-only README are removed. If a README contains the only
 unique navigation or boundary meaning, absorb that meaning into the owning
 document before deleting it.
+
+A Decision Record is admitted only when a choice among alternatives, its
+consequences, and its revisit or retirement condition remain useful across more
+than one Change and cannot be expressed clearly by the current contract or
+source. It is not a feedback receipt, status page, task list, or archive index.
+Its filename is lowercase and semantic rather than a numbered identity.
 
 ## Portability Boundary
 

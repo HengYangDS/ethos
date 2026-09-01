@@ -12,8 +12,8 @@ from typing import Any
 
 import yaml
 
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
@@ -148,9 +148,9 @@ def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
             _SOURCE_ROOT if source_entry else _DISTRIBUTION_MODULES.parent,
             (*command, "--version"),
             text=True,
-            capture_output=True,
             check=False,
             timeout=OPENSPEC_COMMAND_TIMEOUT_SECONDS,
+            remove_env_prefixes=("GIT_",),
         )
         version = completed.stdout.strip()
         if completed.returncode or version != OFFICIAL_VERSION:
@@ -210,7 +210,6 @@ def run_json(
             root,
             command,
             text=True,
-            capture_output=True,
             check=False,
             timeout=OPENSPEC_COMMAND_TIMEOUT_SECONDS,
             env={
@@ -221,6 +220,7 @@ def run_json(
                 "OPENSPEC_TELEMETRY": "0",
                 "OPENSPEC_NO_UPDATE_CHECK": "1",
             },
+            remove_env_prefixes=("GIT_",),
         )
     except subprocess.TimeoutExpired as exc:
         stdout = exc.stdout if isinstance(exc.stdout, str) else ""

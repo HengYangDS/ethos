@@ -16,8 +16,8 @@ from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
@@ -109,6 +109,7 @@ def _scan_staged_secrets(root: Path) -> None:
             "--no-banner",
             root.as_posix(),
         ),
+        remove_env_prefixes=("GIT_",),
     )
     if completed.returncode:
         message = "staged_secret_scan_failed"
@@ -134,6 +135,7 @@ def _check_staged_python_format(root: Path, staged: tuple[str, ...]) -> None:
             "--check",
             *paths,
         ),
+        remove_env_prefixes=("GIT_",),
     )
     if completed.returncode:
         message = "pre_commit_python_format_failed"
@@ -313,6 +315,7 @@ def _candidate_report(
             root.as_posix(),
             "--json",
         ),
+        remove_env_prefixes=("GIT_",),
     )
     try:
         payload = json.loads(completed.stdout)

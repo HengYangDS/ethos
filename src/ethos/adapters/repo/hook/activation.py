@@ -17,8 +17,9 @@ from typing import cast
 import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
+from ethos.adapters.process import run_command
+from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import HookRuntimeBinding
@@ -478,7 +479,7 @@ def _legacy_hook_directories(common: Path) -> tuple[Path, ...]:
 
 
 def _consumer_text(root: Path, common: Path) -> str:
-    texts = [_process_commands(root)]
+    texts = [process_commands(root)]
     for name in _ACTIVE_CONSUMER_DIRECTORIES:
         directory = common / "ethos" / name
         if not directory.exists():
@@ -512,14 +513,22 @@ def _config_text(root: Path) -> str:
     return "\n".join(map(read, _linked_worktree_paths(root)))
 
 
-def _process_commands(root: Path) -> str:
+def process_commands(root: Path, *, platform_name: str | None = None) -> str:
+    """Return active process command lines from the native host observer."""
     windows = "Get-CimInstance Win32_Process | % CommandLine"
     command = (
-        ("powershell.exe", "-NoProfile", "-Command", windows)
-        if os.name == "nt"
+        (
+            windows_powershell(),
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            windows,
+        )
+        if (platform_name or os.name) == "nt"
         else ("ps", "-axo", "command=")
     )
-    completed = run_command(root, command)
+    completed = run_command(root, command, remove_env_prefixes=("GIT_",))
     if completed.returncode:
         _fail("hook_runtime_consumers_unknown")
     return completed.stdout

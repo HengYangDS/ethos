@@ -11,8 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import run_command
 
 if TYPE_CHECKING:
     import nox
@@ -35,14 +35,24 @@ def _single_artifact(pattern: str) -> Path:
 
 
 def _syft(expected_version: str) -> Path:
-    run_command(ROOT, (str(ROOT / "tools/ci/scripts/install-syft.sh"),), check=True)
+    run_command(
+        ROOT,
+        (str(ROOT / "tools/ci/scripts/install-syft.sh"),),
+        check=True,
+        remove_env_prefixes=("GIT_",),
+    )
     default_cache = ROOT / "build/runtime/tool-cache/ci-tools"
     cache = Path(os.environ.get("ETHOS_CI_TOOL_CACHE_DIR", default_cache))
     locations = (cache / "syft" / expected_version / "syft", *SYSTEM_SYFT_LOCATIONS)
     for executable in locations:
         if not executable.is_file():
             continue
-        completed = run_command(ROOT, (str(executable), "version", "-o", "json"), check=True)
+        completed = run_command(
+            ROOT,
+            (str(executable), "version", "-o", "json"),
+            check=True,
+            remove_env_prefixes=("GIT_",),
+        )
         if json.loads(completed.stdout).get("version") == expected_version:
             return executable
     message = f"expected syft {expected_version} at a repository-declared location"
@@ -68,6 +78,7 @@ def run(session: nox.Session) -> None:
             f"spdx-json={sbom}",
         ),
         check=True,
+        remove_env_prefixes=("GIT_",),
     )
     document = json.loads(sbom.read_text(encoding="utf-8"))
     if document.get("spdxVersion") != "SPDX-2.3":

@@ -41,7 +41,8 @@ def test_run_json_reports_object_malformed_array_and_empty_stdout(monkeypatch, t
     ]
     assert all(item[0] == tmp_path for item in observed)
     assert all(item[1] == ("openspec", "doctor", "--json") for item in observed)
-    assert all(item[2]["check"] is False and item[2]["capture_output"] is True for item in observed)
+    assert all(item[2]["check"] is False for item in observed)
+    assert all(item[2]["remove_env_prefixes"] == ("GIT_",) for item in observed)
 
 
 @pytest.mark.parametrize(

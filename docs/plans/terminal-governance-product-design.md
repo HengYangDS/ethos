@@ -143,6 +143,11 @@ The dependency-ordered destructive batches are:
    wrapper is retained. Runtime materialization invokes the locked installer as
    `python -B -I -m uv`, so the package owns its platform-native binary discovery
    rather than ETHOS deriving a sibling executable path.
+   Shared external process creation is owned by one provider-neutral adapter;
+   Git retains only Git-specific resolution and failure classification. Windows
+   runtime observation resolves PowerShell from the native `SYSTEMROOT` path,
+   never ambient `PATH`, and preserves exact argv, cwd, and operating-system
+   cause when creation fails.
    Runtime post-observation compares those prefixes by platform-native path
    identity rather than serialized separator or case spelling; exact GitHub
    Windows 3.12, 3.13, and 3.14 execution closes that hosted boundary.

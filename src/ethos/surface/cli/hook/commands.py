@@ -17,6 +17,7 @@ from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.store.state.schema import state_schema_report
@@ -290,6 +291,8 @@ def install(
             "linked_worktrees": [],
             "generation_cleanup": {"checked": [], "removed": [], "retained": []},
         }
+        if isinstance(error, ProcessExecutionError):
+            runtime["process_failure"] = error.evidence()
         if state_failure:
             try:
                 runtime["state_schema"] = state_schema_report(repo)

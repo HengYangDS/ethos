@@ -7,12 +7,14 @@ import subprocess
 import sys
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.hook_runtime as runtime
 import ethos.adapters.repo.runtime.binding as runtime_binding_module
+import ethos.adapters.repo.runtime.selection as runtime_selection
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook_runtime import execute_hook
@@ -30,6 +32,17 @@ def test_hook_launcher_uses_git_shell_and_current_runtime_selector() -> None:
     assert 'RUNTIME_ROOT="$HOOK_DIR/../../runtime"' in text
     assert 'CURRENT="$RUNTIME_ROOT/CURRENT"' in text
     assert 'exec "$RUNTIME/python/bin/python" -B -I -m ethos.cli hook run pre-commit "$@"' in text
+
+
+def test_windows_hook_launcher_uses_the_standalone_runtime_python(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runtime_selection, "os", SimpleNamespace(name="nt"))
+
+    text = hook_launcher("pre-commit")
+
+    assert 'exec "$RUNTIME/python/python.exe" -B -I -m ethos.cli hook run pre-commit "$@"' in text
+    assert "Scripts/python.exe" not in text
 
 
 @pytest.mark.parametrize(

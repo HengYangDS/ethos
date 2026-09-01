@@ -10,20 +10,17 @@ from typing import NamedTuple
 from ethos.adapters.openspec.lifecycle.archive_binding import archive_root_from_path
 from ethos.adapters.openspec.lifecycle.archive_binding import archived_change_from_path
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
+from ethos.adapters.openspec.lifecycle.archive_refresh import RefreshEdge
+from ethos.adapters.openspec.lifecycle.archive_refresh import validated_refresh_edge
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_attestation import validate as validate_git_effect_attestation
-from ethos.adapters.repo.native_effect_attestation import NativeEffect
-from ethos.adapters.repo.native_effect_attestation import issue_native_effect
-from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.contracts.plan import git_effect_from_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
-from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -48,14 +45,6 @@ class AttestedArchive(NamedTuple):
     distance: int
     commitment: Commitment
     authority: dict[str, object]
-
-
-class RefreshEdge(NamedTuple):
-    """One exact Work Lane head rewrite proven by refresh evidence."""
-
-    previous: str
-    current: str
-    attestation_id: str
 
 
 def attested_archive_transition(
@@ -207,7 +196,7 @@ def _refresh_edges(
 ) -> dict[str, tuple[RefreshEdge, ...]]:
     grouped: dict[str, list[RefreshEdge]] = {}
     for attestation in attestations:
-        edge = _validated_refresh_edge(root, branch=branch, attestation=attestation)
+        edge = validated_refresh_edge(root, branch=branch, attestation=attestation)
         if edge is not None:
             grouped.setdefault(edge.previous, []).append(edge)
     return {previous: tuple(values) for previous, values in grouped.items()}
@@ -243,97 +232,6 @@ def _archive_refresh_candidates(
             for edge in next_edges
         )
     return candidates, ambiguous
-
-
-def _validated_refresh_edge(
-    root: Path,
-    *,
-    branch: str,
-    attestation: Any,
-) -> RefreshEdge | None:
-    """Decode one refresh edge only when both Git and native evidence validate."""
-    try:
-        _require_refresh(valid=attestation.predicate == "effect:git-ref-update")
-        plan = plan_from_attestation(attestation)
-        _require_refresh(valid=plan.policy.get("transition") == "lane.refresh")
-        _require_refresh(valid=plan.policy.get("execution_branch") == branch)
-        effect = git_effect_from_plan(plan)
-        ref = f"refs/heads/{branch}"
-        update = effect.updates.get(ref)
-        _require_refresh(valid=update is not None and len(effect.updates) == 1)
-        assert update is not None
-        validate_git_effect_attestation(
-            root,
-            effect,
-            attestation,
-            issuer=attestation.verifier,
-            plan=plan,
-            current_postconditions=False,
-        )
-        carried = plan.prior_attestations.get("rebase")
-        _require_refresh(valid=isinstance(carried, Mapping))
-        rebase = Attestation.model_validate(mutable_json(carried))
-        projected_body = mutable_json(rebase.payload.body)
-        _require_refresh(valid=isinstance(projected_body, dict))
-        assert isinstance(projected_body, dict)
-        body = {str(key): value for key, value in projected_body.items()}
-        before = body.get("input")
-        after = body.get("output")
-        freshness = body.get("freshness")
-        command = body.get("command")
-        repository = str(body.get("repository") or "")
-        _require_refresh(valid=all(isinstance(value, dict) for value in (before, after, freshness)))
-        assert isinstance(before, dict)
-        assert isinstance(after, dict)
-        assert isinstance(freshness, dict)
-        _require_refresh(valid=isinstance(command, list | tuple) and bool(repository))
-        assert isinstance(command, list | tuple)
-        before_map = {str(key): value for key, value in before.items()}
-        after_map = {str(key): value for key, value in after.items()}
-        freshness_map = {str(key): value for key, value in freshness.items()}
-        subject = freshness_map.get("subject")
-        _require_refresh(valid=isinstance(subject, dict))
-        assert isinstance(subject, dict)
-        subject_map = {str(key): value for key, value in subject.items()}
-        expected_rebase = issue_native_effect(
-            root,
-            effect=NativeEffect(
-                predicate="effect:git-rebase",
-                operation="git.rebase",
-                command=tuple(str(value) for value in command),
-                subject=subject_map,
-                before=before_map,
-                after=after_map,
-            ),
-            state="applied",
-            commitment_digest=None,
-            repository_id=repository,
-            issued_at=rebase.issued_at,
-        )
-        candidate_heads = tuple(str(value) for value in effect.assertions.values())
-        candidate_head = str(before_map.get("candidate_head") or "")
-        _require_refresh(valid=rebase.canonical_json() == expected_rebase.canonical_json())
-        _require_refresh(valid=repository == repository_identity(root, tree_ref=update.desired))
-        _require_refresh(valid=subject_map == {"branch": branch, "candidate_head": candidate_head})
-        _require_refresh(valid=before_map.get("branch") == branch)
-        _require_refresh(valid=before_map.get("head") == update.expected)
-        _require_refresh(valid=after_map.get("branch") == "detached")
-        _require_refresh(valid=after_map.get("head") == update.desired)
-        _require_refresh(valid=candidate_head == after_map.get("candidate_head"))
-        _require_refresh(valid=candidate_heads == (candidate_head,))
-    except (AttributeError, KeyError, TypeError, ValueError):
-        return None
-    return RefreshEdge(
-        previous=str(update.expected),
-        current=str(update.desired),
-        attestation_id=str(attestation.id),
-    )
-
-
-def _require_refresh(*, valid: bool) -> None:
-    if not valid:
-        message = "archive_refresh_evidence_invalid"
-        raise ValueError(message)
 
 
 def _ancestor_distance(root: Path, ancestor: str, descendant: str) -> int | None:

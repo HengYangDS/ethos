@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.openspec.lifecycle.archive_refresh as refresh
 import ethos.adapters.openspec.lifecycle.archive_transition as archive
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
@@ -334,8 +335,11 @@ def test_archive_attestation_follows_exact_refresh_chain_without_selecting_other
     monkeypatch.setattr(archive, "plan_from_attestation", lambda item: plans[item.id])
     monkeypatch.setattr(archive, "git_effect_from_plan", lambda plan: effects[plan.digest])
     monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
+    monkeypatch.setattr(refresh, "plan_from_attestation", lambda item: plans[item.id])
+    monkeypatch.setattr(refresh, "git_effect_from_plan", lambda plan: effects[plan.digest])
+    monkeypatch.setattr(refresh, "validate_git_effect_attestation", lambda *_a, **_k: None)
     monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
-    monkeypatch.setattr(archive, "repository_identity", lambda *_a, **_k: "repository:test")
+    monkeypatch.setattr(refresh, "repository_identity", lambda *_a, **_k: "repository:test")
     monkeypatch.setattr(
         archive,
         "_ancestor_distance",
@@ -444,8 +448,11 @@ def test_archive_attestation_rejects_refresh_that_changes_the_archive_postimage(
     monkeypatch.setattr(archive, "plan_from_attestation", lambda item: plans[item.id])
     monkeypatch.setattr(archive, "git_effect_from_plan", lambda plan: effects[plan.digest])
     monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
+    monkeypatch.setattr(refresh, "plan_from_attestation", lambda item: plans[item.id])
+    monkeypatch.setattr(refresh, "git_effect_from_plan", lambda plan: effects[plan.digest])
+    monkeypatch.setattr(refresh, "validate_git_effect_attestation", lambda *_a, **_k: None)
     monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
-    monkeypatch.setattr(archive, "repository_identity", lambda *_a, **_k: "repository:test")
+    monkeypatch.setattr(refresh, "repository_identity", lambda *_a, **_k: "repository:test")
     monkeypatch.setattr(
         archive,
         "_ancestor_distance",
@@ -583,7 +590,10 @@ def test_archive_refresh_resolution_fails_closed_on_fork(
     monkeypatch.setattr(archive, "plan_from_attestation", lambda item: plans[item.id])
     monkeypatch.setattr(archive, "git_effect_from_plan", lambda plan: effects[plan.digest])
     monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(archive, "repository_identity", lambda *_a, **_k: "repository:test")
+    monkeypatch.setattr(refresh, "plan_from_attestation", lambda item: plans[item.id])
+    monkeypatch.setattr(refresh, "git_effect_from_plan", lambda plan: effects[plan.digest])
+    monkeypatch.setattr(refresh, "validate_git_effect_attestation", lambda *_a, **_k: None)
+    monkeypatch.setattr(refresh, "repository_identity", lambda *_a, **_k: "repository:test")
     monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
     monkeypatch.setattr(
         archive,
@@ -660,6 +670,9 @@ def test_archive_attestation_rejects_malformed_nested_refresh_evidence(
     monkeypatch.setattr(archive, "plan_from_attestation", lambda item: plans[item.id])
     monkeypatch.setattr(archive, "git_effect_from_plan", lambda plan: effects[plan.digest])
     monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
+    monkeypatch.setattr(refresh, "plan_from_attestation", lambda item: plans[item.id])
+    monkeypatch.setattr(refresh, "git_effect_from_plan", lambda plan: effects[plan.digest])
+    monkeypatch.setattr(refresh, "validate_git_effect_attestation", lambda *_a, **_k: None)
     monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
     monkeypatch.setattr(
         archive,

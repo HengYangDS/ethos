@@ -6,6 +6,7 @@ import os
 import stat
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -209,6 +210,32 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
             locked_requirements=None,
         )
     assert {path for path in runtime_root.iterdir() if path.is_dir()} == {target}
+
+
+def test_runtime_generation_compares_windows_prefixes_as_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args, _observed = _generation_case(tmp_path, monkeypatch)
+    target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
+    prefix = (target / "python").resolve().as_posix()
+    windows_spelling = prefix.replace("/", "\\").upper()
+    monkeypatch.setattr(runtime_materialization, "os", SimpleNamespace(name="nt"))
+    monkeypatch.setattr(
+        runtime_materialization,
+        "observe_python_facts",
+        lambda _python: {"prefix": windows_spelling, "base_prefix": windows_spelling},
+    )
+
+    runtime_materialization.require_runtime_generation(target, args[4], args[5])
+
+    monkeypatch.setattr(
+        runtime_materialization,
+        "observe_python_facts",
+        lambda _python: {"prefix": r"D:\external", "base_prefix": r"D:\external"},
+    )
+    with pytest.raises(ValueError, match="hook_runtime_python_not_relocatable"):
+        runtime_materialization.require_runtime_generation(target, args[4], args[5])
 
 
 @pytest.mark.parametrize(("missing", "reason"), [("python", "python"), ("ethos", "entrypoint")])

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ntpath
 import os
 import shutil
 import stat
@@ -267,7 +268,7 @@ def require_runtime_generation(
     python = runtime_python(runtime / "python")
     facts = observe_python_facts(python)
     prefix = (runtime / "python").resolve().as_posix()
-    if facts["prefix"] != prefix or facts["base_prefix"] != prefix:
+    if not all(_same_runtime_path(facts[key], prefix) for key in ("prefix", "base_prefix")):
         _fail("hook_runtime_python_not_relocatable")
     if smoke:
         completed = subprocess.run(
@@ -278,3 +279,11 @@ def require_runtime_generation(
         )
         if completed.returncode or not completed.stdout.strip():
             _fail("hook_runtime_entrypoint_smoke_failed")
+
+
+def _same_runtime_path(observed: str, expected: str) -> bool:
+    if os.name == "nt":
+        return ntpath.normcase(ntpath.normpath(observed)) == ntpath.normcase(
+            ntpath.normpath(expected)
+        )
+    return observed == expected

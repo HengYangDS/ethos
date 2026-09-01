@@ -14,6 +14,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import file_
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_python
+from ethos.adapters.repo.runtime.selection import runtime_scripts
 
 
 def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
@@ -155,9 +156,8 @@ def _copy_python_runtime(home: Path, interpreter: Path, target: Path, version: s
         _fail("hook_runtime_owned_interpreter_unavailable")
     target.mkdir(parents=True)
     if os.name == "nt":
-        scripts = target / "Scripts"
-        scripts.mkdir()
-        shutil.copy2(interpreter, scripts / "python.exe")
+        runtime_scripts(target).mkdir()
+        shutil.copy2(interpreter, target / "python.exe")
         _copy_runtime_tree(home / "Lib", target / "Lib")
         if (home / "DLLs").is_dir():
             _copy_runtime_tree(home / "DLLs", target / "DLLs")

@@ -134,6 +134,11 @@ The dependency-ordered destructive batches are:
    one repository-prepared production tree as supply: Hatch validates and
    projects that tree directly into wheel and sdist, and never resolves or
    installs a second dependency closure during artifact construction.
+   Runtime materialization preserves each standalone interpreter's native
+   platform layout. Windows keeps `python.exe`, `Lib`, `DLLs`, and runtime DLLs
+   at the interpreter root while console scripts remain under `Scripts`; one
+   path owner projects that layout into runtime selection, generation checks,
+   and Git hook launchers without fallback paths or compatibility wrappers.
 7. **Complete assurance and publication.** Compile requirement coverage into
    proof obligations, separate local and hosted phases, admit independent
    verification, and prove local/GitHub/GitLab publication as distinct planes.
@@ -141,11 +146,12 @@ The dependency-ordered destructive batches are:
    module boundaries, temporary-resource ownership, supply-chain integrity,
    and performance through one quality graph; delete obsolete code, tests,
    schemas, documentation, configuration, runtime generations, and refs.
-   This batch remains three independent successor Changes: hosted execution
-   environment completeness, Windows native trust/ACL conformance, and
-   dead-owner temporary-resource recovery with inode and cleanup budgets. None
-   is absorbed into package-supply construction merely because hosted evidence
-   exposed them together.
+   This batch remains independent successor Changes: hosted execution
+   environment completeness (including identity-drop process availability),
+   Windows native trust/ACL conformance, and dead-owner temporary-resource
+   recovery with inode and cleanup budgets. None is absorbed into package
+   supply or standalone runtime layout merely because hosted evidence exposed
+   them together.
 9. **Prove terminal slices.** Run greenfield, brownfield, package-only, local,
    single-forge, dual-forge, interruption, drift, unbound, and adversarial
    adopter workloads before claiming terminal convergence.

@@ -247,12 +247,21 @@ def require_selected_runtime(
 
 def runtime_entrypoint(interpreter_home: Path) -> Path:
     """Return the ETHOS entrypoint inside one owned interpreter home."""
-    return interpreter_home / ("Scripts/ethos.exe" if os.name == "nt" else "bin/ethos")
+    return runtime_scripts(interpreter_home) / ("ethos.exe" if os.name == "nt" else "ethos")
 
 
 def runtime_python(interpreter_home: Path) -> Path:
     """Return the executable inside one owned interpreter home."""
-    return interpreter_home / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    return (
+        interpreter_home / "python.exe"
+        if os.name == "nt"
+        else runtime_scripts(interpreter_home) / "python"
+    )
+
+
+def runtime_scripts(interpreter_home: Path) -> Path:
+    """Return the console-script directory inside one owned interpreter home."""
+    return interpreter_home / ("Scripts" if os.name == "nt" else "bin")
 
 
 def _selector_bytes(selector: Path) -> bytes | None:

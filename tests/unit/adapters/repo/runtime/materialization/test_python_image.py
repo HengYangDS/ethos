@@ -62,16 +62,22 @@ def test_python_copy_boundaries_and_windows_payload(
     directory.mkdir()
     _fails("python_symlink_invalid", copy_file, directory, tmp_path / "copy")
     home, observed = tmp_path / "home", []
+    copies: list[tuple[Path, Path]] = []
     interpreter = _file(home / "python.exe", b"python")
     for name in ("Lib", "DLLs"):
         (home / name).mkdir()
     for name in ("python3.dll", "vcruntime.dll"):
         _file(home / name, b"dll")
     monkeypatch.setattr(python_image, "os", SimpleNamespace(name="nt"))
-    monkeypatch.setattr(python_image.shutil, "copy2", lambda *_a: None)
+    monkeypatch.setattr(
+        python_image.shutil,
+        "copy2",
+        lambda source, target: copies.append((source, target)),
+    )
     for name in ("_copy_runtime_tree", "_copy_runtime_file"):
         monkeypatch.setattr(python_image, name, lambda source, _t: observed.append(source.name))
     vars(python_image)["_copy_python_runtime"](home, interpreter, tmp_path / "windows", "3.14.7")
+    assert copies == [(interpreter, tmp_path / "windows/python.exe")]
     assert observed == ["Lib", "DLLs", "python3.dll", "vcruntime.dll"]
 
 
@@ -122,7 +128,7 @@ def test_console_script_discovery_and_rewrite_matrix(
 def test_console_script_discovery_uses_the_target_interpreter(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    python = _file(tmp_path / "runtime/Scripts/python.exe", b"python")
+    python = _file(tmp_path / "runtime/python.exe", b"python")
     observed: dict[str, object] = {}
 
     def execute(command: tuple[str, ...], **kwargs: object) -> subprocess.CompletedProcess[str]:

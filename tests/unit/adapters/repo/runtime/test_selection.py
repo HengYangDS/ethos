@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -20,6 +21,18 @@ from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
+
+
+def test_windows_standalone_runtime_preserves_native_python_and_scripts_layout(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    interpreter_home = tmp_path / "python"
+    monkeypatch.setattr(runtime_selection, "os", SimpleNamespace(name="nt"))
+
+    assert runtime_selection.runtime_python(interpreter_home) == interpreter_home / "python.exe"
+    assert runtime_selection.runtime_entrypoint(interpreter_home) == (
+        interpreter_home / "Scripts/ethos.exe"
+    )
 
 
 def test_hook_runtime_manifest_and_current_selector_bind_exact_package(

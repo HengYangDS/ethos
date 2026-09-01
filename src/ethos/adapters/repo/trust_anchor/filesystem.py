@@ -6,11 +6,16 @@ import json
 import os
 import stat
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from ethos.adapters.repo.git import run_command
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import run_command
+from ethos.adapters.process import windows_powershell
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _SYSTEM_SID = "S-1-5-18"
 _ADMINISTRATORS_SID = "S-1-5-32-544"
@@ -109,7 +114,10 @@ def _posix_protected(path: Path) -> bool:
 
 
 def _windows_protected(path: Path) -> bool:
-    completed = _run_windows(path, _WINDOWS_OBSERVE)
+    try:
+        completed = _run_windows(path, _WINDOWS_OBSERVE)
+    except ProcessExecutionError:
+        return False
     if completed is None or completed.returncode:
         return False
     try:
@@ -123,17 +131,15 @@ def _windows_protected(path: Path) -> bool:
 
 
 def _run_windows(path: Path, script: str) -> subprocess.CompletedProcess[str] | None:
-    system_root = os.environ.get("SYSTEMROOT")
-    if not system_root:
-        return None
-    executable = Path(system_root) / "System32/WindowsPowerShell/v1.0/powershell.exe"
-    if not executable.is_file():
+    try:
+        executable = windows_powershell()
+    except ProcessExecutionError:
         return None
     try:
         return run_command(
             path.parent,
             (
-                executable.as_posix(),
+                executable,
                 "-NoLogo",
                 "-NoProfile",
                 "-NonInteractive",
@@ -143,7 +149,8 @@ def _run_windows(path: Path, script: str) -> subprocess.CompletedProcess[str] | 
             check=False,
             env={"ETHOS_TRUST_ANCHOR_PATH": str(path)},
             remove_env=("PSModulePath",),
+            remove_env_prefixes=("GIT_",),
             timeout=30,
         )
-    except (OSError, subprocess.TimeoutExpired, ValueError):
+    except subprocess.TimeoutExpired:
         return None

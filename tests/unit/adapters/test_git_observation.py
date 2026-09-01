@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.git import run_git
@@ -157,8 +158,8 @@ def test_run_git_preserves_one_complete_inherited_indexed_config_overlay(
         monkeypatch.setenv(f"GIT_CONFIG_KEY_{index}", key)
         monkeypatch.setenv(f"GIT_CONFIG_VALUE_{index}", value)
     monkeypatch.setattr(
-        git_adapter,
-        "_execute",
+        process_adapter,
+        "run_command",
         lambda _root, command, **kwargs: (
             observed.update(command=command, **kwargs)
             or type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
@@ -225,8 +226,8 @@ def test_network_git_preserves_effective_global_credentials(
     observed: dict[str, object] = {}
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/tmp/effective-global-gitconfig")
     monkeypatch.setattr(
-        git_adapter,
-        "_execute",
+        process_adapter,
+        "run_command",
         lambda _root, command, **kwargs: (
             observed.update(command=command, **kwargs)
             or type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()

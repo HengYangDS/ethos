@@ -6,7 +6,7 @@ import shutil
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.git import run_command
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 
 if TYPE_CHECKING:
@@ -142,6 +142,7 @@ def line_ending_conformance(adopter: Path, *, run: CommandRunner) -> list[str]:
             (git, "show", f":{relative}"),
             text=False,
             check=True,
+            remove_env_prefixes=("GIT_",),
         ).stdout
         if git_blob != payload or path.read_bytes() != payload:
             message = f"portable line-ending round-trip failed: {style}"

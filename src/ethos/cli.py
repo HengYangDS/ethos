@@ -6,6 +6,7 @@ import shlex
 import sys
 from pathlib import Path
 
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.store.state.schema import state_schema_report
@@ -17,6 +18,7 @@ from ethos.surface.cli.application import load_command_groups
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.output import emit_git_execution_failure
 from ethos.surface.cli.output import emit_invalid_repository_profile
+from ethos.surface.cli.output import emit_process_execution_failure
 from ethos.surface.cli.version import version_text
 
 
@@ -32,8 +34,13 @@ def main() -> None:
     except GitExecutionError as exc:
         emit_git_execution_failure(
             command=root_command(argv) or "ethos",
-            code=exc.code,
-            reason=exc.reason,
+            error=exc,
+            json_output="--json" in argv,
+        )
+    except ProcessExecutionError as exc:
+        emit_process_execution_failure(
+            command=root_command(argv) or "ethos",
+            error=exc,
             json_output="--json" in argv,
         )
     except ValueError as exc:

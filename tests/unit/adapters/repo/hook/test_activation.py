@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import subprocess
 import sys
 from contextlib import closing
 from pathlib import Path
@@ -562,6 +563,37 @@ def test_hook_install_blocks_cleanup_when_an_active_consumer_is_unreadable(
         install_hook_launchers(repo)
 
     assert stale.is_dir()
+
+
+def test_windows_consumer_observation_uses_native_powershell_outside_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executable = tmp_path / "System32/WindowsPowerShell/v1.0/powershell.exe"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("native\n", encoding="utf-8")
+    monkeypatch.setenv("SYSTEMROOT", tmp_path.as_posix())
+    monkeypatch.setenv("PATH", (tmp_path / "git-only").as_posix())
+    observed: list[tuple[str, ...]] = []
+
+    def capture_run(
+        _root: Path, command: tuple[str, ...], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        observed.append(command)
+        return subprocess.CompletedProcess(command, 0, "consumer\n", "")
+
+    monkeypatch.setattr(hook_activation, "run_command", capture_run)
+
+    assert hook_activation.process_commands(tmp_path, platform_name="nt") == "consumer\n"
+    assert observed == [
+        (
+            executable.resolve().as_posix(),
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Get-CimInstance Win32_Process | % CommandLine",
+        )
+    ]
 
 
 def test_hook_install_rejects_a_junction_runtime_generation_without_touching_it(

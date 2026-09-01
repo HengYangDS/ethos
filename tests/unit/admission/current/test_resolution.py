@@ -7,6 +7,7 @@ from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.contracts.semantic import Commitment
+from tests.support.semantic import commitment_fixture
 
 
 def _authority(*, verdict: str = "pass", reason: str = "matched") -> CurrentAuthority:
@@ -294,6 +295,216 @@ def test_current_resolution_admits_remaining_official_artifact_after_partial_com
     assert resolution.verdict == "pass"
     assert resolution.scope.material_scope["state"] == "official_change_bootstrap"
     assert resolution.next_action == f"openspec instructions tasks --change {change} --json"
+
+
+@pytest.mark.parametrize(
+    ("paths", "verdict", "uncovered"),
+    [
+        (("openspec/specs/distribution/spec.md",), "pass", []),
+        (
+            ("openspec/specs/product-status-contract/spec.md",),
+            "block",
+            ["openspec/specs/product-status-contract/spec.md"],
+        ),
+        (
+            (
+                "openspec/specs/distribution/spec.md",
+                "src/ethos/product.py",
+            ),
+            "block",
+            ["src/ethos/product.py"],
+        ),
+    ],
+)
+def test_current_resolution_admits_only_validator_named_canonical_spec_repairs(
+    monkeypatch,
+    paths: tuple[str, ...],
+    verdict: str,
+    uncovered: list[str],
+) -> None:
+    change = "repair-spec"
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "change": change,
+            "official_cli": {"available": True},
+            "required_gaps": ["openspec_validation_failed:spec:distribution"],
+            "commitment": commitment_fixture(id=f"change:{change}").model_dump(mode="json"),
+            "lifecycle": {
+                "scope_binding": {
+                    "verdict": "pass",
+                    "state": "no_material_paths",
+                    "required_gaps": [],
+                },
+                "changes": [
+                    {
+                        "name": change,
+                        "artifacts": [
+                            {
+                                "id": "tasks",
+                                "outputPath": "tasks.md",
+                                "status": "done",
+                                "requires": [],
+                            }
+                        ],
+                    }
+                ],
+            },
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {"changes": [{"name": change}]},
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=paths,
+    )
+
+    assert resolution.verdict == verdict
+    assert resolution.commitment is None
+    assert resolution.scope.material_scope["state"] == "canonical_spec_repair"
+    assert resolution.scope.material_scope["uncovered_paths"] == uncovered
+    assert resolution.next_action == "openspec validate --all --strict --json"
+
+
+@pytest.mark.parametrize(
+    "gap",
+    [
+        "openspec_validation_failed:spec:",
+        "openspec_validation_failed:spec:Invalid",
+        "openspec_validation_failed:spec:../distribution",
+        "openspec_validation_failed:change:distribution",
+    ],
+)
+def test_current_resolution_does_not_derive_canonical_repair_from_invalid_gap(
+    monkeypatch,
+    gap: str,
+) -> None:
+    change = "repair-spec"
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "change": change,
+            "official_cli": {"available": True},
+            "required_gaps": [gap],
+            "commitment": commitment_fixture(id=f"change:{change}").model_dump(mode="json"),
+            "lifecycle": {
+                "scope_binding": {},
+                "changes": [
+                    {
+                        "name": change,
+                        "artifacts": [
+                            {
+                                "id": "tasks",
+                                "outputPath": "tasks.md",
+                                "status": "done",
+                                "requires": [],
+                            }
+                        ],
+                    }
+                ],
+            },
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {"changes": [{"name": change}]},
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=("openspec/specs/distribution/spec.md",),
+    )
+
+    assert resolution.verdict == "block"
+    assert resolution.scope.material_scope.get("state") != "canonical_spec_repair"
+    assert resolution.required_gaps == (gap,)
+
+
+@pytest.mark.parametrize(
+    "official_override",
+    [
+        {"commitment": {}},
+        {"lifecycle": {"scope_binding": {}, "changes": []}},
+        {
+            "required_gaps": [
+                "openspec_validation_failed:spec:distribution",
+                "commitment_invalid:repair-spec",
+            ]
+        },
+    ],
+)
+def test_current_resolution_requires_valid_change_contract_for_canonical_repair(
+    monkeypatch,
+    official_override: dict[str, object],
+) -> None:
+    change = "repair-spec"
+    official: dict[str, object] = {
+        "verdict": "block",
+        "change": change,
+        "official_cli": {"available": True},
+        "required_gaps": ["openspec_validation_failed:spec:distribution"],
+        "commitment": commitment_fixture(id=f"change:{change}").model_dump(mode="json"),
+        "lifecycle": {
+            "scope_binding": {},
+            "changes": [
+                {
+                    "name": change,
+                    "artifacts": [
+                        {
+                            "id": "tasks",
+                            "outputPath": "tasks.md",
+                            "status": "done",
+                            "requires": [],
+                        }
+                    ],
+                    "required_gaps": [],
+                }
+            ],
+        },
+        "commands": {
+            "list": {
+                "exit_code": 0,
+                "parse_error": "",
+                "json": {"changes": [{"name": change}]},
+            }
+        },
+    }
+    official.update(official_override)
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: official,
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=("openspec/specs/distribution/spec.md",),
+    )
+
+    assert resolution.verdict == "block"
+    assert resolution.scope.material_scope.get("state") != "canonical_spec_repair"
 
 
 @pytest.mark.parametrize(

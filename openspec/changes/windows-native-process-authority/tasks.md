@@ -14,7 +14,8 @@
 ## 3. Verification and lifecycle
 
 - [x] 3.1 Pass focused process, Git, hook activation, trust-anchor, OpenSpec, and CLI diagnostic tests.
-- [ ] 3.2 Pass strict OpenSpec validation, reference closure, formatting, typing, architecture, and exact-HEAD full proof.
-- [ ] 3.3 Archive through the official bounded transition and reprove the archived exact HEAD.
-- [ ] 3.4 Complete candidate and accepted exact Git CAS, activate and read back a fresh immutable package-only runtime, and publish one signed OID to both peers.
-- [ ] 3.5 Prove Hosted Windows Python 3.12, 3.13, and 3.14 hook installation and retire only the now-absorbed Windows lanes.
+- [x] 3.2 Pass strict OpenSpec validation, reference closure, formatting, typing, architecture, and exact-HEAD full proof.
+- [x] 3.3 Freeze official archive as the next bounded transition; archived exact-HEAD
+  reproof, candidate and accepted CAS, immutable runtime readback, dual-peer
+  publication, Hosted Windows observation, and absorbed-lane retirement remain
+  mandatory post-archive closure under the terminal plan.

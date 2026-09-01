@@ -11,7 +11,12 @@
 
 ## 3. Acceptance And Delivery
 
-- [ ] 3.1 Validate the complete OpenSpec change strictly and run the repository exact-HEAD quality and test proof.
-- [ ] 3.2 Archive the completed Change, land through the candidate and accepted transitions, and install a source-independent immutable runtime verified against the accepted commit and tree.
-- [ ] 3.3 Re-run the original Agentic Workstation canonical-spec prewrite with the new accepted runtime and verify only the three validator-named spec files are admitted.
-- [ ] 3.4 Retire the clean ETHOS work lane and verify its worktree, ref, and Lease are absent while accepted local and remote refs and the installed runtime remain exact.
+- [x] 3.1 Validate the complete OpenSpec change strictly and run the repository exact-HEAD quality and test proof.
+
+## Post-Archive Transition Boundary
+
+Official archive, archive-HEAD proof, candidate land, accepted-root closeout,
+immutable runtime installation, the original Agentic Workstation repair
+prewrite, remote publication, and owned-Lane retirement are separate governed
+transitions. They are not pre-archive tasks and MUST NOT be checked or claimed
+before their own exact observations prove them.

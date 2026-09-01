@@ -22,13 +22,8 @@ Commitments, Attestations, and evidence. No adapter, projection, or
 cross-repository observation
 creates a shared task store or expands product ontology.
 
-The safe lifecycle is:
-
-```text
-adopt -> status -> plan -> prove -> land -> publish
-```
-
-Use the public commands for the bound repository:
+Start with the bounded reader and follow its current continuation. Public
+capabilities for a bound repository include:
 
 ```bash
 ethos adopt --root <repo> --json

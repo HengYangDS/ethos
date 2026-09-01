@@ -295,17 +295,12 @@ Failure of any question means the entity is not admitted.
 
 ### First-Hour UX
 
-The first hour is a bounded reader followed by the same lifecycle:
-
-```text
-status -> plan -> prove -> land -> publish
-```
-
-`status` exposes facts, authority, gaps, coordination signals, and the next
-admissible action without minting truth. `adopt` binds an external repository to
-that lifecycle through an explicit, reviewable plan, initializes and verifies
-OpenSpec for mutation-capable use, and does not create a parallel lifecycle.
-Hidden lane and hook operations support admission only.
+The first hour starts with one bounded reader. `status` exposes facts,
+authority, gaps, coordination signals, and one continuation without minting
+truth. The user or agent executes only the selected action, then re-observes.
+`adopt` binds an external repository through an explicit, reviewable plan,
+initializes and verifies OpenSpec for mutation-capable use, and does not create
+a parallel lifecycle. Hidden lane and hook operations support admission only.
 
 The public product surface is deliberately small and capability-complete:
 

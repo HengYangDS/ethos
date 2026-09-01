@@ -16,9 +16,14 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_attestation import validate as validate_git_effect_attestation
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
+from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -45,6 +50,14 @@ class AttestedArchive(NamedTuple):
     authority: dict[str, object]
 
 
+class RefreshEdge(NamedTuple):
+    """One exact Work Lane head rewrite proven by refresh evidence."""
+
+    previous: str
+    current: str
+    attestation_id: str
+
+
 def attested_archive_transition(
     root: Path,
     *,
@@ -58,7 +71,13 @@ def attested_archive_transition(
         return None
     matches: list[AttestedArchive] = []
     for attestation in attestations:
-        match = _attested_archive(root, head=head, change=change, attestation=attestation)
+        match = _attested_archive(
+            root,
+            head=head,
+            change=change,
+            attestation=attestation,
+            attestations=attestations,
+        )
         if match is not None:
             matches.append(match)
     if not matches:
@@ -78,6 +97,7 @@ def _attested_archive(
     head: str,
     change: str | None,
     attestation: Any,
+    attestations: tuple[Any, ...],
 ) -> AttestedArchive | None:
     """Validate one archive effect as a current-history intent source."""
     if attestation.predicate != "effect:git-ref-update":
@@ -89,10 +109,18 @@ def _attested_archive(
         branch = str(plan.policy.get("branch") or "")
         update = effect.updates.get(f"refs/heads/{branch}")
         desired = str(update.desired) if update is not None else ""
-        distance = _ancestor_distance(root, desired, head)
         values = plan.facts.get("values")
         facts = values if isinstance(values, Mapping) else {}
         paths = tuple(str(path) for path in facts.get("changed_paths", ()))
+        archive_path = str(facts.get("archive_path") or "")
+        resolved = _resolve_archive_head(
+            root,
+            archived_head=desired,
+            current_head=head,
+            branch=branch,
+            archive_path=archive_path,
+            attestations=attestations,
+        )
         if (
             plan.policy.get("transition") != "openspec.archive"
             or not archived_change
@@ -100,7 +128,7 @@ def _attested_archive(
             or update is None
             or (change is not None and archived_change != change)
             or plan.commitment is None
-            or distance is None
+            or resolved is None
             or current_tree(root, desired) == ""
             or not paths
         ):
@@ -116,6 +144,7 @@ def _attested_archive(
         commitment = Commitment.model_validate(dict(plan.commitment))
     except (TypeError, ValueError):
         return None
+    resolved_head, distance, refresh_attestation_ids = resolved
     return AttestedArchive(
         distance,
         commitment,
@@ -129,9 +158,182 @@ def _attested_archive(
                 "effect": str(attestation.effect_digest or ""),
             },
             "source": "archive_commit",
+            "resolved_head": resolved_head,
+            "refresh_attestation_ids": list(refresh_attestation_ids),
             "authorized_paths": list(paths),
         },
     )
+
+
+def _resolve_archive_head(
+    root: Path,
+    *,
+    archived_head: str,
+    current_head: str,
+    branch: str,
+    archive_path: str,
+    attestations: tuple[Any, ...],
+) -> tuple[str, int, tuple[str, ...]] | None:
+    """Resolve one archive commit through an exact, unambiguous refresh chain."""
+    direct_distance = _ancestor_distance(root, archived_head, current_head)
+    if direct_distance is not None:
+        return archived_head, direct_distance, ()
+    if not archive_path:
+        return None
+    archive_tree = _object_id(root, f"{archived_head}:{archive_path}")
+    if not archive_tree:
+        return None
+    edges = _refresh_edges(root, branch=branch, attestations=attestations)
+    candidates, graph_ambiguous = _archive_refresh_candidates(
+        root,
+        archived_head=archived_head,
+        current_head=current_head,
+        archive_path=archive_path,
+        archive_tree=archive_tree,
+        edges=edges,
+    )
+    if not candidates or graph_ambiguous:
+        return None
+    nearest = min(candidate[1] for candidate in candidates)
+    selected = [candidate for candidate in candidates if candidate[1] == nearest]
+    return selected[0] if len(selected) == 1 else None
+
+
+def _refresh_edges(
+    root: Path,
+    *,
+    branch: str,
+    attestations: tuple[Any, ...],
+) -> dict[str, tuple[RefreshEdge, ...]]:
+    grouped: dict[str, list[RefreshEdge]] = {}
+    for attestation in attestations:
+        edge = _validated_refresh_edge(root, branch=branch, attestation=attestation)
+        if edge is not None:
+            grouped.setdefault(edge.previous, []).append(edge)
+    return {previous: tuple(values) for previous, values in grouped.items()}
+
+
+def _archive_refresh_candidates(
+    root: Path,
+    *,
+    archived_head: str,
+    current_head: str,
+    archive_path: str,
+    archive_tree: str,
+    edges: Mapping[str, tuple[RefreshEdge, ...]],
+) -> tuple[list[tuple[str, int, tuple[str, ...]]], bool]:
+    candidates: list[tuple[str, int, tuple[str, ...]]] = []
+    ambiguous = False
+    pending: list[tuple[str, tuple[str, ...], frozenset[str]]] = [
+        (archived_head, (), frozenset({archived_head}))
+    ]
+    while pending:
+        commit, chain, seen = pending.pop()
+        distance = _ancestor_distance(root, commit, current_head)
+        same_archive = _object_id(root, f"{commit}:{archive_path}") == archive_tree
+        if not same_archive:
+            continue
+        if distance is not None:
+            candidates.append((commit, distance, chain))
+        next_edges = tuple(edge for edge in edges.get(commit, ()) if edge.current not in seen)
+        if len(next_edges) > 1:
+            ambiguous = True
+        pending.extend(
+            (edge.current, (*chain, edge.attestation_id), seen | {edge.current})
+            for edge in next_edges
+        )
+    return candidates, ambiguous
+
+
+def _validated_refresh_edge(
+    root: Path,
+    *,
+    branch: str,
+    attestation: Any,
+) -> RefreshEdge | None:
+    """Decode one refresh edge only when both Git and native evidence validate."""
+    try:
+        _require_refresh(valid=attestation.predicate == "effect:git-ref-update")
+        plan = plan_from_attestation(attestation)
+        _require_refresh(valid=plan.policy.get("transition") == "lane.refresh")
+        _require_refresh(valid=plan.policy.get("execution_branch") == branch)
+        effect = git_effect_from_plan(plan)
+        ref = f"refs/heads/{branch}"
+        update = effect.updates.get(ref)
+        _require_refresh(valid=update is not None and len(effect.updates) == 1)
+        assert update is not None
+        validate_git_effect_attestation(
+            root,
+            effect,
+            attestation,
+            issuer=attestation.verifier,
+            plan=plan,
+            current_postconditions=False,
+        )
+        carried = plan.prior_attestations.get("rebase")
+        _require_refresh(valid=isinstance(carried, Mapping))
+        rebase = Attestation.model_validate(mutable_json(carried))
+        projected_body = mutable_json(rebase.payload.body)
+        _require_refresh(valid=isinstance(projected_body, dict))
+        assert isinstance(projected_body, dict)
+        body = {str(key): value for key, value in projected_body.items()}
+        before = body.get("input")
+        after = body.get("output")
+        freshness = body.get("freshness")
+        command = body.get("command")
+        repository = str(body.get("repository") or "")
+        _require_refresh(valid=all(isinstance(value, dict) for value in (before, after, freshness)))
+        assert isinstance(before, dict)
+        assert isinstance(after, dict)
+        assert isinstance(freshness, dict)
+        _require_refresh(valid=isinstance(command, list | tuple) and bool(repository))
+        assert isinstance(command, list | tuple)
+        before_map = {str(key): value for key, value in before.items()}
+        after_map = {str(key): value for key, value in after.items()}
+        freshness_map = {str(key): value for key, value in freshness.items()}
+        subject = freshness_map.get("subject")
+        _require_refresh(valid=isinstance(subject, dict))
+        assert isinstance(subject, dict)
+        subject_map = {str(key): value for key, value in subject.items()}
+        expected_rebase = issue_native_effect(
+            root,
+            effect=NativeEffect(
+                predicate="effect:git-rebase",
+                operation="git.rebase",
+                command=tuple(str(value) for value in command),
+                subject=subject_map,
+                before=before_map,
+                after=after_map,
+            ),
+            state="applied",
+            commitment_digest=None,
+            repository_id=repository,
+            issued_at=rebase.issued_at,
+        )
+        candidate_heads = tuple(str(value) for value in effect.assertions.values())
+        candidate_head = str(before_map.get("candidate_head") or "")
+        _require_refresh(valid=rebase.canonical_json() == expected_rebase.canonical_json())
+        _require_refresh(valid=repository == repository_identity(root, tree_ref=update.desired))
+        _require_refresh(valid=subject_map == {"branch": branch, "candidate_head": candidate_head})
+        _require_refresh(valid=before_map.get("branch") == branch)
+        _require_refresh(valid=before_map.get("head") == update.expected)
+        _require_refresh(valid=after_map.get("branch") == "detached")
+        _require_refresh(valid=after_map.get("head") == update.desired)
+        _require_refresh(valid=candidate_head == after_map.get("candidate_head"))
+        _require_refresh(valid=candidate_heads == (candidate_head,))
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return None
+    return RefreshEdge(
+        previous=str(update.expected),
+        current=str(update.desired),
+        attestation_id=str(attestation.id),
+    )
+
+
+def _require_refresh(*, valid: bool) -> None:
+    if not valid:
+        message = "archive_refresh_evidence_invalid"
+        raise ValueError(message)
 
 
 def _ancestor_distance(root: Path, ancestor: str, descendant: str) -> int | None:

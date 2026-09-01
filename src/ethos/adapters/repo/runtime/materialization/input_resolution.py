@@ -125,16 +125,15 @@ def resolve_owned_interpreter(source: Path, source_python: Path) -> Path:
         runtime = Path(sys.prefix).parent
         if runtime.parent.name == "runtime":
             return resolved
-    executable = _uv_executable()
     environment = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
     requested = observe_python_facts(source_python)["python_version"]
-    command = (executable.as_posix(), "python", "find", "--managed-python", requested)
+    command = _uv_module_command("python", "find", "--managed-python", "--system", requested)
     completed = subprocess.run(
         command, cwd=source, capture_output=True, text=True, check=False, env=environment
     )
     if completed.returncode:
         installed = subprocess.run(
-            (executable.as_posix(), "python", "install", "--no-bin", requested),
+            _uv_module_command("python", "install", "--no-bin", requested),
             cwd=source,
             capture_output=True,
             text=True,
@@ -164,7 +163,7 @@ def run_runtime_tool(
     *args: str,
     cache_dir: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run the runtime-adjacent uv executable with pinned build inputs."""
+    """Run locked uv through the current authenticated Python interpreter."""
     environment = {
         **os.environ,
         "PYTHONDONTWRITEBYTECODE": "1",
@@ -176,7 +175,7 @@ def run_runtime_tool(
     if cache_dir is not None:
         environment["UV_CACHE_DIR"] = cache_dir.as_posix()
     completed = subprocess.run(
-        (_uv_executable().as_posix(), *args),
+        _uv_module_command(*args),
         cwd=source,
         capture_output=True,
         text=True,
@@ -215,8 +214,5 @@ def _managed_runtime_wheel(source: Path) -> Path | None:
     return wheels[0]
 
 
-def _uv_executable() -> Path:
-    executable = Path(sys.executable).with_name("uv.exe" if os.name == "nt" else "uv")
-    if not executable.is_file():
-        _fail("hook_runtime_uv_unavailable")
-    return executable
+def _uv_module_command(*arguments: str) -> tuple[str, ...]:
+    return (sys.executable, "-B", "-I", "-m", "uv", *arguments)

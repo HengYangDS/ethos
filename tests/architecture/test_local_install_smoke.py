@@ -30,12 +30,6 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _python_home_executable(runtime: Path, name: str) -> Path:
-    directory = "Scripts" if os.name == "nt" else "bin"
-    suffix = ".exe" if os.name == "nt" else ""
-    return runtime / directory / f"{name}{suffix}"
-
-
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ("git", *args),
@@ -88,27 +82,38 @@ def test_host_conformance_git_overlay_is_platform_portable() -> None:
 
 def _prove_relocated_runtime(
     *,
-    runtime_ethos: Path,
+    runtime_python: Path,
     repo: Path,
     hooks_path: Path,
     environment: dict[str, str],
 ) -> None:
     """Prove status, repair, and proof stay executable after package relocation."""
-    status = _run(runtime_ethos, "status", "--root", repo.as_posix(), "--json", env=environment)
+    command = ("-B", "-I", "-m", "ethos.cli")
+    status = _run(
+        runtime_python, *command, "status", "--root", repo.as_posix(), "--json", env=environment
+    )
     assert status.returncode == 0, status.stderr
     assert json.loads(status.stdout)["data"]["hook_runtime"]["current"] is True
     (hooks_path / "pre-push").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
     stale_status = _run(
-        runtime_ethos, "status", "--root", repo.as_posix(), "--json", env=environment
+        runtime_python,
+        *command,
+        "status",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        env=environment,
     )
     repair = json.loads(stale_status.stdout)["data"]["hook_runtime"]["next_action"]
-    assert shlex.split(repair)[0] == runtime_ethos.as_posix()
+    assert shlex.split(repair)[:5] == [runtime_python.as_posix(), *command]
     repaired = subprocess.run(
         shlex.split(repair), capture_output=True, text=True, check=False, env=environment
     )
     assert repaired.returncode == 0, repaired.stdout or repaired.stderr
     assert json.loads(repaired.stdout)["verdict"] == "pass"
-    proof = _run(runtime_ethos, "prove", "--root", repo.as_posix(), "--json", env=environment)
+    proof = _run(
+        runtime_python, *command, "prove", "--root", repo.as_posix(), "--json", env=environment
+    )
     assert proof.stdout, proof.stderr
     assert json.loads(proof.stdout)["command"] == "prove"
 
@@ -191,7 +196,7 @@ def test_packaged_vector_carries_the_minimal_commitment_contract() -> None:
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
-    supply = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY", str(ROOT / "node_modules"))
+    supply = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY") or str(ROOT / "node_modules")
     bootstrap_environment: dict[str, str] = {
         **os.environ,
         "ETHOS_BUILD_OPENSPEC_SUPPLY": supply,
@@ -215,7 +220,6 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     bootstrap_report = json.loads(bootstrap.stdout)
     assert bootstrap_report["verdict"] == "pass", bootstrap_report
     package_python = Path(bootstrap_report["data"]["python"])
-    package_ethos = _python_home_executable(package_python.parent.parent, "ethos")
     _assert_runtime_excludes_development_dependencies(package_python)
     packaged_identity = BuildIdentity(
         product_version=bootstrap_report["data"]["product_version"],
@@ -235,7 +239,11 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         "UV_CACHE_DIR": (tmp_path / "empty-uv-cache").as_posix(),
     }
     installed = _run(
-        package_ethos,
+        package_python,
+        "-B",
+        "-I",
+        "-m",
+        "ethos.cli",
         "hook",
         "install",
         "--root",
@@ -257,7 +265,6 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     _assert_runtime_manifest(report["data"], repo)
     _assert_runtime_excludes_development_dependencies(runtime_python)
     bootstrap_repo.rename(tmp_path / "retired-bootstrap-repo")
-    runtime_ethos = _python_home_executable(runtime_python.parent.parent, "ethos")
     git_executable = shutil.which("git")
     assert git_executable is not None
     package_environment = {
@@ -266,12 +273,21 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     }
     assert shutil.which("ethos", path=package_environment["PATH"]) is None
     _prove_relocated_runtime(
-        runtime_ethos=runtime_ethos,
+        runtime_python=runtime_python,
         repo=repo,
         hooks_path=Path(report["data"]["hooks_path"]),
         environment=package_environment,
     )
-    version = _run(runtime_ethos, "--version", "--json", env=package_environment)
+    version = _run(
+        runtime_python,
+        "-B",
+        "-I",
+        "-m",
+        "ethos.cli",
+        "--version",
+        "--json",
+        env=package_environment,
+    )
     assert version.returncode == 0, version.stderr
     version_identity = json.loads(version.stdout)["data"]["identity"]
     assert version_identity == {

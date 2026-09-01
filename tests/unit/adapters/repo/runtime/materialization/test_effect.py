@@ -15,6 +15,7 @@ import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.materialization.python_image as runtime_python_image
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.transition import PackageArtifact
@@ -139,12 +140,12 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
     assert (target / "bin/python").read_bytes() == b"python-runtime"
     assert not any((target / path).exists() for path in ("include", "share", "lib/python3.14/test"))
     assert not tuple(target.rglob("__pycache__")) + tuple(target.rglob("*.pyc"))
-    for name in ("ethos", "uv"):
-        script = target / "bin" / name
-        text = script.read_text(encoding="utf-8")
-        assert text.startswith("#!/bin/sh\n")
-        assert " -B -I " in text
-        assert target.as_posix() not in text
+    assert not (target / "bin/ethos").exists()
+    script = target / "bin/uv"
+    text = script.read_text(encoding="utf-8")
+    assert text.startswith("#!/bin/sh\n")
+    assert " -B -I " in text
+    assert target.as_posix() not in text
 
 
 def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
@@ -201,9 +202,15 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     monkeypatch.setattr(
         runtime_materialization.subprocess,
         "run",
-        lambda *_a, **_k: subprocess.CompletedProcess([], 1, "", "failed"),
+        lambda *_a, **_k: subprocess.CompletedProcess([], 7, "out", "failed"),
     )
-    with pytest.raises(ValueError, match="hook_runtime_entrypoint_smoke_failed"):
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"hook_runtime_module_smoke_failed:command=.*python -B -I -m ethos\.cli "
+            "--version:returncode=7:stdout=out:stderr=failed"
+        ),
+    ):
         runtime_materialization.materialize_runtime_generation(
             *args[:-1],
             _environment(architecture_name="other"),
@@ -238,19 +245,66 @@ def test_runtime_generation_compares_windows_prefixes_as_paths(
         runtime_materialization.require_runtime_generation(target, args[4], args[5])
 
 
-@pytest.mark.parametrize(("missing", "reason"), [("python", "python"), ("ethos", "entrypoint")])
-def test_runtime_finalization_requires_python_and_entrypoint(
-    tmp_path: Path, missing: str, reason: str
+def test_runtime_generation_smoke_uses_the_authenticated_python_module(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runtime = tmp_path / missing
-    for path in (
-        runtime_materialization.runtime_python(runtime / "python"),
-        runtime_materialization.runtime_entrypoint(runtime / "python"),
-    ):
-        _write(path)
-    (runtime / "python/bin" / missing).unlink()
+    args, _observed = _generation_case(tmp_path, monkeypatch)
+    commands: list[tuple[object, ...]] = []
+
+    def run(command: tuple[object, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, "0.2.0-alpha.3\n", "")
+
+    monkeypatch.setattr(runtime_materialization.subprocess, "run", run)
+
+    target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
+
+    assert commands == [
+        (
+            runtime_materialization.runtime_python(target / "python"),
+            "-B",
+            "-I",
+            "-m",
+            "ethos.cli",
+            "--version",
+        )
+    ]
+
+
+def test_runtime_finalization_does_not_require_a_generated_ethos_launcher(
+    tmp_path: Path,
+) -> None:
+    runtime = tmp_path / "runtime"
+    _write(runtime_materialization.runtime_python(runtime / "python"))
     artifact = PackageArtifact(tmp_path / "wheel", "c" * 64, runtime_build("a" * 40, "b" * 40))
-    with pytest.raises(ValueError, match=f"hook_runtime_{reason}_missing"):
+    environment = _environment()
+    files = runtime_materialization.runtime_file_inventory(runtime)
+    target = tmp_path / runtime_digest(
+        wheel_sha256=artifact.sha256,
+        build=artifact.build,
+        environment=environment,
+        runtime_files=files,
+    )
+
+    try:
+        vars(runtime_materialization)["_finalize_runtime"](
+            runtime,
+            target,
+            artifact,
+            environment,
+            files,
+        )
+        assert (runtime / "manifest.json").is_file()
+    finally:
+        runtime_materialization.remove_generated_tree(runtime, ignore_errors=True)
+
+
+def test_runtime_finalization_requires_python(tmp_path: Path) -> None:
+    runtime = tmp_path / "missing-python"
+    runtime.mkdir()
+    artifact = PackageArtifact(tmp_path / "wheel", "c" * 64, runtime_build("a" * 40, "b" * 40))
+    with pytest.raises(ValueError, match="hook_runtime_python_missing"):
         vars(runtime_materialization)["_finalize_runtime"](
             runtime, tmp_path / "digest", artifact, _environment(), {}
         )

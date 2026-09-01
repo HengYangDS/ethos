@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,21 +19,36 @@ from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
+from ethos.adapters.repo.runtime.selection import runtime_command
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 
 
-def test_windows_standalone_runtime_preserves_native_python_and_scripts_layout(
+def test_windows_standalone_runtime_preserves_native_python_layout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     interpreter_home = tmp_path / "python"
     monkeypatch.setattr(runtime_selection, "os", SimpleNamespace(name="nt"))
 
     assert runtime_selection.runtime_python(interpreter_home) == interpreter_home / "python.exe"
-    assert runtime_selection.runtime_entrypoint(interpreter_home) == (
-        interpreter_home / "Scripts/ethos.exe"
-    )
+
+
+def test_selected_runtime_command_uses_the_authenticated_python_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = activate_runtime(Path(git_common_dir(repo)), venv.parent)
+
+    assert shlex.split(runtime_command(repo, "status", "--json")) == [
+        selected.python.as_posix(),
+        "-B",
+        "-I",
+        "-m",
+        "ethos.cli",
+        "status",
+        "--json",
+    ]
 
 
 def test_hook_runtime_manifest_and_current_selector_bind_exact_package(

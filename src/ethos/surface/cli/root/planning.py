@@ -81,6 +81,42 @@ def plan(
             enforce=False,
         )
         return
+    observed_paths = status_payload.get("changed_paths")
+    authority_ready = status_payload.get("role") != "work_lane" or (
+        authority is not None and authority.verdict == "pass"
+    )
+    if (
+        changed
+        and change is None
+        and authority_ready
+        and isinstance(observed_paths, list | tuple)
+        and not observed_paths
+    ):
+        emit(
+            EthosResult(
+                command="plan",
+                verdict="pass",
+                state="no_changes",
+                summary={
+                    "changed": False,
+                    "plan_node_count": 0,
+                    "matched_rule_count": 0,
+                    "required_gate_count": 0,
+                    "required_skill_count": 0,
+                },
+                data={
+                    "changed_paths": [],
+                    "selected_carrier": "",
+                    "path_attributions": [],
+                    "matched_rules": [],
+                    "required_gates": [],
+                },
+            ),
+            json_output=json_output,
+            enforce=False,
+            artifact_root=repo,
+        )
+        return
     try:
         generation = resolve_current_resolution(
             repo,

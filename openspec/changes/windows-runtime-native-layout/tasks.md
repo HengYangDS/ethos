@@ -21,8 +21,9 @@
   finalization, and isolated-wheel smoke behavior.
 - [x] 3.2 Run repository-wide reference closure, Ruff, format, module-layout,
   and the smallest affected quality gates.
-- [ ] 3.3 Complete exact-HEAD full proof, archive/reproof, candidate and accepted
-  CAS, immutable runtime readback, dual-remote publication, and hosted Windows
+- [x] 3.3 Complete exact-HEAD full proof before the official archive transition.
+- [ ] 3.4 Reprove the archive commit, complete candidate and accepted CAS,
+  immutable runtime readback, dual-remote publication, and hosted Windows
   Python 3.12/3.13/3.14 proof.
-- [ ] 3.4 Retire the completed successor and prior supply Lane; retain GitLab
+- [ ] 3.5 Retire the completed successor and prior supply Lane; retain GitLab
   identity-drop/process spawning as an independent successor.

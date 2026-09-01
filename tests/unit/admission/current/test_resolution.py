@@ -235,6 +235,67 @@ def test_current_resolution_admits_only_one_new_official_metadata_path(monkeypat
     assert resolution.next_action == "openspec new change example --json"
 
 
+def test_current_resolution_admits_remaining_official_artifact_after_partial_compilation(
+    monkeypatch,
+) -> None:
+    change = "example"
+    tasks = f"openspec/changes/{change}/tasks.md"
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "official_cli": {"available": True},
+            "required_gaps": [
+                f"openspec_status_incomplete:{change}",
+                f"openspec_artifact_incomplete:{change}:tasks",
+            ],
+            "commitment": {"schema_version": 1, "id": change, "acceptance": []},
+            "lifecycle": {
+                "changes": [
+                    {
+                        "name": change,
+                        "artifacts": [
+                            {
+                                "id": "proposal",
+                                "outputPath": "proposal.md",
+                                "status": "done",
+                                "requires": [],
+                            },
+                            {
+                                "id": "tasks",
+                                "outputPath": "tasks.md",
+                                "status": "ready",
+                                "requires": ["proposal"],
+                            },
+                        ],
+                    }
+                ],
+                "scope_binding": {},
+            },
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {"changes": [{"name": change}]},
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=(tasks,),
+    )
+
+    assert resolution.verdict == "pass"
+    assert resolution.scope.material_scope["state"] == "official_change_bootstrap"
+    assert resolution.next_action == f"openspec instructions tasks --change {change} --json"
+
+
 @pytest.mark.parametrize(
     "paths",
     [

@@ -25,8 +25,6 @@ uv run ethos status --json
 
 - Repository truth, adoption, proof, or Work Lane question:
   `ethos-repository-governance`.
-- Change lifecycle, readiness, landing, or publication:
-  `ethos-change-lifecycle`.
 - Skill portfolio, activation, package, or projection work:
   `ethos-skill-portfolio-governance`.
 - Quality gates and owner scripts: `ethos-quality-gate-governance`.

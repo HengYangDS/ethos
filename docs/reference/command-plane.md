@@ -50,14 +50,10 @@ Git config, removes owned worktree-local activation overrides, post-observes
 every linked worktree, and reports exact checked, repaired, retained, and
 removed paths. Unknown consumers block cleanup rather than being guessed away.
 
-The normal repository loop is:
-
-```text
-status -> plan -> prove -> land -> publish
-```
-
-`adopt` binds an external repository to the same command semantics; it is not a
-parallel lifecycle.
+These roots are capabilities, not a fixed lifecycle. `status` selects the sole
+current continuation; after an effect, the caller re-observes instead of
+replaying a remembered sequence. `adopt` binds an external repository to the
+same command semantics; it is not a parallel lifecycle.
 
 ## Result Envelope
 

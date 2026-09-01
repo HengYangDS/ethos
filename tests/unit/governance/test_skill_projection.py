@@ -89,26 +89,26 @@ def test_skill_activation_schema_rejects_retired_or_unknown_fields(retired_key: 
 
 def test_skill_activation_compiles_an_ordered_dependency_complete_set() -> None:
     registry = _registry(
-        _skill("change-lifecycle", pre_reads=["AGENTS.md"]),
+        _skill("repository-governance", pre_reads=["AGENTS.md"]),
         _skill(
             "python-quality",
             subject="quality-gates",
             operation="prove",
             path_globs=["src/**/*.py"],
-            requires=["change-lifecycle"],
+            requires=["repository-governance"],
             pre_reads=["ruff.toml"],
         ),
     )
     result = compile_skill_activation(
         registry,
         operation="plan",
-        subjects=("change-lifecycle",),
+        subjects=("repository-governance",),
         changed_paths=("src/ethos/result.py",),
     )
 
     assert result.verdict == "pass"
     assert [skill.id for skill in result.skills] == [
-        "change-lifecycle",
+        "repository-governance",
         "python-quality",
     ]
     assert result.context.model_dump(mode="json") == {
@@ -171,7 +171,7 @@ def test_plan_projects_the_compiled_skill_activation(
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt")
     registry = _registry(
-        _skill("change-lifecycle", path_globs=["**"], pre_reads=["AGENTS.md"]),
+        _skill("repository-governance", path_globs=["**"], pre_reads=["AGENTS.md"]),
     )
     monkeypatch.setattr(
         "ethos.surface.cli.root.planning.playbooks_report",
@@ -185,8 +185,8 @@ def test_plan_projects_the_compiled_skill_activation(
         "verdict": "pass",
         "skills": [
             {
-                "id": "change-lifecycle",
-                "path": ".agents/skills/change-lifecycle/SKILL.md",
+                "id": "repository-governance",
+                "path": ".agents/skills/repository-governance/SKILL.md",
                 "operation": "plan",
             }
         ],

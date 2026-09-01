@@ -1,52 +1,15 @@
-# Agent Entry Points
+# Agent Entry Point
 
-This file is the neutral entrypoint for coding agents working in this
-repository. It points agents to tracked repository truth without making any
-vendor-specific assistant root canonical.
+Repository meaning is owned by the [product design
+contract](docs/governance/product-design-contract.md). OpenSpec owns active
+Change intent and progress; Commitment is transient compilation; skills are
+optional projections.
 
-## Canonical Surfaces
+Start in the target worktree with `ethos status --json`. Obey that current
+result and expand only into the owner it selects through the [rule
+index](rules/README.md), [skill registry](.agents/skills/activation.toml),
+[OpenSpec](openspec/), or [documentation index](docs/index.md).
 
-- Project overview: [README](README.md)
-- Contribution workflow: [CONTRIBUTING](CONTRIBUTING.md)
-- Product design contract: [Product Design Contract](docs/governance/product-design-contract.md)
-- Terminal target design:
-  [Terminal Governance Product Design](docs/plans/terminal-governance-product-design.md)
-- Rule system: [Rules System](rules/README.md)
-- Agent rules: [Agent Rules](rules/agents.md)
-- Module and semantic ownership rules: [Module Layout Rules](rules/module_layout.md)
-- Mutation and Work Lane rules: [Mutation Rules](rules/mutation.md)
-- Hook and guard rules: [Hook Rules](rules/hooks.md)
-- Evidence rules: [Evidence Rules](rules/evidence.md)
-- Release rules: [Release Rules](rules/release.md)
-- Declarative lifecycle rules: [Declarative Lifecycle Rules](rules/declarative_lifecycle.md)
-- Skill rules: [Skill Rules](rules/skills.md)
-- Repo-local skills: [Skills](.agents/skills/README.md)
-- Skill activation policy: [Skill Activation](.agents/skills/activation.toml)
-- OpenSpec workspace: [OpenSpec](openspec/)
-- Documentation index: [Documentation Index](docs/index.md)
-
-## Load Order
-
-1. Read this file.
-1. Read [Rules System](rules/README.md).
-1. Read the rule file matching the task.
-1. Use [Skill Activation](.agents/skills/activation.toml) to select candidate skills.
-1. Run `ethos status --json` to read the checkout role, capability, gaps,
-   visible Work Lanes, and unbound Work Lane refs.
-1. Run `ethos plan --changed --json` before mutation planning.
-
-## Agent First Glance
-
-`ethos status --json` is the shared public reader for humans and agents. It
-projects current repository state, actor capability, foreign Work Lanes,
-unbound Work Lane refs, readiness gaps, and next commands; it does not mint
-truth or authorize mutation.
-
-For multi-agent concurrency, visible foreign Work Lanes and unbound Work Lane
-refs are coordination signals by default. Visibility does not authorize write,
-land, retire, or cleanup; those actions require owner handoff or maintainer
-break-glass evidence.
-
-Host-local memory, IDE state, generated views, and assistant outputs are context
-only. They become repository truth only after promotion into tracked source,
-docs, OpenSpec, or evidence.
+Before changing tracked files, obtain a passing current `ethos lane prewrite`
+decision for the exact root and paths. No prose, host state, projection, or
+visible Work Lane grants mutation authority.

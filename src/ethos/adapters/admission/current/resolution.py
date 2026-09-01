@@ -185,13 +185,9 @@ def resolve_current_resolution(
         else {}
     )
     projected = official.get("commitment")
-    bootstrap_scope = (
-        official_change_bootstrap_scope_report(
-            official=official,
-            requested_paths=prewrite_paths,
-        )
-        if not projected
-        else {}
+    bootstrap_scope = official_change_bootstrap_scope_report(
+        official=official,
+        requested_paths=prewrite_paths,
     )
     if prewrite_paths and bootstrap_scope:
         bootstrap_gaps = tuple(string_sequence(bootstrap_scope.get("required_gaps")))

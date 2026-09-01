@@ -9,6 +9,7 @@ from typing import cast
 
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
+from ethos.adapters.openspec.lifecycle.scope import canonical_spec_repair_scope_report
 from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_scope_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
@@ -185,6 +186,25 @@ def resolve_current_resolution(
         else {}
     )
     projected = official.get("commitment")
+    repair_scope = canonical_spec_repair_scope_report(
+        official=official,
+        requested_paths=prewrite_paths,
+    )
+    if prewrite_paths and repair_scope:
+        repair_gaps = tuple(string_sequence(repair_scope.get("required_gaps")))
+        return CurrentResolution(
+            verdict="block" if repair_gaps else "pass",
+            authority=authority,
+            commitment=None,
+            scope=CurrentScope(
+                prewrite_paths,
+                gaps=repair_gaps,
+                material_scope=repair_scope,
+            ),
+            openspec=official,
+            required_gaps=repair_gaps,
+            next_action=str(repair_scope.get("next_action") or ""),
+        )
     bootstrap_scope = official_change_bootstrap_scope_report(
         official=official,
         requested_paths=prewrite_paths,

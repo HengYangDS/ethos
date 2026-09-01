@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.contracts.semantic import Commitment
 from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.openspec.identifiers import active_change_root
@@ -77,6 +78,74 @@ def official_change_bootstrap_scope_report(
     return report
 
 
+def canonical_spec_repair_scope_report(
+    *,
+    official: dict[str, object],
+    requested_paths: tuple[str, ...],
+) -> dict[str, object]:
+    """Admit only canonical specs named by current official validation gaps."""
+    paths = tuple(dict.fromkeys(filter(None, requested_paths)))
+    if not paths or not _official_observation_available(official):
+        return {}
+    change = str(official.get("change") or "")
+    if logical_change_identifier_issue(change):
+        return {}
+    if not _canonical_spec_repair_context_valid(official, change=change):
+        return {}
+    repair_paths = _canonical_spec_repair_paths(official)
+    if not repair_paths:
+        return {}
+    covered = tuple(path for path in paths if path in repair_paths)
+    uncovered = tuple(path for path in paths if path not in repair_paths)
+    gaps = [f"openspec_material_path_uncovered:{path}" for path in uncovered]
+    report = _scope_report(
+        paths,
+        (),
+        paths,
+        changes=[{"name": change, "path": active_change_root(change)}],
+        covered=[{"path": path, "changes": [change]} for path in covered],
+        uncovered=list(uncovered),
+        state="canonical_spec_repair",
+        gaps=gaps,
+    )
+    report["authorized_paths"] = list(repair_paths)
+    report["next_action"] = "openspec validate --all --strict --json"
+    return report
+
+
+def _canonical_spec_repair_context_valid(official: dict[str, object], *, change: str) -> bool:
+    """Require one valid selected Change and no non-repair governance gap."""
+    prefix = "openspec_validation_failed:spec:"
+    gaps = string_sequence(official.get("required_gaps"))
+    if not gaps or any(not gap.startswith(prefix) for gap in gaps):
+        return False
+    projected = official.get("commitment")
+    if not isinstance(projected, dict):
+        return False
+    try:
+        commitment = Commitment.model_validate(projected)
+    except ValueError:
+        return False
+    if commitment.id != f"change:{change}":
+        return False
+    lifecycle = official.get("lifecycle")
+    changes = lifecycle.get("changes") if isinstance(lifecycle, dict) else None
+    if not isinstance(changes, list) or len(changes) != 1 or not isinstance(changes[0], dict):
+        return False
+    selected = changes[0]
+    artifacts = selected.get("artifacts")
+    return bool(
+        selected.get("name") == change
+        and not string_sequence(selected.get("required_gaps"))
+        and isinstance(artifacts, list)
+        and artifacts
+        and all(
+            isinstance(artifact, dict) and artifact.get("status") in {"done", "skipped"}
+            for artifact in artifacts
+        )
+    )
+
+
 def _official_observation_available(official: dict[str, object]) -> bool:
     cli = official.get("official_cli")
     commands = official.get("commands")
@@ -91,6 +160,22 @@ def _official_observation_available(official: dict[str, object]) -> bool:
         and not listed.get("parse_error")
         and isinstance(listed.get("json"), dict)
     )
+
+
+def _canonical_spec_repair_paths(official: dict[str, object]) -> tuple[str, ...]:
+    prefix = "openspec_validation_failed:spec:"
+    capabilities = (
+        gap.removeprefix(prefix)
+        for gap in string_sequence(official.get("required_gaps"))
+        if gap.startswith(prefix)
+    )
+    valid = (
+        capability
+        for capability in capabilities
+        if capability
+        and all(not logical_change_identifier_issue(part) for part in capability.split("/"))
+    )
+    return tuple(dict.fromkeys(f"openspec/specs/{capability}/spec.md" for capability in valid))
 
 
 def _bootstrap_artifacts(
@@ -192,6 +277,7 @@ def _scope_report(
     *,
     changes: list[dict[str, object]] | None = None,
     covered: list[dict[str, object]] | None = None,
+    uncovered: list[str] | None = None,
     state: str,
     gaps: list[str] | None = None,
 ) -> dict[str, object]:
@@ -204,7 +290,9 @@ def _scope_report(
         "material_paths": list(material),
         "changes": changes or [],
         "covered_paths": covered or [],
-        "uncovered_paths": [] if covered else list(material),
+        "uncovered_paths": uncovered
+        if uncovered is not None
+        else ([] if covered else list(material)),
         "required_gaps": required,
         "advisory_gaps": [],
     }

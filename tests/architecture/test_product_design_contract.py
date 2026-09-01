@@ -7,7 +7,9 @@ import subprocess
 from pathlib import Path
 
 from ethos.contracts.semantic import Commitment
+from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.design.integrity import design_integrity_report
+from ethos.repository.registry.docs.registry import allowed_roles
 from ethos.repository.registry.docs.registry import build_docs_registry
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -88,6 +90,17 @@ def test_agent_entrypoint_is_thin_and_continuation_driven() -> None:
     assert "OpenSpec" in entrypoint
     assert "Commitment is transient compilation" in entrypoint
     assert entrypoint.count("ethos status --json") == 1
+
+
+def test_product_meaning_and_terminal_route_are_both_required_docs() -> None:
+    """Repository audit keeps the two canonical semantic owners present."""
+    assert "docs/governance/product-design-contract.md" in REQUIRED_DOCS
+    assert "docs/plans/terminal-governance-product-design.md" in REQUIRED_DOCS
+
+
+def test_repository_docs_taxonomy_has_no_feedback_ledger_role() -> None:
+    """Conversation recovery cannot introduce a parallel durable ledger."""
+    assert "ledger" not in allowed_roles(ROOT)
 
 
 def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> None:

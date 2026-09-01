@@ -25,7 +25,6 @@ allowed = [
   "research",
   "findings",
   "progress",
-  "ledger",
   "how-to",
 ]
 
@@ -35,7 +34,7 @@ allowed = [
 # declares its own roots here without editing the ETHOS product runtime.
 [extension_roots]
 "docs/architecture" = ["explanation", "reference", "index"]
-"docs/governance" = ["policy", "explanation", "ledger", "index"]
+"docs/governance" = ["policy", "explanation", "index"]
 "docs/concepts" = ["explanation", "index"]
 "docs/plans" = ["plan", "findings", "progress", "index"]
 "docs/research" = ["research", "plan", "index"]

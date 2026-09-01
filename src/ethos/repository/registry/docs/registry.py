@@ -31,7 +31,6 @@ DEFAULT_ROLE_VALUES = (
     "research",
     "findings",
     "progress",
-    "ledger",
     "how-to",
 )
 

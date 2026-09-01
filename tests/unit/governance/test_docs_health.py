@@ -132,6 +132,20 @@ def test_docs_health_reports_missing_invalid_and_duplicate_metadata(tmp_path: Pa
     ]
 
 
+def test_docs_health_rejects_feedback_ledger_as_a_document_role(tmp_path: Path) -> None:
+    """Raw feedback intake cannot become a durable documentation authority."""
+    path = tmp_path / "docs" / "governance" / "feedback-ledger.md"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        _document("ethos:feedback-ledger", "ledger", "active", "Feedback Ledger"),
+        encoding="utf-8",
+    )
+
+    report = docs_health_report(tmp_path)
+
+    assert report["invalid_role"] == ["invalid_role:docs/governance/feedback-ledger.md:ledger"]
+
+
 def test_docs_health_ignores_missing_visible_document_after_registry_observation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

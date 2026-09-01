@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
-import ethos.adapters.repo.runtime.materialization.python_image as runtime_python_image
 import ethos.adapters.repo.runtime.transition as identity_transition
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.activation import install_hook_launchers
@@ -111,22 +110,7 @@ def create_fixture_python(target: Path) -> None:
         encoding="utf-8",
     )
     if os.name == "nt":
-        launcher = source_python.with_name("ethos.exe")
-        if not launcher.is_file():
-            message = "fixture_hook_runtime_launcher_missing"
-            raise ValueError(message)
-        shutil.copy2(launcher, target / "Scripts/ethos.exe")
-        (target / "Scripts/ethos-script.py").write_text(
-            "from ethos.cli import main\nraise SystemExit(main())\n",
-            encoding="utf-8",
-        )
         return
-    entrypoint = target / "bin/ethos"
-    entrypoint.write_text(
-        '#!/bin/sh\nexec "${0%/*}/python" -B -I -m ethos.cli "$@"\n',
-        encoding="utf-8",
-    )
-    entrypoint.chmod(0o755)
 
 
 def git_process(root: Path, *args: object, stdin: str = "") -> subprocess.CompletedProcess[str]:
@@ -206,9 +190,6 @@ def materialize_runtime_case(
         runtime_python.parent.mkdir(parents=True)
         runtime_python.write_bytes(b"python")
         runtime_python.chmod(0o755)
-        entrypoint = runtime_executable(target, "ethos")
-        entrypoint.write_text(runtime_python_image.render_console_script("ethos"), encoding="utf-8")
-        entrypoint.chmod(0o755)
         package = target / "lib/python3.14/site-packages/ethos/module.py"
         package.parent.mkdir(parents=True)
         package.write_text("original\n", encoding="utf-8")

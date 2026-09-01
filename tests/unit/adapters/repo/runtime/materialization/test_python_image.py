@@ -109,7 +109,9 @@ def test_console_script_discovery_and_rewrite_matrix(
     _fails("entrypoint_missing", rewrite, tmp_path / "runtime")
     monkeypatch.setattr(python_image, "console_script_entries", lambda _p: {"ethos": "v"})
     monkeypatch.setattr(python_image, "os", SimpleNamespace(name="nt"))
+    windows_ethos = _file(python.parent / "ethos.exe")
     rewrite(tmp_path / "runtime")
+    assert not windows_ethos.exists()
     monkeypatch.setattr(python_image, "os", SimpleNamespace(name="posix"))
     for kind in ("directory", "symlink"):
         artifact = python.parent / kind
@@ -117,12 +119,10 @@ def test_console_script_discovery_and_rewrite_matrix(
         _fails("console_script_invalid", rewrite, tmp_path / "runtime")
         artifact.unlink() if artifact.is_symlink() else artifact.rmdir()
     ethos, legacy = _file(python.parent / "ethos"), python.parent / "legacy"
-    _fails("console_script_invalid", rewrite, tmp_path / "runtime")
-    ethos.unlink()
     _file(legacy, b"#!/bin/sh\n")
     rewrite(tmp_path / "runtime")
     assert not legacy.exists()
-    assert ethos.read_text().startswith("#!/bin/sh")
+    assert not ethos.exists()
 
 
 def test_console_script_discovery_uses_the_target_interpreter(

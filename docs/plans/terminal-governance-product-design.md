@@ -136,9 +136,13 @@ The dependency-ordered destructive batches are:
    installs a second dependency closure during artifact construction.
    Runtime materialization preserves each standalone interpreter's native
    platform layout. Windows keeps `python.exe`, `Lib`, `DLLs`, and runtime DLLs
-   at the interpreter root while console scripts remain under `Scripts`; one
-   path owner projects that layout into runtime selection, generation checks,
-   and Git hook launchers without fallback paths or compatibility wrappers.
+   at the interpreter root. The authenticated runtime Python plus
+   `-B -I -m ethos.cli` is the sole internal ETHOS execution authority across
+   runtime selection, generation checks, continuations, and Git hooks; package
+   console scripts are not a second authority. No fallback path or compatibility
+   wrapper is retained. Runtime materialization invokes the locked installer as
+   `python -B -I -m uv`, so the package owns its platform-native binary discovery
+   rather than ETHOS deriving a sibling executable path.
    Runtime post-observation compares those prefixes by platform-native path
    identity rather than serialized separator or case spelling; exact GitHub
    Windows 3.12, 3.13, and 3.14 execution closes that hosted boundary.

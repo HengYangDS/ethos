@@ -280,6 +280,10 @@ def _rewrite_console_scripts(runtime: Path) -> None:
     entries = console_script_entries(python)
     if "ethos" not in entries:
         _fail("hook_runtime_entrypoint_missing")
+    (scripts / "ethos").unlink(missing_ok=True)
+    (scripts / "ethos.exe").unlink(missing_ok=True)
+    (scripts / "ethos-script.py").unlink(missing_ok=True)
+    (scripts / "ethos.exe.manifest").unlink(missing_ok=True)
     if os.name == "nt":
         return
     for path in scripts.iterdir():
@@ -293,7 +297,7 @@ def _rewrite_console_scripts(runtime: Path) -> None:
             _fail("hook_runtime_console_script_invalid", error)
         if is_script:
             path.unlink()
-    for name in sorted(entries):
+    for name in sorted(set(entries) - {"ethos"}):
         script = scripts / name
         if script.exists():
             _fail("hook_runtime_console_script_invalid")

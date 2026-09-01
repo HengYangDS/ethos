@@ -94,15 +94,14 @@ def test_source_wheel_resolution_requires_exactly_one_output(
     (source / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
     wheel_dir = tmp_path / "build/wheel"
     python = tmp_path / "bin/python"
-    uv = python.with_name("uv")
-    uv.parent.mkdir(parents=True)
-    uv.write_text("tool", encoding="utf-8")
+    python.parent.mkdir(parents=True)
+    python.write_text("python", encoding="utf-8")
     monkeypatch.setattr(sys, "executable", python.as_posix())
     commands: list[tuple[str, ...]] = []
 
     def build(command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         commands.append(command)
-        if command[1] == "build":
+        if "build" in command:
             output = Path(command[-1])
             output.mkdir(parents=True, exist_ok=True)
             for index in range(wheel_count):
@@ -112,7 +111,12 @@ def test_source_wheel_resolution_requires_exactly_one_output(
     monkeypatch.setattr(runtime_inputs.subprocess, "run", build)
     with pytest.raises(ValueError, match="hook_runtime_wheel_invalid"):
         runtime_inputs.resolve_runtime_wheel(source, wheel_dir)
-    assert commands[0][1:] == (
+    assert commands[0] == (
+        python.as_posix(),
+        "-B",
+        "-I",
+        "-m",
+        "uv",
         "sync",
         "--locked",
         "--offline",
@@ -164,32 +168,28 @@ def test_managed_runtime_rejects_missing_or_ambiguous_content_addressed_wheel(
         runtime_inputs.resolve_runtime_wheel(source, tmp_path / "unused")
 
 
-def test_runtime_tool_reports_missing_executable_and_stderr(
+def test_runtime_tool_reports_module_stderr_without_writing_output(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     source = tmp_path / "source"
     source.mkdir()
     (source / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
-    missing_wheel_dir = tmp_path / "missing/wheel"
-    monkeypatch.setattr(sys, "executable", (tmp_path / "bin/python").as_posix())
-    with pytest.raises(ValueError, match="hook_runtime_uv_unavailable"):
-        runtime_inputs.resolve_runtime_wheel(source, missing_wheel_dir)
-
-    uv = tmp_path / "bin/uv"
-    uv.parent.mkdir(parents=True)
-    uv.write_text("tool", encoding="utf-8")
+    python = tmp_path / "bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("python", encoding="utf-8")
+    monkeypatch.setattr(sys, "executable", python.as_posix())
     monkeypatch.setattr(
         runtime_inputs.subprocess,
         "run",
-        lambda *_args, **_kwargs: _completed(1, stderr="build failed"),
+        lambda *_args, **_kwargs: _completed(1, stderr="No module named uv"),
     )
     failed_wheel = tmp_path / "failed/wheel"
-    with pytest.raises(ValueError, match="build failed"):
+    with pytest.raises(ValueError, match="No module named uv"):
         runtime_inputs.resolve_runtime_wheel(source, failed_wheel)
     assert not failed_wheel.exists()
 
     def build(command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        if command[1] == "build":
+        if "build" in command:
             output = Path(command[-1])
             output.mkdir(parents=True)
             (output / "ethos-retry.whl").write_bytes(b"wheel")
@@ -206,9 +206,8 @@ def test_runtime_tool_forces_copy_link_mode(
     source = tmp_path / "source"
     source.mkdir()
     python = tmp_path / "bin/python"
-    uv = python.with_name("uv")
-    uv.parent.mkdir(parents=True)
-    uv.write_text("tool", encoding="utf-8")
+    python.parent.mkdir(parents=True)
+    python.write_text("python", encoding="utf-8")
     monkeypatch.setattr(sys, "executable", python.as_posix())
     supply = source / "node_modules"
     supply.mkdir()
@@ -229,6 +228,39 @@ def test_runtime_tool_forces_copy_link_mode(
     assert observed["UV_LINK_MODE"] == "copy"
     assert observed["UV_CACHE_DIR"] == (tmp_path / "ambient-cache").as_posix()
     assert observed["ETHOS_BUILD_OPENSPEC_SUPPLY"] == supply.as_posix()
+
+
+def test_runtime_tool_executes_uv_through_the_owned_python_module(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    python = tmp_path / "python/python.exe"
+    python.parent.mkdir()
+    python.write_text("python", encoding="utf-8")
+    observed: list[tuple[str, ...]] = []
+    monkeypatch.setattr(sys, "executable", python.as_posix())
+    monkeypatch.setattr(
+        runtime_inputs.subprocess,
+        "run",
+        lambda command, **_kwargs: observed.append(command) or _completed(0),
+    )
+
+    runtime_inputs.run_runtime_tool(source, "pip", "install", "package.whl")
+
+    assert observed == [
+        (
+            python.as_posix(),
+            "-B",
+            "-I",
+            "-m",
+            "uv",
+            "pip",
+            "install",
+            "package.whl",
+        )
+    ]
 
 
 def test_locked_closure_prefills_owned_cache_then_installs_offline(
@@ -300,9 +332,8 @@ def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_
     source.mkdir()
     (source / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
     python = tmp_path / "bin/python"
-    uv = python.with_name("uv")
-    uv.parent.mkdir(parents=True)
-    uv.write_text("tool", encoding="utf-8")
+    python.parent.mkdir(parents=True)
+    python.write_text("python", encoding="utf-8")
     monkeypatch.setattr(sys, "executable", python.as_posix())
     commands: list[tuple[str, ...]] = []
 
@@ -317,7 +348,11 @@ def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_
 
     assert commands == [
         (
-            uv.as_posix(),
+            python.as_posix(),
+            "-B",
+            "-I",
+            "-m",
+            "uv",
             "sync",
             "--locked",
             "--offline",
@@ -373,8 +408,6 @@ def test_owned_interpreter_reuses_runtime_or_installs_one_managed_python(
     managed = tmp_path / "managed/python"
     managed.parent.mkdir(parents=True)
     managed.write_text("python", encoding="utf-8")
-    uv = prefix / "bin/uv"
-    uv.write_text("uv", encoding="utf-8")
     monkeypatch.setattr(sys, "prefix", (tmp_path / "ambient").as_posix())
     monkeypatch.setattr(sys, "executable", (prefix / "bin/python").as_posix())
     monkeypatch.setattr(
@@ -386,17 +419,21 @@ def test_owned_interpreter_reuses_runtime_or_installs_one_managed_python(
             else {"prefix": "managed", "base_prefix": "managed"}
         ),
     )
-    calls = 0
+    commands: list[tuple[str, ...]] = []
 
-    def run(_command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        nonlocal calls
-        calls += 1
-        return _completed(1) if calls == 1 else _completed(0, managed.as_posix())
+    def run(command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        return _completed(1) if len(commands) == 1 else _completed(0, managed.as_posix())
 
     monkeypatch.setattr(runtime_inputs.subprocess, "run", run)
 
     assert runtime_inputs.resolve_owned_interpreter(tmp_path, source_python) == managed.resolve()
-    assert calls == 3
+    prefix_command = (prefix / "bin/python").as_posix(), "-B", "-I", "-m", "uv", "python"
+    assert commands == [
+        (*prefix_command, "find", "--managed-python", "--system", "3.14"),
+        (*prefix_command, "install", "--no-bin", "3.14"),
+        (*prefix_command, "find", "--managed-python", "--system", "3.14"),
+    ]
 
 
 def test_owned_interpreter_reports_install_and_validation_failures(
@@ -405,9 +442,8 @@ def test_owned_interpreter_reports_install_and_validation_failures(
     source_python = tmp_path / "source-python"
     source_python.write_text("python", encoding="utf-8")
     python = tmp_path / "bin/python"
-    uv = python.with_name("uv")
-    uv.parent.mkdir(parents=True)
-    uv.write_text("uv", encoding="utf-8")
+    python.parent.mkdir(parents=True)
+    python.write_text("python", encoding="utf-8")
     monkeypatch.setattr(sys, "executable", python.as_posix())
     monkeypatch.setattr(
         runtime_inputs,

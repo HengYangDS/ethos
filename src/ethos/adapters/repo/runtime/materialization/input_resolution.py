@@ -33,21 +33,27 @@ def require_runtime_wheel_provenance() -> None:
         resolve_runtime_wheel(source, Path())
 
 
-def resolve_node_runtime(
+def resolve_node_executable(
     *,
     package_root: Path | None = None,
     platform_name: str | None = None,
-) -> tuple[Path, Path]:
-    """Return validated Node and npm paths from the locked package supply."""
+) -> Path:
+    """Return the validated Node executable from the locked package supply."""
     root = package_root or Path(str(nodejs_wheel.__file__)).resolve().parent
     platform = platform_name or os.name
     node = root / "node.exe" if platform == "nt" else root / "bin/node"
-    npm_cli = root / "lib/node_modules/npm/bin/npm-cli.js"
     if not node.is_file() or (platform != "nt" and not os.access(node, os.X_OK)):
         _fail(f"package-local Node executable is unavailable: {node}")
-    if not npm_cli.is_file():
-        _fail(f"package-local npm CLI is unavailable: {npm_cli}")
-    return node, npm_cli
+    return node
+
+
+def resolve_openspec_supply(source: Path) -> Path:
+    """Resolve the prepared OpenSpec package tree used by source builds."""
+    configured = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY")
+    supply = Path(configured) if configured else source / "node_modules"
+    if supply.is_symlink() or not supply.is_dir():
+        _fail("openspec_build_supply_unavailable")
+    return supply.resolve()
 
 
 def resolve_runtime_wheel(source: Path, wheel_dir: Path, *, cache_dir: Path | None = None) -> Path:
@@ -159,15 +165,14 @@ def run_runtime_tool(
     cache_dir: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run the runtime-adjacent uv executable with pinned build inputs."""
-    node, npm_cli = resolve_node_runtime()
     environment = {
         **os.environ,
         "PYTHONDONTWRITEBYTECODE": "1",
         "UV_LINK_MODE": "copy",
         "VIRTUAL_ENV": Path(sys.prefix).as_posix(),
-        "ETHOS_BUILD_NODE": node.as_posix(),
-        "ETHOS_BUILD_NPM_CLI": npm_cli.as_posix(),
     }
+    if (source / "package-lock.json").is_file():
+        environment["ETHOS_BUILD_OPENSPEC_SUPPLY"] = resolve_openspec_supply(source).as_posix()
     if cache_dir is not None:
         environment["UV_CACHE_DIR"] = cache_dir.as_posix()
     completed = subprocess.run(

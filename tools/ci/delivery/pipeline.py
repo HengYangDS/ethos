@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_openspec_supply
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 from tools.ci.local_install_smoke import prepare_supply
@@ -25,14 +25,11 @@ class DeliveryPipeline:
     """Own wheel materialization and its package-only acceptance sequence."""
 
     runtime: ProjectRuntime
-    node: Path
-    npm_cli: Path
 
     @classmethod
     def from_runtime(cls, runtime: ProjectRuntime) -> DeliveryPipeline:
-        """Bind the wheel's locked Node and npm build inputs."""
-        node, npm_cli = resolve_node_runtime()
-        return cls(runtime, node, npm_cli)
+        """Bind the delivery pipeline to the locked project runtime."""
+        return cls(runtime)
 
     def build(self, session: nox.Session) -> None:
         """Materialize exactly one offline wheel through Hatchling and uv."""
@@ -49,8 +46,7 @@ class DeliveryPipeline:
                 str(staging),
                 "--no-create-gitignore",
                 env={
-                    "ETHOS_BUILD_NODE": str(self.node),
-                    "ETHOS_BUILD_NPM_CLI": str(self.npm_cli),
+                    "ETHOS_BUILD_OPENSPEC_SUPPLY": str(resolve_openspec_supply(Path.cwd())),
                 },
             )
             publish_built_wheel(Path.cwd(), staging, Path("build/artifacts/python"))

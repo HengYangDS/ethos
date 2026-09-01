@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-01
+goal: Make package/runtime construction consume one prepared locked OpenSpec
+  production closure without per-build npm resolution or host-cache assumptions.

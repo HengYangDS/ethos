@@ -12,6 +12,7 @@ from typing import cast
 
 from PIL import Image
 
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
 
@@ -19,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
 
 DELIVERY = DeliveryPipeline.from_runtime(RUNTIME)
-NODE = DELIVERY.node
+NODE = resolve_node_executable()
 MARKDOWNLINT = ROOT / "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"
 PRETTIER = ROOT / "node_modules/prettier/bin/prettier.cjs"
 SVGO = ROOT / "node_modules/svgo/bin/svgo.js"

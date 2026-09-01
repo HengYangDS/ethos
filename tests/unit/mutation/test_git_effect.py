@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.attestation_set as attestation_set
 import ethos.adapters.repo.git_effect_admission as admission
 import ethos.adapters.repo.git_effect_attestation as attest
@@ -104,7 +105,7 @@ def test_commit_git_worktree_does_not_inherit_transition_authority(
         environments.append(dict(kwargs["env"]))
         return type("Result", (), {"returncode": 0, "stderr": ""})()
 
-    monkeypatch.setattr("ethos.adapters.repo.git._execute", capture_commit)
+    monkeypatch.setattr(process_adapter, "run_command", capture_commit)
 
     commit_git_worktree(repo, previous=previous, message="fix: governed commit")
 

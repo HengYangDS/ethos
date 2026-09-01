@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.git as git
 
 if TYPE_CHECKING:
@@ -47,7 +48,7 @@ def test_run_git_supports_text_and_binary_public_overloads(
         observed.append((root, command, kwargs))
         return _completed(0, b"bytes" if kwargs["text"] is False else "text")
 
-    monkeypatch.setattr(git, "_execute", execute)
+    monkeypatch.setattr(process_adapter, "run_command", execute)
 
     assert git.run_git(tmp_path, "show", text=True).stdout == "text"
     assert git.run_git(tmp_path, "show", text=False).stdout == b"bytes"
@@ -128,15 +129,19 @@ def test_remote_availability_reports_unconfigured_timeout_success_and_failure(
     monkeypatch.setattr(git, "git_stdout", lambda *_args, **_kwargs: "ssh://origin")
     monkeypatch.setattr(git, "git_executable", lambda _env: "/git")
     monkeypatch.setattr(
-        git,
-        "_execute",
+        process_adapter,
+        "run_command",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(subprocess.TimeoutExpired("git", 3)),
     )
     assert git.remote_availability(tmp_path)["reason"] == "timeout"
 
-    monkeypatch.setattr(git, "_execute", lambda *_args, **_kwargs: _completed(0))
+    monkeypatch.setattr(process_adapter, "run_command", lambda *_args, **_kwargs: _completed(0))
     assert git.remote_availability(tmp_path)["state"] == "available"
-    monkeypatch.setattr(git, "_execute", lambda *_args, **_kwargs: _completed(1, stderr="offline"))
+    monkeypatch.setattr(
+        process_adapter,
+        "run_command",
+        lambda *_args, **_kwargs: _completed(1, stderr="offline"),
+    )
     failed = git.remote_availability(tmp_path)
     assert (failed["state"], failed["reason"], failed["stderr"]) == (
         "unavailable",

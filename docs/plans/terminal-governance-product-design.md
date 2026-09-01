@@ -109,80 +109,95 @@ was updated. Observed divergence remains `block`. Peer ordering and bounded
 temporal parity across declared forges remain part of the assurance and
 publication batch rather than this observation boundary.
 
-The dependency-ordered destructive batches are:
+The dependency-ordered destructive batches are finite. A batch is not complete
+because its target behavior appears in this document or because a focused test
+passes; its own official Change must close the stated exit boundary.
 
-1. **Close fresh-observation and current-result defects.** Empty changed-scope
-   input closes without historical intent; status, plan, prewrite, hooks, and
-   lifecycle commands then converge on one typed resolver and singular
-   continuation instead of command-local selection and self-loops.
-2. **Close the active local repository-effect atom.** Remove the model defect
-   that made lifecycle commands mirror Git and OpenSpec inside Lease state.
-   Compile intent from the exact official OpenSpec Change, reduce Lease to the
-   lane-holder relation, route remaining local ref effects through the common
-   Git-effect owner, and delete tracked Commitment carriers plus private binding,
-   receipt, predicate, recovery, hook authority, tests, and documentation in the
-   same Change.
-3. **Unify authority and result projection.** Replace command-local status,
-   plan, prewrite, and hook interpretation with one resolver and closed result
-   algebra; remove duplicate diagnostics and abstract next actions.
-4. **Converge official projections and acceptance compilation.** Compile the
-   minimal Commitment value from official OpenSpec requirements and scenarios;
-   derive effect paths from fresh Git Facts; delete relation, predicted-scope,
-   research, authority-reference, and progress fields that do not alter
-   acceptance. Do not add a replacement carrier.
-5. **Close coordination.** Build one positive lane/Lease reconciliation model
-   for start, continue, handoff, takeover, reacquire, restore, absorb, preserve,
-   and retire. Delete command-specific orphan ownership and model `unbound` as
-   an observation rather than authority.
-6. **Correct integration roles.** Keep authoring on `work/*`; project proved
-   objects to `proposal/*`; converge developer MR/PR and maintainer exact-CAS
-   paths on the same promotion semantics and cleanup.
-7. **Close immutable identity and installation.** Establish non-reused package
-   versions, source/tree/runtime digests, repository binding, package-only
-   operation, idempotent hook/runtime upgrade, uninstall, and retention/GC.
-   Package construction treats the exact Node lock as selection authority and
-   one repository-prepared production tree as supply: Hatch validates and
-   projects that tree directly into wheel and sdist, and never resolves or
-   installs a second dependency closure during artifact construction.
-   Runtime materialization preserves each standalone interpreter's native
-   platform layout. Windows keeps `python.exe`, `Lib`, `DLLs`, and runtime DLLs
-   at the interpreter root. The authenticated runtime Python plus
-   `-B -I -m ethos.cli` is the sole internal ETHOS execution authority across
-   runtime selection, generation checks, continuations, and Git hooks; package
-   console scripts are not a second authority. No fallback path or compatibility
-   wrapper is retained. Runtime materialization invokes the locked installer as
-   `python -B -I -m uv`, so the package owns its platform-native binary discovery
-   rather than ETHOS deriving a sibling executable path.
-   Shared external process creation is owned by one provider-neutral adapter;
-   Git retains only Git-specific resolution and failure classification. Windows
-   runtime observation resolves PowerShell from the native `SYSTEMROOT` path,
-   never ambient `PATH`, and preserves exact argv, cwd, and operating-system
-   cause when creation fails.
-   Runtime post-observation compares those prefixes by platform-native path
-   identity rather than serialized separator or case spelling; exact GitHub
-   Windows 3.12, 3.13, and 3.14 execution closes that hosted boundary.
-8. **Complete assurance and publication.** Compile requirement coverage into
-   proof obligations, separate local and hosted phases, admit independent
-   verification, and prove local/GitHub/GitLab publication as distinct planes.
-9. **Subtract operational residue.** Enforce semantic ownership, duplication,
-   module boundaries, temporary-resource ownership, supply-chain integrity,
-   and performance through one quality graph; delete obsolete code, tests,
-   schemas, documentation, configuration, runtime generations, and refs.
-   This batch remains independent successor Changes: hosted execution
-   environment completeness (including identity-drop process availability),
-   Windows native trust/ACL conformance, and dead-owner temporary-resource
-   recovery with inode and cleanup budgets. None is absorbed into package
-   supply or standalone runtime layout merely because hosted evidence exposed
-   them together.
-10. **Prove terminal slices.** Run greenfield, brownfield, package-only, local,
-   single-forge, dual-forge, interruption, drift, unbound, and adversarial
-   adopter workloads before claiming terminal convergence.
+1. **Close design authority.** Reconcile the product contract and this plan,
+   validate their official OpenSpec Change, and remove any statement that makes
+   archived tasks or recovered conversation text the current queue. Exit when
+   the two documents are complete, non-duplicative, and make no implementation
+   or hosted-state claim.
+2. **Close OpenSpec compilation and the shared resolver.** Make every valid
+   official Change, including `skip_specs: true`, compile deterministic
+   acceptance without a duplicate carrier. Distinguish uncommitted projection,
+   invalid Change, missing adoption, and archived intent; preserve proofability
+   across archive; select proof Attestations by exact predicate and bindings;
+   and derive Change relations and experiments without persistent graph or DSL
+   state. Converge status, plan, prewrite, hooks, prove, archive, and closeout on
+   one resolver and typed continuation. Exit when their verdict, root cause, and
+   sole next action agree for active, uncommitted, archived, reopened, no-spec,
+   and malformed Changes, and active runtime contains no tracked Commitment,
+   rebind, predecessor, or successor authority.
+3. **Close local effects and lane coordination.** Route Git refs,
+   worktree/filesystem changes, and Lease/state changes through their one native
+   effect owners. Reduce Lease to lane, holder, generation, and expiry. Provide
+   positive public transitions for start, continue, handoff, reacquire, absorb,
+   preserve, and exact-equal deletion-only retirement, including missing,
+   expired, unbound, and dead-owner cases. Admit zero-tree-change Git DAG
+   reconciliation by exact parents, tree, signature, actor, and CAS. Exit when
+   interrupted effects resume or compensate without duplicate state machines,
+   clean absorbed lanes retire without reconstructing historical Lease state,
+   and dirty or ambiguous work remains untouched.
+4. **Close runtime, state, command execution, and diagnostics.** Give product,
+   distribution, source commit/tree, package digest, runtime digest, selected
+   role, and installed binding distinct immutable identities. Make activation
+   preflight the complete offline closure and state schema; migrate or safely
+   reset through one public versioned operation; build a new immutable
+   generation; atomically switch `CURRENT`, hooks, and state; verify; roll back
+   exactly; and reclaim only unreferenced generations. Run repository gates once
+   inside the declared locked toolchain. Exit when fresh and legacy adopters can
+   self-heal without SQLite edits, ambient `PATH`, in-place runtime writes,
+   password prompts, or residual refs/worktrees, and every failure preserves
+   exact execution facts plus a typed non-replaying continuation.
+5. **Close integration and publication topology.** Enforce `work/*` authoring,
+   local candidate integration, unprotected `proposal/*` review, protected `dev`
+   acceptance, and protected `main` release. Developer delivery uses MR/PR;
+   maintainer delivery uses reviewed exact CAS or bounded break-glass. Retire a
+   proposal after its selected object enters `dev` and its review ref closes,
+   independently of later `main` promotion. Publish the same local commit and
+   annotated-tag OIDs to zero, one, or many independent peers through one
+   deterministic batch; classify bounded in-flight parity separately from true
+   divergence. Exit when local-only, GitLab-only, GitHub-only, and dual-peer
+   cases pass without replay, rebuild, re-signing, implicit primary remote, or
+   cross-peer authority.
+6. **Close semantic and physical repository structure.** Apply the existing
+   module-layout rule repository-wide; remove empty shells, accidental
+   one-module packages, suffix-flat splits, facades, and stale imports while
+   retaining real namespaces. Reconcile documentation to one entrypoint,
+   `guides/quickstart.md`, necessary READMEs, and a restored
+   `docs/decisions/` containing only irreducible lowercase semantic records.
+   Classify top-level evidence by real producer, consumer, binding, and
+   retention; remove residue. Prove one quality owner per property, including
+   docstrings and native configuration placement. Exit when semantic ownership
+   reports no missing, duplicate, orphan, superseded-active, or conflicting
+   relation and every generated projection matches its source.
+7. **Close temporary-resource and supply ownership.** Give every temporary,
+   runtime, test, and supply tree an owner and liveness lease; use structured
+   finalization plus bounded dead-owner scavenging; protect live roots; and make
+   exact owned trees deletable even when their contents are read-only. Replace
+   per-test copies of full Python runtimes, virtual environments, and
+   `node_modules` with shared read-only content-addressed supply and minimal
+   fixtures. Exit after normal exit and kill/crash tests show bounded zero or
+   policy-limited residue across `/private/tmp`, Darwin user temp roots, and uv
+   cache, within declared item, inode, byte, deletion-latency, and indexing-load
+   budgets.
+8. **Close assurance and adopter conformance.** Compile requirement coverage
+   into exact proof obligations and keep author identity, Git signature,
+   transport authentication, forge verification, hosted CI, release assets,
+   local proof, and installed runtime readback separate. Run product, greenfield,
+   brownfield, docs/infra, package-only, local-only, single-peer, dual-peer,
+   interrupted, drifted, unbound, and adversarial fixtures through the same
+   kernel. Inspect AIGW and Proxy read-only only after the package runtime is
+   accepted. Exit when every requested plane has fresh evidence and no adopter
+   compatibility carrier or copied state machine is required.
 
-Only disjoint read-only audits and disjoint later-change preparation may run in
-parallel. A mutation owner and its consumers converge serially so that no two
-active Changes modify the same authority surface. Each batch starts from fresh
-accepted-root facts and may be reordered only by evidence that its prerequisite
-is already satisfied or invalid.
+Only disjoint read-only audits may overlap freely. Mutation that touches one
+authority owner and its consumers is serial: one bounded official Change, one
+owner, one accepted outcome, then cleanup before the next overlapping Change.
+At the start of every batch, fresh facts may prove some work already satisfied;
+that evidence closes the item without reimplementation. Reordering requires a
+proved prerequisite, not convenience.
 
 ### Adopter Isomorphism And First-Hour UX
 
@@ -226,17 +241,35 @@ historical wording is preserved merely to satisfy a text-shaped test.
 
 ### Bounded Change Convergence Route
 
-The completed convergence carrier is immutable history at
-[`2026-08-16-model-promotion`](../../openspec/changes/archive/2026-08-16-model-promotion/).
-Its archived
-[`tasks.md`](../../openspec/changes/archive/2026-08-16-model-promotion/tasks.md)
-records the bounded implementation and proof mapping. This plan owns no queue,
-phase state, dependency ledger, or progress projection.
+This file owns the current dependency order above; archived Changes are evidence
+of completed or abandoned work, never the current queue. Each batch receives one
+coherent official OpenSpec Change whose `tasks.md` owns only that batch's
+progress. A Change splits when its outcomes are independently useful or require
+different owners, not because a file or line-count threshold was crossed.
 
-The implementation order is the order in that task owner. Small commits are
-encouraged, but no parallel backlog may split semantic ownership. New intent
-outside the current official Change waits for its own bounded official Change;
-evidence that must survive is recorded as a non-authorizing Attestation.
+Every implementation atom follows the same bounded route:
+
+```text
+fresh current facts
+-> exact RED or missing-invariant evidence
+-> one replacement owner
+-> implementation and migration of unique semantics
+-> deletion of the superseded owner and compatibility residue
+-> repository-wide reference closure
+-> focused proof
+-> exact-HEAD full proof
+-> official archive and post-archive proof
+-> candidate and accepted exact CAS
+-> runtime or projection readback when affected
+-> lane, ref, worktree, and temporary-resource retirement
+```
+
+Re-plan only when a fresh accepted head or runtime invalidates the input, an
+executable test disproves the stated model, an external stable dependency
+changes, another live owner overlaps the same authority surface, an effect
+outcome is unknown, or a declared resource budget is exceeded. New feedback is
+mapped to the existing contract and current batch; it reopens source recovery
+only when it demonstrates a missing or contradictory terminal invariant.
 
 ## Convergence Rules
 
@@ -276,7 +309,28 @@ evidence that must survive is recorded as a non-authorizing Attestation.
 
 ## Completion Boundary
 
-Terminal convergence is verified only when the kernel, Git-native effect
-boundary, open invalid-state handling, profile isomorphism, and projection
-relations pass their owners' checks. A passing local architecture test is not a
-claim of hosted publication, adoption completion, or historical archive repair.
+Terminal convergence is verified only when every batch above is accepted and
+archived, exact-HEAD full proof and post-archive proof pass, candidate and
+accepted refs complete their declared CAS transitions, and any affected
+package/runtime is read back from its immutable installed form. Repository
+semantic closure must report:
+
+```text
+missing=0
+duplicate=0
+orphan=0
+superseded-active=0
+conflict=0
+```
+
+Source, specs, schemas, tests, rules, skills, documentation, generated
+projections, package/runtime, and configured provider surfaces must agree with
+their unique owners. No active proposal, stale lane, dead-owner temporary root,
+superseded runtime, or unconsumed evidence carrier may remain. Declared remotes
+must point at the selected local OIDs and their hosted CI/signature state must be
+reported separately and freshly; an undeclared remote creates no requirement.
+
+A passing focused test, local architecture test, OpenSpec validation, package
+build, or one hosted provider is never a terminal claim by itself. Any
+unverified requested plane remains explicitly unverified and keeps the global
+objective open.

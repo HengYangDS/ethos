@@ -23,6 +23,14 @@ Contract](../governance/product-design-contract.md#semantic-kernel) remains the
 sole owner of product meaning; this document specifies how implementations,
 projections, and deletions converge on it.
 
+Broad semantic recovery starts by declaring a finite source boundary in one
+official OpenSpec Change. It preserves distinct obligations rather than message
+count, adjudicates each as accepted, superseded, pending verification, or
+rejected, and maps accepted meaning into this plan or another existing owner.
+Raw transcripts, extracts, classifiers, and scratch matrices never become this
+plan's inputs after that Change is proven and archived; their exact owned copies
+are then deleted.
+
 ## Architecture
 
 ### Semantic Authority And Projection Homomorphism
@@ -78,6 +86,9 @@ obligation is implemented today, not a reason to retain that surface.
 | Recovery and compensation | Git-effect recovery plus archive, lane-start, retirement, handoff, publication, runtime, and config-specific recovery | Recovery re-observes an exact plan and effect class. An effect may retain evidence needed to resume or compensate, but no command owns a parallel lifecycle or generic mutable recovery state. |
 | Assurance | gate compiler/runner, proof admission, OpenSpec task checks, hosted and independent verification adapters | Acceptance propositions compile to proof obligations and verifier-bound Attestations. Tasks express progress, paths name inputs, and neither substitutes for proof. Pre-publication and hosted evidence remain distinct phases. |
 | Operational integrity | quality gates, source budgets, semantic closure, reference closure, package/runtime checks, temporary-resource owners | One executable quality graph owns each obligation once. Size thresholds are tripwires, not proof of redundancy; structural duplication, competing owners, unreachable symbols, and semantic overlap determine deletion. |
+| Construction and dependency choice | handwritten orchestration, admitted dependencies, native language and platform facilities | Evaluate official and mature capabilities first. Admit a dependency, DSL, or framework only when it reduces total entities and maintenance; keep pure declarative compilation separate from bounded effects. |
+| Collaboration and competition | concurrent Work Lanes, handoff, candidate selection, agent procedures | Coordinate overlapping semantic owners when cooperation avoids waste; permit evidence-producing alternatives when competition is justified; select or synthesize once, then retire losing and absorbed lanes without a persistent race ledger. |
+| Learning and execution discipline | regressions, rules, repo-local skills, host memory, agent procedures | Repeated failures change the narrow product owner, regression, rule, or already-admitted skill. Optimize verified semantic throughput; memory and chat remain non-authorizing context. |
 
 Fresh observations bound every current transition. In particular, explicit
 changed-scope planning terminates as a successful no-op when Git reports no
@@ -113,11 +124,15 @@ The dependency-ordered destructive batches are finite. A batch is not complete
 because its target behavior appears in this document or because a focused test
 passes; its own official Change must close the stated exit boundary.
 
-1. **Close design authority.** Reconcile the product contract and this plan,
-   validate their official OpenSpec Change, and remove any statement that makes
-   archived tasks or recovered conversation text the current queue. Exit when
-   the two documents are complete, non-duplicative, and make no implementation
-   or hosted-state claim.
+1. **Close design authority.** Reconcile every distinct obligation in the
+   declared recovery boundary into the product contract, this plan, an existing
+   executable owner, or an explicit non-current disposition. Validate the
+   official OpenSpec Change; reject feedback-ledger roles; and remove any
+   statement that makes archived tasks, chat, memory, summaries, or temporary
+   extracts the current queue. Exit when the two canonical documents are
+   complete and non-duplicative, the exact recovery inputs can be deleted
+   without semantic loss, and no implementation or hosted-state claim has been
+   inferred from design prose.
 2. **Close OpenSpec compilation and the shared resolver.** Make every valid
    official Change, including `skip_specs: true`, compile deterministic
    acceptance without a duplicate carrier. Distinguish uncommitted projection,
@@ -149,7 +164,11 @@ passes; its own official Change must close the stated exit boundary.
    inside the declared locked toolchain. Exit when fresh and legacy adopters can
    self-heal without SQLite edits, ambient `PATH`, in-place runtime writes,
    password prompts, or residual refs/worktrees, and every failure preserves
-   exact execution facts plus a typed non-replaying continuation.
+   exact execution facts plus a typed non-replaying continuation. Converge every
+   dependency and embedded tool through one locked supply-chain source to the
+   current stable release unless an explicit, evidenced hold applies; prove that
+   package/runtime/version output reports the selected OpenSpec and toolchain
+   identities exactly.
 5. **Close integration and publication topology.** Enforce `work/*` authoring,
    local candidate integration, unprotected `proposal/*` review, protected `dev`
    acceptance, and protected `main` release. Developer delivery uses MR/PR;
@@ -169,9 +188,13 @@ passes; its own official Change must close the stated exit boundary.
    `docs/decisions/` containing only irreducible lowercase semantic records.
    Classify top-level evidence by real producer, consumer, binding, and
    retention; remove residue. Prove one quality owner per property, including
-   docstrings and native configuration placement. Exit when semantic ownership
-   reports no missing, duplicate, orphan, superseded-active, or conflicting
-   relation and every generated projection matches its source.
+   docstrings, all meaningful tracked carrier formats, non-compensating
+   per-owner budgets, modern Python within the supported floor, and native
+   configuration placement. Verify that architecture and brand projections are
+   faithful, accessible, navigable `信、达、雅` views rather than parallel
+   ontology. Exit when semantic ownership reports no missing, duplicate,
+   orphan, superseded-active, or conflicting relation and every generated
+   projection matches its source.
 7. **Close temporary-resource and supply ownership.** Give every temporary,
    runtime, test, and supply tree an owner and liveness lease; use structured
    finalization plus bounded dead-owner scavenging; protect live roots; and make
@@ -189,8 +212,10 @@ passes; its own official Change must close the stated exit boundary.
    brownfield, docs/infra, package-only, local-only, single-peer, dual-peer,
    interrupted, drifted, unbound, and adversarial fixtures through the same
    kernel. Inspect AIGW and Proxy read-only only after the package runtime is
-   accepted. Exit when every requested plane has fresh evidence and no adopter
-   compatibility carrier or copied state machine is required.
+   accepted. Exercise the declared Python floor and current supported versions
+   plus native macOS, Linux, and Windows adapters. Exit when every requested
+   plane has fresh evidence and no adopter compatibility carrier or copied state
+   machine is required.
 
 Only disjoint read-only audits may overlap freely. Mutation that touches one
 authority owner and its consumers is serial: one bounded official Change, one
@@ -229,10 +254,20 @@ equivalent commands, or contacting a forge for local validation.
 
 ### Feedback Intent Preservation
 
-Convergence maps each accepted feedback item to an invariant, semantic owner,
-acceptance, and proof—or records its explicit absence reason. Deletion is
-preferred when that mapping shows a carrier duplicates another owner. No
-historical wording is preserved merely to satisfy a text-shaped test.
+Convergence maps each distinct obligation—not each repeated message—to one of
+four dispositions: accepted, superseded, pending verification, or rejected.
+Accepted meaning names an invariant, one semantic owner, acceptance, and proof.
+Supersession applies only to the same subject. Pending items name the missing
+fact or model gap and authorize no mutation. Rejected remedies retain their
+rationale only in the governing official Change. Delegated observations are
+separated from the reporter's inference and proposed remedy.
+
+Deletion is preferred when that mapping shows a carrier duplicates another
+owner. No historical wording is preserved merely to satisfy a text-shaped test,
+and no transcript, memory, agent summary, classifier output, or temporary file
+may become an active backlog. Recurrent execution failures are absorbed into
+the existing product owner, regression test, rule, or admitted skill rather than
+creating a feedback registry.
 
 ### Bounded Change Convergence Route
 
@@ -301,6 +336,18 @@ only when it demonstrates a missing or contradictory terminal invariant.
     latency are root-cause signals. Use the narrowest real reproducer and run
     heavy proof once at the frozen atomic boundary; never buy speed by weakening
     semantics, evidence freshness, coverage, or fail-closed admission.
+11. **Prefer proven capability over local machinery.** Inspect official carrier
+    support, the standard library, platform primitives, and mature tools before
+    custom implementation. Adopt only when the result removes more semantic and
+    operational surface than it adds; otherwise keep the direct owner.
+12. **Use collaboration and competition deliberately.** Coordinate overlapping
+    owners by default. Run independent alternatives only for a named uncertainty
+    whose evidence value exceeds duplicate cost, then select or synthesize once
+    and retire the residue.
+13. **Scale verification to the claim.** Independent verification is mandatory
+    only for the risk or completion plane that selects it. It must remain truly
+    independent when selected, but cannot become a universal duplicate
+    implementation or default heavyweight blocker.
 
 ## Completion Boundary
 

@@ -47,6 +47,7 @@ REQUIRED_DOCS = (
     "docs/governance/playbooks-and-skills.md",
     "docs/governance/release-governance.md",
     "docs/governance/evolution-campaign.md",
+    "docs/plans/terminal-governance-product-design.md",
 )
 
 REQUIRED_SCHEMAS = (

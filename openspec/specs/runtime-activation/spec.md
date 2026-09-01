@@ -48,10 +48,13 @@ without ambiguity and SHALL provide one explicit authorized reset command.
 
 ETHOS SHALL prepare each exact locked dependency closure once at its native
 owner boundary. Python runtime activation SHALL fill and prove the Git-common
-hashed Python supply before selector mutation. Source package construction
-SHALL consume the repository-prepared OpenSpec production closure selected by
-the exact `package-lock.json` without invoking npm, accessing the network, or
-depending on an ambient npm cache.
+hashed Python supply before selector mutation. Runtime materialization SHALL
+preserve the platform-native standalone interpreter layout so the selected
+Python executable, standard library, native libraries, and generated console
+scripts remain one executable image. Source package construction SHALL consume
+the repository-prepared OpenSpec production closure selected by the exact
+`package-lock.json` without invoking npm, accessing the network, or depending
+on an ambient npm cache.
 
 #### Scenario: A locked artifact is absent from cache
 
@@ -71,6 +74,14 @@ depending on an ambient npm cache.
 - **WHEN** the owned Git-common cache contains every locked Python artifact
 - **THEN** runtime construction reuses the same exported requirements offline
 - **AND** no activation step can discover or select a different closure.
+
+#### Scenario: A Windows standalone interpreter is materialized
+
+- **WHEN** runtime activation copies an owned Windows standalone CPython
+- **THEN** `python.exe`, `Lib`, `DLLs`, and native runtime DLLs retain their
+  platform-native relative layout
+- **AND** installed console scripts remain under `Scripts`
+- **AND** the selected `ethos.exe` entrypoint executes with that interpreter.
 
 #### Scenario: A prepared OpenSpec production closure is packaged
 

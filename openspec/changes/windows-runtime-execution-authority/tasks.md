@@ -20,11 +20,15 @@
 - [x] 2.4 Prove repository-wide reference closure and focused runtime, hook, and
   isolated-wheel GREEN.
 
-## 3. Complete the governed lifecycle
+## 3. Complete the active Change
 
-- [ ] 3.1 Complete exact-HEAD full proof before archive.
-- [ ] 3.2 Archive through official OpenSpec and re-prove the archived HEAD.
-- [ ] 3.3 Apply exact candidate and accepted CAS, build and activate a fresh
-  non-reused immutable runtime, and verify package/runtime readback.
-- [ ] 3.4 Publish the exact accepted object to each declared Forge and prove
-  hosted Windows Python 3.12, 3.13, and 3.14 before retiring related lanes.
+- [x] 3.1 Complete exact-HEAD full proof for the final pre-archive source and
+  official Change artifacts.
+
+## Post-archive transition boundary
+
+Official archive creates a distinct signed HEAD. That exact archive HEAD still
+requires reproof, candidate and accepted CAS, fresh immutable-runtime activation
+and readback, exact publication to every declared Forge, and hosted Windows
+Python 3.12, 3.13, and 3.14 evidence. Related Windows lanes remain live until
+those post-archive observations prove absorption.

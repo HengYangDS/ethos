@@ -424,7 +424,8 @@ branch as ready for another closeout mutation.
 
 ETHOS SHALL compose official OpenSpec validation with one transient Commitment
 compiled from each selected active Change. Official proposal, specs, design,
-tasks, metadata, and configuration are the sole tracked intent and lifecycle
+tasks, metadata, configuration, and exact repairs named by current official
+canonical-spec validation failures are the sole tracked intent and lifecycle
 carriers; no `commitment.toml`, `scope.toml`, local template, or Change README is
 required.
 
@@ -440,6 +441,18 @@ required.
 - **WHEN** an official required artifact is missing, invalid, or incomplete
 - **THEN** ETHOS reports the exact official artifact or task gap
 - **AND** no bootstrap, claim, archive scan, or parallel metadata grants authority
+
+#### Scenario: Official validation requires a canonical spec repair
+
+- **GIVEN** official strict validation reports
+  `openspec_validation_failed:spec:<capability>`
+- **AND** that failure blocks ordinary material-scope resolution
+- **WHEN** the current Work Lane requests prewrite for exactly
+  `openspec/specs/<capability>/spec.md`
+- **THEN** ETHOS admits that exact repair path under the selected active Change
+- **AND** unrelated canonical specifications and all non-specification paths
+  remain blocked
+- **AND** malformed or ambiguous capability identifiers grant no authority
 
 ### Requirement: Reference Adopter Parity Closure
 ETHOS SHALL prove reference adopter parity through generic profile and shadow

@@ -12,22 +12,19 @@ import pytest
 
 import ethos.adapters.repo.runtime.materialization.input_resolution as runtime_inputs
 import ethos.adapters.repo.runtime.materialization.python_image as python_image
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_openspec_supply
 
 
 def _completed(code: int, stdout: str = "", stderr: str = ""):
     return subprocess.CompletedProcess((), code, stdout, stderr)
 
 
-def _node_supply(root: Path, node: Path) -> Path:
+def _node_supply(root: Path, node: Path) -> None:
     executable = root / node
     executable.parent.mkdir(parents=True, exist_ok=True)
     executable.write_bytes(b"node")
     executable.chmod(0o755)
-    npm_cli = root / "lib/node_modules/npm/bin/npm-cli.js"
-    npm_cli.parent.mkdir(parents=True)
-    npm_cli.write_bytes(b"npm")
-    return npm_cli
 
 
 @pytest.mark.parametrize(
@@ -37,20 +34,39 @@ def _node_supply(root: Path, node: Path) -> Path:
 def test_node_runtime_resolves_the_installed_platform_layout(
     tmp_path: Path, platform_name: str, node_relative: Path
 ) -> None:
-    npm_cli = _node_supply(tmp_path, node_relative)
+    _node_supply(tmp_path, node_relative)
 
-    node, resolved_npm = resolve_node_runtime(
+    node = resolve_node_executable(
         package_root=tmp_path,
         platform_name=platform_name,
     )
 
     assert node == tmp_path / node_relative
-    assert resolved_npm == npm_cli
 
 
 def test_node_runtime_fails_before_build_for_an_incomplete_supply(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="package-local Node executable is unavailable"):
-        resolve_node_runtime(package_root=tmp_path, platform_name="nt")
+        resolve_node_executable(package_root=tmp_path, platform_name="nt")
+
+
+def test_openspec_supply_prefers_an_explicit_prepared_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source"
+    supply = tmp_path / "prepared/node_modules"
+    source.mkdir()
+    supply.mkdir(parents=True)
+    monkeypatch.setenv("ETHOS_BUILD_OPENSPEC_SUPPLY", supply.as_posix())
+
+    assert resolve_openspec_supply(source) == supply.resolve()
+
+
+def test_openspec_supply_rejects_an_unprepared_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("ETHOS_BUILD_OPENSPEC_SUPPLY", raising=False)
+    with pytest.raises(ValueError, match="openspec_build_supply_unavailable"):
+        resolve_openspec_supply(tmp_path)
 
 
 def _managed_runtime_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path]:
@@ -194,9 +210,10 @@ def test_runtime_tool_forces_copy_link_mode(
     uv.parent.mkdir(parents=True)
     uv.write_text("tool", encoding="utf-8")
     monkeypatch.setattr(sys, "executable", python.as_posix())
-    node = tmp_path / "supply/node"
-    npm_cli = tmp_path / "supply/npm-cli.js"
-    monkeypatch.setattr(runtime_inputs, "resolve_node_runtime", lambda: (node, npm_cli))
+    supply = source / "node_modules"
+    supply.mkdir()
+    (source / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    monkeypatch.delenv("ETHOS_BUILD_OPENSPEC_SUPPLY", raising=False)
     monkeypatch.setenv("UV_LINK_MODE", "hardlink")
     monkeypatch.setenv("UV_CACHE_DIR", (tmp_path / "ambient-cache").as_posix())
     observed: dict[str, str] = {}
@@ -211,8 +228,7 @@ def test_runtime_tool_forces_copy_link_mode(
 
     assert observed["UV_LINK_MODE"] == "copy"
     assert observed["UV_CACHE_DIR"] == (tmp_path / "ambient-cache").as_posix()
-    assert observed["ETHOS_BUILD_NODE"] == node.as_posix()
-    assert observed["ETHOS_BUILD_NPM_CLI"] == npm_cli.as_posix()
+    assert observed["ETHOS_BUILD_OPENSPEC_SUPPLY"] == supply.as_posix()
 
 
 def test_locked_closure_prefills_owned_cache_then_installs_offline(

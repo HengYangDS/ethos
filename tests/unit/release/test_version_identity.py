@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -13,7 +14,6 @@ from pathlib import Path
 import pytest
 from packaging.version import Version
 
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
@@ -74,6 +74,52 @@ def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> N
     assert first.distribution_version != second.distribution_version
     assert Version(first.distribution_version) < Version("0.2.0a3")
     assert Version(second.distribution_version) < Version("0.2.0a3")
+
+
+def test_sdist_rebuild_reuses_the_identical_openspec_supply(tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts"
+    supply = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY", str(Path.cwd() / "node_modules"))
+    subprocess.run(
+        (
+            str(Path(sys.executable).with_name("uv")),
+            "build",
+            "--offline",
+            "--wheel",
+            "--sdist",
+            "--out-dir",
+            str(artifacts),
+            "--no-create-gitignore",
+        ),
+        env={**os.environ, "ETHOS_BUILD_OPENSPEC_SUPPLY": supply},
+        check=True,
+    )
+    direct_wheel = next(artifacts.glob("*.whl"))
+    source_root = tmp_path / "source"
+    shutil.unpack_archive(next(artifacts.glob("*.tar.gz")), source_root)
+    source = next(path for path in source_root.iterdir() if path.is_dir())
+    rebuilt = tmp_path / "rebuilt"
+    environment = os.environ.copy()
+    environment.pop("ETHOS_BUILD_OPENSPEC_SUPPLY", None)
+    subprocess.run(
+        (
+            str(Path(sys.executable).with_name("uv")),
+            "build",
+            "--offline",
+            "--wheel",
+            "--out-dir",
+            str(rebuilt),
+            "--no-create-gitignore",
+            str(source),
+        ),
+        env=environment,
+        check=True,
+    )
+    rebuilt_wheel = next(rebuilt.glob("*.whl"))
+
+    assert (
+        hashlib.sha256(direct_wheel.read_bytes()).digest()
+        == hashlib.sha256(rebuilt_wheel.read_bytes()).digest()
+    )
 
 
 def test_environment_cannot_promote_a_source_build_to_release(
@@ -184,8 +230,8 @@ def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
 
 
 def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
-    node, npm_cli = resolve_node_runtime()
     output.mkdir()
+    supply = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY", str(Path.cwd() / "node_modules"))
     subprocess.run(
         (
             str(Path(sys.executable).with_name("uv")),
@@ -199,8 +245,7 @@ def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
         cwd=repo,
         env={
             **os.environ,
-            "ETHOS_BUILD_NODE": str(node),
-            "ETHOS_BUILD_NPM_CLI": str(npm_cli),
+            "ETHOS_BUILD_OPENSPEC_SUPPLY": supply,
         },
         check=True,
     )

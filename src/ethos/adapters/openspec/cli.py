@@ -14,7 +14,7 @@ import yaml
 
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_command
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
@@ -33,7 +33,12 @@ _DISTRIBUTION_MODULES = Path(
 )
 _DISTRIBUTION_PACKAGE = _DISTRIBUTION_MODULES / "@fission-ai" / "openspec" / "package.json"
 _DISTRIBUTION_ENTRY = _DISTRIBUTION_PACKAGE.parent / "bin" / "openspec.js"
-_PACKAGE = _SOURCE_ROOT / "node_modules" / "@fission-ai" / "openspec" / "package.json"
+_SOURCE_MODULES = (
+    Path(os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY", _SOURCE_ROOT / "node_modules"))
+    if _SOURCE_DECLARATION.is_file()
+    else _SOURCE_ROOT / "node_modules"
+)
+_PACKAGE = _SOURCE_MODULES / "@fission-ai" / "openspec" / "package.json"
 _ENTRY = _PACKAGE.parent / "bin" / "openspec.js"
 _LOCK = _SOURCE_ROOT / "package-lock.json"
 
@@ -61,7 +66,7 @@ OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"
 def _packaged_node() -> str | None:
     """Resolve the platform Node payload installed with the Python distribution."""
     try:
-        executable, _npm_cli = resolve_node_runtime()
+        executable = resolve_node_executable()
     except ValueError:
         return None
     return executable.as_posix()

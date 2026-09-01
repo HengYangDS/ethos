@@ -16,7 +16,6 @@ from typing import cast
 import tools.ci.delivery.pipeline as delivery_pipeline
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.contracts.semantic import Commitment
 from ethos.repository.release.identity import BuildIdentity
 from tools.ci.delivery.adopter_fixture import line_ending_conformance
@@ -176,8 +175,6 @@ def test_install_smoke_prepares_frozen_supply_before_offline_install(
 
     DeliveryPipeline(
         runtime=cast("ProjectRuntime", object()),
-        node=Path("node"),
-        npm_cli=Path("npm-cli.js"),
     ).prove_install(session)
 
     assert events == ["supply", ("install", session)]
@@ -194,19 +191,19 @@ def test_packaged_vector_carries_the_minimal_commitment_contract() -> None:
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
-    node, npm_cli = resolve_node_runtime()
+    supply = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY", str(ROOT / "node_modules"))
     bootstrap_environment: dict[str, str] = {
         **os.environ,
-        "ETHOS_BUILD_NODE": str(node),
-        "ETHOS_BUILD_NPM_CLI": str(npm_cli),
+        "ETHOS_BUILD_OPENSPEC_SUPPLY": supply,
+        "PYTHONPATH": os.pathsep.join((str(ROOT / "src"), str(ROOT))),
     }
-    bootstrap_environment.pop("PYTHONPATH", None)
-    source_ethos = _python_home_executable(Path(sys.executable).parent.parent, "ethos")
     bootstrap_repo = tmp_path / "bootstrap-repo"
     bootstrap_repo.mkdir()
     assert _git(bootstrap_repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
     bootstrap = _run(
-        source_ethos,
+        Path(sys.executable),
+        "-m",
+        "ethos.cli",
         "hook",
         "install",
         "--root",
@@ -227,6 +224,7 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         source_tree=bootstrap_report["data"]["source_tree"],
     )
     assert packaged_identity == runtime_build_identity(ROOT)
+    bootstrap_environment.pop("PYTHONPATH")
 
     repo = tmp_path / "repo"
     repo.mkdir()

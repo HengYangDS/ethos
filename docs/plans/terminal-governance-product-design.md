@@ -139,6 +139,9 @@ The dependency-ordered destructive batches are:
    at the interpreter root while console scripts remain under `Scripts`; one
    path owner projects that layout into runtime selection, generation checks,
    and Git hook launchers without fallback paths or compatibility wrappers.
+   Runtime post-observation compares those prefixes by platform-native path
+   identity rather than serialized separator or case spelling; exact GitHub
+   Windows 3.12, 3.13, and 3.14 execution closes that hosted boundary.
 7. **Complete assurance and publication.** Compile requirement coverage into
    proof obligations, separate local and hosted phases, admit independent
    verification, and prove local/GitHub/GitLab publication as distinct planes.

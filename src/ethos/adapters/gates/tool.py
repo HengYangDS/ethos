@@ -104,7 +104,7 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
     files = [
         path
         for path in git_files(root, "*.md")
-        if not path.startswith(("evidence/", "docs/archive/"))
+        if not path.startswith(("evidence/", "docs/archive/")) and (root / path).is_file()
     ]
     mode = ["--offline=false", "--scheme", "http", "--scheme", "https"] if online else []
     return quality_tool_report(

@@ -9,8 +9,10 @@ from pathlib import Path
 from ethos.contracts.semantic import Commitment
 from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.design.integrity import design_integrity_report
+from ethos.repository.policy.boundary.product import product_surface_files
 from ethos.repository.registry.docs.registry import allowed_roles
 from ethos.repository.registry.docs.registry import build_docs_registry
+from ethos.repository.registry.docs.registry import front_matter
 
 ROOT = Path(__file__).resolve().parents[2]
 DESIGN_DOCUMENTS = (
@@ -27,7 +29,7 @@ AGENT_ENTRY_LINKS = (
     "rules/README.md",
     ".agents/skills/activation.toml",
     "openspec/",
-    "docs/index.md",
+    "docs/README.md",
 )
 
 
@@ -90,6 +92,48 @@ def test_agent_entrypoint_is_thin_and_continuation_driven() -> None:
     assert "OpenSpec" in entrypoint
     assert "Commitment is transient compilation" in entrypoint
     assert entrypoint.count("ethos status --json") == 1
+
+
+def test_documentation_has_one_entrypoint_without_decision_index_shells() -> None:
+    """ETHOS keeps one docs root and no marker-only Decision Record index."""
+    assert (ROOT / "docs/README.md").is_file()
+    assert not (ROOT / "docs/index.md").exists()
+    assert not (ROOT / "docs/decisions/README.md").exists()
+    assert not (ROOT / "docs/decisions/index.md").exists()
+
+
+def test_decision_records_are_audited_product_surfaces() -> None:
+    """Every retained Decision Record participates in product-boundary audit."""
+    audited = {path.relative_to(ROOT).as_posix() for path in product_surface_files(ROOT)}
+    decision_paths = sorted((ROOT / "docs/decisions").glob("*.md"))
+    decisions = {path.relative_to(ROOT).as_posix() for path in decision_paths}
+    documentation_root = (ROOT / "docs/README.md").read_text(encoding="utf-8")
+
+    assert decisions
+    assert decisions <= audited
+    for path in decision_paths:
+        assert f"(decisions/{path.name})" in documentation_root
+
+
+def test_decision_records_preserve_complete_cross_change_rationale() -> None:
+    """A retained decision explains the choice instead of duplicating current policy."""
+    required_sections = (
+        "## Context",
+        "## Decision",
+        "## Consequences",
+        "## Rejected Alternatives",
+        "## Evidence",
+        "## Revisit And Retirement",
+    )
+
+    for path in sorted((ROOT / "docs/decisions").glob("*.md")):
+        metadata = front_matter(path)
+        text = path.read_text(encoding="utf-8")
+
+        assert metadata["role"] == "decision", path
+        assert metadata["state"] == "canonical", path
+        assert "current_owner:" in metadata["relations"], path
+        assert all(section in text for section in required_sections), path
 
 
 def test_product_meaning_and_terminal_route_are_both_required_docs() -> None:

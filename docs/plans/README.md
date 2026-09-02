@@ -13,7 +13,7 @@ Status: planned.
 Purpose: route current target designs and planned work without turning plans
 into accepted repository truth.
 
-See also: [Documentation Root](../README.md), [Product Index](../index.md),
+See also: [Documentation Root](../README.md),
 [Product Design Contract](../governance/product-design-contract.md).
 
 A plan may guide work, but it cannot justify runtime, proof, retirement, or

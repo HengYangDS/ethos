@@ -127,7 +127,7 @@ transition.
   the exact recoverable archive post-image
 - **THEN** proof blocks with the stale-Lease gap
 - **AND** `next_action` is the exact `ethos lane archive-change` command bound to
-  the Change and Lease expected HEAD
+  the Change and independently observed expected Git HEAD
 - **AND** it does not direct the operator to repository adoption.
 
 #### Scenario: Other stale Lease state remains non-destructive
@@ -167,13 +167,15 @@ tracked paths through prewrite admission.
 ### Requirement: Work Lane writes are exact lease-generation bound
 
 Tracked Work Lane writes SHALL require an active Work Lane lease and an
-invocation holder reference matching the exact holder, lease ID, epoch, and
-expected HEAD.
+invocation holder reference matching its exact lane ref, holder ref, positive
+generation, and expiry. The mutation request SHALL bind the fresh Work Lane HEAD
+as an independent Git fact rather than persisting it in the Lease.
 
 #### Scenario: invocation binding is stale or foreign
 
-- **WHEN** `ethos lane prewrite` runs with a different holder, lease ID, epoch,
-  or HEAD than the current lease
+- **WHEN** `ethos lane prewrite` runs with a different lane ref, holder ref,
+  generation, or expiry than the current Lease, or with a stale independently
+  observed Git HEAD
 - **THEN** the report blocks the write with the corresponding exact-binding gap
 - **AND** visibility of the Work Lane does not authorize write, land, retire, or
   cleanup

@@ -50,7 +50,7 @@ def require_plan_prestate(
     if facts.get("refs") != expected_refs or facts.get("assertions") != effect.assertions:
         message = "git_effect_plan_prestate_mismatch"
         raise ValueError(message)
-    require_live_lease(
+    require_lease_generation(
         root,
         plan,
         detached_branch=detached_branch,
@@ -70,33 +70,78 @@ def require_plan_prestate(
         raise ValueError(message)
 
 
-def require_live_lease(
+def require_lease_generation(
     root: Path,
     plan: TransitionPlan,
     *,
     detached_branch: str = "",
 ) -> None:
-    """Admit an exact live minimal Lease generation and execution identity."""
+    """Admit the exact Lease generation and execution identity bound by a plan."""
     values = plan.facts.get("values")
     facts = values if isinstance(values, Mapping) else {}
     generation = facts.get("lease_generation")
     if not isinstance(generation, Mapping):
         return
-    branch = str(generation.get("branch") or "")
+    branch = str(generation.get("lane_ref") or "")
     current = leases_by_branch(root).get(branch, {})
     live = lease_generation(current)
     operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
-    if current.get("lease_state") != "valid" or mutable_json(generation) != mutable_json(live):
+    expected_state = str(facts.get("lease_generation_state") or "valid")
+    if expected_state not in {"valid", "expired"}:
+        message = "git_effect_lease_state_invalid"
+        raise ValueError(message)
+    if current.get("lease_state") != expected_state or mutable_json(generation) != mutable_json(
+        live
+    ):
         message = "git_effect_lease_generation_stale"
         raise ValueError(message)
-    actor = (
-        str(plan.policy.get("holder_ref") or "")
-        if operation.startswith("lane.start")
-        else os.environ.get("ETHOS_ACTOR", "").strip()
+    _require_lease_actor(plan, generation, operation=operation, state=expected_state)
+    _require_lease_execution_branch(
+        root,
+        plan,
+        branch=branch,
+        operation=operation,
+        detached_branch=detached_branch,
     )
-    if actor != str(generation.get("holder_ref") or ""):
-        message = "lease_actor_mismatch"
-        raise ValueError(message)
+
+
+def _require_lease_actor(
+    plan: TransitionPlan,
+    generation: Mapping[str, object],
+    *,
+    operation: str,
+    state: str,
+) -> None:
+    """Admit the holder, or the sole deletion-only expired-Lease transition."""
+    if state == "expired":
+        if not (
+            operation == "lane.retire"
+            and plan.policy.get("retirement_kind") == "linked-lane"
+            and plan.policy.get("retirement_mode") == "landed"
+            and str(plan.authority.get("actor") or "")
+        ):
+            message = "git_effect_expired_lease_not_admitted"
+            raise ValueError(message)
+    else:
+        actor = (
+            str(plan.policy.get("holder_ref") or "")
+            if operation.startswith("lane.start")
+            else os.environ.get("ETHOS_ACTOR", "").strip()
+        )
+        if actor != str(generation.get("holder_ref") or ""):
+            message = "lease_actor_mismatch"
+            raise ValueError(message)
+
+
+def _require_lease_execution_branch(
+    root: Path,
+    plan: TransitionPlan,
+    *,
+    branch: str,
+    operation: str,
+    detached_branch: str,
+) -> None:
+    """Require the checkout identity independently bound by the effect plan."""
     if operation == "lane.start":
         if run_git(root, "branch", "--show-current").stdout.strip():
             message = "git_effect_lease_branch_mismatch"

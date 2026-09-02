@@ -37,11 +37,47 @@ def test_retirement_result_distinguishes_terminal_and_unrecovered_errors(
     assert failed["stderr"] == "late fs error"
 
 
-def test_holder_unknown_does_not_invent_authority(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert effects.holder_gaps({"lease_state": "unknown"}) == []
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
-    lane = {"lease_state": "valid", "lease": {"holder_ref": "agent:test:case:owner"}}
-    assert effects.holder_gaps(lane) == ["foreign_work_lane_retire_authority_required"]
+@pytest.mark.parametrize(
+    ("state", "holder", "actor", "expected"),
+    [
+        (
+            "unknown",
+            "",
+            "agent:test:case:cleanup",
+            ["work_lane_lease_unknown:work/source"],
+        ),
+        ("valid", "agent:test:case:owner", "agent:test:case:owner", []),
+        (
+            "valid",
+            "agent:test:case:owner",
+            "",
+            ["invocation_actor_missing:work/source"],
+        ),
+        (
+            "valid",
+            "agent:test:case:owner",
+            "agent:test:case:other",
+            ["foreign_work_lane_retire_authority_required"],
+        ),
+        ("expired", "agent:test:case:owner", "agent:test:case:cleanup", []),
+        ("missing", "", "agent:test:case:cleanup", []),
+        ("missing", "", "", ["invocation_actor_missing:work/source"]),
+    ],
+)
+def test_holder_gaps_follow_observed_lease_state(
+    monkeypatch: pytest.MonkeyPatch,
+    state: str,
+    holder: str,
+    actor: str,
+    expected: list[str],
+) -> None:
+    monkeypatch.setenv("ETHOS_ACTOR", actor)
+    lane = {
+        "branch": "work/source",
+        "lease_state": state,
+        "lease": {"holder_ref": holder},
+    }
+    assert effects.holder_gaps(lane) == expected
 
 
 def test_require_missing_lease_and_restore_fail_closed(
@@ -54,7 +90,7 @@ def test_require_missing_lease_and_restore_fail_closed(
     )
     with (
         closing(sqlite3.connect(":memory:")) as connection,
-        pytest.raises(ValueError, match="successor_retire_target_lease_present"),
+        pytest.raises(ValueError, match="retirement_source_lease_present"),
     ):
         effects.require_missing_lease(connection, "work/example")
     assert effects.restore_worktree(tmp_path, {"path": "", "branch": ""}) == {
@@ -109,6 +145,7 @@ def test_blocked_trims_stderr_and_effect_gaps_detects_stale_control(
     gaps = effects.effect_gaps(
         tmp_path,
         tmp_path,
+        mode="landed",
         policy=policy,
         lane={"branch": "work/example"},
         authority_lane={"branch": "work/example"},
@@ -184,6 +221,7 @@ def test_remove_linked_lane_failures_preserve_one_exact_recovery_boundary(
     report = effects.remove_linked_lane(
         tmp_path,
         lane,
+        mode="landed",
         accepted=("dev", "b" * 40),
         authority=lane,
     )
@@ -208,18 +246,19 @@ def test_apply_retirement_projects_transaction_and_storage_failures(
     monkeypatch.setattr(
         effects,
         "require_missing_lease",
-        lambda *_args: (_ for _ in ()).throw(ValueError("successor_retire_target_lease_present")),
+        lambda *_args: (_ for _ in ()).throw(ValueError("retirement_source_lease_present")),
     )
 
     value_error = effects.apply_retirement(
         tmp_path,
         tmp_path,
+        mode="superseded",
         policy=policy,
         lane=lane,
         authority_lane=_lane("work/successor"),
         accepted_head="b" * 40,
     )
-    assert value_error["result"]["required_gaps"] == ["successor_retire_target_lease_present"]
+    assert value_error["result"]["required_gaps"] == ["retirement_source_lease_present"]
 
     monkeypatch.setattr(
         effects.sqlite3,
@@ -229,6 +268,7 @@ def test_apply_retirement_projects_transaction_and_storage_failures(
     storage_error = effects.apply_retirement(
         tmp_path,
         tmp_path,
+        mode="landed",
         policy=policy,
         lane=lane,
         authority_lane=lane,
@@ -283,6 +323,7 @@ def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
     assert effects.effect_gaps(
         tmp_path / "successor",
         tmp_path,
+        mode="superseded",
         policy=BranchRolePolicy(),
         lane=lane,
         authority_lane=authority,
@@ -309,8 +350,20 @@ def test_restore_worktree_projects_applied_attestation(
     ("mode", "merged", "dirty", "lease_state", "expected"),
     [
         ("landed", True, False, "valid", set()),
+        ("landed", True, False, "expired", set()),
+        ("landed", True, False, "missing", set()),
+        ("landed", True, False, "unknown", {"work_lane_lease_unknown:work/source"}),
         ("landed", False, True, "missing", {"work_lane_not_merged", "work_lane_dirty"}),
-        ("superseded", True, False, "expired", {"work_lane_already_merged_use_retire_landed"}),
+        (
+            "superseded",
+            True,
+            False,
+            "expired",
+            {
+                "work_lane_already_merged_use_retire_landed",
+                "work_lane_lease_expired:work/source",
+            },
+        ),
     ],
 )
 def test_lane_projection_reports_native_retirement_readiness(
@@ -346,9 +399,7 @@ def test_lane_projection_reports_native_retirement_readiness(
     )
 
     gaps = set(report["required_gaps"])
-    assert expected <= gaps
-    if lease_state != "valid":
-        assert any(gap.startswith("work_lane_") and "lease" in gap for gap in gaps)
+    assert gaps == expected
     assert report["retire_ready"] is not bool(gaps)
 
 
@@ -432,6 +483,7 @@ def test_successor_retirement_commits_only_the_terminal_effect(
     result = effects.apply_retirement(
         tmp_path,
         tmp_path,
+        mode="superseded",
         policy=BranchRolePolicy(),
         lane=lane,
         authority_lane=authority,
@@ -460,6 +512,7 @@ def test_retirement_drift_checks_stop_at_the_first_fresh_boundary(
     assert effects.effect_gaps(
         tmp_path,
         tmp_path,
+        mode="landed",
         policy=policy,
         lane=lane,
         authority_lane=lane,
@@ -483,6 +536,7 @@ def test_retirement_drift_checks_stop_at_the_first_fresh_boundary(
     assert effects.effect_gaps(
         tmp_path / "successor",
         tmp_path,
+        mode="superseded",
         policy=policy,
         lane=lane,
         authority_lane=authority,
@@ -494,6 +548,7 @@ def test_retirement_drift_checks_stop_at_the_first_fresh_boundary(
     assert effects.effect_gaps(
         tmp_path / "successor",
         tmp_path,
+        mode="superseded",
         policy=policy,
         lane=lane,
         authority_lane=authority,

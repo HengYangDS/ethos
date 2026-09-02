@@ -404,7 +404,7 @@ def proof_plan(case: Any, value: GitEffect | None = None) -> TransitionPlan:
 
 def generation(branch: str) -> dict[str, object]:
     return {
-        "branch": branch,
+        "lane_ref": branch,
         "generation": 1,
         "holder_ref": ISSUER,
         "expires_at": "2026-08-02T00:00:00+00:00",
@@ -484,6 +484,27 @@ def test_empty_effect_issuer_is_rejected_before_ref_mutation(tmp_path: Path) -> 
     reject(
         "git_effect_issuer_invalid",
         lambda: execute_git_effect(case.repo, plan(case.repo, case.effect), issuer=""),
+    )
+
+    assert git(case.repo, "rev-parse", "dev") == case.old
+    assert not list(ref_intent_dir(case.repo).glob("*.json"))
+
+
+def test_effect_issuer_must_match_the_actor_bound_by_the_plan(tmp_path: Path) -> None:
+    case = fixture(tmp_path)
+    carried = plan(
+        case.repo,
+        case.effect,
+        policy={
+            "operation": "git.ref.compare-and-swap",
+            "actor": ISSUER,
+            "effect_digest": case.effect.digest(),
+        },
+    )
+
+    reject(
+        "git_effect_issuer_mismatch",
+        lambda: execute_git_effect(case.repo, carried, issuer="agent:test:case:other"),
     )
 
     assert git(case.repo, "rev-parse", "dev") == case.old

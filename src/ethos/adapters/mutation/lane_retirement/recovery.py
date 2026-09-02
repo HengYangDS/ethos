@@ -53,7 +53,7 @@ def recovery_lane(
         "branch": branch,
         "path": target.as_posix(),
         "head": head,
-        "lease": {key: value for key, value in lease_generation(lease).items() if key != "branch"}
+        "lease": {key: value for key, value in lease_generation(lease).items() if key != "lane_ref"}
         | {"mints_authority": False},
         "lease_state": lease_state,
         "recovery_required": True,

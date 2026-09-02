@@ -255,7 +255,7 @@ def _candidate_evaluation(
     fact_values = values if isinstance(values, Mapping) else {}
     generation = fact_values.get("lease_generation")
     if isinstance(generation, Mapping) and not ignore_lease:
-        branch = str(generation.get("branch") or "")
+        branch = str(generation.get("lane_ref") or "")
         current_lease = leases_by_branch(root).get(branch, {})
         if current_lease.get("lease_state") != "valid" or mutable_json(generation) != mutable_json(
             lease_generation(current_lease)

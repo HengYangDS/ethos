@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from typing import TYPE_CHECKING
 
 from ethos.contracts.semantic import Commitment
@@ -51,6 +52,7 @@ def material_change_scope_report(
 
 def official_change_bootstrap_scope_report(
     *,
+    root: Path,
     official: dict[str, object],
     requested_paths: tuple[str, ...],
 ) -> dict[str, object]:
@@ -58,6 +60,25 @@ def official_change_bootstrap_scope_report(
     paths = tuple(dict.fromkeys(filter(None, requested_paths)))
     if not _official_observation_available(official):
         return {}
+    intent = _new_change_root_intent(root, official, paths)
+    if intent:
+        metadata = f"{active_change_root(intent)}/.openspec.yaml"
+        resolved = root.resolve().as_posix()
+        report = _scope_report(
+            paths,
+            (),
+            paths,
+            changes=[{"name": intent, "path": active_change_root(intent)}],
+            uncovered=list(paths),
+            state="official_change_bootstrap_intent",
+            gaps=[f"openspec_change_metadata_prewrite_required:{intent}"],
+        )
+        report["next_action"] = (
+            f"ethos lane prewrite --paths {shlex.quote(metadata)} "
+            f"--editor-root {shlex.quote(resolved)} --require-editor-root "
+            f"--root {shlex.quote(resolved)} --json"
+        )
+        return report
     change, outputs, next_action = _bootstrap_artifacts(official, paths)
     if not change:
         return {}
@@ -249,6 +270,23 @@ def _new_change_metadata_artifact(
         (metadata[0],),
         f"openspec new change {change} --json",
     )
+
+
+def _new_change_root_intent(root: Path, official: dict[str, object], paths: tuple[str, ...]) -> str:
+    commands = official.get("commands")
+    listed = commands.get("list") if isinstance(commands, dict) else None
+    payload = listed.get("json") if isinstance(listed, dict) else None
+    changes = payload.get("changes") if isinstance(payload, dict) else None
+    if not isinstance(changes, list) or changes or len(paths) != 1:
+        return ""
+    parts = paths[0].rstrip("/").split("/")
+    if len(parts) != 3 or parts[:2] != ["openspec", "changes"]:
+        return ""
+    change = parts[2]
+    invalid = (
+        change == "archive" or logical_change_identifier_issue(change) or (root / paths[0]).exists()
+    )
+    return "" if invalid else change
 
 
 def _official_artifact_path(path: str, outputs: tuple[str, ...]) -> bool:

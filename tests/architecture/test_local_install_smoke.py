@@ -118,6 +118,85 @@ def _prove_relocated_runtime(
     assert json.loads(proof.stdout)["command"] == "prove"
 
 
+def _prove_adopter_bootstrap(
+    *,
+    runtime_python: Path,
+    repo: Path,
+    environment: dict[str, str],
+) -> None:
+    """Prove a package-only runtime owns lane and first-Change bootstrap."""
+    command = (runtime_python.as_posix(), "-B", "-I", "-m", "ethos.cli")
+    holder = "agent:test:package-only:bootstrap"
+    lane_environment = {**environment, "ETHOS_ACTOR": holder}
+    worktree = repo.parent / "repo-work-bootstrap-change"
+    started = subprocess.run(
+        (
+            *command,
+            "lane",
+            "start",
+            "bootstrap-change",
+            "--root",
+            repo.as_posix(),
+            "--path",
+            worktree.as_posix(),
+            "--holder-ref",
+            holder,
+            "--apply",
+            "--json",
+        ),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=lane_environment,
+    )
+    assert started.returncode == 0, started.stdout or started.stderr
+    report = json.loads(started.stdout)
+    assert report["verdict"] == "pass", report
+    bootstrap = report["data"]["runner_bootstrap"]
+    assert shlex.split(bootstrap["command"]) == list(command)
+    assert bootstrap["environment_scope"] == "git_common_package_runtime"
+    assert "uv run" not in bootstrap["next_action"]
+
+    status = subprocess.run(
+        shlex.split(bootstrap["next_action"]),
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=lane_environment,
+    )
+    assert status.stdout, status.stderr
+    assert json.loads(status.stdout)["command"] == "status"
+
+    change_root = "openspec/changes/bootstrap-change"
+    prewrite = _run(
+        runtime_python,
+        "-B",
+        "-I",
+        "-m",
+        "ethos.cli",
+        "lane",
+        "prewrite",
+        change_root,
+        "--editor-root",
+        worktree.as_posix(),
+        "--require-editor-root",
+        "--root",
+        worktree.as_posix(),
+        "--json",
+        env=lane_environment,
+    )
+    assert prewrite.stdout, prewrite.stderr
+    prewrite_report = json.loads(prewrite.stdout)
+    assert prewrite_report["verdict"] == "block"
+    assert prewrite_report["required_gaps"] == [
+        "openspec_change_metadata_prewrite_required:bootstrap-change"
+    ]
+    next_action = shlex.split(prewrite_report["next_action"])
+    assert next_action[:3] == ["ethos", "lane", "prewrite"]
+    assert next_action[3:5] == ["--paths", f"{change_root}/.openspec.yaml"]
+
+
 def test_package_gate_order_and_offline_contract_have_one_machine_owner() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     full = declaration["proof_sets"]["full"]
@@ -232,7 +311,32 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
 
     repo = tmp_path / "repo"
     repo.mkdir()
-    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    materialize_adopter(
+        repo,
+        openspec_config=ROOT / "openspec/config.yaml",
+        run=lambda *command, cwd=repo: subprocess.run(
+            command,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip(),
+    )
+    assert _git(repo, "rm", "-r", "openspec/changes/smoke-change").returncode == 0
+    assert _git(repo, "commit", "-m", "remove bootstrap fixture change").returncode == 0
+    candidate = tmp_path / "repo-candidate-dev"
+    assert (
+        _git(
+            repo,
+            "worktree",
+            "add",
+            "-b",
+            "candidate/dev",
+            candidate.as_posix(),
+            "dev",
+        ).returncode
+        == 0
+    )
 
     package_only_environment = {
         **bootstrap_environment,
@@ -276,6 +380,11 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         runtime_python=runtime_python,
         repo=repo,
         hooks_path=Path(report["data"]["hooks_path"]),
+        environment=package_environment,
+    )
+    _prove_adopter_bootstrap(
+        runtime_python=runtime_python,
+        repo=repo,
         environment=package_environment,
     )
     version = _run(

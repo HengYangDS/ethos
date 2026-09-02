@@ -135,10 +135,18 @@ def test_unknown_editor_component(worktree: Path, monkeypatch: pytest.MonkeyPatc
 def test_owned_lane_bootstraps_only_official_change_artifacts(worktree: Path) -> None:
     previous = worktree / "openspec/changes/fixture-change"
     shutil.rmtree(previous)
+    change_root = "openspec/changes/bootstrap-test"
     metadata = "openspec/changes/bootstrap-test/.openspec.yaml"
 
+    root_intent = _guard(worktree, (change_root,))
     initial = _guard(worktree, (metadata,))
 
+    assert root_intent["verdict"] == "block"
+    assert root_intent["error"] == ("openspec_change_metadata_prewrite_required:bootstrap-test")
+    assert root_intent["next_action"] == (
+        f"ethos lane prewrite --paths {metadata} "
+        f"--editor-root {worktree} --require-editor-root --root {worktree} --json"
+    )
     assert initial["verdict"] == "pass"
     assert initial["material_scope"]["state"] == "official_change_bootstrap"
     assert initial["next_action"] == "openspec new change bootstrap-test --json"

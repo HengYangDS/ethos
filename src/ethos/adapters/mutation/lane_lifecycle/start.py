@@ -24,6 +24,7 @@ from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.runtime.materialization.input_resolution import (
     require_runtime_wheel_provenance,
 )
+from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.repo.worktree_effects import remove_worktree
@@ -263,15 +264,13 @@ def _delete_started_ref(
     execute_git_effect(repo, plan, issuer=holder_ref)
 
 
-def _runner_bootstrap(target: Path) -> dict[str, str]:
+def _runner_bootstrap(repo: Path, target: Path) -> dict[str, str]:
     resolved = target.resolve().as_posix()
+    command = runtime_command(repo)
     return {
-        "command": "uv run --frozen --offline ethos",
-        "project_environment": ".venv",
-        "environment_scope": "checkout",
-        "uv_cache": "host_or_ci_content_addressed",
-        "cache_scope": "host_or_ci",
-        "next_action": f"cd {resolved} && uv run --frozen --offline ethos status --json",
+        "command": command,
+        "environment_scope": "git_common_package_runtime",
+        "next_action": (f"{command} status --root {shlex.quote(resolved)} --json"),
     }
 
 
@@ -305,11 +304,21 @@ def start_work_lane(
             "user_decision_required": True,
         }
     candidate, admission_block = _admit(repo, branch=branch, target=target)
+    bootstrap: dict[str, str] = {}
+    head = str(candidate.get("head") or "")
+    if admission_block is None:
+        try:
+            bootstrap = _runner_bootstrap(repo, target)
+        except ValueError as error:
+            admission_block = _blocked(
+                branch,
+                target,
+                str(error) or "hook_runtime_current_invalid",
+            )
     if admission_block is not None:
         return admission_block | {
             "next_action": f"ethos status --root {shlex.quote(repo.as_posix())} --json"
         }
-    head = str(candidate["head"])
     if not apply:
         apply_action = (
             f"ethos lane start {shlex.quote(name)} --path {shlex.quote(target.as_posix())} "
@@ -324,7 +333,7 @@ def start_work_lane(
             "base_head": head,
             "head": head,
             "path": target.as_posix(),
-            "runner_bootstrap": _runner_bootstrap(target),
+            "runner_bootstrap": bootstrap,
             "required_gaps": [],
             "next_action": apply_action,
         }
@@ -383,9 +392,9 @@ def start_work_lane(
         "ref_attestation": ref_attestation.model_dump(mode="json") if ref_attestation else {},
         "worktree_attestation": worktree_attestation.model_dump(mode="json"),
         "hook_runtime": hook_runtime,
-        "runner_bootstrap": _runner_bootstrap(target),
+        "runner_bootstrap": bootstrap,
         "required_gaps": [],
-        "next_action": _runner_bootstrap(target)["next_action"],
+        "next_action": bootstrap["next_action"],
     }
 
 

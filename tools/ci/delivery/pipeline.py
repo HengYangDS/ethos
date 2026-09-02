@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_openspec_supply
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 from tools.ci.local_install_smoke import prepare_supply
@@ -25,11 +24,17 @@ class DeliveryPipeline:
     """Own wheel materialization and its package-only acceptance sequence."""
 
     runtime: ProjectRuntime
+    node_package_supply: Path
 
     @classmethod
-    def from_runtime(cls, runtime: ProjectRuntime) -> DeliveryPipeline:
+    def from_runtime(
+        cls,
+        runtime: ProjectRuntime,
+        *,
+        node_package_supply: Path,
+    ) -> DeliveryPipeline:
         """Bind the delivery pipeline to the locked project runtime."""
-        return cls(runtime)
+        return cls(runtime, node_package_supply)
 
     def build(self, session: nox.Session) -> None:
         """Materialize exactly one offline wheel through Hatchling and uv."""
@@ -46,10 +51,14 @@ class DeliveryPipeline:
                 str(staging),
                 "--no-create-gitignore",
                 env={
-                    "ETHOS_BUILD_OPENSPEC_SUPPLY": str(resolve_openspec_supply(Path.cwd())),
+                    "ETHOS_NODE_PACKAGE_SUPPLY": str(self.node_package_supply),
                 },
             )
-            publish_built_wheel(Path.cwd(), staging, Path("build/artifacts/python"))
+            publish_built_wheel(
+                self.runtime.root,
+                staging,
+                self.runtime.root / "build/artifacts/python",
+            )
 
     def prepare_supply(self) -> None:
         """Materialize the frozen runtime dependency supply for offline proof."""

@@ -71,6 +71,19 @@ working directory as a second cache authority.
 Copying caches into each temporary repository and enabling network fallback
 were rejected because both increase state, IO, and non-determinism.
 
+### The lock-bound Node package tree has one execution coordinate
+
+The repository session SHALL resolve its complete `package-lock.json` package
+tree once as `ETHOS_NODE_PACKAGE_SUPPLY`. OpenSpec, package construction, nested
+tests, Taplo, markdownlint, Prettier, and SVGO consume that frozen absolute
+coordinate. The OpenSpec build hook still extracts only the production closure
+from the complete tree; that projection does not create a second supply owner.
+
+An OpenSpec-specific environment name and per-consumer `ROOT/node_modules`
+lookups were rejected because the same physical tree supplies multiple locked
+Node tools. Retaining both names or adding fallback aliases would preserve two
+interpretations of one dependency authority.
+
 ### Tests use the production resolver boundary
 
 A fixture that needs OpenSpec SHALL retain the existing source-bound absolute
@@ -93,9 +106,10 @@ the product explicitly rejects; that fixture is removed rather than supported.
 ## Migration Plan
 
 1. Add failing regressions for native prerequisite supply, one-time run-as
-   consumption, and absolute cache inheritance.
+   consumption, absolute cache inheritance, and one frozen Node package supply.
 2. Extend the existing bootstrap and Python test owner with the minimum changes
-   required by those regressions; delete the ambient OpenSpec fixture override.
+   required by those regressions; migrate all Node consumers to the one supply
+   coordinate and delete the ambient OpenSpec fixture override.
 3. Run focused tests, strict OpenSpec validation, and exact-HEAD full proof.
 4. Archive and reprove, then advance candidate and accepted refs by exact CAS,
    materialize a fresh package-only runtime, publish the same object to both

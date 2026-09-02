@@ -20,7 +20,6 @@ from filelock import FileLock
 from filelock import Timeout
 
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_openspec_supply
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -112,11 +111,11 @@ class Settings:
     timeout: tuple[int, str] | None
     lock_wait: int
     uv_cache: Path | None
-    openspec_supply: Path
+    node_package_supply: Path
     identity: tuple[int, int] | None
 
     @classmethod
-    def load(cls) -> Self:
+    def load(cls, *, node_package_supply: Path) -> Self:
         """Read the declared execution controls once."""
         evidence = ROOT / os.getenv("ETHOS_TEST_EVIDENCE_DIR", "build/evidence/quality/tests")
         configured_temp = os.getenv("ETHOS_TEST_BASETEMP")
@@ -132,7 +131,7 @@ class Settings:
             cls._pair("ETHOS_TEST_TIMEOUT_SECONDS", "ETHOS_TEST_TIMEOUT_METHOD"),
             _number("ETHOS_COVERAGE_LOCK_WAIT_SECONDS", 30, zero=True),
             _absolute_environment_path("UV_CACHE_DIR"),
-            resolve_openspec_supply(ROOT),
+            node_package_supply,
             cls._identity(),
         )
 
@@ -172,9 +171,9 @@ class PythonTestGate:
         self.identity_home = Path(tempfile.gettempdir()) / f"ethos-test-{os.getpid()}"
 
     @classmethod
-    def from_environment(cls) -> Self:
+    def from_environment(cls, *, node_package_supply: Path) -> Self:
         """Create one gate from the current execution declaration."""
-        return cls(Settings.load())
+        return cls(Settings.load(node_package_supply=node_package_supply))
 
     def run_tests(self, session: nox.Session) -> None:
         """Run unit and architecture tests with branch coverage."""
@@ -254,7 +253,7 @@ class PythonTestGate:
         env: dict[str, str | None] = {
             "COVERAGE_FILE": str(data or self.data),
             "ETHOS_ACTOR": None,
-            "ETHOS_BUILD_OPENSPEC_SUPPLY": str(self.s.openspec_supply),
+            "ETHOS_NODE_PACKAGE_SUPPLY": str(self.s.node_package_supply),
             "ETHOS_TEST_RUN_AS_GID": None,
             "ETHOS_TEST_RUN_AS_UID": None,
             "GIT_CONFIG_GLOBAL": os.devnull,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -10,8 +11,6 @@ import pytest
 import tools.ci.openspec_runtime_hook as subject
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from hatchling.builders.config import BuilderConfig
     from hatchling.metadata.core import ProjectMetadata
 
@@ -48,7 +47,57 @@ def _prepared_supply(root: Path) -> Path:
         package = supply / relative / "package.json"
         package.parent.mkdir(parents=True, exist_ok=True)
         package.write_text(json.dumps({"name": relative, "version": version}) + "\n")
+    (supply / ".package-lock.json").write_text(
+        json.dumps(
+            {
+                "lockfileVersion": 3,
+                "packages": {key: value for key, value in packages.items() if key},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return supply
+
+
+def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    supply = tmp_path / "prepared/node_modules"
+    supply.mkdir(parents=True)
+    source_path = (tmp_path / "src").as_posix()
+    observed: list[tuple[str, Path]] = []
+
+    class SupplyOwner:
+        @staticmethod
+        def resolve_node_package_projection(root: Path) -> tuple[Path, tuple[Path, ...]]:
+            observed.append(("resolve", root))
+            return supply, (Path("direct"),)
+
+    def import_owner(name: str) -> object:
+        assert name == ("ethos.adapters.repo.runtime.materialization.node_package_supply")
+        assert source_path in subject.sys.path
+        return SupplyOwner
+
+    monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
+    monkeypatch.setattr(subject, "import_module", import_owner)
+    monkeypatch.setattr(
+        subject,
+        "_build_identity_payload",
+        lambda _: (b'{"schema_version":2}\n', "0.2.0a3.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb"),
+    )
+    data: dict[str, dict[str, str]] = {"force_include": {}}
+
+    hook = _hook(tmp_path)
+    hook.initialize("standard", data)
+    hook.finalize("standard", data, "artifact")
+
+    assert observed == [("resolve", tmp_path)]
+    assert source_path not in subject.sys.path
+    assert data["force_include"][str(supply / "direct")] == (
+        "ethos/data/openspec-runtime/node_modules/direct"
+    )
 
 
 def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree(
@@ -56,7 +105,7 @@ def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     supply = _prepared_supply(tmp_path)
-    monkeypatch.setenv("ETHOS_BUILD_OPENSPEC_SUPPLY", str(supply))
+    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
     monkeypatch.setattr(
         subject,
         "_build_identity_payload",
@@ -118,7 +167,7 @@ def test_build_hook_rejects_absent_or_drifted_prepared_supply(
             extra = direct / "node_modules/extra/package.json"
             extra.parent.mkdir()
             extra.write_text('{"name":"extra","version":"1.0.0"}\n', encoding="utf-8")
-    monkeypatch.setenv("ETHOS_BUILD_OPENSPEC_SUPPLY", str(supply))
+    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
     monkeypatch.setattr(
         subject,
         "_build_identity_payload",
@@ -134,7 +183,7 @@ def test_sdist_carries_the_same_prepared_production_supply(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     supply = _prepared_supply(tmp_path)
-    monkeypatch.setenv("ETHOS_BUILD_OPENSPEC_SUPPLY", str(supply))
+    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
     monkeypatch.setattr(
         subject,
         "_build_identity_payload",

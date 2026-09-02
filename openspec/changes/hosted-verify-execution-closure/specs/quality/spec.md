@@ -28,8 +28,11 @@ CAS tests. Coverage policy SHALL come only from
 - **THEN** all declared native executables are available before the proof starts
 - **AND** run-as control inputs are consumed exactly once at the privilege
   boundary and are absent from the descended test environment
-- **AND** repository-owned caches and tool entrypoints inherited by nested
-  processes use absolute, locked coordinates
+- **AND** the complete lock-bound Node package tree is resolved once at the
+  repository session boundary and inherited by OpenSpec, package construction,
+  nested tests, and Node-backed quality tools through one absolute coordinate
+- **AND** repository-owned caches and other tool entrypoints inherited by
+  nested processes use absolute, locked coordinates
 - **AND** no nested test or build falls back to an ambient executable, cache, or
   network resolution
 - **AND** the resulting evidence remains attributable to that hosted provider

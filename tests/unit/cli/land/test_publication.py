@@ -464,10 +464,6 @@ def test_remote_ref_timeout_preserves_the_missing_fact_boundary(
 def test_publish_unknown_remote_never_invents_non_fast_forward(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        "ethos.adapters.openspec.cli.openspec_base_command",
-        lambda: ("openspec",),
-    )
     repo, _remotes, head = _branch_publication_fixture(tmp_path, source_branch="dev")
     monkeypatch.setattr(
         publication_observation,

@@ -11,6 +11,8 @@ Linux)
 	missing_packages=()
 	if ! command -v git >/dev/null 2>&1; then missing_packages+=(git); fi
 	if ! command -v ssh-keygen >/dev/null 2>&1; then missing_packages+=(openssh-client); fi
+	if ! command -v ps >/dev/null 2>&1; then missing_packages+=(procps); fi
+	if ! command -v setpriv >/dev/null 2>&1; then missing_packages+=(util-linux); fi
 	if ! command -v ldconfig >/dev/null 2>&1 ||
 		! ldconfig -p 2>/dev/null | grep -q 'libatomic\.so\.1'; then
 		missing_packages+=(libatomic1)

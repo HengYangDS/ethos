@@ -93,6 +93,64 @@ def test_python_bootstrap_supplies_the_declared_linux_signing_tool() -> None:
     assert "missing_packages+=(openssh-client)" in script
 
 
+def test_python_bootstrap_supplies_declared_linux_test_prerequisites(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    script_dir = repo / "tools/ci/scripts"
+    script_dir.mkdir(parents=True)
+    shutil.copy2(ROOT / "tools/ci/scripts/bootstrap-python.sh", script_dir)
+    _write_fake_executable(
+        script_dir / "with-python-runtime.sh",
+        '#!/bin/sh\n[ "$1" != -- ] || shift\nexec "$@"\n',
+    )
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    apt_log = tmp_path / "apt-get.log"
+    _write_fake_executable(
+        fake_bin / "git",
+        f"#!/bin/sh\n[ \"$1 $2\" = 'rev-parse --show-toplevel' ] && printf '%s\\n' '{repo}'\n",
+    )
+    _write_fake_executable(fake_bin / "uname", "#!/bin/sh\nprintf 'Linux\\n'\n")
+    _write_fake_executable(fake_bin / "ssh-keygen", "#!/bin/sh\nexit 0\n")
+    _write_fake_executable(fake_bin / "ldconfig", "#!/bin/sh\nprintf 'libatomic.so.1\\n'\n")
+    _write_fake_executable(
+        fake_bin / "uv",
+        "#!/bin/sh\n"
+        "if [ \"$1\" = --version ]; then printf 'uv 0.12.7\\n'; exit 0; fi\n"
+        "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.7\\n'; exit 0; fi\n"
+        '[ "$1" = sync ] && exit 0\n'
+        "exit 2\n",
+    )
+    _write_fake_executable(fake_bin / "npx", "#!/bin/sh\nexit 0\n")
+    _write_fake_executable(
+        fake_bin / "apt-get",
+        f"#!/bin/sh\nprintf '%s\\n' \"$*\" >>'{apt_log}'\n",
+    )
+    for name in ("awk", "cat", "dirname", "grep"):
+        (fake_bin / name).symlink_to(shutil.which(name))
+    openspec = repo / "node_modules/.bin/openspec"
+    openspec.parent.mkdir(parents=True)
+    _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.11.0\\n'\n")
+    (repo / "pyproject.toml").write_text(
+        '[dependency-groups]\ndev = ["uv>=0.12.7"]\n', encoding="utf-8"
+    )
+
+    result = subprocess.run(
+        ("/bin/bash", str(script_dir / "bootstrap-python.sh")),
+        cwd=repo,
+        env={**os.environ, "PATH": str(fake_bin)},
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert apt_log.read_text(encoding="utf-8").splitlines() == [
+        "update",
+        "install -y --no-install-recommends procps util-linux",
+    ]
+
+
 def test_python_bootstrap_does_not_use_apt_get_on_darwin(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     script_dir = repo / "tools/ci/scripts"
@@ -190,6 +248,8 @@ def test_coverage_floor_reuses_the_test_run_configuration(tmp_path, monkeypatch)
         durations=0,
         timeout=None,
         lock_wait=0,
+        uv_cache=None,
+        openspec_supply=tmp_path / "node_modules",
         identity=None,
     )
     gate = python_test_gate.PythonTestGate(settings)
@@ -295,6 +355,8 @@ def test_identity_drop_projects_only_repository_safe_directory(tmp_path, monkeyp
         durations=0,
         timeout=None,
         lock_wait=0,
+        uv_cache=None,
+        openspec_supply=tmp_path / "node_modules",
         identity=(65534, 65534),
     )
     monkeypatch.setattr(python_test_gate, "ROOT", root)
@@ -311,6 +373,61 @@ def test_identity_drop_projects_only_repository_safe_directory(tmp_path, monkeyp
     assert not {"user.name", "user.email"} & {key for key, _value in overlay}
     assert all(value for _, value in overlay)
     assert environment["GIT_TERMINAL_PROMPT"] == "0"
+
+
+def test_identity_boundary_consumes_run_as_controls(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "node_modules").mkdir()
+    monkeypatch.setattr(python_test_gate, "ROOT", root)
+    monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
+    monkeypatch.setattr(python_test_gate.os, "getuid", lambda: 0)
+    monkeypatch.setattr(python_test_gate.shutil, "which", lambda _name: "/usr/bin/setpriv")
+    monkeypatch.delenv("ETHOS_BUILD_OPENSPEC_SUPPLY", raising=False)
+    monkeypatch.setenv("ETHOS_TEST_RUN_AS_UID", "65534")
+    monkeypatch.setenv("ETHOS_TEST_RUN_AS_GID", "65534")
+    gate = python_test_gate.PythonTestGate.from_environment()
+    for method in ("_prepare", "_cleanup", "_stable_head"):
+        monkeypatch.setattr(gate, method, lambda: None)
+    observed: dict[str, str | None] = {}
+
+    class Session:
+        @staticmethod
+        def run(*_command: str, **kwargs: object) -> None:
+            observed.update(cast("dict[str, str | None]", kwargs["env"]))
+
+    gate.run_tests(cast("nox.Session", Session()))
+
+    assert observed["ETHOS_TEST_RUN_AS_UID"] is None
+    assert observed["ETHOS_TEST_RUN_AS_GID"] is None
+
+
+def test_test_environment_freezes_locked_supply_as_absolute_paths(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    supply = root / "node_modules"
+    supply.mkdir()
+    monkeypatch.setattr(python_test_gate, "ROOT", root)
+    monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
+    monkeypatch.setenv("UV_CACHE_DIR", "build/runtime/tool-cache/uv")
+    monkeypatch.delenv("ETHOS_BUILD_OPENSPEC_SUPPLY", raising=False)
+
+    gate = python_test_gate.PythonTestGate.from_environment()
+    monkeypatch.setenv("UV_CACHE_DIR", "another-cache")
+    monkeypatch.setenv("ETHOS_BUILD_OPENSPEC_SUPPLY", str(tmp_path / "other-supply"))
+    for method in ("_prepare", "_cleanup", "_stable_head"):
+        monkeypatch.setattr(gate, method, lambda: None)
+    observed: dict[str, str | None] = {}
+
+    class Session:
+        @staticmethod
+        def run(*_command: str, **kwargs: object) -> None:
+            observed.update(cast("dict[str, str | None]", kwargs["env"]))
+
+    gate.run_tests(cast("nox.Session", Session()))
+
+    assert observed["UV_CACHE_DIR"] == str(root / "build/runtime/tool-cache/uv")
+    assert observed["ETHOS_BUILD_OPENSPEC_SUPPLY"] == str(supply)
 
 
 def _write_fake_executable(path: Path, body: str) -> None:

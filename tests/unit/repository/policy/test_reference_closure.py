@@ -316,10 +316,10 @@ The current tree reads `{retired_path}` before every effect.
     assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
 
 
-def test_repository_reference_closure_retains_unremoved_neighbor_requirement(
+def test_repository_reference_closure_does_not_treat_canonical_absence_requirement_as_consumer(
     tmp_path: Path,
 ) -> None:
-    """An active removal cannot hide a current requirement that still consumes a path."""
+    """A canonical absence requirement is normative, not a live path use."""
     retired_path = ".ethos" + "/commitment.toml"
     _write(
         tmp_path,
@@ -339,23 +339,14 @@ carrier = "openspec/specs"
         f"""
 ## Requirements
 
-### Requirement: Repository Commitment admission is precise and pre-effect
+### Requirement: Repository Commitment carrier is absent
 
-The current tree reads `{retired_path}` before every effect.
+The retired `{retired_path}` path SHALL be absent.
 
-#### Scenario: Commitment exists
+#### Scenario: Retired carrier is checked
 
-- **WHEN** the carrier is present
-- **THEN** admission proceeds
-
-### Requirement: Repository audit reports tracked intent residue
-
-The audit reports `{retired_path}` while any current consumer remains.
-
-#### Scenario: A consumer remains
-
-- **WHEN** the retired carrier is deleted
-- **THEN** the audit blocks closeout
+- **WHEN** repository semantic closure runs
+- **THEN** the retired path remains absent
 """,
     )
     _commit_candidate_baseline(tmp_path)
@@ -375,14 +366,53 @@ The audit reports `{retired_path}` while any current consumer remains.
     )
     _commit_current_tree(tmp_path)
 
+    assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
+
+
+def test_repository_reference_closure_rejects_canonical_spec_link_to_retired_path(
+    tmp_path: Path,
+) -> None:
+    """A navigable canonical-spec link remains a real path consumer."""
+    _write(
+        tmp_path,
+        "system/surfaces.toml",
+        """
+schema = "system/schemas/contracts/surfaces.schema.json"
+
+[[surface]]
+name = "specs"
+carrier = "openspec/specs"
+""",
+    )
+    _write(tmp_path, "src/example/retired.py", "VALUE = 1")
+    _commit_candidate_baseline(tmp_path)
+    (tmp_path / "src/example/retired.py").unlink()
+    _write(
+        tmp_path,
+        "openspec/specs/runtime/spec.md",
+        """
+## Requirements
+
+### Requirement: Runtime owner remains navigable
+
+The [runtime owner](../../../src/example/retired.py) defines execution.
+
+#### Scenario: Runtime ownership is inspected
+
+- **WHEN** the owner is opened
+- **THEN** the linked module is available
+""",
+    )
+    _commit_current_tree(tmp_path)
+
     report = repository_semantic_closure(tmp_path)
 
     assert report["verdict"] == "block"
     assert {
         "relation": "consumer",
         "kind": "path",
-        "identity": retired_path,
-        "sources": ["openspec/specs/repository-governance/spec.md"],
+        "identity": "src/example/retired.py",
+        "sources": ["openspec/specs/runtime/spec.md"],
     } in report["superseded"]
 
 

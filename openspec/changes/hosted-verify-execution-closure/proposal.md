@@ -13,8 +13,10 @@ cache, and one test fixture that substitutes an ambient OpenSpec command.
   before the proof process starts.
 - Compile the pytest child environment once at the privilege boundary: consume
   run-as inputs there and project repository-owned caches as absolute paths.
-- Require nested tests and builds to inherit the locked execution supply rather
-  than reinterpret control inputs or resolve tools from ambient `PATH`.
+- Compile the complete lock-bound Node package tree once at the repository
+  session boundary, then require OpenSpec, builds, tests, and quality tools to
+  consume that same absolute supply rather than reinterpret `node_modules` or
+  resolve tools from ambient `PATH`.
 - Replace the ambient OpenSpec test double with the existing source-bound
   resolver.
 - Preserve local, GitLab, and GitHub as distinct evidence planes; do not weaken

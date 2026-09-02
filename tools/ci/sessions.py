@@ -13,17 +13,21 @@ from typing import cast
 from PIL import Image
 
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
+from ethos.adapters.repo.runtime.materialization.node_package_supply import (
+    resolve_node_package_supply,
+)
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
-
-DELIVERY = DeliveryPipeline.from_runtime(RUNTIME)
 NODE = resolve_node_executable()
-MARKDOWNLINT = ROOT / "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"
-PRETTIER = ROOT / "node_modules/prettier/bin/prettier.cjs"
-SVGO = ROOT / "node_modules/svgo/bin/svgo.js"
+NODE_PACKAGE_SUPPLY = resolve_node_package_supply(ROOT)
+
+DELIVERY = DeliveryPipeline.from_runtime(
+    RUNTIME,
+    node_package_supply=NODE_PACKAGE_SUPPLY,
+)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
 PUBLIC_SESSIONS = (
@@ -120,11 +124,11 @@ def lint(session) -> None:
 
 
 def tests(session) -> None:
-    PythonTestGate.from_environment().run_tests(session)
+    PythonTestGate.from_environment(node_package_supply=NODE_PACKAGE_SUPPLY).run_tests(session)
 
 
 def coverage_floor(session) -> None:
-    PythonTestGate.from_environment().enforce_floor(session)
+    PythonTestGate.from_environment(node_package_supply=NODE_PACKAGE_SUPPLY).enforce_floor(session)
 
 
 def build(session) -> None:
@@ -201,15 +205,20 @@ def shell_lint(session) -> None:
 
 
 def markdown_lint(session) -> None:
-    if not NODE.is_file() or not MARKDOWNLINT.is_file():
+    markdownlint = NODE_PACKAGE_SUPPLY / "markdownlint-cli2/markdownlint-cli2-bin.mjs"
+    if not NODE.is_file() or not markdownlint.is_file():
         session.error("locked markdownlint-cli2 is missing; run npm ci --ignore-scripts")
     session.run(
-        str(NODE), str(MARKDOWNLINT), "--config", ".config/checks/markdown/.markdownlint-cli2.yaml"
+        str(NODE), str(markdownlint), "--config", ".config/checks/markdown/.markdownlint-cli2.yaml"
     )
 
 
 def config_quality(session) -> None:
-    failures = import_module("tools.ci.config_quality").run(tuple(session.posargs), node=NODE)
+    failures = import_module("tools.ci.config_quality").run(
+        tuple(session.posargs),
+        node=NODE,
+        package_supply=NODE_PACKAGE_SUPPLY,
+    )
     if failures:
         session.error("configuration quality failed:\n" + "\n".join(failures))
     if not session.posargs or ".pre-commit-config.yaml" in session.posargs:
@@ -267,17 +276,19 @@ def local_ci(session) -> None:
 def javascript_lint(session) -> None:
     paths = _paths("*.js", "*.mjs", "*.cjs")
     if paths:
+        prettier = NODE_PACKAGE_SUPPLY / "prettier/bin/prettier.cjs"
         session.run(
-            str(NODE), str(PRETTIER), "--check", "--no-config", "--print-width", "100", *paths
+            str(NODE), str(prettier), "--check", "--no-config", "--print-width", "100", *paths
         )
 
 
 def svg_lint(session) -> None:
+    svgo = NODE_PACKAGE_SUPPLY / "svgo/bin/svgo.js"
     for relative in _paths("*.svg"):
         result = subprocess.run(
             (
                 str(NODE),
-                str(SVGO),
+                str(svgo),
                 "--multipass",
                 "--pretty",
                 "--indent",

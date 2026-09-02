@@ -13,7 +13,6 @@ import pytest
 import ethos.adapters.repo.runtime.materialization.input_resolution as runtime_inputs
 import ethos.adapters.repo.runtime.materialization.python_image as python_image
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_openspec_supply
 
 
 def _completed(code: int, stdout: str = "", stderr: str = ""):
@@ -47,26 +46,6 @@ def test_node_runtime_resolves_the_installed_platform_layout(
 def test_node_runtime_fails_before_build_for_an_incomplete_supply(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="package-local Node executable is unavailable"):
         resolve_node_executable(package_root=tmp_path, platform_name="nt")
-
-
-def test_openspec_supply_prefers_an_explicit_prepared_tree(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    source = tmp_path / "source"
-    supply = tmp_path / "prepared/node_modules"
-    source.mkdir()
-    supply.mkdir(parents=True)
-    monkeypatch.setenv("ETHOS_BUILD_OPENSPEC_SUPPLY", supply.as_posix())
-
-    assert resolve_openspec_supply(source) == supply.resolve()
-
-
-def test_openspec_supply_rejects_an_unprepared_source(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.delenv("ETHOS_BUILD_OPENSPEC_SUPPLY", raising=False)
-    with pytest.raises(ValueError, match="openspec_build_supply_unavailable"):
-        resolve_openspec_supply(tmp_path)
 
 
 def _managed_runtime_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path]:
@@ -211,8 +190,16 @@ def test_runtime_tool_forces_copy_link_mode(
     monkeypatch.setattr(sys, "executable", python.as_posix())
     supply = source / "node_modules"
     supply.mkdir()
-    (source / "package-lock.json").write_text("{}\n", encoding="utf-8")
-    monkeypatch.delenv("ETHOS_BUILD_OPENSPEC_SUPPLY", raising=False)
+    packages = {"node_modules/tool": {"version": "1.0.0"}}
+    (source / "package-lock.json").write_text(
+        json.dumps({"lockfileVersion": 3, "packages": {"": {}, **packages}}) + "\n",
+        encoding="utf-8",
+    )
+    (supply / ".package-lock.json").write_text(
+        json.dumps({"lockfileVersion": 3, "packages": packages}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
     monkeypatch.setenv("UV_LINK_MODE", "hardlink")
     monkeypatch.setenv("UV_CACHE_DIR", (tmp_path / "ambient-cache").as_posix())
     observed: dict[str, str] = {}
@@ -227,7 +214,7 @@ def test_runtime_tool_forces_copy_link_mode(
 
     assert observed["UV_LINK_MODE"] == "copy"
     assert observed["UV_CACHE_DIR"] == (tmp_path / "ambient-cache").as_posix()
-    assert observed["ETHOS_BUILD_OPENSPEC_SUPPLY"] == supply.as_posix()
+    assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == supply.as_posix()
 
 
 def test_runtime_tool_executes_uv_through_the_owned_python_module(

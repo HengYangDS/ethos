@@ -15,6 +15,9 @@ import yaml
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
+from ethos.adapters.repo.runtime.materialization.node_package_supply import (
+    resolve_node_package_supply,
+)
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
@@ -33,13 +36,6 @@ _DISTRIBUTION_MODULES = Path(
 )
 _DISTRIBUTION_PACKAGE = _DISTRIBUTION_MODULES / "@fission-ai" / "openspec" / "package.json"
 _DISTRIBUTION_ENTRY = _DISTRIBUTION_PACKAGE.parent / "bin" / "openspec.js"
-_SOURCE_MODULES = (
-    Path(os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY", _SOURCE_ROOT / "node_modules"))
-    if _SOURCE_DECLARATION.is_file()
-    else _SOURCE_ROOT / "node_modules"
-)
-_PACKAGE = _SOURCE_MODULES / "@fission-ai" / "openspec" / "package.json"
-_ENTRY = _PACKAGE.parent / "bin" / "openspec.js"
 _LOCK = _SOURCE_ROOT / "package-lock.json"
 
 
@@ -77,8 +73,14 @@ _SOURCE_NODE = _packaged_node()
 
 def openspec_base_command() -> tuple[str, ...] | None:
     """Return only the source-locked or package-bundled OpenSpec command."""
-    source = (_SOURCE_NODE, _ENTRY.as_posix()) if _SOURCE_NODE and _ENTRY.is_file() else None
-    if source and verify_official_cli(source)["verdict"] == "pass":
+    source_runtime = _source_runtime()
+    source_entry = source_runtime[1] if source_runtime is not None else None
+    source = (
+        (_SOURCE_NODE, source_entry.as_posix())
+        if _SOURCE_NODE and source_entry is not None and source_entry.is_file()
+        else None
+    )
+    if source and _verify_official_cli(source, source_runtime=source_runtime)["verdict"] == "pass":
         return source
     node = _packaged_node()
     bundled = (node, _DISTRIBUTION_ENTRY.as_posix()) if node else None
@@ -89,12 +91,21 @@ def openspec_base_command() -> tuple[str, ...] | None:
 
 def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
     """Verify package, lock, executable, and reported version as one identity."""
+    return _verify_official_cli(command, source_runtime=_source_runtime())
+
+
+def _verify_official_cli(
+    command: tuple[str, ...],
+    *,
+    source_runtime: tuple[Path, Path] | None,
+) -> dict[str, object]:
     gaps: list[str] = []
     entry = Path(command[1]).resolve() if len(command) == _SOURCE_COMMAND_LENGTH else Path()
-    source_entry = entry == _ENTRY
+    source_package, source_path = source_runtime or (Path(), Path())
+    source_entry = source_runtime is not None and entry == source_path.resolve()
     bundled_entry = entry == _DISTRIBUTION_ENTRY
     if source_entry:
-        package = _json_object(_PACKAGE)
+        package = _json_object(source_package)
         lock = _json_object(_LOCK)
         packages = lock.get("packages")
         packages = packages if isinstance(packages, dict) else {}
@@ -162,6 +173,17 @@ def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
         "base_command": list(command),
         "required_gaps": gaps,
     }
+
+
+def _source_runtime() -> tuple[Path, Path] | None:
+    if not _SOURCE_DECLARATION.is_file():
+        return None
+    try:
+        supply = resolve_node_package_supply(_SOURCE_ROOT)
+    except ValueError:
+        return None
+    package = supply / "@fission-ai" / "openspec" / "package.json"
+    return package, package.parent / "bin" / "openspec.js"
 
 
 def status_contract_gaps(payload: dict[str, Any]) -> list[str]:

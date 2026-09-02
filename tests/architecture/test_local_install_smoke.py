@@ -16,6 +16,9 @@ from typing import cast
 import tools.ci.delivery.pipeline as delivery_pipeline
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
+from ethos.adapters.repo.runtime.materialization.node_package_supply import (
+    resolve_node_package_supply,
+)
 from ethos.contracts.semantic import Commitment
 from ethos.repository.release.identity import BuildIdentity
 from tools.ci.delivery.adopter_fixture import line_ending_conformance
@@ -259,6 +262,7 @@ def test_install_smoke_prepares_frozen_supply_before_offline_install(
 
     DeliveryPipeline(
         runtime=cast("ProjectRuntime", object()),
+        node_package_supply=ROOT / "node_modules",
     ).prove_install(session)
 
     assert events == ["supply", ("install", session)]
@@ -275,10 +279,10 @@ def test_packaged_vector_carries_the_minimal_commitment_contract() -> None:
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
-    supply = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY") or str(ROOT / "node_modules")
+    supply = resolve_node_package_supply(ROOT)
     bootstrap_environment: dict[str, str] = {
         **os.environ,
-        "ETHOS_BUILD_OPENSPEC_SUPPLY": supply,
+        "ETHOS_NODE_PACKAGE_SUPPLY": supply.as_posix(),
         "PYTHONPATH": os.pathsep.join((str(ROOT / "src"), str(ROOT))),
     }
     bootstrap_repo = tmp_path / "bootstrap-repo"

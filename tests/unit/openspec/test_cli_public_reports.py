@@ -20,6 +20,54 @@ def test_official_version_is_the_repository_locked_stable_release() -> None:
     assert cli.OFFICIAL_VERSION == "1.11.0"
 
 
+def test_source_cli_consumes_the_single_resolved_node_package_supply(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    source = tmp_path / "source"
+    supply = tmp_path / "prepared/node_modules"
+    package = supply / "@fission-ai/openspec/package.json"
+    entry = package.parent / "bin/openspec.js"
+    source.mkdir()
+    entry.parent.mkdir(parents=True)
+    (source / "package.json").write_text("{}\n", encoding="utf-8")
+    (source / "package-lock.json").write_text(
+        json.dumps(
+            {
+                "packages": {
+                    "": {"dependencies": {cli.OFFICIAL_PACKAGE: cli.OFFICIAL_VERSION}},
+                    "node_modules/@fission-ai/openspec": {"version": cli.OFFICIAL_VERSION},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    package.write_text(
+        json.dumps({"name": cli.OFFICIAL_PACKAGE, "version": cli.OFFICIAL_VERSION}),
+        encoding="utf-8",
+    )
+    entry.write_text("", encoding="utf-8")
+    observed = []
+
+    def resolve(root):
+        observed.append(root)
+        return supply
+
+    monkeypatch.setattr(cli, "_SOURCE_ROOT", source)
+    monkeypatch.setattr(cli, "_SOURCE_DECLARATION", source / "package.json")
+    monkeypatch.setattr(cli, "_LOCK", source / "package-lock.json")
+    monkeypatch.setattr(cli, "resolve_node_package_supply", resolve, raising=False)
+    monkeypatch.setattr(cli, "_SOURCE_NODE", "/node")
+    monkeypatch.setattr(
+        cli,
+        "run_command",
+        lambda *_args, **_kwargs: _completed(stdout=f"{cli.OFFICIAL_VERSION}\n"),
+    )
+
+    assert cli.openspec_base_command() == ("/node", entry.as_posix())
+    assert observed == [source]
+
+
 def test_run_json_reports_object_malformed_array_and_empty_stdout(monkeypatch, tmp_path):
     outputs = (
         (json.dumps({"state": "ready"}), {"state": "ready"}, ""),
@@ -100,7 +148,11 @@ def test_official_cli_public_resolution_and_report_fail_closed(monkeypatch, tmp_
     monkeypatch.setattr(cli, "_DISTRIBUTION_ENTRY", entry)
     monkeypatch.setattr(cli, "_packaged_node", lambda: "/node")
     verify = cli.verify_official_cli
-    monkeypatch.setattr(cli, "verify_official_cli", lambda _command: {"verdict": "block"})
+    monkeypatch.setattr(
+        cli,
+        "verify_official_cli",
+        lambda _command, **_kwargs: {"verdict": "block"},
+    )
     assert cli.openspec_base_command() is None
 
     monkeypatch.setattr(cli, "_packaged_node", lambda: None)
@@ -135,9 +187,8 @@ def test_official_cli_reports_effective_version_mismatch(monkeypatch, tmp_path):
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr(cli, "_ENTRY", entry)
-    monkeypatch.setattr(cli, "_PACKAGE", package)
     monkeypatch.setattr(cli, "_LOCK", lock)
+    monkeypatch.setattr(cli, "_source_runtime", lambda: (package, entry))
     command = ("node", entry.as_posix())
     monkeypatch.setattr(
         cli,

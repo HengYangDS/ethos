@@ -20,6 +20,7 @@ from filelock import FileLock
 from filelock import Timeout
 
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_openspec_supply
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -66,6 +67,14 @@ def _head() -> str:
     return run_git(ROOT, "rev-parse", "HEAD", observation=True).stdout.strip()
 
 
+def _absolute_environment_path(name: str) -> Path | None:
+    value = os.getenv(name)
+    if not value:
+        return None
+    path = Path(value)
+    return path if path.is_absolute() else (ROOT / path).resolve()
+
+
 def remove_generated_path(path: Path) -> None:
     """Remove one generated path without hiding cleanup failures."""
     if path.is_dir():
@@ -102,6 +111,8 @@ class Settings:
     durations: int
     timeout: tuple[int, str] | None
     lock_wait: int
+    uv_cache: Path | None
+    openspec_supply: Path
     identity: tuple[int, int] | None
 
     @classmethod
@@ -120,6 +131,8 @@ class Settings:
             _number("ETHOS_TEST_DURATIONS", 20),
             cls._pair("ETHOS_TEST_TIMEOUT_SECONDS", "ETHOS_TEST_TIMEOUT_METHOD"),
             _number("ETHOS_COVERAGE_LOCK_WAIT_SECONDS", 30, zero=True),
+            _absolute_environment_path("UV_CACHE_DIR"),
+            resolve_openspec_supply(ROOT),
             cls._identity(),
         )
 
@@ -241,11 +254,15 @@ class PythonTestGate:
         env: dict[str, str | None] = {
             "COVERAGE_FILE": str(data or self.data),
             "ETHOS_ACTOR": None,
+            "ETHOS_BUILD_OPENSPEC_SUPPLY": str(self.s.openspec_supply),
+            "ETHOS_TEST_RUN_AS_GID": None,
+            "ETHOS_TEST_RUN_AS_UID": None,
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_COUNT": str(len(config)),
             "GIT_TERMINAL_PROMPT": "0",
             "PYTHONDONTWRITEBYTECODE": "1",
+            "UV_CACHE_DIR": str(self.s.uv_cache) if self.s.uv_cache else None,
             "UV_PROJECT_ENVIRONMENT": str(ROOT / ".venv"),
         }
         for index, (key, value) in enumerate(config):

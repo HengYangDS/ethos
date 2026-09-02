@@ -12,7 +12,6 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_repo
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage_scope_report
-from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
@@ -27,6 +26,8 @@ from ethos.contracts.plan import TransitionPlan
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.semantic import Commitment
+
 
 def compile_archive_plan(
     root: Path,
@@ -35,6 +36,8 @@ def compile_archive_plan(
     previous_head: str,
     head: str,
     lease: dict[str, object],
+    *,
+    commitment: Commitment,
 ) -> TransitionPlan:
     if git_stdout(root, "rev-parse", f"{head}^") != previous_head:
         message = "openspec_archive_target_parent_mismatch"
@@ -60,10 +63,9 @@ def compile_archive_plan(
     if scope is None or scope.get("verdict") != "pass" or not archive_path:
         message = "openspec_archive_target_invalid"
         raise ValueError(message)
-    source = load_profile_commitment(root, change_id=change, tree_ref=previous_head)
     return compile_observed_git_effect(
         root,
-        source,
+        commitment,
         GitEffect(
             updates={
                 f"refs/heads/{branch}": GitRefUpdate(

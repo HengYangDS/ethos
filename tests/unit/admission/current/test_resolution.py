@@ -72,6 +72,48 @@ def test_current_resolution_owns_acceptance_and_fresh_paths(monkeypatch) -> None
     assert resolution.next_action == ""
 
 
+def test_current_resolution_compiles_committed_source_intent_without_workspace_reread(
+    monkeypatch,
+) -> None:
+    commitment = commitment_fixture(id="change:example")
+    source_head = "a" * 40
+    calls: list[tuple[str | None, str | None]] = []
+
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("committed-source resolution must not read mutable workspace intent")
+        ),
+    )
+
+    def load(_root: Path, *, change_id: str | None, tree_ref: str | None = None):
+        calls.append((change_id, tree_ref))
+        return commitment
+
+    monkeypatch.setattr(resolution_adapter, "load_profile_commitment", load)
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": "work_lane", "head": source_head, "changed_paths": []},
+        authority=_authority(),
+        change="example",
+        changed=False,
+        intent_tree_ref=source_head,
+    )
+
+    assert resolution.verdict == "pass"
+    assert resolution.commitment == commitment
+    assert resolution.openspec == {
+        "verdict": "pass",
+        "state": "committed_source",
+        "change": "example",
+        "source_head": source_head,
+        "required_gaps": [],
+    }
+    assert calls == [("example", source_head)]
+
+
 def test_current_resolution_preserves_unknown_official_intent_without_reinterpreting(
     monkeypatch,
 ) -> None:

@@ -142,16 +142,15 @@ def _intent_action(root: Path, gap: str, change: str | None) -> str:
     return f"ethos status --root {root.resolve().as_posix()} --json"
 
 
-def resolve_current_resolution(
+def _resolve_without_workspace_intent(
     root: Path,
     *,
     status: JsonObject,
-    authority: CurrentAuthority | None = None,
-    change: str | None = None,
-    changed: bool = True,
-    prewrite_paths: tuple[str, ...] = (),
-) -> CurrentResolution:
-    """Resolve current authority, official intent, paths, gap, and action once."""
+    authority: CurrentAuthority | None,
+    change: str | None,
+    intent_tree_ref: str | None,
+) -> CurrentResolution | None:
+    """Resolve authority failures or intent already bound to an exact Git tree."""
     work_lane = status.get("role") == ROLE_WORK_LANE
     if work_lane and (authority is None or authority.verdict != "pass"):
         gap = authority.reason if authority is not None else "current_authority_unavailable"
@@ -169,6 +168,59 @@ def resolve_current_resolution(
             next_action=action,
             user_decision_required=user_decision,
         )
+    if intent_tree_ref is None:
+        return None
+    try:
+        commitment = load_profile_commitment(
+            root,
+            change_id=change,
+            tree_ref=intent_tree_ref,
+        )
+    except ValueError as error:
+        gap = str(error)
+        return CurrentResolution(
+            verdict="block",
+            authority=authority,
+            commitment=None,
+            scope=CurrentScope(()),
+            required_gaps=(gap,),
+            next_action=_intent_action(root, gap, change),
+        )
+    return CurrentResolution(
+        verdict="pass",
+        authority=authority,
+        commitment=commitment,
+        scope=current_scope(commitment=commitment, fallback_paths=()),
+        openspec={
+            "verdict": "pass",
+            "state": "committed_source",
+            "change": change or commitment.id.removeprefix("change:"),
+            "source_head": intent_tree_ref,
+            "required_gaps": [],
+        },
+    )
+
+
+def resolve_current_resolution(
+    root: Path,
+    *,
+    status: JsonObject,
+    authority: CurrentAuthority | None = None,
+    change: str | None = None,
+    changed: bool = True,
+    prewrite_paths: tuple[str, ...] = (),
+    intent_tree_ref: str | None = None,
+) -> CurrentResolution:
+    """Resolve current authority, official intent, paths, gap, and action once."""
+    resolved = _resolve_without_workspace_intent(
+        root,
+        status=status,
+        authority=authority,
+        change=change,
+        intent_tree_ref=intent_tree_ref,
+    )
+    if resolved is not None:
+        return resolved
     observed_paths = change_scope_paths_from_status(root, status) if changed else ()
     official = openspec_governance_report(
         root,

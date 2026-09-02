@@ -191,7 +191,7 @@ def _record_inline_command(
 
 
 def _requires_declared_commands(path: str) -> bool:
-    if path in {"AGENTS.md", "CONTRIBUTING.md", "README.md", "docs/README.md", "docs/index.md"}:
+    if path in {"AGENTS.md", "CONTRIBUTING.md", "README.md", "docs/README.md"}:
         return True
     return path.startswith(
         (

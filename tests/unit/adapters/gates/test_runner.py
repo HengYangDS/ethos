@@ -118,6 +118,33 @@ def test_quality_tool_skips_empty_file_set_without_tool_lookup(
     )
 
 
+def test_markdown_link_gate_excludes_deleted_tracked_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A staged or unstaged deletion is not an input to the link checker."""
+    (tmp_path / "README.md").write_text("# Current\n", encoding="utf-8")
+    monkeypatch.setattr(
+        gate_tool,
+        "git_files",
+        lambda *_args: ["README.md", "docs/deleted.md"],
+    )
+    monkeypatch.setattr(gate_tool.shutil, "which", lambda _tool: "/bin/lychee")
+    observed: list[list[str]] = []
+
+    def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(gate_tool.subprocess, "run", run)
+
+    report = gate_tool.markdown_links_report(tmp_path)
+
+    assert report["verdict"] == "pass"
+    assert report["file_count"] == 1
+    assert observed[0][-1] == "README.md"
+    assert "docs/deleted.md" not in observed[0]
+
+
 def test_runner_rejects_gate_identity_drift(monkeypatch, tmp_path: Path) -> None:
     calls: list[tuple[str, ...]] = []
     monkeypatch.setattr(

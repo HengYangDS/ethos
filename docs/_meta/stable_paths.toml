@@ -3,11 +3,6 @@ version = 1
 owner = "ethos-maintainers"
 
 [[stable_path]]
-path = "docs/index.md"
-reason = "documentation navigation"
-freeze_level = "hard"
-
-[[stable_path]]
 path = "docs/guides/quickstart.md"
 reason = "first-run workflow"
 freeze_level = "hard"

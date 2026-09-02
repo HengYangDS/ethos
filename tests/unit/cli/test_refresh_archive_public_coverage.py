@@ -8,11 +8,13 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
+import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
 import ethos.adapters.mutation.lane_lifecycle.change_overlay as overlay
 from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
+from ethos.adapters.repo.commit_message import lifecycle_commit_subject
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
 from tests.support.openspec_lifecycle import assert_lifecycle_outcome
@@ -29,7 +31,7 @@ ARCHIVE_PATH = f"openspec/changes/archive/{ARCHIVE_DATE}-fixture-change"
 def test_archive_commit_subject_is_conventional(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     write_test_profile(repo)
-    assert archive.lifecycle_commit_subject(repo, "archive", CHANGE) == (
+    assert lifecycle_commit_subject(repo, "archive", CHANGE) == (
         "chore(openspec): archive fixture-change"
     )
 
@@ -133,6 +135,7 @@ def _stub_archive_public(
         }.get(args, "")
 
     monkeypatch.setattr(archive, "git_stdout", git_stdout)
+    monkeypatch.setattr(archive_effect, "git_stdout", git_stdout)
 
     def collision_report(*_args: object) -> archive.ArchiveCollision | None:
         preserved = root / f"{ARCHIVE_PATH}.preserved"
@@ -178,9 +181,9 @@ def _stub_archive_public(
     )
     monkeypatch.setattr(archive, "dirty_changed_paths", lambda _root: ("spec.md",))
     monkeypatch.setattr(archive, "normalize_projected_specs", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(archive, "stage_git_worktree", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(archive_effect, "stage_git_worktree", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
-        archive,
+        archive_effect,
         "lifecycle_commit_subject",
         lambda *_args, **_kwargs: "chore(openspec): archive fixture-change",
     )
@@ -373,7 +376,7 @@ def test_archive_public_commit_failure_compensates_native_delta(
     _stub_archive_public(monkeypatch, tmp_path, collision=collision)
     monkeypatch.setattr(archive, "move_tracked_tree", lambda *_args: None)
     monkeypatch.setattr(
-        archive,
+        archive_effect,
         "create_git_commit",
         lambda *_args, **_kwargs: type(
             "Result", (), {"returncode": 1, "stdout": "", "stderr": "hook rejected"}
@@ -381,7 +384,7 @@ def test_archive_public_commit_failure_compensates_native_delta(
     )
     compensated: list[str] = []
     monkeypatch.setattr(
-        archive,
+        archive_effect,
         "compensate_git_worktree",
         lambda _root, **kwargs: compensated.append(str(kwargs["untracked_path"])),
     )

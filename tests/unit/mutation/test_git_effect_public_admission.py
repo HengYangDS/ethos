@@ -86,11 +86,17 @@ def _plan(
 
 def _generation(branch: str, *, generation: int = 4) -> dict[str, object]:
     return {
-        "branch": branch,
+        "lane_ref": branch,
         "generation": generation,
         "holder_ref": ACTOR,
         "expires_at": "2030-01-01T00:00:00+00:00",
     }
+
+
+def test_lease_generation_uses_the_canonical_four_field_vocabulary() -> None:
+    observed = _generation("work/example") | {"lease_state": "valid"}
+
+    assert admission.lease_generation(observed) == _generation("work/example")
 
 
 def test_raw_semantic_operation_never_authorizes_an_effect(tmp_path: Path) -> None:
@@ -139,7 +145,7 @@ def test_recovery_accepts_the_same_minimal_lease_generation(
         lambda *_args, **_kwargs: type("Result", (), {"stdout": f"{branch}\n"})(),
     )
 
-    admission.require_live_lease(root, carried)
+    admission.require_lease_generation(root, carried)
 
 
 @pytest.mark.parametrize("drift", ["refs", "assertions", "head", "tree"])
@@ -153,7 +159,7 @@ def test_plan_prestate_rejects_each_observed_authority_drift(
         assertions={"refs/heads/source": head},
     )
     carried = _plan(root, effect)
-    monkeypatch.setattr(admission, "require_live_lease", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(admission, "require_lease_generation", lambda *_args, **_kwargs: None)
     if drift == "refs":
         effect = GitEffect(
             updates={"refs/heads/dev": GitRefUpdate(expected=ZERO, desired=head)},
@@ -183,7 +189,7 @@ def test_plan_prestate_rejects_each_observed_authority_drift(
         ("lane.refresh", "", "work/example", ""),
     ],
 )
-def test_live_lease_binds_actor_branch_and_detached_execution(
+def test_lease_generation_binds_actor_branch_and_detached_execution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     operation: str,
@@ -216,12 +222,12 @@ def test_live_lease_binds_actor_branch_and_detached_execution(
     )
     if error:
         with pytest.raises(ValueError, match=error):
-            admission.require_live_lease(root, carried, detached_branch=detached)
+            admission.require_lease_generation(root, carried, detached_branch=detached)
     else:
-        admission.require_live_lease(root, carried, detached_branch=detached)
+        admission.require_lease_generation(root, carried, detached_branch=detached)
 
 
-def test_live_lease_rejects_wrong_actor_before_effect(
+def test_lease_generation_rejects_wrong_actor_before_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
@@ -239,4 +245,49 @@ def test_live_lease_rejects_wrong_actor_before_effect(
     monkeypatch.setattr(admission, "lease_generation", lambda _lease: generation)
 
     with pytest.raises(ValueError, match="lease_actor_mismatch"):
-        admission.require_live_lease(root, carried)
+        admission.require_lease_generation(root, carried)
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        {"operation": "lane.refresh", "execution_branch": "work/example"},
+        {
+            "operation": "lane.retire",
+            "retirement_kind": "linked-lane",
+            "retirement_mode": "superseded",
+            "execution_branch": "work/example",
+        },
+        {
+            "operation": "lane.retire",
+            "retirement_kind": "absorbed-ref",
+            "retirement_mode": "landed",
+            "execution_branch": "work/example",
+        },
+    ],
+)
+def test_expired_lease_generation_is_exclusive_to_linked_landed_retirement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    policy: dict[str, object],
+) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    head = git(root, "rev-parse", "HEAD")
+    branch = "work/example"
+    generation = _generation(branch)
+    observed = generation | {"lease_state": "expired"}
+    effect = GitEffect(updates={f"refs/heads/{branch}": GitRefUpdate(expected=head, desired=ZERO)})
+    carried = _plan(
+        root,
+        effect,
+        values={
+            "lease_generation": generation,
+            "lease_generation_state": "expired",
+        },
+        policy={**policy, "actor": ACTOR},
+    )
+    monkeypatch.setattr(admission, "leases_by_branch", lambda *_args, **_kwargs: {branch: observed})
+    monkeypatch.setattr(admission, "lease_generation", lambda _lease: generation)
+
+    with pytest.raises(ValueError, match="git_effect_expired_lease_not_admitted"):
+        admission.require_lease_generation(root, carried)

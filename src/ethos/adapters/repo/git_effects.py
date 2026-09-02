@@ -19,7 +19,7 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_admission import require_effect_permission
-from ethos.adapters.repo.git_effect_admission import require_live_lease
+from ethos.adapters.repo.git_effect_admission import require_lease_generation
 from ethos.adapters.repo.git_effect_admission import require_plan_prestate
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
@@ -196,6 +196,10 @@ def execute_git_effect(
     if not (issuer := issuer.strip()):
         message = "git_effect_issuer_invalid"
         raise ValueError(message)
+    planned_actor = str(plan.authority.get("actor") or "")
+    if planned_actor and issuer != planned_actor:
+        message = "git_effect_issuer_mismatch"
+        raise ValueError(message)
     effect = git_effect_from_plan(plan)
     require_effect_permission(effect, plan)
     recorded = ethos.adapters.repo.git_effect_attestation.records(
@@ -205,7 +209,7 @@ def execute_git_effect(
         ethos.adapters.repo.git_effect_attestation.validate(
             root, effect, attestation, issuer=issuer, plan=plan, environment=environment
         )
-        require_live_lease(
+        require_lease_generation(
             root,
             plan,
             detached_branch=detached_branch,
@@ -343,7 +347,7 @@ def _admit_git_effect(
         message = "git_effect_cas_mismatch"
         raise ValueError(message)
     if recovering:
-        require_live_lease(
+        require_lease_generation(
             root,
             plan,
             detached_branch=detached_branch,

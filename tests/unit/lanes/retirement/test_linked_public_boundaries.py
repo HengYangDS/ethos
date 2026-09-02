@@ -51,6 +51,7 @@ def _stub_retirement(
     accepted: str = ACCEPTED,
     current_branch: str = "",
     verified_refs: set[str] | None = None,
+    stub_holder_gaps: bool = True,
 ) -> None:
     lane_map = lanes or {}
     refs = verified_refs if verified_refs is not None else {str(row["branch"]) for row in worktrees}
@@ -60,7 +61,8 @@ def _stub_retirement(
     monkeypatch.setattr(linked, "leases_by_branch", lambda _repo: {})
     monkeypatch.setattr(effects, "control_root", lambda *_args: None)
     monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:holder")
-    monkeypatch.setattr(effects, "holder_gaps", lambda _lane: [])
+    if stub_holder_gaps:
+        monkeypatch.setattr(effects, "holder_gaps", lambda _lane: [])
     monkeypatch.setattr(effects, "archived_carrier_absorption", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         effects,
@@ -139,6 +141,92 @@ def test_landed_public_preserves_lane_and_head_gaps(
 
 
 @pytest.mark.parametrize(
+    ("lease_state", "holder", "actor", "expected"),
+    [
+        ("valid", "agent:test:holder", "agent:test:holder", set()),
+        (
+            "valid",
+            "agent:test:holder",
+            "",
+            {f"invocation_actor_missing:{SOURCE}"},
+        ),
+        (
+            "valid",
+            "agent:test:holder",
+            "agent:test:other",
+            {"foreign_work_lane_retire_authority_required"},
+        ),
+        ("expired", "agent:test:former", "agent:test:cleanup", set()),
+        (
+            "expired",
+            "agent:test:former",
+            "",
+            {f"invocation_actor_missing:{SOURCE}"},
+        ),
+        ("missing", "", "agent:test:cleanup", set()),
+        ("missing", "", "", {f"invocation_actor_missing:{SOURCE}"}),
+        ("unknown", "", "agent:test:cleanup", {f"work_lane_lease_unknown:{SOURCE}"}),
+        ("unknown", "", "", {f"work_lane_lease_unknown:{SOURCE}"}),
+    ],
+)
+def test_landed_public_actor_and_lease_state_matrix(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    lease_state: str,
+    holder: str,
+    actor: str,
+    expected: set[str],
+) -> None:
+    lane = _lane(lease_state=lease_state, holder=holder)
+    _stub_retirement(
+        monkeypatch,
+        worktrees=[_worktree()],
+        lanes={SOURCE: lane},
+        stub_holder_gaps=False,
+    )
+    monkeypatch.setattr(effects, "actor_ref", lambda: actor)
+
+    report = retire_linked_work_lane(
+        root=tmp_path,
+        mode="landed",
+        request=LinkedRetirementRequest(branch=SOURCE, expect_head=SOURCE_HEAD),
+    )
+
+    assert set(report["required_gaps"]) == expected
+    expected_verdict = (
+        "unknown" if lease_state == "unknown" else "pass" if not expected else "block"
+    )
+    assert report["verdict"] == expected_verdict
+
+
+def test_landed_public_decision_names_repository_policy_not_commitment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    lane = _lane(lease_state="missing", holder="")
+    _stub_retirement(
+        monkeypatch,
+        worktrees=[_worktree()],
+        lanes={SOURCE: lane},
+        stub_holder_gaps=False,
+    )
+    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:cleanup")
+
+    report = retire_linked_work_lane(
+        root=tmp_path,
+        mode="landed",
+        request=LinkedRetirementRequest(branch=SOURCE, expect_head=SOURCE_HEAD),
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["mutation"]["decision"]["policy_refs"] == [
+        (
+            "openspec/specs/repository-governance/spec.md"
+            "#linked-work-lane-retirement-has-one-exact-effect"
+        )
+    ]
+
+
+@pytest.mark.parametrize(
     ("branch", "worktrees", "verified", "gap"),
     [
         ("", [], set(), "superseded_retire_branch_required"),
@@ -199,7 +287,7 @@ def test_superseded_public_successor_filters_only_missing_source_lease(
 
     gaps = set(report["required_gaps"])
     assert f"work_lane_missing_lease:{SOURCE}" not in gaps
-    assert {"work_lane_dirty", "successor_retire_target_lease_present"} <= gaps
+    assert {"work_lane_dirty", "retirement_source_lease_present"} <= gaps
 
 
 @pytest.mark.parametrize(

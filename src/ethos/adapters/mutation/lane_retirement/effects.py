@@ -41,6 +41,7 @@ def apply_retirement(
     repo: Path,
     control_root: Path,
     *,
+    mode: Literal["landed", "superseded"],
     policy: BranchRolePolicy,
     lane: dict[str, object],
     authority_lane: dict[str, object],
@@ -61,14 +62,11 @@ def apply_retirement(
                     require_expired=False,
                 )
             else:
-                revoke_lease_from_connection(
-                    connection,
-                    request=lease_request(lane),
-                )
-                require_missing_lease(connection, str(lane["branch"]))
+                prepare_source_lease_retirement(connection, lane)
             if gaps := effect_gaps(
                 repo,
                 control_root,
+                mode=mode,
                 policy=policy,
                 lane=lane,
                 authority_lane=authority_lane,
@@ -79,6 +77,7 @@ def apply_retirement(
                 effect = remove_linked_lane(
                     control_root,
                     lane,
+                    mode=mode,
                     accepted=(policy.accepted_branch, accepted_head),
                     authority=authority_lane,
                 )
@@ -101,6 +100,28 @@ def apply_retirement(
         result=result,
         error=error,
     )
+
+
+def prepare_source_lease_retirement(
+    connection: sqlite3.Connection,
+    lane: dict[str, object],
+) -> None:
+    """Recheck and remove only the observed target Lease state."""
+    branch = str(lane["branch"])
+    state = str(lane.get("lease_state") or "unknown")
+    if state == "unknown":
+        message = f"work_lane_lease_unknown:{branch}"
+        raise ValueError(message)
+    if state == "missing":
+        require_missing_lease(connection, branch)
+        return
+    expected_current_lease(
+        connection,
+        request=lease_request(lane),
+        require_expired=state == "expired",
+    )
+    revoke_lease_from_connection(connection, request=lease_request(lane))
+    require_missing_lease(connection, branch)
 
 
 def retirement_result(
@@ -131,6 +152,7 @@ def remove_linked_lane(
     control_root: Path,
     lane: dict[str, object],
     *,
+    mode: Literal["landed", "superseded"],
     accepted: tuple[str, str],
     authority: dict[str, object],
 ) -> dict[str, object]:
@@ -140,12 +162,16 @@ def remove_linked_lane(
     branch, path, expected = (str(lane.get(key) or "") for key in ("branch", "path", "head"))
     if gaps := reobservation_gaps(branch, path, expected):
         return blocked(gaps)
+    actor = actor_ref()
     try:
         transaction_root, plan = linked_retirement_plan(
             control_root,
             lane,
             accepted=accepted,
             authority=authority,
+            mode=mode,
+            actor=actor,
+            worktree_clean=True,
         )
         admit_git_effect(transaction_root, plan)
     except (OSError, ValueError) as error:
@@ -155,7 +181,7 @@ def remove_linked_lane(
     except ValueError as error:
         return blocked(["worktree_remove_failed"], str(error))
     try:
-        execute_git_effect(transaction_root, plan, issuer=actor_ref())
+        execute_git_effect(transaction_root, plan, issuer=actor)
     except (OSError, ValueError) as exc:
         return failed_ref_transition(
             control_root,
@@ -331,7 +357,7 @@ def lane(
         )
         if failed
     ]
-    if lease_state != "valid":
+    if lease_state == "unknown" or (mode == "superseded" and lease_state != "valid"):
         gaps.append(
             {
                 "unknown": f"work_lane_lease_unknown:{branch}",
@@ -342,7 +368,7 @@ def lane(
         "branch": branch,
         "path": path.as_posix(),
         "head": head,
-        "lease": {key: value for key, value in lease_generation(lease).items() if key != "branch"}
+        "lease": {key: value for key, value in lease_generation(lease).items() if key != "lane_ref"}
         | {"mints_authority": False},
         "lease_state": lease_state,
         "retire_ready": not gaps,
@@ -355,20 +381,23 @@ def holder_ref(lane: dict[str, object]) -> str:
 
 
 def holder_gaps(lane: dict[str, object]) -> list[str]:
+    branch = str(lane.get("branch") or "")
     if lane.get("lease_state") == "unknown":
+        return [f"work_lane_lease_unknown:{branch}"]
+    actor = actor_ref()
+    if not actor:
+        return [f"invocation_actor_missing:{branch}"]
+    if lane.get("lease_state") in {"expired", "missing"}:
         return []
     required = holder_ref(lane)
-    return (
-        []
-        if required and actor_ref() == required
-        else ["foreign_work_lane_retire_authority_required"]
-    )
+    return [] if required and actor == required else ["foreign_work_lane_retire_authority_required"]
 
 
 def effect_gaps(
     invocation_root: Path,
     control_root: Path,
     *,
+    mode: Literal["landed", "superseded"],
     policy: BranchRolePolicy,
     lane: dict[str, object],
     authority_lane: dict[str, object],
@@ -394,8 +423,8 @@ def effect_gaps(
             str(authority_lane.get("head") or ""),
         ):
             gaps.extend(observed_gaps)
-    if not gaps and actor_ref() != holder_ref(authority_lane):
-        gaps.append("foreign_work_lane_retire_authority_required")
+    if not gaps:
+        gaps.extend(holder_gaps(authority_lane))
     if not gaps:
         gaps.extend(archive_absorption_gaps(control_root, lane, accepted_head))
     if not gaps:
@@ -405,6 +434,9 @@ def effect_gaps(
                 lane,
                 accepted=(policy.accepted_branch, accepted_head),
                 authority=authority_lane,
+                mode=mode,
+                actor=actor_ref(),
+                worktree_clean=True,
             )
             admit_git_effect(transaction_root, plan)
         except (OSError, ValueError) as error:
@@ -444,7 +476,7 @@ def require_missing_lease(connection: sqlite3.Connection, branch: str) -> None:
     """Require the retired source to remain ownerless inside the effect transaction."""
     if observe_lease_from_connection(connection, branch).state == "missing":
         return
-    message = "successor_retire_target_lease_present"
+    message = "retirement_source_lease_present"
     raise ValueError(message)
 
 

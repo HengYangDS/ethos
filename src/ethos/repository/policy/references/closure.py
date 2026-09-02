@@ -386,7 +386,10 @@ def _markdown_link_destinations(text: str) -> tuple[str, ...]:
         for child in token.children:
             if child.type != "link_open":
                 continue
-            destination = (child.attrGet("href") or "").partition("#")[0].partition("?")[0]
+            href = child.attrGet("href")
+            if not isinstance(href, str):
+                continue
+            destination = href.partition("#")[0].partition("?")[0]
             if destination and ":" not in destination:
                 destinations.append(destination)
     return tuple(destinations)

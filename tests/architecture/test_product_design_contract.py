@@ -150,3 +150,48 @@ def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> Non
         and any(token in path for token in ("lineage", "hypothesis", "experiment"))
         for path in tracked
     )
+
+
+def test_canonical_lane_retirement_and_lease_requirements_match_the_minimal_model() -> None:
+    """Canonical requirements keep Git facts outside the four-field Lease."""
+    specification = (ROOT / "openspec/specs/repository-governance/spec.md").read_text(
+        encoding="utf-8"
+    )
+    command_plane = (ROOT / "openspec/specs/command-plane/spec.md").read_text(encoding="utf-8")
+
+    assert "### Requirement: Linked Work Lane retirement has one exact effect" in specification
+    assert "### Requirement: Linked Work Lane retirement has one generation-bound effect" not in (
+        specification
+    )
+
+    lease_requirement = specification.split(
+        "### Requirement: Lease generation identity is complete across boundaries", 1
+    )[1].split("### Requirement:", 1)[0]
+    for field in ("lane ref", "holder ref", "generation", "expiry"):
+        assert field in lease_requirement
+    for retired_field in (
+        "lease ID",
+        "epoch",
+        "expected head",
+        "raw payload SHA-256",
+        "incarnation",
+        "Chronicle",
+    ):
+        assert retired_field not in lease_requirement
+
+    write_requirement = command_plane.split(
+        "### Requirement: Work Lane writes are exact lease-generation bound", 1
+    )[1].split("### Requirement:", 1)[0]
+    for field in ("lane ref", "holder ref", "generation", "expiry"):
+        assert field in write_requirement
+    for retired_field in ("lease ID", "epoch", "expected HEAD"):
+        assert retired_field not in write_requirement
+    assert "Change and Lease expected HEAD" not in command_plane
+
+    for retired_phrase in (
+        "lease's `expected_head`",
+        "lease/incarnation",
+        "lease ID/epoch",
+        "lease epoch as a string or boolean",
+    ):
+        assert retired_phrase not in specification

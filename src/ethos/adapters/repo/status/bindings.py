@@ -127,7 +127,7 @@ def unbound_work_lane_refs(
             continue
         branch = str(binding["branch"])
         generation = lease_generation(lease_by_branch.get(branch, {}))
-        generation.pop("branch")
+        generation.pop("lane_ref")
         relation = ref_relation(root, branch, policy.accepted_branch)
         refs.append(
             {
@@ -238,7 +238,7 @@ def leases_by_branch(current_path: Path) -> dict[str, dict[str, object]]:
 def lease_generation(lease: dict[str, object]) -> dict[str, object]:
     """Project the exact current Lease generation bound by transient Facts."""
     return {
-        "branch": str(lease.get("lane_ref") or ""),
+        "lane_ref": str(lease.get("lane_ref") or ""),
         "generation": integer_value(lease.get("generation")),
         "holder_ref": str(lease.get("holder_ref") or ""),
         "expires_at": str(lease.get("expires_at") or ""),

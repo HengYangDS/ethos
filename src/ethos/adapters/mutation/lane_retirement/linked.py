@@ -108,6 +108,7 @@ def retire_linked_work_lane(
         _effect_readiness_gaps(
             repo,
             control_root,
+            mode=mode,
             policy=policy,
             lane=lane,
             authority=authority,
@@ -159,7 +160,12 @@ def retire_linked_work_lane(
                 verifier_provenance="current_runner",
                 time_basis="evaluation_time",
             ),
-            policy_ref=f"commitment:lane-retire-{mode}-admission",
+            policy_ref=(
+                "openspec/specs/repository-governance/spec.md"
+                "#linked-work-lane-retirement-has-one-exact-effect"
+                if mode == "landed"
+                else "commitment:lane-retire-superseded-admission"
+            ),
             required_gaps=gaps,
             why=("ready",) if current_verdict == "pass" else (),
         )
@@ -200,6 +206,7 @@ def retire_linked_work_lane(
     effect = effects.apply_retirement(
         repo,
         cast("Path", control_root),
+        mode=mode,
         policy=policy,
         lane=lane,
         authority_lane=authority,
@@ -349,6 +356,7 @@ def _effect_readiness_gaps(
     repo: Path,
     control_root: Path | None,
     *,
+    mode: Literal["landed", "superseded"],
     policy: BranchRolePolicy,
     lane: dict[str, object],
     authority: dict[str, object],
@@ -363,6 +371,7 @@ def _effect_readiness_gaps(
     return effects.effect_gaps(
         repo,
         control_root,
+        mode=mode,
         policy=policy,
         lane=lane,
         authority_lane=authority,
@@ -483,7 +492,7 @@ def _source_lane_gaps(
         return gaps
     gaps = [gap for gap in gaps if gap != f"work_lane_missing_lease:{branch}"]
     if lane.get("lease_state") != "missing":
-        gaps.append("successor_retire_target_lease_present")
+        gaps.append("retirement_source_lease_present")
     return gaps
 
 

@@ -129,7 +129,7 @@ def _foreign_lane_payload(
             "reason": worktree.get("lock_reason", ""),
             "mints_authority": False,
         },
-        "lease": {key: value for key, value in lease_generation(lease).items() if key != "branch"}
+        "lease": {key: value for key, value in lease_generation(lease).items() if key != "lane_ref"}
         | {"mints_authority": False},
         "lease_state": lease_state,
         "relation_to_accepted": str(context["relation_to_accepted"]),

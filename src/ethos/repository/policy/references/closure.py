@@ -355,11 +355,7 @@ def _references_path(source: str, text: str, retired_path: str) -> bool:
     if source.startswith("tests/"):
         return False
     source_parent = posixpath.dirname(source)
-    values = (
-        _markdown_link_destinations(text)
-        if source.endswith(".md") and not source.startswith("openspec/specs/")
-        else _path_literals(text)
-    )
+    values = _markdown_link_destinations(text) if source.endswith(".md") else _path_literals(text)
     for value in values:
         observed = (
             posixpath.normpath(posixpath.join(source_parent, value))

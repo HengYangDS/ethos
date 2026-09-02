@@ -21,7 +21,6 @@ from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.governed_repository import lane_start_arguments
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_candidate
@@ -88,7 +87,7 @@ LAND_CASES = literal_case("cli.test_contracts_land:assign:LAND_CASES:0")
 
 
 def _assert_dirty_land_is_blocked(tmp_path: Path) -> None:
-    repo, _ = init_repo_with_candidate(tmp_path)
+    repo, _ = start_adopted_candidate(tmp_path)
     root = tmp_path / "repo-work-feature"
     run_ethos(*lane_start_arguments(repo, root), cwd=repo)
     (root / "README.md").write_text("# dirty\n")
@@ -98,7 +97,7 @@ def _assert_dirty_land_is_blocked(tmp_path: Path) -> None:
 
 
 def _assert_completed_change_is_blocked(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    repo, _ = init_repo_with_candidate(tmp_path)
+    repo, _ = start_adopted_candidate(tmp_path)
     root = tmp_path / "repo-work-feature"
     run_ethos(*lane_start_arguments(repo, root), cwd=repo)
     monkeypatch.setattr(

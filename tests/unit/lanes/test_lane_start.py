@@ -20,8 +20,43 @@ if TYPE_CHECKING:
 HOLDER = "agent:test:case:lane-start"
 
 
+def test_start_projects_selected_package_runtime_bootstrap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    target = tmp_path / "repo-work-feature"
+    selected_command = "/runtime/python -B -I -m ethos.cli"
+    monkeypatch.setattr(
+        lane_start,
+        "runtime_command",
+        lambda _root, *arguments: " ".join((selected_command, *arguments)),
+    )
+
+    report = lane_start.start_work_lane(
+        root=repo,
+        name="feature",
+        path=target,
+        holder_ref=HOLDER,
+    )
+
+    bootstrap = report["runner_bootstrap"]
+    assert bootstrap["command"] == selected_command
+    assert bootstrap["environment_scope"] == "git_common_package_runtime"
+    assert bootstrap["next_action"] == (
+        f"{selected_command} status --root {target.as_posix()} --json"
+    )
+    assert "uv run" not in bootstrap["next_action"]
+
+
 def _lightweight_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(lane_start, "require_runtime_wheel_provenance", lambda: None)
+    monkeypatch.setattr(
+        lane_start,
+        "runtime_command",
+        lambda _root, *arguments: " ".join(
+            ("/runtime/python", "-B", "-I", "-m", "ethos.cli", *arguments)
+        ),
+    )
     monkeypatch.setattr(
         lane_start,
         "install_hook_launchers",
@@ -112,7 +147,7 @@ def test_start_compensates_ref_worktree_and_lease_when_hook_binding_fails(
 ) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     target = tmp_path / "repo-work-feature"
-    monkeypatch.setattr(lane_start, "require_runtime_wheel_provenance", lambda: None)
+    _lightweight_runtime(monkeypatch)
 
     def fail_hook(_root: Path) -> dict[str, object]:
         msg = "hook_runtime_failed"
@@ -140,7 +175,7 @@ def test_start_uses_the_owned_worktree_removal_effect_for_compensation(
 ) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     target = tmp_path / "repo-work-feature"
-    monkeypatch.setattr(lane_start, "require_runtime_wheel_provenance", lambda: None)
+    _lightweight_runtime(monkeypatch)
     removed: list[tuple[Path, str, str, bool]] = []
     real_remove = lane_start.remove_worktree
 
@@ -174,6 +209,7 @@ def test_start_uses_the_owned_worktree_removal_effect_for_compensation(
 
 def test_start_honors_canonical_sibling_profile_without_a_parallel_source_lane(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     workspace = repo / ".ethos/workspace.toml"
@@ -183,6 +219,7 @@ def test_start_honors_canonical_sibling_profile_without_a_parallel_source_lane(
         "[branch_roles]\ncanonical_sibling_worktrees = true\n",
         "configure canonical Work Lanes",
     )
+    _lightweight_runtime(monkeypatch)
 
     report = lane_start.start_work_lane(
         root=repo,
@@ -193,6 +230,32 @@ def test_start_honors_canonical_sibling_profile_without_a_parallel_source_lane(
     lane_id = str(report["branch"]).removeprefix("work/")
     assert lane_id.endswith("-semantic-lane")
     assert report["path"] == (repo.parent / f"{repo.name}-worktrees" / lane_id).as_posix()
+
+
+def test_start_blocks_before_effects_when_selected_runtime_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    target = tmp_path / "repo-work-feature"
+    monkeypatch.setattr(
+        lane_start,
+        "runtime_command",
+        lambda *_args: (_ for _ in ()).throw(ValueError("hook_runtime_current_missing")),
+    )
+
+    report = lane_start.start_work_lane(
+        root=repo,
+        name="feature",
+        path=target,
+        holder_ref=HOLDER,
+        apply=True,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["hook_runtime_current_missing"]
+    assert ref_head(repo, "work/feature") == ""
+    assert not target.exists()
+    assert "work/feature" not in leases_by_branch(repo)
 
 
 def test_start_rejects_noncanonical_path_before_effects(tmp_path: Path) -> None:

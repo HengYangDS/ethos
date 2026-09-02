@@ -206,6 +206,7 @@ def resolve_current_resolution(
             next_action=str(repair_scope.get("next_action") or ""),
         )
     bootstrap_scope = official_change_bootstrap_scope_report(
+        root=root,
         official=official,
         requested_paths=prewrite_paths,
     )

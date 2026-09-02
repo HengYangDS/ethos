@@ -82,10 +82,14 @@ def _compiled_archive_plan(
         "archive_postimage_scope_report",
         lambda *_args, **_kwargs: {"verdict": "pass", "archive_path": archive_path},
     )
+    commitment = commitment_fixture(id="change:fixture-change")
     monkeypatch.setattr(
         archive_effect,
         "load_profile_commitment",
-        lambda *_args, **_kwargs: commitment_fixture(id="change:fixture-change"),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("archive plan must consume the resolved Commitment")
+        ),
+        raising=False,
     )
     plan = archive_effect.compile_archive_plan(
         lifecycle.worktree,
@@ -94,6 +98,7 @@ def _compiled_archive_plan(
         lifecycle.completed_head,
         target,
         lifecycle.lease,
+        commitment=commitment,
     )
     return lifecycle, plan, target, archive_path
 
@@ -132,11 +137,6 @@ def test_archive_executor_replay_recognizes_the_durable_effect_without_reexecuti
         return native_execute(*args, **kwargs)
 
     monkeypatch.setattr(archive_effect, "execute_git_effect", execute)
-    monkeypatch.setattr(
-        archive,
-        "openspec_governance_report",
-        lambda *_args, **_kwargs: {"required_gaps": []},
-    )
 
     recovered = archive_effect.complete_archive(
         lifecycle.worktree,
@@ -218,11 +218,36 @@ def test_archive_change_blocks_when_the_work_lane_lease_is_missing(
         "zero_effect",
         "not_required",
         "absent",
-        "ethos lane status --json",
-        user_decision_required=True,
+        f"ethos lane status --root {lifecycle.worktree.resolve().as_posix()} --json",
+        user_decision_required=False,
     )
     assert lifecycle.head == lifecycle.completed_head
     assert lifecycle.active.is_dir()
+
+
+def test_staged_archive_recovery_resolves_intent_from_the_exact_source_head(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    _stage_exact_archive(lifecycle)
+    monkeypatch.setattr(archive, "archive_postimage", _staged_postimage)
+    native_resolve = archive.resolve_current_resolution
+    intent_tree_refs: list[str | None] = []
+
+    def resolve(*args: object, **kwargs: object):
+        intent_tree_refs.append(kwargs.get("intent_tree_ref"))
+        return native_resolve(*args, **kwargs)
+
+    monkeypatch.setattr(archive, "resolve_current_resolution", resolve)
+
+    report = archive.archive_change(
+        root=lifecycle.worktree,
+        change="fixture-change",
+        expect_head=lifecycle.completed_head,
+    )
+
+    assert report["state"] == "ready_to_finalize_archive"
+    assert intent_tree_refs == [lifecycle.completed_head]
 
 
 def test_archive_finalization_failure_restores_the_exact_staged_postimage(

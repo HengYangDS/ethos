@@ -11,6 +11,7 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -59,7 +60,13 @@ def test_archive_plan_rejects_parent_and_postimage_drift(
 
     with pytest.raises(ValueError, match="openspec_archive_target_parent_mismatch"):
         archive_effect.compile_archive_plan(
-            tmp_path, "work/change", "change", "a" * 40, "b" * 40, {}
+            tmp_path,
+            "work/change",
+            "change",
+            "a" * 40,
+            "b" * 40,
+            {},
+            commitment=commitment_fixture(id="change:change"),
         )
 
     monkeypatch.setattr(
@@ -72,8 +79,61 @@ def test_archive_plan_rejects_parent_and_postimage_drift(
 
     with pytest.raises(ValueError, match="openspec_archive_target_invalid"):
         archive_effect.compile_archive_plan(
-            tmp_path, "work/change", "change", "a" * 40, "b" * 40, {}
+            tmp_path,
+            "work/change",
+            "change",
+            "a" * 40,
+            "b" * 40,
+            {},
+            commitment=commitment_fixture(id="change:change"),
         )
+
+
+def test_archive_plan_uses_the_resolved_commitment_without_reloading_intent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    commitment = commitment_fixture(id="change:change")
+    monkeypatch.setattr(
+        archive_effect,
+        "load_profile_commitment",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("archive effect planning must not reload Commitment")
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "git_stdout",
+        lambda _root, command, *_args: (
+            "a" * 40 if command == "rev-parse" else "openspec/changes/archive/change/proposal.md"
+        ),
+    )
+    monkeypatch.setattr(archive_effect, "current_tree", lambda *_args: "c" * 40)
+    monkeypatch.setattr(
+        archive_effect,
+        "archive_postimage_scope_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "pass",
+            "archive_path": "openspec/changes/archive/change",
+        },
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "compile_observed_git_effect",
+        lambda _root, selected, *_args, **_kwargs: selected,
+    )
+
+    selected = archive_effect.compile_archive_plan(
+        tmp_path,
+        "work/change",
+        "change",
+        "a" * 40,
+        "b" * 40,
+        {},
+        commitment=commitment,
+    )
+
+    assert selected is commitment
 
 
 def test_archive_completion_rejects_plan_identity_and_required_facts(tmp_path: Path) -> None:

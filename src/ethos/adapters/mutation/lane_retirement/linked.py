@@ -123,6 +123,12 @@ def retire_linked_work_lane(
     if lane:
         lane = {**lane, "retire_ready": not required_gaps, "required_gaps": required_gaps}
 
+    state = "planned" if mode == "landed" else "ready_to_retire_superseded"
+    if mode == "superseded" and lane.get("recovery_required"):
+        state = "ready_to_recover_and_retire_superseded"
+    if verdict != "pass":
+        state = "blocked" if verdict == "block" else "unknown"
+
     def mutation(current_gaps: list[str]) -> dict[str, object]:
         required_holder = effects.holder_ref(authority)
         gaps = tuple(sorted(set(current_gaps)))
@@ -140,11 +146,6 @@ def retire_linked_work_lane(
             "target_lease": lane.get("lease", {}),
             **({"absorbed_by": absorbed_by, "reason": reason} if mode == "superseded" else {}),
         }
-        enforcement_boundary = (
-            "sqlite_generation_lock_and_git_ref_transaction"
-            if required_holder
-            else "git_ref_and_worktree_transition"
-        )
         decision = admission_decision(
             subject=MutationSubject(
                 action=f"lane.retire.{mode}",
@@ -153,7 +154,11 @@ def retire_linked_work_lane(
             ),
             verdict=current_verdict,
             basis=DecisionBasis(
-                enforcement_boundary=enforcement_boundary,
+                enforcement_boundary=(
+                    "sqlite_generation_lock_and_git_ref_transaction"
+                    if required_holder
+                    else "git_ref_and_worktree_transition"
+                ),
                 identity_basis="exact_lease_generation" if required_holder else "not_evaluated",
                 state_bindings=tuple(expected_state),
                 evidence_boundary="current_git_lane_and_lease_observation",
@@ -179,7 +184,7 @@ def retire_linked_work_lane(
 
     report: dict[str, object] = {
         "verdict": verdict,
-        "state": _retirement_state(verdict, mode=mode, recovery=lane.get("recovery_required")),
+        "state": state,
         "branch": branch,
         "mutation": mutation(required_gaps),
         "required_gaps": required_gaps,
@@ -308,19 +313,6 @@ def _retirement_target(
         head=(output(repo, "rev-parse", "--verify", branch) or "") if branch else "",
     )
     return lanes, _with_archive_absorption(repo, lane, accepted_head) if lane else {}
-
-
-def _retirement_state(
-    verdict: Verdict,
-    *,
-    mode: Literal["landed", "superseded"],
-    recovery: object,
-) -> str:
-    if verdict in {"unknown", "block"}:
-        return "blocked" if verdict == "block" else "unknown"
-    if mode == "landed":
-        return "planned"
-    return "ready_to_recover_and_retire_superseded" if recovery else "ready_to_retire_superseded"
 
 
 def _apply_recovery(

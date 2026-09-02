@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import os
 import sys
 import tempfile
 from importlib import import_module
@@ -13,7 +11,6 @@ from typing import Any
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 _BUILD_IDENTITY_PATH = Path("src/ethos/data/build/identity.json")
-_LOCK_PREFIX = "node_modules/"
 
 
 class OpenSpecRuntimeHook(BuildHookInterface):
@@ -31,8 +28,7 @@ class OpenSpecRuntimeHook(BuildHookInterface):
             return
         self._cleanup_identity()
         root = Path(self.root)
-        supply = _prepared_supply(root)
-        production_roots = _production_roots(root / "package-lock.json", supply)
+        supply, production_roots = _prepared_projection(root)
         identity_bytes, distribution_version = _build_identity_payload(root)
         if version not in {"standard", distribution_version}:
             _distribution_identity_mismatch()
@@ -49,7 +45,7 @@ class OpenSpecRuntimeHook(BuildHookInterface):
             build_data["force_include"][str(identity_file)] = destination
             for relative in production_roots:
                 target = (
-                    Path(_LOCK_PREFIX) / relative
+                    Path("node_modules") / relative
                     if self.target_name == "sdist"
                     else Path("ethos/data/openspec-runtime/node_modules") / relative
                 )
@@ -71,84 +67,20 @@ def get_build_hook() -> type[OpenSpecRuntimeHook]:
     return OpenSpecRuntimeHook
 
 
-def _prepared_supply(root: Path) -> Path:
-    raw = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY")
-    supply = Path(raw) if raw else root / "node_modules"
-    if supply.is_symlink() or not supply.is_dir():
-        _supply_invalid(_LOCK_PREFIX.rstrip("/"))
-    return supply
-
-
-def _production_roots(lock_path: Path, supply: Path) -> tuple[Path, ...]:
-    invalid_lock = "openspec_supply_lock_invalid:package-lock.json"
+def _prepared_projection(root: Path) -> tuple[Path, tuple[Path, ...]]:
+    source_path = (root / "src").as_posix()
+    inserted = source_path not in sys.path
+    if inserted:
+        sys.path.insert(0, source_path)
     try:
-        lock = json.loads(lock_path.read_text(encoding="utf-8"))
-        packages = lock["packages"]
-    except (KeyError, OSError, json.JSONDecodeError, TypeError) as error:
-        raise RuntimeError(invalid_lock) from error
-    if not isinstance(packages, dict):
-        raise TypeError(invalid_lock)
-    selected: list[Path] = []
-    declared: set[Path] = set()
-    for key, metadata in sorted(packages.items()):
-        if not key.startswith(_LOCK_PREFIX) or not isinstance(metadata, dict):
-            continue
-        relative = Path(key.removeprefix(_LOCK_PREFIX))
-        declared.add(relative)
-        if metadata.get("dev") or metadata.get("link"):
-            continue
-        package = supply / relative
-        _validate_package(package, key, str(metadata.get("version") or ""))
-        if not any(package.is_relative_to(supply / parent) for parent in selected):
-            selected.append(relative)
-    undeclared = sorted(_observed_package_roots(supply) - declared)
-    if undeclared:
-        _supply_invalid(f"{_LOCK_PREFIX}{undeclared[0].as_posix()}")
-    return tuple(selected)
-
-
-def _observed_package_roots(supply: Path) -> set[Path]:
-    observed: set[Path] = set()
-    pending = [supply]
-    while pending:
-        node_modules = pending.pop()
-        for entry in node_modules.iterdir():
-            candidates = (
-                entry.iterdir() if entry.name.startswith("@") and entry.is_dir() else (entry,)
-            )
-            for package in candidates:
-                if package.is_symlink():
-                    observed.add(package.relative_to(supply))
-                    continue
-                if not package.is_dir():
-                    continue
-                declaration = package / "package.json"
-                if declaration.is_file():
-                    observed.add(package.relative_to(supply))
-                nested = package / "node_modules"
-                if nested.is_dir() and not nested.is_symlink():
-                    pending.append(nested)
-    return observed
-
-
-def _validate_package(package: Path, lock_key: str, expected_version: str) -> None:
-    if not expected_version or package.is_symlink() or not package.is_dir():
-        _supply_invalid(lock_key)
-    declaration = package / "package.json"
-    if declaration.is_symlink() or not declaration.is_file():
-        _supply_invalid(lock_key)
-    try:
-        observed = json.loads(declaration.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        message = f"openspec_supply_invalid:{lock_key}"
-        raise RuntimeError(message) from error
-    if not isinstance(observed, dict) or observed.get("version") != expected_version:
-        _supply_invalid(lock_key)
-
-
-def _supply_invalid(lock_key: str) -> None:
-    message = f"openspec_supply_invalid:{lock_key}:run npm ci --ignore-scripts --no-audit --no-fund"
-    raise RuntimeError(message)
+        owner = import_module("ethos.adapters.repo.runtime.materialization.node_package_supply")
+        try:
+            return owner.resolve_node_package_projection(root)
+        except ValueError as error:
+            raise RuntimeError(str(error)) from error
+    finally:
+        if inserted:
+            sys.path.remove(source_path)
 
 
 def _distribution_identity_mismatch() -> None:

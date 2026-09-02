@@ -20,6 +20,10 @@
 - [x] 2.2 Run the affected architecture, publication, runtime-activation,
   version-identity, and local-install tests, including the exact 132-node hosted
   failure set under the bootstrap-supplied locked execution environment.
+- [x] 2.3 Replace the misleading OpenSpec-only Node supply coordinate with one
+  session-frozen lock-bound package supply, migrate every Node consumer and
+  declaration without an alias or fallback, and prove the focused quality,
+  build, runtime, and installation paths.
 
 ## Lifecycle Transition Boundary
 

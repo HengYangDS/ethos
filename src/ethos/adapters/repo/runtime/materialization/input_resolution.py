@@ -17,6 +17,9 @@ from urllib.parse import urlparse
 
 import nodejs_wheel
 
+from ethos.adapters.repo.runtime.materialization.node_package_supply import (
+    resolve_node_package_supply,
+)
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
@@ -45,15 +48,6 @@ def resolve_node_executable(
     if not node.is_file() or (platform != "nt" and not os.access(node, os.X_OK)):
         _fail(f"package-local Node executable is unavailable: {node}")
     return node
-
-
-def resolve_openspec_supply(source: Path) -> Path:
-    """Resolve the prepared OpenSpec package tree used by source builds."""
-    configured = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY")
-    supply = Path(configured) if configured else source / "node_modules"
-    if supply.is_symlink() or not supply.is_dir():
-        _fail("openspec_build_supply_unavailable")
-    return supply.resolve()
 
 
 def resolve_runtime_wheel(source: Path, wheel_dir: Path, *, cache_dir: Path | None = None) -> Path:
@@ -171,7 +165,7 @@ def run_runtime_tool(
         "VIRTUAL_ENV": Path(sys.prefix).as_posix(),
     }
     if (source / "package-lock.json").is_file():
-        environment["ETHOS_BUILD_OPENSPEC_SUPPLY"] = resolve_openspec_supply(source).as_posix()
+        environment["ETHOS_NODE_PACKAGE_SUPPLY"] = resolve_node_package_supply(source).as_posix()
     if cache_dir is not None:
         environment["UV_CACHE_DIR"] = cache_dir.as_posix()
     completed = subprocess.run(

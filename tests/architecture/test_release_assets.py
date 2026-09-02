@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
@@ -15,6 +16,7 @@ import pytest
 
 import tools.ci.local_ci as local_ci
 import tools.ci.python_test_gate as python_test_gate
+import tools.ci.sessions as ci_sessions
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from tools.ci.dependency_hygiene import declaration_gaps
@@ -47,6 +49,20 @@ def _nested_values(value: object) -> list[str]:
     if isinstance(value, dict):
         return [item for child in value.values() for item in _nested_values(child)]
     return [str(value)]
+
+
+def _write_empty_node_package_supply(root: Path) -> Path:
+    supply = root / "node_modules"
+    supply.mkdir(parents=True)
+    (root / "package-lock.json").write_text(
+        '{"lockfileVersion":3,"packages":{"":{}}}\n',
+        encoding="utf-8",
+    )
+    (supply / ".package-lock.json").write_text(
+        '{"lockfileVersion":3,"packages":{}}\n',
+        encoding="utf-8",
+    )
+    return supply
 
 
 def test_downloaded_tool_installers_are_closed_over_the_tool_catalog() -> None:
@@ -223,6 +239,91 @@ def test_direct_node_declarations_equal_the_lock_root() -> None:
         assert package.get(group, {}) == locked.get(group, {})
 
 
+def test_node_package_supply_environment_has_one_python_owner() -> None:
+    def reads_supply_environment(path: Path) -> bool:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=path.as_posix())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and node.args:
+                key = node.args[0]
+                function = node.func
+                if (
+                    isinstance(key, ast.Constant)
+                    and key.value == "ETHOS_NODE_PACKAGE_SUPPLY"
+                    and isinstance(function, ast.Attribute)
+                    and (
+                        (
+                            function.attr == "getenv"
+                            and isinstance(function.value, ast.Name)
+                            and function.value.id == "os"
+                        )
+                        or (
+                            function.attr == "get"
+                            and isinstance(function.value, ast.Attribute)
+                            and function.value.attr == "environ"
+                            and isinstance(function.value.value, ast.Name)
+                            and function.value.value.id == "os"
+                        )
+                    )
+                ):
+                    return True
+            if (
+                isinstance(node, ast.Subscript)
+                and isinstance(node.ctx, ast.Load)
+                and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "environ"
+                and isinstance(node.value.value, ast.Name)
+                and node.value.value.id == "os"
+                and isinstance(node.slice, ast.Constant)
+                and node.slice.value == "ETHOS_NODE_PACKAGE_SUPPLY"
+            ):
+                return True
+        return False
+
+    readers = {
+        path.relative_to(ROOT).as_posix()
+        for parent in (ROOT / "src", ROOT / "tools", ROOT / "tests")
+        for path in parent.rglob("*.py")
+        if reads_supply_environment(path)
+    }
+
+    assert readers == {"src/ethos/adapters/repo/runtime/materialization/node_package_supply.py"}
+
+
+def test_python_test_sessions_receive_the_frozen_node_package_supply(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    supply = tmp_path / "node_modules"
+    session = cast("nox.Session", object())
+    observed: list[tuple[str, object]] = []
+
+    class Gate:
+        @classmethod
+        def from_environment(cls, *, node_package_supply: Path):
+            observed.append(("supply", node_package_supply))
+            return cls()
+
+        @staticmethod
+        def run_tests(actual_session: object) -> None:
+            observed.append(("tests", actual_session))
+
+        @staticmethod
+        def enforce_floor(actual_session: object) -> None:
+            observed.append(("coverage", actual_session))
+
+    monkeypatch.setattr(ci_sessions, "NODE_PACKAGE_SUPPLY", supply)
+    monkeypatch.setattr(ci_sessions, "PythonTestGate", Gate)
+
+    ci_sessions.tests(session)
+    ci_sessions.coverage_floor(session)
+
+    assert observed == [
+        ("supply", supply),
+        ("tests", session),
+        ("supply", supply),
+        ("coverage", session),
+    ]
+
+
 def test_coverage_gate_state() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     gates = {gate["id"]: gate for gate in declaration["gates"]}
@@ -249,7 +350,7 @@ def test_coverage_floor_reuses_the_test_run_configuration(tmp_path, monkeypatch)
         timeout=None,
         lock_wait=0,
         uv_cache=None,
-        openspec_supply=tmp_path / "node_modules",
+        node_package_supply=tmp_path / "node_modules",
         identity=None,
     )
     gate = python_test_gate.PythonTestGate(settings)
@@ -312,13 +413,17 @@ def test_python_cleanup_removes_owned_readonly_runtime_tree(tmp_path) -> None:
 )
 def test_python_basetemp_ownership(tmp_path, monkeypatch, failure, ownership) -> None:
     root, external = tmp_path / "repo", tmp_path / "external"
+    _write_empty_node_package_supply(root)
     monkeypatch.setattr(python_test_gate, "ROOT", root)
     monkeypatch.setattr(python_test_gate.tempfile, "gettempdir", lambda: str(tmp_path))
     monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
     monkeypatch.delenv("ETHOS_TEST_BASETEMP", raising=False)
+    monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
     if ownership == "external":
         monkeypatch.setenv("ETHOS_TEST_BASETEMP", str(external))
-    gate = python_test_gate.PythonTestGate.from_environment()
+    gate = python_test_gate.PythonTestGate.from_environment(
+        node_package_supply=root / "node_modules"
+    )
     cache = root / "src/ethos/__pycache__"
     cache.mkdir(parents=True)
     monkeypatch.setattr(gate, "_stable_head", lambda: None)
@@ -356,7 +461,7 @@ def test_identity_drop_projects_only_repository_safe_directory(tmp_path, monkeyp
         timeout=None,
         lock_wait=0,
         uv_cache=None,
-        openspec_supply=tmp_path / "node_modules",
+        node_package_supply=tmp_path / "node_modules",
         identity=(65534, 65534),
     )
     monkeypatch.setattr(python_test_gate, "ROOT", root)
@@ -377,16 +482,17 @@ def test_identity_drop_projects_only_repository_safe_directory(tmp_path, monkeyp
 
 def test_identity_boundary_consumes_run_as_controls(tmp_path, monkeypatch) -> None:
     root = tmp_path / "repo"
-    root.mkdir()
-    (root / "node_modules").mkdir()
+    _write_empty_node_package_supply(root)
     monkeypatch.setattr(python_test_gate, "ROOT", root)
     monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
     monkeypatch.setattr(python_test_gate.os, "getuid", lambda: 0)
     monkeypatch.setattr(python_test_gate.shutil, "which", lambda _name: "/usr/bin/setpriv")
-    monkeypatch.delenv("ETHOS_BUILD_OPENSPEC_SUPPLY", raising=False)
+    monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
     monkeypatch.setenv("ETHOS_TEST_RUN_AS_UID", "65534")
     monkeypatch.setenv("ETHOS_TEST_RUN_AS_GID", "65534")
-    gate = python_test_gate.PythonTestGate.from_environment()
+    gate = python_test_gate.PythonTestGate.from_environment(
+        node_package_supply=root / "node_modules"
+    )
     for method in ("_prepare", "_cleanup", "_stable_head"):
         monkeypatch.setattr(gate, method, lambda: None)
     observed: dict[str, str | None] = {}
@@ -404,17 +510,15 @@ def test_identity_boundary_consumes_run_as_controls(tmp_path, monkeypatch) -> No
 
 def test_test_environment_freezes_locked_supply_as_absolute_paths(tmp_path, monkeypatch) -> None:
     root = tmp_path / "repo"
-    root.mkdir()
-    supply = root / "node_modules"
-    supply.mkdir()
+    supply = _write_empty_node_package_supply(root)
     monkeypatch.setattr(python_test_gate, "ROOT", root)
     monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
     monkeypatch.setenv("UV_CACHE_DIR", "build/runtime/tool-cache/uv")
-    monkeypatch.delenv("ETHOS_BUILD_OPENSPEC_SUPPLY", raising=False)
+    monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
 
-    gate = python_test_gate.PythonTestGate.from_environment()
+    gate = python_test_gate.PythonTestGate.from_environment(node_package_supply=supply)
     monkeypatch.setenv("UV_CACHE_DIR", "another-cache")
-    monkeypatch.setenv("ETHOS_BUILD_OPENSPEC_SUPPLY", str(tmp_path / "other-supply"))
+    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(tmp_path / "other-supply"))
     for method in ("_prepare", "_cleanup", "_stable_head"):
         monkeypatch.setattr(gate, method, lambda: None)
     observed: dict[str, str | None] = {}
@@ -427,7 +531,40 @@ def test_test_environment_freezes_locked_supply_as_absolute_paths(tmp_path, monk
     gate.run_tests(cast("nox.Session", Session()))
 
     assert observed["UV_CACHE_DIR"] == str(root / "build/runtime/tool-cache/uv")
-    assert observed["ETHOS_BUILD_OPENSPEC_SUPPLY"] == str(supply)
+    assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == str(supply)
+
+
+def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monkeypatch) -> None:
+    supply = tmp_path / "node_modules"
+    supply.mkdir()
+    node = tmp_path / "node"
+    node.write_text("node\n", encoding="utf-8")
+    observed: dict[str, object] = {}
+
+    class ConfigQuality:
+        @staticmethod
+        def run(paths, *, node, package_supply):
+            observed.update(paths=paths, node=node, package_supply=package_supply)
+            return ()
+
+    class Session:
+        posargs: tuple[str, ...] = ()
+
+        @staticmethod
+        def run(*_command: str, **_kwargs: object) -> None:
+            return None
+
+        @staticmethod
+        def error(message: str) -> None:
+            raise AssertionError(message)
+
+    monkeypatch.setattr(ci_sessions, "NODE", node)
+    monkeypatch.setattr(ci_sessions, "NODE_PACKAGE_SUPPLY", supply, raising=False)
+    monkeypatch.setattr(ci_sessions, "import_module", lambda _name: ConfigQuality)
+
+    ci_sessions.config_quality(cast("nox.Session", Session()))
+
+    assert observed == {"paths": (), "node": node, "package_supply": supply}
 
 
 def _write_fake_executable(path: Path, body: str) -> None:

@@ -14,6 +14,9 @@ from pathlib import Path
 import pytest
 from packaging.version import Version
 
+from ethos.adapters.repo.runtime.materialization.node_package_supply import (
+    resolve_node_package_supply,
+)
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
@@ -76,9 +79,9 @@ def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> N
     assert Version(second.distribution_version) < Version("0.2.0a3")
 
 
-def test_sdist_rebuild_reuses_the_identical_openspec_supply(tmp_path: Path) -> None:
+def test_sdist_rebuild_reuses_the_identical_node_package_supply(tmp_path: Path) -> None:
     artifacts = tmp_path / "artifacts"
-    supply = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY", str(Path.cwd() / "node_modules"))
+    supply = resolve_node_package_supply(Path.cwd())
     subprocess.run(
         (
             str(Path(sys.executable).with_name("uv")),
@@ -90,7 +93,7 @@ def test_sdist_rebuild_reuses_the_identical_openspec_supply(tmp_path: Path) -> N
             str(artifacts),
             "--no-create-gitignore",
         ),
-        env={**os.environ, "ETHOS_BUILD_OPENSPEC_SUPPLY": supply},
+        env={**os.environ, "ETHOS_NODE_PACKAGE_SUPPLY": supply.as_posix()},
         check=True,
     )
     direct_wheel = next(artifacts.glob("*.whl"))
@@ -99,7 +102,7 @@ def test_sdist_rebuild_reuses_the_identical_openspec_supply(tmp_path: Path) -> N
     source = next(path for path in source_root.iterdir() if path.is_dir())
     rebuilt = tmp_path / "rebuilt"
     environment = os.environ.copy()
-    environment.pop("ETHOS_BUILD_OPENSPEC_SUPPLY", None)
+    environment.pop("ETHOS_NODE_PACKAGE_SUPPLY", None)
     subprocess.run(
         (
             str(Path(sys.executable).with_name("uv")),
@@ -231,7 +234,7 @@ def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
 
 def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
     output.mkdir()
-    supply = os.environ.get("ETHOS_BUILD_OPENSPEC_SUPPLY", str(Path.cwd() / "node_modules"))
+    supply = resolve_node_package_supply(repo)
     subprocess.run(
         (
             str(Path(sys.executable).with_name("uv")),
@@ -245,7 +248,7 @@ def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
         cwd=repo,
         env={
             **os.environ,
-            "ETHOS_BUILD_OPENSPEC_SUPPLY": supply,
+            "ETHOS_NODE_PACKAGE_SUPPLY": supply.as_posix(),
         },
         check=True,
     )

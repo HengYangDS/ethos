@@ -260,7 +260,7 @@ def test_archive_finalization_failure_restores_the_exact_staged_postimage(
     monkeypatch.setattr(archive, "archive_postimage", _staged_postimage)
     monkeypatch.setattr(archive, "_archive_coordinate_gaps", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
-        archive,
+        archive_effect,
         "create_git_commit",
         lambda *_args, **_kwargs: type(
             "Result", (), {"returncode": 1, "stdout": "", "stderr": "hook rejected"}

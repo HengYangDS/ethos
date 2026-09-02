@@ -9,11 +9,10 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 
+import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
-from ethos.adapters.mutation.lane_lifecycle.archive.effect import compile_archive_plan
-from ethos.adapters.mutation.lane_lifecycle.archive.effect import complete_archive
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_effect_outcome
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.proof import proof_gaps
@@ -21,16 +20,11 @@ from ethos.adapters.mutation.remediation.guidance import archive_recovery_comman
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
-from ethos.adapters.repo.commit_message import lifecycle_commit_subject
 from ethos.adapters.repo.dirty.change_provenance import changed_paths as dirty_changed_paths
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import move_tracked_tree
-from ethos.adapters.repo.git_effects import restore_git_index
-from ethos.adapters.repo.git_effects import stage_git_worktree
-from ethos.adapters.repo.git_signing import create_git_commit
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 
@@ -70,7 +64,7 @@ def archive_change(
     branch = str(status.get("branch") or git_stdout(repo, "branch", "--show-current"))
     try:
         if head != expect_head:
-            existing = _existing_archive_report(
+            existing = archive_effect.recover_archive_effect(
                 repo,
                 branch=branch,
                 head=head,
@@ -148,31 +142,6 @@ def archive_change(
                 next_action=archive_recovery_command(change, expect_head),
             ),
         )
-
-
-def _existing_archive_report(
-    root: Path,
-    *,
-    branch: str,
-    head: str,
-    change: str,
-    apply: bool,
-) -> dict[str, object] | None:
-    plan = recover_plan(
-        root,
-        operation="openspec.archive",
-        desired=head,
-        ref_name=f"refs/heads/{branch}",
-    )
-    if plan is None:
-        return None
-    if (
-        plan.policy.get("transition") != "openspec.archive"
-        or plan.policy.get("branch") != branch
-        or plan.policy.get("change") != change
-    ):
-        return None
-    return complete_archive(root, branch, change, plan, head, apply=apply)
 
 
 def _archive_active_change(
@@ -282,14 +251,16 @@ def _finalize_existing_archive(
     resolution: CurrentResolution,
 ) -> dict[str, object]:
     if apply:
-        return _commit_archive_postimage(
+        return archive_effect.commit_archive_postimage(
             repo,
             branch,
-            head,
             change,
+            head,
             postimage,
-            resolution=resolution,
+            commitment=resolution.commitment,
+            lease=resolution.lease,
             owned_mutation=False,
+            compensation_path=str(postimage["archive_path"]),
         )
     return lifecycle_report(
         branch,
@@ -381,109 +352,18 @@ def _apply_archive(
             ["openspec_archive_delta_invalid"],
             compensate=compensate,
         )
-    return _commit_archive_postimage(
+    return archive_effect.commit_archive_postimage(
         repo,
         branch,
-        head,
         change,
+        head,
         dict(observed.scope),
-        resolution=resolution,
+        commitment=resolution.commitment,
+        lease=resolution.lease,
         owned_mutation=True,
-        collision=collision,
+        compensation_path=compensation_path,
         result=result,
     )
-
-
-def _commit_archive_postimage(
-    repo: Path,
-    branch: str,
-    head: str,
-    change: str,
-    scope: dict[str, Any],
-    *,
-    resolution: CurrentResolution,
-    owned_mutation: bool,
-    collision: ArchiveCollision | None = None,
-    result: dict[str, Any] | None = None,
-) -> dict[str, object]:
-    commitment = resolution.commitment
-    if commitment is None:
-        message = f"commitment_invalid:{change}"
-        raise ValueError(message)
-    archive_path = str(scope["archive_path"])
-    changed = tuple(str(path) for path in scope["changed_paths"])
-    compensation_path = collision.preserved_path if collision else archive_path
-    original_index_tree = git_stdout(repo, "write-tree")
-
-    def restore_failure_boundary() -> None:
-        if owned_mutation:
-            compensate_git_worktree(repo, head=head, untracked_path=compensation_path)
-        else:
-            restore_git_index(repo, tree=original_index_tree)
-
-    stage_git_worktree(repo, previous=head)
-    staged_tree = git_stdout(repo, "write-tree")
-    staged_paths = tuple(
-        git_stdout(repo, "diff", "--cached", "--name-only", "--diff-filter=ACMRTD").splitlines()
-    )
-    if staged_tree != scope["tree"] or staged_paths != changed:
-        restore_failure_boundary()
-        return lifecycle_report(
-            branch,
-            head,
-            "blocked",
-            ["openspec_archive_delta_changed"],
-            change=change,
-            changed_paths=list(staged_paths),
-            **lifecycle_effect_outcome(
-                kind="mutation_compensated",
-                next_action=archive_recovery_command(change, head),
-            ),
-        )
-    committed = create_git_commit(
-        repo,
-        tree=staged_tree,
-        parent=head,
-        message=lifecycle_commit_subject(repo, "archive", change),
-    )
-    if committed.returncode:
-        restore_failure_boundary()
-        return lifecycle_report(
-            branch,
-            head,
-            "blocked",
-            ["openspec_archive_commit_failed"],
-            change=change,
-            stderr=committed.stderr.strip(),
-            **lifecycle_effect_outcome(
-                kind="mutation_compensated",
-                next_action=archive_recovery_command(change, head),
-            ),
-        )
-    target_head = committed.stdout.strip()
-    try:
-        plan = compile_archive_plan(
-            repo,
-            branch,
-            change,
-            head,
-            target_head,
-            resolution.lease,
-            commitment=commitment,
-        )
-        return complete_archive(
-            repo,
-            branch,
-            change,
-            plan,
-            target_head,
-            apply=True,
-            result=result,
-        )
-    except (OSError, TypeError, ValueError):
-        if current_tracked_head(repo) == head:
-            restore_failure_boundary()
-        raise
 
 
 def archive_preflight_report(

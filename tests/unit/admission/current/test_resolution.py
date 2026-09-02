@@ -236,6 +236,82 @@ def test_current_resolution_admits_only_one_new_official_metadata_path(monkeypat
     assert resolution.next_action == "openspec new change example --json"
 
 
+def test_current_resolution_maps_exact_absent_change_root_to_metadata_prewrite(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "official_cli": {"available": True},
+            "required_gaps": ["openspec_active_change_missing"],
+            "lifecycle": {"scope_binding": {}, "changes": []},
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {"changes": []},
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        tmp_path,
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=("openspec/changes/example",),
+    )
+
+    assert resolution.verdict == "block"
+    assert resolution.scope.material_scope["state"] == "official_change_bootstrap_intent"
+    assert resolution.required_gaps == ("openspec_change_metadata_prewrite_required:example",)
+    assert resolution.next_action == (
+        "ethos lane prewrite --paths "
+        "openspec/changes/example/.openspec.yaml "
+        f"--editor-root {tmp_path} --require-editor-root --root {tmp_path} --json"
+    )
+
+
+def test_current_resolution_does_not_treat_existing_change_root_as_new_intent(
+    tmp_path: Path, monkeypatch
+) -> None:
+    change_root = tmp_path / "openspec/changes/example"
+    change_root.mkdir(parents=True)
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "official_cli": {"available": True},
+            "required_gaps": ["openspec_active_change_missing"],
+            "lifecycle": {"scope_binding": {}, "changes": []},
+            "commands": {
+                "list": {
+                    "exit_code": 0,
+                    "parse_error": "",
+                    "json": {"changes": []},
+                }
+            },
+        },
+    )
+
+    resolution = resolve_current_resolution(
+        tmp_path,
+        status={"role": "work_lane", "head": "a" * 40, "changed_paths": []},
+        authority=_authority(),
+        changed=False,
+        prewrite_paths=("openspec/changes/example",),
+    )
+
+    assert resolution.verdict == "block"
+    assert resolution.required_gaps == ("openspec_active_change_missing",)
+    assert resolution.scope.material_scope.get("state") != "official_change_bootstrap_intent"
+
+
 def test_current_resolution_admits_remaining_official_artifact_after_partial_compilation(
     monkeypatch,
 ) -> None:

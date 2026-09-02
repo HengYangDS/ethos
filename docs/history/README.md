@@ -24,6 +24,7 @@ not a current-state ledger or another evidence store.
 | Need | Canonical record |
 | --- | --- |
 | Completed change carriers and their closeout material | [OpenSpec archive](../../openspec/changes/archive/) |
+| Retired fixed-path documentation topology | [Documentation Topology Contract, 2026-07-08](docs-topology-contract-20260708.md) |
 | Dated historical observations with their claim boundary | [Evidence Chronicle](../../evidence/chronicle/) |
 | Latest candidate-HEAD external-adopter observation and its carrier | [Claim](../../evidence/claims/current-head-real-adopter-evidence-20260714.toml), [Chronicle](../../evidence/chronicle/current-head-real-adopter-evidence-20260714/2026-07-14.md), and [OpenSpec archive](../../openspec/changes/archive/2026-07-14-current-candidate-head-real-adopter-evidence/) |
 | Prior candidate-HEAD external-adopter observation | [Claim](../../evidence/claims/current-head-real-adopter-evidence-20260713.toml), [Chronicle](../../evidence/chronicle/current-head-real-adopter-evidence-20260713/2026-07-13.md), and [OpenSpec archive](../../openspec/changes/archive/2026-07-13-current-product-head-real-adopter-evidence/) |

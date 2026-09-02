@@ -65,7 +65,7 @@ repository's Git common directory.
 
 Use one discovery path, then branch by audience.
 
-- Humans start from this README, then the [docs index](docs/index.md) and
+- Humans start from this README, then the [documentation root](docs/README.md) and
   [quickstart](docs/guides/quickstart.md).
 - Agents start from [AGENTS.md](AGENTS.md), load the matching rule and skill,
   then run `ethos status --json` before planning mutation.

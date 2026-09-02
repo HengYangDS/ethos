@@ -12,7 +12,7 @@ Status: canonical.
 
 Purpose: define the schema-governed JSON contracts that make ETHOS command output and kernel protocols automatable.
 
-See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
 
 ETHOS command output and kernel protocols are JSON-first and schema-governed.
 

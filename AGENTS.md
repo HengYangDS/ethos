@@ -8,7 +8,7 @@ optional projections.
 Start in the target worktree with `ethos status --json`. Obey that current
 result and expand only into the owner it selects through the [rule
 index](rules/README.md), [skill registry](.agents/skills/activation.toml),
-[OpenSpec](openspec/), or [documentation index](docs/index.md).
+[OpenSpec](openspec/), or [documentation root](docs/README.md).
 
 Before changing tracked files, obtain a passing current `ethos lane prewrite`
 decision for the exact root and paths. No prose, host state, projection, or

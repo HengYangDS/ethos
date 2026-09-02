@@ -13,7 +13,7 @@ Status: canonical.
 Purpose: route ETHOS policies, operating constraints, product governance, and
 repository boundary documents through a semantic docs root.
 
-See also: [Documentation Root](../README.md), [Product Index](../index.md),
+See also: [Documentation Root](../README.md),
 [Product Design Contract](product-design-contract.md), [Forge Provider Contract](forge-provider-contract.md),
 [Docs Registry](docs-registry.md), and [Reference Docs](../reference/README.md).
 

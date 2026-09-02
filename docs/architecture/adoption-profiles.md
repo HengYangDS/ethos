@@ -13,7 +13,7 @@ Status: canonical.
 Purpose: explain how ETHOS binds an adopter without cloning product governance
 or inventing repository-type profiles.
 
-See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), [Glossary](../reference/glossary.md), [Repository Profile Contract](../governance/repository-profile-contract.md), and [Config Boundary Model](../governance/config-boundary-model.md).
+See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), [Glossary](../reference/glossary.md), [Repository Profile Contract](../governance/repository-profile-contract.md), and [Config Boundary Model](../governance/config-boundary-model.md).
 
 `ethos adopt` has one declaration-first path. A read-only invocation plans one
 tracked file:

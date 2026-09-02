@@ -16,6 +16,7 @@ from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.declarations import command_owner_sources_from_files
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
+from ethos.repository.policy.references.markdown import markdown_tokens
 from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from ethos.repository.policy.references.python_syntax import complete_python_tree
@@ -351,9 +352,15 @@ def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:
 
 
 def _references_path(source: str, text: str, retired_path: str) -> bool:
+    if source.startswith("tests/"):
+        return False
     source_parent = posixpath.dirname(source)
-    for match in _PATH_REFERENCE.finditer(text):
-        value = match.group().rstrip(".")
+    values = (
+        _markdown_link_destinations(text)
+        if source.endswith(".md") and not source.startswith("openspec/specs/")
+        else _path_literals(text)
+    )
+    for value in values:
         observed = (
             posixpath.normpath(posixpath.join(source_parent, value))
             if value.startswith(("./", "../"))
@@ -362,6 +369,27 @@ def _references_path(source: str, text: str, retired_path: str) -> bool:
         if observed == retired_path:
             return True
     return False
+
+
+def _path_literals(text: str) -> tuple[str, ...]:
+    return tuple(match.group().rstrip(".") for match in _PATH_REFERENCE.finditer(text))
+
+
+def _markdown_link_destinations(text: str) -> tuple[str, ...]:
+    tokens = markdown_tokens(text)
+    if tokens is None:
+        return ()
+    destinations = []
+    for token in tokens:
+        if token.type != "inline" or not token.children:
+            continue
+        for child in token.children:
+            if child.type != "link_open":
+                continue
+            destination = (child.attrGet("href") or "").partition("#")[0].partition("?")[0]
+            if destination and ":" not in destination:
+                destinations.append(destination)
+    return tuple(destinations)
 
 
 def _superseded_current_carriers(

@@ -230,6 +230,39 @@ carrier = "src/example"
     assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
 
 
+def test_repository_reference_closure_does_not_treat_negative_guards_as_consumers(
+    tmp_path: Path,
+) -> None:
+    """Policy prose and tests may prove a retired path absent without consuming it."""
+    _write(
+        tmp_path,
+        "system/surfaces.toml",
+        """
+schema = "system/schemas/contracts/surfaces.schema.json"
+
+[[surface]]
+name = "docs"
+carrier = "docs"
+""",
+    )
+    _write(tmp_path, "docs/index.md", "# Duplicate documentation entrypoint")
+    _commit_candidate_baseline(tmp_path)
+    (tmp_path / "docs/index.md").unlink()
+    _write(
+        tmp_path,
+        "docs/governance/documentation.md",
+        "A duplicate `docs/index.md` has no current role.",
+    )
+    _write(
+        tmp_path,
+        "tests/architecture/test_documentation.py",
+        'assert not (ROOT / "docs/index.md").exists()',
+    )
+    _commit_current_tree(tmp_path)
+
+    assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
+
+
 def test_repository_reference_closure_applies_active_removed_requirement(
     tmp_path: Path,
 ) -> None:

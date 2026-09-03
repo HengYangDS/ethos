@@ -63,7 +63,7 @@ def prepare_locked_requirements(
     *,
     cache_dir: Path | None = None,
 ) -> Path:
-    """Export once and fill the owned cache before offline installation."""
+    """Export and preflight one already-available locked dependency closure."""
     requirements = work / "locked-requirements.txt"
     preflight = work / "dependency-preflight"
     tool_options = {} if cache_dir is None else {"cache_dir": cache_dir}
@@ -85,6 +85,7 @@ def prepare_locked_requirements(
             source,
             "pip",
             "sync",
+            "--offline",
             "--target",
             preflight.as_posix(),
             "--break-system-packages",

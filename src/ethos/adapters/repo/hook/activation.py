@@ -17,8 +17,8 @@ from typing import cast
 import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
+from ethos.adapters.process import process_listing_command
 from ethos.adapters.process import run_command
-from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
@@ -515,19 +515,7 @@ def _config_text(root: Path) -> str:
 
 def process_commands(root: Path, *, platform_name: str | None = None) -> str:
     """Return active process command lines from the native host observer."""
-    windows = "Get-CimInstance Win32_Process | % CommandLine"
-    command = (
-        (
-            windows_powershell(),
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            windows,
-        )
-        if (platform_name or os.name) == "nt"
-        else ("ps", "-axo", "command=")
-    )
+    command = process_listing_command(platform_name=platform_name)
     completed = run_command(root, command, remove_env_prefixes=("GIT_",))
     if completed.returncode:
         _fail("hook_runtime_consumers_unknown")

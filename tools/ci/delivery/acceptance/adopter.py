@@ -47,6 +47,12 @@ def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> No
         run(git, "config", name, value, cwd=root)
 
 
+def materialize_bootstrap_repository(root: Path, *, run: CommandRunner) -> None:
+    """Create the minimal Git root required for first runtime activation."""
+    root.mkdir()
+    run(_required_executable("git"), "init", "--quiet", "--initial-branch=dev", str(root))
+
+
 def materialize_adopter(
     root: Path,
     *,
@@ -152,3 +158,23 @@ def line_ending_conformance(adopter: Path, *, run: CommandRunner) -> list[str]:
     for style in observed:
         (adopter / f"line-ending-{style}.txt").unlink()
     return observed
+
+
+def prepare_acceptance_topology(
+    root: Path,
+    *,
+    run: CommandRunner,
+) -> Path:
+    """Prepare the repository facts consumed by one package-acceptance run."""
+    git = _required_executable("git")
+    run(git, "rm", "-r", "openspec/changes/smoke-change", cwd=root)
+    run(git, "commit", "--quiet", "-m", "complete package smoke change", cwd=root)
+    candidate = root.parent / "repo-candidate-dev"
+    run(git, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev", cwd=root)
+    (root / "accepted.txt").write_text("accepted\n", encoding="utf-8")
+    run(git, "add", "accepted.txt", cwd=root)
+    run(git, "commit", "--quiet", "-m", "advance accepted independently", cwd=root)
+    (candidate / "candidate.txt").write_text("candidate\n", encoding="utf-8")
+    run(git, "add", "candidate.txt", cwd=candidate)
+    run(git, "commit", "--quiet", "-m", "advance candidate independently", cwd=candidate)
+    return candidate

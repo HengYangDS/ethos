@@ -9,6 +9,7 @@ def test_runtime_materialization_uses_semantic_subpackage_without_flat_incumbent
     """Require one physical owner for each runtime-materialization concept."""
     modules = {
         "input_resolution": (
+            "is_selected_runtime_source",
             "resolve_runtime_wheel",
             "require_runtime_wheel_provenance",
             "resolve_owned_interpreter",

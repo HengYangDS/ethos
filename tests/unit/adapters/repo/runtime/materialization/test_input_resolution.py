@@ -58,7 +58,9 @@ def _managed_runtime_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tu
         runtime_inputs,
         "require_selected_runtime",
         lambda candidate: (
-            type("Selected", (), {"wheel_sha256": wheel_sha256})() if candidate == runtime else None
+            type("Selected", (), {"root": runtime, "wheel_sha256": wheel_sha256})()
+            if candidate == runtime
+            else None
         ),
     )
     return source, tmp_path / "repo.git/ethos/packages" / wheel_sha256
@@ -110,6 +112,7 @@ def test_source_wheel_resolution_requires_exactly_one_output(
 def test_installed_wheel_resolution_rejects_missing_and_non_file_provenance(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    assert runtime_inputs.is_selected_runtime_source(tmp_path) is False
     for provenance in (None, json.dumps({"url": "https://example.test/ethos.whl"})):
         metadata = type("Metadata", (), {"read_text": lambda *_args, value=provenance: value})()
         monkeypatch.setattr(runtime_inputs, "distribution", lambda _name, value=metadata: value)
@@ -125,6 +128,7 @@ def test_managed_runtime_resolves_its_git_common_content_addressed_wheel(
     wheel.parent.mkdir(parents=True)
     wheel.write_bytes(b"wheel")
 
+    assert runtime_inputs.is_selected_runtime_source(source) is True
     assert runtime_inputs.resolve_runtime_wheel(source, tmp_path / "unused") == wheel
 
 
@@ -250,7 +254,7 @@ def test_runtime_tool_executes_uv_through_the_owned_python_module(
     ]
 
 
-def test_locked_closure_prefills_owned_cache_then_installs_offline(
+def test_locked_closure_is_preflighted_and_installed_offline(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     source, work, interpreter = tmp_path / "source", tmp_path / "work", tmp_path / "python"
@@ -259,27 +263,22 @@ def test_locked_closure_prefills_owned_cache_then_installs_offline(
     interpreter.write_text("python", encoding="utf-8")
     wheel.write_bytes(b"wheel")
     commands: list[tuple[str, ...]] = []
-    cache_ready = False
 
     def run(
         _source: Path,
         *command: str,
         cache_dir: Path | None = None,
     ) -> subprocess.CompletedProcess[str]:
-        nonlocal cache_ready
         assert cache_dir == cache
         commands.append(command)
         if command[0] == "export":
             output = Path(command[command.index("--output-file") + 1])
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_text("package==1 --hash=sha256:abc\n", encoding="utf-8")
-        elif command[:2] == ("pip", "sync") and "--offline" not in command:
+        elif command[:2] == ("pip", "sync") and "--target" in command:
             target = Path(command[command.index("--target") + 1])
             target.mkdir(parents=True)
             (target / "package.py").write_text("cached\n", encoding="utf-8")
-            cache_ready = True
-        elif "--offline" in command:
-            assert cache_ready
         return _completed(0)
 
     monkeypatch.setattr(python_image, "run_runtime_tool", run)
@@ -304,11 +303,9 @@ def test_locked_closure_prefills_owned_cache_then_installs_offline(
         ("pip", "sync"),
         ("pip", "install"),
     ]
-    assert "--offline" not in commands[1]
+    assert all("--offline" in command for command in commands)
     assert "--target" in commands[1]
     assert "--require-hashes" in commands[1]
-    assert "--offline" in commands[2]
-    assert "--offline" in commands[3]
     assert not (work / "dependency-preflight").exists()
 
 
@@ -417,9 +414,32 @@ def test_owned_interpreter_reuses_runtime_or_installs_one_managed_python(
     assert runtime_inputs.resolve_owned_interpreter(tmp_path, source_python) == managed.resolve()
     prefix_command = (prefix / "bin/python").as_posix(), "-B", "-I", "-m", "uv", "python"
     assert commands == [
-        (*prefix_command, "find", "--managed-python", "--system", "3.14"),
-        (*prefix_command, "install", "--no-bin", "3.14"),
-        (*prefix_command, "find", "--managed-python", "--system", "3.14"),
+        (
+            *prefix_command,
+            "find",
+            "--managed-python",
+            "--system",
+            "--offline",
+            "--no-python-downloads",
+            "3.14",
+        ),
+        (
+            *prefix_command,
+            "install",
+            "--no-bin",
+            "--offline",
+            "--no-python-downloads",
+            "3.14",
+        ),
+        (
+            *prefix_command,
+            "find",
+            "--managed-python",
+            "--system",
+            "--offline",
+            "--no-python-downloads",
+            "3.14",
+        ),
     ]
 
 

@@ -596,6 +596,29 @@ def test_windows_consumer_observation_uses_native_powershell_outside_path(
     ]
 
 
+def test_posix_consumer_observation_uses_native_ps_outside_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PATH", (tmp_path / "git-only").as_posix())
+    observed: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        hook_activation,
+        "process_listing_command",
+        lambda **_kwargs: ("/native/ps", "-axo", "command="),
+    )
+
+    def capture_run(
+        _root: Path, command: tuple[str, ...], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        observed.append(command)
+        return subprocess.CompletedProcess(command, 0, "consumer\n", "")
+
+    monkeypatch.setattr(hook_activation, "run_command", capture_run)
+
+    assert hook_activation.process_commands(tmp_path, platform_name="posix") == "consumer\n"
+    assert observed == [("/native/ps", "-axo", "command=")]
+
+
 def test_hook_install_rejects_a_junction_runtime_generation_without_touching_it(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

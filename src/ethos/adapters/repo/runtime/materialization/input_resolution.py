@@ -22,6 +22,7 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
 )
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
+from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 
 
@@ -112,6 +113,11 @@ def resolve_runtime_project(package_source: Path) -> Path:
     return project
 
 
+def is_selected_runtime_source(source: Path) -> bool:
+    """Return whether the invoking package belongs to an immutable selected runtime."""
+    return _selected_runtime_source(source) is not None
+
+
 def resolve_owned_interpreter(source: Path, source_python: Path) -> Path:
     """Resolve one standalone interpreter owned by the materialized runtime."""
     resolved = source_python.resolve()
@@ -121,13 +127,28 @@ def resolve_owned_interpreter(source: Path, source_python: Path) -> Path:
             return resolved
     environment = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
     requested = observe_python_facts(source_python)["python_version"]
-    command = _uv_module_command("python", "find", "--managed-python", "--system", requested)
+    command = _uv_module_command(
+        "python",
+        "find",
+        "--managed-python",
+        "--system",
+        "--offline",
+        "--no-python-downloads",
+        requested,
+    )
     completed = subprocess.run(
         command, cwd=source, capture_output=True, text=True, check=False, env=environment
     )
     if completed.returncode:
         installed = subprocess.run(
-            _uv_module_command("python", "install", "--no-bin", requested),
+            _uv_module_command(
+                "python",
+                "install",
+                "--no-bin",
+                "--offline",
+                "--no-python-downloads",
+                requested,
+            ),
             cwd=source,
             capture_output=True,
             text=True,
@@ -162,6 +183,7 @@ def run_runtime_tool(
         **os.environ,
         "PYTHONDONTWRITEBYTECODE": "1",
         "UV_LINK_MODE": "copy",
+        "UV_OFFLINE": "1",
         "VIRTUAL_ENV": Path(sys.prefix).as_posix(),
     }
     if (source / "package-lock.json").is_file():
@@ -186,15 +208,10 @@ def run_runtime_tool(
 
 
 def _managed_runtime_wheel(source: Path) -> Path | None:
-    prefix = Path(sys.prefix)
-    runtime = prefix.parent
-    try:
-        source.resolve().relative_to(prefix.resolve())
-    except ValueError:
+    selected = _selected_runtime_source(source)
+    if selected is None:
         return None
-    if prefix.name != "python" or runtime.parent.name != "runtime":
-        return None
-    selected = require_selected_runtime(runtime)
+    runtime = selected.root
     package_root = runtime.parent.parent / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():
         _fail("hook_runtime_wheel_provenance_missing")
@@ -206,6 +223,18 @@ def _managed_runtime_wheel(source: Path) -> Path | None:
     if len(wheels) != 1 or file_sha256(wheels[0]) != selected.wheel_sha256:
         _fail("hook_runtime_wheel_provenance_missing")
     return wheels[0]
+
+
+def _selected_runtime_source(source: Path) -> SelectedRuntime | None:
+    prefix = Path(sys.prefix)
+    runtime = prefix.parent
+    try:
+        source.resolve().relative_to(prefix.resolve())
+    except ValueError:
+        return None
+    if prefix.name != "python" or runtime.parent.name != "runtime":
+        return None
+    return require_selected_runtime(runtime)
 
 
 def _uv_module_command(*arguments: str) -> tuple[str, ...]:

@@ -22,7 +22,7 @@ def linked_retirement_plan(
     *,
     accepted: tuple[str, str],
     authority: dict[str, object],
-    mode: Literal["landed", "superseded"],
+    mode: Literal["landed", "superseded", "abandon"],
     actor: str,
     worktree_clean: bool,
 ):

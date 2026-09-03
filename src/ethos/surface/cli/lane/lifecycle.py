@@ -88,6 +88,9 @@ def _fields(*names: str) -> Summary:
 
 
 def _public_state(command: str, report: dict[str, object], verdict: Verdict) -> str:
+    declared = str(report.get("state") or "")
+    if declared == "partial_transition":
+        return declared
     if command == "lane status":
         return "ready" if verdict == "pass" else "blocked" if verdict == "block" else "unknown"
     if command == "lane prewrite":

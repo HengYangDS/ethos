@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import sqlite3
 import subprocess
-from contextlib import closing
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -19,22 +16,6 @@ openspec/changes/archive/2026-08-29-other
 """
 
 
-def test_retirement_result_distinguishes_terminal_and_unrecovered_errors(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    observed = {"ref_state": "absent"}
-    monkeypatch.setattr(effects, "retirement_observation", lambda *_args: observed)
-    monkeypatch.setattr(effects, "retirement_terminal", lambda _value: True)
-    terminal = effects.retirement_result(
-        tmp_path, tmp_path, {}, result={}, error=OSError("late fs error")
-    )
-    monkeypatch.setattr(effects, "retirement_terminal", lambda _value: False)
-    failed = effects.retirement_result(
-        tmp_path, tmp_path, {}, result={}, error=OSError("late fs error")
-    )
-    assert terminal == {"observed": observed}
-    assert failed["required_gaps"] == ["lease_cleanup_failed"]
-    assert failed["stderr"] == "late fs error"
 
 
 @pytest.mark.parametrize(
@@ -80,32 +61,6 @@ def test_holder_gaps_follow_observed_lease_state(
     assert effects.holder_gaps(lane) == expected
 
 
-def test_require_missing_lease_and_restore_fail_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        effects,
-        "observe_lease_from_connection",
-        lambda *_args: type("Lease", (), {"state": "valid"})(),
-    )
-    with (
-        closing(sqlite3.connect(":memory:")) as connection,
-        pytest.raises(ValueError, match="retirement_source_lease_present"),
-    ):
-        effects.require_missing_lease(connection, "work/example")
-    assert effects.restore_worktree(tmp_path, {"path": "", "branch": ""}) == {
-        "state": "blocked",
-        "error": "worktree_restore_coordinates_missing",
-    }
-    monkeypatch.setattr(
-        effects,
-        "add_worktree",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("occupied")),
-    )
-    assert effects.restore_worktree(
-        tmp_path,
-        {"path": str(tmp_path / "lane"), "branch": "work/example", "head": "a" * 40},
-    ) == {"state": "blocked", "error": "occupied"}
 
 
 @pytest.mark.parametrize(
@@ -167,114 +122,10 @@ def _lane(branch: str = "work/source") -> dict[str, object]:
     }
 
 
-def _raise(error: Exception) -> None:
-    raise error
 
 
-@pytest.mark.parametrize(
-    ("failure", "gap"),
-    [
-        ("reobserve", "retirement_ref_stale"),
-        ("plan", "git_effect_plan_invalid"),
-        ("worktree", "worktree_remove_failed"),
-        ("effect", "branch_delete_failed_after_worktree_removed"),
-    ],
-)
-def test_remove_linked_lane_failures_preserve_one_exact_recovery_boundary(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    failure: str,
-    gap: str,
-) -> None:
-    lane = _lane()
-    monkeypatch.setattr(
-        effects,
-        "reobservation_gaps",
-        lambda *_args: ["retirement_ref_stale"] if failure == "reobserve" else [],
-    )
-
-    def plan(*_args: object, **_kwargs: object) -> tuple[Path, object]:
-        if failure == "plan":
-            _raise(ValueError("git_effect_plan_invalid: malformed"))
-        return tmp_path, object()
-
-    monkeypatch.setattr(effects, "linked_retirement_plan", plan)
-    monkeypatch.setattr(effects, "admit_git_effect", lambda *_args: None)
-
-    def remove(*_args: object, **_kwargs: object) -> None:
-        if failure == "worktree":
-            _raise(ValueError("occupied"))
-
-    monkeypatch.setattr(effects, "remove_worktree", remove)
-
-    def execute(*_args: object, **_kwargs: object) -> None:
-        if failure == "effect":
-            _raise(ValueError("CAS rejected"))
-
-    monkeypatch.setattr(effects, "execute_git_effect", execute)
-    monkeypatch.setattr(
-        effects,
-        "failed_ref_transition",
-        lambda *_args, **_kwargs: effects.blocked(["branch_delete_failed_after_worktree_removed"]),
-    )
-
-    report = effects.remove_linked_lane(
-        tmp_path,
-        lane,
-        mode="landed",
-        accepted=("dev", "b" * 40),
-        authority=lane,
-    )
-
-    assert report["required_gaps"] == [gap]
 
 
-def test_apply_retirement_projects_transaction_and_storage_failures(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    lane = _lane()
-    policy = BranchRolePolicy()
-    monkeypatch.setattr(effects, "state_database", lambda _repo: tmp_path / "state.sqlite")
-    monkeypatch.setattr(
-        effects,
-        "retirement_result",
-        lambda *_args, result, error, **_kwargs: {
-            "result": result,
-            "error": str(error) if error is not None else "",
-        },
-    )
-    monkeypatch.setattr(
-        effects,
-        "require_missing_lease",
-        lambda *_args: (_ for _ in ()).throw(ValueError("retirement_source_lease_present")),
-    )
-
-    value_error = effects.apply_retirement(
-        tmp_path,
-        tmp_path,
-        mode="superseded",
-        policy=policy,
-        lane=lane,
-        authority_lane=_lane("work/successor"),
-        accepted_head="b" * 40,
-    )
-    assert value_error["result"]["required_gaps"] == ["retirement_source_lease_present"]
-
-    monkeypatch.setattr(
-        effects.sqlite3,
-        "connect",
-        lambda *_args: (_ for _ in ()).throw(sqlite3.OperationalError("database unavailable")),
-    )
-    storage_error = effects.apply_retirement(
-        tmp_path,
-        tmp_path,
-        mode="landed",
-        policy=policy,
-        lane=lane,
-        authority_lane=lane,
-        accepted_head="b" * 40,
-    )
-    assert storage_error["error"] == "database unavailable"
 
 
 def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
@@ -331,19 +182,6 @@ def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
     ) == ["git_effect_plan_invalid"]
 
 
-def test_restore_worktree_projects_applied_attestation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    attestation = SimpleNamespace(
-        id="attestation:restore",
-        payload=SimpleNamespace(body={"result": {"state": "applied"}}),
-    )
-    monkeypatch.setattr(effects, "add_worktree", lambda *_args, **_kwargs: attestation)
-
-    assert effects.restore_worktree(tmp_path, _lane()) == {
-        "state": "applied",
-        "attestation_id": "attestation:restore",
-    }
 
 
 @pytest.mark.parametrize(
@@ -436,64 +274,8 @@ def test_archive_absorption_uses_only_the_exact_archived_change(
     assert tuple(roots) == expected
 
 
-class _Connection:
-    def __init__(self) -> None:
-        self.committed = False
-        self.rolled_back = False
-
-    def execute(self, *_args: object) -> None:
-        return None
-
-    def commit(self) -> None:
-        self.committed = True
-
-    def rollback(self) -> None:
-        self.rolled_back = True
-
-    def close(self) -> None:
-        return None
 
 
-@pytest.mark.parametrize("effect_gaps", [[], ["retirement_ref_stale"]])
-def test_successor_retirement_commits_only_the_terminal_effect(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    effect_gaps: list[str],
-) -> None:
-    connection = _Connection()
-    lane = _lane()
-    authority = _lane("work/successor")
-    monkeypatch.setattr(effects.sqlite3, "connect", lambda *_args: connection)
-    monkeypatch.setattr(effects, "state_database", lambda _repo: tmp_path / "state.sqlite")
-    monkeypatch.setattr(effects, "require_missing_lease", lambda *_args: None)
-    observed: list[str] = []
-    monkeypatch.setattr(
-        effects,
-        "expected_current_lease",
-        lambda *_args, **_kwargs: observed.append("lease"),
-    )
-    monkeypatch.setattr(effects, "effect_gaps", lambda *_args, **_kwargs: effect_gaps)
-    monkeypatch.setattr(effects, "remove_linked_lane", lambda *_args, **_kwargs: {})
-    monkeypatch.setattr(
-        effects,
-        "retirement_result",
-        lambda *_args, result, error, **_kwargs: {"result": result, "error": error},
-    )
-
-    result = effects.apply_retirement(
-        tmp_path,
-        tmp_path,
-        mode="superseded",
-        policy=BranchRolePolicy(),
-        lane=lane,
-        authority_lane=authority,
-        accepted_head="b" * 40,
-    )
-
-    assert observed == ["lease"]
-    assert connection.committed is (not effect_gaps)
-    assert connection.rolled_back is bool(effect_gaps)
-    assert result["result"].get("required_gaps", []) == effect_gaps
 
 
 def test_retirement_drift_checks_stop_at_the_first_fresh_boundary(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shlex
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import ClassVar
 from typing import Literal
@@ -12,11 +13,16 @@ from pydantic import ConfigDict
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.lane_retirement.linked_effect import linked_retirement_plan
 from ethos.adapters.mutation.lane_retirement.observation import output
-from ethos.adapters.mutation.lane_retirement.recovery import recover_worktree
-from ethos.adapters.mutation.lane_retirement.recovery import recovery_lane
+from ethos.adapters.mutation.lane_retirement.operation import apply_operation
+from ethos.adapters.mutation.lane_retirement.operation import persist_operation
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.profile import repository_identity
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
@@ -24,12 +30,10 @@ from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.retirement import RetirementOperation
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pathlib import Path
-
     from ethos.contracts.verdict import Verdict
 
 
@@ -45,6 +49,66 @@ class LinkedRetirementRequest(BaseModel):
     reason: str = ""
     authorize: bool = False
     apply: bool = False
+
+
+def compile_retirement_operation(
+    control_root: Path,
+    *,
+    mode: Literal["landed", "superseded"],
+    policy: BranchRolePolicy,
+    lane: dict[str, object],
+    authority: dict[str, object],
+    accepted_head: str,
+    reason: str,
+) -> RetirementOperation:
+    """Compile one immutable linked retirement request from admitted facts."""
+    actor = effects.actor_ref()
+    execution_root, plan = linked_retirement_plan(
+        control_root,
+        lane,
+        accepted=(policy.accepted_branch, accepted_head),
+        authority=authority,
+        mode=mode,
+        actor=actor,
+        worktree_clean=True,
+    )
+    branch = str(lane["branch"])
+    lease_state = str(lane.get("lease_state") or "missing")
+    target_lease = (
+        lease_generation(
+            {**cast("dict[str, object]", lane.get("lease") or {}), "lane_ref": branch}
+        )
+        if lease_state != "missing"
+        else {}
+    )
+    recovery_required = bool(lane.get("recovery_required"))
+    return RetirementOperation(
+        repository_common_dir=Path(git_common_dir(control_root)).resolve().as_posix(),
+        repository_identity=repository_identity(control_root, tree_ref=str(lane["head"])),
+        control_root=control_root.resolve().as_posix(),
+        execution_root=execution_root.resolve().as_posix(),
+        mode=mode,
+        branch=branch,
+        head=str(lane["head"]),
+        tree=current_tree(control_root, str(lane["head"])),
+        accepted_branch=policy.accepted_branch,
+        accepted_head=accepted_head,
+        worktree_path=str(lane.get("path") or ""),
+        worktree_initial="unbound" if recovery_required else "linked",
+        lease_state=cast("Literal['valid', 'expired', 'missing']", lease_state),
+        lease=target_lease,
+        authority={
+            "kind": "successor" if authority.get("branch") != lane.get("branch") else "owner",
+            "actor": actor,
+            "branch": str(authority.get("branch") or ""),
+            "head": str(authority.get("head") or ""),
+        },
+        reason={
+            "code": "accepted-absorption" if mode == "landed" else "successor-absorption",
+            "summary": reason or f"{mode} Work Lane retirement",
+        },
+        git_plan=plan.model_dump(mode="json"),
+    )
 
 
 def retire_linked_work_lane(
@@ -124,8 +188,6 @@ def retire_linked_work_lane(
         lane = {**lane, "retire_ready": not required_gaps, "required_gaps": required_gaps}
 
     state = "planned" if mode == "landed" else "ready_to_retire_superseded"
-    if mode == "superseded" and lane.get("recovery_required"):
-        state = "ready_to_recover_and_retire_superseded"
     if verdict != "pass":
         state = "blocked" if verdict == "block" else "unknown"
 
@@ -202,39 +264,24 @@ def retire_linked_work_lane(
     if not request.apply:
         return report
 
-    recovery = _apply_recovery(cast("Path", control_root), lane, mutation=mutation)
-    if recovery:
-        report |= recovery
-        if report.get("verdict") == "block":
-            return report
-
-    effect = effects.apply_retirement(
-        repo,
+    operation = compile_retirement_operation(
         cast("Path", control_root),
         mode=mode,
         policy=policy,
         lane=lane,
-        authority_lane=authority,
+        authority=authority,
         accepted_head=accepted_head,
+        reason=reason,
+    )
+    receipt = persist_operation(cast("Path", control_root), operation)
+    effect = apply_operation(
+        cast("Path", control_root),
+        operation,
+        request_receipt=receipt,
+        apply=True,
     )
     effect_gaps = string_sequence(effect.get("required_gaps"))
-    if effect_gaps:
-        return (
-            report
-            | effect
-            | {
-                "verdict": "block",
-                "mutation": mutation(effect_gaps),
-                "required_gaps": effect_gaps,
-            }
-        )
-    observed = cast("dict[str, object]", effect["observed"])
-    return report | {
-        "state": "retired" if mode == "landed" else "retired_superseded",
-        "retired": observed,
-        "next_action": f"ethos status --root {shlex.quote(repo.as_posix())} --json",
-        "user_decision_required": False,
-    }
+    return report | effect | {"receipt": receipt, "mutation": mutation(effect_gaps)}
 
 
 def _continuation(
@@ -304,7 +351,7 @@ def _retirement_target(
     ]
     if lanes or mode == "landed":
         return lanes, lanes[0] if lanes else {}
-    lane = recovery_lane(
+    lane = _unbound_retirement_target(
         policy=policy,
         worktrees=worktrees,
         leases=leases,
@@ -315,27 +362,61 @@ def _retirement_target(
     return lanes, _with_archive_absorption(repo, lane, accepted_head) if lane else {}
 
 
-def _apply_recovery(
-    control_root: Path,
-    lane: dict[str, object],
+def _unbound_retirement_target(
     *,
-    mutation: Callable[[list[str]], dict[str, object]],
+    policy: BranchRolePolicy,
+    worktrees: list[dict[str, object]],
+    leases: dict[str, dict[str, object]],
+    branch: str,
+    path: str,
+    head: str,
 ) -> dict[str, object]:
-    if not lane.get("recovery_required"):
+    """Compile one exact unbound source without recreating its worktree."""
+    if not path:
         return {}
-    recovery = recover_worktree(control_root, lane)
-    gaps = string_sequence(recovery.get("required_gaps"))
-    return (
-        {
-            "recovery": recovery,
-            "verdict": "block",
-            "state": "blocked",
-            "mutation": mutation(gaps),
-            "required_gaps": gaps,
-        }
-        if gaps
-        else {"recovery": recovery}
+    target = Path(path)
+    lease = leases.get(branch, {})
+    lease_state = str(lease.get("lease_state") or "missing")
+    gaps = _unbound_path_gaps(target, worktrees)
+    gaps.extend(
+        gap
+        for failed, gap in (
+            (policy.role_for_branch(branch) != ROLE_WORK_LANE, "superseded_retire_not_work_lane"),
+            (not head, "superseded_retire_branch_not_found"),
+            (lease_state == "unknown", f"work_lane_lease_unknown:{branch}"),
+            (lease_state == "expired", f"work_lane_lease_expired:{branch}"),
+            (
+                lease_state not in {"valid", "unknown", "expired"},
+                f"work_lane_missing_lease:{branch}",
+            ),
+        )
+        if failed
     )
+    return {
+        "branch": branch,
+        "path": target.as_posix(),
+        "head": head,
+        "lease": {key: value for key, value in lease_generation(lease).items() if key != "lane_ref"}
+        | {"mints_authority": False},
+        "lease_state": lease_state,
+        "recovery_required": True,
+        "retire_ready": not gaps,
+        "required_gaps": sorted(set(gaps)),
+    }
+
+
+def _unbound_path_gaps(target: Path, worktrees: list[dict[str, object]]) -> list[str]:
+    if not target.is_absolute():
+        return ["retirement_recovery_path_not_absolute"]
+    if target.exists() or target.is_symlink():
+        return ["retirement_recovery_path_collision"]
+    resolved = target.resolve()
+    registered = any(
+        path and Path(path).resolve() == resolved
+        for row in worktrees
+        if (path := str(row.get("path") or ""))
+    )
+    return ["retirement_recovery_path_registered"] if registered else []
 
 
 def _retirement_verdict(gaps: list[str] | tuple[str, ...]) -> Verdict:

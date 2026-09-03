@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import sqlite3
 import subprocess
-from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -16,10 +14,8 @@ import ethos.adapters.mutation.lane_retirement.linked_effect as linked_effect
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.adapters.repo.git_effects import admit_git_effect
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
-from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import BranchRolePolicy
 from tests.support.governed_repository import git
@@ -329,307 +325,28 @@ def test_landed_plan_admits_the_exact_expired_lease_observation(
     admit_git_effect(root, plan)
 
 
-def _persisted_lane(
-    database: Path,
-    *,
-    expired: bool,
-    generation: int = 1,
-) -> dict[str, object]:
-    lease = strict_lease(
-        branch="work/source",
-        holder="agent:test:case:holder",
-        generation=generation,
-        expires_at=datetime.now(UTC) + timedelta(days=-1 if expired else 1),
-    )
-    record = acquire_lease(database, lease=lease)
-    return {
-        **_lane(),
-        "lease_state": "expired" if expired else "valid",
-        "lease": {
-            "holder_ref": record["holder_ref"],
-            "generation": record["generation"],
-            "expires_at": record["expires_at"],
-        },
-    }
 
 
-def _missing_lane() -> dict[str, object]:
-    return {
-        **_lane(),
-        "lease_state": "missing",
-        "lease": {"mints_authority": False},
-    }
 
 
-def _apply_with_real_lease_transaction(
-    database: Path,
-    lane: dict[str, object],
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    effect_gaps: list[str] | None = None,
-    effect_result: dict[str, object] | None = None,
-) -> dict[str, object]:
-    monkeypatch.setattr(effects, "state_database", lambda _repo: database)
-    monkeypatch.setattr(
-        effects,
-        "effect_gaps",
-        lambda *_args, **_kwargs: list(effect_gaps or []),
-    )
-    monkeypatch.setattr(
-        effects,
-        "remove_linked_lane",
-        lambda *_args, **_kwargs: dict(effect_result or {}),
-    )
-    monkeypatch.setattr(
-        effects,
-        "retirement_result",
-        lambda *_args, result, error, **_kwargs: {
-            **result,
-            **({"error": str(error)} if error is not None else {}),
-        },
-    )
-    return effects.apply_retirement(
-        database.parent,
-        database.parent,
-        mode="landed",
-        policy=BranchRolePolicy(),
-        lane=lane,
-        authority_lane=lane,
-        accepted_head="b" * 40,
-    )
 
 
-@pytest.mark.parametrize("expired", [False, True])
-def test_landed_retirement_commits_exact_valid_or_expired_lease_removal(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    expired: bool,
-) -> None:
-    database = tmp_path / "state.sqlite"
-    lane = _persisted_lane(database, expired=expired)
-
-    report = _apply_with_real_lease_transaction(database, lane, monkeypatch)
-
-    assert report == {}
-    assert observe_lease(database, "work/source").state == "missing"
 
 
-def test_landed_retirement_commits_only_if_missing_lease_remains_missing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    database = tmp_path / "state.sqlite"
-    with closing(sqlite3.connect(database)) as connection, connection:
-        connection.execute("begin immediate")
-        initialize_state_connection(connection)
-
-    report = _apply_with_real_lease_transaction(database, _missing_lane(), monkeypatch)
-
-    assert report == {}
-    assert observe_lease(database, "work/source").state == "missing"
 
 
-def test_landed_retirement_rechecks_valid_lease_has_not_expired(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    database = tmp_path / "state.sqlite"
-    lane = _persisted_lane(database, expired=True)
-    lane["lease_state"] = "valid"
-
-    report = _apply_with_real_lease_transaction(database, lane, monkeypatch)
-
-    assert report["required_gaps"] == ["lease_expired"]
-    assert observe_lease(database, "work/source").state == "expired"
 
 
-def test_landed_retirement_rechecks_expired_lease_has_not_become_valid(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    database = tmp_path / "state.sqlite"
-    lane = _persisted_lane(database, expired=False)
-    lane["lease_state"] = "expired"
-
-    report = _apply_with_real_lease_transaction(database, lane, monkeypatch)
-
-    assert report["required_gaps"] == ["lease_not_expired"]
-    assert observe_lease(database, "work/source").state == "valid"
 
 
-def test_landed_retirement_rejects_lease_appearing_after_missing_observation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    database = tmp_path / "state.sqlite"
-    current = _persisted_lane(database, expired=False)
-
-    report = _apply_with_real_lease_transaction(database, _missing_lane(), monkeypatch)
-
-    assert report["required_gaps"] == ["retirement_source_lease_present"]
-    assert observe_lease(database, "work/source").record() == {
-        "subject": "work/source",
-        "lease_state": "valid",
-        "lane_ref": "work/source",
-        **current["lease"],
-    }
 
 
-def test_landed_retirement_rejects_unknown_lease_without_deletion(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    database = tmp_path / "state.sqlite"
-    with closing(sqlite3.connect(database)) as connection, connection:
-        connection.execute("begin immediate")
-        initialize_state_connection(connection)
-        connection.execute(
-            "insert into leases(lane_ref, holder_ref, generation, expires_at) values (?, ?, ?, ?)",
-            ("work/source", "agent:test:holder", 1, "not-a-time"),
-        )
-    lane = {
-        **_lane(),
-        "lease_state": "unknown",
-        "lease": {
-            "holder_ref": "agent:test:holder",
-            "generation": 1,
-            "expires_at": "not-a-time",
-        },
-    }
-
-    report = _apply_with_real_lease_transaction(database, lane, monkeypatch)
-
-    assert report["required_gaps"] == ["work_lane_lease_unknown"]
-    assert observe_lease(database, "work/source").state == "unknown"
 
 
-@pytest.mark.parametrize("expired", [False, True])
-def test_landed_retirement_rolls_back_lease_removal_when_effect_blocks(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    expired: bool,
-) -> None:
-    database = tmp_path / "state.sqlite"
-    lane = _persisted_lane(database, expired=expired)
-
-    report = _apply_with_real_lease_transaction(
-        database,
-        lane,
-        monkeypatch,
-        effect_result=effects.blocked(["git_effect_cas_rejected"]),
-    )
-
-    assert report["required_gaps"] == ["git_effect_cas_rejected"]
-    assert observe_lease(database, "work/source").state == ("expired" if expired else "valid")
 
 
-@pytest.mark.parametrize(
-    ("error", "terminal", "expected"),
-    [
-        (OSError("uncertain"), True, {"observed": {"terminal": True}}),
-        (
-            sqlite3.OperationalError("uncertain"),
-            False,
-            {
-                "verdict": "block",
-                "state": "blocked",
-                "required_gaps": ["lease_cleanup_failed"],
-                "stderr": "uncertain",
-                "observed": {"terminal": False},
-            },
-        ),
-        (None, True, {"observed": {"terminal": True}}),
-        (
-            None,
-            False,
-            {
-                "verdict": "block",
-                "state": "blocked",
-                "required_gaps": ["retirement_postcondition_not_terminal"],
-                "observed": {"terminal": False},
-            },
-        ),
-    ],
-)
-def test_retirement_result_distinguishes_uncertain_success_from_failure(
-    monkeypatch: pytest.MonkeyPatch,
-    error: OSError | sqlite3.Error | None,
-    terminal: int,
-    expected: dict[str, object],
-) -> None:
-    observed = {"terminal": bool(terminal)}
-    monkeypatch.setattr(effects, "retirement_observation", lambda *_args: observed)
-    monkeypatch.setattr(effects, "retirement_terminal", lambda _observed: bool(terminal))
-
-    assert (
-        effects.retirement_result(Path("/repo"), Path("/control"), _lane(), result={}, error=error)
-        == expected
-    )
 
 
-@pytest.mark.parametrize(
-    ("accepted_state", "authority_state", "source_state", "restored", "gaps"),
-    [
-        (
-            "expected",
-            "moved",
-            "moved",
-            False,
-            {
-                "authority_ref_changed_after_worktree_removed",
-                "retirement_ref_moved_after_worktree_removed",
-            },
-        ),
-        (
-            "expected",
-            "unavailable",
-            "absent",
-            False,
-            {
-                "authority_ref_state_unavailable_after_worktree_removed",
-                "retirement_ref_absent_after_failed_delete",
-            },
-        ),
-        (
-            "expected",
-            "expected",
-            "expected",
-            False,
-            {"worktree_restore_failed_after_ref_transition"},
-        ),
-    ],
-)
-def test_failed_ref_transition_reports_each_preservation_failure(
-    monkeypatch: pytest.MonkeyPatch,
-    accepted_state: str,
-    authority_state: str,
-    source_state: str,
-    restored: int,
-    gaps: set[str],
-) -> None:
-    def outcome(_root: Path, branch: str, _head: str) -> str:
-        return {
-            "dev": accepted_state,
-            "work/authority": authority_state,
-            "work/source": source_state,
-        }[branch]
-
-    monkeypatch.setattr(effects, "ref_outcome", outcome)
-    monkeypatch.setattr(
-        effects,
-        "restore_worktree",
-        lambda *_args: {"state": "recognized" if restored else "blocked"},
-    )
-
-    report = effects.failed_ref_transition(
-        Path("/control"),
-        lane=_lane(),
-        target=("work/source", "a" * 40),
-        accepted=("dev", "b" * 40),
-        authority=("work/authority", "c" * 40),
-        stderr="effect rejected",
-    )
-
-    assert gaps <= set(report["required_gaps"])
-    assert report["ref_state"] == source_state
-    assert report["ref_preserved"] is (source_state == "expected")
 
 
 @pytest.mark.parametrize(
@@ -757,40 +474,6 @@ def test_effect_gaps_recheck_successor_checkout_and_archive_mapping(
     assert gaps == ["retirement_archive_absorption_stale"]
 
 
-@pytest.mark.parametrize(
-    ("path", "branch", "add_error", "expected"),
-    [
-        (
-            "",
-            "work/source",
-            False,
-            {"state": "blocked", "error": "worktree_restore_coordinates_missing"},
-        ),
-        (
-            "/lane",
-            "",
-            False,
-            {"state": "blocked", "error": "worktree_restore_coordinates_missing"},
-        ),
-        ("/lane", "work/source", True, {"state": "blocked", "error": "restore rejected"}),
-        ("/lane", "work/source", False, {"state": "recognized"}),
-    ],
-)
-def test_restore_worktree_reports_exact_compensation_outcome(
-    monkeypatch: pytest.MonkeyPatch,
-    path: str,
-    branch: str,
-    add_error: int,
-    expected: dict[str, str],
-) -> None:
-    def add(*_args: object, **_kwargs: object) -> None:
-        if add_error:
-            message = "restore rejected"
-            raise ValueError(message)
-
-    monkeypatch.setattr(effects, "add_worktree", add)
-
-    assert effects.restore_worktree(Path("/control"), _lane(path=path, branch=branch)) == expected
 
 
 @pytest.mark.parametrize(
@@ -815,7 +498,7 @@ def test_reobservation_reports_unavailable_and_stale_native_state(
     assert gap in effects.reobservation_gaps("work/source", lane.as_posix(), "a" * 40)
 
 
-def test_superseded_retirement_recovers_exact_unbound_lease_then_retires(
+def test_superseded_retirement_retires_exact_unbound_lane_without_recreating_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     holder = "agent:test:case:partial-recovery"
@@ -830,7 +513,7 @@ def test_superseded_retirement_recovers_exact_unbound_lease_then_retires(
     assert_public_decision(
         planned,
         verdict="pass",
-        state="ready_to_recover_and_retire_superseded",
+        state="ready_to_retire_superseded",
         gaps=[],
     )
     assert planned["lane"]["recovery_required"] is True
@@ -842,13 +525,12 @@ def test_superseded_retirement_recovers_exact_unbound_lease_then_retires(
         request=request.model_copy(update={"apply": True}),
     )
 
-    assert_public_decision(applied, verdict="pass", state="retired_superseded", gaps=[])
-    assert applied["recovery"]["state"] == "recovered_for_retirement"
-    assert not applied["recovery"]["hook_runtime"]["required_gaps"]
+    assert_public_decision(applied, verdict="pass", state="retired", gaps=[])
+    assert "recovery" not in applied
     _assert_retired(repo, lane, database)
 
 
-def test_superseded_retirement_keeps_recovered_worktree_when_ref_effect_blocks(
+def test_superseded_retirement_keeps_unbound_lane_absent_when_ref_effect_blocks(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     holder = "agent:test:case:partial-recovery"
@@ -857,9 +539,8 @@ def test_superseded_retirement_keeps_recovered_worktree_when_ref_effect_blocks(
     git(repo, "worktree", "remove", lane.as_posix())
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     monkeypatch.setattr(
-        effects,
-        "remove_linked_lane",
-        lambda *_args, **_kwargs: effects.blocked(["git_effect_cas_rejected"]),
+        "ethos.adapters.mutation.lane_retirement.operation.delete_operation_ref",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("git_effect_cas_rejected")),
     )
     request = _retirement_request(head, accepted, apply=True).model_copy(
         update={"path": lane.as_posix()}
@@ -869,8 +550,10 @@ def test_superseded_retirement_keeps_recovered_worktree_when_ref_effect_blocks(
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["git_effect_cas_rejected"]
-    assert (lane.exists(), git(lane, "rev-parse", "HEAD")) == (True, head)
-    assert not hook_runtime_binding(lane)["required_gaps"]
+    assert not lane.exists()
+    assert report["completed_effects"] == []
+    assert report["remaining_effects"] == ["delete_ref", "revoke_lease"]
+    assert "ethos lane retire recover" in report["next_action"]
     assert git(repo, "rev-parse", BRANCH) == head
     assert observe_lease(database, BRANCH).state == "valid"
 

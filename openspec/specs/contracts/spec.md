@@ -209,9 +209,9 @@ replay runtime, shadow model, or debt contract.
 
 - **WHEN** ETHOS loads `.config/checks/format/selection.toml`
 - **THEN** it requires non-compensating role ceilings and a jointly derived
-  global ceiling, one bounded `scc` command with
-  exact non-negative tolerances, a fixed canonicalization line width, named
-  aggregate members, and admitted format budget rows
+  global ceiling, one bounded `scc` command with exact non-negative tolerances,
+  a fixed canonicalization line width, named aggregate members, and admitted
+  format budget rows
 - **AND** `global_total` contains every admitted category exactly once and
   `python_total` contains every Python category exactly once
 - **AND** invalid shape, duplicate or unknown aggregate membership, incomplete
@@ -226,14 +226,15 @@ replay runtime, shadow model, or debt contract.
 - **WHEN** ETHOS measures a repository
 - **THEN** it obtains one sorted inventory of tracked and non-ignored untracked
   Git-present regular files contained by the repository and preserves executable
-  mode as an inventory fact
+  mode while classifying each file
 - **AND** each admitted path is classified once by declared extension and
   optional path patterns, or by a declared shebang when an executable has no
   extension
 - **AND** a Git-present executable that has neither an admitted extension nor an
   admitted shebang produces a required unclassified-executable gap
-- **AND** the inventory digest is derived from sorted path, category, and effective
-  line observations rather than checkout location or iteration order.
+- **AND** the report exposes the directly consumed file count, category counts,
+  measurements, and independent cross-check rather than an unconsumed inventory
+  checksum.
 
 #### Scenario: Python ELOC has one semantic owner
 

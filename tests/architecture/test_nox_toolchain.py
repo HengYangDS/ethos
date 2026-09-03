@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -44,11 +45,32 @@ def test_project_runtime_is_the_only_executable_resolution_owner() -> None:
     consumers = (
         "tools/ci/sessions.py",
         "tools/ci/dependency_hygiene.py",
-        "tools/ci/local_install_smoke.py",
+        "tools/ci/delivery/acceptance/effect.py",
         "tools/ci/delivery/pipeline.py",
+        "tools/ci/delivery/supply.py",
     )
     for relative in consumers:
         assert "tools.ci.toolchain.environment" in (ROOT / relative).read_text(encoding="utf-8")
+
+
+def test_pytest_git_environment_is_hermetic() -> None:
+    count = int(os.environ["GIT_CONFIG_COUNT"])
+    entries = tuple(
+        (os.environ[f"GIT_CONFIG_KEY_{index}"], os.environ[f"GIT_CONFIG_VALUE_{index}"])
+        for index in range(count)
+    )
+
+    assert ("core.fsmonitor", "false") in entries
+    assert len([key for key, _value in entries if key == "init.templateDir"]) == 1
+    assert not {"user.name", "user.email"} & {key for key, _value in entries}
+    assert all(value for _key, value in entries)
+    assert os.environ["GIT_AUTHOR_NAME"] == "ETHOS Test"
+    assert os.environ["GIT_AUTHOR_EMAIL"] == "test@example.invalid"
+    assert os.environ["GIT_COMMITTER_NAME"] == "ETHOS Test"
+    assert os.environ["GIT_COMMITTER_EMAIL"] == "test@example.invalid"
+    assert os.environ["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert os.environ["GIT_CONFIG_NOSYSTEM"] == "1"
+    assert os.environ["GIT_TERMINAL_PROMPT"] == "0"
 
 
 def test_lint_inventory_excludes_deleted_worktree_paths(

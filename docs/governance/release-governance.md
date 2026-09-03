@@ -60,11 +60,21 @@ product ontology anchors.
 
 The local installation owner builds the workspace wheels under
 `build/artifacts/python/`, creates a fresh environment under
-`build/runtime/work/local-install-smoke/`, installs with network access
-disabled, verifies that both `ethos` and `ethos` load from that
-environment, and exercises the installed CLI help and version surfaces. Its
-HEAD-bound receipt lives at `build/evidence/local-install/smoke.json`. This
-local proof does not assert registry delivery, remote publication, or hosted
+`build/runtime/work/local-install-smoke/`, installs the frozen production
+dependency closure there once, installs the wheel into that same environment
+without resolving dependencies again, and executes the package lifecycle
+exactly once with network access disabled. The installed entrypoint activates a
+Git-common runtime; that runtime activates its successor, proves immutable
+wheel/source/runtime identity, excludes development dependencies, survives
+bootstrap-environment removal, repairs a stale hook projection, starts and
+retires a first Work Lane, and recovers a partially completed retirement. The
+same run emits the sole HEAD-bound receipt at
+`build/evidence/local-install/smoke.json` only after its exact owned transient
+root has been removed successfully. Installed runtime and lane commands share
+one result-observation boundary that validates the public result and preserves
+the exit code and stderr without owning policy. Unit and architecture tests
+verify declarations and pure contracts but do not repeat this lifecycle. The
+local receipt does not assert registry delivery, remote publication, or hosted
 runner success.
 
 The supply-chain owner runs only after the Python wheel exists. The policy-owned Syft release

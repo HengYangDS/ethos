@@ -8,10 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import tools.ci.delivery.acceptance.effect as acceptance_effect
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
-from tools.ci.local_install_smoke import prepare_supply
-from tools.ci.local_install_smoke import run as run_install_smoke
 
 if TYPE_CHECKING:
     import nox
@@ -46,6 +45,9 @@ class DeliveryPipeline:
                 self.runtime.script("uv"),
                 "build",
                 "--offline",
+                "--no-build-isolation",
+                "--python",
+                str(self.runtime.python),
                 "--wheel",
                 "--out-dir",
                 str(staging),
@@ -60,14 +62,9 @@ class DeliveryPipeline:
                 self.runtime.root / "build/artifacts/python",
             )
 
-    def prepare_supply(self) -> None:
-        """Materialize the frozen runtime dependency supply for offline proof."""
-        prepare_supply()
-
     def prove_install(self, session: nox.Session) -> None:
         """Install and exercise the built wheel without source-checkout fallback."""
-        self.prepare_supply()
-        run_install_smoke(session)
+        acceptance_effect.run(session)
 
     def prove_host(self, session: nox.Session) -> None:
         """Run the complete package-only acceptance sequence on this host."""
@@ -79,7 +76,6 @@ class DeliveryPipeline:
             "pytest",
             "-q",
             "tests/architecture/test_portable_toolchain.py",
-            "tests/architecture/test_local_install_smoke.py",
         )
 
 

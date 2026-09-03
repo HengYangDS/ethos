@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE = "native_windows_powershell_unavailable"
+NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
 
 
 class ProcessExecutionError(ValueError):
@@ -62,6 +64,27 @@ def windows_powershell(*, environment: Mapping[str, str] | None = None) -> str:
             command=(executable.as_posix(),),
         )
     return executable.resolve().as_posix()
+
+
+def process_listing_command(*, platform_name: str | None = None) -> tuple[str, ...]:
+    """Return the native process-listing command without consulting ambient PATH."""
+    windows = "Get-CimInstance Win32_Process | % CommandLine"
+    if (platform_name or os.name) == "nt":
+        return (
+            windows_powershell(),
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            windows,
+        )
+    executable = shutil.which("ps", path=os.defpath)
+    if executable is None or not Path(executable).is_file():
+        raise ProcessExecutionError(
+            NATIVE_PROCESS_OBSERVER_UNAVAILABLE,
+            reason="native_executable_missing",
+        )
+    return (Path(executable).resolve().as_posix(), "-axo", "command=")
 
 
 def run_command(

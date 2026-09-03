@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,30 @@ def test_windows_powershell_rejects_missing_native_authority(
         "cwd": "",
         "cause": "",
     }
+
+
+def test_posix_process_listing_resolves_native_ps_outside_ambient_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    native = tmp_path / "native/ps"
+    native.parent.mkdir()
+    native.write_text("native\n", encoding="utf-8")
+    native.chmod(0o755)
+    observed: dict[str, str] = {}
+    monkeypatch.setenv("PATH", (tmp_path / "ambient").as_posix())
+
+    def resolve(name: str, *, path: str) -> str:
+        observed.update(name=name, path=path)
+        return native.as_posix()
+
+    monkeypatch.setattr(process_adapter.shutil, "which", resolve)
+
+    assert process_adapter.process_listing_command(platform_name="posix") == (
+        native.resolve().as_posix(),
+        "-axo",
+        "command=",
+    )
+    assert observed == {"name": "ps", "path": os.defpath}
 
 
 def test_process_creation_failure_preserves_exact_execution_evidence(

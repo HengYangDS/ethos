@@ -36,7 +36,6 @@ PUBLIC_SESSIONS = (
     "tests",
     "coverage_floor",
     "build",
-    "prepare_install_supply",
     "install_smoke",
     "host_conformance",
     "dependencies",
@@ -133,10 +132,6 @@ def coverage_floor(session) -> None:
 
 def build(session) -> None:
     DELIVERY.build(session)
-
-
-def prepare_install_supply(_session) -> None:
-    DELIVERY.prepare_supply()
 
 
 def install_smoke(session) -> None:

@@ -238,16 +238,17 @@ gate = "uv run --frozen --offline python -m nox -s build"
 [[tool]]
 concern = "python_runtime_supply"
 tool = "uv lock-bound dependency supply"
-config = "pyproject.toml + uv.lock + noxfile.py + tools/ci/local_install_smoke.py"
+config = "pyproject.toml + uv.lock + tools/ci/delivery/supply.py"
 executables = ["uv"]
+runtime_inputs = ["UV_CACHE_DIR"]
 artifacts = "build/runtime/tool-cache/uv/"
 profile = "release"
-gate = "uv run --frozen python -m nox -s prepare_install_supply"
+gate = "uv run --frozen --offline python -m nox -s install_smoke"
 
 [[tool]]
 concern = "local_install_smoke"
 tool = "uv offline wheel installation smoke"
-config = ".ethos/release.toml + noxfile.py + tools/ci/local_install_smoke.py"
+config = ".ethos/release.toml + system/gates.toml + tools/ci/delivery/pipeline.py + tools/ci/delivery/acceptance/"
 artifacts = "build/evidence/local-install/"
 profile = "release"
 gate = "uv run --frozen --offline python -m nox -s install_smoke"

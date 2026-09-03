@@ -12,7 +12,6 @@ import ethos.adapters.mutation.publication.observation as publication_observatio
 import ethos.adapters.mutation.remote_publication as remote_publication
 import ethos.repository.release.publication as release_publication
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -29,6 +28,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import write_role_policy
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
 def _write_local_only_publication(repo: Path) -> None:
@@ -801,7 +801,7 @@ def test_publish_and_pre_push_bind_the_same_exact_proof_attestation(tmp_path: Pa
 
 def test_publish_and_pre_push_report_the_same_exact_missing_proof_action(tmp_path: Path) -> None:
     repo, _remotes, head = _branch_publication_fixture(tmp_path)
-    install_hook_launchers(repo)
+    install_fixture_hook_runtime(repo)
     attestation_root = git(repo, "rev-parse", "--verify", "refs/ethos/attestations-set")
     git(repo, "update-ref", "-d", "refs/ethos/attestations-set", attestation_root)
 

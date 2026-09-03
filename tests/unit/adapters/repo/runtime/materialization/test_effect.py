@@ -88,6 +88,102 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return (runtime_root, work, source, interpreter, artifact, _environment()), observed
 
 
+def test_ordinary_wheel_install_materializes_the_embedded_locked_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert (
+        subprocess.run(
+            ("git", "init", "--quiet", "--initial-branch=dev"),
+            cwd=repo,
+            check=False,
+        ).returncode
+        == 0
+    )
+    package_source = tmp_path / "bootstrap/lib/python3.14"
+    module = package_source / "site-packages/ethos/adapters/repo/runtime/materialization/effect.py"
+    project = tmp_path / "embedded-runtime-project"
+    interpreter = _write(tmp_path / "managed-python/bin/python", b"python")
+    wheel = _write(tmp_path / "ethos.whl", b"wheel")
+    requirements = _write(tmp_path / "locked-requirements.txt", b"package==1\n")
+    cache = tmp_path / "shared-uv-cache"
+    identity = runtime_build("a" * 40, "b" * 40)
+    environment = _environment()
+    observed: dict[str, object] = {}
+
+    monkeypatch.setenv("UV_CACHE_DIR", cache.as_posix())
+    monkeypatch.setattr(runtime_materialization, "__file__", module.as_posix())
+    monkeypatch.setattr(runtime_materialization, "resolve_runtime_project", lambda _root: project)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "resolve_owned_interpreter",
+        lambda _source, _python: interpreter,
+    )
+    monkeypatch.setattr(runtime_materialization, "observe_python_facts", lambda _python: {})
+    monkeypatch.setattr(
+        runtime_materialization,
+        "observe_runtime_environment",
+        lambda *_args, **_kwargs: environment,
+    )
+    monkeypatch.setattr(runtime_materialization, "_reusable_runtime", lambda *_args: None)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "is_selected_runtime_source",
+        lambda _source: False,
+    )
+
+    def resolve_wheel(source: Path, _wheel_dir: Path, **_kwargs: object) -> Path:
+        observed["source"] = source
+        observed["wheel_cache"] = _kwargs["cache_dir"]
+        return wheel
+
+    monkeypatch.setattr(runtime_materialization, "resolve_runtime_wheel", resolve_wheel)
+
+    def prepare(
+        source: Path,
+        _work: Path,
+        selected_interpreter: Path,
+        **_kwargs: object,
+    ) -> Path:
+        observed["prepared"] = (source, selected_interpreter)
+        observed["requirements_cache"] = _kwargs["cache_dir"]
+        return requirements
+
+    monkeypatch.setattr(runtime_materialization, "prepare_locked_requirements", prepare)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_package_wheel",
+        lambda *_args, **_kwargs: PackageArtifact(wheel, "c" * 64, identity),
+    )
+
+    def materialize_generation(*_args: object, **kwargs: object) -> Path:
+        observed["locked_requirements"] = kwargs["locked_requirements"]
+        observed["generation_cache"] = kwargs["cache_dir"]
+        return tmp_path / "runtime-generation"
+
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_runtime_generation",
+        materialize_generation,
+    )
+
+    runtime = runtime_materialization.materialize_runtime(
+        repo,
+        interpreter,
+        expected_build=identity,
+    )
+
+    assert observed["source"] == package_source
+    assert observed["prepared"] == (project, interpreter)
+    assert observed["wheel_cache"] == cache
+    assert observed["requirements_cache"] == cache
+    assert observed["generation_cache"] == cache
+    assert observed["locked_requirements"] == requirements
+    assert runtime == tmp_path / "runtime-generation/python"
+
+
 def test_materialized_python_is_a_product_owned_non_mutating_closure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

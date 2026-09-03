@@ -34,6 +34,31 @@ def test_hook_launcher_uses_git_shell_and_current_runtime_selector() -> None:
     assert 'exec "$RUNTIME/python/bin/python" -B -I -m ethos.cli hook run pre-commit "$@"' in text
 
 
+def test_hook_launcher_enters_the_selected_runtime_without_ambient_path(tmp_path: Path) -> None:
+    digest = "a" * 64
+    hooks = tmp_path / "ethos/hooks/generation"
+    runtime = tmp_path / "ethos/runtime" / digest / "python/bin/python"
+    hooks.mkdir(parents=True)
+    runtime.parent.mkdir(parents=True)
+    (tmp_path / "ethos/runtime/CURRENT").write_text(f"{digest}\n", encoding="ascii")
+    runtime.write_text('#!/bin/sh\nprintf "%s\\n" "$*"\n', encoding="utf-8")
+    runtime.chmod(0o755)
+    launcher = hooks / "pre-commit"
+    launcher.write_text(hook_launcher("pre-commit"), encoding="utf-8")
+    launcher.chmod(0o755)
+
+    completed = subprocess.run(
+        (launcher.as_posix(), "argument"),
+        check=False,
+        capture_output=True,
+        env={"PATH": ""},
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout == "-B -I -m ethos.cli hook run pre-commit argument\n"
+
+
 def test_windows_hook_launcher_uses_the_standalone_runtime_python(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import hashlib
-import json
 
 from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
+
+from ethos.contracts.semantic import canonical_json_bytes
 
 
 class IndependentVerificationReceipt(BaseModel):
@@ -49,10 +50,12 @@ class IndependentVerificationReceipt(BaseModel):
             raise ValueError(msg)
         return self
 
-    def canonical_payload_digest(self) -> str:
+    def canonical_payload_bytes(self) -> bytes:
         payload = self.model_dump(mode="json", exclude={"signature", "payload_digest"})
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return canonical_json_bytes(payload)
+
+    def canonical_payload_digest(self) -> str:
+        return hashlib.sha256(self.canonical_payload_bytes()).hexdigest()
 
     def to_payload(self) -> dict[str, object]:
         return {

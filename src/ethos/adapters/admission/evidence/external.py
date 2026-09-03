@@ -20,7 +20,7 @@ from pydantic import ValidationError
 import ethos.adapters.repo.git as git
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
-from ethos.contracts.rules import stable_digest
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.profile import IndependentVerificationPolicy
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps
@@ -161,8 +161,6 @@ def verify_independent_receipt_signature(
     ssh_keygen = shutil.which("ssh-keygen")
     if not ssh_keygen:
         return False
-    payload = receipt.model_dump(mode="json", exclude={"signature", "payload_digest"})
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     try:
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as signature_file:
             signature_file.write(receipt.signature)
@@ -181,7 +179,7 @@ def verify_independent_receipt_signature(
                     "-s",
                     signature_file.name,
                 ],
-                input=canonical,
+                input=receipt.canonical_payload_bytes(),
                 text=False,
                 capture_output=True,
                 check=False,
@@ -222,7 +220,7 @@ def independent_verification_request(*, root: Path, action: str) -> dict[str, ob
         "tree": tree,
         "action": action,
         "proof_floor_id": "ethos:promotion-required-gates:v1",
-        "proof_floor_digest": stable_digest({"gate_ids": sorted(floor)}),
+        "proof_floor_digest": canonical_json_digest({"gate_ids": sorted(floor)}),
         "policy_digest": policy.digest if policy else "",
         "implementation_digest": "",
     }

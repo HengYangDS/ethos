@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import configparser
 import fnmatch
-import hashlib
 import json
 import math
 import shutil
@@ -287,9 +286,7 @@ def _measure(
         }
     for name, members in policy.aggregates.items():
         metrics[name] = sum(metrics[member] for member in members)
-    encoded = json.dumps(records, sort_keys=True, separators=(",", ":")).encode()
     inventory = {
-        "digest": hashlib.sha256(encoded).hexdigest(),
         "file_count": len(records),
         "category_counts": dict(
             sorted(Counter(str(item["category"]) for item in records.values()).items())

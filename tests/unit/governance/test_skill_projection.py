@@ -56,6 +56,36 @@ def test_activation_registry_contains_only_current_v2_semantics() -> None:
     )
 
 
+def test_skill_registry_schema_rejects_an_unowned_digest_projection() -> None:
+    registry = normalize_skill_activation(
+        {
+            "meta": {"version": 2, "source_of_truth": "repository"},
+            "coverage": {
+                "required_primary_subjects": ["sample"],
+                "single_owner_subjects": ["sample"],
+            },
+            "skill": [
+                _skill(
+                    "sample",
+                    path=".agents/skills/sample/SKILL.md",
+                    package_manifest=".agents/skills/sample/package.toml",
+                    authority="primary",
+                    boundary="repository",
+                    pre_reads=["AGENTS.md"],
+                    post_checks=["ethos status --json"],
+                )
+            ],
+        },
+        source="test",
+    )
+    assert validate_schema_instance("skill-registry.schema.json", registry)["verdict"] == "pass"
+    registry["digest"] = "sha256:" + "a" * 64
+
+    result = validate_schema_instance("skill-registry.schema.json", registry)
+
+    assert result["verdict"] == "block"
+
+
 @pytest.mark.parametrize("retired_key", ["name", "may_coactivate", "unexpected"])
 def test_skill_activation_schema_rejects_retired_or_unknown_fields(retired_key: str) -> None:
     skill = {

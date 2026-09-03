@@ -7,7 +7,6 @@ from typing import cast
 
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
-from ethos.contracts.rules import stable_digest
 from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.policy.rules.config import configured_rules
 from ethos.repository.policy.rules.config import load_rules_config
@@ -183,22 +182,14 @@ def compile_rules(root: Path) -> dict[str, object]:
         rules=tuple(sorted(rules, key=lambda rule: rule.id)),
     )
     rule_set_payload = rule_set.model_dump(mode="json")
-    rule_set_digest = rule_set.digest
     source_refs = ["product:starter-rules"]
     if rules_path(root).exists():
         source_refs.append(".ethos/rules.toml")
-    compiled_policy = {
-        "rule_set_digest": rule_set_digest,
-        "profiles": profile_stack,
-        "source_refs": source_refs,
-    }
     return {
         "schema_version": 1,
         "profile_stack": profile_stack,
         "coverage_tier": "strict" if STRICT_PROFILE in profile_stack else "starter",
         "rules": rule_set_payload["rules"],
-        "rule_set_digest": rule_set_digest,
-        "compiled_policy_digest": stable_digest(compiled_policy),
         "source_refs": source_refs,
         "compile_gaps": compile_gaps,
         "gate_definitions": gate_definitions_by_id,

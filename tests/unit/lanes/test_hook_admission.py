@@ -18,7 +18,6 @@ from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.runtime.binding import runner_source_root
@@ -29,6 +28,7 @@ from ethos.contracts.admission import HookAdmissionRequest
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import conformant_proof_check
+from tests.support.governed_repository import current_proof_plan
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_publication_topology
@@ -117,7 +117,7 @@ def _identity_commit(
 
 
 def _proof_for_head(root: Path, head: str):
-    plan = proof_plan(root, head=head)
+    plan = current_proof_plan(root, expected_head=head)
     checks = tuple(
         conformant_proof_check(gate, root, tree_ref=head)
         for gate in resolve_gate_policy(root, tree_ref=head).gate_ids
@@ -642,7 +642,7 @@ def test_attestation_validity_matrix(tmp_path: Path) -> None:
     focused = issue_proof_attestation(
         repo,
         {
-            "plan": proof_plan(repo, head=head, gate_ids=(gate,)),
+            "plan": current_proof_plan(repo, expected_head=head, gate_ids=(gate,)),
             "checks": (conformant_proof_check(gate, repo, tree_ref=head),),
             "verdict": "pass",
             "issuer": "agent:test:case:hook",

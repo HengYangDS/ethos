@@ -595,7 +595,7 @@ def _signed_publication_fixture(
     )
     (repo / "VERSION").write_text("1.2.3\n", encoding="ascii")
     (repo / "release.txt").write_text("release\n", encoding="utf-8")
-    git(repo, "add", "VERSION", "release.txt")
+    git(repo, "add", ".ethos/release.toml", "VERSION", "release.txt")
     git(repo, "commit", "-m", "feat: publish exact local object")
     commit = git(repo, "rev-parse", "HEAD")
     tree = git(repo, "rev-parse", "HEAD^{tree}")

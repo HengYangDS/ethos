@@ -165,7 +165,7 @@ def _arrange(
 @pytest.mark.parametrize(
     ("case", "expected_gap", "next_action"),
     [
-        ("plan-error", "proof_plan_invalid", "ethos adopt"),
+        ("plan-error", "proof_plan_invalid", "ethos plan --changed --json"),
         ("plan-blocked", "plan_gap", "repair the Commitment or repository facts"),
         ("runner-error", "proof_plan_head_missing", "ethos plan --changed --json"),
     ],
@@ -196,6 +196,76 @@ def test_prove_fail_closed_before_result_compilation(
 
     assert emitted[-1].required_gaps == (expected_gap,)
     assert emitted[-1].next_action == next_action
+
+
+def test_prove_preserves_nonpassing_current_resolution_without_planning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _repo, emitted = _arrange(monkeypatch, tmp_path)
+    resolution = CurrentResolution(
+        verdict="block",
+        authority=None,
+        commitment=None,
+        scope=CurrentScope(()),
+        required_gaps=("invocation_actor_missing:work/feature",),
+        next_action="export ETHOS_ACTOR=agent:test:case:agent-a",
+        user_decision_required=True,
+    )
+    monkeypatch.setattr(
+        proof_cli,
+        "_proof_context",
+        lambda *_args, **_kwargs: (
+            "a" * 40,
+            {"verdict": "pass", "required_gaps": []},
+            resolution,
+            {},
+        ),
+    )
+    monkeypatch.setattr(
+        proof_cli,
+        "proof_plan",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("proof planning must not run after current resolution blocks")
+        ),
+    )
+
+    proof_cli.prove(root=tmp_path, json_output=True)
+
+    result = emitted[-1]
+    assert result.verdict == resolution.verdict
+    assert result.required_gaps == resolution.required_gaps
+    assert result.next_action == resolution.next_action
+    assert result.user_decision_required is resolution.user_decision_required
+
+
+def test_prove_does_not_replace_unexpected_resolution_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
+    monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
+    monkeypatch.setattr(
+        proof_cli.status_domain,
+        "audit_for_root",
+        lambda *_args, **_kwargs: {"verdict": "pass", "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        proof_cli,
+        "workspace_status_observation",
+        lambda *_args, **_kwargs: (
+            {"head": "a" * 40, "branch": "dev", "role": "accepted"},
+            None,
+        ),
+    )
+    monkeypatch.setattr(
+        proof_cli,
+        "resolve_current_resolution",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("resolution_failed")),
+    )
+
+    with pytest.raises(ValueError, match=r"^resolution_failed$"):
+        proof_cli.prove(root=tmp_path, json_output=True)
 
 
 @pytest.mark.parametrize(
@@ -342,39 +412,6 @@ def test_prove_emits_the_issuance_gap_without_a_second_result(
     assert emitted[0].required_gaps == ("proof_binding_invalid",)
 
 
-def test_resolve_generation_uses_the_current_resolution_owner(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    commitment = commitment_fixture(
-        id="repository:proof-command", acceptance=("acceptance:fixture",)
-    )
-    resolution = CurrentResolution(
-        verdict="pass",
-        authority=None,
-        commitment=commitment,
-        scope=CurrentScope(("a.py",)),
-    )
-    authority = object()
-    monkeypatch.setattr(
-        proof_cli,
-        "workspace_status_observation",
-        lambda *_args, **_kwargs: (
-            {"head": "a" * 40, "branch": "dev", "role": "accepted"},
-            authority,
-        ),
-    )
-
-    def select(*_args, **kwargs):
-        assert kwargs["authority"] is authority
-        assert kwargs["status"]["head"] == "a" * 40
-        assert kwargs["changed"] is True
-        return resolution
-
-    monkeypatch.setattr(proof_cli, "resolve_current_resolution", select)
-
-    assert proof_cli.resolve_generation(tmp_path) == resolution
-
-
 @pytest.mark.parametrize("openspec", [False, True])
 def test_prove_compiles_one_shared_repository_and_openspec_context(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, openspec: bool
@@ -403,11 +440,25 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
         "required_gaps": [],
         "openspec": {"mode": "deep"},
     }
+    status = {"head": "a" * 40, "branch": "dev", "role": "accepted"}
+    authority = object()
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
-    monkeypatch.setattr(proof_cli.git, "current_head", lambda _root: "a" * 40)
     monkeypatch.setattr(proof_cli.status_domain, "audit_for_root", lambda *_args, **_kwargs: audit)
-    monkeypatch.setattr(proof_cli, "resolve_generation", lambda *_args, **_kwargs: binding)
+    monkeypatch.setattr(
+        proof_cli,
+        "workspace_status_observation",
+        lambda *_args, **_kwargs: (status, authority),
+    )
+
+    def resolve(*_args, **kwargs):
+        assert kwargs["status"] is status
+        assert kwargs["authority"] is authority
+        assert kwargs["change"] is None
+        assert kwargs["changed"] is True
+        return binding
+
+    monkeypatch.setattr(proof_cli, "resolve_current_resolution", resolve)
     monkeypatch.setattr(
         proof_cli,
         "openspec_governance_report",
@@ -418,8 +469,7 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
     )
 
     def compile_plan(*_args, **kwargs):
-        assert kwargs["generation_binding"] is binding
-        assert "generation_scope" not in kwargs
+        assert kwargs["resolution"] is binding
         return _plan()
 
     monkeypatch.setattr(proof_cli, "proof_plan", compile_plan)

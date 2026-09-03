@@ -29,6 +29,8 @@ push/work-lane/remote-publication-blocks|independent|W|p|work/x|base|work|block|
 from __future__ import annotations
 
 import json
+from datetime import UTC
+from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -38,6 +40,8 @@ import ethos.adapters.admission.git_admission as admission
 import ethos.adapters.admission.ref_intent as intent
 import ethos.adapters.admission.ref_move_policy as ref_move_policy
 import ethos.adapters.mutation.proof as proof
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
 from tests.support import governed_repository as fx
 
 if TYPE_CHECKING:
@@ -153,7 +157,18 @@ class State:
 
     def _distinct_proof(self) -> None:
         head = self.v["c1"]
-        plan = proof.proof_plan(self.repo, head=head, changed_paths=("other-operation",))
+        base = fx.current_proof_plan(self.repo, expected_head=head)
+        values = dict(base.facts["values"])
+        values["changed_paths"] = ("other-operation",)
+        plan = proof.compile_plan(
+            Commitment.model_validate(dict(base.commitment))
+            if base.commitment is not None
+            else None,
+            Facts.model_validate(base.facts | {"observed_at": datetime.now(UTC), "values": values}),
+            base.nodes,
+            policy=dict(base.policy),
+            prior_attestations=dict(base.prior_attestations),
+        )
         checks = tuple(
             fx.conformant_proof_check(gate, self.repo, tree_ref=head)
             for gate in proof.resolve_gate_policy(self.repo, tree_ref=head).gate_ids

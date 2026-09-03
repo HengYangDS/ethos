@@ -6,6 +6,8 @@ import ethos.adapters.admission.current.resolution as resolution_adapter
 from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.verdict import Verdict
 from tests.support.semantic import commitment_fixture
@@ -287,6 +289,72 @@ def test_current_resolution_preserves_unknown_official_intent_without_reinterpre
     assert resolution.verdict == "unknown"
     assert resolution.commitment is None
     assert resolution.required_gaps == ("carrier_unreadable",)
+
+
+@pytest.mark.parametrize("role", [ROLE_CANDIDATE, ROLE_ACCEPTED_ROOT])
+@pytest.mark.parametrize(
+    ("official_verdict", "official_gaps"),
+    [
+        ("pass", []),
+        ("block", ["openspec_active_change_missing"]),
+    ],
+)
+def test_current_resolution_admits_entity_free_repository_proof(
+    monkeypatch: pytest.MonkeyPatch,
+    role: str,
+    official_verdict: str,
+    official_gaps: list[str],
+) -> None:
+    head = "a" * 40
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="not_required",
+        branch="candidate/dev" if role == ROLE_CANDIDATE else "dev",
+        actor="agent:test",
+        lease={},
+        current_head=head,
+        current_tree="b" * 40,
+        required=False,
+    )
+    monkeypatch.setattr(
+        resolution_adapter,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {
+            "verdict": official_verdict,
+            "required_gaps": official_gaps,
+            "commitment": {},
+            "lifecycle": {"scope_binding": {}, "changes": []},
+        },
+    )
+    monkeypatch.setattr(
+        resolution_adapter,
+        "attested_archive_transition",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        resolution_adapter,
+        "load_profile_commitment",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("entity-free repository proof must not invent intent")
+        ),
+    )
+
+    resolution = resolve_current_resolution(
+        Path("/repository"),
+        status={"role": role, "head": head, "changed_paths": []},
+        authority=authority,
+        changed=False,
+    )
+
+    assert resolution.verdict == "pass"
+    assert resolution.authority is authority
+    assert resolution.commitment is None
+    assert resolution.scope.paths == ()
+    assert resolution.openspec == {
+        "verdict": "pass",
+        "state": "not_applicable",
+        "required_gaps": [],
+    }
 
 
 @pytest.mark.parametrize(

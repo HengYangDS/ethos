@@ -21,7 +21,6 @@ from pydantic import model_validator
 
 from ethos.contracts.value import FrozenTuple
 from ethos.contracts.value import JsonObject
-from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
 
@@ -70,12 +69,17 @@ def _canonical_value(value: object) -> object:
     raise TypeError(_SEMANTIC_JSON_VALUE_INVALID)
 
 
-def _canonical_json(value: object) -> str:
+def canonical_json_bytes(value: object) -> bytes:
+    """Project one semantic JSON value into its sole canonical UTF-8 bytes."""
     return json.dumps(
         _canonical_value(value),
         ensure_ascii=False,
         separators=(",", ":"),
-    )
+    ).encode("utf-8")
+
+
+def _canonical_json(value: object) -> str:
+    return canonical_json_bytes(value).decode("utf-8")
 
 
 def _reject_json_constant(_value: str) -> object:
@@ -124,8 +128,7 @@ def _validate_canonical_time(value: object) -> object:
 
 def canonical_json_digest(value: object) -> str:
     """Digest one JSON value after canonical ETHOS normalization."""
-    encoded = json.dumps(mutable_json(value), sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()
+    return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
 
 
 class _SemanticModel(BaseModel):

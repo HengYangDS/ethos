@@ -17,6 +17,8 @@ from ethos.adapters.admission.evidence.external import independent_verification_
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.admission.evidence.external import load_independent_verification_provider
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
+from ethos.contracts.semantic import canonical_json_bytes
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.profile import IndependentVerificationPolicy
 from tests.support.governed_repository import write_test_profile
 from tests.support.literal_cases import literal_case
@@ -47,6 +49,53 @@ def _receipt(**updates: object) -> IndependentVerificationReceipt:
 def _write_receipt(path: Path, **updates: object) -> Path:
     path.write_text(json.dumps(_receipt(**updates).model_dump(mode="json")), encoding="utf-8")
     return path
+
+
+def test_receipt_digest_and_signature_share_kernel_canonical_bytes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    receipt = _receipt(action="publish-é", issuer="provider:验证")
+    payload = receipt.model_dump(mode="json", exclude={"signature", "payload_digest"})
+    captured: dict[str, bytes] = {}
+
+    def run(_command: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        signed_payload = kwargs["input"]
+        assert isinstance(signed_payload, bytes)
+        captured["input"] = signed_payload
+        return subprocess.CompletedProcess([], 0, b"", b"")
+
+    monkeypatch.setattr(external.shutil, "which", lambda _name: "/usr/bin/ssh-keygen")
+    monkeypatch.setattr(external.subprocess, "run", run)
+
+    assert receipt.canonical_payload_bytes() == canonical_json_bytes(payload)
+    assert receipt.canonical_payload_digest() == canonical_json_digest(payload)
+    assert external.verify_independent_receipt_signature(receipt, _provider(tmp_path)) is True
+    assert captured["input"] == receipt.canonical_payload_bytes()
+
+
+def test_proof_floor_digest_uses_kernel_semantic_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(external.git, "current_head", lambda _root: "a" * 40)
+    monkeypatch.setattr(
+        external.git,
+        "git_stdout",
+        lambda _root, *args: (
+            "b" * 40 if args[:2] == ("rev-parse", "a" * 40 + "^{tree}") else "origin-url"
+        ),
+    )
+
+    def policy(_root: Path, *, tree_ref: str):
+        assert (_root, tree_ref) == (tmp_path, "a" * 40)
+        return type("Policy", (), {"gate_ids": ("tests", "verify-é"), "digest": "c" * 64})()
+
+    monkeypatch.setattr(external, "resolve_gate_policy", policy)
+
+    request = independent_verification_request(root=tmp_path, action="publish")
+
+    assert request["proof_floor_digest"] == canonical_json_digest(
+        {"gate_ids": ["tests", "verify-é"]}
+    )
 
 
 def _provider(root: Path) -> IndependentVerificationProvider:

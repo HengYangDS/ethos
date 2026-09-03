@@ -7,7 +7,7 @@ Purpose: define the canonical skill system and projection boundary.
 | Authority | [Skills](../.agents/skills/README.md), [Skill Activation](../.agents/skills/activation.toml), [Agent Projections](../docs/architecture/agent-projections.md) |
 | Trigger | Creating, updating, routing, projecting, or invoking repo-local skills. |
 | Action | Keep the canonical repo-local skill portfolio under `.agents/skills/` and treat host-native copies as projections. |
-| Evidence | Activation entry, skill manifest, projection digest, and post-check commands. |
+| Evidence | Activation entry, skill manifest, and post-check commands. |
 | Stop | Skill duplicates docs, conflicts with rules, or creates host-specific truth. |
 
 ## Rules

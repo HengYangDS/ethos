@@ -5,6 +5,7 @@ import re
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -14,7 +15,6 @@ import ethos.adapters.admission.control.replacement as replacement
 import ethos.adapters.admission.evidence.external as evidence
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
-from ethos.contracts.rules import stable_digest
 from ethos.contracts.semantic import canonical_json_digest
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -152,7 +152,7 @@ def test_control_subject_and_request_bind_exact_signed_git_state(tmp_path: Path)
         "tree": after["tree"],
         "action": "control-replacement",
         "proof_floor_id": "ethos:control-replacement:v1",
-        "proof_floor_digest": stable_digest(subject),
+        "proof_floor_digest": canonical_json_digest(subject),
         "policy_digest": proof.policy_digest,
         "implementation_digest": "",
     }
@@ -274,6 +274,51 @@ def test_control_digest_binds_git_mode(tmp_path: Path) -> None:
     assert set(report["control_paths"]) == {".ethos/profile.toml", "system/gates.toml"}
     assert subject["accepted"]["control_digest"] != subject["candidate"]["control_digest"]
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
+
+
+def test_control_replacement_uses_semantic_identity_for_the_outer_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = ".ethos/规则.toml"
+    candidate, accepted, head = _control_change(tmp_path, path)
+    git(candidate, "config", "core.quotePath", "false")
+    monkeypatch.setattr(
+        replacement,
+        "proof_for_repository_transition",
+        lambda _root, _head: (
+            SimpleNamespace(
+                id="a" * 64,
+                payload=SimpleNamespace(body={"statement": "验证"}),
+                plan_digest="b" * 64,
+                policy_digest="c" * 64,
+            ),
+            [],
+        ),
+    )
+
+    report = _report(candidate, accepted, head)
+    subject = cast("dict[str, object]", report["subject"])
+    request = cast("dict[str, object]", report["verification_request"])
+    entry = replacement.git.run_git(
+        candidate, "ls-tree", "-z", head, "--", path, check=False, text=False
+    ).stdout
+    content = replacement.git.run_git(
+        candidate, "show", f"{head}:{path}", check=False, text=False
+    ).stdout
+    expected_snapshot_bytes = (
+        b'[{"path":".ethos/\xe8\xa7\x84\xe5\x88\x99.toml","present":true,"sha256":"'
+        + replacement.hashlib.sha256(content).hexdigest().encode("ascii")
+        + b'","tree_entry_sha256":"'
+        + replacement.hashlib.sha256(entry).hexdigest().encode("ascii")
+        + b'"}]'
+    )
+
+    candidate_subject = cast("dict[str, object]", subject["candidate"])
+    assert (
+        candidate_subject["control_digest"]
+        == replacement.hashlib.sha256(expected_snapshot_bytes).hexdigest()
+    )
+    assert request["proof_floor_digest"] == canonical_json_digest(subject)
 
 
 def test_unresolvable_git_subject_defers_instead_of_allowing(tmp_path: Path) -> None:

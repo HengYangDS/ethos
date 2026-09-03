@@ -13,6 +13,7 @@ import jsonschema
 import pytest
 from pydantic import ValidationError
 
+import ethos.contracts.semantic as semantic
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import terminal_schema_documents
@@ -480,6 +481,37 @@ def test_canonical_value_algebra_is_provider_neutral_and_recursive() -> None:
         "a": {"items": ["one", 2, None]},
     }
     assert json.loads(json.dumps(mutable_json(value))) == mutable_json(value)
+
+
+def test_canonical_json_bytes_use_utf16_key_order_and_utf8_strings() -> None:
+    canonical_json_bytes = getattr(semantic, "canonical_json_bytes", None)
+    assert callable(canonical_json_bytes)
+    value = MappingProxyType(
+        {
+            "\ue000": "bmp",
+            "\U00010000": "astral",
+            "label": "café",
+        }
+    )
+    expected = b'{"label":"caf\xc3\xa9","\xf0\x90\x80\x80":"astral","\xee\x80\x80":"bmp"}'
+
+    assert canonical_json_bytes(value) == expected
+    assert canonical_json_digest(value) == hashlib.sha256(expected).hexdigest()
+
+
+@pytest.mark.parametrize(
+    ("invalid", "error"),
+    [
+        pytest.param(1.5, "semantic_json_value_invalid", id="float"),
+        pytest.param("\ud800", "semantic_string_surrogate_invalid", id="surrogate"),
+        pytest.param(9_007_199_254_740_992, "semantic_integer_out_of_range", id="integer"),
+    ],
+)
+def test_canonical_json_digest_rejects_values_outside_closed_grammar(
+    invalid: object, error: str
+) -> None:
+    with pytest.raises((TypeError, ValueError), match=error):
+        canonical_json_digest({"value": invalid})
 
 
 def test_schema_surfaces_are_generated_declared_and_valid() -> None:

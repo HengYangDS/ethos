@@ -138,6 +138,7 @@ def test_playbooks_report_preserves_identity_path_quality_and_command_gaps(tmp_p
     report = playbooks_report(tmp_path)
     gaps = set(report["required_gaps"])
 
+    assert "digest" not in report["registry"]
     assert report["verdict"] == "block"
     assert {"skill_missing_id", "skill_missing_file:absent"} <= gaps
     assert {

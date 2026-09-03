@@ -86,6 +86,15 @@ validates members, duplicates, references, and conflicts, then normalizes
 unordered collections before identity. Exact canonical-byte checks remain
 confined to readers for already content-addressed envelopes.
 
+Every JSON value used to assert semantic equality, sign an authority-bearing
+payload, or bind an admission decision uses one kernel-owned canonical byte
+projection: the closed semantic value grammar, UTF-16 code-unit object-key
+ordering, direct UTF-8 strings, and no presentation whitespace. A composed
+semantic projection may contain Git, file, wheel, runtime, or other native-byte
+digests without reinterpreting those nested identities. Conversely, a checksum
+with no comparison, lookup, signature, CAS, or validation consumer owns no
+invariant and is removed rather than retained as decorative authority.
+
 `Commitment` is a compiled value, not an ETHOS-authored file. Mutation-capable
 repositories use the official OpenSpec Change artifacts as the sole tracked
 intent, specification, design, task-progress, and archive carrier. ETHOS

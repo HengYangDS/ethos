@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import json
 from typing import Any
 
 from pydantic import BaseModel
@@ -52,12 +50,6 @@ def normalize_skill_activation(
         "retired": dict(payload.get("retired") or {}),
         "records": records,
     }
-
-
-def skill_registry_digest(registry: dict[str, Any]) -> str:
-    canonical = _without_digest(registry)
-    encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
 
 
 def compile_skill_activation(
@@ -241,17 +233,3 @@ def _stable_skill_order(
 
 def _ordered_unique(groups: Any) -> list[str]:
     return list(dict.fromkeys(item for group in groups for item in group))
-
-
-def _without_digest(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {
-            key: _without_digest(item)
-            for key, item in sorted(value.items())
-            if isinstance(key, str)
-            and key not in {"digest", "computed_digest"}
-            and not key.startswith("expected_")
-        }
-    if isinstance(value, list):
-        return [_without_digest(item) for item in value]
-    return value

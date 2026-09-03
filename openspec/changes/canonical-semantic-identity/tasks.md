@@ -31,8 +31,18 @@
   but is unreadable to this process identity, so no claim is made about
   unselected provider-store contents. The focused semantic/downstream suite
   passed 205 tests, and OpenSpec 1.11.0 strict validation passed.
-- [ ] 3.2 Run repository-wide reference, lint, type, architecture, and exact-HEAD full proof; update task evidence only after the frozen boundary passes.
-- [ ] 3.3 Freeze official archive as the next bounded transition. Archived
+- [x] 3.2 Run repository-wide reference, lint, type, architecture, and
+  exact-HEAD full proof; update task evidence only after the frozen boundary
+  passes.
+  Evidence: the isolated local-CI closure passed 2,008 tests with one skip plus
+  build, install-smoke, supply-chain, static, architecture, and repository
+  checks. Exact HEAD `d418998210c0b1e67a9d8d7a8866518426101968`
+  (`dffe7eab90de807611797afd72708abb1621a48c`) then passed all 24 full-proof
+  gates and issued Attestation
+  `53d36ead3ed316f1ecb9b3be1c24f88ca33281905d7e7de4fa601a99354a6240`.
+- [x] 3.3 Freeze official archive as the next bounded transition. The public
+  archive dry-run rejected only this previously incomplete task set; no product
+  or specification gap remained. Archived
   exact-HEAD reproof, candidate and accepted exact CAS, fresh immutable
   package-only runtime readback, declared peer publication, and residue-free
   Work Lane retirement remain mandatory post-archive closure under the terminal

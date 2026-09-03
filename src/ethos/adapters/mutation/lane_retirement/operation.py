@@ -176,11 +176,7 @@ def _lease_outcome(root: Path, request: RetirementOperation) -> CarrierState:
         return "absent"
     if current.state == "unknown":
         return "unavailable"
-    return (
-        "expected"
-        if lease_generation(current.record()) == dict(request.lease)
-        else "moved"
-    )
+    return "expected" if lease_generation(current.record()) == dict(request.lease) else "moved"
 
 
 def _worktree_outcome(root: Path, request: RetirementOperation) -> CarrierState:
@@ -258,9 +254,10 @@ def preflight_operation(root: Path, request: RetirementOperation) -> None:
         _fail("retirement_control_root_unavailable")
     if Path(git_common_dir(control)).resolve().as_posix() != request.repository_common_dir:
         _fail("lane_retirement_receipt_repository_mismatch")
-    if request.repository_identity and repository_identity(
-        control, tree_ref=request.head
-    ) != request.repository_identity:
+    if (
+        request.repository_identity
+        and repository_identity(control, tree_ref=request.head) != request.repository_identity
+    ):
         _fail("lane_retirement_receipt_repository_mismatch")
     git_executable(os.environ)
     if run_git(control, "rev-parse", "--git-dir", check=False).returncode:

@@ -6,6 +6,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
 import ethos.adapters.mutation.lane_retirement.linked as linked
+import ethos.adapters.mutation.lane_retirement.linked_admission as linked_admission
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.contracts.branch.roles import BranchRolePolicy
@@ -82,6 +83,7 @@ def _stub_retirement(
         return None
 
     monkeypatch.setattr(linked, "output", output)
+    monkeypatch.setattr(linked_admission, "output", output)
 
 
 @pytest.mark.parametrize(
@@ -318,7 +320,7 @@ def test_superseded_public_absorption_authority_matrix(
         current_branch=SUCCESSOR if successor_rows else "",
     )
     monkeypatch.setattr(effects, "absorbed", lambda *_args: ancestor)
-    monkeypatch.setattr(linked, "is_ancestor", lambda *_args: ancestor)
+    monkeypatch.setattr(linked_admission, "is_ancestor", lambda *_args: ancestor)
     if archive_absorption:
         monkeypatch.setattr(
             effects,
@@ -377,7 +379,7 @@ def test_linked_effect_failure_is_projected_as_a_fresh_block(
     lane = _lane()
     _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane})
     monkeypatch.setattr(effects, "control_root", lambda *_args: tmp_path)
-    monkeypatch.setattr(linked, "_effect_readiness_gaps", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(linked, "effect_readiness_gaps", lambda *_args, **_kwargs: [])
     compiled = object()
     receipt = {"path": "/receipt", "sha256": "sha256:" + "d" * 64}
     monkeypatch.setattr(
@@ -422,7 +424,7 @@ def test_linked_apply_persists_and_executes_the_common_retirement_operation(
     lane = _lane()
     _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane})
     monkeypatch.setattr(effects, "control_root", lambda *_args: tmp_path)
-    monkeypatch.setattr(linked, "_effect_readiness_gaps", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(linked, "effect_readiness_gaps", lambda *_args, **_kwargs: [])
     compiled = object()
     receipt = {"path": "/receipt", "sha256": "sha256:" + "d" * 64}
     calls: list[str] = []
@@ -439,22 +441,24 @@ def test_linked_apply_persists_and_executes_the_common_retirement_operation(
     monkeypatch.setattr(
         linked,
         "apply_operation",
-        lambda *_args, **_kwargs: calls.append("apply")
-        or {
-            "verdict": "pass",
-            "state": "retired",
-            "observed": {
-                "worktree_state": "absent",
-                "ref_state": "absent",
-                "lease_state": "absent",
-                "accepted_state": "expected",
-            },
-            "completed_effects": ["remove_worktree", "delete_ref", "revoke_lease"],
-            "remaining_effects": [],
-            "required_gaps": [],
-            "next_action": "ethos status",
-            "user_decision_required": False,
-        },
+        lambda *_args, **_kwargs: (
+            calls.append("apply")
+            or {
+                "verdict": "pass",
+                "state": "retired",
+                "observed": {
+                    "worktree_state": "absent",
+                    "ref_state": "absent",
+                    "lease_state": "absent",
+                    "accepted_state": "expected",
+                },
+                "completed_effects": ["remove_worktree", "delete_ref", "revoke_lease"],
+                "remaining_effects": [],
+                "required_gaps": [],
+                "next_action": "ethos status",
+                "user_decision_required": False,
+            }
+        ),
     )
     report = retire_linked_work_lane(
         root=tmp_path,

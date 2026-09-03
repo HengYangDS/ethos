@@ -23,6 +23,20 @@ def _fail(reason: str) -> None:
     raise ValueError(reason)
 
 
+class LinkedRetirementRequest(BaseModel):
+    """Exact request for one linked Work Lane retirement transition."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    branch: str | None = None
+    path: str | None = None
+    expect_head: str | None = None
+    absorbed_by: str = ""
+    reason: str = ""
+    authorize: bool = False
+    apply: bool = False
+
+
 class RetirementObservation(BaseModel):
     """Fresh native state for the carriers owned by one retirement."""
 

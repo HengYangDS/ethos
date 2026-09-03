@@ -168,9 +168,7 @@ def test_unbound_request_detects_branch_rebound_at_another_path(
                 "",
             )
         expected = (
-            request.accepted_head
-            if args[-1].endswith(request.accepted_branch)
-            else request.head
+            request.accepted_head if args[-1].endswith(request.accepted_branch) else request.head
         )
         return subprocess.CompletedProcess([], 0, expected, "")
 
@@ -392,9 +390,7 @@ def test_operation_receipt_is_repository_scoped_and_tamper_evident(
     with pytest.raises(ValueError, match="lane_retirement_receipt_path_invalid"):
         operation.load_operation(second, str(receipt["path"]), str(receipt["sha256"]))
 
-    pathlib.Path(str(receipt["path"])).write_text(
-        json.dumps({"tampered": True}), encoding="utf-8"
-    )
+    pathlib.Path(str(receipt["path"])).write_text(json.dumps({"tampered": True}), encoding="utf-8")
     with pytest.raises(ValueError, match="lane_retirement_receipt_sha256_mismatch"):
         operation.load_operation(first, str(receipt["path"]), str(receipt["sha256"]))
 
@@ -406,9 +402,7 @@ def test_terminal_receipt_binds_request_and_observed_completion(
     request = _request(tmp_path)
     progress = operation.reduce_progress(
         request,
-        RetirementObservation(
-            worktree_state="absent", ref_state="absent", lease_state="absent"
-        ),
+        RetirementObservation(worktree_state="absent", ref_state="absent", lease_state="absent"),
     )
 
     receipt = operation.persist_terminal_receipt(tmp_path, request, progress)

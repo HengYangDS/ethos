@@ -350,7 +350,11 @@ def test_linked_apply_rejects_missing_control_root_before_effect(
 ) -> None:
     _stub_retirement(monkeypatch, worktrees=[_worktree()])
     applied: list[bool] = []
-    monkeypatch.setattr(effects, "apply_retirement", lambda *_args, **_kwargs: applied.append(True))
+    monkeypatch.setattr(
+        linked,
+        "compile_retirement_operation",
+        lambda *_args, **_kwargs: applied.append(True),
+    )
 
     report = retire_linked_work_lane(
         root=tmp_path,
@@ -370,13 +374,24 @@ def test_linked_apply_rejects_missing_control_root_before_effect(
 def test_linked_effect_failure_is_projected_as_a_fresh_block(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _stub_retirement(monkeypatch, worktrees=[_worktree()])
+    lane = _lane()
+    _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane})
     monkeypatch.setattr(effects, "control_root", lambda *_args: tmp_path)
-    monkeypatch.setattr(effects, "effect_gaps", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(linked, "_effect_readiness_gaps", lambda *_args, **_kwargs: [])
+    compiled = object()
+    receipt = {"path": "/receipt", "sha256": "sha256:" + "d" * 64}
     monkeypatch.setattr(
-        effects,
-        "apply_retirement",
+        linked,
+        "compile_retirement_operation",
+        lambda *_args, **_kwargs: compiled,
+    )
+    monkeypatch.setattr(linked, "persist_operation", lambda *_args, **_kwargs: receipt)
+    monkeypatch.setattr(
+        linked,
+        "apply_operation",
         lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "state": "partial_transition",
             "required_gaps": ["branch_delete_failed_after_worktree_removed"],
             "stderr": "git effect rejected",
             "observed": {"ref_state": "expected"},
@@ -397,4 +412,61 @@ def test_linked_effect_failure_is_projected_as_a_fresh_block(
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["branch_delete_failed_after_worktree_removed"]
     assert report["observed"] == {"ref_state": "expected"}
+    assert report["receipt"] == receipt
     assert report["mutation"]["decision"]["verdict"] == "block"
+
+
+def test_linked_apply_persists_and_executes_the_common_retirement_operation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    lane = _lane()
+    _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane})
+    monkeypatch.setattr(effects, "control_root", lambda *_args: tmp_path)
+    monkeypatch.setattr(linked, "_effect_readiness_gaps", lambda *_args, **_kwargs: [])
+    compiled = object()
+    receipt = {"path": "/receipt", "sha256": "sha256:" + "d" * 64}
+    calls: list[str] = []
+    monkeypatch.setattr(
+        linked,
+        "compile_retirement_operation",
+        lambda *_args, **_kwargs: calls.append("compile") or compiled,
+    )
+    monkeypatch.setattr(
+        linked,
+        "persist_operation",
+        lambda *_args, **_kwargs: calls.append("persist") or receipt,
+    )
+    monkeypatch.setattr(
+        linked,
+        "apply_operation",
+        lambda *_args, **_kwargs: calls.append("apply")
+        or {
+            "verdict": "pass",
+            "state": "retired",
+            "observed": {
+                "worktree_state": "absent",
+                "ref_state": "absent",
+                "lease_state": "absent",
+                "accepted_state": "expected",
+            },
+            "completed_effects": ["remove_worktree", "delete_ref", "revoke_lease"],
+            "remaining_effects": [],
+            "required_gaps": [],
+            "next_action": "ethos status",
+            "user_decision_required": False,
+        },
+    )
+    report = retire_linked_work_lane(
+        root=tmp_path,
+        mode="landed",
+        request=LinkedRetirementRequest(
+            branch=SOURCE,
+            expect_head=SOURCE_HEAD,
+            authorize=True,
+            apply=True,
+        ),
+    )
+
+    assert calls == ["compile", "persist", "apply"]
+    assert report["state"] == "retired"
+    assert report["receipt"] == receipt

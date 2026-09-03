@@ -8,9 +8,12 @@ from typing import cast
 from cyclopts import App
 from cyclopts import Parameter
 
+from ethos.adapters.mutation.lane_retirement.abandonment import derive_lane_abandonment
+from ethos.adapters.mutation.lane_retirement.abandonment import execute_lane_abandonment
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
+from ethos.adapters.mutation.lane_retirement.operation import recover_retirement_operation
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
@@ -48,8 +51,93 @@ class _AbsorbedRefOptions(AppliedLaneCommandOptions):
     confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False
 
 
+class _AbandonOptions(AppliedLaneCommandOptions):
+    command = "lane retire abandon"
+    branch: Annotated[str | None, Parameter(name="--branch")] = None
+    reason_code: Annotated[str, Parameter(name="--reason-code")] = ""
+    reason: Annotated[str, Parameter(name="--reason")] = ""
+    receipt: Annotated[str | None, Parameter(name="--receipt")] = None
+    receipt_sha256: Annotated[str | None, Parameter(name="--receipt-sha256")] = None
+    authorize: bool = False
+
+
+class _RecoverOptions(AppliedLaneCommandOptions):
+    command = "lane retire recover"
+    receipt: Annotated[str, Parameter(name="--receipt")]
+    receipt_sha256: Annotated[str, Parameter(name="--receipt-sha256")]
+    authorize: bool = False
+
+
 _DEFAULT_SUPERSEDED = _SupersededOptions()
 _DEFAULT_LANDED = _LandedOptions()
+_DEFAULT_ABANDON = _AbandonOptions()
+
+
+@_app.command(name="abandon")
+def lane_retire_abandon(
+    options: Annotated[_AbandonOptions, Parameter(name="*")] = _DEFAULT_ABANDON,
+) -> None:
+    """Derive or apply one receipt-bound clean divergent-lane abandonment."""
+    repo = resolve_root(options.root)
+    if options.receipt or options.receipt_sha256:
+        report = execute_lane_abandonment(
+            root=repo,
+            receipt_path=options.receipt or "",
+            receipt_sha256=options.receipt_sha256 or "",
+            apply=options.apply,
+            authorized=options.authorize,
+        )
+    elif options.apply:
+        report: dict[str, object] = {
+            "verdict": "block",
+            "state": "blocked",
+            "required_gaps": ["lane_retirement_receipt_required"],
+            "next_action": "",
+            "user_decision_required": False,
+        }
+    else:
+        report = derive_lane_abandonment(
+            root=repo,
+            branch=options.branch or "",
+            reason_code=options.reason_code,
+            reason=options.reason,
+        )
+    project_lane_result(
+        options.command,
+        report,
+        summary={
+            "branch": report.get("branch") or options.branch or "",
+            "head": report.get("head") or "",
+            "completed_effects": report.get("completed_effects") or [],
+            "remaining_effects": report.get("remaining_effects") or [],
+        },
+        enforce=options.apply,
+        json_output=options.json_output,
+    )
+
+
+@_app.command(name="recover")
+def lane_retire_recover(options: Annotated[_RecoverOptions, Parameter(name="*")]) -> None:
+    """Resume one exact partial retirement from its immutable receipt."""
+    report = recover_retirement_operation(
+        root=resolve_root(options.root),
+        receipt_path=options.receipt,
+        receipt_sha256=options.receipt_sha256,
+        apply=options.apply,
+        authorized=options.authorize,
+    )
+    project_lane_result(
+        options.command,
+        report,
+        summary={
+            "branch": report.get("branch") or "",
+            "head": report.get("head") or "",
+            "completed_effects": report.get("completed_effects") or [],
+            "remaining_effects": report.get("remaining_effects") or [],
+        },
+        enforce=options.apply,
+        json_output=options.json_output,
+    )
 
 
 @_app.command(name="absorbed-ref")

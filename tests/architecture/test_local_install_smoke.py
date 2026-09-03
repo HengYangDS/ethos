@@ -19,8 +19,13 @@ from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.lease.projection import observe_lease
+from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.semantic import Commitment
 from ethos.repository.release.identity import BuildIdentity
+from tests.support.governed_repository import exact_lease
+from tests.support.governed_repository import git as fixture_git
 from tools.ci.delivery.adopter_fixture import line_ending_conformance
 from tools.ci.delivery.adopter_fixture import materialize_adopter
 from tools.ci.delivery.pipeline import DeliveryPipeline
@@ -198,6 +203,127 @@ def _prove_adopter_bootstrap(
     next_action = shlex.split(prewrite_report["next_action"])
     assert next_action[:3] == ["ethos", "lane", "prewrite"]
     assert next_action[3:5] == ["--paths", f"{change_root}/.openspec.yaml"]
+
+
+def _prove_retirement_command_surface(
+    *,
+    runtime_python: Path,
+    repo: Path,
+    lane: Path,
+    branch: str,
+    actor: str,
+    environment: dict[str, str],
+) -> None:
+    """Prove installed public retirement can resume from native partial state."""
+    command = ("-B", "-I", "-m", "ethos.cli", "lane", "retire")
+    environment = {**environment, "ETHOS_ACTOR": actor}
+    abandon = _run(
+        runtime_python,
+        *command,
+        "abandon",
+        "--branch",
+        branch,
+        "--reason-code",
+        "package-smoke",
+        "--reason",
+        "exercise installed retirement",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        env=environment,
+    )
+    assert abandon.stdout, abandon.stderr
+    abandon_payload = json.loads(abandon.stdout)
+    assert abandon_payload["command"] == "lane retire abandon"
+    assert abandon_payload["verdict"] == "pass"
+    assert "Traceback" not in abandon.stderr + abandon.stdout
+    receipt = abandon_payload["data"]["receipt"]
+
+    assert _git(repo, "worktree", "remove", lane.as_posix()).returncode == 0
+
+    recover = _run(
+        runtime_python,
+        *command,
+        "recover",
+        "--receipt",
+        receipt["path"],
+        "--receipt-sha256",
+        receipt["sha256"],
+        "--root",
+        repo.as_posix(),
+        "--json",
+        env=environment,
+    )
+    assert recover.stdout, recover.stderr
+    recover_payload = json.loads(recover.stdout)
+    assert recover_payload["command"] == "lane retire recover"
+    assert recover_payload["verdict"] == "block"
+    assert recover_payload["state"] == "partial_transition"
+    assert recover_payload["data"]["completed_effects"] == ["remove_worktree"]
+    assert recover_payload["data"]["remaining_effects"] == ["delete_ref", "revoke_lease"]
+    assert "Traceback" not in recover.stderr + recover.stdout
+
+    applied = _run(
+        runtime_python,
+        *command,
+        "recover",
+        "--receipt",
+        receipt["path"],
+        "--receipt-sha256",
+        receipt["sha256"],
+        "--authorize",
+        "--apply",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        env=environment,
+    )
+    assert applied.returncode == 0, applied.stdout + applied.stderr
+    applied_payload = json.loads(applied.stdout)
+    assert applied_payload["state"] == "retired"
+    assert applied_payload["data"]["remaining_effects"] == []
+    assert _git(repo, "branch", "--list", branch).stdout.strip() == ""
+    assert observe_lease(state_database(repo), branch).state == "missing"
+
+    repeated = _run(
+        runtime_python,
+        *command,
+        "recover",
+        "--receipt",
+        receipt["path"],
+        "--receipt-sha256",
+        receipt["sha256"],
+        "--authorize",
+        "--apply",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        env=environment,
+    )
+    assert repeated.returncode == 0, repeated.stdout + repeated.stderr
+    assert json.loads(repeated.stdout)["state"] == "retired"
+    assert "Traceback" not in repeated.stderr + repeated.stdout
+
+
+def _materialize_divergent_retirement_lane(
+    repo: Path,
+) -> tuple[Path, str, str]:
+    """Create one clean owner lane whose history diverges from accepted truth."""
+    branch = "work/package-retirement"
+    lane = repo.parent / "repo-work-package-retirement"
+    fixture_git(repo, "worktree", "add", "-b", branch, lane.as_posix(), "dev")
+    (repo / "accepted.txt").write_text("accepted\n", encoding="utf-8")
+    fixture_git(repo, "add", "accepted.txt")
+    fixture_git(repo, "commit", "-m", "advance accepted independently")
+    (lane / "abandoned.txt").write_text("abandoned\n", encoding="utf-8")
+    fixture_git(lane, "add", "abandoned.txt")
+    fixture_git(lane, "commit", "-m", "create abandoned lane")
+    actor = "agent:test:package-only:retirement"
+    acquire_lease(
+        state_database(repo),
+        lease=exact_lease(branch=branch, holder_ref=actor),
+    )
+    return lane, branch, actor
 
 
 def test_package_gate_order_and_offline_contract_have_one_machine_owner() -> None:
@@ -389,6 +515,15 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     _prove_adopter_bootstrap(
         runtime_python=runtime_python,
         repo=repo,
+        environment=package_environment,
+    )
+    lane, branch, retirement_actor = _materialize_divergent_retirement_lane(repo)
+    _prove_retirement_command_surface(
+        runtime_python=runtime_python,
+        repo=repo,
+        lane=lane,
+        branch=branch,
+        actor=retirement_actor,
         environment=package_environment,
     )
     version = _run(

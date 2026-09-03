@@ -228,6 +228,7 @@ def test_direct_measurement_is_clean_when_bounded_counters_agree(
     assert "ok" not in report
     assert report["metrics"]["python_total"] == 2
     assert report["inventory"]["file_count"] == 3
+    assert "digest" not in report["inventory"]
 
 
 def test_measurement_separates_exact_immutable_record_roots(

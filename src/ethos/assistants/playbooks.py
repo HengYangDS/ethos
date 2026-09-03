@@ -13,7 +13,6 @@ from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
 from ethos.contracts.skill.activation import normalize_skill_activation
-from ethos.contracts.skill.activation import skill_registry_digest
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.profile import DEFAULT_ROOTS
 from ethos.repository.profile import load_repository_profile
@@ -44,7 +43,6 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
     skills_root = profile.root / skills_root_relative
     payload, missing = _load_activation(skills_root / "activation.toml")
     registry = normalize_skill_activation(payload, source=".agents/skills/activation.toml")
-    registry["digest"] = skill_registry_digest(registry)
     required_gaps = [*profile_required_gaps(profile), *missing]
     advisory_gaps: list[str] = []
     activation_version = int(registry.get("meta", {}).get("version") or 1)

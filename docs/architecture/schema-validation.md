@@ -52,7 +52,7 @@ Skills V2 adds three provider-neutral schemas:
   subjects, path globs, operation metadata, lifecycle, package manifest paths,
   proof obligations, commands, and boundary fields.
 - `skill-registry.schema.json` validates the normalized Skills V2 registry,
-  including historical projection records and the stable registry digest.
+  including its current and retired projection records.
 - `skill-package-manifest.schema.json` validates package manifests for
   loadable `SKILL.md` packages, included files, digest algorithm, expected
   digest, required sections, quality flags, and capability classes.

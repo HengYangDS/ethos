@@ -12,7 +12,6 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 from ethos.contracts.skill.activation import normalize_skill_activation
-from ethos.contracts.skill.activation import skill_registry_digest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
@@ -195,7 +194,6 @@ def _live_skill_contract_instances(root: Path) -> dict[str, Mapping[str, object]
         activation,
         source=".agents/skills/activation.toml",
     )
-    live_registry["digest"] = skill_registry_digest(live_registry)
     instances["live-skill-registry-contract"] = validate_schema_instance(
         "skill-registry.schema.json",
         live_registry,

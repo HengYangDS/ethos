@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -15,7 +14,6 @@ from ethos.adapters.admission.evidence.external import load_independent_verifica
 from ethos.adapters.admission.evidence.external import path_is_within
 from ethos.adapters.admission.evidence.external import verify_independent_receipt_signature
 from ethos.adapters.mutation.proof import proof_for_repository_transition
-from ethos.contracts.rules import stable_digest
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import report_verdict
 
@@ -157,7 +155,7 @@ def _verification_subject(
         "tree": candidate_tree,
         "action": "control-replacement",
         "proof_floor_id": "ethos:control-replacement:v1",
-        "proof_floor_digest": stable_digest(subject),
+        "proof_floor_digest": canonical_json_digest(subject),
         "policy_digest": proof.policy_digest,
         "implementation_digest": "",
     }
@@ -244,6 +242,4 @@ def _control_digest(root: Path, head: str, paths: tuple[str, ...]) -> str | None
                 "sha256": hashlib.sha256(content.stdout).hexdigest() if content else "",
             }
         )
-    return hashlib.sha256(
-        json.dumps(records, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
+    return canonical_json_digest(records)

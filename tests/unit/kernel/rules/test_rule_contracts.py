@@ -7,7 +7,6 @@ from pydantic import ValidationError
 
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
-from ethos.contracts.rules import stable_digest
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.rules.config import resolve_profile_stack
@@ -62,7 +61,6 @@ def test_rule_contracts_serialize_to_schema_payloads_without_handwritten_convers
             }
         ],
     }
-    assert rule_set.digest == stable_digest(payload)
     with pytest.raises(ValidationError):
         Rule(
             id="invalid",
@@ -75,6 +73,13 @@ def test_rule_contracts_serialize_to_schema_payloads_without_handwritten_convers
             stop_condition="docs_gap",
             non_waivable=1,
         )
+
+
+def test_compiled_rule_projection_omits_unconsumed_digests(tmp_path: Path) -> None:
+    compiled = compile_rules(tmp_path)
+
+    assert "rule_set_digest" not in compiled
+    assert "compiled_policy_digest" not in compiled
 
 
 def test_compile_rules_rejects_v1_keys_without_normalization(tmp_path: Path) -> None:

@@ -16,8 +16,6 @@ openspec/changes/archive/2026-08-29-other
 """
 
 
-
-
 @pytest.mark.parametrize(
     ("state", "holder", "actor", "expected"),
     [
@@ -59,8 +57,6 @@ def test_holder_gaps_follow_observed_lease_state(
         "lease": {"holder_ref": holder},
     }
     assert effects.holder_gaps(lane) == expected
-
-
 
 
 @pytest.mark.parametrize(
@@ -122,12 +118,6 @@ def _lane(branch: str = "work/source") -> dict[str, object]:
     }
 
 
-
-
-
-
-
-
 def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -180,8 +170,6 @@ def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
         authority_lane=authority,
         accepted_head="b" * 40,
     ) == ["git_effect_plan_invalid"]
-
-
 
 
 @pytest.mark.parametrize(
@@ -272,10 +260,6 @@ def test_archive_absorption_uses_only_the_exact_archived_change(
     report = effects.archived_carrier_absorption(tmp_path, head="a" * 40, accepted_head="b" * 40)
     roots = {str(item["target"]).rsplit("/", 1)[0] for item in report.get("paths", {}).values()}
     assert tuple(roots) == expected
-
-
-
-
 
 
 def test_retirement_drift_checks_stop_at_the_first_fresh_boundary(

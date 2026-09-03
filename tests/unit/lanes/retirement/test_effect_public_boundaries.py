@@ -325,30 +325,6 @@ def test_landed_plan_admits_the_exact_expired_lease_observation(
     admit_git_effect(root, plan)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @pytest.mark.parametrize(
     ("merge_base", "changed", "returncode", "expected"),
     [
@@ -472,8 +448,6 @@ def test_effect_gaps_recheck_successor_checkout_and_archive_mapping(
         accepted_head="b" * 40,
     )
     assert gaps == ["retirement_archive_absorption_stale"]
-
-
 
 
 @pytest.mark.parametrize(

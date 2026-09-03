@@ -14,6 +14,8 @@ from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_sc
 from ethos.adapters.openspec.lifecycle.scope import official_validation_repair_scope_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
+from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.verdict import report_verdict
@@ -202,6 +204,49 @@ def _resolve_without_workspace_intent(
     )
 
 
+def _repository_resolution_without_active_intent(
+    *,
+    status: JsonObject,
+    authority: CurrentAuthority | None,
+    change: str | None,
+    observed_paths: tuple[str, ...],
+    official_verdict: Verdict,
+    official_gaps: tuple[str, ...],
+    lifecycle: object,
+    projected: object,
+    archived: tuple[Commitment, JsonObject] | None,
+) -> CurrentResolution | None:
+    """Resolve an entity-free candidate or accepted repository proof."""
+    no_active_change = (
+        isinstance(lifecycle, dict)
+        and isinstance(lifecycle.get("changes"), list | tuple)
+        and not lifecycle["changes"]
+    )
+    official_has_no_active_intent = (
+        official_verdict == "pass" and not official_gaps and no_active_change
+    ) or official_gaps == ("openspec_active_change_missing",)
+    if (
+        change is not None
+        or str(status.get("role") or "") not in {ROLE_CANDIDATE, ROLE_ACCEPTED_ROOT}
+        or observed_paths
+        or projected
+        or not official_has_no_active_intent
+        or archived is not None
+    ):
+        return None
+    return CurrentResolution(
+        verdict="pass",
+        authority=authority,
+        commitment=None,
+        scope=CurrentScope(()),
+        openspec={
+            "verdict": "pass",
+            "state": "not_applicable",
+            "required_gaps": [],
+        },
+    )
+
+
 def resolve_current_resolution(
     root: Path,
     *,
@@ -251,40 +296,30 @@ def resolve_current_resolution(
         ),
         requested_paths=prewrite_paths,
     )
-    if prewrite_paths and repair_scope:
-        repair_gaps = tuple(string_sequence(repair_scope.get("required_gaps")))
-        return CurrentResolution(
-            verdict="block" if repair_gaps else "pass",
-            authority=authority,
-            commitment=None,
-            scope=CurrentScope(
-                prewrite_paths,
-                gaps=repair_gaps,
-                material_scope=repair_scope,
-            ),
-            openspec=official,
-            required_gaps=repair_gaps,
-            next_action=str(repair_scope.get("next_action") or ""),
+    bootstrap_scope = (
+        {}
+        if repair_scope
+        else official_change_bootstrap_scope_report(
+            root=root,
+            official=official,
+            requested_paths=prewrite_paths,
         )
-    bootstrap_scope = official_change_bootstrap_scope_report(
-        root=root,
-        official=official,
-        requested_paths=prewrite_paths,
     )
-    if prewrite_paths and bootstrap_scope:
-        bootstrap_gaps = tuple(string_sequence(bootstrap_scope.get("required_gaps")))
+    prewrite_scope = repair_scope or bootstrap_scope
+    if prewrite_paths and prewrite_scope:
+        prewrite_gaps = tuple(string_sequence(prewrite_scope.get("required_gaps")))
         return CurrentResolution(
-            verdict="block" if bootstrap_gaps else "pass",
+            verdict="block" if prewrite_gaps else "pass",
             authority=authority,
             commitment=None,
             scope=CurrentScope(
                 prewrite_paths,
-                gaps=bootstrap_gaps,
-                material_scope=bootstrap_scope,
+                gaps=prewrite_gaps,
+                material_scope=prewrite_scope,
             ),
             openspec=official,
-            required_gaps=bootstrap_gaps,
-            next_action=str(bootstrap_scope.get("next_action") or ""),
+            required_gaps=prewrite_gaps,
+            next_action=str(prewrite_scope.get("next_action") or ""),
         )
     archived = (
         attested_archive_transition(
@@ -296,6 +331,19 @@ def resolve_current_resolution(
         and (official_verdict == "pass" or official_gaps == ("openspec_active_change_missing",))
         else None
     )
+    repository_resolution = _repository_resolution_without_active_intent(
+        status=status,
+        authority=authority,
+        change=change,
+        observed_paths=observed_paths,
+        official_verdict=official_verdict,
+        official_gaps=official_gaps,
+        lifecycle=lifecycle,
+        projected=projected,
+        archived=archived,
+    )
+    if repository_resolution is not None:
+        return repository_resolution
     if official_verdict != "pass" and archived is None:
         gap = official_gaps[0] if official_gaps else "openspec_scope_unavailable"
         return CurrentResolution(

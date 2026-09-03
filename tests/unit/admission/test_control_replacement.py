@@ -31,9 +31,15 @@ def _control_change(
     tmp_path: Path, path: str = "system/gates.toml", mode: str = "required"
 ) -> tuple[Path, str, str]:
     repo, candidate = start_adopted_candidate(tmp_path)
+    profile = repo / ".ethos/profile.toml"
+    commit_fixture_file(
+        repo,
+        ".ethos/profile.toml",
+        profile.read_text() + f'\n[independent_verification]\nmode = "{mode}"\n',
+        "configure independent verification",
+    )
     accepted = git(repo, "rev-parse", "HEAD")
-    profile = candidate / ".ethos/profile.toml"
-    profile.write_text(profile.read_text() + f'\n[independent_verification]\nmode = "{mode}"\n')
+    git(candidate, "reset", "--hard", accepted)
     return (
         candidate,
         accepted,

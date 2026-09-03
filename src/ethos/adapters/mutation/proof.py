@@ -10,15 +10,12 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.proof_admission
 from ethos.adapters.admission.current.authority import resolve_current_authority
-from ethos.adapters.admission.current.resolution import current_scope
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
-from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
-from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_branch
@@ -29,8 +26,6 @@ from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
@@ -44,22 +39,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.adapters.admission.current.resolution import CurrentResolution
-
-
-def _proof_commitment(
-    root: Path,
-    *,
-    change_id: str | None,
-    head: str,
-    work_lane: bool,
-) -> Commitment | None:
-    """Compile active intent, allowing an entity-free repository proof."""
-    try:
-        return load_profile_commitment(root, change_id=change_id, tree_ref=head)
-    except ValueError as error:
-        if work_lane or change_id is not None or str(error) != "openspec_active_change_missing":
-            raise
-        return None
 
 
 def _proof_issue_values(
@@ -132,42 +111,50 @@ def _proof_issue_values(
     )
 
 
-def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attestation:
-    """Issue a proof with a self-contained plan and executed-check closure."""
-    plan, checks, verdict, issuer, scope, boundary, issued_at, objective, required_gaps = (
-        _proof_issue_values(payload)
-    )
+def _assert_proof_issuance_currentness(root: Path, plan: TransitionPlan) -> str:
+    """Reject mutable repository or authority drift before proof issuance."""
     head = str(plan.facts.get("head") or "")
-    if plan.verdict != "pass":
-        msg = "proof_plan_not_admitted"
-        raise ValueError(msg)
     if (
         current_tracked_head(root) != head
         or current_tree(root, head) != plan.facts.get("tree")
         or repository_identity(root, tree_ref=head) != plan.facts.get("repository")
     ):
-        msg = "proof_attestation_live_facts_stale"
-        raise ValueError(msg)
+        message = "proof_attestation_live_facts_stale"
+        raise ValueError(message)
     values = plan.facts.get("values")
     fact_values = values if isinstance(values, Mapping) else {}
-    branch = current_branch(root)
+    expected_lease = fact_values.get("lease_generation")
+    if not isinstance(expected_lease, Mapping):
+        return head
+    branch = str(expected_lease.get("lane_ref") or "")
+    if not branch or current_branch(root) != branch:
+        message = "proof_attestation_live_facts_stale"
+        raise ValueError(message)
     lease = leases_by_branch(root).get(branch, {})
-    work_lane = load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE
-    if work_lane:
-        if mutable_json(fact_values.get("lease_generation")) != mutable_json(
-            lease_generation(lease)
-        ):
-            msg = "proof_lease_generation_stale"
-            raise ValueError(msg)
-        authority = resolve_current_authority(
-            root=root,
-            branch=branch,
-            lease=lease,
-            actor=os.environ.get("ETHOS_ACTOR", "").strip(),
-            current_head=head,
-        )
-        if authority.verdict != "pass":
-            raise ValueError(authority.reason)
+    if mutable_json(expected_lease) != mutable_json(lease_generation(lease)):
+        message = "proof_lease_generation_stale"
+        raise ValueError(message)
+    authority = resolve_current_authority(
+        root=root,
+        branch=branch,
+        lease=lease,
+        actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+        current_head=head,
+    )
+    if authority.verdict != "pass":
+        raise ValueError(authority.reason)
+    return head
+
+
+def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attestation:
+    """Issue a proof with a self-contained plan and executed-check closure."""
+    plan, checks, verdict, issuer, scope, boundary, issued_at, objective, required_gaps = (
+        _proof_issue_values(payload)
+    )
+    if plan.verdict != "pass":
+        msg = "proof_plan_not_admitted"
+        raise ValueError(msg)
+    head = _assert_proof_issuance_currentness(root, plan)
     commitment = (
         Commitment.model_validate(mutable_json(plan.commitment), strict=False)
         if plan.commitment is not None
@@ -285,66 +272,31 @@ def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str,
 def proof_plan(
     root: Path,
     *,
-    head: str,
-    binding_branch: str | None = None,
-    change_id: str | None = None,
+    resolution: CurrentResolution,
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
-    changed_paths: tuple[str, ...] = (),
-    generation_binding: CurrentResolution | None = None,
 ) -> TransitionPlan:
-    """Compile the exact commitment-, fact-, and policy-bound proof plan."""
-    branch = binding_branch if binding_branch is not None else current_branch(root)
-    lease = leases_by_branch(root).get(branch, {})
-    work_lane = load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE
-    if work_lane:
-        authority = resolve_current_authority(
-            root=root,
-            branch=branch,
-            lease=lease,
-            actor=os.environ.get("ETHOS_ACTOR", "").strip(),
-            current_head=head,
-        )
-        if authority.verdict != "pass":
-            raise ValueError(authority.reason)
-    commitment = (
-        generation_binding.commitment
-        if generation_binding is not None
-        else _proof_commitment(
-            root,
-            change_id=change_id,
-            head=head,
-            work_lane=work_lane,
-        )
-    )
+    """Compile one plan solely from a passing frozen current resolution."""
+    if resolution.verdict != "pass":
+        message = resolution.required_gaps[0] if resolution.required_gaps else resolution.verdict
+        raise ValueError(message)
+    authority = resolution.authority
+    if authority is None or not authority.current_head or not authority.current_tree:
+        message = "current_authority_unavailable"
+        raise ValueError(message)
+    head = authority.current_head
+    work_lane = authority.required
+    commitment = resolution.commitment
     repository = repository_identity(root, tree_ref=head)
-    selected_change_id = commitment.id.removeprefix("change:") if commitment is not None else ""
-    archived = (
-        attested_archive_transition(root, head=head, change=selected_change_id)
-        if generation_binding is None and selected_change_id
-        else None
-    )
+    selected_change_id = resolution.change_id
     policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
     nodes = policy.nodes
-    observed_scope = (
-        generation_binding.scope
-        if generation_binding is not None
-        else (
-            current_scope(
-                commitment=commitment,
-                fallback_paths=changed_paths,
-            )
-            if work_lane and changed_paths and commitment is not None
-            else None
-        )
-    )
-    effective_paths = (
-        generation_binding.scope.paths if generation_binding is not None else changed_paths
-    )
+    observed_scope = resolution.scope
+    effective_paths = observed_scope.paths
     facts = Facts(
         repository=repository,
         head=head,
-        tree=current_tree(root, head),
+        tree=authority.current_tree,
         observed_at=datetime.now().astimezone(),
         values={
             "changed_paths": effective_paths,
@@ -355,10 +307,10 @@ def proof_plan(
                     "selected_carrier": observed_scope.selected_carrier,
                     "path_attributions": observed_scope.attribution_projection(),
                 }
-                if observed_scope is not None
+                if observed_scope.paths or observed_scope.attributions
                 else {}
             ),
-            **({"lease_generation": lease_generation(lease)} if work_lane else {}),
+            **({"lease_generation": lease_generation(resolution.lease)} if work_lane else {}),
         },
         source_refs=(
             "git:HEAD",
@@ -366,13 +318,7 @@ def proof_plan(
             *(("lease:current-generation",) if work_lane else ()),
         ),
     )
-    archive_authority = (
-        archived[1]
-        if archived is not None
-        else observed_scope.archive_authority
-        if work_lane and effective_paths and observed_scope is not None
-        else {}
-    )
+    archive_authority = observed_scope.archive_authority
     prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}
     return compile_plan(
         commitment,
@@ -380,11 +326,7 @@ def proof_plan(
         nodes,
         policy=policy.projection,
         prior_attestations=prior_attestations,
-        required_gaps=tuple(
-            dict.fromkeys(
-                (*policy.gaps, *(observed_scope.gaps if observed_scope is not None else ()))
-            )
-        ),
+        required_gaps=tuple(dict.fromkeys((*policy.gaps, *observed_scope.gaps))),
     )
 
 

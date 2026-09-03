@@ -10,6 +10,7 @@ import pytest
 
 import ethos.adapters.mutation.proof as proof_module
 import ethos.adapters.mutation.proof_admission as proof_admission
+from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.mutation.proof import issue_proof_attestation
@@ -20,7 +21,6 @@ from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
-from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.plan import TransitionPlan
@@ -33,6 +33,7 @@ from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import conformant_proof_check
+from tests.support.governed_repository import current_proof_plan
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import issue_conformant_proof
@@ -40,6 +41,7 @@ from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
 from tests.support.literal_cases import literal_case
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -98,7 +100,7 @@ def _assert_proof(
 
 def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    plan = proof_plan(repo, head=head)
+    plan = current_proof_plan(repo, expected_head=head)
     record = _issue(repo, head)
     selected = persist_proof_attestation(repo, record)
     assert selected["root"]
@@ -133,8 +135,23 @@ def test_repository_proof_without_active_change_has_no_commitment(tmp_path: Path
     """A repository proof binds Git and policy without inventing authored intent."""
     _repo, candidate = start_adopted_candidate(tmp_path)
     head = git(candidate, "rev-parse", "HEAD")
+    resolution = CurrentResolution(
+        verdict="pass",
+        authority=CurrentAuthority(
+            verdict="pass",
+            reason="not_required",
+            branch="candidate/dev",
+            actor="agent:test:case:agent-test",
+            lease={},
+            current_head=head,
+            current_tree=git(candidate, "rev-parse", "HEAD^{tree}"),
+            required=False,
+        ),
+        commitment=None,
+        scope=CurrentScope(()),
+    )
 
-    plan = proof_plan(candidate, head=head)
+    plan = proof_plan(candidate, resolution=resolution)
     record = issue_conformant_proof(candidate, head, plan=plan)
 
     assert plan.commitment is None
@@ -192,7 +209,7 @@ def test_unknown_proof_payload_kind_cannot_authorize(tmp_path: Path) -> None:
 
 def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    plan = proof_plan(repo, head=head)
+    plan = current_proof_plan(repo, expected_head=head)
     checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes)
     valid = _issue(repo, head, plan=plan, checks=checks)
 
@@ -272,7 +289,7 @@ def test_proof_issuance_rechecks_live_facts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    plan = proof_plan(repo, head=head)
+    plan = current_proof_plan(repo, expected_head=head)
     monkeypatch.setattr(proof_module, "current_tree", lambda *_args, **_kwargs: "0" * 40)
     with pytest.raises(ValueError, match="proof_attestation_live_facts_stale"):
         issue_conformant_proof(repo, head, plan=plan, issuer="agent:test:case:proof")
@@ -285,24 +302,8 @@ def test_proof_issuance_reuses_the_plan_commitment_without_rereading_exact_head(
     adopt_and_commit(repo)
     write_active_commitment(repo, change_id="dirty-proof-binding")
     head = git(repo, "rev-parse", "HEAD")
-    commitment = load_profile_commitment(repo, change_id="dirty-proof-binding")
-    plan = proof_plan(
-        repo,
-        head=head,
-        generation_binding=CurrentResolution(
-            verdict="pass",
-            authority=None,
-            commitment=commitment,
-            scope=CurrentScope(("openspec/changes/dirty-proof-binding/proposal.md",)),
-        ),
-    )
-    monkeypatch.setattr(
-        proof_module,
-        "load_profile_commitment",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            AssertionError("proof issuance must reuse the bound plan Commitment")
-        ),
-    )
+    plan = current_proof_plan(repo, expected_head=head)
+    monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
 
     attestation = issue_conformant_proof(repo, head, plan=plan)
 
@@ -328,7 +329,7 @@ def test_proof_issuance_payload_is_a_closed_contract(
     error: str,
 ) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    plan = proof_plan(repo, head=head)
+    plan = current_proof_plan(repo, expected_head=head)
     checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes)
     payload: dict[str, object] = {
         "plan": plan,
@@ -360,7 +361,7 @@ def test_proof_issuance_payload_is_a_closed_contract(
 
 def test_proof_issuance_rejects_nonadmitted_plan_and_result_drift(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    admitted = proof_plan(repo, head=head)
+    admitted = current_proof_plan(repo, expected_head=head)
     checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in admitted.nodes)
     blocked = compile_plan(
         Commitment.model_validate(dict(admitted.commitment)),
@@ -392,34 +393,114 @@ def test_proof_issuance_rejects_nonadmitted_plan_and_result_drift(tmp_path: Path
         issue_proof_attestation(repo, payload)
 
 
+def test_work_lane_proof_plan_compiles_only_from_the_frozen_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    holder = "agent:test:case:proof-holder"
+    root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
+    head = git(root, "rev-parse", "HEAD")
+    tree = git(root, "rev-parse", "HEAD^{tree}")
+    commitment = commitment_fixture(id="change:fixture-change")
+    lease = dict(proof_module.leases_by_branch(root)["work/feature"])
+    resolution = CurrentResolution(
+        verdict="pass",
+        authority=CurrentAuthority(
+            verdict="pass",
+            reason="matched",
+            branch="work/feature",
+            actor=holder,
+            lease=lease,
+            current_head=head,
+            current_tree=tree,
+        ),
+        commitment=commitment,
+        scope=CurrentScope(("FEATURE.md",)),
+    )
+    monkeypatch.setattr(
+        proof_module,
+        "leases_by_branch",
+        lambda _root: (_ for _ in ()).throw(
+            AssertionError("proof planning must not reread Lease state")
+        ),
+    )
+    monkeypatch.setattr(
+        proof_module,
+        "resolve_current_authority",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("proof planning must not resolve authority twice")
+        ),
+    )
+    monkeypatch.setattr(
+        proof_module,
+        "current_branch",
+        lambda _root: (_ for _ in ()).throw(
+            AssertionError("proof planning must use the resolved branch")
+        ),
+    )
+    monkeypatch.setattr(
+        proof_module,
+        "current_tree",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("proof planning must use the resolved tree")
+        ),
+    )
+    plan = proof_plan(root, resolution=resolution)
+
+    assert mutable_json(plan.commitment) == commitment.model_dump(mode="json")
+    assert plan.facts["head"] == head
+    assert plan.facts["tree"] == tree
+    assert plan.facts["values"]["changed_paths"] == ("FEATURE.md",)
+    assert plan.facts["values"]["lease_generation"] == {
+        key: lease[key] for key in ("lane_ref", "generation", "holder_ref", "expires_at")
+    }
+
+
 @pytest.mark.parametrize(
-    ("state", "gap"),
+    ("drift", "gap"),
     [
-        ("expired", "work_lane_lease_expired"),
+        ("generation", "proof_lease_generation_stale"),
         ("actor", "lease_holder_mismatch"),
     ],
 )
-def test_work_lane_proof_plan_requires_current_lease_generation(
+def test_work_lane_proof_issuance_rechecks_live_authority(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    state: str,
+    drift: str,
     gap: str,
 ) -> None:
     holder = "agent:test:case:proof-holder"
     root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
     head = git(root, "rev-parse", "HEAD")
+    tree = git(root, "rev-parse", "HEAD^{tree}")
     lease = dict(proof_module.leases_by_branch(root)["work/feature"])
-    monkeypatch.setenv("ETHOS_ACTOR", "other" if state == "actor" else holder)
-    if state == "expired":
-        lease["lease_state"] = "expired"
-    monkeypatch.setattr(
-        proof_module,
-        "leases_by_branch",
-        lambda _root: {"work/feature": lease},
+    resolution = CurrentResolution(
+        verdict="pass",
+        authority=CurrentAuthority(
+            verdict="pass",
+            reason="matched",
+            branch="work/feature",
+            actor=holder,
+            lease=lease,
+            current_head=head,
+            current_tree=tree,
+        ),
+        commitment=commitment_fixture(id="change:fixture-change"),
+        scope=CurrentScope(()),
     )
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+    plan = proof_plan(root, resolution=resolution)
+    if drift == "generation":
+        monkeypatch.setattr(
+            proof_module,
+            "leases_by_branch",
+            lambda _root: {"work/feature": lease | {"generation": int(lease["generation"]) + 1}},
+        )
+    else:
+        monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
 
     with pytest.raises(ValueError, match=gap):
-        proof_plan(root, head=head)
+        issue_conformant_proof(root, head, plan=plan)
 
 
 @pytest.mark.parametrize(
@@ -431,7 +512,7 @@ def test_work_lane_proof_plan_requires_current_lease_generation(
 def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, gap: str) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     valid = _issue(repo, head)
-    plan = proof_plan(repo, head=head)
+    plan = current_proof_plan(repo, expected_head=head)
     facts = Facts.model_validate(plan.facts | {"observed_at": datetime.now(UTC)})
     if case in {"head", "tree"}:
         facts = facts.model_copy(update={case: "0" * 40})
@@ -458,20 +539,13 @@ def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, g
     _assert_proof(repo, head, gap=gap)
 
 
-def test_persistence_identity_and_self_contained_closure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_persistence_identity_and_self_contained_closure(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     record = _issue(repo, head)
     selected = persist_proof_attestation(repo, record)
     repeated = persist_proof_attestation(repo, record)
     assert repeated["root"] == selected["root"]
     assert repeated["added"] == ()
-    monkeypatch.setattr(
-        proof_module,
-        "load_profile_commitment",
-        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError()),
-    )
     _assert_proof(repo, head, selected=record)
 
 
@@ -480,7 +554,7 @@ def test_repository_transition_ignores_an_unarchived_work_lane_proof(
 ) -> None:
     fixture = start_adopted_work_lane(tmp_path)
     head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
-    historical_plan = proof_plan(fixture.worktree, head=head, changed_paths=("FEATURE.md",))
+    historical_plan = current_proof_plan(fixture.worktree, expected_head=head)
     historical = _issue(fixture.worktree, head, plan=historical_plan)
     persist_proof_attestation(fixture.worktree, historical)
     git(fixture.candidate, "reset", "--hard", head)
@@ -534,7 +608,7 @@ def test_repository_transition_ignores_an_unarchived_work_lane_proof(
 def _archive_bound_work_proof(tmp_path: Path) -> tuple[object, str, Attestation]:
     fixture = start_adopted_work_lane(tmp_path)
     head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
-    base = proof_plan(fixture.worktree, head=head, changed_paths=("FEATURE.md",))
+    base = current_proof_plan(fixture.worktree, expected_head=head)
     archived = compile_plan(
         Commitment.model_validate(dict(base.commitment)),
         Facts.model_validate(base.facts | {"observed_at": datetime.now(UTC)}),

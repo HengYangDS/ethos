@@ -10,14 +10,14 @@ from datetime import timedelta
 from pathlib import Path
 from typing import NamedTuple
 
+from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -550,12 +550,13 @@ def issue_conformant_proof(
     *,
     plan=None,
     checks=None,
+    full=False,
     issuer="agent:test:fixture:proof",
     issued_at=datetime(2026, 7, 26, tzinfo=UTC),
     boundary="repository",
 ):
     """Issue one proof Attestation from the repository's exact declared policy."""
-    plan = plan or proof_plan(repo, head=head)
+    plan = plan or current_proof_plan(repo, expected_head=head, full=full)
     if checks is None:
         checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes)
     return issue_proof_attestation(
@@ -572,6 +573,39 @@ def issue_conformant_proof(
     )
 
 
+def current_proof_plan(
+    repo: Path,
+    *,
+    expected_head: str,
+    gate_ids: tuple[str, ...] = (),
+    full: bool = False,
+):
+    """Compile proof from the production resolution of one exact current HEAD."""
+    observed_head = git(repo, "rev-parse", "HEAD")
+    if observed_head != expected_head:
+        msg = f"fixture_proof_head_not_current:{expected_head}:{observed_head}"
+        raise AssertionError(msg)
+    status, authority = workspace_status_observation(
+        repo,
+        include_foreign_path_scope=False,
+    )
+    resolution = resolve_current_resolution(
+        repo,
+        status=status,
+        authority=authority,
+        changed=True,
+    )
+    if resolution.verdict != "pass":
+        msg = "fixture_current_resolution_not_passed:" + ",".join(resolution.required_gaps)
+        raise AssertionError(msg)
+    return proof_plan(
+        repo,
+        resolution=resolution,
+        gate_ids=gate_ids,
+        full=full,
+    )
+
+
 def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
     """Persist one complete policy-conformant generic proof Attestation."""
     branch = git(repo, "branch", "--show-current")
@@ -584,15 +618,14 @@ def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
     if installed_hooks:
         git(repo, "config", "--worktree", "core.hooksPath", ".git/test-hooks")
     try:
-        plan = proof_plan(
-            repo,
-            head=head,
-            full=full,
-            changed_paths=change_scope_paths_from_status(repo, workspace_status(repo)),
-        )
         persist_proof_attestation(
             repo,
-            issue_conformant_proof(repo, head, plan=plan, issued_at=datetime.now(UTC)),
+            issue_conformant_proof(
+                repo,
+                head,
+                full=full,
+                issued_at=datetime.now(UTC),
+            ),
         )
     finally:
         if installed_hooks:

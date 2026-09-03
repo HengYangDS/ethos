@@ -17,4 +17,4 @@
 ## 4. Prove And Deliver
 
 - [x] 4.1 Run focused tests, static checks, strict OpenSpec validation, and exact-HEAD proof
-- [ ] 4.2 Archive, land, close out, activate the immutable package runtime, and verify package-only commands
+- [x] 4.2 Archive, land, close out, activate the immutable package runtime, and verify package-only commands

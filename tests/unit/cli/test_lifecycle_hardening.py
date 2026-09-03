@@ -17,6 +17,7 @@ from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -112,6 +113,7 @@ def test_lane_candidate_bootstrap_recovers_after_worktree_creation_precedes_inte
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
+    install_fixture_hook_runtime(repo)
     head = git(repo, "rev-parse", "HEAD")
     candidate = tmp_path / "repo-candidate-dev"
     arguments = (

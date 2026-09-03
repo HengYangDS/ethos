@@ -102,6 +102,37 @@ def test_start_projects_exact_candidate_and_minimal_lease_without_commitment(
     assert report["ref_attestation"]["commitment_digest"] is None
 
 
+def test_start_projects_candidate_while_observing_the_current_accepted_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, candidate = init_repo_with_candidate(tmp_path)
+    target = tmp_path / "repo-work-feature"
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    accepted_head = commit_fixture_file(
+        repo,
+        "accepted-only.txt",
+        "accepted advanced after candidate projection\n",
+        "advance accepted independently",
+    )
+    assert accepted_head != candidate_head
+    _lightweight_runtime(monkeypatch)
+
+    report = lane_start.start_work_lane(
+        root=repo,
+        name="feature",
+        path=target,
+        holder_ref=HOLDER,
+        apply=True,
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["base_head"] == candidate_head
+    assert git(target, "rev-parse", "HEAD") == candidate_head
+    effect_evidence = report["ref_attestation"]["payload"]["body"]
+    assert effect_evidence["plan"]["facts"]["head"] == accepted_head
+    assert effect_evidence["input"]["head"] == accepted_head
+
+
 def test_start_dry_run_is_side_effect_free_and_apply_is_idempotent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

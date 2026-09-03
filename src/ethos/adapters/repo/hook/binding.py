@@ -68,7 +68,12 @@ def hook_launcher(name: str) -> str:
         'RUNTIME_ROOT="$HOOK_DIR/../../runtime"\n'
         'CURRENT="$RUNTIME_ROOT/CURRENT"\n'
         'if [ -L "$CURRENT" ] || [ ! -f "$CURRENT" ]; then exit 1; fi\n'
-        'RUNTIME_DIGEST=$(cat "$CURRENT") || exit 1\n'
+        'exec 3<"$CURRENT" || exit 1\n'
+        "IFS= read -r RUNTIME_DIGEST <&3 || exit 1\n"
+        "RUNTIME_SELECTOR_EXTRA=\n"
+        "IFS= read -r RUNTIME_SELECTOR_EXTRA <&3 && exit 1\n"
+        '[ -z "$RUNTIME_SELECTOR_EXTRA" ] || exit 1\n'
+        "exec 3<&-\n"
         'case "$RUNTIME_DIGEST" in *[!0-9a-f]*|"") exit 1;; esac\n'
         '[ "${#RUNTIME_DIGEST}" -eq 64 ] || exit 1\n'
         'RUNTIME="$RUNTIME_ROOT/$RUNTIME_DIGEST"\n'

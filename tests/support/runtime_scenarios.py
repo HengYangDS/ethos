@@ -172,6 +172,18 @@ def materialize_runtime_case(
     monkeypatch.setattr(
         runtime_materialization, "resolve_owned_interpreter", lambda *_args: source_python
     )
+    locked_requirements = tmp_path / "locked-requirements.txt"
+    locked_requirements.write_text("fixture==1\n", encoding="utf-8")
+
+    def prepare_requirements(project: Path, *_args: object, **_kwargs: object) -> Path:
+        assert project == REPOSITORY_ROOT
+        return locked_requirements
+
+    monkeypatch.setattr(
+        runtime_materialization,
+        "prepare_locked_requirements",
+        prepare_requirements,
+    )
 
     def materialize_python(
         target: Path,
@@ -184,7 +196,7 @@ def materialize_runtime_case(
         cache_dir: Path | None = None,
     ) -> None:
         assert python_facts is not None
-        assert locked_requirements is None
+        assert locked_requirements == tmp_path / "locked-requirements.txt"
         assert cache_dir is not None
         runtime_python = runtime_executable(target, "python")
         runtime_python.parent.mkdir(parents=True)
@@ -225,6 +237,7 @@ def materialize_runtime_case(
         repo,
         source_python,
         expected_build=identity,
+        build_source=REPOSITORY_ROOT,
     )
 
 

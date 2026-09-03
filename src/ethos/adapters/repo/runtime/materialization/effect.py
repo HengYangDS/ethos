@@ -21,6 +21,7 @@ from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
+from ethos.adapters.repo.runtime.materialization.input_resolution import is_selected_runtime_source
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_owned_interpreter
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_project
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_wheel
@@ -55,7 +56,10 @@ def materialize_runtime(
     package_source = build_source or Path(__file__).resolve().parents[6]
     project = build_source or resolve_runtime_project(package_source)
     runtime_root = Path(git_common_dir(repo)) / "ethos" / "runtime"
-    cache_dir = runtime_root.parent / "cache" / "uv"
+    declared_cache = os.environ.get("UV_CACHE_DIR")
+    cache_dir = Path(declared_cache) if declared_cache else runtime_root.parent / "cache" / "uv"
+    if not cache_dir.is_absolute():
+        _fail("hook_runtime_cache_path_invalid")
     if runtime_root.parent.is_symlink() or runtime_root.is_symlink():
         _fail("hook_runtime_root_invalid")
     work = runtime_root / f".build-{uuid.uuid4().hex}"
@@ -70,10 +74,11 @@ def materialize_runtime(
         if reusable := _reusable_runtime(repo, expected_build, environment):
             return reusable / "python"
         wheel = resolve_runtime_wheel(package_source, work / "wheel", cache_dir=cache_dir)
+        reuse_selected_closure = build_source is None and is_selected_runtime_source(package_source)
         locked_requirements = (
-            prepare_locked_requirements(project, work, interpreter, cache_dir=cache_dir)
-            if build_source is not None
-            else None
+            None
+            if reuse_selected_closure
+            else prepare_locked_requirements(project, work, interpreter, cache_dir=cache_dir)
         )
         artifact = materialize_package_wheel(
             repo,

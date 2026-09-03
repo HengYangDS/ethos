@@ -15,6 +15,7 @@ from typing import cast
 
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
+from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
@@ -223,7 +224,7 @@ def _create_ref(
         repo,
         None,
         effect,
-        head=head,
+        head=current_tracked_head(repo),
         prior_attestations={},
         policy={
             "operation": "lane.start",

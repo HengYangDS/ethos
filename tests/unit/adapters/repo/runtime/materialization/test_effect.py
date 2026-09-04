@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import stat
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,6 +14,7 @@ import pytest
 import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
+import ethos.adapters.repo.runtime.materialization.python_environment as runtime_python_environment
 import ethos.adapters.repo.runtime.materialization.python_image as runtime_python_image
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -36,7 +38,10 @@ def _environment(**changes: str):
 
 
 def _python_facts(home: Path) -> dict[str, str]:
+    executable = home / "bin/python"
     return {
+        "executable": executable.resolve().as_posix(),
+        "base_executable": executable.resolve().as_posix(),
         "python_abi": "cpython-test",
         "python_version": "3.14.7",
         "python_implementation": "cpython",
@@ -108,20 +113,17 @@ def test_ordinary_wheel_install_materializes_the_embedded_locked_runtime(
     interpreter = _write(tmp_path / "managed-python/bin/python", b"python")
     wheel = _write(tmp_path / "ethos.whl", b"wheel")
     requirements = _write(tmp_path / "locked-requirements.txt", b"package==1\n")
-    cache = tmp_path / "shared-uv-cache"
     identity = runtime_build("a" * 40, "b" * 40)
     environment = _environment()
     observed: dict[str, object] = {}
 
-    monkeypatch.setenv("UV_CACHE_DIR", cache.as_posix())
     monkeypatch.setattr(runtime_materialization, "__file__", module.as_posix())
     monkeypatch.setattr(runtime_materialization, "resolve_runtime_project", lambda _root: project)
     monkeypatch.setattr(
         runtime_materialization,
-        "resolve_owned_interpreter",
-        lambda _source, _python: interpreter,
+        "require_python_image_source",
+        lambda _python: _python_facts(interpreter.parent.parent),
     )
-    monkeypatch.setattr(runtime_materialization, "observe_python_facts", lambda _python: {})
     monkeypatch.setattr(
         runtime_materialization,
         "observe_runtime_environment",
@@ -136,7 +138,7 @@ def test_ordinary_wheel_install_materializes_the_embedded_locked_runtime(
 
     def resolve_wheel(source: Path, _wheel_dir: Path, **_kwargs: object) -> Path:
         observed["source"] = source
-        observed["wheel_cache"] = _kwargs["cache_dir"]
+        observed["wheel_python"] = _kwargs["python"]
         return wheel
 
     monkeypatch.setattr(runtime_materialization, "resolve_runtime_wheel", resolve_wheel)
@@ -148,7 +150,6 @@ def test_ordinary_wheel_install_materializes_the_embedded_locked_runtime(
         **_kwargs: object,
     ) -> Path:
         observed["prepared"] = (source, selected_interpreter)
-        observed["requirements_cache"] = _kwargs["cache_dir"]
         return requirements
 
     monkeypatch.setattr(runtime_materialization, "prepare_locked_requirements", prepare)
@@ -160,7 +161,7 @@ def test_ordinary_wheel_install_materializes_the_embedded_locked_runtime(
 
     def materialize_generation(*_args: object, **kwargs: object) -> Path:
         observed["locked_requirements"] = kwargs["locked_requirements"]
-        observed["generation_cache"] = kwargs["cache_dir"]
+        observed["dependency_python"] = kwargs["dependency_python"]
         return tmp_path / "runtime-generation"
 
     monkeypatch.setattr(
@@ -177,11 +178,99 @@ def test_ordinary_wheel_install_materializes_the_embedded_locked_runtime(
 
     assert observed["source"] == package_source
     assert observed["prepared"] == (project, interpreter)
-    assert observed["wheel_cache"] == cache
-    assert observed["requirements_cache"] == cache
-    assert observed["generation_cache"] == cache
+    assert observed["wheel_python"] == interpreter
+    assert observed["dependency_python"] == interpreter
     assert observed["locked_requirements"] == requirements
     assert runtime == tmp_path / "runtime-generation/python"
+
+
+def test_runtime_materialization_separates_dependency_supply_from_python_image(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The invocation supplies packages while a congruent source supplies Python."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert (
+        subprocess.run(
+            ("git", "init", "--quiet", "--initial-branch=dev"),
+            cwd=repo,
+            check=False,
+        ).returncode
+        == 0
+    )
+    package_source = tmp_path / "bootstrap/lib/python3.14"
+    module = package_source / "site-packages/ethos/adapters/repo/runtime/materialization/effect.py"
+    project = tmp_path / "runtime-project"
+    wheel = _write(tmp_path / "ethos.whl", b"wheel")
+    requirements = _write(tmp_path / "locked-requirements.txt", b"package==1\n")
+    identity = runtime_build("a" * 40, "b" * 40)
+    environment = _environment()
+    observed: dict[str, object] = {}
+
+    monkeypatch.setattr(runtime_materialization, "__file__", module.as_posix())
+    monkeypatch.setattr(runtime_materialization, "resolve_runtime_project", lambda _root: project)
+    monkeypatch.setattr(runtime_materialization, "_reusable_runtime", lambda *_args: None)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "is_selected_runtime_source",
+        lambda _source: False,
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "observe_runtime_environment",
+        lambda _project, interpreter, **kwargs: (
+            observed.update(
+                environment_interpreter=interpreter,
+                python_facts=kwargs["python_facts"],
+            )
+            or environment
+        ),
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "resolve_runtime_wheel",
+        lambda *_args, **_kwargs: wheel,
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "prepare_locked_requirements",
+        lambda _project, _work, interpreter, **_kwargs: (
+            observed.update(requirements_interpreter=interpreter) or requirements
+        ),
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_package_wheel",
+        lambda *_args, **_kwargs: PackageArtifact(wheel, "c" * 64, identity),
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_runtime_generation",
+        lambda _root, _work, _project, interpreter, *_args, **kwargs: (
+            observed.update(
+                generation_interpreter=interpreter,
+                generation_facts=kwargs["python_facts"],
+                generation_dependency_python=kwargs.get("dependency_python"),
+            )
+            or tmp_path / "runtime-generation"
+        ),
+    )
+
+    runtime_materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=identity,
+    )
+
+    source = Path(
+        runtime_python_environment.require_python_image_source(Path(sys.executable))["executable"]
+    ).resolve()
+    assert observed["environment_interpreter"] == source
+    assert observed["requirements_interpreter"] == Path(sys.executable)
+    assert observed["generation_interpreter"] == source
+    assert observed["generation_dependency_python"] == Path(sys.executable)
+    assert observed["python_facts"] == observed["generation_facts"]
 
 
 def test_materialized_python_is_a_product_owned_non_mutating_closure(
@@ -205,10 +294,10 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
 
     def install(
         _source: Path,
+        _dependency_python: Path,
         python: Path,
         _wheel: Path,
         _requirements: Path,
-        **_kwargs: object,
     ) -> None:
         scripts = python.parent
         for name in ("ethos", "uv"):
@@ -230,6 +319,7 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
         tmp_path,
         interpreter,
         tmp_path / "ethos.whl",
+        dependency_python=interpreter,
         locked_requirements=tmp_path / "requirements.txt",
     )
 
@@ -323,7 +413,11 @@ def test_runtime_generation_compares_windows_prefixes_as_paths(
     target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
     prefix = (target / "python").resolve().as_posix()
     windows_spelling = prefix.replace("/", "\\").upper()
-    monkeypatch.setattr(runtime_materialization, "os", SimpleNamespace(name="nt"))
+    monkeypatch.setattr(
+        runtime_python_environment,
+        "os",
+        SimpleNamespace(name="nt", fspath=os.fspath),
+    )
     monkeypatch.setattr(
         runtime_materialization,
         "observe_python_facts",
@@ -421,7 +515,18 @@ def test_runtime_reuse_rejects_architecture_drift(
         architecture_name="x86_64" if selected.architecture != "x86_64" else "arm64",
     )
     monkeypatch.setattr(
-        runtime_materialization, "resolve_owned_interpreter", lambda *_args: selected.python
+        runtime_materialization,
+        "require_python_image_source",
+        lambda _python: {
+            "executable": selected.python.resolve().as_posix(),
+            "base_executable": selected.python.resolve().as_posix(),
+            "python_abi": selected.python_abi,
+            "python_version": selected.python_version,
+            "python_implementation": selected.python_implementation,
+            "architecture": selected.architecture,
+            "prefix": selected.python.parent.parent.resolve().as_posix(),
+            "base_prefix": selected.python.parent.parent.resolve().as_posix(),
+        },
     )
     monkeypatch.setattr(
         runtime_materialization, "observe_runtime_environment", lambda *_args, **_kwargs: drifted

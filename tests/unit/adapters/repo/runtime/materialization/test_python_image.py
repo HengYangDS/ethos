@@ -45,7 +45,7 @@ def test_python_copy_boundaries_and_windows_payload(
     copy_file = vars(python_image)["_copy_runtime_file"]
     root, outside = tmp_path / "tree", _file(tmp_path / "outside")
     root.mkdir()
-    _fails("owned_interpreter_unavailable", copy_tree, outside, tmp_path / "target")
+    _fails("interpreter_source_unavailable", copy_tree, outside, tmp_path / "target")
     invalid_links = (("absolute", outside), ("escape", "../outside"), ("missing", "missing"))
     for name, target in invalid_links:
         link = root / name

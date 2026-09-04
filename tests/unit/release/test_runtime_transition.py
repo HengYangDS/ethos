@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.repo.runtime.materialization.python_image as python_image
+import ethos.adapters.repo.runtime.materialization.dependency_supply as dependency_supply
 import ethos.adapters.repo.runtime.transition as identity_transition
 from ethos.repository.release.admission import accepted_release_attestation
 from ethos.repository.release.admission import accepted_release_identity
@@ -40,12 +40,22 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     source = tmp_path / "source"
     (source / "a/b/c/d").mkdir(parents=True)
     (source / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
-    calls: list[tuple[str, tuple[str, ...]]] = []
+    calls: list[tuple[str, tuple[str, ...], Path]] = []
+
+    def record_runtime_tool(
+        _source: Path,
+        operation: str,
+        *args: str,
+        python: Path,
+    ) -> None:
+        calls.append((operation, args, python))
+
     monkeypatch.setattr(
-        python_image,
+        dependency_supply,
         "run_runtime_tool",
-        lambda _source, operation, *args: calls.append((operation, args)),
+        record_runtime_tool,
     )
+    monkeypatch.setattr(dependency_supply, "project_dependency_supply", lambda *_args: None)
     artifact = identity_transition.materialize_package_wheel(
         repo,
         volatile_wheel,
@@ -56,8 +66,9 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     requirements = tmp_path / "work/locked-requirements.txt"
     requirements.parent.mkdir()
     requirements.write_text("locked\n", encoding="utf-8")
-    python_image.install_locked_runtime(
+    dependency_supply.install_locked_runtime(
         source,
+        tmp_path / "source-python",
         tmp_path / "python",
         artifact.path,
         requirements,
@@ -69,6 +80,10 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     assert calls[1][0] == "pip"
     assert {"install", "--offline", "--break-system-packages", "--no-deps"} < set(calls[1][1])
     assert Path(calls[1][1][-1]) == durable
+    assert [python for _operation, _args, python in calls] == [
+        tmp_path / "source-python",
+        tmp_path / "source-python",
+    ]
     assert durable.read_bytes() == b"wheel"
     durable.write_bytes(b"different")
     with pytest.raises(ValueError, match="hook_runtime_wheel_digest_collision"):

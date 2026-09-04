@@ -22,6 +22,7 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
 )
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
+from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 
@@ -51,20 +52,14 @@ def resolve_node_executable(
     return node
 
 
-def resolve_runtime_wheel(source: Path, wheel_dir: Path, *, cache_dir: Path | None = None) -> Path:
+def resolve_runtime_wheel(
+    source: Path,
+    wheel_dir: Path,
+    *,
+    python: Path | None = None,
+) -> Path:
     """Resolve exactly one source-built, managed, or installed wheel."""
     if (source / "pyproject.toml").is_file():
-        run_runtime_tool(
-            source,
-            "sync",
-            "--locked",
-            "--offline",
-            "--check",
-            "--active",
-            "--no-install-project",
-            "--inexact",
-            cache_dir=cache_dir,
-        )
         wheel_dir.parent.mkdir(parents=True, exist_ok=True)
         if wheel_dir.exists():
             _fail("hook_runtime_wheel_invalid")
@@ -78,7 +73,7 @@ def resolve_runtime_wheel(source: Path, wheel_dir: Path, *, cache_dir: Path | No
                 "--wheel",
                 "--out-dir",
                 staging.as_posix(),
-                cache_dir=cache_dir,
+                python=python,
             )
             wheels = tuple(staging.glob("ethos-*.whl"))
             if len(wheels) != 1:
@@ -118,80 +113,32 @@ def is_selected_runtime_source(source: Path) -> bool:
     return _selected_runtime_source(source) is not None
 
 
-def resolve_owned_interpreter(source: Path, source_python: Path) -> Path:
-    """Resolve one standalone interpreter owned by the materialized runtime."""
-    resolved = source_python.resolve()
-    if Path(sys.prefix).name == "python" and resolved.is_relative_to(Path(sys.prefix).resolve()):
-        runtime = Path(sys.prefix).parent
-        if runtime.parent.name == "runtime":
-            return resolved
-    environment = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
-    requested = observe_python_facts(source_python)["python_version"]
-    command = _uv_module_command(
-        "python",
-        "find",
-        "--managed-python",
-        "--system",
-        "--offline",
-        "--no-python-downloads",
-        requested,
-    )
-    completed = subprocess.run(
-        command, cwd=source, capture_output=True, text=True, check=False, env=environment
-    )
-    if completed.returncode:
-        installed = subprocess.run(
-            _uv_module_command(
-                "python",
-                "install",
-                "--no-bin",
-                "--offline",
-                "--no-python-downloads",
-                requested,
-            ),
-            cwd=source,
-            capture_output=True,
-            text=True,
-            check=False,
-            env=environment,
-        )
-        if installed.returncode:
-            raise ValueError(
-                installed.stderr.strip()
-                or installed.stdout.strip()
-                or "hook_runtime_owned_interpreter_unavailable"
-            )
-        completed = subprocess.run(
-            command, cwd=source, capture_output=True, text=True, check=False, env=environment
-        )
-    if completed.returncode:
-        _fail("hook_runtime_owned_interpreter_unavailable")
-    interpreter = Path(completed.stdout.strip()).resolve()
-    facts = observe_python_facts(interpreter)
-    if not interpreter.is_file() or facts["prefix"] != facts["base_prefix"]:
-        _fail("hook_runtime_owned_interpreter_unavailable")
-    return interpreter
-
-
 def run_runtime_tool(
     source: Path,
     *args: str,
-    cache_dir: Path | None = None,
+    python: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run locked uv through the current authenticated Python interpreter."""
-    environment = {
+    executable = python or Path(sys.executable)
+    prefix = (
+        Path(sys.prefix)
+        if same_python_path(executable.resolve(), Path(sys.executable).resolve())
+        else Path(observe_python_facts(executable)["prefix"])
+    )
+    environment: dict[str, str] = {
         **os.environ,
         "PYTHONDONTWRITEBYTECODE": "1",
         "UV_LINK_MODE": "copy",
+        "UV_NO_CACHE": "1",
         "UV_OFFLINE": "1",
-        "VIRTUAL_ENV": Path(sys.prefix).as_posix(),
+        "VIRTUAL_ENV": prefix.as_posix(),
     }
+    environment.pop("ETHOS_UV_CACHE_DIR", None)
+    environment.pop("UV_CACHE_DIR", None)
     if (source / "package-lock.json").is_file():
         environment["ETHOS_NODE_PACKAGE_SUPPLY"] = resolve_node_package_supply(source).as_posix()
-    if cache_dir is not None:
-        environment["UV_CACHE_DIR"] = cache_dir.as_posix()
     completed = subprocess.run(
-        _uv_module_command(*args),
+        _uv_module_command(executable, *args),
         cwd=source,
         capture_output=True,
         text=True,
@@ -237,5 +184,5 @@ def _selected_runtime_source(source: Path) -> SelectedRuntime | None:
     return require_selected_runtime(runtime)
 
 
-def _uv_module_command(*arguments: str) -> tuple[str, ...]:
-    return (sys.executable, "-B", "-I", "-m", "uv", *arguments)
+def _uv_module_command(python: Path, *arguments: str) -> tuple[str, ...]:
+    return (python.as_posix(), "-B", "-I", "-m", "uv", *arguments)

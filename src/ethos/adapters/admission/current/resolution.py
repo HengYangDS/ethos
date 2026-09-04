@@ -7,10 +7,11 @@ from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.openspec.governance import artifact_output_paths
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
-from ethos.adapters.openspec.lifecycle.scope import canonical_spec_repair_scope_report
 from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_scope_report
+from ethos.adapters.openspec.lifecycle.scope import official_validation_repair_scope_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -238,8 +239,16 @@ def resolve_current_resolution(
         else {}
     )
     projected = official.get("commitment")
-    repair_scope = canonical_spec_repair_scope_report(
+    commands = official.get("commands")
+    status_result = commands.get("status") if isinstance(commands, dict) else None
+    status_payload = status_result.get("json") if isinstance(status_result, dict) else None
+    repair_scope = official_validation_repair_scope_report(
+        root=root,
         official=official,
+        official_artifact_paths=artifact_output_paths(
+            root,
+            status_payload if isinstance(status_payload, dict) else {},
+        ),
         requested_paths=prewrite_paths,
     )
     if prewrite_paths and repair_scope:

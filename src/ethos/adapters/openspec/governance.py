@@ -334,6 +334,7 @@ def _openspec_governance_report(
 def artifact_output_paths(root: Path, status: dict[str, Any]) -> tuple[str, ...]:
     """Return official artifact outputs as repository-relative paths."""
     paths: list[str] = []
+    repository = root.resolve()
     artifact_paths = status.get("artifactPaths")
     if not isinstance(artifact_paths, dict):
         return ()
@@ -342,8 +343,14 @@ def artifact_output_paths(root: Path, status: dict[str, Any]) -> tuple[str, ...]
             continue
         outputs = artifact.get("existingOutputPaths")
         for output in outputs if isinstance(outputs, list) else ():
+            candidate = Path(str(output))
+            if not candidate.is_absolute():
+                continue
             try:
-                paths.append(Path(str(output)).resolve().relative_to(root.resolve()).as_posix())
+                relative = candidate.relative_to(repository)
             except ValueError:
                 continue
+            if ".." in relative.parts:
+                continue
+            paths.append(relative.as_posix())
     return tuple(dict.fromkeys(paths))

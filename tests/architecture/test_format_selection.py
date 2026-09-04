@@ -89,6 +89,7 @@ def test_native_carriers_separate_canonicalization_from_validation() -> None:
         "tools/ci/scripts/bootstrap-python.sh": ("shfmt", "shellcheck"),
         "assets/brand/ethos-logo.svg": ("svgo", "svgo"),
         "assets/brand/ethos-logo-1024.png": ("source-binary", "pillow"),
+        ".gitattributes": ("repository-canonical-text", "repository-hygiene"),
         "uv.lock": ("uv", "uv"),
     }
     for path, owners in expected.items():

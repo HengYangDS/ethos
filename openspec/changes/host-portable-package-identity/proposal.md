@@ -39,9 +39,7 @@ None.
 ## Impact
 
 - Git-native repository content normalization.
-- `src/ethos/adapters/repo/runtime/source.py` and its focused tests.
+- Focused source-identity tests of the existing effective-tree compiler.
 - `src/ethos/adapters/repo/runtime/materialization/input_resolution.py` and its
   focused tests.
 - Native hosted package-conformance evidence on Windows, macOS, and Linux.
-- The terminal roadmap records this successor as the current runtime/package
-  frontier without creating another queue or status carrier.

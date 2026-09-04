@@ -8,6 +8,7 @@ import subprocess
 import sys
 import urllib.request
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -111,57 +112,36 @@ def test_installed_wheel_resolution_rejects_missing_and_non_file_provenance(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     assert runtime_inputs.is_selected_runtime_source(tmp_path) is False
-    for provenance in (None, json.dumps({"url": "https://example.test/ethos.whl"})):
-        metadata = type("Metadata", (), {"read_text": lambda *_args, value=provenance: value})()
+    for provenance in (
+        None,
+        json.dumps({"url": "https://example.test/ethos.whl"}),
+        json.dumps({"url": "file://remote.test/D:/dist/ethos.whl"}),
+    ):
+        metadata = SimpleNamespace(read_text=lambda *_args, value=provenance: value)
         monkeypatch.setattr(runtime_inputs, "distribution", lambda _name, value=metadata: value)
         with pytest.raises(ValueError, match="hook_runtime_wheel_provenance_missing"):
             runtime_inputs.resolve_runtime_wheel(tmp_path, tmp_path / "wheel")
 
 
-def test_installed_wheel_resolution_uses_native_file_url_path(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+def test_installed_wheel_uses_native_file_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    source = tmp_path / "installed"
-    source.mkdir()
-    wheel = tmp_path / "native/ethos-0.2.0-py3-none-any.whl"
-    wheel.parent.mkdir()
+    wheel = tmp_path / "ethos-0.2.0-py3-none-any.whl"
     wheel.write_bytes(b"wheel")
-    metadata = type(
-        "Metadata",
-        (),
-        {"read_text": lambda *_args: json.dumps({"url": "file:///D:/dist/ethos.whl"})},
-    )()
-    observed: list[str] = []
-    monkeypatch.setattr(runtime_inputs, "distribution", lambda _name: metadata)
-    monkeypatch.setattr(
-        urllib.request,
-        "url2pathname",
-        lambda path: observed.append(path) or wheel.as_posix(),
+    metadata = SimpleNamespace(
+        read_text=lambda *_args: json.dumps({"url": "file:///D:/dist/ethos.whl"})
     )
-
-    assert runtime_inputs.resolve_runtime_wheel(source, tmp_path / "unused") == wheel
-    assert observed == ["/D:/dist/ethos.whl"]
-
-
-def test_installed_wheel_resolution_rejects_non_local_file_authority(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    source = tmp_path / "installed"
-    source.mkdir()
-    wheel = tmp_path / "native/ethos-0.2.0-py3-none-any.whl"
-    wheel.parent.mkdir()
-    wheel.write_bytes(b"wheel")
-    metadata = type(
-        "Metadata",
-        (),
-        {"read_text": lambda *_args: json.dumps({"url": f"file://remote.test{wheel}"})},
-    )()
     monkeypatch.setattr(runtime_inputs, "distribution", lambda _name: metadata)
 
-    with pytest.raises(ValueError, match="hook_runtime_wheel_provenance_missing"):
-        runtime_inputs.resolve_runtime_wheel(source, tmp_path / "unused")
+    def native_path(path: str) -> str:
+        assert path == "/D:/dist/ethos.whl"
+        return wheel.as_posix()
+
+    monkeypatch.setattr(urllib.request, "url2pathname", native_path)
+
+    assert (
+        runtime_inputs.resolve_runtime_wheel(tmp_path / "installed", tmp_path / "unused") == wheel
+    )
 
 
 def test_managed_runtime_resolves_its_git_common_content_addressed_wheel(

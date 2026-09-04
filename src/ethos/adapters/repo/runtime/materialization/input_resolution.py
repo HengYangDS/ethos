@@ -7,12 +7,12 @@ import os
 import shutil
 import subprocess
 import sys
+import urllib.request
 import uuid
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
 from pathlib import Path
 from typing import NoReturn
-from urllib.parse import unquote
 from urllib.parse import urlparse
 
 import nodejs_wheel
@@ -89,10 +89,12 @@ def resolve_runtime_wheel(
         metadata = distribution("ethos")
         direct_url = json.loads(metadata.read_text("direct_url.json") or "")
         parsed = urlparse(str(direct_url.get("url") or ""))
-        wheel = Path(unquote(parsed.path))
+        if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
+            _fail("hook_runtime_wheel_provenance_missing")
+        wheel = Path(urllib.request.url2pathname(parsed.path))
     except (AttributeError, OSError, PackageNotFoundError, ValueError) as error:
         _fail("hook_runtime_wheel_provenance_missing", error)
-    if parsed.scheme != "file" or not wheel.is_file() or wheel.suffix != ".whl":
+    if not wheel.is_file() or wheel.suffix != ".whl":
         _fail("hook_runtime_wheel_provenance_missing")
     return wheel
 

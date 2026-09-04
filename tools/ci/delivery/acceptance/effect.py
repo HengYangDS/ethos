@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 import shutil
-import sys
 import tomllib
 import zipfile
 from datetime import UTC
@@ -20,10 +19,13 @@ import tools.ci.delivery.acceptance.lane as lane_acceptance
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
+from ethos.adapters.repo.runtime.materialization.dependency_supply import (
+    prepare_locked_requirements,
+)
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import wheel_build_identity
-from tools.ci.delivery import supply
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
 from tools.ci.toolchain.environment import ProjectRuntime
 
@@ -344,23 +346,15 @@ def run(session: nox.Session) -> None:
     WORK.mkdir(parents=True)
     try:
         wheel, smoke, adopter = _single_wheel(), WORK / "venv", WORK / "adopter"
-        uv, source_python = RUNTIME.script("uv"), Path(sys.executable)
+        uv, source_python = RUNTIME.script("uv"), RUNTIME.python
         _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
-        supply.install_into(
+        requirements = prepare_locked_requirements(ROOT, WORK, source_python)
+        install_locked_runtime(
+            ROOT,
+            source_python,
             _venv_executable(smoke, "python"),
-            constraints=WORK / "runtime-constraints.txt",
-        )
-        _run(
-            uv,
-            "pip",
-            "install",
-            "--offline",
-            "--no-deps",
-            "--cache-dir",
-            str(supply.UV_CACHE),
-            "--python",
-            str(_venv_executable(smoke, "python")),
-            str(wheel),
+            wheel,
+            requirements,
         )
         adopter_fixture.materialize_adopter(
             adopter,
@@ -376,7 +370,6 @@ def run(session: nox.Session) -> None:
         build = wheel_build_identity(wheel)
         wheel_sha256 = hashlib.sha256(wheel.read_bytes()).hexdigest()
         package_environment, _git = _independent_host_environment()
-        package_environment["UV_CACHE_DIR"] = supply.UV_CACHE.as_posix()
         package_environment["UV_OFFLINE"] = "1"
         lifecycle = observe_runtime_lifecycle(
             installed_ethos=installed_ethos,

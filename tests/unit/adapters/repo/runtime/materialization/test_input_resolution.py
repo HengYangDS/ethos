@@ -11,7 +11,6 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.input_resolution as runtime_inputs
-import ethos.adapters.repo.runtime.materialization.python_image as python_image
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
 
 
@@ -98,15 +97,13 @@ def test_source_wheel_resolution_requires_exactly_one_output(
         "-I",
         "-m",
         "uv",
-        "sync",
-        "--locked",
+        "build",
         "--offline",
-        "--check",
-        "--active",
-        "--no-install-project",
-        "--inexact",
+        "--no-build-isolation",
+        "--wheel",
+        "--out-dir",
+        commands[0][-1],
     )
-    assert "--no-build-isolation" in commands[1]
 
 
 def test_installed_wheel_resolution_rejects_missing_and_non_file_provenance(
@@ -182,7 +179,7 @@ def test_runtime_tool_reports_module_stderr_without_writing_output(
     assert runtime_inputs.resolve_runtime_wheel(source, failed_wheel).parent == failed_wheel
 
 
-def test_runtime_tool_forces_copy_link_mode(
+def test_runtime_tool_disables_persistent_cache_and_forces_copy_link_mode(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -206,6 +203,7 @@ def test_runtime_tool_forces_copy_link_mode(
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
     monkeypatch.setenv("UV_LINK_MODE", "hardlink")
     monkeypatch.setenv("UV_CACHE_DIR", (tmp_path / "ambient-cache").as_posix())
+    monkeypatch.setenv("ETHOS_UV_CACHE_DIR", (tmp_path / "legacy-cache").as_posix())
     observed: dict[str, str] = {}
 
     def run(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -217,7 +215,9 @@ def test_runtime_tool_forces_copy_link_mode(
     runtime_inputs.run_runtime_tool(source, "pip", "install", "package.whl")
 
     assert observed["UV_LINK_MODE"] == "copy"
-    assert observed["UV_CACHE_DIR"] == (tmp_path / "ambient-cache").as_posix()
+    assert observed["UV_NO_CACHE"] == "1"
+    assert "UV_CACHE_DIR" not in observed
+    assert "ETHOS_UV_CACHE_DIR" not in observed
     assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == supply.as_posix()
 
 
@@ -254,101 +254,6 @@ def test_runtime_tool_executes_uv_through_the_owned_python_module(
     ]
 
 
-def test_locked_closure_is_preflighted_and_installed_offline(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    source, work, interpreter = tmp_path / "source", tmp_path / "work", tmp_path / "python"
-    wheel, cache = tmp_path / "ethos.whl", tmp_path / "cache"
-    source.mkdir()
-    interpreter.write_text("python", encoding="utf-8")
-    wheel.write_bytes(b"wheel")
-    commands: list[tuple[str, ...]] = []
-
-    def run(
-        _source: Path,
-        *command: str,
-        cache_dir: Path | None = None,
-    ) -> subprocess.CompletedProcess[str]:
-        assert cache_dir == cache
-        commands.append(command)
-        if command[0] == "export":
-            output = Path(command[command.index("--output-file") + 1])
-            output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text("package==1 --hash=sha256:abc\n", encoding="utf-8")
-        elif command[:2] == ("pip", "sync") and "--target" in command:
-            target = Path(command[command.index("--target") + 1])
-            target.mkdir(parents=True)
-            (target / "package.py").write_text("cached\n", encoding="utf-8")
-        return _completed(0)
-
-    monkeypatch.setattr(python_image, "run_runtime_tool", run)
-
-    requirements = python_image.prepare_locked_requirements(
-        source,
-        work,
-        interpreter,
-        cache_dir=cache,
-    )
-    python_image.install_locked_runtime(
-        source,
-        interpreter,
-        wheel,
-        requirements,
-        cache_dir=cache,
-    )
-
-    assert [command[:2] for command in commands] == [
-        ("export", "--locked"),
-        ("pip", "sync"),
-        ("pip", "sync"),
-        ("pip", "install"),
-    ]
-    assert all("--offline" in command for command in commands)
-    assert "--target" in commands[1]
-    assert "--require-hashes" in commands[1]
-    assert not (work / "dependency-preflight").exists()
-
-
-def test_source_wheel_resolution_rejects_a_drifted_bootstrap_environment_before_writing(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    source = tmp_path / "source"
-    source.mkdir()
-    (source / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
-    python = tmp_path / "bin/python"
-    python.parent.mkdir(parents=True)
-    python.write_text("python", encoding="utf-8")
-    monkeypatch.setattr(sys, "executable", python.as_posix())
-    commands: list[tuple[str, ...]] = []
-
-    def reject(command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        commands.append(command)
-        return _completed(1, stderr="source environment drift")
-
-    monkeypatch.setattr(runtime_inputs.subprocess, "run", reject)
-    wheel_dir = tmp_path / "build/wheel"
-    with pytest.raises(ValueError, match="source environment drift"):
-        runtime_inputs.resolve_runtime_wheel(source, wheel_dir)
-
-    assert commands == [
-        (
-            python.as_posix(),
-            "-B",
-            "-I",
-            "-m",
-            "uv",
-            "sync",
-            "--locked",
-            "--offline",
-            "--check",
-            "--active",
-            "--no-install-project",
-            "--inexact",
-        )
-    ]
-    assert not wheel_dir.parent.exists()
-
-
 def test_runtime_project_selects_complete_source_or_complete_packaged_data(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -374,110 +279,3 @@ def test_runtime_project_selects_complete_source_or_complete_packaged_data(
     (packaged / "VERSION").unlink()
     with pytest.raises(ValueError, match="hook_runtime_packaged_project_missing"):
         runtime_inputs.resolve_runtime_project(incomplete)
-
-
-def test_owned_interpreter_reuses_runtime_or_installs_one_managed_python(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    runtime = tmp_path / "repo.git/ethos/runtime" / ("a" * 64)
-    prefix = runtime / "python"
-    interpreter = prefix / "bin/python"
-    interpreter.parent.mkdir(parents=True)
-    interpreter.write_text("python", encoding="utf-8")
-    monkeypatch.setattr(sys, "prefix", prefix.as_posix())
-    assert runtime_inputs.resolve_owned_interpreter(tmp_path, interpreter) == interpreter.resolve()
-
-    source_python = tmp_path / "source-python"
-    source_python.write_text("python", encoding="utf-8")
-    managed = tmp_path / "managed/python"
-    managed.parent.mkdir(parents=True)
-    managed.write_text("python", encoding="utf-8")
-    monkeypatch.setattr(sys, "prefix", (tmp_path / "ambient").as_posix())
-    monkeypatch.setattr(sys, "executable", (prefix / "bin/python").as_posix())
-    monkeypatch.setattr(
-        runtime_inputs,
-        "observe_python_facts",
-        lambda path: (
-            {"python_version": "3.14", "prefix": "source", "base_prefix": "source"}
-            if path == source_python
-            else {"prefix": "managed", "base_prefix": "managed"}
-        ),
-    )
-    commands: list[tuple[str, ...]] = []
-
-    def run(command: tuple[str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        commands.append(command)
-        return _completed(1) if len(commands) == 1 else _completed(0, managed.as_posix())
-
-    monkeypatch.setattr(runtime_inputs.subprocess, "run", run)
-
-    assert runtime_inputs.resolve_owned_interpreter(tmp_path, source_python) == managed.resolve()
-    prefix_command = (prefix / "bin/python").as_posix(), "-B", "-I", "-m", "uv", "python"
-    assert commands == [
-        (
-            *prefix_command,
-            "find",
-            "--managed-python",
-            "--system",
-            "--offline",
-            "--no-python-downloads",
-            "3.14",
-        ),
-        (
-            *prefix_command,
-            "install",
-            "--no-bin",
-            "--offline",
-            "--no-python-downloads",
-            "3.14",
-        ),
-        (
-            *prefix_command,
-            "find",
-            "--managed-python",
-            "--system",
-            "--offline",
-            "--no-python-downloads",
-            "3.14",
-        ),
-    ]
-
-
-def test_owned_interpreter_reports_install_and_validation_failures(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    source_python = tmp_path / "source-python"
-    source_python.write_text("python", encoding="utf-8")
-    python = tmp_path / "bin/python"
-    python.parent.mkdir(parents=True)
-    python.write_text("python", encoding="utf-8")
-    monkeypatch.setattr(sys, "executable", python.as_posix())
-    monkeypatch.setattr(
-        runtime_inputs,
-        "observe_python_facts",
-        lambda path: (
-            {"python_version": "3.14", "prefix": "source", "base_prefix": "source"}
-            if path == source_python
-            else {"prefix": "venv", "base_prefix": "base"}
-        ),
-    )
-    monkeypatch.setattr(
-        runtime_inputs.subprocess,
-        "run",
-        lambda command, **_kwargs: (
-            _completed(1, stderr="install failed") if "install" in command else _completed(1)
-        ),
-    )
-    with pytest.raises(ValueError, match="install failed"):
-        runtime_inputs.resolve_owned_interpreter(tmp_path, source_python)
-
-    candidate = tmp_path / "managed/python"
-    candidate.parent.mkdir(parents=True)
-    candidate.write_text("python", encoding="utf-8")
-    monkeypatch.setattr(
-        runtime_inputs.subprocess,
-        "run",
-        lambda *_args, **_kwargs: _completed(0, candidate.as_posix()),
-    )
-    with pytest.raises(ValueError, match="hook_runtime_owned_interpreter_unavailable"):
-        runtime_inputs.resolve_owned_interpreter(tmp_path, source_python)

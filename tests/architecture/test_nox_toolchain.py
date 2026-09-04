@@ -47,7 +47,6 @@ def test_project_runtime_is_the_only_executable_resolution_owner() -> None:
         "tools/ci/dependency_hygiene.py",
         "tools/ci/delivery/acceptance/effect.py",
         "tools/ci/delivery/pipeline.py",
-        "tools/ci/delivery/supply.py",
     )
     for relative in consumers:
         assert "tools.ci.toolchain.environment" in (ROOT / relative).read_text(encoding="utf-8")

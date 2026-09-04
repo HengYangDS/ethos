@@ -4,6 +4,8 @@ import re
 import tomllib
 from pathlib import Path
 
+import yaml
+
 from tools.ci.ci_projection import check_templates
 from tools.ci.ci_projection import projection_entries
 
@@ -73,6 +75,39 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners() -> N
         )
     }
     assert set(re.findall(r"ghcr\.io/astral-sh/uv:([^-@]+)-", gitlab)) == {uv_version}
+
+
+def test_host_conformance_receives_native_python_supply_before_activation() -> None:
+    github = yaml.safe_load(
+        (ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text(encoding="utf-8")
+    )
+    github_job = github["jobs"]["host-conformance"]
+    github_steps = github_job["steps"]
+    setup_uv = next(
+        step for step in github_steps if str(step.get("uses", "")).startswith("astral-sh/setup-uv@")
+    )
+    commands = [str(step.get("run", "")) for step in github_steps]
+
+    assert all(
+        not str(step.get("uses", "")).startswith("actions/setup-python@") for step in github_steps
+    )
+    assert github_job["env"]["UV_PYTHON_INSTALL_DIR"] == "${{ runner.temp }}/ethos-python"
+    assert setup_uv["with"]["python-version"] == "${{ matrix.python }}"
+    assert commands.index("uv python install --no-bin ${{ matrix.python }}") < commands.index(
+        "uv sync --locked --group dev"
+    )
+    assert commands.index("uv sync --locked --group dev") < commands.index(
+        "uv run --frozen python -m nox -s host_conformance"
+    )
+
+    gitlab = yaml.safe_load(
+        (ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text(encoding="utf-8")
+    )
+    gitlab_job = gitlab["ethos:host-conformance"]
+    assert gitlab_job["stage"] == "verify"
+    assert gitlab_job["script"] == ["uv run --frozen --offline python -m nox -s host_conformance"]
+    assert gitlab_job["image"].startswith("ghcr.io/astral-sh/uv:")
+    assert "@sha256:" in gitlab_job["image"]
 
 
 def test_github_action_pins_are_unique_full_commit_ids() -> None:

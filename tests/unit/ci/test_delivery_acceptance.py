@@ -134,29 +134,58 @@ def test_local_ci_does_not_repeat_package_supply_preparation() -> None:
     assert sum("-s install_smoke" in command for command in commands) == 1
 
 
-def test_runtime_supply_installs_the_lock_closure_into_the_acceptance_environment(
+def test_runtime_supply_projects_the_lock_current_environment_without_cache_authority(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    supply = importlib.import_module("tools.ci.delivery.supply")
-    constraints = tmp_path / "acceptance/runtime-constraints.txt"
+    supply = importlib.import_module(
+        "ethos.adapters.repo.runtime.materialization.dependency_supply"
+    )
+    requirements = tmp_path / "acceptance/locked-requirements.txt"
+    source_python = tmp_path / "project/.venv/bin/python"
     environment_python = tmp_path / "acceptance/venv/bin/python"
     commands: list[tuple[str, ...]] = []
+    projections: list[tuple[Path, Path]] = []
 
-    monkeypatch.setattr(supply, "ROOT", tmp_path)
-    monkeypatch.setattr(supply, "UV_CACHE", tmp_path / "uv-cache")
-    monkeypatch.setattr(supply, "RUNTIME", SimpleNamespace(script=lambda _name: "/locked/uv"))
-    monkeypatch.setattr(supply, "_run", lambda *command: commands.append(command))
+    def run(_root: Path, *command: str, python: Path) -> None:
+        del python
+        commands.append(command)
+        if "--output-file" in command:
+            output = Path(command[command.index("--output-file") + 1])
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text("package==1 --hash=sha256:abc\n", encoding="utf-8")
 
-    supply.install_into(environment_python, constraints=constraints)
+    monkeypatch.setattr(supply, "run_runtime_tool", run)
+    monkeypatch.setattr(
+        supply,
+        "project_dependency_supply",
+        lambda source, target: projections.append((source, target)),
+        raising=False,
+    )
 
-    assert len(commands) == 2
+    observed_requirements = supply.prepare_locked_requirements(
+        tmp_path,
+        requirements.parent,
+        source_python,
+    )
+    supply.install_locked_runtime(
+        tmp_path,
+        source_python,
+        environment_python,
+        tmp_path / "ethos.whl",
+        observed_requirements,
+    )
+
+    assert projections == [(source_python, environment_python)]
+    assert len(commands) == 4
     assert all("--offline" in command for command in commands)
     assert not any("venv" in command for command in commands)
-    assert commands[0][-2:] == ("--output-file", str(constraints))
-    assert commands[1][1:3] == ("pip", "install")
-    assert "--require-hashes" in commands[1]
-    assert commands[1][-2:] == ("--python", str(environment_python))
+    assert not any("--cache-dir" in command for command in commands)
+    assert commands[1][-2:] == ("--output-file", str(requirements))
+    assert commands[2][:2] == ("pip", "sync")
+    assert "--require-hashes" in commands[2]
+    assert commands[2][commands[2].index("--python") + 1] == str(environment_python)
+    assert commands[2][-1] == str(requirements)
 
 
 def test_acceptance_failure_cleans_its_transaction_root_without_a_receipt(
@@ -174,7 +203,11 @@ def test_acceptance_failure_cleans_its_transaction_root_without_a_receipt(
     monkeypatch.setattr(effect, "ARTIFACTS", artifacts)
     monkeypatch.setattr(effect, "WORK", work)
     monkeypatch.setattr(effect, "EVIDENCE", evidence)
-    monkeypatch.setattr(effect, "RUNTIME", SimpleNamespace(script=lambda _name: "/locked/uv"))
+    monkeypatch.setattr(
+        effect,
+        "RUNTIME",
+        SimpleNamespace(python=tmp_path / "project-python", script=lambda _name: "/locked/uv"),
+    )
     monkeypatch.setattr(effect, "current_tracked_head", lambda _root: "a" * 40)
 
     def fail_supply(*_args: object, **_kwargs: object) -> None:
@@ -182,7 +215,12 @@ def test_acceptance_failure_cleans_its_transaction_root_without_a_receipt(
         message = "expected supply failure"
         raise RuntimeError(message)
 
-    monkeypatch.setattr(effect.supply, "install_into", fail_supply, raising=False)
+    monkeypatch.setattr(
+        effect,
+        "prepare_locked_requirements",
+        lambda *_args: work / "locked-requirements.txt",
+    )
+    monkeypatch.setattr(effect, "install_locked_runtime", fail_supply)
     monkeypatch.setattr(effect, "_run", lambda *_args, **_kwargs: "")
     session = SimpleNamespace(error=pytest.fail, log=pytest.fail)
 
@@ -620,7 +658,12 @@ def _run_successful_acceptance(
     monkeypatch.setattr(effect, "ARTIFACTS", artifacts)
     monkeypatch.setattr(effect, "WORK", work)
     monkeypatch.setattr(effect, "EVIDENCE", evidence)
-    monkeypatch.setattr(effect, "RUNTIME", SimpleNamespace(script=lambda _name: "/locked/uv"))
+    source_python = tmp_path / "project-python"
+    monkeypatch.setattr(
+        effect,
+        "RUNTIME",
+        SimpleNamespace(python=source_python, script=lambda _name: "/locked/uv"),
+    )
     monkeypatch.setattr(effect, "current_tracked_head", lambda _root: "a" * 40)
     monkeypatch.setattr(effect, "wheel_build_identity", lambda _wheel: build)
     commands: list[tuple[str, ...]] = []
@@ -630,11 +673,26 @@ def _run_successful_acceptance(
         lambda *command, **_kwargs: commands.append(command) or "",
     )
     monkeypatch.setattr(
-        effect.supply,
-        "install_into",
-        lambda python, *, constraints: observed.update(
-            supply_python=python,
-            supply_constraints=constraints,
+        effect,
+        "prepare_locked_requirements",
+        lambda root, work, python: (
+            observed.update(
+                supply_root=root,
+                supply_work=work,
+                supply_source_python=python,
+            )
+            or work / "locked-requirements.txt"
+        ),
+    )
+    monkeypatch.setattr(
+        effect,
+        "install_locked_runtime",
+        lambda root, source, target, wheel, requirements: observed.update(
+            supply_root=root,
+            supply_source_python=source,
+            supply_python=target,
+            supply_wheel=wheel,
+            supply_constraints=requirements,
         ),
     )
     monkeypatch.setattr(
@@ -700,16 +758,11 @@ def test_acceptance_run_projects_one_offline_supply_into_the_lifecycle(
     result = _run_successful_acceptance(monkeypatch, tmp_path)
 
     assert result.observed["supply_python"] == result.work / "venv/bin/python"
-    assert result.observed["supply_constraints"] == result.work / "runtime-constraints.txt"
-    wheel_install = next(
-        command for command in result.commands if command[1:3] == ("pip", "install")
-    )
-    assert "--no-deps" in wheel_install
-    assert wheel_install[-2:] == (
-        str(result.work / "venv/bin/python"),
-        str(result.wheel),
-    )
+    assert result.observed["supply_source_python"] == result.work.parent / "project-python"
+    assert result.observed["supply_constraints"] == result.work / "locked-requirements.txt"
+    assert result.observed["supply_wheel"] == result.wheel
     assert result.observed["environment"]["UV_OFFLINE"] == "1"
+    assert "UV_CACHE_DIR" not in result.observed["environment"]
 
 
 def test_acceptance_run_cleans_owned_state_before_publishing_evidence(

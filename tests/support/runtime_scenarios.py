@@ -169,9 +169,6 @@ def materialize_runtime_case(
         "resolve_runtime_project",
         lambda _source: REPOSITORY_ROOT,
     )
-    monkeypatch.setattr(
-        runtime_materialization, "resolve_owned_interpreter", lambda *_args: source_python
-    )
     locked_requirements = tmp_path / "locked-requirements.txt"
     locked_requirements.write_text("fixture==1\n", encoding="utf-8")
 
@@ -191,13 +188,13 @@ def materialize_runtime_case(
         _interpreter: Path,
         _wheel: Path,
         *,
+        dependency_python: Path | None = None,
         python_facts: dict[str, str] | None = None,
         locked_requirements: Path | None,
-        cache_dir: Path | None = None,
     ) -> None:
         assert python_facts is not None
         assert locked_requirements == tmp_path / "locked-requirements.txt"
-        assert cache_dir is not None
+        assert dependency_python == source_python
         runtime_python = runtime_executable(target, "python")
         runtime_python.parent.mkdir(parents=True)
         runtime_python.write_bytes(b"python")
@@ -206,19 +203,7 @@ def materialize_runtime_case(
         package.parent.mkdir(parents=True)
         package.write_text("original\n", encoding="utf-8")
 
-    def python_facts(python: Path) -> dict[str, str]:
-        prefix = python.parent.parent if python != source_python else source_python.parent.parent
-        return {
-            "python_abi": "cpython-test",
-            "python_version": "3.14.7",
-            "python_implementation": "cpython",
-            "architecture": platform.machine(),
-            "prefix": prefix.resolve().as_posix(),
-            "base_prefix": prefix.resolve().as_posix(),
-        }
-
     monkeypatch.setattr(runtime_materialization, "materialize_python_image", materialize_python)
-    monkeypatch.setattr(runtime_materialization, "observe_python_facts", python_facts)
 
     def require_runtime(
         runtime: Path,

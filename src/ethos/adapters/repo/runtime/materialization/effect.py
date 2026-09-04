@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ntpath
 import os
 import shlex
 import shutil
@@ -21,8 +20,10 @@ from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
+from ethos.adapters.repo.runtime.materialization.dependency_supply import (
+    prepare_locked_requirements,
+)
 from ethos.adapters.repo.runtime.materialization.input_resolution import is_selected_runtime_source
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_owned_interpreter
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_project
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_wheel
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
@@ -30,8 +31,11 @@ from ethos.adapters.repo.runtime.materialization.python_environment import obser
 from ethos.adapters.repo.runtime.materialization.python_environment import (
     observe_runtime_environment,
 )
+from ethos.adapters.repo.runtime.materialization.python_environment import (
+    require_python_image_source,
+)
+from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.materialization.python_image import materialize_python_image
-from ethos.adapters.repo.runtime.materialization.python_image import prepare_locked_requirements
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_python
 from ethos.adapters.repo.runtime.transition import PackageArtifact
@@ -56,16 +60,12 @@ def materialize_runtime(
     package_source = build_source or Path(__file__).resolve().parents[6]
     project = build_source or resolve_runtime_project(package_source)
     runtime_root = Path(git_common_dir(repo)) / "ethos" / "runtime"
-    declared_cache = os.environ.get("UV_CACHE_DIR")
-    cache_dir = Path(declared_cache) if declared_cache else runtime_root.parent / "cache" / "uv"
-    if not cache_dir.is_absolute():
-        _fail("hook_runtime_cache_path_invalid")
     if runtime_root.parent.is_symlink() or runtime_root.is_symlink():
         _fail("hook_runtime_root_invalid")
     work = runtime_root / f".build-{uuid.uuid4().hex}"
     try:
-        interpreter = resolve_owned_interpreter(package_source, source_python)
-        python_facts = observe_python_facts(interpreter)
+        python_facts = require_python_image_source(source_python)
+        interpreter = Path(python_facts["executable"]).resolve()
         environment = observe_runtime_environment(
             project,
             interpreter,
@@ -73,12 +73,16 @@ def materialize_runtime(
         )
         if reusable := _reusable_runtime(repo, expected_build, environment):
             return reusable / "python"
-        wheel = resolve_runtime_wheel(package_source, work / "wheel", cache_dir=cache_dir)
         reuse_selected_closure = build_source is None and is_selected_runtime_source(package_source)
         locked_requirements = (
             None
             if reuse_selected_closure
-            else prepare_locked_requirements(project, work, interpreter, cache_dir=cache_dir)
+            else prepare_locked_requirements(project, work, source_python)
+        )
+        wheel = resolve_runtime_wheel(
+            package_source,
+            work / "wheel",
+            python=source_python,
         )
         artifact = materialize_package_wheel(
             repo,
@@ -93,9 +97,9 @@ def materialize_runtime(
             interpreter,
             artifact,
             environment,
+            dependency_python=None if reuse_selected_closure else source_python,
             python_facts=python_facts,
             locked_requirements=locked_requirements,
-            cache_dir=cache_dir,
         )
         return target / "python"
     finally:
@@ -143,9 +147,9 @@ def materialize_runtime_generation(
     artifact: PackageArtifact,
     environment: RuntimeEnvironment,
     *,
+    dependency_python: Path | None = None,
     python_facts: dict[str, str] | None = None,
     locked_requirements: Path | None,
-    cache_dir: Path | None = None,
 ) -> Path:
     del work
     staging = runtime_root / f".runtime-build-{uuid.uuid4().hex}"
@@ -155,9 +159,9 @@ def materialize_runtime_generation(
             source,
             interpreter,
             artifact.path,
+            dependency_python=dependency_python,
             python_facts=python_facts,
             locked_requirements=locked_requirements,
-            cache_dir=cache_dir,
         )
         _seal_runtime_payload(staging)
         runtime_files = runtime_file_inventory(staging)
@@ -270,7 +274,7 @@ def require_runtime_generation(
     python = runtime_python(runtime / "python")
     facts = observe_python_facts(python)
     prefix = (runtime / "python").resolve().as_posix()
-    if not all(_same_runtime_path(facts[key], prefix) for key in ("prefix", "base_prefix")):
+    if not all(same_python_path(facts[key], prefix) for key in ("prefix", "base_prefix")):
         _fail("hook_runtime_python_not_relocatable")
     if smoke:
         command = (python, "-B", "-I", "-m", "ethos.cli", "--version")
@@ -291,11 +295,3 @@ def require_runtime_generation(
                 )
             )
             _fail(detail)
-
-
-def _same_runtime_path(observed: str, expected: str) -> bool:
-    if os.name == "nt":
-        return ntpath.normcase(ntpath.normpath(observed)) == ntpath.normcase(
-            ntpath.normpath(expected)
-        )
-    return observed == expected

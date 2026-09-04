@@ -24,6 +24,8 @@ jobs:
   host-conformance:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
+    env:
+      UV_PYTHON_INSTALL_DIR: ${{ runner.temp }}/ethos-python
     strategy:
       fail-fast: false
       matrix:
@@ -33,9 +35,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: ${{ matrix.python }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: "26.8.1"
@@ -43,6 +42,9 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           version: "0.12.7"
+          python-version: ${{ matrix.python }}
+      - name: Provision native Python image supply
+        run: uv python install --no-bin ${{ matrix.python }}
       - name: Install locked runtimes
         run: npm ci --ignore-scripts
       - name: Synchronize locked Python environment

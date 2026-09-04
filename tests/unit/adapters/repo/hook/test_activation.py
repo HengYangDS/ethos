@@ -244,8 +244,17 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
     )
     monkeypatch.setattr(
         runtime_materialization,
-        "resolve_owned_interpreter",
-        lambda *_args: selected.python,
+        "require_python_image_source",
+        lambda _python: {
+            "executable": selected.python.resolve().as_posix(),
+            "base_executable": selected.python.resolve().as_posix(),
+            "python_abi": selected.python_abi,
+            "python_version": selected.python_version,
+            "python_implementation": selected.python_implementation,
+            "architecture": selected.architecture,
+            "prefix": selected.python.parent.parent.resolve().as_posix(),
+            "base_prefix": selected.python.parent.parent.resolve().as_posix(),
+        },
     )
     monkeypatch.setattr(
         runtime_materialization,

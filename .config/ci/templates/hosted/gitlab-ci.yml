@@ -192,6 +192,16 @@ ethos:hosted-provider-observation:
   script:
     - uv run --frozen --offline python -m nox -s hosted_observation
 
+ethos:host-conformance:
+  <<: *python_setup
+  stage: verify
+  script:
+    - uv run --frozen --offline python -m nox -s host_conformance
+  artifacts:
+    when: always
+    paths:
+      - build/evidence/local-install/smoke.json
+
 ethos:verify:
   <<: *python_setup
   stage: verify

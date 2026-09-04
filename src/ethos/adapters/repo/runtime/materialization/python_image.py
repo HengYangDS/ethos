@@ -9,9 +9,14 @@ import subprocess
 from pathlib import Path
 from typing import NoReturn
 
-from ethos.adapters.repo.runtime.materialization.input_resolution import run_runtime_tool
+from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
+from ethos.adapters.repo.runtime.materialization.python_environment import (
+    python_image_source_capable,
+)
+from ethos.adapters.repo.runtime.materialization.python_environment import python_path_within
+from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_python
 from ethos.adapters.repo.runtime.selection import runtime_scripts
@@ -27,115 +32,40 @@ def materialize_python_image(
     interpreter: Path,
     wheel: Path,
     *,
+    dependency_python: Path | None,
     python_facts: dict[str, str] | None = None,
     locked_requirements: Path | None,
-    cache_dir: Path | None = None,
 ) -> None:
     """Build a relocatable Python image from exact interpreter and wheel inputs."""
     facts = python_facts or observe_python_facts(interpreter)
     home = Path(facts["base_prefix"])
-    if facts["prefix"] != facts["base_prefix"] or not interpreter.resolve().is_relative_to(
-        home.resolve()
+    if (
+        not same_python_path(facts["prefix"], facts["base_prefix"])
+        or not python_path_within(
+            interpreter,
+            home,
+        )
+        or not python_image_source_capable(interpreter, facts)
     ):
-        _fail("hook_runtime_owned_interpreter_unavailable")
+        _fail("hook_runtime_interpreter_source_unavailable")
     _copy_python_runtime(home, interpreter, target, facts["python_version"])
     python = runtime_python(target)
     if not python.is_file():
         _fail("hook_runtime_python_missing")
     if locked_requirements is not None:
+        if dependency_python is None:
+            _fail("hook_runtime_dependency_supply_missing")
         install_locked_runtime(
             source,
+            dependency_python,
             python,
             wheel,
             locked_requirements,
-            cache_dir=cache_dir,
         )
     else:
         _require_package_runtime_source(source, interpreter, wheel, facts)
     _remove_non_runtime_residue(target)
     _rewrite_console_scripts(target)
-
-
-def prepare_locked_requirements(
-    source: Path,
-    work: Path,
-    interpreter: Path,
-    *,
-    cache_dir: Path | None = None,
-) -> Path:
-    """Export and preflight one already-available locked dependency closure."""
-    requirements = work / "locked-requirements.txt"
-    preflight = work / "dependency-preflight"
-    tool_options = {} if cache_dir is None else {"cache_dir": cache_dir}
-    run_runtime_tool(
-        source,
-        "export",
-        "--locked",
-        "--offline",
-        "--no-dev",
-        "--no-emit-project",
-        "--format",
-        "requirements-txt",
-        "--output-file",
-        requirements.as_posix(),
-        **tool_options,
-    )
-    try:
-        run_runtime_tool(
-            source,
-            "pip",
-            "sync",
-            "--offline",
-            "--target",
-            preflight.as_posix(),
-            "--break-system-packages",
-            "--require-hashes",
-            "--strict",
-            "--python",
-            interpreter.as_posix(),
-            requirements.as_posix(),
-            **tool_options,
-        )
-    finally:
-        shutil.rmtree(preflight, ignore_errors=True)
-    return requirements
-
-
-def install_locked_runtime(
-    source: Path,
-    python: Path,
-    wheel: Path,
-    requirements: Path,
-    *,
-    cache_dir: Path | None = None,
-) -> None:
-    """Install one already-proven locked dependency closure into one image."""
-    tool_options = {} if cache_dir is None else {"cache_dir": cache_dir}
-    commands = (
-        (
-            "pip",
-            "sync",
-            "--offline",
-            "--break-system-packages",
-            "--require-hashes",
-            "--strict",
-            "--python",
-            python.as_posix(),
-            requirements.as_posix(),
-        ),
-        (
-            "pip",
-            "install",
-            "--offline",
-            "--break-system-packages",
-            "--no-deps",
-            "--python",
-            python.as_posix(),
-            wheel.as_posix(),
-        ),
-    )
-    for command in commands:
-        run_runtime_tool(source, *command, **tool_options)
 
 
 def render_console_script(name: str) -> str:
@@ -154,7 +84,7 @@ def render_console_script(name: str) -> str:
 
 def _copy_python_runtime(home: Path, interpreter: Path, target: Path, version: str) -> None:
     if home.is_symlink() or not home.is_dir() or interpreter.is_symlink():
-        _fail("hook_runtime_owned_interpreter_unavailable")
+        _fail("hook_runtime_interpreter_source_unavailable")
     target.mkdir(parents=True)
     if os.name == "nt":
         runtime_scripts(target).mkdir()
@@ -179,7 +109,7 @@ def _copy_python_runtime(home: Path, interpreter: Path, target: Path, version: s
 
 def _copy_runtime_tree(source: Path, target: Path) -> None:
     if source.is_symlink() or not source.is_dir():
-        _fail("hook_runtime_owned_interpreter_unavailable")
+        _fail("hook_runtime_interpreter_source_unavailable")
     root = source.resolve()
     for path in source.rglob("*"):
         if path.is_symlink():

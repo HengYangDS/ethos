@@ -4,7 +4,7 @@ source_refs = ["system/gates.toml"]
 
 [proof_sets]
 default = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
+full = ["repository-audit", "repository-hygiene", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget"]
 
 [[gates]]
 id = "repository-audit"
@@ -369,6 +369,25 @@ tool_adapter = "repository-config-toolchain"
 writes_files = false
 network_policy = "offline"
 version_source = "adopter-toolchain"
+
+[[gates]]
+id = "github-workflow-syntax"
+registries = ["quality", "runtime"]
+kind = "config"
+command = ["tools/ci/scripts/run-actionlint.sh"]
+policy = "required"
+profile = "product"
+toolchain = "quality-adapter"
+depends_on = ["config-quality"]
+asset_classes = ["yaml-config"]
+dimensions = ["syntax", "provider-projection"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "actionlint"
+writes_files = true
+network_policy = "required"
+version_source = "locked-toolchain"
 
 [[gates]]
 id = "python-size"

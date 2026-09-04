@@ -25,7 +25,7 @@ jobs:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     env:
-      UV_PYTHON_INSTALL_DIR: ${{ runner.temp }}/ethos-python
+      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
     strategy:
       fail-fast: false
       matrix:

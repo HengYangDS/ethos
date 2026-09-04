@@ -111,11 +111,20 @@ requirements.
 
 ETHOS SHALL make portable host-conformance assertions independent of ambient
 Git configuration, repository ownership, and text-conversion defaults by
-declaring the exact repository-local semantics required by each fixture.
-Indexed Git configuration passed through the process environment SHALL contain
-a complete key/value pair for every declared entry on every supported host.
-The shared Git execution boundary SHALL preserve only that explicit overlay
-while continuing to hide ambient global and system configuration.
+declaring the exact repository-local semantics required by each fixture and by
+the ETHOS source repository itself. Indexed Git configuration passed through the
+process environment SHALL contain a complete key/value pair for every declared
+entry on every supported host. The shared Git execution boundary SHALL preserve
+only that explicit overlay while continuing to hide ambient global and system
+configuration.
+
+#### Scenario: Clean ETHOS checkout has one source tree
+
+- **WHEN** native Linux, macOS, or Windows checks out one exact ETHOS commit and
+  reports no source overlay
+- **THEN** source build identity equals that commit's exact tree on every host
+- **AND** the repository-owned content policy, not ambient Git configuration,
+  defines text normalization
 
 #### Scenario: CRLF bytes are tested on a Windows-style Git configuration
 

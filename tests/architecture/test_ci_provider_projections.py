@@ -91,7 +91,9 @@ def test_host_conformance_receives_native_python_supply_before_activation() -> N
     assert all(
         not str(step.get("uses", "")).startswith("actions/setup-python@") for step in github_steps
     )
-    assert github_job["env"]["UV_PYTHON_INSTALL_DIR"] == "${{ runner.temp }}/ethos-python"
+    assert github_job["env"]["UV_PYTHON_INSTALL_DIR"] == (
+        "${{ github.workspace }}/build/runtime/python"
+    )
     assert setup_uv["with"]["python-version"] == "${{ matrix.python }}"
     assert commands.index("uv python install --no-bin ${{ matrix.python }}") < commands.index(
         "uv sync --locked --group dev"
@@ -108,6 +110,19 @@ def test_host_conformance_receives_native_python_supply_before_activation() -> N
     assert gitlab_job["script"] == ["uv run --frozen --offline python -m nox -s host_conformance"]
     assert gitlab_job["image"].startswith("ghcr.io/astral-sh/uv:")
     assert "@sha256:" in gitlab_job["image"]
+
+
+def test_full_proof_owns_github_workflow_syntax_before_hosted_execution() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    full = declaration["proof_sets"]["full"]
+    gates = {gate["id"]: gate for gate in declaration["gates"]}
+
+    assert full.count("github-workflow-syntax") == 1
+    gate = gates["github-workflow-syntax"]
+    assert gate["command"] == ["tools/ci/scripts/run-actionlint.sh"]
+    assert gate["depends_on"] == ["config-quality"]
+    assert gate["writes_files"] is True
+    assert gate["network_policy"] == "required"
 
 
 def test_github_action_pins_are_unique_full_commit_ids() -> None:

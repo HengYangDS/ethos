@@ -2,20 +2,14 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.repo.runtime.source as source
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
-
 
 _ROOT = Path(__file__).resolve().parents[5]
 
@@ -26,22 +20,6 @@ def _repository(path: Path, content: str) -> Path:
     (path / "tracked.txt").write_text(content + "\n")
     commit_fixture(path, content)
     return path
-
-
-def _run_git_with_environment(
-    root: Path,
-    *args: str,
-    environment: Mapping[str, str],
-) -> str:
-    completed = subprocess.run(
-        ("git", *args),
-        cwd=root,
-        env=environment,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return completed.stdout.strip()
 
 
 def test_source_identity_ignores_an_inherited_foreign_git_directory(
@@ -56,41 +34,17 @@ def test_source_identity_ignores_an_inherited_foreign_git_directory(
     assert source.source_git_identity(repository) == expected
 
 
-def test_repository_content_policy_keeps_clean_checkout_identity_host_portable(
-    tmp_path: Path,
-) -> None:
-    origin = tmp_path / "origin"
-    origin.mkdir()
-    git(origin, "init", "--quiet", "--initial-branch=dev")
-    policy = _ROOT / ".gitattributes"
-    if policy.is_file():
-        (origin / policy.name).write_bytes(policy.read_bytes())
-    (origin / "tracked.txt").write_bytes(b"first\nsecond\n")
-    commit_fixture(origin, "canonical source")
-
-    global_config = tmp_path / "gitconfig"
-    global_config.write_text("[core]\n\tautocrlf = true\n", encoding="utf-8")
-    environment = {
-        **os.environ,
-        "GIT_CONFIG_GLOBAL": global_config.as_posix(),
-        "GIT_CONFIG_NOSYSTEM": "1",
-    }
+def test_content_policy_keeps_checkout_identity_host_portable(tmp_path: Path) -> None:
+    origin = _repository(tmp_path / "origin", "first\nsecond")
+    (origin / ".gitattributes").write_bytes((_ROOT / ".gitattributes").read_bytes())
+    git(origin, "add", ".gitattributes")
+    commit_fixture(origin, "declare canonical source bytes")
     checkout = tmp_path / "checkout"
-    _run_git_with_environment(
-        tmp_path,
-        "clone",
-        "--quiet",
-        origin.as_posix(),
-        checkout.as_posix(),
-        environment=environment,
-    )
+    git(tmp_path, "-c", "core.autocrlf=true", "clone", origin.as_posix(), checkout.as_posix())
 
-    assert (
-        _run_git_with_environment(checkout, "status", "--porcelain", environment=environment) == ""
-    )
-    assert source.source_git_identity(checkout) == (
-        git(checkout, "rev-parse", "HEAD"),
-        git(checkout, "rev-parse", "HEAD^{tree}"),
+    assert git(checkout, "-c", "core.autocrlf=true", "status", "--porcelain") == ""
+    assert source.source_git_identity(checkout) == tuple(
+        git(checkout, "rev-parse", revision) for revision in ("HEAD", "HEAD^{tree}")
     )
 
 

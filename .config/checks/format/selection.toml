@@ -180,7 +180,7 @@ mutation_policy = "source-or-generator"
 
 [[ownership]]
 id = "repository-hygiene"
-paths = ["LICENSE", "VERSION", ".gitignore", "**/.gitignore", "**/.gitkeep", "**/.shellcheckrc"]
+paths = ["LICENSE", "VERSION", ".gitattributes", ".gitignore", "**/.gitignore", "**/.gitkeep", "**/.shellcheckrc"]
 format_owner = "repository-canonical-text"
 format_command = "uv run --frozen --offline python -m nox -s format -- hygiene"
 format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"

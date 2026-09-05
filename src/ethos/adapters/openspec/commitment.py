@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -19,6 +20,9 @@ from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+
+_TASK_CHECKBOX = re.compile(rb"(?m)^([ \t]*[-*+]\s+)\[[ xX]\]")
 
 
 @contextmanager
@@ -73,7 +77,6 @@ def commitment_from_projection(
     projection: object,
     *,
     status: object = None,
-    apply: object = None,
     artifact_digests: dict[str, str] | None = None,
 ) -> Commitment:
     """Compile acceptance propositions from official OpenSpec JSON projections."""
@@ -91,7 +94,6 @@ def commitment_from_projection(
         acceptance = _spec_free_acceptance(
             change,
             status=status,
-            apply=apply,
             artifact_digests=artifact_digests,
         )
     else:
@@ -110,10 +112,9 @@ def _spec_free_acceptance(
     change: str,
     *,
     status: object,
-    apply: object,
     artifact_digests: dict[str, str] | None,
 ) -> tuple[str, ...]:
-    if not isinstance(status, dict) or not isinstance(apply, dict):
+    if not isinstance(status, dict):
         return ()
     artifacts = status.get("artifacts")
     if not isinstance(artifacts, list):
@@ -132,8 +133,6 @@ def _spec_free_acceptance(
         or states.get("specs") != "skipped"
         or states.get("design") != "done"
         or states.get("tasks") != "done"
-        or apply.get("changeName") != change
-        or apply.get("state") != "all_done"
         or set(digests) != set(names)
         or any(
             len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest)
@@ -157,9 +156,15 @@ def _spec_free_artifact_digests(root: Path, change: str) -> dict[str, str]:
         ("tasks", change_root / "tasks.md"),
     )
     try:
-        return {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in paths}
+        return {name: _spec_free_artifact_digest(name, path) for name, path in paths}
     except OSError:
         return {}
+
+
+def _spec_free_artifact_digest(name: str, path: Path) -> str:
+    content = path.read_bytes()
+    identity = _TASK_CHECKBOX.sub(rb"\1[ ]", content) if name == "tasks" else content
+    return hashlib.sha256(identity).hexdigest()
 
 
 def _acceptance_items(change: str, delta: object) -> tuple[str, ...]:
@@ -303,16 +308,10 @@ def load_openspec_commitment(
                 command,
                 ("status", "--change", change_id, "--json"),
             )
-            apply = openspec_cli.run_json(
-                projection,
-                command,
-                ("instructions", "apply", "--change", change_id, "--json"),
-            )
             commitment = commitment_from_projection(
                 change_id,
                 payload,
                 status=status.get("json"),
-                apply=apply.get("json"),
                 artifact_digests=_spec_free_artifact_digests(projection, change_id),
             )
         else:

@@ -308,9 +308,9 @@ def test_runtime_project_selects_complete_source_or_complete_packaged_data(
         runtime_inputs.resolve_runtime_project(incomplete)
 
 
-def test_locked_environment_python_is_owned_by_the_project_root(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+@pytest.mark.parametrize("prefix_owner", ["project", "foreign"])
+def test_locked_environment_python_requires_the_project_venv_prefix(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, prefix_owner: str
 ) -> None:
     project = tmp_path / "project"
     environment = project / ".venv"
@@ -319,38 +319,18 @@ def test_locked_environment_python_is_owned_by_the_project_root(
     )
     python.parent.mkdir(parents=True)
     python.write_bytes(b"python")
+    prefix = environment if prefix_owner == "project" else tmp_path / "foreign"
     monkeypatch.setattr(
         runtime_inputs,
         "observe_python_facts",
         lambda _python: {
             "executable": python.as_posix(),
-            "prefix": environment.as_posix(),
+            "prefix": prefix.as_posix(),
         },
     )
 
-    assert runtime_inputs.resolve_locked_environment_python(project) == python
-
-
-def test_locked_environment_python_rejects_a_foreign_prefix(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    project = tmp_path / "project"
-    python = (
-        project
-        / ".venv"
-        / ("Scripts/python.exe" if runtime_inputs.os.name == "nt" else "bin/python")
-    )
-    python.parent.mkdir(parents=True)
-    python.write_bytes(b"python")
-    monkeypatch.setattr(
-        runtime_inputs,
-        "observe_python_facts",
-        lambda _python: {
-            "executable": python.as_posix(),
-            "prefix": (tmp_path / "foreign").as_posix(),
-        },
-    )
-
-    with pytest.raises(ValueError, match="hook_runtime_locked_environment_invalid"):
-        runtime_inputs.resolve_locked_environment_python(project)
+    if prefix_owner == "foreign":
+        with pytest.raises(ValueError, match="hook_runtime_locked_environment_invalid"):
+            runtime_inputs.resolve_locked_environment_python(project)
+    else:
+        assert runtime_inputs.resolve_locked_environment_python(project) == python

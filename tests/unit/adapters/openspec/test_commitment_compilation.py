@@ -18,6 +18,42 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _materialize_spec_free_change(root: Path, *, tasks: str) -> Path:
+    (root / "openspec").mkdir()
+    (root / "openspec/config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
+    change_root = root / "openspec/changes/dependency-refresh"
+    change_root.mkdir(parents=True)
+    for name, content in {
+        ".openspec.yaml": "schema: spec-driven\nskip_specs: true\n",
+        "proposal.md": """## Why
+
+Refresh the dependency.
+
+## What Changes
+
+- Use the stable package.
+
+## Capabilities
+
+### New Capabilities
+
+None.
+
+### Modified Capabilities
+
+None.
+
+## Impact
+
+Supply chain only.
+""",
+        "design.md": "## Decisions\n\nUse the stable package.\n",
+        "tasks.md": tasks,
+    }.items():
+        (change_root / name).write_text(content, encoding="utf-8")
+    return change_root
+
+
 def test_official_projection_compiles_minimal_commitment() -> None:
     projection = {
         "id": "minimal-authority",
@@ -80,7 +116,7 @@ def test_removed_requirements_do_not_become_acceptance_obligations() -> None:
     )
 
 
-def test_official_completed_spec_free_projection_compiles_minimal_commitment() -> None:
+def test_official_spec_free_projection_compiles_minimal_commitment() -> None:
     projection = {
         "id": "dependency-refresh",
         "deltas": [
@@ -101,11 +137,6 @@ def test_official_completed_spec_free_projection_compiles_minimal_commitment() -
             {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
         ],
     }
-    apply = {
-        "changeName": "dependency-refresh",
-        "state": "all_done",
-        "progress": {"total": 3, "complete": 3, "remaining": 0},
-    }
     artifact_digests = {
         name: hashlib.sha256(name.encode()).hexdigest()
         for name in ("metadata", "proposal", "design", "tasks")
@@ -115,14 +146,12 @@ def test_official_completed_spec_free_projection_compiles_minimal_commitment() -
         "dependency-refresh",
         projection,
         status=status,
-        apply=apply,
         artifact_digests=artifact_digests,
     )
     second = commitment_from_projection(
         "dependency-refresh",
         projection,
         status=status,
-        apply=apply,
         artifact_digests=artifact_digests,
     )
 
@@ -138,47 +167,32 @@ def test_official_completed_spec_free_projection_compiles_minimal_commitment() -
 
 
 @pytest.mark.parametrize(
-    ("status", "apply"),
+    "status",
     [
-        (
-            {
-                "changeName": "minimal-authority",
-                "isComplete": True,
-                "artifacts": [
-                    {"id": "proposal", "status": "done", "requires": []},
-                    {"id": "specs", "status": "done", "requires": ["proposal"]},
-                    {"id": "design", "status": "done", "requires": ["proposal"]},
-                    {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
-                ],
-            },
-            {
-                "changeName": "minimal-authority",
-                "state": "all_done",
-                "progress": {"total": 1, "complete": 1, "remaining": 0},
-            },
-        ),
-        (
-            {
-                "changeName": "minimal-authority",
-                "isComplete": True,
-                "artifacts": [
-                    {"id": "proposal", "status": "done", "requires": []},
-                    {"id": "specs", "status": "skipped", "requires": ["proposal"]},
-                    {"id": "design", "status": "done", "requires": ["proposal"]},
-                    {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
-                ],
-            },
-            {
-                "changeName": "minimal-authority",
-                "state": "ready",
-                "progress": {"total": 1, "complete": 0, "remaining": 1},
-            },
-        ),
+        {
+            "changeName": "minimal-authority",
+            "isComplete": True,
+            "artifacts": [
+                {"id": "proposal", "status": "done", "requires": []},
+                {"id": "specs", "status": "done", "requires": ["proposal"]},
+                {"id": "design", "status": "done", "requires": ["proposal"]},
+                {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
+            ],
+        },
+        {
+            "changeName": "minimal-authority",
+            "isComplete": False,
+            "artifacts": [
+                {"id": "proposal", "status": "done", "requires": []},
+                {"id": "specs", "status": "skipped", "requires": ["proposal"]},
+                {"id": "design", "status": "done", "requires": ["proposal"]},
+                {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
+            ],
+        },
     ],
 )
-def test_zero_requirement_projection_requires_completed_official_spec_free_lifecycle(
+def test_zero_requirement_projection_requires_valid_official_spec_free_planning_graph(
     status: dict[str, object],
-    apply: dict[str, object],
 ) -> None:
     projection = {
         "id": "minimal-authority",
@@ -196,7 +210,6 @@ def test_zero_requirement_projection_requires_completed_official_spec_free_lifec
             "minimal-authority",
             projection,
             status=status,
-            apply=apply,
             artifact_digests={
                 name: hashlib.sha256(name.encode()).hexdigest()
                 for name in ("metadata", "proposal", "design", "tasks")
@@ -301,47 +314,26 @@ def test_load_commitment_selects_one_active_change_and_checks_digest(
         compilation.load_openspec_commitment(tmp_path, expected_digest="f" * 64)
 
 
-def test_load_commitment_composes_repository_locked_spec_free_projections(
+def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_complete(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    (tmp_path / "openspec").mkdir()
-    (tmp_path / "openspec/config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
-    change_root = tmp_path / "openspec/changes/dependency-refresh"
-    change_root.mkdir(parents=True)
-    for name, content in {
-        ".openspec.yaml": "schema: spec-driven\nskip_specs: true\n",
-        "proposal.md": """## Why
-
-Refresh the dependency.
-
-## What Changes
-
-- Use the stable package.
-
-## Capabilities
-
-### New Capabilities
-
-None.
-
-### Modified Capabilities
-
-None.
-
-## Impact
-
-Supply chain only.
-""",
-        "design.md": "## Decisions\n\nUse the stable package.\n",
-        "tasks.md": "- [x] Refresh and prove the package.\n",
-    }.items():
-        (change_root / name).write_text(content, encoding="utf-8")
+    change_root = _materialize_spec_free_change(
+        tmp_path,
+        tasks="- [ ] Refresh and prove the package.\n",
+    )
 
     monkeypatch.setattr(compilation, "openspec_profile_enabled", lambda *_a, **_k: True)
+    calls: list[tuple[str, ...]] = []
+    run_json = compilation.openspec_cli.run_json
+    monkeypatch.setattr(
+        compilation.openspec_cli,
+        "run_json",
+        lambda root, command, args: (calls.append(args), run_json(root, command, args))[1],
+    )
 
-    loaded = compilation.load_openspec_commitment(tmp_path)
+    planned = compilation.load_openspec_commitment(tmp_path)
 
-    assert loaded.acceptance == (
+    assert planned.acceptance == (
         *(
             f"openspec:artifact:{kind}:sha256:"
             f"{hashlib.sha256((change_root / filename).read_bytes()).hexdigest()}"
@@ -355,6 +347,14 @@ Supply chain only.
         "openspec:change:dependency-refresh",
         "openspec:specs:skipped",
     )
+    (change_root / "tasks.md").write_text(
+        "- [x] Refresh and prove the package.\n",
+        encoding="utf-8",
+    )
+    progressed = compilation.load_openspec_commitment(tmp_path)
+
+    assert progressed == planned
+    assert all(args[:2] != ("instructions", "apply") for args in calls)
 
 
 @pytest.mark.parametrize(

@@ -110,6 +110,24 @@ def resolve_runtime_project(package_source: Path) -> Path:
     return project
 
 
+def resolve_locked_environment_python(project: Path) -> Path:
+    """Return the Python owned by one project's exact root virtual environment."""
+    environment = project.resolve() / ".venv"
+    relative = Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")
+    python = environment / relative
+    if not python.is_file():
+        _fail(f"hook_runtime_locked_environment_invalid:{python}")
+    try:
+        facts = observe_python_facts(python)
+        if not same_python_path(facts["executable"], python) or not same_python_path(
+            facts["prefix"], environment
+        ):
+            _fail(f"hook_runtime_locked_environment_invalid:{python}")
+    except (KeyError, OSError, ValueError) as error:
+        _fail(f"hook_runtime_locked_environment_invalid:{python}", error)
+    return python
+
+
 def is_selected_runtime_source(source: Path) -> bool:
     """Return whether the invoking package belongs to an immutable selected runtime."""
     return _selected_runtime_source(source) is not None

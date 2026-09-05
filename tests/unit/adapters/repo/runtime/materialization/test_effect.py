@@ -278,95 +278,64 @@ def test_source_runtime_uses_the_target_locked_environment_for_build_supply(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """An older invoking runtime must not supply a newer source build backend."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert (
-        subprocess.run(
-            ("git", "init", "--quiet", "--initial-branch=dev"),
-            cwd=repo,
-            check=False,
-        ).returncode
-        == 0
-    )
     source = tmp_path / "accepted-source"
-    source_python = _write(
-        source / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python"),
-        b"source-python",
-    )
-    invoking_python = _write(tmp_path / "current-runtime/python/bin/python", b"runtime-python")
-    image_python = _write(tmp_path / "native-python/bin/python", b"native-python")
-    wheel = _write(tmp_path / "ethos.whl", b"wheel")
-    requirements = _write(tmp_path / "locked-requirements.txt", b"package==1\n")
-    identity = runtime_build("a" * 40, "b" * 40)
-    environment = _environment()
+    source_python = source / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    invoking_python = tmp_path / "current-runtime/python/bin/python"
+    image_root = tmp_path / "native-python"
+    wheel, requirements = tmp_path / "ethos.whl", tmp_path / "requirements.txt"
+    artifact = PackageArtifact(wheel, "c" * 64, runtime_build("a" * 40, "b" * 40))
     observed: dict[str, object] = {}
 
-    monkeypatch.setattr(
-        runtime_materialization,
-        "resolve_locked_environment_python",
-        lambda project: observed.update(environment_project=project) or source_python,
-    )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "require_python_image_source",
-        lambda selected: (
-            observed.update(image_source=selected) or _python_facts(image_python.parent.parent)
+    def record(key: str, value: object, result: object) -> object:
+        observed[key] = value
+        return result
+
+    def materialize_generation(
+        _root: Path,
+        _work: Path,
+        project: Path,
+        interpreter: Path,
+        *_args: object,
+        **kwargs: object,
+    ) -> object:
+        return record(
+            "generation",
+            (project, interpreter, kwargs["dependency_python"]),
+            tmp_path / "runtime-generation",
+        )
+
+    patches = {
+        "git_common_dir": lambda _repo: tmp_path / ".git",
+        "resolve_locked_environment_python": lambda _project: source_python,
+        "require_python_image_source": lambda selected: record(
+            "image_source", selected, _python_facts(image_root)
         ),
-    )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "observe_runtime_environment",
-        lambda *_args, **_kwargs: environment,
-    )
-    monkeypatch.setattr(runtime_materialization, "_reusable_runtime", lambda *_args: None)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "prepare_locked_requirements",
-        lambda project, _work, selected, **kwargs: (
-            observed.update(prepared=(project, selected, kwargs["require_build_tools"]))
-            or requirements
+        "observe_runtime_environment": lambda *_args, **_kwargs: _environment(),
+        "_reusable_runtime": lambda *_args: None,
+        "prepare_locked_requirements": lambda project, _work, selected, **kwargs: record(
+            "prepared", (project, selected, kwargs["require_build_tools"]), requirements
         ),
-    )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "resolve_runtime_wheel",
-        lambda package_source, _wheel_dir, *, python: (
-            observed.update(wheel=(package_source, python)) or wheel
+        "resolve_runtime_wheel": lambda package_source, _wheel_dir, *, python: record(
+            "wheel", (package_source, python), wheel
         ),
-    )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_package_wheel",
-        lambda *_args, **_kwargs: PackageArtifact(wheel, "c" * 64, identity),
-    )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime_generation",
-        lambda _root, _work, project, interpreter, *_args, **kwargs: (
-            observed.update(
-                generation_project=project,
-                generation_interpreter=interpreter,
-                generation_dependency_python=kwargs["dependency_python"],
-            )
-            or tmp_path / "runtime-generation"
-        ),
-    )
+        "materialize_package_wheel": lambda *_args, **_kwargs: artifact,
+        "materialize_runtime_generation": materialize_generation,
+    }
+    for name, replacement in patches.items():
+        monkeypatch.setattr(runtime_materialization, name, replacement)
 
     runtime_materialization.materialize_runtime(
-        repo,
+        tmp_path / "repo",
         invoking_python,
-        expected_build=identity,
+        expected_build=artifact.build,
         build_source=source,
     )
 
     assert observed == {
-        "environment_project": source,
         "image_source": source_python,
         "prepared": (source, source_python, True),
         "wheel": (source, source_python),
-        "generation_project": source,
-        "generation_interpreter": image_python.resolve(),
-        "generation_dependency_python": source_python,
+        "generation": (source, (image_root / "bin/python").resolve(), source_python),
     }
 
 

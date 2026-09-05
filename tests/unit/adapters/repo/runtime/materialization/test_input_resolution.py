@@ -306,3 +306,51 @@ def test_runtime_project_selects_complete_source_or_complete_packaged_data(
     (packaged / "VERSION").unlink()
     with pytest.raises(ValueError, match="hook_runtime_packaged_project_missing"):
         runtime_inputs.resolve_runtime_project(incomplete)
+
+
+def test_locked_environment_python_is_owned_by_the_project_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    environment = project / ".venv"
+    python = environment / (
+        "Scripts/python.exe" if runtime_inputs.os.name == "nt" else "bin/python"
+    )
+    python.parent.mkdir(parents=True)
+    python.write_bytes(b"python")
+    monkeypatch.setattr(
+        runtime_inputs,
+        "observe_python_facts",
+        lambda _python: {
+            "executable": python.as_posix(),
+            "prefix": environment.as_posix(),
+        },
+    )
+
+    assert runtime_inputs.resolve_locked_environment_python(project) == python
+
+
+def test_locked_environment_python_rejects_a_foreign_prefix(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    python = (
+        project
+        / ".venv"
+        / ("Scripts/python.exe" if runtime_inputs.os.name == "nt" else "bin/python")
+    )
+    python.parent.mkdir(parents=True)
+    python.write_bytes(b"python")
+    monkeypatch.setattr(
+        runtime_inputs,
+        "observe_python_facts",
+        lambda _python: {
+            "executable": python.as_posix(),
+            "prefix": (tmp_path / "foreign").as_posix(),
+        },
+    )
+
+    with pytest.raises(ValueError, match="hook_runtime_locked_environment_invalid"):
+        runtime_inputs.resolve_locked_environment_python(project)

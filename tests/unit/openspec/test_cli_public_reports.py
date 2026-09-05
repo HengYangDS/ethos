@@ -17,7 +17,7 @@ def _completed(*, stdout: str = "", stderr: str = "", returncode: int = 0):
 
 
 def test_official_version_is_the_repository_locked_stable_release() -> None:
-    assert cli.OFFICIAL_VERSION == "1.11.0"
+    assert cli.OFFICIAL_VERSION == "1.12.0"
 
 
 def test_source_cli_consumes_the_single_resolved_node_package_supply(

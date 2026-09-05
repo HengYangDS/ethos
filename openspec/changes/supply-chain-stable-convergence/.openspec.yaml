@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-09-04
+goal: Converge every repository-owned direct supply-chain authority to the
+  latest compatible stable release, regenerate exact locks and digests, and
+  prove build, package, CI, and installed-runtime integrity without introducing
+  a second version authority.

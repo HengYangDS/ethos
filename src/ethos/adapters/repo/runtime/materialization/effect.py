@@ -24,6 +24,9 @@ from ethos.adapters.repo.runtime.materialization.dependency_supply import (
     prepare_locked_requirements,
 )
 from ethos.adapters.repo.runtime.materialization.input_resolution import is_selected_runtime_source
+from ethos.adapters.repo.runtime.materialization.input_resolution import (
+    resolve_locked_environment_python,
+)
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_project
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_wheel
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
@@ -64,7 +67,12 @@ def materialize_runtime(
         _fail("hook_runtime_root_invalid")
     work = runtime_root / f".build-{uuid.uuid4().hex}"
     try:
-        python_facts = require_python_image_source(source_python)
+        dependency_python = (
+            resolve_locked_environment_python(project)
+            if build_source is not None
+            else source_python
+        )
+        python_facts = require_python_image_source(dependency_python)
         interpreter = Path(python_facts["executable"]).resolve()
         environment = observe_runtime_environment(
             project,
@@ -77,12 +85,17 @@ def materialize_runtime(
         locked_requirements = (
             None
             if reuse_selected_closure
-            else prepare_locked_requirements(project, work, source_python)
+            else prepare_locked_requirements(
+                project,
+                work,
+                dependency_python,
+                require_build_tools=build_source is not None,
+            )
         )
         wheel = resolve_runtime_wheel(
             package_source,
             work / "wheel",
-            python=source_python,
+            python=dependency_python,
         )
         artifact = materialize_package_wheel(
             repo,
@@ -97,7 +110,7 @@ def materialize_runtime(
             interpreter,
             artifact,
             environment,
-            dependency_python=None if reuse_selected_closure else source_python,
+            dependency_python=None if reuse_selected_closure else dependency_python,
             python_facts=python_facts,
             locked_requirements=locked_requirements,
         )

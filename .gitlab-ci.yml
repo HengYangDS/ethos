@@ -53,7 +53,7 @@ default:
 # generated-artifact and release supply-chain checks.
 # A gate that does not run in CI is not a gate.
 .python_setup: &python_setup
-  image: ghcr.io/astral-sh/uv:0.12.7-python3.14-trixie-slim@sha256:0e664b12a6be9cd16be1015ec5cc3feebdeb42078ab587389707afbdfab8b10f
+  image: ghcr.io/astral-sh/uv:0.12.10-python3.14-trixie-slim@sha256:d5ddd498c5a28ec77ff1c70276f8f3c4a116a303c8b5583a018ea43c2e89e366
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
 
@@ -243,7 +243,7 @@ ethos:npm:
           - "26.8.1"
   # Runs on python:3.14 with exact Node
   # releases installed from nodejs.org; see the runtime policy and installer.
-  image: ghcr.io/astral-sh/uv:0.12.7-python3.14-trixie-slim@sha256:0e664b12a6be9cd16be1015ec5cc3feebdeb42078ab587389707afbdfab8b10f
+  image: ghcr.io/astral-sh/uv:0.12.10-python3.14-trixie-slim@sha256:d5ddd498c5a28ec77ff1c70276f8f3c4a116a303c8b5583a018ea43c2e89e366
   script:
     - source tools/ci/scripts/bootstrap-python.sh
     - tools/ci/scripts/install-node.sh
@@ -265,7 +265,7 @@ ethos:npm-package:
   stage: package
   # See ethos:npm — python:3.14 + install-node.sh avoids the unreachable
   # node:24 image.
-  image: ghcr.io/astral-sh/uv:0.12.7-python3.14-trixie-slim@sha256:0e664b12a6be9cd16be1015ec5cc3feebdeb42078ab587389707afbdfab8b10f
+  image: ghcr.io/astral-sh/uv:0.12.10-python3.14-trixie-slim@sha256:d5ddd498c5a28ec77ff1c70276f8f3c4a116a303c8b5583a018ea43c2e89e366
   script:
     - source tools/ci/scripts/bootstrap-python.sh
     - tools/ci/scripts/install-node.sh

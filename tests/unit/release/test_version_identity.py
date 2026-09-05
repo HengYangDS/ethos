@@ -31,7 +31,7 @@ def test_version_file_is_the_single_product_owner_and_manifests_are_projections(
     product = product_version(root)
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert product == "0.2.0-alpha.3"
+    assert product == "0.2.0-alpha.4"
     assert "version" not in pyproject["project"]
     assert "version" in pyproject["project"]["dynamic"]
     assert "version" not in json.loads((root / "package.json").read_text(encoding="utf-8"))
@@ -75,8 +75,8 @@ def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> N
     assert first.source_commit != second.source_commit
     assert first.source_tree != second.source_tree
     assert first.distribution_version != second.distribution_version
-    assert Version(first.distribution_version) < Version("0.2.0a3")
-    assert Version(second.distribution_version) < Version("0.2.0a3")
+    assert Version(first.distribution_version) < Version("0.2.0a4")
+    assert Version(second.distribution_version) < Version("0.2.0a4")
 
 
 def test_sdist_rebuild_reuses_the_identical_node_package_supply(tmp_path: Path) -> None:
@@ -98,7 +98,7 @@ def test_sdist_rebuild_reuses_the_identical_node_package_supply(tmp_path: Path) 
     )
     direct_wheel = next(artifacts.glob("*.whl"))
     source_root = tmp_path / "source"
-    shutil.unpack_archive(next(artifacts.glob("*.tar.gz")), source_root)
+    shutil.unpack_archive(next(artifacts.glob("*.tar.gz")), source_root, filter="data")
     source = next(path for path in source_root.iterdir() if path.is_dir())
     rebuilt = tmp_path / "rebuilt"
     environment = os.environ.copy()
@@ -132,7 +132,7 @@ def test_environment_cannot_promote_a_source_build_to_release(
 
     identity = source_build_identity(Path.cwd())
 
-    assert Version(identity.distribution_version) < Version("0.2.0a3")
+    assert Version(identity.distribution_version) < Version("0.2.0a4")
 
 
 def test_release_identity_uses_exact_product_projection_only_when_explicit() -> None:
@@ -173,7 +173,7 @@ def test_development_distribution_identity_uses_the_complete_source_coordinates(
 def test_accepted_checkout_remains_a_development_build() -> None:
     identity = source_build_identity(Path.cwd())
 
-    assert Version(identity.distribution_version) < Version("0.2.0a3")
+    assert Version(identity.distribution_version) < Version("0.2.0a4")
 
 
 @pytest.mark.parametrize("raw", ["1", "1.2", "v1.2.3", "1.2.3a1", "1.2.3-alpha"])
@@ -234,7 +234,7 @@ def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
 
 def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
     output.mkdir()
-    supply = resolve_node_package_supply(repo)
+    supply = resolve_node_package_supply(Path.cwd())
     subprocess.run(
         (
             str(Path(sys.executable).with_name("uv")),

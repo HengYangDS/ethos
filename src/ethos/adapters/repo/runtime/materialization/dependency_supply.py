@@ -39,18 +39,28 @@ def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
     raise ValueError(reason) from cause
 
 
-def prepare_locked_requirements(source: Path, work: Path, source_python: Path) -> Path:
+def prepare_locked_requirements(
+    source: Path,
+    work: Path,
+    source_python: Path,
+    *,
+    require_build_tools: bool = False,
+) -> Path:
     """Verify one invocation environment and export its production lock closure."""
-    run_runtime_tool(
-        source,
+    sync_arguments = [
         "sync",
         "--locked",
         "--offline",
-        "--no-dev",
         "--check",
         "--active",
         "--no-install-project",
         "--inexact",
+    ]
+    if not require_build_tools:
+        sync_arguments.insert(3, "--no-dev")
+    run_runtime_tool(
+        source,
+        *sync_arguments,
         python=source_python,
     )
     requirements = work / "locked-requirements.txt"

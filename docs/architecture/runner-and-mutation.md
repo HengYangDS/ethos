@@ -98,7 +98,7 @@ an exact live-Lease CAS: a missing Lease blocks and never masquerades as replay.
 `ethos lane archive-change` closes the lifecycle edge that cannot be split
 between an external archive process and a later Git commit. It requires the
 same-holder Lease and proof for the pre-archive HEAD, runs official OpenSpec
-`1.11.0`, admits only its exact rename/spec delta, commits through ordinary
+`1.12.0`, admits only its exact rename/spec delta, commits through ordinary
 hooks, and attests the post-state. The archived HEAD remains plan/proof/land
 capable because acceptance is compiled from its exact official projection.
 Unbound Work Lane refs are observations only. Status preserves their exact ref,
@@ -139,9 +139,10 @@ and executable remediation resolve that same selector; historical launcher
 bytes and ambient `PATH` are not alternate authorities. Runtime activation
 validates the candidate before selection, post-observes the shared binding, and
 restores the exact prior selector plus Git configuration on failure.
-For a source checkout, `uv.lock` owns dependency resolution while the active
-lock-current project environment supplies already materialized build and
-platform bytes. Installation verifies that environment before a non-isolated
+For a source checkout, `uv.lock` owns dependency resolution while that exact
+checkout's root lock-current `.venv` supplies build tooling and installed
+dependency bytes; an older invoking runtime only coordinates activation.
+Installation verifies the complete target environment before a non-isolated
 wheel build, copies it, strictly prunes the copy to the hash-bound production
 closure, and installs the exact wheel. The uv cache remains a disposable
 acceleration layer, never a prerequisite or authority. A selected package-only

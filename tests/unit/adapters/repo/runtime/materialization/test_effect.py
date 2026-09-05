@@ -273,6 +273,103 @@ def test_runtime_materialization_separates_dependency_supply_from_python_image(
     assert observed["python_facts"] == observed["generation_facts"]
 
 
+def test_source_runtime_uses_the_target_locked_environment_for_build_supply(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An older invoking runtime must not supply a newer source build backend."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert (
+        subprocess.run(
+            ("git", "init", "--quiet", "--initial-branch=dev"),
+            cwd=repo,
+            check=False,
+        ).returncode
+        == 0
+    )
+    source = tmp_path / "accepted-source"
+    source_python = _write(
+        source / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python"),
+        b"source-python",
+    )
+    invoking_python = _write(tmp_path / "current-runtime/python/bin/python", b"runtime-python")
+    image_python = _write(tmp_path / "native-python/bin/python", b"native-python")
+    wheel = _write(tmp_path / "ethos.whl", b"wheel")
+    requirements = _write(tmp_path / "locked-requirements.txt", b"package==1\n")
+    identity = runtime_build("a" * 40, "b" * 40)
+    environment = _environment()
+    observed: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        runtime_materialization,
+        "resolve_locked_environment_python",
+        lambda project: observed.update(environment_project=project) or source_python,
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "require_python_image_source",
+        lambda selected: (
+            observed.update(image_source=selected) or _python_facts(image_python.parent.parent)
+        ),
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "observe_runtime_environment",
+        lambda *_args, **_kwargs: environment,
+    )
+    monkeypatch.setattr(runtime_materialization, "_reusable_runtime", lambda *_args: None)
+    monkeypatch.setattr(
+        runtime_materialization,
+        "prepare_locked_requirements",
+        lambda project, _work, selected, **kwargs: (
+            observed.update(prepared=(project, selected, kwargs["require_build_tools"]))
+            or requirements
+        ),
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "resolve_runtime_wheel",
+        lambda package_source, _wheel_dir, *, python: (
+            observed.update(wheel=(package_source, python)) or wheel
+        ),
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_package_wheel",
+        lambda *_args, **_kwargs: PackageArtifact(wheel, "c" * 64, identity),
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "materialize_runtime_generation",
+        lambda _root, _work, project, interpreter, *_args, **kwargs: (
+            observed.update(
+                generation_project=project,
+                generation_interpreter=interpreter,
+                generation_dependency_python=kwargs["dependency_python"],
+            )
+            or tmp_path / "runtime-generation"
+        ),
+    )
+
+    runtime_materialization.materialize_runtime(
+        repo,
+        invoking_python,
+        expected_build=identity,
+        build_source=source,
+    )
+
+    assert observed == {
+        "environment_project": source,
+        "image_source": source_python,
+        "prepared": (source, source_python, True),
+        "wheel": (source, source_python),
+        "generation_project": source,
+        "generation_interpreter": image_python.resolve(),
+        "generation_dependency_python": source_python,
+    }
+
+
 def test_materialized_python_is_a_product_owned_non_mutating_closure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

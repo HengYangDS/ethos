@@ -132,8 +132,8 @@ def test_python_bootstrap_supplies_declared_linux_test_prerequisites(tmp_path: P
     _write_fake_executable(
         fake_bin / "uv",
         "#!/bin/sh\n"
-        "if [ \"$1\" = --version ]; then printf 'uv 0.12.7\\n'; exit 0; fi\n"
-        "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.7\\n'; exit 0; fi\n"
+        "if [ \"$1\" = --version ]; then printf 'uv 0.12.10\\n'; exit 0; fi\n"
+        "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.10\\n'; exit 0; fi\n"
         '[ "$1" = sync ] && exit 0\n'
         "exit 2\n",
     )
@@ -146,9 +146,9 @@ def test_python_bootstrap_supplies_declared_linux_test_prerequisites(tmp_path: P
         (fake_bin / name).symlink_to(shutil.which(name))
     openspec = repo / "node_modules/.bin/openspec"
     openspec.parent.mkdir(parents=True)
-    _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.11.0\\n'\n")
+    _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.12.0\\n'\n")
     (repo / "pyproject.toml").write_text(
-        '[dependency-groups]\ndev = ["uv>=0.12.7"]\n', encoding="utf-8"
+        '[dependency-groups]\ndev = ["uv>=0.12.10"]\n', encoding="utf-8"
     )
 
     result = subprocess.run(
@@ -188,8 +188,8 @@ def test_python_bootstrap_does_not_use_apt_get_on_darwin(tmp_path: Path) -> None
     _write_fake_executable(
         fake_bin / "uv",
         "#!/bin/sh\n"
-        "if [ \"$1\" = --version ]; then printf 'uv 0.12.7\\n'; exit 0; fi\n"
-        "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.7\\n'; exit 0; fi\n"
+        "if [ \"$1\" = --version ]; then printf 'uv 0.12.10\\n'; exit 0; fi\n"
+        "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.10\\n'; exit 0; fi\n"
         '[ "$1" = sync ] && exit 0\n'
         "exit 2\n",
     )
@@ -200,9 +200,9 @@ def test_python_bootstrap_does_not_use_apt_get_on_darwin(tmp_path: Path) -> None
     )
     openspec = repo / "node_modules/.bin/openspec"
     openspec.parent.mkdir(parents=True)
-    _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.11.0\\n'\n")
+    _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.12.0\\n'\n")
     (repo / "pyproject.toml").write_text(
-        '[dependency-groups]\ndev = ["uv>=0.12.7"]\n', encoding="utf-8"
+        '[dependency-groups]\ndev = ["uv>=0.12.10"]\n', encoding="utf-8"
     )
 
     result = subprocess.run(

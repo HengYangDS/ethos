@@ -41,7 +41,7 @@ jobs:
           cache: npm
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
-          version: "0.12.7"
+          version: "0.12.10"
           python-version: ${{ matrix.python }}
       - name: Provision native Python image supply
         run: uv python install --no-bin ${{ matrix.python }}
@@ -78,7 +78,7 @@ jobs:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
-          version: "0.12.7"
+          version: "0.12.10"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Carrier format and syntax
@@ -148,7 +148,7 @@ jobs:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
-          version: "0.12.7"
+          version: "0.12.10"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Configure governed checkout
@@ -183,7 +183,7 @@ jobs:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
-          version: "0.12.7"
+          version: "0.12.10"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Build Python distributions

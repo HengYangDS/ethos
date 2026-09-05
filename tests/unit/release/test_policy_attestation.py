@@ -178,10 +178,10 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
     )
     _fields(
         manifest,
-        version="0.2.0-alpha.3",
-        tag="v0.2.0-alpha.3",
+        version="0.2.0-alpha.4",
+        tag="v0.2.0-alpha.4",
         all_package_versions_match=True,
-        packages={"ethos": "0.2.0-alpha.3"},
+        packages={"ethos": "0.2.0-alpha.4"},
     )
     _fields(
         report,

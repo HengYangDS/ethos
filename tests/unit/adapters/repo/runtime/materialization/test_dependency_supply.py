@@ -84,7 +84,12 @@ def test_lock_current_environment_supplies_runtime_without_cache_authority(
 
     monkeypatch.setattr(supply, "run_runtime_tool", run)
 
-    requirements = supply.prepare_locked_requirements(project, work, source_python)
+    requirements = supply.prepare_locked_requirements(
+        project,
+        work,
+        source_python,
+        require_build_tools=True,
+    )
     supply.install_locked_runtime(
         project,
         source_python,
@@ -102,7 +107,8 @@ def test_lock_current_environment_supplies_runtime_without_cache_authority(
     ]
     assert all("--offline" in command for command, _python in commands)
     assert all(python == source_python for _command, python in commands)
-    assert all("--no-dev" in command for command, _python in commands[:2])
+    assert "--no-dev" not in commands[0][0]
+    assert "--no-dev" in commands[1][0]
     assert (source_packages / "annotated_types/__init__.py").is_file()
     assert (target_packages / "annotated_types/__init__.py").is_file()
     assert "--require-hashes" in commands[2][0]

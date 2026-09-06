@@ -395,7 +395,8 @@ carrier = "openspec/specs"
 
 ### Requirement: Runtime owner remains navigable
 
-The [runtime owner](../../../src/example/retired.py) defines execution.
+The [runtime owner](../../../src/example/retired.py), unlike an
+[external reference](https://example.test/runtime), defines execution.
 
 #### Scenario: Runtime ownership is inspected
 

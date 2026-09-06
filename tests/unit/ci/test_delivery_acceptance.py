@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import subprocess
 import tomllib
 from datetime import UTC
 from datetime import datetime
@@ -312,34 +313,7 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
     ]
 
 
-def test_adopter_line_endings_ignore_host_autocrlf(tmp_path: Path) -> None:
-    fixture = _acceptance_module("adopter")
-
-    def run(*command: str, cwd: Path | None = None) -> str:
-        completed = __import__("subprocess").run(
-            command,
-            cwd=cwd,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return completed.stdout.strip()
-
-    adopter = tmp_path / "adopter"
-    fixture.materialize_adopter(
-        adopter,
-        openspec_config=ROOT / "openspec/config.yaml",
-        run=run,
-    )
-    run("git", "config", "core.autocrlf", "true", cwd=adopter)
-
-    assert fixture.line_ending_conformance(adopter, run=run) == ["lf", "crlf"]
-
-
-def test_generated_adopter_text_is_clean_without_ambient_autocrlf(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
+def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> None:
     fixture = _acceptance_module("adopter")
     dirty = importlib.import_module("ethos.adapters.repo.dirty.change_provenance")
     global_config = tmp_path / "global.gitconfig"
@@ -347,14 +321,7 @@ def test_generated_adopter_text_is_clean_without_ambient_autocrlf(
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
 
     def run(*command: str, cwd: Path | None = None) -> str:
-        completed = __import__("subprocess").run(
-            command,
-            cwd=cwd,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return completed.stdout.strip()
+        return subprocess.check_output(command, cwd=cwd, text=True).strip()
 
     adopter = tmp_path / "adopter"
     fixture.materialize_adopter(
@@ -362,6 +329,8 @@ def test_generated_adopter_text_is_clean_without_ambient_autocrlf(
         openspec_config=ROOT / "openspec/config.yaml",
         run=run,
     )
+    assert fixture.line_ending_conformance(adopter, run=run) == ["lf", "crlf"]
+
     readme = adopter / "README.md"
     readme.write_bytes(readme.read_bytes().replace(b"\n", b"\r\n"))
     run("git", "add", "README.md", cwd=adopter)

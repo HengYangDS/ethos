@@ -38,17 +38,26 @@ def _schema_dir(root: Path) -> Path:
     return root / "system" / "schemas" / "kernel"
 
 
-def _product_schema_dir() -> Path:
-    return Path(
-        str(metadata.distribution("ethos").locate_file("ethos/data/schemas/kernel"))
-    ).resolve()
+def _source_schema_root() -> Path | None:
+    """Return the complete schema tree beside the active source runner."""
+    source_root = Path(__file__).resolve().parents[4]
+    schema_root = source_root / "system" / "schemas"
+    return schema_root if schema_root.is_dir() else None
+
+
+def _product_schema_root() -> Path:
+    return Path(str(metadata.distribution("ethos").locate_file("ethos/data/schemas"))).resolve()
 
 
 def _source_schema_dir() -> Path | None:
     """Return schemas beside the active source runner, never from an adopter."""
-    source_root = Path(__file__).resolve().parents[4]
-    schema_dir = source_root / "system" / "schemas" / "kernel"
-    return schema_dir if schema_dir.is_dir() else None
+    source_root = _source_schema_root()
+    schema_dir = source_root / "kernel" if source_root is not None else None
+    return schema_dir if schema_dir is not None and schema_dir.is_dir() else None
+
+
+def _product_schema_dir() -> Path:
+    return _product_schema_root() / "kernel"
 
 
 def load_schema(name: str, *, root: Path | None = None) -> dict[str, Any]:
@@ -62,7 +71,7 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
     gaps: list[str] = []
     schemas: dict[str, dict[str, object]] = {}
     local_schema_dir = _schema_dir(repo)
-    schema_dir = _source_schema_dir() or _product_schema_dir()
+    schema_dir = _source_schema_root() or _product_schema_root()
     retired_schema = local_schema_dir / "capability-profile.schema.json"
     if retired_schema.exists():
         gaps.append("schema_retired:capability-profile.schema.json")
@@ -70,7 +79,7 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
             "verdict": "block",
             "error": "retired semantic schema",
         }
-    for path in sorted(schema_dir.glob("*.schema.json")):
+    for path in sorted(schema_dir.rglob("*.schema.json")):
         if path.resolve() == retired_schema.resolve():
             continue
         try:

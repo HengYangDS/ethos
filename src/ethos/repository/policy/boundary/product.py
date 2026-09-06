@@ -13,14 +13,11 @@ if TYPE_CHECKING:
 
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.boundary.catalog import ADOPTER_LITERAL_PATTERNS
-from ethos.repository.policy.boundary.catalog import ALLOWED_IDENTITY_ROLES
-from ethos.repository.policy.boundary.catalog import DISTINCT_IDENTITY_FACTS
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_ALLOWED_FILE_ENTRIES
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_ALLOWED_FILE_PREFIXES
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_FORBIDDEN_FILE_PREFIXES
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_MANIFEST_FILES
 from ethos.repository.policy.boundary.catalog import FIXED_KEY_PATTERNS
-from ethos.repository.policy.boundary.catalog import GENERIC_PLACEHOLDERS
 from ethos.repository.policy.boundary.catalog import HISTORICAL_SURFACE_PREFIXES
 from ethos.repository.policy.boundary.catalog import LOCAL_PATH_PATTERNS
 from ethos.repository.policy.boundary.catalog import PACKAGE_METADATA_FILES
@@ -319,128 +316,5 @@ def product_boundary_report(root: Path) -> dict[str, object]:
                 "product surfaces, release-visible historical provenance, "
                 "release metadata, and distribution packages stay enterprise-neutral"
             ),
-        },
-    }
-
-
-def _identity_entries(raw: dict[str, Any]) -> list[dict[str, str]]:
-    entries = raw.get("allowed_identities", [])
-    if not isinstance(entries, list):
-        return []
-    normalized: list[dict[str, str]] = []
-    for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        normalized.append(
-            {
-                "role": str(entry.get("role", "")),
-                "name": str(entry.get("name", "")),
-                "email": str(entry.get("email", "")),
-            }
-        )
-    return normalized
-
-
-def load_workspace_commit_policy(root: Path) -> dict[str, Any]:
-    path = root / ".ethos" / "workspace.toml"
-    if not path.exists():
-        return {}
-    try:
-        payload = tomllib.loads(path.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError:
-        return {"parse_failed": True}
-    raw = payload.get("commit_policy")
-    return raw if isinstance(raw, dict) else {}
-
-
-def _policy_parse_findings(raw: dict[str, Any], policy_path: str) -> list[Finding]:
-    if raw.get("parse_failed"):
-        return [Finding(policy_path, 1, "commit_policy_toml_invalid", "TOML parse failed")]
-    return []
-
-
-def _policy_shape_findings(
-    *, raw: dict[str, Any], entries: list[dict[str, str]], policy_path: str
-) -> list[Finding]:
-    findings = [
-        Finding(policy_path, 1, "single_author_policy", key)
-        for key in ("expected_name", "expected_email")
-        if raw.get(key)
-    ]
-
-    identity_mode = str(raw.get("identity_mode", ""))
-    if not identity_mode:
-        findings.append(Finding(policy_path, 1, "identity_mode_missing", identity_mode))
-    elif identity_mode != "external":
-        findings.append(Finding(policy_path, 1, "identity_mode_not_external", identity_mode))
-    if not entries:
-        findings.append(
-            Finding(policy_path, 1, "allowed_identities_missing", "no identities declared")
-        )
-    return findings
-
-
-def _role_coverage_findings(
-    *, entries: list[dict[str, str]], roles: set[str], policy_path: str
-) -> list[Finding]:
-    if not entries:
-        return []
-    findings: list[Finding] = []
-    role_text = ",".join(sorted(roles))
-    if not roles.intersection({"maintainer", "team"}):
-        findings.append(Finding(policy_path, 1, "maintainer_or_team_missing", role_text))
-    if not roles.intersection({"bot", "service"}):
-        findings.append(Finding(policy_path, 1, "automation_identity_missing", role_text))
-    return findings
-
-
-def _identity_entry_findings(*, entries: list[dict[str, str]], policy_path: str) -> list[Finding]:
-    findings: list[Finding] = []
-    for idx, entry in enumerate(entries, start=1):
-        role = entry["role"]
-        name = entry["name"]
-        email = entry["email"]
-        if role not in ALLOWED_IDENTITY_ROLES:
-            findings.append(Finding(policy_path, idx, "identity_role_unknown", role))
-        if name in GENERIC_PLACEHOLDERS or email in GENERIC_PLACEHOLDERS:
-            findings.append(Finding(policy_path, idx, "identity_placeholder", f"{name} <{email}>"))
-        identity = f"{name} <{email}>"
-        if any(pattern.search(identity) for pattern in PERSONAL_PATTERNS):
-            findings.append(Finding(policy_path, idx, "personal_identity_literal", identity))
-    return findings
-
-
-def contributor_policy_report(root: Path) -> dict[str, object]:
-    """Report whether commit identity policy supports organizations, teams, and bots."""
-    raw = load_workspace_commit_policy(root)
-    policy_path = ".ethos/workspace.toml"
-    entries = [] if raw.get("parse_failed") else _identity_entries(raw)
-    roles = {entry["role"] for entry in entries}
-    identity_mode = str(raw.get("identity_mode", ""))
-    findings = [
-        *_policy_parse_findings(raw, policy_path),
-        *_policy_shape_findings(raw=raw, entries=entries, policy_path=policy_path),
-        *_role_coverage_findings(entries=entries, roles=roles, policy_path=policy_path),
-        *_identity_entry_findings(entries=entries, policy_path=policy_path),
-    ]
-
-    required_gaps = [finding.code() for finding in findings]
-    return {
-        "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
-        "state": "clean" if not findings else "blocked",
-        "summary": {
-            "identity_mode": identity_mode,
-            "identity_count": len(entries),
-            "roles": sorted(roles),
-            "finding_count": len(findings),
-        },
-        "allowed_identities": entries,
-        "required_gaps": required_gaps,
-        "findings": [finding.to_dict() for finding in findings],
-        "policy": {
-            "principle": "Git author / committer != Work Lane actor != governance authority",
-            "identity_model": "external_role_policy",
-            "distinct_identity_facts": list(DISTINCT_IDENTITY_FACTS),
-            "allowed_roles": sorted(ALLOWED_IDENTITY_ROLES),
         },
     }

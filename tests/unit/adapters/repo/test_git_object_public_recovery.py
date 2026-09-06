@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 import ethos.adapters.repo.git_object as identity
+from ethos.repository.policy.commit import CommitPolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -66,6 +67,138 @@ def test_commit_payload_missing_separator_fails_closed(
     )
 
     assert identity.commit_payload(tmp_path, "revision") == b""
+
+
+def test_commit_policy_observation_reports_current_identity_and_subject(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    policy = CommitPolicy(
+        subject_pattern=r"^fix: .+",
+        signing_required=False,
+        signing_format="ssh",
+    )
+
+    report = identity.observe_commit_policy(repo, policy)
+
+    assert report["verdict"] == "block"
+    assert report["head"] == {
+        "object_oid": git(repo, "rev-parse", "HEAD"),
+        "subject": "init",
+        "author": {"name": "ETHOS Test", "email": "test@example.invalid"},
+        "committer": {"name": "ETHOS Test", "email": "test@example.invalid"},
+    }
+    assert report["signature"] == {
+        "verdict": "pass",
+        "required": False,
+        "state": "not_required",
+        "present": False,
+        "format": "",
+        "required_gaps": [],
+    }
+    assert report["required_gaps"] == [
+        f"commit_subject_invalid:{report['head']['object_oid']}:init"
+    ]
+
+
+def test_commit_policy_observation_rejects_a_missing_required_signature(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    policy = CommitPolicy(
+        subject_pattern=r"^init$",
+        signing_required=True,
+        signing_format="ssh",
+    )
+
+    report = identity.observe_commit_policy(repo, policy)
+
+    head = git(repo, "rev-parse", "HEAD")
+    gap = f"commit_signature_missing:{head}"
+    assert report["signature"] == {
+        "verdict": "block",
+        "required": True,
+        "state": "missing",
+        "present": False,
+        "format": "",
+        "required_gaps": [gap],
+    }
+    assert report["required_gaps"] == [gap]
+
+
+def test_commit_policy_observation_rejects_the_wrong_signature_format(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+    payload = (
+        f"tree {tree}\n"
+        "author Test User <test@example.invalid> 0 +0000\n"
+        "committer Test User <test@example.invalid> 0 +0000\n"
+        "gpgsig -----BEGIN PGP SIGNATURE-----\n"
+        " synthetic\n"
+        " -----END PGP SIGNATURE-----\n"
+        "\n"
+        "fix: wrong signing format\n"
+    )
+    completed = subprocess.run(
+        (
+            "git",
+            "-c",
+            "core.hooksPath=.git/test-hooks",
+            "hash-object",
+            "-t",
+            "commit",
+            "-w",
+            "--stdin",
+        ),
+        cwd=repo,
+        check=True,
+        text=True,
+        input=payload,
+        capture_output=True,
+    )
+    head = completed.stdout.strip()
+    git(repo, "update-ref", "HEAD", head)
+    policy = CommitPolicy(
+        subject_pattern=r"^fix: .+",
+        signing_required=True,
+        signing_format="ssh",
+    )
+
+    report = identity.observe_commit_policy(repo, policy)
+
+    gap = f"commit_signature_format_mismatch:{head}:expected=ssh:observed=openpgp"
+    assert report["signature"] == {
+        "verdict": "block",
+        "required": True,
+        "state": "format_mismatch",
+        "present": True,
+        "format": "openpgp",
+        "required_gaps": [gap],
+    }
+    assert report["required_gaps"] == [gap]
+
+
+def test_commit_policy_observation_accepts_a_required_ssh_signature(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, _anchor, head, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    policy = CommitPolicy(
+        subject_pattern=r"^signed target$",
+        signing_required=True,
+        signing_format="ssh",
+    )
+
+    report = identity.observe_commit_policy(repo, policy)
+
+    assert report["verdict"] == "pass"
+    assert report["signature"] == {
+        "verdict": "pass",
+        "required": True,
+        "state": "present",
+        "present": True,
+        "format": "ssh",
+        "required_gaps": [],
+    }
+    assert report["head"]["object_oid"] == head
 
 
 @pytest.mark.parametrize(

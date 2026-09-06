@@ -221,9 +221,6 @@ ethos:verify:
     ETHOS_TEST_RUN_AS_GID: "65534"
   script:
     - source tools/ci/scripts/bootstrap-python.sh
-    # Configure the Git identity and signing used by source-level commit-policy tests.
-    # Repository proof does not activate Git-common mutation hooks or runtimes.
-    - tools/ci/scripts/configure-git-checkout.sh
     - node_modules/.bin/openspec --version
     - uv run --frozen --offline python -m nox -s tests
     - openspec validate --all --strict --json

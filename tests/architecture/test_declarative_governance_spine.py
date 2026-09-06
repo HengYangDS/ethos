@@ -15,14 +15,6 @@ from ethos.repository.policy.gates import gate_execution_identity
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_gate_declaration_has_no_parallel_registry_or_tool_catalog() -> None:
-    declaration = load_gate_registry_declaration()
-
-    assert declaration.registry()
-    assert not (ROOT / "system/tools.toml").exists()
-    assert not (ROOT / "src/ethos/quality").exists()
-
-
 @pytest.mark.parametrize(
     "gate_id",
     [

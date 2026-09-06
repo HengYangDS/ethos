@@ -66,6 +66,8 @@ def _write_empty_node_package_supply(root: Path) -> Path:
 
 
 def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
+    retired = ("system/tools.toml", "src/ethos/quality")
+    assert all(not (ROOT / path).exists() for path in retired)
     installers = sorted((ROOT / "tools/ci/scripts").glob("install-*.sh"))
     installers.append(ROOT / "tools/ci/scripts/run-actionlint.sh")
     declared_policies = set()

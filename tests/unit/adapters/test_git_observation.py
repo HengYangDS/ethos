@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import subprocess
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,10 @@ from ethos.adapters.repo.git import run_git
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+
+
+def _completed(returncode: int, stdout: bytes = b"") -> subprocess.CompletedProcess[bytes]:
+    return subprocess.CompletedProcess((), returncode, stdout, b"")
 
 
 def test_ref_progress_projects_reflog_advances_without_persisting_metrics(
@@ -239,3 +244,30 @@ def test_network_git_preserves_effective_global_credentials(
     environment = observed["env"]
     assert environment["GIT_CONFIG_GLOBAL"] == "/tmp/effective-global-gitconfig"
     assert environment["GIT_TERMINAL_PROMPT"] == "0"
+
+
+def test_git_observations_fail_closed_on_unavailable_or_ambiguous_data(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert git_adapter.committed_file_bytes(tmp_path, "", "file") == b""
+    monkeypatch.setattr(git_adapter, "run_git", lambda *_args, **_kwargs: _completed(1))
+    assert git_adapter.committed_file_bytes(tmp_path, "a" * 40, "file") == b""
+    assert git_adapter.git_files(tmp_path, "*.py") == []
+    for returncode, payload in (
+        (1, b""),
+        (0, b"R100\0source"),
+        (0, b"R100\0\xff\0target\0"),
+        (0, b"C100\0source\0copy\0R100\0source\0target\0"),
+    ):
+        monkeypatch.setattr(
+            git_adapter,
+            "run_git",
+            lambda *_args, outcome=(returncode, payload), **_kwargs: _completed(*outcome),
+        )
+        assert git_adapter.exact_rename_target(tmp_path, "old", "new", "source") == ""
+    monkeypatch.setattr(git_adapter, "current_tracked_head", lambda _root: "a" * 40)
+    assert git_adapter.remote_tracking_sync(tmp_path, "")["state"] == "branch_unknown"
+    values = iter(("b" * 40, "not counts"))
+    monkeypatch.setattr(git_adapter, "git_stdout", lambda *_args, **_kwargs: next(values))
+    report = git_adapter.remote_tracking_sync(tmp_path, "dev")
+    assert (report["state"], report["ahead"], report["behind"]) == ("synchronized", 0, 0)

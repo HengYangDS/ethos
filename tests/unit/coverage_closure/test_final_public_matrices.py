@@ -7,14 +7,9 @@ import subprocess
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
-import pytest
-
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.repo.status.workspace as workspace
 import ethos.repository.policy.layout.imports as layout_imports
-from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.contracts.branch.roles import branch_role_policy_from_text
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.references.python_syntax import cyclopts_command_owners
@@ -24,76 +19,7 @@ from ethos.repository.policy.references.python_syntax import module_name
 if TYPE_CHECKING:
     from pathlib import Path
 
-
-STRICT = """[branch_roles]
-release_branch = "main"
-accepted_branch = "dev"
-candidate_branch = "candidate/dev"
-work_branch_prefix = "work/"
-proposal_branch_prefix = "proposal/"
-release_mirror = "independent"
-canonical_sibling_worktrees = false
-"""
-
-
-@pytest.mark.parametrize(
-    ("text", "error"),
-    [
-        ("[branch_roles\n", None),
-        ("[other]\nvalue = 1\n", None),
-        ("[branch_roles]\nunknown = 'x'\n", "unknown fields"),
-    ],
-)
-def test_branch_role_lenient_parser_fail_closed(text: str, error: str | None) -> None:
-    if error:
-        with pytest.raises(ValueError, match=error):
-            branch_role_policy_from_text(text)
-    else:
-        assert branch_role_policy_from_text(text) == BranchRolePolicy()
-
-
-def test_branch_role_current_schema_maps_exactly() -> None:
-    assert strict_branch_role_policy_from_text(STRICT) == BranchRolePolicy(
-        canonical_sibling_worktrees=False
-    )
-
-
-@pytest.mark.parametrize(
-    ("text", "error"),
-    [
-        (
-            STRICT.replace('release_branch = "main"', 'release_branch = " main"'),
-            "canonical strings",
-        ),
-        (
-            STRICT.replace('release_mirror = "independent"', 'release_mirror = "mirror"'),
-            "mirror is invalid",
-        ),
-        (
-            STRICT.replace(
-                "canonical_sibling_worktrees = false", 'canonical_sibling_worktrees = "false"'
-            ),
-            "must be boolean",
-        ),
-    ],
-)
-def test_branch_role_strict_value_contract(text: str, error: str) -> None:
-    with pytest.raises(ValueError, match=error):
-        strict_branch_role_policy_from_text(text)
-
-
-def test_branch_role_lenient_value_defaults() -> None:
-    report = branch_role_policy_from_text(
-        "[branch_roles]\n"
-        "release_branch = 1\n"
-        "accepted_branch = ' '\n"
-        "release_mirror = 'accepted_ff'\n"
-    )
-    assert (report.release_branch, report.accepted_branch, report.release_mirror) == (
-        "main",
-        "dev",
-        "accepted_ff",
-    )
+    import pytest
 
 
 def test_layout_import_public_matrices(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

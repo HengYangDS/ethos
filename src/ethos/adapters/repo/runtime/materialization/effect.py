@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 import shutil
 import stat
@@ -13,6 +12,7 @@ from typing import TYPE_CHECKING
 from typing import NoReturn
 
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.filesystem import make_owned_tree_writable
 from ethos.adapters.repo.runtime.filesystem import require_exclusive_inodes
 from ethos.adapters.repo.runtime.filesystem import require_no_junctions
 from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
@@ -248,17 +248,7 @@ def remove_generated_tree(path: Path, *, ignore_errors: bool = False) -> None:
     try:
         require_no_junctions(path, error="hook_runtime_generation_tree_invalid")
         require_exclusive_inodes(path, error="hook_runtime_generation_hardlink_invalid")
-        for parent, directories, files in os.walk(path, topdown=False):
-            base = Path(parent)
-            for name in files:
-                child = base / name
-                if not child.is_symlink():
-                    child.chmod(stat.S_IMODE(child.stat().st_mode) | stat.S_IWUSR)
-            for name in directories:
-                child = base / name
-                if not child.is_symlink():
-                    child.chmod(stat.S_IMODE(child.stat().st_mode) | stat.S_IRWXU)
-        path.chmod(stat.S_IMODE(path.stat().st_mode) | stat.S_IRWXU)
+        make_owned_tree_writable(path)
         shutil.rmtree(path)
     except OSError:
         if not ignore_errors:

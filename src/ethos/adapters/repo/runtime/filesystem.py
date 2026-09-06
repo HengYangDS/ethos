@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 
 
@@ -30,3 +31,18 @@ def require_exclusive_inodes(root: Path, *, error: str) -> None:
             path = base / name
             if not path.is_symlink() and path.stat().st_nlink != 1:
                 raise ValueError(error)
+
+
+def make_owned_tree_writable(root: Path) -> None:
+    """Make one owned generated tree writable without following links."""
+    for parent, directories, files in os.walk(root, topdown=False, followlinks=False):
+        base = Path(parent)
+        for name in files:
+            path = base / name
+            if not path.is_symlink():
+                path.chmod(stat.S_IMODE(path.stat().st_mode) | stat.S_IWUSR)
+        for name in directories:
+            path = base / name
+            if not path.is_symlink():
+                path.chmod(stat.S_IMODE(path.stat().st_mode) | stat.S_IRWXU)
+    root.chmod(stat.S_IMODE(root.stat().st_mode) | stat.S_IRWXU)

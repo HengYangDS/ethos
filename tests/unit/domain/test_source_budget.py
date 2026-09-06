@@ -218,6 +218,8 @@ def test_direct_measurement_is_clean_when_bounded_counters_agree(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
+    deleted = _tracked_file(tmp_path, "deleted.py", "VALUE = 1\n")
+    deleted.unlink()
     report = _measure(monkeypatch, tmp_path)
 
     assert (report["verdict"], report["state"], report["required_gaps"]) == (

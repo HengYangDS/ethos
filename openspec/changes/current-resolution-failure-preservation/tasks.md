@@ -16,7 +16,7 @@
 
 - [x] 3.1 Run focused current-resolution, public-surface, proof, result-contract, and command-plane tests; verify repository-wide references contain no superseded proof-local recovery mapper.
 - [x] 3.2 Run strict OpenSpec validation, formatting, lint, typing, import-boundary, module-layout, and affected repository gates with no warnings or hidden fallback.
-- [ ] 3.3 Re-run focused and affected validation for candidate-policy migration, then complete exact-HEAD lifecycle closure.
+- [x] 3.3 Re-run focused and affected validation for candidate-policy migration before exact-HEAD lifecycle closure.
 
 ## Lifecycle Transition Boundary
 

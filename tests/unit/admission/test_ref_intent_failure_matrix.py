@@ -45,6 +45,10 @@ def _claim(root, *, operation="candidate.accept", plan="plan", old="old", new="n
     )
 
 
+def _committed(root):
+    return intent.committed_ref_intent(root=root, operation="candidate.accept", desired=_oid("new"))
+
+
 def test_ref_intent_dir_falls_back_to_repository_git_path(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -159,3 +163,13 @@ def test_sweep_removes_malformed_and_expired_issued_but_preserves_prepared(tmp_p
 
     assert set(swept) == {malformed.stem, str(expired["nonce"])}
     assert (intent.ref_intent_dir(tmp_path) / f"{prepared['nonce']}.json").exists()
+
+
+def test_committed_lookup_ignores_uncommitted_and_reclaims_invalid_nonce(tmp_path) -> None:
+    written = _write(tmp_path)
+    path = intent.ref_intent_dir(tmp_path) / f"{written['nonce']}.json"
+    assert _committed(tmp_path)["gap"] == "ref_intent_missing"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    path.write_text(json.dumps(payload | {"nonce": "f" * 64}), encoding="utf-8")
+    assert _committed(tmp_path)["gap"] == "ref_intent_missing"
+    assert not path.exists()

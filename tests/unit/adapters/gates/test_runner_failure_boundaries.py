@@ -48,14 +48,18 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
 
 
 @pytest.mark.parametrize(
-    ("stdout", "verdict", "gap"),
+    ("exit_code", "stdout", "verdict", "gap"),
     [
+        (1, "{}", "block", ""),
+        (0, '{"value": 1}', "pass", ""),
         (
+            0,
             '{"command":"prove","state":"done"}',
             "unknown",
             "ethos_result_verdict_missing_or_invalid",
         ),
         (
+            0,
             (
                 '{"command":"prove","verdict":"pass","state":"done",'
                 '"diagnostics":[{"severity":"error","code":"gate_broken"}]}'
@@ -63,14 +67,23 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
             "block",
             "ethos_result:error:gate_broken",
         ),
+        (
+            0,
+            (
+                '{"command":"ethos","verdict":"block","state":"gapped",'
+                '"diagnostics":["skip",{"severity":"warning","code":"warn"}]}'
+            ),
+            "block",
+            "ethos_result:warning:warn",
+        ),
     ],
 )
 def test_command_runner_rejects_invalid_or_adverse_ethos_envelopes(
-    stdout: str, verdict: str, gap: str
+    exit_code: int, stdout: str, verdict: str, gap: str
 ) -> None:
-    observed, diagnostics = gate_runner.classify_action_result(exit_code=0, stdout=stdout)
+    observed, diagnostics = gate_runner.classify_action_result(exit_code=exit_code, stdout=stdout)
     assert observed == verdict
-    assert gap in diagnostics[0]["required_gaps"]
+    assert not gap or gap in diagnostics[0]["required_gaps"]
 
 
 def test_proof_waves_refuse_invalid_capacity_and_unresolved_dependencies() -> None:
@@ -110,3 +123,20 @@ def test_proof_waves_isolate_writer_and_preserve_parallel_result_order(
         Runner(), nodes, gates, root=tmp_path, capacity=2, parallel=True
     )
     assert tuple(result.action_id for result in results) == ("writer", "read-a", "read-b")
+    assert gate_runner.DryRunRunner().run(nodes[0], gates["read-a"], root=tmp_path).verdict == (
+        "unknown"
+    )
+
+
+def test_provider_non_mapping_result_becomes_failed_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gate = Gate(id="gate", kind="test", providers=("ethos.fake:report",))
+    node = PlanNode(id=gate.id, kind="check", command=("provider", *gate.providers))
+    monkeypatch.setattr(
+        gate_runner.importlib,
+        "import_module",
+        lambda _name: SimpleNamespace(report=lambda _root: "not-a-mapping"),
+    )
+    result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
+    assert (result.verdict, result.diagnostics[0]["kind"]) == ("block", "gate_provider_error")

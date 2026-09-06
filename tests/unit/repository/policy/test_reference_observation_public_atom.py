@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from typing import TYPE_CHECKING
 
 import pytest
@@ -8,6 +9,9 @@ from ethos.repository.policy.references.observation import npm_script_commands
 from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
+from ethos.repository.policy.references.python_syntax import cyclopts_command_owners
+from ethos.repository.policy.references.python_syntax import cyclopts_prefixes
+from ethos.repository.policy.references.python_syntax import module_name
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -129,3 +133,23 @@ def test_consumer_observation_does_not_recompute_command_declarations(
     assert result.sources["command"] == {"ethos status": frozenset({"docs/reference/example.md"})}
     assert result.unknown_paths == ()
     assert calls == []
+
+
+def test_cyclopts_observation_resolves_cycles_and_explicit_names() -> None:
+    assert cyclopts_prefixes({"src/pkg/cli.py": "App("}) == {}
+    prefixes = cyclopts_prefixes(
+        {
+            "src/pkg/cli.py": (
+                "a_app = App(name='alpha')\n"
+                "b_app = App(name='beta')\n"
+                "a_app.command(b_app)\n"
+                "b_app.command(a_app)\n"
+            )
+        }
+    )
+    assert prefixes == {("pkg.cli", "a_app"): "beta alpha", ("pkg.cli", "b_app"): "alpha beta"}
+    assert module_name("src/pkg/__init__.py") == "pkg"
+    tree = ast.parse("@app.command(name='explicit')\ndef default_name(): pass\n")
+    assert set(
+        cyclopts_command_owners("src/pkg/command.py", tree, {("pkg.command", "app"): "root"})
+    ) == {"root explicit"}

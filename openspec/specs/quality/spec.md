@@ -11,7 +11,9 @@ per property, one gate declaration plane, and no command-shaped quality shadow.
 
 `system/gates.toml` SHALL be the only product gate and proof-floor declaration.
 A gate SHALL bind either one or more concrete Python providers or one external
-owner command, never both.
+owner command, never both. Every gate SHALL belong to this one graph without a
+secondary registry selector, and no tool catalog SHALL restate gate identity,
+profile membership, or execution ownership.
 
 #### Scenario: A gate is loaded
 
@@ -20,7 +22,8 @@ owner command, never both.
   duplicate executors, missing dependencies, and unknown proof-set members
 - **AND** provider references and external commands remain adapter identities,
   not public CLI commands
-- **AND** no second Python gate registry restates the declaration
+- **AND** no second Python registry, registry projection, or tool catalog
+  restates the declaration
 
 #### Scenario: A Python provider gate executes
 
@@ -50,15 +53,18 @@ Cyclopts operation declarations own CLI syntax; gate IDs own proof selection.
 Ruff, the selected type checker, pytest/coverage, rumdl or markdownlint, dprint or
 native carrier formatters, shfmt/ShellCheck, ast-grep, import-linter, dependency
 checking, and repository-native semantic checks SHALL each own a disjoint
-property.
+property. Gate identity and proof membership SHALL remain in
+`system/gates.toml`; tool-specific behavior and version identity SHALL remain in
+the smallest existing native configuration or supply owner.
 
 #### Scenario: Two tools claim the same property
 
-- **WHEN** the tracked tool, gate, and owner-script declarations are audited
+- **WHEN** gate, native configuration, supply, and owner-script declarations are
+  audited
 - **THEN** the overlap is a required gap unless one tool is explicitly a bounded
   pilot replacing the other
-- **AND** a baseline, hosted dashboard, or convenience wrapper cannot become a
-  second authority
+- **AND** a catalog, baseline, hosted dashboard, or convenience wrapper cannot
+  become a second authority
 
 ### Requirement: Warning And Suppression Zero
 
@@ -380,6 +386,15 @@ missing, duplicate, orphan, superseded, conflicting, and unknown relations.
   counterpart
 - **THEN** repository audit reports the precise orphan or missing relation
 - **AND** the aggregate verdict is not `pass`
+
+#### Scenario: Native carriers supply executable ownership
+
+- **WHEN** repository audit derives executable owners
+- **THEN** host executables come from the runtime surface, downloaded tools from
+  native supply policy, and script executables only from scripts selected by a
+  gate or provider plus their explicit transitive script calls
+- **AND** an unselected script or unrelated configuration file does not become
+  an owner merely because it exists
 
 #### Scenario: Historical material mentions a retired identity
 

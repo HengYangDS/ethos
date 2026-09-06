@@ -307,9 +307,10 @@ is newer or mentions the same path.
 Configuration has one owner per concern: repository source owns behavior,
 `system/` owns machine declarations, `.config/checks/<concern>/` owns an
 admitted check's local inputs, and native provider files own provider syntax.
-`system/tools.toml` records tool admission rather than duplicating each tool's
-configuration. This separation of concerns implements MECE, SSOT, and DRY; a
-projection links to its owner instead of copying policy.
+`system/gates.toml` owns gate identity, execution, evidence, and proof-floor
+membership; native config and supply files own tool-specific policy and
+versions. This separation implements MECE, SSOT, and DRY without a second tool
+catalog; a projection links to its owner instead of copying policy.
 
 ## Isomorphic Adopter Governance
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import posixpath
+import re
 import tomllib
 from typing import TYPE_CHECKING
 
@@ -24,7 +26,7 @@ def native_owned_references_from_files(
     *,
     command_owners: dict[str, frozenset[str]] | None = None,
 ) -> dict[str, frozenset[str]]:
-    """Compile the positive closure from package, command, tool, and profile owners."""
+    """Compile positive closure from native package, gate, and profile owners."""
     owned = {kind: set() for kind in REFERENCE_KINDS}
     npm_scripts = npm_script_commands(files)
     mappings, first_party = _python_import_owners(files)
@@ -41,8 +43,7 @@ def native_owned_references_from_files(
     owned["import"].update(first_party)
     owned["command"].update(command_owners or command_owner_sources_from_files(files))
     _declared_gates(files, npm_scripts, owned)
-    _declared_tools(files, owned)
-    _declared_profiles(files, owned)
+    _declared_profiles(files, npm_scripts, owned)
     return {kind: frozenset(owned[kind]) for kind in REFERENCE_KINDS}
 
 
@@ -97,27 +98,60 @@ def _declared_gates(
     owned: dict[str, set[str]],
 ) -> None:
     payload = _toml(_declaration_text(files, "gates"))
+    selected_scripts: set[str] = set()
     for gate in _table_items(payload.get("gates")):
         command = tuple(_string_items(gate.get("command")))
         owned["executable"].update(command_references.command_executables(command, npm_scripts))
+        selected_scripts.update(
+            token for token in command if token in files and token.endswith(".sh")
+        )
+    _declare_selected_scripts(files, selected_scripts, npm_scripts, owned)
 
 
-def _declared_tools(files: dict[str, str], owned: dict[str, set[str]]) -> None:
-    payload = _toml(_declaration_text(files, "tools"))
-    for tool in _table_items(payload.get("tool")):
-        for field, kind in (
-            ("executables", "executable"),
-            ("references", "reference"),
-            ("runtime_inputs", "value"),
+def _declare_selected_scripts(
+    files: dict[str, str],
+    selected: set[str],
+    npm_scripts: dict[str, set[str]],
+    owned: dict[str, set[str]],
+) -> None:
+    pending = list(selected)
+    visited: set[str] = set()
+    while pending:
+        path = pending.pop()
+        if path in visited or (text := files.get(path)) is None:
+            continue
+        visited.add(path)
+        owned["executable"].update(command_references.shell_executables(text, npm_scripts))
+        if text.startswith("#!") and (
+            executable := command_references.shebang_executable(text.splitlines()[0])
         ):
-            owned[kind].update(_string_items(tool.get(field)))
+            owned["executable"].add(executable)
+        pending.extend(_selected_script_references(path, text, files) - visited)
 
 
-def _declared_profiles(files: dict[str, str], owned: dict[str, set[str]]) -> None:
+def _selected_script_references(path: str, text: str, files: dict[str, str]) -> set[str]:
+    parent = posixpath.dirname(path)
+    references = set()
+    for match in re.finditer(r"(?:\$\{?script_dir\}?/|\./)?[A-Za-z0-9_.-]+\.sh", text):
+        token = match.group().removeprefix("./")
+        if token.startswith(("${script_dir}/", "$script_dir/")):
+            token = token.split("/", 1)[1]
+        candidate = posixpath.normpath(posixpath.join(parent, token))
+        if candidate in files:
+            references.add(candidate)
+    return references
+
+
+def _declared_profiles(
+    files: dict[str, str],
+    npm_scripts: dict[str, set[str]],
+    owned: dict[str, set[str]],
+) -> None:
     _declared_profile_capabilities(files, owned)
-    _declared_surface_inputs(files, owned)
+    _declared_surface_references(files, owned)
     _declared_release_references(files, owned)
-    _declared_provider_references(files, owned)
+    _declared_tool_supply(files, owned)
+    _declared_provider_references(files, npm_scripts, owned)
 
 
 def _declared_profile_capabilities(files: dict[str, str], owned: dict[str, set[str]]) -> None:
@@ -126,11 +160,12 @@ def _declared_profile_capabilities(files: dict[str, str], owned: dict[str, set[s
         owned["executable"].add("openspec")
 
 
-def _declared_surface_inputs(files: dict[str, str], owned: dict[str, set[str]]) -> None:
+def _declared_surface_references(files: dict[str, str], owned: dict[str, set[str]]) -> None:
     surfaces = _toml(_declaration_text(files, "surfaces"))
     runtime = surfaces.get("runtime", {}) if isinstance(surfaces, dict) else {}
     if isinstance(runtime, dict):
         owned["value"].update(_string_items(runtime.get("inputs")))
+        owned["executable"].update(_string_items(runtime.get("executables")))
 
 
 def _declared_release_references(files: dict[str, str], owned: dict[str, set[str]]) -> None:
@@ -147,8 +182,20 @@ def _declared_release_references(files: dict[str, str], owned: dict[str, set[str
         )
 
 
-def _declared_provider_references(files: dict[str, str], owned: dict[str, set[str]]) -> None:
+def _declared_tool_supply(files: dict[str, str], owned: dict[str, set[str]]) -> None:
+    for text in declaration_files(files, "tool-supply").values():
+        supply = _toml(text)
+        if isinstance(tool := supply.get("tool"), str):
+            owned["executable"].add(tool)
+
+
+def _declared_provider_references(
+    files: dict[str, str],
+    npm_scripts: dict[str, set[str]],
+    owned: dict[str, set[str]],
+) -> None:
     templates = _toml(_declaration_text(files, "providers"))
+    selected_scripts: set[str] = set()
     for section in ("projection", "forge_surface"):
         for entry in _table_items(templates.get(section)):
             if isinstance(provider := entry.get("provider"), str):
@@ -158,6 +205,11 @@ def _declared_provider_references(files: dict[str, str], owned: dict[str, set[st
             if entry.get("emulator_image"):
                 owned["executable"].add("docker")
                 owned["reference"].add("docker")
+            selected_scripts.update(_string_items(entry.get("required_owner_scripts")))
+            specific = entry.get("provider_specific_owner_scripts")
+            if isinstance(specific, dict):
+                selected_scripts.update(str(path) for path in specific)
+    _declare_selected_scripts(files, selected_scripts, npm_scripts, owned)
 
 
 def _declaration_text(files: dict[str, str], declaration: str) -> str:

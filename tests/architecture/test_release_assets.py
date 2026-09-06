@@ -65,36 +65,35 @@ def _write_empty_node_package_supply(root: Path) -> Path:
     return supply
 
 
-def test_downloaded_tool_installers_are_closed_over_the_tool_catalog() -> None:
-    catalog = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))
-    supplied = [entry for entry in catalog["tool"] if "checksums" in entry]
-    declared_installers = set()
-    for entry in supplied:
-        policy_path, _, key_path = entry["checksums"].partition("#")
+def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
+    installers = sorted((ROOT / "tools/ci/scripts").glob("install-*.sh"))
+    installers.append(ROOT / "tools/ci/scripts/run-actionlint.sh")
+    declared_policies = set()
+    for installer_path in installers:
+        installer = installer_path.read_text(encoding="utf-8")
+        policy_paths = set(re.findall(r"\.config/[A-Za-z0-9_./-]+\.toml", installer))
+        assert len(policy_paths) == 1
+        policy_path = policy_paths.pop()
+        declared_policies.add(policy_path)
         policy = tomllib.loads((ROOT / policy_path).read_text(encoding="utf-8"))
-        owner: object = policy
-        for key in key_path.split("."):
-            assert isinstance(owner, dict)
-            owner = owner[key]
-        digests = _nested_values(owner)
+        digests = [
+            value for value in _nested_values(policy) if re.fullmatch(r"[a-f0-9]{64}", value)
+        ]
         assert digests
         assert all(re.fullmatch(r"[a-f0-9]{64}", digest) for digest in digests)
-        assert len(entry["runtime_inputs"]) == 1
-        installer_path = entry["runtime_inputs"][0]
-        declared_installers.add(installer_path)
-        installer = (ROOT / installer_path).read_text(encoding="utf-8")
-        assert policy_path in installer
         versions = [
             value for value in _nested_values(policy) if re.fullmatch(r"\d+\.\d+\.\d+", value)
         ]
         assert versions
         assert all(version not in installer for version in versions)
 
-    discovered_installers = {
-        path.relative_to(ROOT).as_posix()
-        for path in (ROOT / "tools/ci/scripts").glob("install-*.sh")
-    } | {"tools/ci/scripts/run-actionlint.sh"}
-    assert declared_installers == discovered_installers
+    assert declared_policies == {
+        ".config/checks/github/actionlint.toml",
+        ".config/checks/lychee/supply.toml",
+        ".config/checks/node/runtime.toml",
+        ".config/checks/secrets/supply.toml",
+        ".config/release/supply-chain.toml",
+    }
 
 
 def test_python_bootstrap_derives_uv_version_from_project_owner() -> None:

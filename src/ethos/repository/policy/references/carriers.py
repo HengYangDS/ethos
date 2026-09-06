@@ -81,14 +81,14 @@ REFERENCE_CARRIERS = (
         suffixes=frozenset({".json", ".mjs", ".toml"}),
         path_declarations=(
             (".config/checks/deptry/policy.toml", "python-import-policy"),
+            (".config/release/supply-chain.toml", "tool-supply"),
             ("system/gates.toml", "gates"),
-            ("system/tools.toml", "tools"),
             (".ethos/profile.toml", "profile"),
             ("system/surfaces.toml", "surfaces"),
             (".ethos/release.toml", "release"),
             (".config/checks/ci/templates.toml", "providers"),
         ),
-        entrypoints=("system/tools.toml", ".config/checks/pytest/pytest.ini"),
+        entrypoints=(".config/checks/pytest/pytest.ini",),
         entrypoint_globs=(".config/ci/**/*.toml",),
     ),
 )

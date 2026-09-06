@@ -97,9 +97,6 @@ class ProofPolicy(_ProfileModel):
         if self.gate_registry and native:
             msg = "proof policy has parallel gate owners"
             raise ValueError(msg)
-        if any("registries" in gate.model_fields_set for gate in self.gates):
-            msg = "profile gates cannot select registries"
-            raise ValueError(msg)
         gate_ids = tuple(gate.id for gate in self.gates)
         if len(gate_ids) != len(set(gate_ids)) or set(gate_ids) != set(self.code_correctness_gates):
             msg = "proof gate descriptors must match the proof floor exactly"

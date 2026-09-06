@@ -23,13 +23,11 @@ SYSTEM_CONTRACTS = (
     "formats",
     "routing",
     "surfaces",
-    "tools",
     "evidence_boundaries",
 )
 
 _IDENTITY_FIELDS = {
     "surfaces": ("surface", "name", "surface"),
-    "tools": ("tool", "concern", "tool"),
 }
 
 

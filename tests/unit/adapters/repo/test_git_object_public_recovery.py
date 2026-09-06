@@ -318,6 +318,28 @@ def test_signer_authorization_rejects_unverified_candidate(
     assert report["required_gaps"] == ["commit_signature_untrusted"]
 
 
+def test_signer_authorization_requires_confirmation_before_atomic_apply(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, anchor, target, digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+
+    ready = identity.authorize_configured_commit_signer(
+        repo, target, expected_anchor_sha256=digest, apply=False, authorized=False
+    )
+    blocked = identity.authorize_configured_commit_signer(
+        repo, target, expected_anchor_sha256=digest, apply=True, authorized=False
+    )
+    applied = identity.authorize_configured_commit_signer(
+        repo, target, expected_anchor_sha256=digest, apply=True, authorized=True
+    )
+
+    assert (ready["verdict"], ready["state"]) == ("pass", "ready_to_authorize_signer")
+    assert blocked["required_gaps"] == ["authorization_required"]
+    assert (applied["verdict"], applied["state"]) == ("pass", "signer_authorized")
+    assert identity.verify_commit_trust(repo, target)["verdict"] == "pass"
+    assert anchor.stat().st_mode & 0o777 == 0o600
+
+
 def test_signer_authorization_reports_atomic_write_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

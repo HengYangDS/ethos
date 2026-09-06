@@ -1478,42 +1478,6 @@
       "value_sha256": "48170874ca3eee9420f10119ed7b00ee0d46acc094e5a94f76d0911adb67ed74"
     },
     {
-      "id": "lanes.lease.test_commit_trust:parametrize:test_configured_signer_authorization_fails_closed:0",
-      "source": {
-        "kind": "parametrize",
-        "line": 161,
-        "owner": "test_configured_signer_authorization_fails_closed",
-        "path": "tests/unit/lanes/lease/test_commit_trust.py"
-      },
-      "value": {
-        "items": [
-          {
-            "items": [
-              "stale",
-              "commit_trust_anchor_stale"
-            ],
-            "type": "tuple"
-          },
-          {
-            "items": [
-              "inside",
-              "commit_trust_anchor_inside_repository"
-            ],
-            "type": "tuple"
-          },
-          {
-            "items": [
-              "writable",
-              "commit_trust_anchor_unprotected"
-            ],
-            "type": "tuple"
-          }
-        ],
-        "type": "list"
-      },
-      "value_sha256": "1366934ebb7394c27b3ae72bc05d291d6fa68372bb8a91f823e2802e865ecb1c"
-    },
-    {
       "id": "mutation.test_git_effect:parametrize:test_attestation_negative_claim_matrix:0",
       "source": {
         "kind": "parametrize",

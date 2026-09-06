@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
 
+import ethos.adapters.repo.status.workspace as workspace
 from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.repository.policy.schema import validate_schema_instance
@@ -97,3 +99,35 @@ def test_unbound_ref_projects_recovery_facts_without_commitment_mirrors(tmp_path
         "verdict": "pass",
         "required_gaps": [],
     }
+
+
+def test_workspace_projection_distinguishes_candidate_and_non_git_failures(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(workspace, "_safe_ref", lambda *_args: "head")
+    for candidate, gap in (
+        ({"branch": "candidate/dev", "exists": False}, "candidate_branch_missing"),
+        ({"branch": "candidate/dev", "exists": True}, "candidate_worktree_missing"),
+    ):
+        report = workspace.landing_readiness(
+            tmp_path, branch="work/change", role="work_lane", candidate=candidate
+        )
+        assert report["required_gaps"] == [gap]
+    monkeypatch.setattr(
+        workspace,
+        "git_stdout_checked",
+        lambda *_args: (_ for _ in ()).throw(subprocess.CalledProcessError(128, "git")),
+    )
+    selected, observed = object(), []
+    monkeypatch.setattr(
+        workspace,
+        "runtime_binding",
+        lambda _root, *, selected_runtime=None: observed.append(selected_runtime) or {},
+    )
+    status = workspace.workspace_status(tmp_path, selected_runtime=selected)
+    assert (status["branch"], status["landing_readiness"]["state"], observed) == (
+        "untracked",
+        "not_work_lane",
+        [selected],
+    )
+    assert "git_repository_missing" in status["required_gaps"]

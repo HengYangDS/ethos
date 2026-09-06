@@ -42,7 +42,7 @@ def _cas_plan(repo: Path, old: str, new: str):
 
 
 def test_stage_effects_reject_missing_paths_stale_heads_and_git_failures(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
@@ -58,6 +58,14 @@ def test_stage_effects_reject_missing_paths_stale_heads_and_git_failures(
     commit_fixture_file(repo, "next.txt", "next\n", "advance")
     with pytest.raises(ValueError, match="git_effect_head_stale"):
         git_effects.stage_git_worktree(repo, previous=head)
+    monkeypatch.setattr(git_effects, "current_tracked_head", lambda _root: "observed")
+    monkeypatch.setattr(
+        git_effects,
+        "run_git",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess((), 1, "", ""),
+    )
+    with pytest.raises(ValueError, match="git_effect_stage_failed"):
+        git_effects.stage_git_worktree(repo, previous="observed")
 
 
 def test_worktree_postimage_is_exact_and_does_not_mutate_the_real_index(
@@ -113,10 +121,17 @@ def test_move_and_compensation_refuse_unsafe_paths_and_restore_exact_tree(
     outside.mkdir()
     with pytest.raises(ValueError, match="git_effect_move_path_outside_root"):
         git_effects.move_tracked_tree(repo, "source", "../outside/moved")
+    with pytest.raises(ValueError, match="git_effect_move_binding_stale"):
+        git_effects.move_tracked_tree(repo, "missing", "target")
+    (repo / "target").mkdir()
+    with pytest.raises(ValueError, match="git_effect_move_binding_stale"):
+        git_effects.move_tracked_tree(repo, "source", "target")
     unsafe = repo / "unsafe"
     unsafe.write_text("file\n", encoding="utf-8")
     with pytest.raises(ValueError, match="git_effect_compensation_path_unsafe"):
         git_effects.remove_untracked_tree(repo, "unsafe")
+    with pytest.raises(ValueError, match="git_effect_compensation_path_outside_root"):
+        git_effects.remove_untracked_tree(repo, "../outside")
 
 
 def test_created_path_compensation_reports_restore_failure(
@@ -138,6 +153,8 @@ def test_created_path_compensation_reports_restore_failure(
             paths=("new/path",),
             untracked_root="new",
         )
+    with pytest.raises(ValueError, match="restore rejected"):
+        git_effects.compensate_git_worktree(repo, head="a" * 40)
 
 
 def test_exact_ref_cas_compensates_a_failed_postcondition(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 
+import ethos.repository.policy.layout.imports as layout_imports
 from ethos.adapters.gates.tool import module_layout_gate_report
 from ethos.repository.policy.layout.facades import module_facade_findings
 from ethos.repository.policy.layout.naming import ambiguous_module_findings
@@ -214,3 +215,26 @@ def test_native_test_and_tool_names_are_not_treated_as_ambiguous(tmp_path) -> No
     }
 
     assert ambiguous_module_findings(tmp_path, policy) == []
+
+
+def test_import_policy_finds_package_root_and_private_imports(tmp_path, monkeypatch) -> None:
+    sources = {
+        "__init__.py": "",
+        "tools.py": "VALUE = 1\n",
+        "src/pkg/__init__.py": "",
+        "src/pkg/child.py": "VALUE = 1\n",
+        "src/pkg/consumer.py": (
+            "from pkg import *\n"
+            "from pkg import child as _hidden\n"
+            "from pkg import child, missing\n"
+            "from pkg.child import *\n"
+            "from pkg.child import __dunder, _private, public\n"
+        ),
+    }
+    paths = tuple(_write(tmp_path, path, source) for path, source in sources.items())
+    monkeypatch.setattr(layout_imports, "package_python_files", lambda *_a, **_k: paths)
+    monkeypatch.setattr(layout_imports, "semantic_python_files", lambda *_a, **_k: paths)
+    roots = layout_imports.package_root_submodule_import_findings(tmp_path, {}, paths)
+    private = layout_imports.private_from_import_findings(tmp_path, {}, paths)
+    assert [item["module"] for item in roots] == ["pkg.child"]
+    assert [item["name"] for item in private] == ["_private"]

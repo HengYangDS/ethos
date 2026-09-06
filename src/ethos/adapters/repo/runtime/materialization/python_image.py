@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import NoReturn
 
+from ethos.adapters.repo.runtime.filesystem import make_owned_tree_writable
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
@@ -49,6 +50,7 @@ def materialize_python_image(
     ):
         _fail("hook_runtime_interpreter_source_unavailable")
     _copy_python_runtime(home, interpreter, target, facts["python_version"])
+    make_owned_tree_writable(target)
     python = runtime_python(target)
     if not python.is_file():
         _fail("hook_runtime_python_missing")

@@ -100,14 +100,11 @@ def create_fixture_python(target: Path) -> None:
         )
     else:
         fixture_python.write_text(
-            f'#!/bin/sh\nexec {source_python.as_posix()!r} "$@"\n',
-            encoding="utf-8",
+            f'#!/bin/sh\nexec {source_python.as_posix()!r} "$@"\n', encoding="utf-8"
         )
     fixture_python.chmod(0o755)
     version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    relative_site = (
-        Path("Lib/site-packages") if os.name == "nt" else Path(f"lib/{version}/site-packages")
-    )
+    relative_site = Path("Lib/site-packages" if os.name == "nt" else f"lib/{version}/site-packages")
     site_packages = target / relative_site
     source_site = Path(sys.prefix) / relative_site
     site_packages.mkdir(parents=True, exist_ok=True)
@@ -115,8 +112,6 @@ def create_fixture_python(target: Path) -> None:
         f"{(REPOSITORY_ROOT / 'src').as_posix()}\n{source_site.resolve().as_posix()}\n",
         encoding="utf-8",
     )
-    if os.name == "nt":
-        return
 
 
 def git_process(root: Path, *args: object, stdin: str = "") -> subprocess.CompletedProcess[str]:

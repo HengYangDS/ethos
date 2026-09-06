@@ -353,6 +353,7 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
         "share/python.1",
     ):
         _write(home / relative)
+    _write(home / "lib/python3.14/site-packages/_yaml/__init__.py").chmod(0o444)
     target = tmp_path / "runtime/python"
     monkeypatch.setattr(
         runtime_python_image, "observe_python_facts", lambda _python: _python_facts(home)
@@ -365,6 +366,7 @@ def test_materialized_python_is_a_product_owned_non_mutating_closure(
         _wheel: Path,
         _requirements: Path,
     ) -> None:
+        _write(target / "lib/python3.14/site-packages/_yaml/__init__.py", b"installed")
         scripts = python.parent
         for name in ("ethos", "uv"):
             payload = f"#!{target}/staging-python\nprint({name!r})\n".encode()

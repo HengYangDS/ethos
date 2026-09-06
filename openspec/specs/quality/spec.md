@@ -131,6 +131,17 @@ CAS tests. Coverage policy SHALL come only from
 - **AND** the resulting evidence remains attributable to that hosted provider
   and exact HEAD
 
+#### Scenario: A parallel test worker is lost
+
+- **WHEN** a pytest worker crashes or a thread timeout terminates it during the
+  current proof
+- **THEN** the Python test gate records one terminal failure for that proof
+- **AND** xdist does not restart a worker or replay the lost test in the same
+  proof attempt
+- **AND** the failure identifies the lost worker and test
+- **AND** the gate does not increase timeout, retry the test, or weaken the
+  required test surface.
+
 ### Requirement: Native Carrier Quality
 
 Markdown, TOML, JSON, YAML, shell, lockfiles, diagrams, and release metadata SHALL

@@ -89,14 +89,20 @@ def create_fixture_python(target: Path) -> None:
     scripts.mkdir(parents=True)
     source_python = Path(sys.executable).absolute()
     fixture_python = scripts / ("python.exe" if os.name == "nt" else "python")
-    shutil.copy2(source_python, fixture_python)
-    target.joinpath("pyvenv.cfg").write_text(
-        f"home = {Path(sys.base_prefix).as_posix()}\n"
-        "include-system-site-packages = false\n"
-        f"version = {platform.python_version()}\n"
-        f"executable = {source_python.as_posix()}\n",
-        encoding="utf-8",
-    )
+    if os.name == "nt":
+        shutil.copy2(source_python, fixture_python)
+        target.joinpath("pyvenv.cfg").write_text(
+            f"home = {Path(sys.base_prefix).as_posix()}\n"
+            "include-system-site-packages = false\n"
+            f"version = {platform.python_version()}\n"
+            f"executable = {source_python.as_posix()}\n",
+            encoding="utf-8",
+        )
+    else:
+        fixture_python.write_text(
+            f'#!/bin/sh\nexec {source_python.as_posix()!r} "$@"\n',
+            encoding="utf-8",
+        )
     fixture_python.chmod(0o755)
     version = f"python{sys.version_info.major}.{sys.version_info.minor}"
     relative_site = (

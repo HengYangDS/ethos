@@ -32,17 +32,6 @@ def load_profile_commitment(
     return load_openspec_commitment(root, change_id=change_id, tree_ref=tree_ref)
 
 
-def load_work_lane_commitment(
-    root: Path,
-    *,
-    lease: dict[str, object],
-    change_id: str | None = None,
-) -> Commitment:
-    """Compile current intent; the Lease carries no Commitment binding."""
-    del lease
-    return load_profile_commitment(root, change_id=change_id)
-
-
 def completed_active_changes_report(root: Path) -> dict[str, object]:
     """Return completion facts only when the OpenSpec profile adapter is enabled."""
     if not openspec_profile_enabled(root):

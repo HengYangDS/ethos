@@ -90,7 +90,6 @@ def create_git_commit(
     tree: str,
     parent: str,
     message: str,
-    preserve_message: bool = False,
     environment: Mapping[str, str] | None = None,
     runner: Callable[..., Any] = run_git,
 ) -> Any:
@@ -107,10 +106,10 @@ def create_git_commit(
         tree,
         "-p",
         parent,
-        *(("-F", "-") if preserve_message else ("-m", message)),
+        "-m",
+        message,
         check=False,
         env=commit_environment(root, environment) if sign else environment,
-        stdin=message if preserve_message else None,
     )
     if completed.returncode or not sign:
         return completed

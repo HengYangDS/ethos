@@ -336,6 +336,41 @@ def test_adopter_line_endings_ignore_host_autocrlf(tmp_path: Path) -> None:
     assert fixture.line_ending_conformance(adopter, run=run) == ["lf", "crlf"]
 
 
+def test_generated_adopter_text_is_clean_without_ambient_autocrlf(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    fixture = _acceptance_module("adopter")
+    dirty = importlib.import_module("ethos.adapters.repo.dirty.change_provenance")
+    global_config = tmp_path / "global.gitconfig"
+    global_config.write_text("[core]\n\tautocrlf = true\n", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+
+    def run(*command: str, cwd: Path | None = None) -> str:
+        completed = __import__("subprocess").run(
+            command,
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return completed.stdout.strip()
+
+    adopter = tmp_path / "adopter"
+    fixture.materialize_adopter(
+        adopter,
+        openspec_config=ROOT / "openspec/config.yaml",
+        run=run,
+    )
+    readme = adopter / "README.md"
+    readme.write_bytes(readme.read_bytes().replace(b"\n", b"\r\n"))
+    run("git", "add", "README.md", cwd=adopter)
+
+    assert b"\r\n" in readme.read_bytes()
+    assert run("git", "status", "--porcelain", cwd=adopter) == ""
+    assert dirty.dirty_provenance(adopter)["state"] == "clean"
+
+
 def test_lane_lifecycle_failure_preserves_the_command_result(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

@@ -1616,7 +1616,7 @@
           },
           {
             "items": [
-              "system/tools.toml",
+              "system/gates.toml",
               "text"
             ],
             "type": "tuple"
@@ -1624,7 +1624,7 @@
         ],
         "type": "list"
       },
-      "value_sha256": "bb53940af5ee9a60372b752f92d28042ebca5d458a7aa0b31af8828191d9ba76"
+      "value_sha256": "3f0fac326ec6a3dedfc5ae610740f378b16a9f9c557b7a9f5e3b9c91385af6ad"
     },
     {
       "id": "release.test_policy_attestation:assign:_LOCAL:0",

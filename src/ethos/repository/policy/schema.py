@@ -16,8 +16,6 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_list
-from ethos.quality.gates import product_gate_plan
-from ethos.quality.profiles import product_quality_profile
 from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.registry.docs.health import docs_health_report
 
@@ -166,16 +164,6 @@ def _instance_validation_report(root: Path) -> dict[str, Mapping[str, object]]:
         "verdict": close_verdict("pass", required_gaps=tuple(gate_gaps)),
         "required_gaps": gate_gaps,
     }
-    instances["quality-profile"] = validate_schema_instance(
-        "quality-profile.schema.json",
-        product_quality_profile(root),
-        root=root,
-    )
-    instances["quality-gate-plan"] = validate_schema_instance(
-        "quality-gate-plan.schema.json",
-        product_gate_plan(),
-        root=root,
-    )
     instances.update(_live_skill_contract_instances(root))
     return instances
 

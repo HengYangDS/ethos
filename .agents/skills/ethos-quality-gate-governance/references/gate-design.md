@@ -5,11 +5,11 @@ hooks, or tool configuration into a second truth center.
 
 ## Gate Owner Model
 
-A gate is active only when all owner surfaces agree:
+A gate is active only when its existing owner surfaces agree:
 
-1. `system/tools.toml` records why the gate exists, its profile, config owner,
-   and reusable execution surface.
-2. Tool-native policy lives under the smallest stable owner, usually
+1. `system/gates.toml` owns gate identity, profile, execution, evidence, and
+   proof-floor membership.
+2. Tool identity and policy live under the smallest stable native owner, usually
    `.config/checks/<concern>/` or a root-native file when the tool requires root
    discovery.
 3. Nox owns reusable Python quality orchestration; `tools/ci/scripts/` retains
@@ -18,8 +18,8 @@ A gate is active only when all owner surfaces agree:
    not restate policy inline.
 5. Tests or proof commands assert the contract so drift becomes visible.
 
-If one of those surfaces is missing, classify it as design debt rather than
-papering over the runner.
+If a required relation is missing, repair its existing owner rather than add a
+second catalog, registry, or wrapper.
 
 ## Current Hard Quality Floor
 

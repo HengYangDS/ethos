@@ -61,9 +61,9 @@ configuration plane, not a truth center.
   concerns until real hosted receipts exist.
 - `tools/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
   only a provider projection that calls these scripts.
-- `system/tools.toml` records why each gate exists, which profile owns it, where
-  its configuration lives, and which reusable script executes it when the gate is
-  active.
+- `system/gates.toml` owns each gate's identity, profile, executable boundary,
+  evidence class, and proof-floor membership. Native configuration and supply
+  files remain the unique owners of tool-specific policy and versions.
 
 ## Root exceptions
 

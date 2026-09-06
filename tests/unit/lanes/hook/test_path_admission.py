@@ -201,9 +201,11 @@ def _lane(tmp: Path, _scope: tuple[str, ...], imports: tuple[str, ...]) -> Path:
     (repo / "system").mkdir()
     project = f'[project]\nname = "test-product"\nversion = "1"\ndependencies = {dependencies!r}\n'
     (repo / "pyproject.toml").write_text(project.replace("'", '"'))
-    tools = 'schema = "system/schemas/contracts/tools.schema.json"\n\n[[tool]]\n'
-    tools += 'concern = "test_execution"\ntool = "test tools"\nconfig = "system/tools.toml"\n'
-    (repo / "system/tools.toml").write_text(tools + 'profile = "product"\nexecutables = []\n')
+    (repo / "system/surfaces.toml").write_text(
+        'schema = "system/schemas/contracts/surfaces.schema.json"\n\n'
+        "[runtime]\nexecutables = []\ninputs = []\n\n"
+        '[[surface]]\nname = "runtime"\ncarrier = "src"\n'
+    )
     (repo / "module.py").write_text("VALUE = 1\n")
     commit_active_change(repo)
     return leased_worktree(repo, tmp / "repo-work-feature")
@@ -218,13 +220,14 @@ def _patch(path: str, added: str, *, new: bool = False) -> str:
     return header + f"--- a/{path}\n+++ b/{path}\n@@ -1 +1,2 @@\n VALUE = 1\n+{added}\n"
 
 
-DECL = "diff --git a/system/tools.toml b/system/tools.toml\n--- a/system/tools.toml\n"
-DECL += '+++ b/system/tools.toml\n@@ -5,4 +5,4 @@ concern = "test_execution"\n'
-DECL += ' tool = "test tools"\n config = "system/tools.toml"\n profile = "product"\n'
-DECL += '-executables = []\n+executables = ["external-runner"]\n'
+DECL = "diff --git a/system/surfaces.toml b/system/surfaces.toml\n"
+DECL += "--- a/system/surfaces.toml\n+++ b/system/surfaces.toml\n"
+DECL += '@@ -1,7 +1,7 @@\n schema = "system/schemas/contracts/surfaces.schema.json"\n'
+DECL += ' \n [runtime]\n-executables = []\n+executables = ["external-runner"]\n inputs = []\n'
+DECL += " \n [[surface]]\n"
 M = ("module.py",)
 A = ("src/external_adapter.py",)
-T = ("system/tools.toml",)
+T = ("system/surfaces.toml",)
 E_IMPORT = "product_reference_not_admitted_at_baseline:import:external_sdk"
 E_EXEC = "product_reference_not_admitted_at_baseline:executable:external-runner"
 E_COMMAND = "product_reference_not_admitted_at_baseline:command:external-operation"

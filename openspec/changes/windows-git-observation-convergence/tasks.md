@@ -16,7 +16,3 @@
 - [x] 3.1 Run the focused package-acceptance and Git-observation tests, strict
   OpenSpec validation, and the smallest affected quality gates with no warnings
   or errors.
-- [ ] 3.2 Freeze a signed commit, run exact-HEAD full proof, archive and reprove
-  the official Change, advance candidate and accepted through exact CAS, read
-  back the immutable package runtime, and obtain fresh native Windows hosted
-  evidence before retiring the absorbed Work Lane.

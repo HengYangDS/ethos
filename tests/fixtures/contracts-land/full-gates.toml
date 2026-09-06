@@ -7,7 +7,6 @@ full = ["sample-tests", "sample-static", "full-only"]
 
 [[gates]]
 id = "sample-tests"
-registries = ["runtime"]
 kind = "test"
 command = ["sample", "test"]
 asset_classes = ["python-code"]
@@ -18,7 +17,6 @@ tool_adapter = "fixture"
 
 [[gates]]
 id = "sample-static"
-registries = ["runtime"]
 kind = "typing"
 command = ["sample", "typecheck"]
 asset_classes = ["python-code"]
@@ -29,7 +27,6 @@ tool_adapter = "fixture"
 
 [[gates]]
 id = "full-only"
-registries = ["runtime"]
 kind = "test"
 command = ["sample", "full"]
 asset_classes = ["python-code"]

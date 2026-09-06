@@ -34,7 +34,7 @@ class ResolvedGatePolicy:
 
     @property
     def registry(self) -> dict[str, Gate]:
-        return self.declaration.registry("runtime", python_executable=self.python_executable)
+        return self.declaration.registry(python_executable=self.python_executable)
 
     @property
     def gate_ids(self) -> tuple[str, ...]:
@@ -203,8 +203,8 @@ def resolve_gate_policy(
     )
     if gate_ids:
         requested = set(gate_ids)
-        owned = declaration.registry("runtime").keys()
-        packaged = _PACKAGED_GATE_DECLARATION.registry("runtime").keys()
+        owned = declaration.registry().keys()
+        packaged = _PACKAGED_GATE_DECLARATION.registry().keys()
         if requested.isdisjoint(owned) and requested <= packaged:
             declaration, profile = _PACKAGED_GATE_DECLARATION, None
     python_executable = repository_python or sys.executable
@@ -252,7 +252,7 @@ def gate_execution_identity(gate: Gate) -> tuple[str, ...]:
 def gate_policy_fields(gate: Gate, sources: tuple[tuple[str, str], ...] = ()) -> dict[str, object]:
     payload = gate.model_dump(
         mode="json",
-        exclude={"command", "providers", "registries"},
+        exclude={"command", "providers"},
     )
     payload["execution_identity"] = list(gate_execution_identity(gate))
     payload["sources"] = [{"path": path, "sha256": digest} for path, digest in sources]

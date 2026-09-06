@@ -39,7 +39,7 @@ def test_gate_registry_canonical_projection_and_proof_closure() -> None:
         full=("first", "second"),
     )
 
-    registry = declaration.registry("runtime", python_executable="python-test")
+    registry = declaration.registry(python_executable="python-test")
     assert list(registry) == ["first", "second"]
     assert registry["first"].to_dict()["command"] == ["first"]
     assert [gate.id for gate in declaration.proof_gates(("second",))] == ["first", "second"]

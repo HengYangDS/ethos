@@ -114,11 +114,11 @@ def test_system_contracts_report_fails_closed_for_every_carrier_state(tmp_path: 
     (system / "formats.toml").write_text("schema = 'schemas/formats.json'\n", encoding="utf-8")
     (system / "routing.toml").write_text("invalid = [\n", encoding="utf-8")
     (system / "surfaces.toml").write_text("schema = 'schemas/missing.json'\n", encoding="utf-8")
-    (system / "tools.toml").write_text(
-        "schema = 'schemas/tools.json'\nvalue = 1\n", encoding="utf-8"
+    (system / "evidence_boundaries.toml").write_text(
+        "schema = 'schemas/evidence.json'\nvalue = 1\n", encoding="utf-8"
     )
     (schemas / "formats.json").write_text("not-json", encoding="utf-8")
-    (schemas / "tools.json").write_text(
+    (schemas / "evidence.json").write_text(
         json.dumps({"type": "object", "required": ["required"]}), encoding="utf-8"
     )
 
@@ -128,19 +128,19 @@ def test_system_contracts_report_fails_closed_for_every_carrier_state(tmp_path: 
         "formats": True,
         "routing": False,
         "surfaces": True,
-        "tools": True,
-        "evidence_boundaries": False,
+        "evidence_boundaries": True,
     }
     gaps = report["required_gaps"]
     assert any(str(gap).startswith("system_schema_unreadable:formats:") for gap in gaps)
     assert any(str(gap).startswith("system_contract_invalid:routing:") for gap in gaps)
     assert "system_schema_ref_missing:surfaces:schemas/missing.json" in gaps
-    assert any(str(gap).startswith("system_contract_schema_violation:tools:") for gap in gaps)
-    assert "system_contract_missing:evidence_boundaries" in gaps
+    assert any(
+        str(gap).startswith("system_contract_schema_violation:evidence_boundaries:") for gap in gaps
+    )
     assert load_system_contract(tmp_path, "formats") == {"schema": "schemas/formats.json"}
 
 
-def test_system_contracts_report_owns_declaration_identity_uniqueness(tmp_path: Path) -> None:
+def test_system_contracts_report_owns_surface_identity_uniqueness(tmp_path: Path) -> None:
     """One system contract owner distinguishes duplicate and conflicting identities."""
     system = tmp_path / "system"
     schemas = tmp_path / "schemas"
@@ -153,19 +153,6 @@ def test_system_contracts_report_owns_declaration_identity_uniqueness(tmp_path: 
             "schema = 'schemas/permissive.json'\n",
             encoding="utf-8",
         )
-    (system / "tools.toml").write_text(
-        """schema = "schemas/permissive.json"
-
-[[tool]]
-concern = "lint"
-tool = "ruff"
-
-[[tool]]
-concern = "lint"
-tool = "ruff"
-""",
-        encoding="utf-8",
-    )
     (system / "surfaces.toml").write_text(
         """schema = "schemas/permissive.json"
 
@@ -191,17 +178,9 @@ carrier = "second"
             "identity": "cli",
             "sources": ["system/surfaces.toml"],
         },
-        {
-            "category": "duplicate",
-            "relation": "owner",
-            "kind": "tool",
-            "identity": "lint",
-            "sources": ["system/tools.toml"],
-        },
     ]
     assert report["required_gaps"] == [
         "semantic_owner_conflict:surface:cli:system/surfaces.toml",
-        "semantic_owner_duplicate:tool:lint:system/tools.toml",
     ]
 
 
@@ -214,7 +193,6 @@ def test_system_contract_schema_validation_accepts_a_matching_document(tmp_path:
         "formats",
         "routing",
         "surfaces",
-        "tools",
         "evidence_boundaries",
     )
 

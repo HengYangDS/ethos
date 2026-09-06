@@ -2,7 +2,6 @@
 
 import tomllib
 from pathlib import Path
-from typing import Literal
 from typing import Self
 
 from pydantic import BaseModel
@@ -18,7 +17,6 @@ from ethos.contracts.value import FrozenTuple
 
 DECLARATION_PATH = Path("system/gates.toml")
 _DECLARATION_RESOURCE = "data/gates.toml"
-RegistryName = Literal["runtime", "quality"]
 _DUPLICATE_GATE_ID = "duplicate gate id"
 _DUPLICATE_GATE_COMMAND = "duplicate gate command"
 _GATE_EXECUTOR_INVALID = "gate executor invalid"
@@ -50,7 +48,6 @@ class Gate(BaseModel):
     writes_files: bool = False
     network_policy: str = "offline"
     version_source: str = "product"
-    registries: FrozenTuple[RegistryName] = Field(default=("runtime",), min_length=1)
 
     @model_validator(mode="after")
     def validate_executor(self) -> Self:
@@ -70,7 +67,7 @@ class Gate(BaseModel):
         """Project the descriptor to the stable public quality-gate shape."""
         payload = self.model_dump(
             mode="json",
-            exclude={"command", "providers", "registries"},
+            exclude={"command", "providers"},
         )
         payload["command" if self.command else "providers"] = list(self.command or self.providers)
         return payload
@@ -105,14 +102,12 @@ class GateRegistryDeclaration(BaseModel):
         commands = [gate.command for gate in self.gates if gate.command]
         if len(commands) != len(set(commands)):
             raise ValueError(_DUPLICATE_GATE_COMMAND)
-        runtime_ids = _validate_registry("runtime", self.gates)
-        _validate_registry("quality", self.gates)
-        _validate_proof_sets(self.proof_sets, runtime_ids)
+        gate_ids = _validate_gate_graph(self.gates)
+        _validate_proof_sets(self.proof_sets, gate_ids)
         return self
 
     def registry(
         self,
-        name: RegistryName,
         *,
         python_executable: str | None = None,
     ) -> dict[str, Gate]:
@@ -128,7 +123,6 @@ class GateRegistryDeclaration(BaseModel):
             if python_executable
             else gate
             for gate in self.gates
-            if name in gate.registries
         )
         return {gate.id: gate for gate in gates}
 
@@ -140,7 +134,7 @@ class GateRegistryDeclaration(BaseModel):
         python_executable: str | None = None,
     ) -> tuple[Gate, ...]:
         """Return one stable runtime proof closure in dependency-first order."""
-        registry = self.registry("runtime", python_executable=python_executable)
+        registry = self.registry(python_executable=python_executable)
         selected = gate_ids or (self.proof_sets.full if full else self.proof_sets.default)
         missing = set(selected) - registry.keys()
         if missing:
@@ -152,11 +146,10 @@ class GateRegistryDeclaration(BaseModel):
         return tuple(registry[node.id] for node in TransitionPlan.closure(nodes, selected))
 
 
-def _validate_registry(name: RegistryName, gates: tuple[Gate, ...]) -> set[str]:
-    """Return emitted ids after validating one registry projection."""
-    entries = tuple(gate for gate in gates if name in gate.registries)
-    emitted = {gate.id for gate in entries}
-    if any(set(gate.depends_on) - emitted for gate in entries):
+def _validate_gate_graph(gates: tuple[Gate, ...]) -> set[str]:
+    """Return gate ids after validating the one declared dependency graph."""
+    emitted = {gate.id for gate in gates}
+    if any(set(gate.depends_on) - emitted for gate in gates):
         raise ValueError(_UNAVAILABLE_GATE_DEPENDENCY)
     try:
         TransitionPlan.closure(
@@ -167,7 +160,7 @@ def _validate_registry(name: RegistryName, gates: tuple[Gate, ...]) -> set[str]:
                     command=gate.command,
                     depends_on=gate.depends_on,
                 )
-                for gate in entries
+                for gate in gates
             )
         )
     except ValueError as exc:

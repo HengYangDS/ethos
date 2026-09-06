@@ -175,7 +175,7 @@ def test_repository_audit_cannot_pass_when_semantic_closure_is_unknown(
 
 def test_repository_audit_projects_one_copy_of_a_shared_semantic_gap(monkeypatch) -> None:
     """An owner fact and its aggregate projection do not duplicate one gap."""
-    gap = "semantic_owner_duplicate:tool:lint:system/tools.toml"
+    gap = "semantic_owner_conflict:surface:cli:system/surfaces.toml"
     contracts = {
         "verdict": "block",
         "contracts": {},

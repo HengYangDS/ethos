@@ -31,7 +31,7 @@ See also: [Documentation Root](../README.md), [Command Plane](../reference/comma
 
 An adapter becomes active only when it has all owner surfaces:
 
-1. a `system/tools.toml` entry that states profile, boundary, and gate;
+1. a `system/gates.toml` node that states profile, boundary, and execution;
 2. an owner config under `.config/` or an adopter-owned native config;
 3. a reusable `tools/ci/scripts/` or `ethos ...` execution surface;
 4. CI/hook projection that invokes the owner surface without duplicating policy;

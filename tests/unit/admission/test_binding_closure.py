@@ -190,6 +190,95 @@ def start() -> None:
     assert repository_semantic_closure(tmp_path)["required_gaps"] == []
 
 
+def test_gate_selected_scripts_own_only_their_transitive_executables() -> None:
+    files = {
+        "system/gates.toml": """
+[[gates]]
+command = ["tools/ci/scripts/run-check.sh"]
+""",
+        "tools/ci/scripts/run-check.sh": """#!/usr/bin/env bash
+script_dir=$(dirname "$0")
+curl https://example.invalid/archive
+"${script_dir}/install-tool.sh"
+""",
+        "tools/ci/scripts/install-tool.sh": """#!/usr/bin/env bash
+tar -xf archive.tar
+""",
+        "tools/ci/scripts/unselected.sh": """#!/usr/bin/env bash
+rogue-tool --version
+""",
+    }
+
+    owned = native_owned_references_from_files(files)
+
+    assert {"bash", "curl", "dirname", "tar"} <= owned["executable"]
+    assert "rogue-tool" not in owned["executable"]
+
+
+def test_provider_selected_scripts_own_only_their_transitive_executables() -> None:
+    files = {
+        ".config/checks/ci/templates.toml": (
+            '[[projection]]\nprovider = "gitlab"\n'
+            'required_owner_scripts = ["tools/ci/scripts/bootstrap.sh"]\n'
+            "provider_specific_owner_scripts = { "
+            '"tools/ci/scripts/provider-check.sh" = "provider-native syntax" }\n'
+        ),
+        "tools/ci/scripts/bootstrap.sh": """#!/usr/bin/env bash
+script_dir=$(dirname "$0")
+curl https://example.invalid/archive
+"${script_dir}/install-tool.sh"
+""",
+        "tools/ci/scripts/install-tool.sh": """#!/usr/bin/env bash
+tar -xf archive.tar
+""",
+        "tools/ci/scripts/provider-check.sh": """#!/usr/bin/env bash
+provider-lint workflow.yml
+""",
+        "tools/ci/scripts/unselected.sh": """#!/usr/bin/env bash
+rogue-tool --version
+""",
+    }
+
+    owned = native_owned_references_from_files(files)
+
+    assert {"bash", "curl", "dirname", "provider-lint", "tar"} <= owned["executable"]
+    assert "rogue-tool" not in owned["executable"]
+
+
+def test_runtime_surface_owns_only_declared_host_executables_and_inputs() -> None:
+    files = {
+        "system/surfaces.toml": """
+[runtime]
+executables = ["git", "ps"]
+inputs = ["ETHOS_ACTOR"]
+"""
+    }
+
+    owned = native_owned_references_from_files(files)
+
+    assert {"git", "ps"} <= owned["executable"]
+    assert "ETHOS_ACTOR" in owned["value"]
+    assert "ssh-keygen" not in owned["executable"]
+
+
+def test_downloaded_tool_supply_owns_its_executable_identity() -> None:
+    files = {
+        ".config/release/supply-chain.toml": """
+schema = "ethos-release-supply-chain-v1"
+tool = "syft"
+version = "1.2.3"
+""",
+        ".config/checks/unrelated.toml": """
+tool = "rogue-tool"
+""",
+    }
+
+    owned = native_owned_references_from_files(files)
+
+    assert "syft" in owned["executable"]
+    assert "rogue-tool" not in owned["executable"]
+
+
 def test_native_owner_closure_does_not_promote_observed_consumers(tmp_path: Path) -> None:
     _minimal_product(
         tmp_path,

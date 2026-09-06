@@ -73,7 +73,7 @@ subject = "quality-gate-owner-drift"
 severity = "advisory"
 stop_condition = "quality-gate-owner-drift"
 profile_layers = []
-path_globs = [".agents/skills/ethos-quality-gate-governance/**", ".config/checks/**", "tools/ci/scripts/**", "system/tools.toml"]
+path_globs = [".agents/skills/ethos-quality-gate-governance/**", ".config/checks/**", "tools/ci/scripts/**", "system/gates.toml"]
 required_gates = ["repository-audit"]
 
 [[rule]]

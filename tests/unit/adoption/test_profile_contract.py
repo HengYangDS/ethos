@@ -118,7 +118,7 @@ def test_real_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Pa
     assert set(worktree.gate_ids) == {"python-quality", "python-matrix"}
 
 
-def test_profile_gate_cannot_select_registry_projection(tmp_path: Path) -> None:
+def test_profile_gate_rejects_retired_registry_projection_field(tmp_path: Path) -> None:
     _assert_invalid_profile(
         tmp_path,
         'profile_id = "sample"\n\n'

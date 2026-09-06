@@ -15,6 +15,14 @@ from ethos.repository.policy.gates import gate_execution_identity
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def test_gate_declaration_has_no_parallel_registry_or_tool_catalog() -> None:
+    declaration = load_gate_registry_declaration()
+
+    assert declaration.registry()
+    assert not (ROOT / "system/tools.toml").exists()
+    assert not (ROOT / "src/ethos/quality").exists()
+
+
 @pytest.mark.parametrize(
     "gate_id",
     [
@@ -31,7 +39,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_declarative_offline_provider_executes_through_the_shared_runner(
     gate_id: str,
 ) -> None:
-    gate = load_gate_registry_declaration().registry("runtime")[gate_id]
+    gate = load_gate_registry_declaration().registry()[gate_id]
     assert gate.providers
     assert gate.network_policy == "offline"
     assert gate.writes_files is False

@@ -23,8 +23,8 @@ provider projections.
    no better native owner.
 4. Use `references/gate-design.md` to check SSOT, MECE boundaries, and hard-floor
    expectations before tightening or adding a gate.
-5. Update `system/tools.toml`, gate registry code, CI, hooks, tests, and
-   OpenSpec together; do not duplicate command bodies across provider files.
+5. Update `system/gates.toml`, native tool policy, CI, hooks, tests, and
+   OpenSpec together; do not duplicate tool or command ownership.
 6. Run the repository audit so owner shape, coverage, docstrings, and type
    policy drift are visible before claiming CI strength.
 7. Prove the exact gate path with focused scripts first, then run head-bound

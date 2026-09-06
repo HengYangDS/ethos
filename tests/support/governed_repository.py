@@ -469,9 +469,9 @@ def write_script_gate_policy(root: Path, *, full: bool = False) -> None:
         'schema_version = 1\nid = "policy-test"\n\n'
         f"[proof_sets]\ndefault = [{default}]\n"
         'full = ["check", "publish"]\n\n'
-        '[[gates]]\nid = "publish"\nregistries = ["runtime"]\nkind = "release"\n'
+        '[[gates]]\nid = "publish"\nkind = "release"\n'
         'command = ["publish"]\ndepends_on = ["check"]\n\n'
-        '[[gates]]\nid = "check"\nregistries = ["runtime"]\nkind = "test"\n'
+        '[[gates]]\nid = "check"\nkind = "test"\n'
         'command = ["tools/check.sh"]\ndimensions = ["behavior"]\n'
         'evidence_class = "proof"\ntrust_bearing = true\n',
         encoding="utf-8",

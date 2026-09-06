@@ -27,6 +27,7 @@ from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import move_tracked_tree
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.repository.policy.commit import load_commit_policy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -55,7 +56,12 @@ def archive_collision(root: Path, head: str, change: str) -> ArchiveCollision | 
 
 
 def archive_change(
-    *, root: Path, change: str, expect_head: str, apply: bool = False
+    *,
+    root: Path,
+    change: str,
+    expect_head: str,
+    subject: str | None = None,
+    apply: bool = False,
 ) -> dict[str, object]:
     """Run official OpenSpec archive through one exact Git effect."""
     repo = root.resolve()
@@ -83,15 +89,7 @@ def archive_change(
             intent_tree_ref=(head if observed is not None and observed.scope is not None else None),
         )
         staged = observed is not None and observed.scope is not None
-        resolution_gaps = (
-            list(resolution.required_gaps)
-            if resolution.verdict != "pass" or resolution.commitment is None
-            else []
-        )
-        if not staged:
-            resolution_gaps = _archive_readiness(resolution, change)
-        elif not resolution_gaps and resolution.commitment is None:
-            resolution_gaps = [f"commitment_invalid:{change}"]
+        resolution_gaps = _archive_resolution_gaps(resolution, change, staged=staged)
         if resolution_gaps:
             return archive_preflight_report(
                 branch,
@@ -110,25 +108,43 @@ def archive_change(
         )
         if gaps:
             return archive_preflight_report(branch, head, change, gaps, lease=resolution.lease)
+        commit_subject, subject_gap = _archive_commit_subject(repo, change, subject)
+        if subject_gap:
+            return archive_preflight_report(
+                branch,
+                head,
+                change,
+                [subject_gap],
+                lease=resolution.lease,
+                next_action=archive_recovery_command(
+                    change,
+                    head,
+                    subject="<repository-policy-compliant-subject>",
+                ),
+                user_decision_required=True,
+            )
         if staged:
-            return _finalize_existing_archive(
+            result = _finalize_existing_archive(
                 repo,
                 branch,
                 head,
                 change,
                 dict(observed.scope),
+                subject=commit_subject,
                 apply=apply,
                 resolution=resolution,
             )
-        return _archive_active_change(
-            repo,
-            branch,
-            head,
-            change,
-            active_present=observed.active_present if observed is not None else False,
-            apply=apply,
-            resolution=resolution,
-        )
+        else:
+            result = _archive_active_change(
+                repo,
+                branch,
+                head,
+                change,
+                active_present=observed.active_present if observed is not None else False,
+                subject=commit_subject,
+                apply=apply,
+                resolution=resolution,
+            )
     except (OSError, TypeError, ValueError) as error:
         current = current_tracked_head(repo)
         return lifecycle_report(
@@ -139,9 +155,39 @@ def archive_change(
             change=change,
             **lifecycle_effect_outcome(
                 kind="committed_residue" if current != expect_head else "zero_effect",
-                next_action=archive_recovery_command(change, expect_head),
+                next_action=archive_recovery_command(change, expect_head, subject=subject),
             ),
         )
+    else:
+        return result
+
+
+def _archive_commit_subject(root: Path, change: str, explicit: str | None) -> tuple[str, str]:
+    """Select one explicit or semantic-default subject through tracked policy."""
+    default = f"chore(openspec): archive {change}"
+    policy = load_commit_policy(root)
+    selected = explicit if explicit is not None else default
+    if policy is None or policy.accepts_subject(selected):
+        return selected, ""
+    if explicit is None:
+        return "", "archive_commit_subject_required"
+    gap = f"commit_subject_invalid:{selected.partition(chr(10))[0]}"
+    return "", gap
+
+
+def _archive_resolution_gaps(
+    resolution: CurrentResolution,
+    change: str,
+    *,
+    staged: bool,
+) -> list[str]:
+    """Return the authority gaps relevant to the observed archive phase."""
+    if not staged:
+        return _archive_readiness(resolution, change)
+    gaps = list(resolution.required_gaps)
+    if resolution.commitment is None and not gaps:
+        gaps.append(f"commitment_invalid:{change}")
+    return gaps
 
 
 def _archive_active_change(
@@ -151,6 +197,7 @@ def _archive_active_change(
     change: str,
     *,
     active_present: bool,
+    subject: str,
     apply: bool,
     resolution: CurrentResolution,
 ) -> dict[str, object]:
@@ -177,7 +224,9 @@ def _archive_active_change(
             **lifecycle_effect_outcome(
                 kind="zero_effect",
                 next_action=(
-                    "ethos lane status --json" if gaps else archive_recovery_command(change, head)
+                    "ethos lane status --json"
+                    if gaps
+                    else archive_recovery_command(change, head, subject=subject)
                 ),
                 user_decision_required=bool(gaps),
             ),
@@ -189,6 +238,7 @@ def _archive_active_change(
             branch,
             head,
             change,
+            subject=subject,
             resolution=resolution,
             collision=collision,
         )
@@ -202,7 +252,7 @@ def _archive_active_change(
                 change=change,
                 **lifecycle_effect_outcome(
                     kind="committed_residue",
-                    next_action=archive_recovery_command(change, head),
+                    next_action=archive_recovery_command(change, head, subject=subject),
                 ),
                 **({"archive_collision": collision._asdict()} if collision else {}),
             )
@@ -220,6 +270,7 @@ def _archive_active_change(
             change,
             [str(error)],
             compensate=compensate,
+            subject=subject,
             **({"archive_collision": collision._asdict()} if collision else {}),
         )
 
@@ -247,6 +298,7 @@ def _finalize_existing_archive(
     change: str,
     postimage: dict[str, Any],
     *,
+    subject: str,
     apply: bool,
     resolution: CurrentResolution,
 ) -> dict[str, object]:
@@ -261,6 +313,7 @@ def _finalize_existing_archive(
             lease=resolution.lease,
             owned_mutation=False,
             compensation_path=str(postimage["archive_path"]),
+            subject=subject,
         )
     return lifecycle_report(
         branch,
@@ -272,7 +325,7 @@ def _finalize_existing_archive(
         changed_paths=postimage["changed_paths"],
         **lifecycle_effect_outcome(
             kind="zero_effect",
-            next_action=archive_recovery_command(change, head),
+            next_action=archive_recovery_command(change, head, subject=subject),
         ),
     )
 
@@ -305,6 +358,7 @@ def _apply_archive(
     head: str,
     change: str,
     *,
+    subject: str,
     resolution: CurrentResolution,
     collision: ArchiveCollision | None = None,
 ) -> dict[str, object]:
@@ -339,6 +393,7 @@ def _apply_archive(
             change,
             mutation_gaps,
             compensate=compensate,
+            subject=subject,
             command=result.get("command", []),
             **({"archive_collision": collision._asdict()} if collision else {}),
         )
@@ -351,6 +406,7 @@ def _apply_archive(
             change,
             ["openspec_archive_delta_invalid"],
             compensate=compensate,
+            subject=subject,
         )
     return archive_effect.commit_archive_postimage(
         repo,
@@ -362,6 +418,7 @@ def _apply_archive(
         lease=resolution.lease,
         owned_mutation=True,
         compensation_path=compensation_path,
+        subject=subject,
         result=result,
     )
 
@@ -425,6 +482,7 @@ def archive_failure_report(
     gaps: list[str],
     *,
     compensate: Callable[[], None],
+    subject: str | None = None,
     **details: object,
 ) -> dict[str, object]:
     """Report exact pre-CAS compensation without inventing recovery state."""
@@ -453,7 +511,7 @@ def archive_failure_report(
         change=change,
         **lifecycle_effect_outcome(
             kind="mutation_compensated",
-            next_action=archive_recovery_command(change, head),
+            next_action=archive_recovery_command(change, head, subject=subject),
         ),
         **details,
     )

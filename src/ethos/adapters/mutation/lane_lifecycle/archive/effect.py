@@ -12,7 +12,6 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_repo
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage_scope_report
-from ethos.adapters.repo.commit_message import lifecycle_commit_subject
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
@@ -134,6 +133,7 @@ def commit_archive_postimage(
     lease: dict[str, object],
     owned_mutation: bool,
     compensation_path: str,
+    subject: str,
     result: dict[str, Any] | None = None,
 ) -> dict[str, object]:
     """Commit one observed post-image and execute its exact Git effect."""
@@ -165,14 +165,14 @@ def commit_archive_postimage(
             changed_paths=list(staged_paths),
             **lifecycle_effect_outcome(
                 kind="mutation_compensated",
-                next_action=archive_recovery_command(change, previous_head),
+                next_action=archive_recovery_command(change, previous_head, subject=subject),
             ),
         )
     committed = create_git_commit(
         root,
         tree=staged_tree,
         parent=previous_head,
-        message=lifecycle_commit_subject(root, "archive", change),
+        message=subject,
     )
     if committed.returncode:
         restore_failure_boundary()
@@ -185,7 +185,7 @@ def commit_archive_postimage(
             stderr=committed.stderr.strip(),
             **lifecycle_effect_outcome(
                 kind="mutation_compensated",
-                next_action=archive_recovery_command(change, previous_head),
+                next_action=archive_recovery_command(change, previous_head, subject=subject),
             ),
         )
     target_head = committed.stdout.strip()

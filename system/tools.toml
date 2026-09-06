@@ -150,8 +150,8 @@ gate = "uv run --frozen --offline python -m nox -s config_quality"
 
 [[tool]]
 concern = "json_schema"
-tool = "check-jsonschema"
-config = ".config/checks/schema/jsonschema.toml + system/schemas/"
+tool = "jsonschema"
+config = "src/ethos/repository/policy/schema.py + system/schemas/"
 profile = "minimal"
 gate = "uv run --frozen --offline python -m nox -s schemas"
 

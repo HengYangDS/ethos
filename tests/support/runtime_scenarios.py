@@ -194,7 +194,8 @@ def materialize_runtime_case(
     ) -> None:
         assert python_facts is not None
         assert locked_requirements == tmp_path / "locked-requirements.txt"
-        assert dependency_python == source_python
+        assert dependency_python is not None
+        assert dependency_python.samefile(source_python)
         runtime_python = runtime_executable(target, "python")
         runtime_python.parent.mkdir(parents=True)
         runtime_python.write_bytes(b"python")

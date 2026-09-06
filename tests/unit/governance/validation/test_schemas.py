@@ -20,6 +20,10 @@ ROLE_POLICY_SAMPLE = literal_case("governance.validation.test_schemas:assign:ROL
 ROOT = Path(__file__).resolve().parents[4]
 
 
+def _product_schema_names() -> set[str]:
+    return {path.name for path in (ROOT / "system/schemas").rglob("*.schema.json")}
+
+
 def test_schema_loader_uses_active_product_checkout_not_adopter_schema(tmp_path) -> None:
     source = load_schema("workspace-status.schema.json", root=ROOT)
     schema_dir = tmp_path / "system" / "schemas" / "kernel"
@@ -45,6 +49,8 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert all("ok" not in item for item in report["schemas"].values())
     assert all(item["verdict"] == "pass" for item in report["instances"].values())
     assert all("ok" not in item for item in report["instances"].values())
+    assert "evidence-boundaries.schema.json" in report["schemas"]
+    assert "projection-input.schema.json" in report["schemas"]
 
 
 def test_container_contract_is_not_a_product_schema_or_profile_field() -> None:
@@ -68,7 +74,8 @@ def test_schema_validation_report_uses_product_schemas_for_adopter_root(
     assert report["mode"] == "product"
     assert report["verdict"] == "pass"
     assert "ok" not in report
-    assert report["schema_count"] >= 24
+    assert report["schema_count"] == len(_product_schema_names())
+    assert set(report["schemas"]) == _product_schema_names()
     assert report["required_gaps"] == []
     assert report["instances"]["docs-registry"]["verdict"] == "pass"
 
@@ -90,7 +97,8 @@ def test_schema_validation_adopter_schemas_do_not_replace_product_contracts(
     assert report["mode"] == "product"
     assert report["verdict"] == "pass"
     assert "ok" not in report
-    assert report["schema_count"] >= 24
+    assert report["schema_count"] == len(_product_schema_names())
+    assert set(report["schemas"]) == _product_schema_names()
     assert "custom.schema.json" not in report["schemas"]
     assert report["schemas"]["result.schema.json"]["verdict"] == "pass"
     assert report["instances"]["docs-registry"]["verdict"] == "pass"

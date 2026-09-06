@@ -176,6 +176,7 @@ def test_public_lifecycle_commands_forward_exact_reports(
             root=tmp_path,
             change="example",
             expect_head="a" * 40,
+            subject="chore(openspec): archive example",
             apply=True,
             command="lane archive-change",
             json_output=True,

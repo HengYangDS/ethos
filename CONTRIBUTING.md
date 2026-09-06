@@ -6,12 +6,11 @@ history.
 ## Identity
 
 Use your own organization-approved Git identity. ETHOS does not require a
-single built-in author. This repository's accepted humans, teams, and automation
-accounts are declared in `.ethos/workspace.toml` under `[commit_policy]` and
-`[[commit_policy.allowed_identities]]`. In multi-contributor repositories,
-add or delegate through role-based team, contributor, reviewer, maintainer, and
-automation entries instead of changing ETHOS product code or assuming a single
-author.
+single built-in author or a tracked identity allowlist. Git author and committer,
+the Work Lane actor, the trusted signing principal, transport credentials, and
+forge verification are separate facts. Configure your local identity and signer
+through Git; the repository's tracked `[commit_policy]` owns only subject syntax
+and whether generated commits require SSH signing.
 
 ```bash
 git config user.name "<your-name-or-team>"
@@ -20,10 +19,9 @@ git config commit.gpgsign true
 git config gpg.format ssh
 ```
 
-SSH signing is required for maintainer and automation commits in this
-repository. ETHOS validates current commit identity, role allowlist membership,
-and signing policy directly instead of normalizing historical aliases through
-tracked repository metadata.
+SSH signing is required for generated commits in this repository. ETHOS verifies
+the resulting Git object against the configured external trust anchor; it does
+not turn author metadata into mutation authority.
 
 ## Commit Names
 

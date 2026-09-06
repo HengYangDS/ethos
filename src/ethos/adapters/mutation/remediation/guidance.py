@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import shlex
 
-def archive_recovery_command(change: str, expect_head: str) -> str:
+
+def archive_recovery_command(change: str, expect_head: str, *, subject: str | None = None) -> str:
     """Return the sole public continuation for an observed archive effect."""
-    return f"ethos lane archive-change --change {change} --expect-head {expect_head} --apply --json"
+    subject_argument = f" --subject {shlex.quote(subject)}" if subject is not None else ""
+    return (
+        f"ethos lane archive-change --change {change} --expect-head {expect_head}"
+        f"{subject_argument} --apply --json"
+    )
 
 
 def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, object]]:

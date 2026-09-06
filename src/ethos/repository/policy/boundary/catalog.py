@@ -242,15 +242,3 @@ DISTRIBUTION_FORBIDDEN_FILE_PREFIXES = (
     "openspec/changes/archive/",
     "tests/",
 )
-GENERIC_PLACEHOLDERS = {"", "<your-name-or-team>", "<your-approved-email>"}
-ALLOWED_IDENTITY_ROLES = {"maintainer", "reviewer", "contributor", "team", "bot", "service"}
-DISTINCT_IDENTITY_FACTS = (
-    "git_author",
-    "git_committer",
-    "work_lane_actor",
-    "reviewer",
-    "maintainer",
-    "bot",
-    "team",
-    "adopter_side_owner",
-)

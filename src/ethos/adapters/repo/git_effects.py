@@ -23,14 +23,11 @@ from ethos.adapters.repo.git_effect_admission import require_lease_generation
 from ethos.adapters.repo.git_effect_admission import require_plan_prestate
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
-from ethos.adapters.repo.git_signing import commit_environment
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
-
-_COMMIT_TRANSITION_ENVIRONMENT = frozenset()
 
 if TYPE_CHECKING:
     from typing import Any
@@ -90,37 +87,6 @@ def move_tracked_tree(root: Path, source: str, target: str) -> None:
         raise ValueError(message)
     target_path.parent.mkdir(parents=True, exist_ok=True)
     source_path.rename(target_path)
-
-
-def commit_git_worktree(
-    root: Path,
-    *,
-    previous: str,
-    message: str,
-    environment: Mapping[str, str] | None = None,
-) -> dict[str, object]:
-    """Commit the staged Git effect through normal hooks at one exact HEAD."""
-    if current_tracked_head(root) != previous:
-        message = "git_effect_head_stale"
-        raise ValueError(message)
-    if hook_gaps := hook_runtime_binding(root)["required_gaps"]:
-        raise ValueError(str(hook_gaps[0]))
-    environment_keys = frozenset(environment or ())
-    if not environment_keys <= _COMMIT_TRANSITION_ENVIRONMENT:
-        message = "git_effect_commit_environment_forbidden"
-        raise ValueError(message)
-    completed = run_git(
-        root,
-        "commit",
-        "-m",
-        message,
-        check=False,
-        env=commit_environment(root, environment),
-    )
-    return {
-        "verdict": "pass" if completed.returncode == 0 else "block",
-        "error": completed.stderr.strip(),
-    }
 
 
 def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") -> None:

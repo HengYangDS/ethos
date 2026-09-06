@@ -38,7 +38,7 @@ def test_hosted_repository_proof_does_not_activate_local_mutation_runtime() -> N
         )
     ]
 
-    assert all("tools/ci/scripts/configure-git-checkout.sh" in text for text in texts)
+    assert all("tools/ci/scripts/configure-git-checkout.sh" not in text for text in texts)
     assert all("tools/ci/scripts/run-head-bound-proof.sh" in text for text in texts)
     assert all("ethos hook install" not in text for text in texts)
 

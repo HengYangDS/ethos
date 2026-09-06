@@ -11,10 +11,13 @@ from typing import Any
 
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import verify_commit_trust
+from ethos.repository.policy.commit import load_commit_policy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Mapping
+
+    from ethos.repository.policy.commit import CommitPolicy
 
 
 def _config(root: Path, name: str) -> str:
@@ -43,11 +46,12 @@ def _config(root: Path, name: str) -> str:
 
 
 def commit_environment(root: Path, environment: Mapping[str, str] | None) -> dict[str, str] | None:
-    """Return Git config that cannot drift to a different signing key or agent."""
+    """Return the explicit Git configuration for one required signed commit."""
     bound = dict(environment or {})
     signing = run_git(root, "config", "--local", "--get", "user.signingkey", check=False)
     if signing.returncode:
-        return bound or None
+        message = "git_effect_signing_key_invalid"
+        raise ValueError(message)
     key = Path(signing.stdout.strip())
     if not key.is_absolute() or not key.is_file():
         message = "git_effect_signing_key_invalid"
@@ -67,7 +71,12 @@ def commit_environment(root: Path, environment: Mapping[str, str] | None) -> dic
         signing_value = key.as_posix()
         signing_inputs = (("gpg.ssh.program", signer.as_posix()),)
     count = int(bound.get("GIT_CONFIG_COUNT", "0"))
-    for name, value in (("gpg.format", "ssh"), *signing_inputs, ("user.signingkey", signing_value)):
+    for name, value in (
+        ("commit.gpgSign", "true"),
+        ("gpg.format", "ssh"),
+        *signing_inputs,
+        ("user.signingkey", signing_value),
+    ):
         bound[f"GIT_CONFIG_KEY_{count}"] = name
         bound[f"GIT_CONFIG_VALUE_{count}"] = value
         count += 1
@@ -86,11 +95,11 @@ def create_git_commit(
     runner: Callable[..., Any] = run_git,
 ) -> Any:
     """Create and verify one commit object under repository signing policy."""
-    signing = _config(root, "commit.gpgsign").strip().lower()
-    if signing not in {"", "false", "no", "off", "0", "true", "yes", "on", "1"}:
-        message = "git_effect_commit_signing_policy_invalid"
-        raise ValueError(message)
-    sign = signing in {"true", "yes", "on", "1"}
+    policy = load_commit_policy(root)
+    if policy is not None and not policy.accepts_subject(message):
+        error = f"commit_subject_invalid:{message.partition(chr(10))[0]}"
+        raise ValueError(error)
+    sign = policy is not None and policy.signing_required
     completed = runner(
         root,
         "commit-tree",
@@ -117,3 +126,24 @@ def create_git_commit(
         completed.stdout,
         str(gaps[0]) if gaps else "git_effect_signed_commit_missing",
     )
+
+
+def validate_commits(
+    root: Path,
+    revisions: tuple[str, ...],
+    *,
+    policy: CommitPolicy,
+) -> list[str]:
+    """Return the first tracked-policy gap in an ordered commit range."""
+    for revision in revisions:
+        completed = run_git(root, "show", "-s", "--format=%s", revision, check=False)
+        subject = completed.stdout.rstrip("\n")
+        if not policy.accepts_subject(subject):
+            return [f"commit_subject_invalid:{revision}:{subject}"]
+        if policy.signing_required:
+            trust = verify_commit_trust(root, revision)
+            required_gaps = trust.get("required_gaps")
+            gaps = required_gaps if isinstance(required_gaps, list) else []
+            if gaps:
+                return [str(gaps[0])]
+    return []

@@ -12,11 +12,14 @@ from ethos.contracts.verdict import report_verdict
 from ethos.repository.context import repository_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
+from ethos.repository.policy.commit import CommitPolicy
+from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
+CommitPolicyObserver = Callable[[Path, CommitPolicy], dict[str, object]]
 
 REQUIRED_DOCS = (
     "docs/README.md",
@@ -34,7 +37,6 @@ REQUIRED_DOCS = (
     "docs/architecture/fleet-and-adopters.md",
     "docs/architecture/runner-and-mutation.md",
     "docs/architecture/schema-validation.md",
-    "docs/governance/commit-signature-policy.md",
     "docs/governance/authority.md",
     "docs/governance/product-design-contract.md",
     "docs/governance/product-boundary-convergence.md",
@@ -55,7 +57,6 @@ REQUIRED_SCHEMAS = (
     "commitment.schema.json",
     "attestation.schema.json",
     "facts.schema.json",
-    "commit-policy.schema.json",
     "transition-plan.schema.json",
     "provenance.schema.json",
     "docs-registry.schema.json",
@@ -105,6 +106,50 @@ def release_files_report(root: Path) -> dict[str, object]:
     }
 
 
+def _commit_policy_report(
+    root: Path,
+    observer: CommitPolicyObserver | None,
+) -> dict[str, object]:
+    empty = {"declaration": {}, "head": {}, "signature": {}}
+    try:
+        policy = load_commit_policy(root)
+    except (OSError, TypeError, UnicodeError, ValueError) as error:
+        gap = str(error) or "commit_policy_invalid"
+        return {
+            "verdict": "block",
+            "state": "invalid",
+            **empty,
+            "required_gaps": [gap],
+        }
+    if policy is None:
+        return {
+            "verdict": "pass",
+            "state": "absent",
+            **empty,
+            "required_gaps": [],
+        }
+    if observer is None:
+        return {
+            "verdict": "block",
+            "state": "unobserved",
+            "declaration": policy.projection(),
+            "head": {},
+            "signature": {},
+            "required_gaps": ["commit_policy_observer_not_configured"],
+        }
+    observed = observer(root, policy)
+    return {
+        "verdict": report_verdict(observed),
+        "state": observed.get("state", "unknown"),
+        "declaration": policy.projection(),
+        "head": observed.get("head", {}),
+        "signature": observed.get("signature", {}),
+        "required_gaps": [
+            str(gap) for gap in cast("list[object]", observed.get("required_gaps", []))
+        ],
+    }
+
+
 def repository_audit(
     root: Path,
     *,
@@ -112,6 +157,7 @@ def repository_audit(
     openspec_reporter: OpenSpecReporter | None = None,
     tracked_documents: tuple[str, ...] = (),
     openspec_shape: dict[str, object] | None = None,
+    commit_policy_observer: CommitPolicyObserver | None = None,
 ) -> dict[str, object]:
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
@@ -134,6 +180,7 @@ def repository_audit(
     system_contracts = system_contracts_report(root)
     semantic_closure = repository_semantic_closure(root, system_contracts=system_contracts)
     design_integrity = design_integrity_report(root, tracked_documents=tracked_documents)
+    commit_policy = _commit_policy_report(root, commit_policy_observer)
     if openspec_mode == "shape":
         openspec = openspec_shape or {}
     elif openspec_reporter is None:
@@ -158,6 +205,7 @@ def repository_audit(
     system_contract_gaps = [
         str(gap) for gap in cast("list[str]", system_contracts["required_gaps"])
     ]
+    commit_policy_gaps = [str(gap) for gap in cast("list[object]", commit_policy["required_gaps"])]
     docs = {
         "verdict": observation_verdict(ok=not docs_missing and not docs_without_front_matter),
         "missing": docs_missing,
@@ -196,6 +244,7 @@ def repository_audit(
             + openspec_gaps
             + playbook_gaps
             + system_contract_gaps
+            + commit_policy_gaps
         )
     )
     return {
@@ -209,6 +258,7 @@ def repository_audit(
             report_verdict(design_integrity),
             report_verdict(openspec),
             report_verdict(system_contracts),
+            report_verdict(commit_policy),
         ),
         "mode": "repository",
         "governance_context": repository_context(root),
@@ -221,5 +271,6 @@ def repository_audit(
         "design_integrity": design_integrity,
         "openspec": openspec,
         "system_contracts": system_contracts,
+        "commit_policy": commit_policy,
         "required_gaps": gaps,
     }

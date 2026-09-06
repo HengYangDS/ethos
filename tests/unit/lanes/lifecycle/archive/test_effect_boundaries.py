@@ -163,12 +163,6 @@ def test_archive_effect_owns_postimage_commit_and_reuses_resolved_intent(
     )
     monkeypatch.setattr(
         archive_effect,
-        "lifecycle_commit_subject",
-        lambda *_args: "chore(openspec): archive change",
-        raising=False,
-    )
-    monkeypatch.setattr(
-        archive_effect,
         "create_git_commit",
         lambda _root, **kwargs: (
             observed.update(commit=kwargs)
@@ -202,6 +196,7 @@ def test_archive_effect_owns_postimage_commit_and_reuses_resolved_intent(
         lease={"holder_ref": "agent:test"},
         owned_mutation=True,
         compensation_path=archive_path,
+        subject="chore(openspec): archive change",
     )
 
     assert report == {"state": "archived"}

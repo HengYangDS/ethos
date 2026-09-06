@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import observe_commit
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 _ZERO = "0" * 40
-_IDENTITY_FIELDS = ("author_name", "author_email", "committer_name", "committer_email")
 
 
 def _git(root: Path, *args: str):
@@ -37,16 +38,6 @@ def _pushed_commit_range(
     revision = f"{remote_head}..{pushed_head}" if _exists(root, remote_head) else pushed_head
     result = _git(root, "rev-list", revision)
     return (result.stdout.splitlines(), True) if result.returncode == 0 else ([], False)
-
-
-def _commit_identity(root: Path, revision: str) -> dict[str, str]:
-    result = _git(root, "show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce", revision)
-    parts = result.stdout.rstrip("\n").split("\x00")
-    return (
-        dict(zip(_IDENTITY_FIELDS, parts, strict=True))
-        if result.returncode == 0 and len(parts) == len(_IDENTITY_FIELDS)
-        else dict.fromkeys(_IDENTITY_FIELDS, "")
-    )
 
 
 def _range_base(root: Path, pushed: str, remote: str, trusted: str) -> tuple[str, list[str]]:
@@ -98,16 +89,18 @@ def push_identity_policy_report(
         gaps.append("push_identity_commit_range_unreadable")
     violations = []
     for commit in commits:
-        identity = _commit_identity(root, commit)
-        author_ok = (identity["author_name"], identity["author_email"]) == (name, email)
-        committer_ok = (identity["committer_name"], identity["committer_email"]) == (name, email)
+        observation = observe_commit(root, commit)
+        author = cast("dict[str, str]", observation["author"])
+        committer = cast("dict[str, str]", observation["committer"])
+        author_ok = (author["name"], author["email"]) == (name, email)
+        committer_ok = (committer["name"], committer["email"]) == (name, email)
         if author_ok and committer_ok:
             continue
         violations.append(
             {
                 "commit": commit,
-                "author": f"{identity['author_name']} <{identity['author_email']}>",
-                "committer": f"{identity['committer_name']} <{identity['committer_email']}>",
+                "author": f"{author['name']} <{author['email']}>",
+                "committer": f"{committer['name']} <{committer['email']}>",
             }
         )
         if not author_ok:

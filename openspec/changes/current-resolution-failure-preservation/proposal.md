@@ -15,6 +15,11 @@ or repair guidance, so identical facts no longer have one public meaning.
 - Compile the deterministic proof plan only from the passing frozen resolution;
   keep exact live re-observation at Attestation issuance, where freshness is
   required for effect admission but intent cannot be reselected.
+- Make lane migration consume commit policy from the exact current candidate
+  snapshot rather than allowing historical lane policy to govern replay.
+- Keep branch-role observation limited to role fields; retired transition
+  declarations are neither interpreted nor allowed to block migration, while
+  strict ref-mutation admission continues to require the exact current schema.
 - Delete proof-local failure mapping that duplicates the current-resolution
   owner's responsibility after its remaining native planner errors are routed
   to their proper owner.

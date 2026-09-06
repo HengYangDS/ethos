@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
+from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
@@ -31,7 +32,7 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
-from ethos.repository.policy.commit import load_commit_policy
+from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
@@ -171,7 +172,9 @@ def _refresh_work_lane(
     if snapshot_gaps:
         return _report(context, current_head, "blocked", snapshot_gaps)
     try:
-        commit_policy = load_commit_policy(root)
+        commit_policy = commit_policy_from_text(
+            committed_file_text(root, candidate_head, ".ethos/workspace.toml")
+        )
         signing_required = commit_policy is not None and commit_policy.signing_required
         environment = commit_environment(root, None) if signing_required else None
     except (TypeError, ValueError) as error:

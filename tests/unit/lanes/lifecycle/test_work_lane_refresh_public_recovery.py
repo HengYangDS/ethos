@@ -168,6 +168,31 @@ def test_refresh_rejects_snapshot_drift_before_rebase(
     assert report["required_gaps"] == ["refresh_base_snapshot_stale:work_lane"]
 
 
+def test_refresh_fails_closed_on_invalid_candidate_commit_policy(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _common(monkeypatch)
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
+    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: HEAD)
+    monkeypatch.setattr(
+        refresh,
+        "committed_file_text",
+        lambda _root, ref, path: (
+            "[commit_policy]\nunknown = true\n"
+            if (ref, path) == (CANDIDATE, ".ethos/workspace.toml")
+            else ""
+        ),
+        raising=False,
+    )
+
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
+
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["commit_policy_unknown_fields:unknown"]
+
+
 def test_refresh_conflict_reports_failed_restore(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -234,7 +259,25 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
         signing_required=True,
         signing_format="ssh",
     )
-    monkeypatch.setattr(refresh, "load_commit_policy", lambda _root: policy, raising=False)
+    observed_policy: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        refresh,
+        "committed_file_text",
+        lambda _root, ref, path: observed_policy.append((ref, path)) or "candidate policy",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        refresh,
+        "commit_policy_from_text",
+        lambda text: policy if text == "candidate policy" else None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        refresh,
+        "load_commit_policy",
+        lambda _root: pytest.fail("refresh must not select policy from the source lane"),
+        raising=False,
+    )
     monkeypatch.setattr(
         refresh,
         "commit_environment",
@@ -283,6 +326,7 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
     )
 
     assert report["state"] == "base_refreshed"
+    assert observed_policy == [(CANDIDATE, ".ethos/workspace.toml")]
     assert rebase_environments == [{"SIGNED_REPLAY": "1"}]
     assert validated == [(revisions, policy)]
 
@@ -300,7 +344,20 @@ def test_refresh_policy_failure_restores_before_repository_effects(
         signing_required=True,
         signing_format="ssh",
     )
-    monkeypatch.setattr(refresh, "load_commit_policy", lambda _root: policy, raising=False)
+    monkeypatch.setattr(
+        refresh,
+        "committed_file_text",
+        lambda _root, ref, path: (
+            "candidate policy" if (ref, path) == (CANDIDATE, ".ethos/workspace.toml") else ""
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        refresh,
+        "commit_policy_from_text",
+        lambda text: policy if text == "candidate policy" else None,
+        raising=False,
+    )
     monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {}, raising=False)
     replayed = "d" * 40
 

@@ -72,3 +72,12 @@ operation's intent.
 - **WHEN** ETHOS is about to issue the proof Attestation
 - **THEN** the issuance owner re-observes exact HEAD, tree, repository identity, Lease generation, and invocation actor
 - **AND** it rejects drift without recompiling the plan or selecting different intent
+
+#### Scenario: Work Lane migration uses current policy
+
+- **GIVEN** a Work Lane was created under a historical governance declaration
+- **WHEN** ETHOS refreshes it onto an exact current candidate commit
+- **THEN** commit grammar and signing policy are compiled from that candidate commit
+- **AND** historical policy fields cannot block or authorize the migration
+- **AND** branch-role observation ignores retired transition material that it does not own
+- **AND** strict ref-mutation admission still requires the exact current branch-role schema

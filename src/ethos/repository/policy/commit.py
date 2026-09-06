@@ -43,13 +43,10 @@ def _required_text(raw: dict[str, object], key: str) -> str:
     return value
 
 
-def load_commit_policy(root: Path) -> CommitPolicy | None:
-    """Compile the optional tracked commit policy, failing closed when present."""
-    path = root / ".ethos" / "workspace.toml"
-    if not path.exists():
-        return None
+def commit_policy_from_text(text: str) -> CommitPolicy | None:
+    """Compile an already-observed commit policy, failing closed when present."""
     try:
-        payload = tomllib.loads(path.read_text(encoding="utf-8"))
+        payload = tomllib.loads(text)
     except tomllib.TOMLDecodeError as error:
         message = f"commit_policy_toml_invalid:{error}"
         raise ValueError(message) from error
@@ -82,3 +79,9 @@ def load_commit_policy(root: Path) -> CommitPolicy | None:
         signing_required=signing_required,
         signing_format="ssh",
     )
+
+
+def load_commit_policy(root: Path) -> CommitPolicy | None:
+    """Compile the optional tracked commit policy from the working tree."""
+    path = root / ".ethos" / "workspace.toml"
+    return commit_policy_from_text(path.read_text(encoding="utf-8") if path.exists() else "")

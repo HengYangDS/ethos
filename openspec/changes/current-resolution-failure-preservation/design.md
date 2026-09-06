@@ -89,6 +89,24 @@ than become `change_generation_binding_invalid`.
 Alternative rejected: add another catch-and-map helper. It would create the
 same duplicate interpretation this Change removes.
 
+### Apply current policy to migration
+
+Refreshing a Work Lane is a migration into the exact candidate snapshot. The
+candidate commit therefore owns the commit grammar and signing requirement for
+the entire replay. The source lane contributes content and history only; its
+historical governance declaration cannot select the rules used to enter the
+current repository state.
+
+The commit-policy compiler accepts already-observed text. The refresh adapter
+reads `.ethos/workspace.toml` from the exact candidate commit and feeds those
+bytes to that same compiler before rebase. No compatibility parser, alternate
+policy schema, or mutable candidate-worktree read is introduced.
+
+Branch-role observation extracts only the role fields it owns. A retired
+`branch_roles.transitions` table is ignored by observation and remains rejected
+by the strict parser used for ref-mutation authority. This deletes the former
+compatibility validator instead of expanding it.
+
 ### Place the regression with the semantic boundary
 
 The cross-surface behavior belongs to current admission resolution. Move the
@@ -122,8 +140,10 @@ That would encode physical history rather than semantic ownership.
 4. Implement the early terminal projection, frozen-resolution compilation,
    explicit resolver failure, and deletion of the proof-local error-action
    mapper and obsolete expectations.
-5. Run focused current-resolution and proof tests, repository-wide reference
+5. Make refresh policy selection and branch-role observation obey the target
+   current snapshot, then delete the retired transition validator.
+6. Run focused current-resolution and proof tests, repository-wide reference
    closure, formatting, lint, typing, module-layout, and strict OpenSpec
    validation.
-6. Complete exact-HEAD proof, official archive and reproof, candidate and
+7. Complete exact-HEAD proof, official archive and reproof, candidate and
    accepted exact CAS, immutable runtime readback, and lane retirement.

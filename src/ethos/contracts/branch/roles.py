@@ -21,7 +21,6 @@ _STRICT_BRANCH_ROLE_TEXT_ERROR = "branch_roles text fields must be canonical str
 _STRICT_BRANCH_ROLE_MIRROR_ERROR = "branch_roles release_mirror is invalid"
 _STRICT_BRANCH_ROLE_SIBLING_ERROR = "branch_roles canonical_sibling_worktrees must be boolean"
 _UNKNOWN_BRANCH_ROLE_FIELDS_ERROR = "branch_roles contains unknown fields"
-_UNKNOWN_BRANCH_ROLE_TRANSITION_FIELDS_ERROR = "branch_roles transition contains unknown fields"
 _STRICT_BRANCH_ROLE_FIELDS = {
     "release_branch",
     "accepted_branch",
@@ -30,15 +29,6 @@ _STRICT_BRANCH_ROLE_FIELDS = {
     "proposal_branch_prefix",
     "release_mirror",
     "canonical_sibling_worktrees",
-}
-_ADOPTED_TRANSITION = {
-    "id": "accepted-to-release",
-    "source_role": ROLE_ACCEPTED_ROOT,
-    "target_role": ROLE_RELEASE_ROOT,
-    "capability": "repository.release",
-    "required_gates": [],
-    "required_evidence": ["proof:execution"],
-    "coupled_with": "",
 }
 PROTECTED_WRITE_ROLES = frozenset(
     {
@@ -145,8 +135,6 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
         return BranchRolePolicy()
     if set(raw_policy) - (_STRICT_BRANCH_ROLE_FIELDS | {"transitions"}):
         raise ValueError(_UNKNOWN_BRANCH_ROLE_FIELDS_ERROR)
-    if "transitions" in raw_policy:
-        _validate_adopted_transition_rows(raw_policy["transitions"])
     default = BranchRolePolicy()
     return BranchRolePolicy(
         release_branch=_string_value(raw_policy.get("release_branch"), default.release_branch),
@@ -199,9 +187,3 @@ def _string_value(value: Any, fallback: str) -> str:
         return fallback
     stripped = value.strip()
     return stripped or fallback
-
-
-def _validate_adopted_transition_rows(value: object) -> None:
-    """Validate the retired transition declaration shape without restoring its authority."""
-    if value != [_ADOPTED_TRANSITION]:
-        raise ValueError(_UNKNOWN_BRANCH_ROLE_TRANSITION_FIELDS_ERROR)

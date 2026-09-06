@@ -10,11 +10,13 @@
 - [x] 2.1 Make proof terminate on a non-passing current resolution while preserving proof-specific summaries only as non-authorizing presentation.
 - [x] 2.2 Stop swallowing unexpected current-resolution errors and remove proof-local gap-prefix recovery mapping and its obsolete expectations.
 - [x] 2.3 Make proof-plan compilation consume the frozen resolution without rereading Lease or actor state, while preserving issuance-time exact live rechecks and reporting drift from that owner.
+- [x] 2.4 Make Work Lane refresh compile commit policy from the exact candidate snapshot and delete retired branch-transition compatibility from role observation.
 
 ## 3. Closure
 
 - [x] 3.1 Run focused current-resolution, public-surface, proof, result-contract, and command-plane tests; verify repository-wide references contain no superseded proof-local recovery mapper.
 - [x] 3.2 Run strict OpenSpec validation, formatting, lint, typing, import-boundary, module-layout, and affected repository gates with no warnings or hidden fallback.
+- [ ] 3.3 Re-run focused and affected validation for candidate-policy migration, then complete exact-HEAD lifecycle closure.
 
 ## Lifecycle Transition Boundary
 

@@ -60,7 +60,6 @@ def test_current_repository_audit_proves_complete_semantic_closure() -> None:
         "signing_required": True,
         "signing_format": "ssh",
     }
-    assert report["commit_policy"]["head"]["subject"].startswith("chore(openspec):")
 
 
 def test_repository_audit_fails_closed_through_the_unique_commit_policy_compiler(

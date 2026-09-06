@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+import ethos.surface.cli.lane.commit_signer as commit_signer
 import ethos.surface.cli.lane.lifecycle as lifecycle
 
 
@@ -225,3 +226,41 @@ def test_public_prewrite_command_preserves_invalid_tokens_and_patch_input(
     assert captured["editor_root"] == tmp_path
     assert captured["patch"] == "diff --git a/a b/a\n"
     assert captured["report"]["path_count"] == 2
+
+
+def test_commit_signer_command_forwards_exact_authority_coordinates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(commit_signer, "resolve_root", lambda _root: tmp_path)
+    monkeypatch.setattr(
+        commit_signer,
+        "authorize_configured_commit_signer",
+        lambda root, revision, **kwargs: (
+            captured.update(root=root, revision=revision, **kwargs)
+            or {"verdict": "pass", "state": "signer_authorized"}
+        ),
+    )
+    monkeypatch.setattr(
+        commit_signer,
+        "project_lane_result",
+        lambda command, report, **kwargs: captured.update(
+            command=command, report=report, projection=kwargs
+        ),
+    )
+    commit_signer.trust_commit_signer(
+        commit_signer.CommitSignerTrustOptions(
+            target_commit="a" * 40,
+            expected_anchor_sha256="b" * 64,
+            authorize=True,
+            apply=True,
+            root=tmp_path,
+            json_output=True,
+        )
+    )
+
+    assert captured["root"] == tmp_path
+    assert captured["revision"] == "a" * 40
+    assert captured["expected_anchor_sha256"] == "b" * 64
+    assert captured["authorized"] is captured["apply"] is True
+    assert captured["projection"] == {"enforce": True, "json_output": True}

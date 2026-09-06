@@ -109,7 +109,18 @@ def test_python_bootstrap_supplies_the_declared_linux_signing_tool() -> None:
     assert "missing_packages+=(openssh-client)" in script
 
 
-def test_python_bootstrap_supplies_declared_linux_test_prerequisites(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("system", "expected_apt"),
+    [
+        ("Linux", ["update", "install -y --no-install-recommends procps util-linux"]),
+        ("Darwin", None),
+    ],
+)
+def test_python_bootstrap_supplies_platform_prerequisites(
+    tmp_path: Path,
+    system: str,
+    expected_apt: list[str] | None,
+) -> None:
     repo = tmp_path / "repo"
     script_dir = repo / "tools/ci/scripts"
     script_dir.mkdir(parents=True)
@@ -118,35 +129,36 @@ def test_python_bootstrap_supplies_declared_linux_test_prerequisites(tmp_path: P
         script_dir / "with-python-runtime.sh",
         '#!/bin/sh\n[ "$1" != -- ] || shift\nexec "$@"\n',
     )
-
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     apt_log = tmp_path / "apt-get.log"
-    _write_fake_executable(
-        fake_bin / "git",
-        f"#!/bin/sh\n[ \"$1 $2\" = 'rev-parse --show-toplevel' ] && printf '%s\\n' '{repo}'\n",
-    )
-    _write_fake_executable(fake_bin / "uname", "#!/bin/sh\nprintf 'Linux\\n'\n")
-    _write_fake_executable(fake_bin / "ssh-keygen", "#!/bin/sh\nexit 0\n")
-    _write_fake_executable(fake_bin / "ldconfig", "#!/bin/sh\nprintf 'libatomic.so.1\\n'\n")
-    _write_fake_executable(
-        fake_bin / "uv",
-        "#!/bin/sh\n"
-        "if [ \"$1\" = --version ]; then printf 'uv 0.12.10\\n'; exit 0; fi\n"
-        "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.10\\n'; exit 0; fi\n"
-        '[ "$1" = sync ] && exit 0\n'
-        "exit 2\n",
-    )
-    _write_fake_executable(fake_bin / "npx", "#!/bin/sh\nexit 0\n")
-    _write_fake_executable(
-        fake_bin / "apt-get",
-        f"#!/bin/sh\nprintf '%s\\n' \"$*\" >>'{apt_log}'\n",
-    )
+    commands = {
+        "git": (
+            f"#!/bin/sh\n[ \"$1 $2\" = 'rev-parse --show-toplevel' ] && printf '%s\\n' '{repo}'\n"
+        ),
+        "uname": f"#!/bin/sh\nprintf '{system}\\n'\n",
+        "uv": (
+            "#!/bin/sh\n"
+            "if [ \"$1\" = --version ]; then printf 'uv 0.12.10\\n'; exit 0; fi\n"
+            "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.10\\n'; exit 0; fi\n"
+            '[ "$1" = sync ] && exit 0\n'
+            "exit 2\n"
+        ),
+        "npx": "#!/bin/sh\nexit 0\n",
+        "apt-get": f"#!/bin/sh\nprintf '%s\\n' \"$*\" >>'{apt_log}'\n",
+    }
+    if system == "Linux":
+        commands |= {
+            "ssh-keygen": "#!/bin/sh\nexit 0\n",
+            "ldconfig": "#!/bin/sh\nprintf 'libatomic.so.1\\n'\n",
+        }
+    for name, body in commands.items():
+        _write_fake_executable(fake_bin / name, body)
     for name in ("awk", "cat", "dirname", "grep"):
         (fake_bin / name).symlink_to(shutil.which(name))
     openspec = repo / "node_modules/.bin/openspec"
     openspec.parent.mkdir(parents=True)
-    _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.12.0\\n'\n")
+    _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.12.0\\n'")
     (repo / "pyproject.toml").write_text(
         '[dependency-groups]\ndev = ["uv>=0.12.10"]\n', encoding="utf-8"
     )
@@ -154,68 +166,15 @@ def test_python_bootstrap_supplies_declared_linux_test_prerequisites(tmp_path: P
     result = subprocess.run(
         ("/bin/bash", str(script_dir / "bootstrap-python.sh")),
         cwd=repo,
-        env={**os.environ, "PATH": str(fake_bin)},
+        env=os.environ | {"PATH": str(fake_bin)},
         text=True,
         capture_output=True,
         check=False,
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert apt_log.read_text(encoding="utf-8").splitlines() == [
-        "update",
-        "install -y --no-install-recommends procps util-linux",
-    ]
-
-
-def test_python_bootstrap_does_not_use_apt_get_on_darwin(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    script_dir = repo / "tools/ci/scripts"
-    script_dir.mkdir(parents=True)
-    shutil.copy2(ROOT / "tools/ci/scripts/bootstrap-python.sh", script_dir)
-    _write_fake_executable(
-        script_dir / "with-python-runtime.sh",
-        '#!/bin/sh\n[ "$1" != -- ] || shift\nexec "$@"\n',
-    )
-
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    apt_log = tmp_path / "apt-get.log"
-    _write_fake_executable(
-        fake_bin / "git",
-        f"#!/bin/sh\n[ \"$1 $2\" = 'rev-parse --show-toplevel' ] && printf '%s\\n' '{repo}'\n",
-    )
-    _write_fake_executable(fake_bin / "uname", "#!/bin/sh\nprintf 'Darwin\\n'\n")
-    _write_fake_executable(
-        fake_bin / "uv",
-        "#!/bin/sh\n"
-        "if [ \"$1\" = --version ]; then printf 'uv 0.12.10\\n'; exit 0; fi\n"
-        "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.10\\n'; exit 0; fi\n"
-        '[ "$1" = sync ] && exit 0\n'
-        "exit 2\n",
-    )
-    _write_fake_executable(fake_bin / "npx", "#!/bin/sh\nexit 0\n")
-    _write_fake_executable(
-        fake_bin / "apt-get",
-        f"#!/bin/sh\nprintf '%s\\n' \"$*\" >>'{apt_log}'\nexit 99\n",
-    )
-    openspec = repo / "node_modules/.bin/openspec"
-    openspec.parent.mkdir(parents=True)
-    _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.12.0\\n'\n")
-    (repo / "pyproject.toml").write_text(
-        '[dependency-groups]\ndev = ["uv>=0.12.10"]\n', encoding="utf-8"
-    )
-
-    result = subprocess.run(
-        ("/bin/bash", str(script_dir / "bootstrap-python.sh")),
-        cwd=repo,
-        env={**os.environ, "PATH": f"{fake_bin}:/bin:/usr/bin"},
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert not apt_log.exists()
+    observed_apt = apt_log.read_text(encoding="utf-8").splitlines() if apt_log.exists() else None
+    assert observed_apt == expected_apt
 
 
 def test_direct_python_bounds_equal_the_locked_resolution() -> None:

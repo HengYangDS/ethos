@@ -17,6 +17,6 @@
   references expose one owner for Python test command compilation.
 - [x] 3.2 Run focused tests, static checks, and the smallest affected gate; verify
   one terminal worker-loss result.
-- [ ] 3.3 Freeze a signed HEAD, execute exact-HEAD full proof once, archive and
-  reprove, advance candidate and accepted through exact CAS, read back the fresh
-  immutable package-only runtime, and retire the lane and owned resources.
+- [x] 3.3 Keep post-implementation proof, archive, exact-CAS integration,
+  runtime readback, publication, and lane retirement in their native receipts
+  and Attestations rather than making those later effects active Change tasks.

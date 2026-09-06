@@ -14,9 +14,7 @@ from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
-from ethos.adapters.repo.commit_message import lifecycle_commit_subject
-from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import write_test_profile
+from ethos.repository.policy.commit import CommitPolicy
 from tests.support.openspec_lifecycle import assert_lifecycle_outcome
 from tests.support.semantic import commitment_fixture
 
@@ -26,14 +24,6 @@ NEW_HEAD = "new-head"
 CHANGE = "fixture-change"
 ARCHIVE_DATE = datetime.now(UTC).date().isoformat()
 ARCHIVE_PATH = f"openspec/changes/archive/{ARCHIVE_DATE}-fixture-change"
-
-
-def test_archive_commit_subject_is_conventional(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    write_test_profile(repo)
-    assert lifecycle_commit_subject(repo, "archive", CHANGE) == (
-        "chore(openspec): archive fixture-change"
-    )
 
 
 def _completed_governance(
@@ -182,11 +172,67 @@ def _stub_archive_public(
     monkeypatch.setattr(archive, "dirty_changed_paths", lambda _root: ("spec.md",))
     monkeypatch.setattr(archive, "normalize_projected_specs", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(archive_effect, "stage_git_worktree", lambda *_args, **_kwargs: None)
+
+
+def test_archive_requires_an_explicit_subject_when_the_semantic_default_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub_archive_public(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        archive,
+        "load_commit_policy",
+        lambda _root: CommitPolicy(
+            subject_pattern=r"^release: .+",
+            signing_required=True,
+            signing_format="ssh",
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        archive.openspec_cli,
+        "run_json",
+        lambda *_args: pytest.fail("subject policy must block before OpenSpec mutation"),
+    )
+
+    report = archive.archive_change(
+        root=tmp_path,
+        change=CHANGE,
+        expect_head=HEAD,
+        apply=True,
+    )
+
+    assert report["required_gaps"] == ["archive_commit_subject_required"]
+    assert report["user_decision_required"] is True
+    assert "--subject" in str(report["next_action"])
+
+
+def test_archive_passes_one_explicit_policy_admitted_subject_to_the_effect(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub_archive_public(monkeypatch, tmp_path)
+    policy = CommitPolicy(
+        subject_pattern=r"^release: .+",
+        signing_required=True,
+        signing_format="ssh",
+    )
+    monkeypatch.setattr(archive, "load_commit_policy", lambda _root: policy, raising=False)
+    observed: dict[str, object] = {}
     monkeypatch.setattr(
         archive_effect,
-        "lifecycle_commit_subject",
-        lambda *_args, **_kwargs: "chore(openspec): archive fixture-change",
+        "commit_archive_postimage",
+        lambda *_args, **kwargs: observed.update(kwargs) or {"state": "archived"},
     )
+
+    report = archive.archive_change(
+        root=tmp_path,
+        change=CHANGE,
+        expect_head=HEAD,
+        subject="release: archive fixture-change",
+        apply=True,
+    )
+
+    assert report == {"state": "archived"}
+    assert observed["subject"] == "release: archive fixture-change"
 
 
 def test_archive_public_observes_workspace_and_resolves_intent_once(
@@ -364,7 +410,8 @@ def test_archive_public_exception_compensates_exact_tree(
         "mutated",
         "completed",
         "absent",
-        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json",
+        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} "
+        f"--subject 'chore(openspec): archive {CHANGE}' --apply --json",
     )
     assert compensated == [{"head": HEAD, "untracked_path": ""}]
 
@@ -398,7 +445,8 @@ def test_archive_public_commit_failure_compensates_native_delta(
         "mutated",
         "completed",
         "absent",
-        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json",
+        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} "
+        f"--subject 'chore(openspec): archive {CHANGE}' --apply --json",
     )
     assert compensated == [f"{ARCHIVE_PATH}.preserved" if collision else ARCHIVE_PATH]
 
@@ -460,7 +508,8 @@ def test_archive_public_rejects_invalid_native_receipt(
         "mutated",
         "completed",
         "absent",
-        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json",
+        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} "
+        f"--subject 'chore(openspec): archive {CHANGE}' --apply --json",
     )
     assert compensated == [compensated_path]
 

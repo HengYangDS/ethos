@@ -10,7 +10,6 @@ from typing import Any
 
 import pytest
 
-import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.attestation_set as attestation_set
 import ethos.adapters.repo.git_effect_admission as admission
 import ethos.adapters.repo.git_effect_attestation as attest
@@ -23,7 +22,6 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effect_attestation import records
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.git_effects import admit_git_effect
-from ethos.adapters.repo.git_effects import commit_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_signing import create_git_commit
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -56,159 +54,23 @@ def _staged_repo(tmp_path: Path) -> tuple[Path, str]:
     return repo, git(repo, "rev-parse", "HEAD")
 
 
-def test_commit_git_worktree_rejects_unarmed_repository_hooks(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, previous = _staged_repo(tmp_path)
-    monkeypatch.setattr(
-        runtime,
-        "hook_runtime_binding",
-        lambda _root: {"required_gaps": ["write_admission_not_armed:runtime_manifest"]},
-    )
-
-    with pytest.raises(ValueError, match="write_admission_not_armed:runtime_manifest"):
-        commit_git_worktree(repo, previous=previous, message="fix: governed commit")
-
-
-def test_commit_git_worktree_rejects_undeclared_environment(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, previous = _staged_repo(tmp_path)
-    monkeypatch.setattr(runtime, "hook_runtime_binding", lambda _root: {"required_gaps": []})
-
-    for environment in (
-        {"GIT_DIR": "/tmp/foreign"},
-        {"ETHOS_FAKE_TRANSITION": "{}"},
-    ):
-        with pytest.raises(ValueError, match="git_effect_commit_environment_forbidden"):
-            commit_git_worktree(
-                repo,
-                previous=previous,
-                message="fix: governed commit",
-                environment=environment,
-            )
-
-
-def test_commit_git_worktree_does_not_inherit_transition_authority(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    previous = "a" * 40
-    monkeypatch.setattr(runtime, "current_tracked_head", lambda _root: previous)
-    monkeypatch.setattr(runtime, "hook_runtime_binding", lambda _root: {"required_gaps": []})
-    monkeypatch.setattr(runtime, "commit_environment", lambda *_args: None)
-    monkeypatch.setenv("ETHOS_ARCHIVE_TRANSITION", "forged")
-    environments: list[dict[str, str]] = []
-
-    def capture_commit(*_args: object, **kwargs: object) -> object:
-        environments.append(dict(kwargs["env"]))
-        return type("Result", (), {"returncode": 0, "stderr": ""})()
-
-    monkeypatch.setattr(process_adapter, "run_command", capture_commit)
-
-    commit_git_worktree(repo, previous=previous, message="fix: governed commit")
-
-    assert "ETHOS_ARCHIVE_TRANSITION" not in environments[0]
-
-
-def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, previous = _staged_repo(tmp_path)
-    public_key = repo / "signing-key.pub"
-    public_key.write_text("ssh-ed25519 AAAATEST exact-signing-key\n", encoding="utf-8")
-    git(repo, "config", "commit.gpgsign", "true")
-    git(repo, "config", "gpg.format", "ssh")
-    git(repo, "config", "user.signingkey", public_key.as_posix())
-    monkeypatch.setattr(runtime, "hook_runtime_binding", lambda _root: {"required_gaps": []})
-    calls: list[dict[str, str]] = []
-
-    def capture_commit(_root: Path, *args: str, **kwargs: object) -> object:
-        assert args == ("commit", "-m", "fix: signed effect")
-        environment = kwargs["env"]
-        assert isinstance(environment, dict)
-        calls.append(environment)
-        return type("Result", (), {"returncode": 0, "stderr": ""})()
-
-    monkeypatch.setattr(runtime, "run_git", capture_commit)
-
-    result = commit_git_worktree(
-        repo,
-        previous=previous,
-        message="fix: signed effect",
-    )
-
-    assert result["verdict"] == "pass"
-    assert calls == [
-        {
-            "GIT_CONFIG_COUNT": "2",
-            "GIT_CONFIG_KEY_0": "gpg.format",
-            "GIT_CONFIG_VALUE_0": "ssh",
-            "GIT_CONFIG_KEY_1": "user.signingkey",
-            "GIT_CONFIG_VALUE_1": "key::ssh-ed25519 AAAATEST exact-signing-key",
-        }
-    ]
-
-
-def test_commit_git_worktree_binds_effective_ssh_signer_without_agent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, previous = _staged_repo(tmp_path)
-    key = tmp_path / "signing-key"
-    subprocess.run(
-        ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    public_key = key.with_suffix(".pub")
-    signer_record = tmp_path / "signer-record"
-    signer = tmp_path / "ssh-signer"
-    signer.write_text(
-        "#!/bin/sh\n"
-        "set -eu\n"
-        "previous=''\n"
-        'for argument in "$@"; do\n'
-        '  if [ "$previous" = "-f" ]; then\n'
-        '    printf "%s\\n" "$argument" > "$ETHOS_TEST_SIGNER_RECORD"\n'
-        "  fi\n"
-        '  previous="$argument"\n'
-        "done\n"
-        'exec /usr/bin/ssh-keygen "$@"\n',
+def _write_commit_policy(repo: Path, *, signing_required: bool) -> None:
+    (repo / ".ethos/workspace.toml").write_text(
+        "[commit_policy]\n"
+        'subject_pattern = "^fix: .+"\n'
+        f"signing_required = {str(signing_required).lower()}\n"
+        'signing_format = "ssh"\n',
         encoding="utf-8",
     )
-    signer.chmod(0o755)
-    home = tmp_path / "home"
-    home.mkdir()
-    (home / ".gitconfig").write_text(
-        f'[gpg "ssh"]\n\tprogram = {signer}\n',
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("HOME", str(home))
-    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(home / ".gitconfig"))
-    monkeypatch.setenv("ETHOS_TEST_SIGNER_RECORD", str(signer_record))
-    monkeypatch.delenv("SSH_AUTH_SOCK", raising=False)
-    git(repo, "config", "commit.gpgsign", "true")
-    git(repo, "config", "gpg.format", "ssh")
-    git(repo, "config", "user.signingkey", str(public_key))
-    monkeypatch.setattr(runtime, "hook_runtime_binding", lambda _root: {"required_gaps": []})
-
-    result = commit_git_worktree(repo, previous=previous, message="fix: signed effect")
-
-    assert result == {"verdict": "pass", "error": ""}
-    assert git(repo, "rev-parse", "HEAD") != previous
-    assert signer_record.read_text(encoding="utf-8").strip() == str(public_key)
 
 
 def test_create_git_commit_inherits_effective_signing_configuration(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, previous = _staged_repo(tmp_path)
+    _write_commit_policy(repo, signing_required=True)
     public_key = repo / "signing-key.pub"
     public_key.write_text("ssh-ed25519 AAAATEST exact-signing-key\n", encoding="utf-8")
-    git(repo, "config", "commit.gpgsign", "true")
-    git(repo, "config", "gpg.format", "ssh")
     git(repo, "config", "user.signingkey", public_key.as_posix())
     monkeypatch.setattr(
         git_signing,
@@ -229,7 +91,7 @@ def test_create_git_commit_inherits_effective_signing_configuration(
             "-p",
             previous,
             "-m",
-            "bootstrap Commitment v2",
+            "fix: bind signing policy",
         )
         environment = kwargs["env"]
         assert isinstance(environment, dict)
@@ -240,17 +102,19 @@ def test_create_git_commit_inherits_effective_signing_configuration(
         repo,
         tree=git(repo, "write-tree"),
         parent=previous,
-        message="bootstrap Commitment v2",
+        message="fix: bind signing policy",
         runner=capture_commit,
     )
 
     assert calls == [
         {
-            "GIT_CONFIG_COUNT": "2",
-            "GIT_CONFIG_KEY_0": "gpg.format",
-            "GIT_CONFIG_VALUE_0": "ssh",
-            "GIT_CONFIG_KEY_1": "user.signingkey",
-            "GIT_CONFIG_VALUE_1": "key::ssh-ed25519 AAAATEST exact-signing-key",
+            "GIT_CONFIG_COUNT": "3",
+            "GIT_CONFIG_KEY_0": "commit.gpgSign",
+            "GIT_CONFIG_VALUE_0": "true",
+            "GIT_CONFIG_KEY_1": "gpg.format",
+            "GIT_CONFIG_VALUE_1": "ssh",
+            "GIT_CONFIG_KEY_2": "user.signingkey",
+            "GIT_CONFIG_VALUE_2": "key::ssh-ed25519 AAAATEST exact-signing-key",
         }
     ]
 
@@ -292,6 +156,7 @@ def test_create_git_commit_preserves_exact_multiline_message(tmp_path: Path) -> 
 
 def test_create_git_commit_rejects_untrusted_signed_object(tmp_path: Path) -> None:
     repo, previous = _staged_repo(tmp_path)
+    _write_commit_policy(repo, signing_required=True)
     signing_key = tmp_path / "untrusted-signing-key"
     subprocess.run(
         ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(signing_key)),
@@ -302,8 +167,6 @@ def test_create_git_commit_rejects_untrusted_signed_object(tmp_path: Path) -> No
     empty_anchor = tmp_path / "allowed-signers"
     empty_anchor.write_text("", encoding="utf-8")
     empty_anchor.chmod(0o600)
-    git(repo, "config", "commit.gpgsign", "true")
-    git(repo, "config", "gpg.format", "ssh")
     git(repo, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
     git(repo, "config", "gpg.ssh.allowedSignersFile", empty_anchor.as_posix())
     git(repo, "config", "user.signingkey", signing_key.with_suffix(".pub").as_posix())
@@ -312,7 +175,7 @@ def test_create_git_commit_rejects_untrusted_signed_object(tmp_path: Path) -> No
         repo,
         tree=git(repo, "write-tree"),
         parent=previous,
-        message="bootstrap Commitment v2",
+        message="fix: bind signing policy",
     )
 
     assert completed.returncode == 1

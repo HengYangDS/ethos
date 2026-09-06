@@ -151,8 +151,6 @@ jobs:
           version: "0.12.10"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
-      - name: Configure governed checkout
-        run: tools/ci/scripts/configure-git-checkout.sh
       - name: OpenSpec strict validation
         run: openspec validate --all --strict --json
       - name: HEAD-bound proof receipt

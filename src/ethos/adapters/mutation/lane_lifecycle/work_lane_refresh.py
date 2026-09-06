@@ -16,6 +16,8 @@ from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_signing import commit_environment
+from ethos.adapters.repo.git_signing import validate_commits
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
@@ -29,9 +31,11 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.repository.policy.commit import load_commit_policy
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
+    from ethos.repository.policy.commit import CommitPolicy
 
 
 def _candidate_worktree_gap(candidate: dict[str, object], candidate_path: str) -> str:
@@ -163,44 +167,33 @@ def _refresh_work_lane(
     current_head: str,
 ) -> dict[str, object]:
     branch, candidate_branch, candidate_head, _candidate_path = context
-    snapshot_gaps = [
-        f"refresh_base_snapshot_stale:{name}"
-        for name, ref, admitted in (
-            ("work_lane", "HEAD", current_head),
-            ("candidate", candidate_branch, candidate_head),
-        )
-        if (
-            current_tracked_head(root)
-            if ref == "HEAD"
-            else run_git(root, "rev-parse", ref, check=False).stdout.strip()
-        )
-        != admitted
-    ]
+    snapshot_gaps = _refresh_snapshot_gaps(root, current_head, candidate_branch, candidate_head)
     if snapshot_gaps:
         return _report(context, current_head, "blocked", snapshot_gaps)
+    try:
+        commit_policy = load_commit_policy(root)
+        signing_required = commit_policy is not None and commit_policy.signing_required
+        environment = commit_environment(root, None) if signing_required else None
+    except (TypeError, ValueError) as error:
+        return _report(context, current_head, "blocked", [str(error)])
     completed = run_git(
         root,
         "-c",
         "rebase.updateRefs=false",
-        "-c",
-        "commit.gpgSign=false",
         "rebase",
+        *(("-S",) if signing_required else ("--no-gpg-sign",)),
         candidate_head,
         current_head,
         check=False,
+        env=environment,
     )
     if completed.returncode != 0:
         run_git(root, "rebase", "--abort", check=False)
-        try:
-            _attach_work_lane(root, branch, current_head)
-            restore_gap: list[str] = []
-        except (OSError, ValueError):
-            restore_gap = ["refresh_base_worktree_restore_failed"]
         return _report(
             context,
             current_tracked_head(root),
             "blocked",
-            ["refresh_base_failed", *restore_gap],
+            ["refresh_base_failed", *_reattach_original_work_lane(root, branch, current_head)],
             stderr=completed.stderr.strip(),
         )
     rebased_head = current_tracked_head(root)
@@ -215,6 +208,85 @@ def _refresh_work_lane(
             next_action=(f"ethos status --root {shlex.quote(root.resolve().as_posix())} --json"),
             stderr="candidate head is not an ancestor of refreshed work-lane head",
         )
+    policy_gaps = _replayed_policy_gaps(root, candidate_head, rebased_head, commit_policy)
+    if policy_gaps:
+        return _report(
+            context,
+            current_tracked_head(root),
+            "blocked",
+            [*policy_gaps, *_restore_original_work_lane(root, branch, current_head)],
+            previous_head=current_head,
+        )
+    return _complete_refresh(root, context, current_head, rebased_head)
+
+
+def _refresh_snapshot_gaps(
+    root: Path,
+    current_head: str,
+    candidate_branch: str,
+    candidate_head: str,
+) -> list[str]:
+    """Return stale coordinates before native rebase starts."""
+    observed = {
+        "work_lane": current_tracked_head(root),
+        "candidate": run_git(root, "rev-parse", candidate_branch, check=False).stdout.strip(),
+    }
+    admitted = {"work_lane": current_head, "candidate": candidate_head}
+    return [
+        f"refresh_base_snapshot_stale:{name}"
+        for name, value in observed.items()
+        if value != admitted[name]
+    ]
+
+
+def _replayed_policy_gaps(
+    root: Path,
+    candidate_head: str,
+    rebased_head: str,
+    policy: CommitPolicy | None,
+) -> list[str]:
+    """Validate the complete replay range through the tracked policy owner."""
+    if policy is None:
+        return []
+    revisions = tuple(
+        run_git(
+            root,
+            "rev-list",
+            "--reverse",
+            f"{candidate_head}..{rebased_head}",
+            check=False,
+        ).stdout.splitlines()
+    )
+    return validate_commits(root, revisions, policy=policy)
+
+
+def _reattach_original_work_lane(root: Path, branch: str, head: str) -> list[str]:
+    """Restore branch attachment after a native rebase failure."""
+    try:
+        _attach_work_lane(root, branch, head)
+    except (OSError, ValueError):
+        return ["refresh_base_worktree_restore_failed"]
+    return []
+
+
+def _restore_original_work_lane(root: Path, branch: str, head: str) -> list[str]:
+    """Restore the original tree and branch after rejected replay output."""
+    try:
+        compensate_git_worktree(root, head=head)
+        _attach_work_lane(root, branch, head)
+    except (OSError, ValueError):
+        return ["refresh_base_worktree_restore_failed"]
+    return []
+
+
+def _complete_refresh(
+    root: Path,
+    context: tuple[str, str, str, str],
+    current_head: str,
+    rebased_head: str,
+) -> dict[str, object]:
+    """Apply and attest the admitted ref and worktree effects."""
+    branch, candidate_branch, candidate_head, _candidate_path = context
     rebase_attestation = _rebase_attestation(
         root,
         branch=branch,
@@ -239,17 +311,14 @@ def _refresh_work_lane(
             detached_branch=branch,
         )
     except (OSError, ValueError) as error:
-        try:
-            compensate_git_worktree(root, head=current_head)
-            _attach_work_lane(root, branch, current_head)
-            restore_gap: list[str] = []
-        except (OSError, ValueError):
-            restore_gap = ["refresh_base_worktree_restore_failed"]
         return _report(
             context,
             current_tracked_head(root),
             "blocked",
-            ["refresh_base_snapshot_stale:work_lane", *restore_gap],
+            [
+                "refresh_base_snapshot_stale:work_lane",
+                *_restore_original_work_lane(root, branch, current_head),
+            ],
             plan_digest=plan.digest,
             previous_head=current_head,
             stderr=str(error),

@@ -23,7 +23,6 @@ ethos = "ethos.cli:main"
 
 [dependency-groups]
 dev = [
-  "check-jsonschema>=0.38.0",
   "codespell>=2.4.3",
   "deptry>=0.25.1",
   "hatchling>=1.32.0",
@@ -67,7 +66,7 @@ packages = ["src/ethos"]
 "pyproject.toml" = "ethos/data/runtime-project/pyproject.toml"
 "uv.lock" = "ethos/data/runtime-project/uv.lock"
 "VERSION" = "ethos/data/runtime-project/VERSION"
-"system/schemas/kernel" = "ethos/data/schemas/kernel"
+"system/schemas" = "ethos/data/schemas"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 path = "tools/ci/openspec_runtime_hook.py"

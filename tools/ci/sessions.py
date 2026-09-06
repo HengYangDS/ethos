@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -16,6 +17,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
+from ethos.repository.policy.schema import schema_validation_report
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
 
@@ -61,7 +63,8 @@ PUBLIC_SESSIONS = (
 
 def _paths(*patterns: str) -> tuple[str, ...]:
     output = subprocess.check_output(("git", "ls-files", "-z", *patterns), cwd=ROOT)
-    return tuple(item.decode() for item in output.split(b"\0") if item)
+    paths = tuple(item.decode() for item in output.split(b"\0") if item)
+    return tuple(path for path in paths if (ROOT / path).is_file())
 
 
 def _python_paths(session) -> tuple[str, ...]:
@@ -253,15 +256,12 @@ def import_boundaries(session) -> None:
 
 
 def schemas(session) -> None:
-    session.run(
-        sys.executable,
-        "-m",
-        "check_jsonschema",
-        "--check-metaschema",
-        *sorted(str(path) for path in ROOT.glob("system/schemas/**/*.json")),
-        "-o",
-        "json",
-    )
+    report = schema_validation_report(ROOT)
+    session.log(json.dumps(report, sort_keys=True))
+    if report["verdict"] != "pass":
+        session.error(
+            "schema validation failed: " + ", ".join(str(gap) for gap in report["required_gaps"])
+        )
 
 
 def local_ci(session) -> None:

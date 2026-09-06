@@ -34,15 +34,12 @@ def test_stage_paths_rejects_empty_and_preserves_runner_error(tmp_path: Path) ->
         )
 
 
-def test_stage_and_commit_worktree_reject_stale_head_and_git_failure(
+def test_stage_worktree_rejects_stale_head_and_git_failure(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(effects, "current_tracked_head", lambda _root: "observed")
     with pytest.raises(ValueError, match="git_effect_head_stale"):
         effects.stage_git_worktree(tmp_path, previous="expected")
-    with pytest.raises(ValueError, match="git_effect_head_stale"):
-        effects.commit_git_worktree(tmp_path, previous="expected", message="change")
-
     monkeypatch.setattr(effects, "run_git", lambda *_args, **_kwargs: _completed(1))
     with pytest.raises(ValueError, match="git_effect_stage_failed"):
         effects.stage_git_worktree(tmp_path, previous="observed")

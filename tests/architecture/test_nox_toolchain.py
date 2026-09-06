@@ -92,6 +92,65 @@ def test_lint_inventory_excludes_deleted_worktree_paths(
     assert all("deleted.py" not in call for call in calls[1:])
 
 
+def test_quality_inventory_excludes_deleted_worktree_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    alive = tmp_path / "alive.sh"
+    alive.write_text("#!/bin/sh\n", encoding="utf-8")
+    calls: list[tuple[object, ...]] = []
+
+    class Session:
+        def run(self, *args, **_kwargs):
+            calls.append(args)
+
+    monkeypatch.setattr(sessions, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        sessions.subprocess,
+        "check_output",
+        lambda *_args, **_kwargs: b"alive.sh\0deleted.sh\0",
+    )
+
+    sessions.shell_lint(Session())
+
+    assert calls[-1][-1] == "alive.sh"
+    assert "deleted.sh" not in calls[-1]
+
+
+def test_schema_gate_reuses_repository_validator(monkeypatch: pytest.MonkeyPatch) -> None:
+    reports: list[Path] = []
+    logs: list[str] = []
+
+    monkeypatch.setattr(
+        sessions,
+        "schema_validation_report",
+        lambda root: (
+            reports.append(root)
+            or {
+                "verdict": "pass",
+                "schema_count": 1,
+                "required_gaps": [],
+            }
+        ),
+        raising=False,
+    )
+
+    class Session:
+        def run(self, *_args, **_kwargs):
+            message = "schema validation must not spawn a second CLI owner"
+            raise AssertionError(message)
+
+        def log(self, message: str) -> None:
+            logs.append(message)
+
+        def error(self, message: str) -> None:
+            raise AssertionError(message)
+
+    sessions.schemas(Session())
+
+    assert reports == [sessions.ROOT]
+    assert logs
+
+
 def test_prose_executor_consumes_only_declared_policy_paths() -> None:
     calls = []
     sessions.prose(type("Session", (), {"run": lambda _, *args: calls.append(args)})())

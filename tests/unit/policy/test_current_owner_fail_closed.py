@@ -11,7 +11,6 @@ from ethos.repository.openspec.audit import changed_openspec_spec_obligation_rem
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.audit import protected_branch_active_change_report
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
-from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.commands import command_executables
@@ -68,48 +67,6 @@ def test_product_boundary_reports_native_metadata_and_identity_failures(tmp_path
         "distribution_file_scope_leak",
         "archival_local_workstation_path",
     } <= kinds
-
-    _write(tmp_path / ".ethos/workspace.toml", "[commit_policy\n")
-    malformed = contributor_policy_report(tmp_path)
-    assert malformed["verdict"] == "block"
-    assert malformed["required_gaps"][0].startswith("commit_policy_toml_invalid:")
-
-    _write(
-        tmp_path / ".ethos/workspace.toml",
-        """[commit_policy]
-identity_mode = "personal"
-expected_name = "Only One"
-allowed_identities = "not-a-list"
-""",
-    )
-    missing = contributor_policy_report(tmp_path)
-    assert missing["verdict"] == "block"
-    assert {gap.split(":", 1)[0] for gap in missing["required_gaps"]} >= {
-        "single_author_policy",
-        "identity_mode_not_external",
-        "allowed_identities_missing",
-    }
-
-    _write(
-        tmp_path / ".ethos/workspace.toml",
-        """[commit_policy]
-identity_mode = "external"
-
-[[commit_policy.allowed_identities]]
-role = "unknown"
-name = "<your-name-or-team>"
-email = "<your-approved-email>"
-""",
-    )
-    invalid_identity = contributor_policy_report(tmp_path)
-    identity_kinds = {finding["kind"] for finding in invalid_identity["findings"]}
-    assert invalid_identity["verdict"] == "block"
-    assert {
-        "maintainer_or_team_missing",
-        "automation_identity_missing",
-        "identity_role_unknown",
-        "identity_placeholder",
-    } <= identity_kinds
 
 
 def test_openspec_audit_preserves_unknown_and_blocks_native_shape_loss(tmp_path: Path) -> None:

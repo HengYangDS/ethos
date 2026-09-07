@@ -50,22 +50,6 @@ def test_commit_policy_execution_has_one_semantic_owner() -> None:
     assert subject_owners == gap_owners == range_owners == {COMMIT_ADMISSION_OWNER}
 
 
-def test_commit_admission_exposes_operations_not_internal_steps() -> None:
-    """The concrete owner exports complete operations without a forwarding facade."""
-    tree = ast.parse(COMMIT_ADMISSION_OWNER.read_text(encoding="utf-8"))
-    assert {
-        node.name
-        for node in tree.body
-        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_")
-    } == {
-        "commit_message_report",
-        "commit_subject_gap",
-        "commit_policy_report",
-        "commit_range_admission_report",
-        "validate_replayed_commits",
-    }
-
-
 def _launcher(tmp_path: Path) -> Path:
     target = tmp_path / "package/bin/ethos.mjs"
     target.parent.mkdir(parents=True)

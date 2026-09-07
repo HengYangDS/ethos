@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -162,6 +163,48 @@ def test_launcher_drift_fails_closed(tmp_path: Path, payload: bytes) -> None:
     observed = hook_runtime_binding(repo)
 
     assert observed["required_gaps"] == ["write_admission_not_armed:pre-push_launcher_drift"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        None,
+        "invalid json",
+        [],
+        {},
+        {"scripts": []},
+        {"scripts": ["pre-commit", "pre-commit"], "launchers": {}},
+        {"scripts": [1], "launchers": {}},
+        {"scripts": ["pre-commit"], "launchers": {"pre-commit": 1}},
+        {
+            "scripts": ["pre-commit"],
+            "launchers": {"pre-commit": "text"},
+            "generation_digest": "wrong",
+        },
+    ],
+)
+def test_unreadable_selected_hook_contract_never_arms_admission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, payload: object
+) -> None:
+    repo, _generation = _fixture(tmp_path)
+    monkeypatch.setattr(
+        hook_binding,
+        "run_command",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            (),
+            1 if payload is None else 0,
+            payload if isinstance(payload, str) else json.dumps(payload),
+            "broken contract",
+        ),
+    )
+
+    observed = hook_runtime_binding(repo)
+
+    assert observed["current"] is False
+    assert (
+        "write_admission_not_armed:runtime_hook_contract_unavailable" in observed["required_gaps"]
+    )
+    assert "hook install" in observed["next_action"]
 
 
 @pytest.mark.parametrize("configured_form", ["absolute", "relative"])

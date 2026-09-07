@@ -288,7 +288,12 @@ decisions merely because a new example uses different filenames.
 This file owns the current dependency order above; archived Changes are evidence
 of completed or abandoned work, never the current queue. Each batch receives one
 coherent official OpenSpec Change whose `tasks.md` owns only that batch's
-progress. A Change splits when its outcomes are independently useful or require
+pre-archive implementation and verification progress. Exact-current full proof
+remains an executable archive precondition, not a checkbox assertion. Effects
+that require the archive to exist remain pending here until their own evidence
+is observed; putting those effects into the pre-archive completion predicate
+creates a causal cycle. Archive alone never closes the implementation atom.
+A Change splits when its outcomes are independently useful or require
 different owners, not because a file or line-count threshold was crossed.
 
 Every implementation atom follows the same bounded route:
@@ -319,13 +324,23 @@ The current bounded implementation is `commit-policy-execution-closure`.
 Its deep-module convergence must retain one declaration/compiler, hide replay
 range and per-object validation sequencing, preserve explicit candidate-policy
 and signer-trust authority, and keep native hooks and hosted CI as transports.
-Its `tasks.md` owns verification and closeout progress. Complete its exact
+Its `tasks.md` owns pre-archive verification progress. Complete its exact
 proof, archive/reproof, candidate/accepted CAS, immutable-runtime readback,
 publication, and owned-lane retirement before another overlapping mutation.
 Then re-observe remaining lanes and worktrees, preserve their unique semantics,
 and absorb or retire them through existing public transitions. Unproven global
 structure obligations remain in batch 6; this first instance does not close
 that batch. No new lane is justified solely to restate this principle.
+
+Current closeout evidence, not a second task system:
+
+| Boundary | Last verified state | Required next evidence |
+| --- | --- | --- |
+| Repository proof | `bed87c044` passed 24/25 gates; combined coverage was 92.76%, below the unchanged 93% floor | Passing complete proof on the next exact clean HEAD, including lossless behavioral coverage after test consolidation |
+| Archive and acceptance | Not performed for this Change | Official archive, post-archive proof, and candidate/accepted CAS receipts |
+| Package/runtime | Source alpha.5 not accepted | Exact accepted source/tree, new immutable package identity, four-hook activation, and installed readback |
+| Peer projections | Not published for this Change | Every declared peer at the same accepted OID, with GitHub and GitLab results observed independently |
+| Lane residue | Current lane remains; seven other historical worktrees were observed, five dirty | Current-lane retirement, then unique-semantics disposition and exact retirement of remaining owned residue without discarding dirty work |
 
 ## Convergence Rules
 

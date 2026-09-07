@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.runtime.source as source
+from ethos.adapters.repo.runtime.binding import runner_source_root
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 
@@ -32,6 +33,15 @@ def test_source_identity_ignores_an_inherited_foreign_git_directory(
     expected = (git(repository, "rev-parse", "HEAD"), git(repository, "rev-parse", "HEAD^{tree}"))
     monkeypatch.setenv("GIT_DIR", git(foreign, "rev-parse", "--absolute-git-dir"))
     assert source.source_git_identity(repository) == expected
+    assert runner_source_root(repository / "tracked.txt") == repository
+    module = repository / "untracked/ethos.py"
+    module.parent.mkdir()
+    module.touch()
+    assert runner_source_root(module) == module.parent
+    packaged = tmp_path / "site-packages/ethos/__init__.py"
+    packaged.parent.mkdir(parents=True)
+    packaged.touch()
+    assert runner_source_root(packaged) == packaged.parent
 
 
 def test_content_policy_keeps_checkout_identity_host_portable(tmp_path: Path) -> None:

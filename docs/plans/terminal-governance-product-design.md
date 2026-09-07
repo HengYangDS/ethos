@@ -447,6 +447,20 @@ and the existing budget; then freeze source for a fresh full proof. No focused
 dataset, arithmetic extrapolation, or old proof establishes 95-percent product
 coverage. Archive/reproof and accepted/runtime advancement remain pending.
 
+The scope batch retains exact metadata-only bootstrap, official validation
+repair, missing/linked/ambiguous output rejection, and accepted-root unknown
+intent behavior. It adds independently selected invalid command observations,
+incomplete artifacts, foreign Commitment identity, and committed-source failure
+cases through the current resolver, without a new scope carrier. The selected
+file now has 80 cases; the five-file admission/OpenSpec regression set passed
+103 tests. That set measures 98.07-percent local scope coverage, not global
+coverage. Isolated removal of validation-observation or Commitment-identity
+guards produces the expected refusal-regression failures. Consolidation removes
+22 net test lines; the enforced test budget is 38288/38300. Product code and the
+native coverage denominator are unchanged in this batch. Continue with the
+uncovered runtime activation/materialization failure behavior; retain the full
+95-percent acceptance hold and do not merge diagnostic coverage databases.
+
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a
 threshold reduction. This section owns execution order; the official Change

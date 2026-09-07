@@ -537,10 +537,32 @@ regression to fail. Two test files lose 13 net physical lines and retain the
 The installed accepted runtime still rejects the already-corrected retained
 module identity during full-proof readiness, whereas the source CLI reports
 only that execution is required. This is a verifier-version difference, not an
-admission exemption. Freeze this batch, run the current-source public full proof
-at its exact HEAD, and use the fresh complete result to select remaining work.
-Do not combine diagnostic datasets or infer global compliance from these local
-percentages. Archive, accepted CAS, and runtime activation remain held at 95.
+admission exemption. The current-source full proof has now completed at
+`48d73d29fb3929d4254ff56997982a9b3ef22c15`, with the source unchanged throughout:
+2345 tests passed, one skipped, and 24 of 25 gates passed. The sole failure is
+`coverage-floor`. Its `proof:execution` Attestation
+`38e5a82539c3663f79579662603e1ebaf7255c1327ca644d1ba386f19f27bde1`
+has verdict `block` and mints no authority. Installation smoke passed and the
+observed pytest temporary root was removed.
+
+This complete measurement supersedes the older full baseline for selecting
+work: 18947/19803 statements and 4955/5520 branches are covered, for combined
+coverage of 94.38850057260198 percent. At this denominator, at least 155 more
+obligations must be covered to reach 95 percent. That arithmetic is a planning
+lower bound, not evidence that any proposed batch meets the floor. Exact proof,
+JUnit, and native coverage evidence remain under the existing ignored
+`build/evidence/quality/` owner, including
+`coverage-floor-focused/full-proof-48d73d29fb39.json`.
+
+Next, test the uncovered lifecycle admission and compensation behavior in
+Work Lane creation and official archive resolution. Reuse and consolidate their
+existing fixtures, preserve every unique scenario, and retain the 38300 test
+ELOC cap. If a new behavior defect is exposed, demonstrate RED before repairing
+its owner. Use separate diagnostic data to select the next coherent batch;
+then freeze the source for another complete proof. Do not combine diagnostic
+datasets or infer global compliance from local percentages. Archive, accepted
+CAS, and runtime activation remain held at 95; accepted `18aa8707` still carries
+the old 93-percent policy until this correction actually qualifies for landing.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

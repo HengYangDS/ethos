@@ -12,11 +12,13 @@ from cyclopts import Parameter
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
-from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
-from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_takeover
+from ethos.adapters.mutation.lane_lifecycle.lease.acquisition import reacquire_lease
+from ethos.adapters.mutation.lane_lifecycle.lease.operation import execute_lease_operation
+from ethos.adapters.mutation.lane_lifecycle.lease.takeover import execute_lease_takeover
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.coordination import LeaseTakeoverRequest
 from ethos.contracts.semantic import Attestation
+from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
@@ -133,6 +135,44 @@ def lane_lease_renew(options: Annotated[_RenewOptions, Parameter(name="*")]) -> 
 def lane_lease_resume(options: Annotated[_ResumeOptions, Parameter(name="*")]) -> None:
     """Resume an expired Lease for the same holder and generation."""
     execute_declared_lease_operation(options)
+
+
+@_app.command(name="reacquire")
+def lane_lease_reacquire(
+    *,
+    path: pathlib.Path,
+    holder_ref: str,
+    root: RootOption | None = None,
+    expect_head: str = "",
+    expect_snapshot: str = "",
+    expires_at: str = "",
+    authorize: bool = False,
+    apply: bool = False,
+    json_output: JsonFlag = False,
+) -> None:
+    """Derive or acquire missing coordination without changing retained content."""
+    report = reacquire_lease(
+        root=resolve_root(root),
+        path=path,
+        holder_ref=holder_ref,
+        expect_head=expect_head,
+        expect_snapshot=expect_snapshot,
+        expires_at=expires_at,
+        authorize=authorize,
+        apply=apply,
+    )
+    emit(
+        EthosResult(
+            command="lane lease reacquire",
+            verdict=report_verdict(report),
+            state=str(report["state"]),
+            required_gaps=tuple(string_sequence(report.get("required_gaps"))),
+            next_action=str(report.get("next_action") or ""),
+            data=report,
+            user_decision_required=not apply and report["verdict"] == "pass",
+        ),
+        json_output=json_output,
+    )
 
 
 @_app.command(name="takeover")

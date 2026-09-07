@@ -68,6 +68,17 @@ def test_current_product_boundary_reports_close_without_unowned_references() -> 
     assert closure["verdict"] == "pass", closure["required_gaps"]
 
 
+def test_product_boundary_requires_an_explicit_distribution_allowlist(tmp_path: Path) -> None:
+    """An npm bin declaration alone cannot authorize an unrestricted package payload."""
+    path = tmp_path / "distributions/npm/package.json"
+    path.parent.mkdir(parents=True)
+    path.write_text('{"bin": {"ethos": "bin/ethos.mjs"}}', encoding="utf-8")
+    report = product_boundary_report(tmp_path)
+    assert report["required_gaps"] == [
+        "distribution_files_allowlist_missing:distributions/npm/package.json:1"
+    ]
+
+
 def test_npm_launcher_prefers_the_bound_source_checkout(tmp_path: Path) -> None:
     if not (node := shutil.which("node")):
         pytest.skip("node is unavailable")

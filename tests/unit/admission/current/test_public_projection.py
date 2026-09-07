@@ -4,6 +4,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
+from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.coordination import LeaseOperationRequest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import init_git_repo
@@ -17,6 +21,7 @@ if TYPE_CHECKING:
     ("actor", "gap", "decision_state"),
     [
         (None, "invocation_actor_missing:work/feature", "automatic"),
+        ("agent:test:case:agent-a", "work_lane_missing_lease:work/feature", "await-user"),
         ("agent:test:case:other", "lease_holder_mismatch:work/feature", "await-user"),
     ],
 )
@@ -35,39 +40,39 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
         monkeypatch.delenv("ETHOS_ACTOR", raising=False)
     else:
         monkeypatch.setenv("ETHOS_ACTOR", actor)
+    if gap.startswith("work_lane_missing_lease:"):
+        lease = leases_by_branch(lane)["work/feature"]
+        revoke_lease(
+            state_database(lane),
+            request=LeaseOperationRequest(
+                operation="revoke",
+                branch="work/feature",
+                holder_ref=actor,
+                generation=lease["generation"],
+                expires_at=lease["expires_at"],
+                apply=True,
+            ),
+        )
     path = "README.md"
     editor_root = lane.resolve().as_posix()
 
-    results = (
-        run_ethos("status", "--json", cwd=lane),
-        run_ethos("plan", "--changed", "--json", cwd=lane),
-        run_ethos_blocked(
-            "lane",
-            "prewrite",
-            path,
-            "--editor-root",
-            editor_root,
-            "--require-editor-root",
-            "--json",
-            cwd=lane,
-        ),
-        run_ethos_blocked(
-            "hook",
-            "admit",
-            "pre-tool",
-            path,
-            "--editor-root",
-            editor_root,
-            "--require-editor-root",
-            "--json",
-            cwd=lane,
-        ),
-        run_ethos_blocked("prove", "--json", cwd=lane),
+    path_arguments = (path, "--editor-root", editor_root, "--require-editor-root", "--json")
+    results = tuple(
+        runner(*arguments, cwd=lane)
+        for runner, arguments in (
+            (run_ethos, ("status", "--json")),
+            (run_ethos, ("plan", "--changed", "--json")),
+            (run_ethos_blocked, ("lane", "prewrite", *path_arguments)),
+            (run_ethos_blocked, ("hook", "admit", "pre-tool", *path_arguments)),
+            (run_ethos_blocked, ("prove", "--json")),
+        )
     )
 
     assert {result["required_gaps"][0] for result in results} == {gap}
     assert {result["next_action"] for result in results} == {
-        "export ETHOS_ACTOR=agent:test:case:agent-a"
+        (f"ethos lane lease reacquire --path {lane} --holder-ref {actor} --root {lane} --json")
+        if gap.startswith("work_lane_missing_lease:")
+        else "export ETHOS_ACTOR=agent:test:case:agent-a"
     }
     assert {result["user_decision_required"] for result in results} == {
         decision_state == "await-user"

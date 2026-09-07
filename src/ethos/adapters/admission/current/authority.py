@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -34,6 +35,22 @@ class CurrentAuthority:
     def recovery(self, root: Path) -> tuple[str, bool]:
         """Return the sole public recovery command and decision boundary."""
         holder = str(self.lease.get("holder_ref") or "").strip()
+        if self.reason.startswith("work_lane_missing_lease:") and self.actor:
+            return shlex.join(
+                (
+                    "ethos",
+                    "lane",
+                    "lease",
+                    "reacquire",
+                    "--path",
+                    str(root.resolve()),
+                    "--holder-ref",
+                    self.actor,
+                    "--root",
+                    str(root.resolve()),
+                    "--json",
+                )
+            ), True
         if self.reason.startswith("invocation_actor_missing:") and holder:
             return f"export ETHOS_ACTOR={holder}", False
         if self.reason.startswith("lease_holder_mismatch:") and holder:

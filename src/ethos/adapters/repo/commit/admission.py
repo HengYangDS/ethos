@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 _POLICY_PATH = ".ethos/workspace.toml"
 
 
-def indexed_commit_policy(root: Path) -> CommitPolicy | None:
+def _indexed_commit_policy(root: Path) -> CommitPolicy | None:
     """Compile commit policy from the exact prospective Git index tree."""
     listed = run_git(
         root,
@@ -67,7 +67,7 @@ def commit_message_report(root: Path, message_file: Path) -> dict[str, object]:
         subject = path.read_text(encoding="utf-8").partition("\n")[0]
     except (OSError, UnicodeError):
         return _blocked("commit_message_unreadable")
-    policy = indexed_commit_policy(root)
+    policy = _indexed_commit_policy(root)
     if policy is None:
         return _passed("policy_not_declared")
     if gap := commit_subject_gap(policy, subject):
@@ -89,10 +89,24 @@ def commit_subject_gap(
     return f"commit_subject_invalid:{coordinate}{first_line}"
 
 
-def head_commit_policy_report(root: Path, policy: CommitPolicy) -> dict[str, object]:
-    """Evaluate current HEAD facts through the shared commit-policy validator."""
-    observation = observe_commit(root)
-    object_oid = str(observation.get("object_oid") or "")
+def commit_policy_report(
+    root: Path,
+    policy: CommitPolicy | None,
+    revision: str = "HEAD",
+    *,
+    verify_trust: bool = False,
+) -> dict[str, object]:
+    """Observe and admit one object under an explicitly selected authority policy."""
+    if policy is None:
+        return {
+            "verdict": "pass",
+            "state": "policy_not_declared",
+            "head": {},
+            "signature": {},
+            "required_gaps": [],
+        }
+    observation = observe_commit(root, revision)
+    object_oid = str(observation.get("object_oid") or revision)
     subject = str(observation.get("subject") or "")
     head = {
         key: observation.get(key, {}) for key in ("object_oid", "subject", "author", "committer")
@@ -106,6 +120,9 @@ def head_commit_policy_report(root: Path, policy: CommitPolicy) -> dict[str, obj
         cast("dict[str, object]", observation.get("signature", {})),
     )
     gaps.extend(cast("list[str]", signature["required_gaps"]))
+    if verify_trust and policy.signing_required and not gaps:
+        trust = verify_commit_trust(root, object_oid)
+        gaps.extend(str(gap) for gap in cast("list[object]", trust.get("required_gaps", [])))
     return {
         "verdict": "block" if gaps else "pass",
         "state": str(observation.get("state") or "unknown"),
@@ -186,7 +203,7 @@ def commit_range_admission_report(
             update_kind=update_kind,
             gap=str(error),
         )
-    revisions = introduced_commit_revisions(
+    revisions = _introduced_commit_revisions(
         repo,
         proposed_commit=proposed_commit,
         baseline_commit=baseline,
@@ -204,7 +221,7 @@ def commit_range_admission_report(
             update_kind=update_kind,
             gap=f"commit_range_unreadable:{baseline}:{proposed_commit}",
         )
-    violations, gaps = validate_commit_revisions(
+    violations, gaps = _validate_commit_revisions(
         repo,
         revisions,
         policy=policy,
@@ -228,7 +245,28 @@ def commit_range_admission_report(
     )
 
 
-def validate_commit_revisions(
+def validate_replayed_commits(
+    root: Path,
+    *,
+    baseline_commit: str,
+    proposed_commit: str,
+    policy: CommitPolicy | None,
+) -> list[str]:
+    """Admit a complete replay under its preselected candidate policy and signer trust."""
+    if policy is None:
+        return []
+    revisions = _introduced_commit_revisions(
+        root, proposed_commit=proposed_commit, baseline_commit=baseline_commit
+    )
+    if revisions is None:
+        return [f"commit_range_unreadable:{baseline_commit}:{proposed_commit}"]
+    _violations, gaps = _validate_commit_revisions(
+        root, revisions, policy=policy, verify_trust=True
+    )
+    return gaps
+
+
+def _validate_commit_revisions(
     root: Path,
     revisions: tuple[str, ...],
     *,
@@ -241,24 +279,9 @@ def validate_commit_revisions(
     violations: list[dict[str, object]] = []
     gaps: list[str] = []
     for revision in revisions:
-        observation = observe_commit(root, revision)
-        commit_gaps = [
-            str(gap) for gap in cast("list[object]", observation.get("required_gaps", []))
-        ]
-        subject = str(observation.get("subject") or "")
-        if not commit_gaps and (gap := commit_subject_gap(policy, subject, revision=revision)):
-            commit_gaps.append(gap)
-        signature = _signature_policy_report(
-            policy,
-            revision,
-            cast("dict[str, object]", observation.get("signature", {})),
-        )
-        commit_gaps.extend(cast("list[str]", signature["required_gaps"]))
-        if verify_trust and policy.signing_required and not commit_gaps:
-            trust = verify_commit_trust(root, revision)
-            commit_gaps.extend(
-                str(gap) for gap in cast("list[object]", trust.get("required_gaps", []))
-            )
+        report = commit_policy_report(root, policy, revision, verify_trust=verify_trust)
+        commit_gaps = cast("list[str]", report["required_gaps"])
+        subject = str(cast("dict[str, object]", report["head"]).get("subject") or "")
         if commit_gaps:
             violations.append(
                 {"commit": revision, "subject": subject, "required_gaps": commit_gaps}
@@ -420,7 +443,7 @@ def _blob_text(root: Path, object_id: str, *, gap: str) -> str:
         raise ValueError(gap) from error
 
 
-def introduced_commit_revisions(
+def _introduced_commit_revisions(
     root: Path,
     *,
     proposed_commit: str,

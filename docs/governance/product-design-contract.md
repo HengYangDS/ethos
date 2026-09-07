@@ -62,6 +62,24 @@ only when it removes more product-specific machinery than it introduces and
 leaves one inspectable owner and verifier. Otherwise the smallest direct
 implementation is more truthful.
 
+Design boundaries as deep modules: a small, stable interface provides a complete
+capability while its owner hides the implementation decisions needed to deliver
+it. This is a product-wide obligation, not a rule for one Change or Python
+package. It governs code, commands, runtime and effect protocols, schemas,
+documentation, rules, skills, and rendered or hosted projections. Consumers
+must not reconstruct an owner's algorithm, recovery sequence, or policy from
+its fragments. Required authority inputs, effects, failure evidence, and
+continuations remain explicit; information hiding must not conceal them.
+
+A thin transport is legitimate when it owns a real protocol or presentation
+boundary and delegates semantics. A forwarding layer with no independent
+obligation is not. Interface count, file length, directory width, and net lines
+are review signals, never substitutes for reasoning about information hiding,
+change amplification, or preserved behavior. Global principles apply to every
+affected owner immediately; bounded Changes limit execution scope, not their
+applicability. Deleting a defective implementation must preserve its required
+product capability and unique evidence.
+
 Terminal correctness outranks historical compatibility. When a model boundary
 changes, migrate only still-live state whose meaning can be proved, move its
 unique invariant into the replacement owner, and delete aliases, shims,

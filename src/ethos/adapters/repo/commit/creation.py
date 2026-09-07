@@ -8,9 +8,10 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
+from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.admission import commit_subject_gap
-from ethos.adapters.repo.commit.admission import validate_commit_revisions
 from ethos.adapters.repo.git import run_git
 from ethos.repository.policy.commit import load_commit_policy
 
@@ -112,10 +113,13 @@ def create_git_commit(
     if completed.returncode or not sign:
         return completed
     revision = completed.stdout.strip()
-    _violations, gaps = (
-        validate_commit_revisions(root, (revision,), policy=policy, verify_trust=True)
+    gaps = (
+        cast(
+            "list[str]",
+            commit_policy_report(root, policy, revision, verify_trust=True)["required_gaps"],
+        )
         if revision
-        else ([], ["git_effect_signed_commit_missing"])
+        else ["git_effect_signed_commit_missing"]
     )
     if revision and not gaps:
         return completed

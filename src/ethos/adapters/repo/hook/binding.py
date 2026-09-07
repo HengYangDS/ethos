@@ -322,7 +322,7 @@ def _hook_contract(
         return None, "runtime_hook_contract_unavailable"
 
 
-def _selected_runtime_hook_contract(selected: SelectedRuntime) -> dict[str, object]:
+def _selected_runtime_hook_contract(selected: SelectedRuntime) -> HookContract:
     """Ask one immutable selected package for its exact generated hook contract."""
     program = """
 import json

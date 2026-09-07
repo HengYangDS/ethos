@@ -127,6 +127,23 @@ in its own admission module but receives the already-derived revisions; its
 private range walker and duplicate ancestry helper are deleted in favor of the
 canonical Git adapter.
 
+The product contract's deep-module obligation applies globally. This Change
+implements its commit-policy instance, not a new local design rule. The
+admission owner keeps index/blob interpretation, endpoint peeling, range walking,
+and per-revision aggregation private. One object report owns observation,
+subject/signature judgment, and optional trust verification; HEAD audit, object
+creation, and range validation consume it. Replay admission accepts exact
+candidate/proposed coordinates and the already selected candidate policy, then
+owns the complete range validation. Refresh retains rebase effects and
+compensation, not the admission algorithm. The explicit policy parameter
+preserves authority selection rather than hiding it behind an ambient lookup.
+
+Subject validation remains a public complete invariant because archive previews
+and creation both need it before object creation. Hooks and hosted commands
+remain thin native transports. Neither public-function count nor source length
+decides whether these boundaries are necessary; no facade or new module is
+introduced to disguise them.
+
 ### 6. Treat hooks and hosted jobs as projections
 
 The immutable hook generation expands from three to four launchers. Binding and

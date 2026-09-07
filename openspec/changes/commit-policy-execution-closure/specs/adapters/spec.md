@@ -8,6 +8,15 @@ commit-policy admission owner. No transport SHALL parse the subject expression,
 walk a distinct revision range, keep policy state, or define provider-local
 exceptions.
 
+#### Scenario: Lifecycle consumers admit a completed replay
+
+- **WHEN** refresh has produced a proposed commit from an exact candidate base
+- **THEN** it invokes one complete replay-admission operation with the selected
+  candidate policy and exact coordinates
+- **AND** the admission owner derives the range, judges each object, and checks
+  required signer trust without exposing those internal steps to refresh
+- **AND** refresh preserves its own compensation and Git-effect boundaries.
+
 #### Scenario: Hook installation converges the complete launcher set
 
 - **WHEN** `ethos hook install` activates a package runtime

@@ -8,8 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.repo.commit.admission import introduced_commit_revisions
-from ethos.adapters.repo.commit.admission import validate_commit_revisions
+from ethos.adapters.repo.commit.admission import validate_replayed_commits
 from ethos.adapters.repo.commit.creation import commit_environment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import committed_file_text
@@ -37,7 +36,6 @@ from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
-    from ethos.repository.policy.commit import CommitPolicy
 
 
 def _candidate_worktree_gap(candidate: dict[str, object], candidate_path: str) -> str:
@@ -212,7 +210,9 @@ def _refresh_work_lane(
             next_action=(f"ethos status --root {shlex.quote(root.resolve().as_posix())} --json"),
             stderr="candidate head is not an ancestor of refreshed work-lane head",
         )
-    policy_gaps = _replayed_policy_gaps(root, candidate_head, rebased_head, commit_policy)
+    policy_gaps = validate_replayed_commits(
+        root, baseline_commit=candidate_head, proposed_commit=rebased_head, policy=commit_policy
+    )
     if policy_gaps:
         return _report(
             context,
@@ -241,31 +241,6 @@ def _refresh_snapshot_gaps(
         for name, value in observed.items()
         if value != admitted[name]
     ]
-
-
-def _replayed_policy_gaps(
-    root: Path,
-    candidate_head: str,
-    rebased_head: str,
-    policy: CommitPolicy | None,
-) -> list[str]:
-    """Validate the complete replay range through the tracked policy owner."""
-    if policy is None:
-        return []
-    revisions = introduced_commit_revisions(
-        root,
-        proposed_commit=rebased_head,
-        baseline_commit=candidate_head,
-    )
-    if revisions is None:
-        return [f"commit_range_unreadable:{candidate_head}:{rebased_head}"]
-    _violations, gaps = validate_commit_revisions(
-        root,
-        revisions,
-        policy=policy,
-        verify_trust=True,
-    )
-    return gaps
 
 
 def _reattach_original_work_lane(root: Path, branch: str, head: str) -> list[str]:

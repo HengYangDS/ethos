@@ -100,11 +100,12 @@ def _resolve_report(
     *,
     root: Path = ROOT,
     paths: tuple[str, ...] = (),
+    role: str = "work_lane",
 ) -> CurrentResolution:
     monkeypatch.setattr(resolution_adapter, "openspec_governance_report", lambda *_a, **_k: report)
     return resolve_current_resolution(
         root,
-        status={"role": "work_lane", "head": HEAD, "changed_paths": []},
+        status={"role": role, "head": HEAD, "changed_paths": []},
         authority=_authority(),
         changed=False,
         prewrite_paths=paths,
@@ -116,12 +117,8 @@ def _active_change_validation_report(
     *,
     issue_level: str = "ERROR",
     issue_path: object = "repository-governance/spec.md",
-    item_id: str = "repair-change",
-    item_type: str = "change",
-    item_valid: bool = False,
     spec_outputs: tuple[str, ...] = ("specs/repository-governance/spec.md",),
     create_outputs: bool = True,
-    extra_gaps: tuple[str, ...] = (),
     additional_issues: tuple[dict[str, object], ...] = (),
 ) -> dict[str, object]:
     change = "repair-change"
@@ -142,7 +139,6 @@ def _active_change_validation_report(
         gaps=(
             f"openspec_validation_failed:change:{change}",
             f"commitment_invalid:{change}",
-            *extra_gaps,
         ),
         artifacts=tuple(_artifact(identifier, paths[0]) for identifier, paths in outputs.items()),
         commitment={},
@@ -160,9 +156,9 @@ def _active_change_validation_report(
         validate_payload={
             "items": [
                 {
-                    "id": item_id,
-                    "type": item_type,
-                    "valid": item_valid,
+                    "id": change,
+                    "type": "change",
+                    "valid": False,
                     "issues": [
                         {
                             "level": issue_level,
@@ -223,9 +219,12 @@ def test_current_resolution_owns_acceptance_and_fresh_paths(monkeypatch) -> None
     assert resolution.next_action == ""
 
 
+@pytest.mark.parametrize(
+    "gap", ["", "openspec_official_cli_missing", "openspec_acceptance_missing:example"]
+)
 def test_current_resolution_compiles_committed_source_intent_without_workspace_reread(
-    monkeypatch,
-) -> None:
+    monkeypatch, gap
+):
     commitment = commitment_fixture(id="change:example")
     calls: list[tuple[str | None, str | None]] = []
     monkeypatch.setattr(
@@ -238,6 +237,8 @@ def test_current_resolution_compiles_committed_source_intent_without_workspace_r
 
     def load(_root: Path, *, change_id: str | None, tree_ref: str | None = None):
         calls.append((change_id, tree_ref))
+        if gap:
+            raise ValueError(gap)
         return commitment
 
     monkeypatch.setattr(resolution_adapter, "load_profile_commitment", load)
@@ -249,43 +250,36 @@ def test_current_resolution_compiles_committed_source_intent_without_workspace_r
         changed=False,
         intent_tree_ref=HEAD,
     )
-    assert resolution.verdict == "pass"
-    assert resolution.commitment == commitment
-    assert resolution.openspec == {
-        "verdict": "pass",
-        "state": "committed_source",
-        "change": "example",
-        "source_head": HEAD,
-        "required_gaps": [],
-    }
     assert calls == [("example", HEAD)]
+    if gap:
+        assert resolution.verdict == "block"
+        assert resolution.commitment is None
+        assert resolution.required_gaps == (gap,)
+        assert resolution.next_action == (
+            "npm ci --ignore-scripts --no-audit --no-fund"
+            if gap == "openspec_official_cli_missing"
+            else "openspec status --change example --json"
+        )
+    else:
+        assert resolution.verdict == "pass"
+        assert resolution.commitment == commitment
+        assert resolution.openspec == {
+            "verdict": "pass",
+            "state": "committed_source",
+            "change": "example",
+            "source_head": HEAD,
+            "required_gaps": [],
+        }
 
 
-def test_current_resolution_preserves_unknown_official_intent_without_reinterpreting(
-    monkeypatch,
-) -> None:
-    monkeypatch.setattr(
-        resolution_adapter,
-        "openspec_governance_report",
-        lambda *_a, **_k: {
-            "verdict": "unknown",
-            "required_gaps": ["carrier_unreadable"],
-            "lifecycle": {"scope_binding": {}},
-        },
-    )
+def test_current_resolution_preserves_unknown_official_intent_without_reinterpreting(monkeypatch):
+    report = _official_report(gaps=("carrier_unreadable",)) | {"verdict": "unknown"}
     monkeypatch.setattr(
         resolution_adapter,
         "load_profile_commitment",
-        lambda *_a, **_k: (_ for _ in ()).throw(
-            AssertionError("unknown official intent must stop resolution")
-        ),
+        lambda *_a, **_k: pytest.fail("unknown official intent must stop resolution"),
     )
-    resolution = resolve_current_resolution(
-        ROOT,
-        status={"role": "accepted_root", "head": HEAD, "changed_paths": []},
-        authority=_authority(),
-        changed=False,
-    )
+    resolution = _resolve_report(monkeypatch, report, role=ROLE_ACCEPTED_ROOT)
     assert resolution.verdict == "unknown"
     assert resolution.commitment is None
     assert resolution.required_gaps == ("carrier_unreadable",)
@@ -400,49 +394,31 @@ def test_current_resolution_projects_only_incomplete_official_change_artifacts_f
     assert resolution.next_action == f"openspec instructions proposal --change {change} --json"
 
 
-def test_current_resolution_admits_only_one_new_official_metadata_path(monkeypatch) -> None:
-    resolution = _resolve_report(
-        monkeypatch,
-        _official_report(gaps=("openspec_active_change_missing",)),
-        paths=("openspec/changes/example/.openspec.yaml",),
-    )
-    assert resolution.verdict == "pass"
-    assert resolution.next_action == "openspec new change example --json"
-
-
-def test_current_resolution_maps_exact_absent_change_root_to_metadata_prewrite(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
+@pytest.mark.parametrize("target", ["metadata", "absent-root", "existing-root"])
+def test_current_resolution_derives_only_exact_new_change_metadata(tmp_path, monkeypatch, target):
+    change = "openspec/changes/example"
+    if target == "existing-root":
+        (tmp_path / change).mkdir(parents=True)
     resolution = _resolve_report(
         monkeypatch,
         _official_report(gaps=("openspec_active_change_missing",)),
         root=tmp_path,
-        paths=("openspec/changes/example",),
+        paths=(f"{change}/.openspec.yaml" if target == "metadata" else change,),
     )
-    assert resolution.verdict == "block"
-    assert resolution.scope.material_scope["state"] == "official_change_bootstrap_intent"
-    assert resolution.required_gaps == ("openspec_change_metadata_prewrite_required:example",)
-    assert resolution.next_action == (
-        "ethos lane prewrite --paths openspec/changes/example/.openspec.yaml "
-        f"--editor-root {tmp_path} --require-editor-root --root {tmp_path} --json"
-    )
-
-
-def test_current_resolution_does_not_treat_existing_change_root_as_new_intent(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    (tmp_path / "openspec/changes/example").mkdir(parents=True)
-    resolution = _resolve_report(
-        monkeypatch,
-        _official_report(gaps=("openspec_active_change_missing",)),
-        root=tmp_path,
-        paths=("openspec/changes/example",),
-    )
-    assert resolution.verdict == "block"
-    assert resolution.required_gaps == ("openspec_active_change_missing",)
-    assert resolution.scope.material_scope.get("state") != "official_change_bootstrap_intent"
+    assert resolution.verdict == ("pass" if target == "metadata" else "block")
+    if target == "metadata":
+        assert resolution.scope.material_scope["authorized_paths"] == [f"{change}/.openspec.yaml"]
+        assert resolution.next_action == "openspec new change example --json"
+    elif target == "absent-root":
+        assert resolution.scope.material_scope["state"] == "official_change_bootstrap_intent"
+        assert resolution.required_gaps == ("openspec_change_metadata_prewrite_required:example",)
+        assert resolution.next_action == (
+            f"ethos lane prewrite --paths {change}/.openspec.yaml "
+            f"--editor-root {tmp_path} --require-editor-root --root {tmp_path} --json"
+        )
+    else:
+        assert resolution.required_gaps == ("openspec_active_change_missing",)
+        assert not resolution.scope.material_scope.get("authorized_paths")
 
 
 def test_current_resolution_admits_remaining_official_artifact_after_partial_compilation(
@@ -526,34 +502,45 @@ def test_current_resolution_admits_selected_change_strict_validation_repair_with
 
 
 @pytest.mark.parametrize(
-    ("item_type", "item_id", "validation_state", "issue_level"),
+    ("coordinate", "value"),
     [
-        ("spec", "repair-change", "invalid", "ERROR"),
-        ("change", "other-change", "invalid", "ERROR"),
-        ("change", "repair-change", "valid", "ERROR"),
-        ("change", "repair-change", "invalid", "INFO"),
-        ("change", "repair-change", "invalid", "UNKNOWN"),
+        (("official_cli", "available"), False),
+        (("commands",), None),
+        (("commands", "list", "parse_error"), "invalid JSON"),
+        (("commands", "validate", "json", "items"), None),
+        (("commands", "validate", "json", "items", 0, "type"), "spec"),
+        (("commands", "validate", "json", "items", 0, "id"), "other-change"),
+        (("commands", "validate", "json", "items", 0, "valid"), True),
+        (("commands", "validate", "json", "items", 0, "issues"), [None]),
+        (("commands", "validate", "json", "items", 0, "issues", 0, "level"), "INFO"),
+        (("commands", "validate", "json", "items", 0, "issues", 0, "level"), "UNKNOWN"),
+        (("commands", "status", "parse_error"), "invalid JSON"),
+        (("commands", "validate", "exit_code"), 0),
+        (("lifecycle", "changes"), []),
+        (("lifecycle", "changes", 0, "required_gaps"), ["artifact_unavailable"]),
+        (("lifecycle", "changes", 0, "artifacts", 0, "status"), "blocked"),
+        (("change",), "Invalid"),
+        (
+            ("required_gaps",),
+            ["openspec_validation_failed:change:repair-change", "openspec_doctor_unhealthy"],
+        ),
     ],
 )
 def test_current_resolution_rejects_untrusted_active_change_validation_items(
-    tmp_path: Path,
-    monkeypatch,
-    item_type: str,
-    item_id: str,
-    validation_state: str,
-    issue_level: str,
-) -> None:
-    report = _active_change_validation_report(
-        tmp_path,
-        item_type=item_type,
-        item_id=item_id,
-        item_valid=validation_state == "valid",
-        issue_level=issue_level,
-    )
+    tmp_path, monkeypatch, coordinate, value
+):
+    report = _active_change_validation_report(tmp_path)
+    valid = _resolve_report(monkeypatch, report, root=tmp_path, paths=(ACTIVE_SPEC,))
+    assert valid.verdict == "pass"
+    assert valid.scope.material_scope["authorized_paths"] == [ACTIVE_SPEC]
+    subject = report
+    for key in coordinate[:-1]:
+        subject = subject[key]
+    subject[coordinate[-1]] = value
     resolution = _resolve_report(monkeypatch, report, root=tmp_path, paths=(ACTIVE_SPEC,))
     assert resolution.verdict == "block"
-    assert resolution.scope.material_scope.get("state") != "official_change_validation_repair"
-    assert resolution.required_gaps[0] == "openspec_validation_failed:change:repair-change"
+    assert not resolution.scope.material_scope.get("authorized_paths")
+    assert resolution.required_gaps == tuple(report["required_gaps"])
 
 
 def test_current_resolution_ignores_info_beside_strict_blocking_change_issue(
@@ -584,61 +571,40 @@ def test_current_resolution_rejects_invalid_active_change_validation_issue_paths
     assert resolution.scope.material_scope.get("state") != "official_change_validation_repair"
 
 
-def test_current_resolution_requires_validation_repair_output_to_exist(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    report = _active_change_validation_report(tmp_path, create_outputs=False)
-    resolution = _resolve_report(monkeypatch, report, root=tmp_path, paths=(ACTIVE_SPEC,))
-    assert resolution.verdict == "block"
-    assert resolution.scope.material_scope.get("state") != "official_change_validation_repair"
-
-
-def test_current_resolution_rejects_symlinked_validation_repair_metadata(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    requested = "openspec/changes/repair-change/.openspec.yaml"
-    report = _active_change_validation_report(tmp_path, issue_path=".openspec.yaml")
-    metadata = tmp_path / requested
-    target = tmp_path / "outside-metadata.yaml"
-    target.write_text("schema: spec-driven\n", encoding="utf-8")
-    metadata.unlink()
-    metadata.symlink_to(target)
-    resolution = _resolve_report(monkeypatch, report, root=tmp_path, paths=(requested,))
-    assert resolution.verdict == "block"
-    assert resolution.scope.material_scope.get("state") != "official_change_validation_repair"
-
-
-def test_current_resolution_does_not_resolve_official_output_symlink_to_unofficial_target(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    requested = "openspec/changes/repair-change/shadow.md"
-    report = _active_change_validation_report(tmp_path, issue_path="shadow.md")
-    declared = tmp_path / ACTIVE_SPEC
-    target = tmp_path / requested
-    target.write_text("unofficial target\n", encoding="utf-8")
-    declared.unlink()
-    declared.symlink_to(target)
-    resolution = _resolve_report(monkeypatch, report, root=tmp_path, paths=(requested,))
-    assert resolution.verdict == "block"
-    assert resolution.scope.material_scope.get("state") != "official_change_validation_repair"
-
-
-def test_current_resolution_rejects_ambiguous_validation_issue_base(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
+@pytest.mark.parametrize("fault", ["missing", "metadata_link", "output_link", "ambiguous"])
+def test_current_resolution_requires_unique_existing_unlinked_official_repair(
+    tmp_path, monkeypatch, fault
+):
+    requested = {
+        "metadata_link": "openspec/changes/repair-change/.openspec.yaml",
+        "output_link": "openspec/changes/repair-change/shadow.md",
+        "ambiguous": "openspec/changes/repair-change/tasks.md",
+    }.get(fault, ACTIVE_SPEC)
+    issue = {
+        "metadata_link": ".openspec.yaml",
+        "output_link": "shadow.md",
+        "ambiguous": "tasks.md",
+    }.get(fault, "repository-governance/spec.md")
     report = _active_change_validation_report(
         tmp_path,
-        issue_path="tasks.md",
-        spec_outputs=("specs/repository-governance/spec.md", "specs/tasks.md"),
+        issue_path=issue,
+        create_outputs=fault != "missing",
+        spec_outputs=("specs/repository-governance/spec.md", "specs/tasks.md")
+        if fault == "ambiguous"
+        else ("specs/repository-governance/spec.md",),
     )
-    requested = "openspec/changes/repair-change/tasks.md"
+    target = None
+    if fault in {"metadata_link", "output_link"}:
+        declared = tmp_path / (requested if fault == "metadata_link" else ACTIVE_SPEC)
+        target = tmp_path / ("outside-metadata.yaml" if fault == "metadata_link" else requested)
+        target.write_text("unofficial target\n", encoding="utf-8")
+        declared.unlink()
+        declared.symlink_to(target)
     resolution = _resolve_report(monkeypatch, report, root=tmp_path, paths=(requested,))
     assert resolution.verdict == "block"
-    assert resolution.scope.material_scope.get("state") != "official_change_validation_repair"
+    assert not resolution.scope.material_scope.get("authorized_paths")
+    if target is not None:
+        assert target.read_text() == "unofficial target\n"
 
 
 @pytest.mark.parametrize(
@@ -659,17 +625,6 @@ def test_current_resolution_blocks_unrelated_or_mixed_validation_repair_paths(
     assert resolution.verdict == "block"
     assert resolution.scope.material_scope["state"] == "official_change_validation_repair"
     assert resolution.scope.material_scope["uncovered_paths"]
-
-
-def test_current_resolution_does_not_bypass_unrelated_governance_gap_for_validation_repair(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    report = _active_change_validation_report(tmp_path, extra_gaps=("openspec_doctor_unhealthy",))
-    resolution = _resolve_report(monkeypatch, report, root=tmp_path, paths=(ACTIVE_SPEC,))
-    assert resolution.verdict == "block"
-    assert resolution.scope.material_scope.get("state") != "official_change_validation_repair"
-    assert "openspec_doctor_unhealthy" in resolution.required_gaps
 
 
 @pytest.mark.parametrize(
@@ -695,26 +650,33 @@ def test_current_resolution_does_not_derive_canonical_repair_from_invalid_gap(
     assert resolution.required_gaps == (gap,)
 
 
-@pytest.mark.parametrize("invalid", ["commitment", "change", "mixed_gap"])
+@pytest.mark.parametrize(
+    ("coordinate", "value"),
+    [
+        (("commitment",), {}),
+        (("commitment",), None),
+        (("commitment", "id"), "change:other"),
+        (("lifecycle", "changes"), []),
+        (("lifecycle", "changes", 0, "artifacts"), []),
+        (
+            ("required_gaps",),
+            ["openspec_validation_failed:spec:distribution", "commitment_invalid:repair-spec"],
+        ),
+    ],
+)
 def test_current_resolution_requires_valid_change_contract_for_canonical_repair(
-    monkeypatch,
-    invalid: str,
-) -> None:
+    monkeypatch, coordinate, value
+):
     report = _canonical_repair_report()
-    if invalid == "commitment":
-        report["commitment"] = {}
-    elif invalid == "change":
-        report["lifecycle"] = {"scope_binding": {}, "changes": []}
-    else:
-        report["required_gaps"] = [
-            "openspec_validation_failed:spec:distribution",
-            "commitment_invalid:repair-spec",
-        ]
-    resolution = _resolve_report(
-        monkeypatch, report, paths=("openspec/specs/distribution/spec.md",)
-    )
+    paths = ("openspec/specs/distribution/spec.md",)
+    assert _resolve_report(monkeypatch, report, paths=paths).verdict == "pass"
+    subject = report
+    for key in coordinate[:-1]:
+        subject = subject[key]
+    subject[coordinate[-1]] = value
+    resolution = _resolve_report(monkeypatch, report, paths=paths)
     assert resolution.verdict == "block"
-    assert resolution.scope.material_scope.get("state") != "canonical_spec_repair"
+    assert not resolution.scope.material_scope.get("authorized_paths")
 
 
 @pytest.mark.parametrize(
@@ -723,6 +685,7 @@ def test_current_resolution_requires_valid_change_contract_for_canonical_repair(
         ("openspec/changes/example/.openspec.yaml", "openspec/changes/example/proposal.md"),
         ("openspec/changes/Invalid/.openspec.yaml",),
         ("openspec/changes/archive/.openspec.yaml",),
+        ("other/example/.openspec.yaml",),
     ],
 )
 def test_current_resolution_rejects_ambiguous_or_invalid_new_change_bootstrap(
@@ -738,31 +701,46 @@ def test_current_resolution_rejects_ambiguous_or_invalid_new_change_bootstrap(
     assert resolution.required_gaps == ("openspec_active_change_missing",)
 
 
-def test_current_resolution_keeps_incomplete_official_change_blocked_outside_prewrite(
-    monkeypatch,
-) -> None:
-    change = "example"
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "not-prewrite",
+        "complete-invalid",
+        "non-object",
+        "missing-output",
+        "missing-requires",
+        "not-ready",
+    ],
+)
+def test_current_resolution_keeps_incomplete_or_invalid_artifact_authority_bounded(
+    monkeypatch, fault
+):
     report = _official_report(
-        change=change,
-        gaps=(f"openspec_status_incomplete:{change}",),
+        change="example",
+        gaps=("openspec_status_incomplete:example",),
         artifacts=(_artifact("proposal", "proposal.md", status="ready"),),
     )
-    resolution = _resolve_report(monkeypatch, report)
+    artifact = report["lifecycle"]["changes"][0]["artifacts"][0]
+    if fault == "complete-invalid":
+        report["required_gaps"] = ["commitment_invalid:example"]
+        artifact["status"] = "done"
+    elif fault == "non-object":
+        report["lifecycle"]["changes"][0]["artifacts"] = [None]
+    elif fault in {"missing-output", "missing-requires"}:
+        artifact.pop("outputPath" if fault == "missing-output" else "requires")
+    elif fault == "not-ready":
+        artifact["status"] = "blocked"
+    resolution = _resolve_report(
+        monkeypatch,
+        report,
+        paths=()
+        if fault in {"not-prewrite", "not-ready"}
+        else ("openspec/changes/example/proposal.md",),
+    )
     assert resolution.verdict == "block"
     assert resolution.commitment is None
-    assert resolution.required_gaps == (f"openspec_status_incomplete:{change}",)
-    assert resolution.next_action == f"openspec instructions proposal --change {change} --json"
-
-
-def test_current_resolution_does_not_bootstrap_completed_invalid_commitment(monkeypatch) -> None:
-    change = "example"
-    report = _official_report(
-        change=change,
-        gaps=(f"commitment_invalid:{change}",),
-        artifacts=(_artifact("proposal", "proposal.md"),),
-    )
-    resolution = _resolve_report(
-        monkeypatch, report, paths=(f"openspec/changes/{change}/proposal.md",)
-    )
-    assert resolution.verdict == "block"
-    assert resolution.required_gaps == (f"commitment_invalid:{change}",)
+    assert resolution.required_gaps == tuple(report["required_gaps"])
+    assert not resolution.scope.material_scope.get("authorized_paths")
+    if fault in {"not-prewrite", "not-ready"}:
+        expected = "instructions proposal" if fault == "not-prewrite" else "status"
+        assert resolution.next_action == f"openspec {expected} --change example --json"

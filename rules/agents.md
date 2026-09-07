@@ -44,6 +44,17 @@ Purpose: define how agents load repository truth and avoid stale context.
 - Repeated failures must improve the narrow existing owner: product behavior and
   its regression test, an executable rule, or an already-admitted reusable
   skill. Do not create a skill solely to restate product truth.
+- Before prose writes, select the existing semantic owner and lifetime from the
+  Product Design Contract. Distinguish obligations, rationale, observations, and
+  completion claims; update their owner or reference exact evidence rather
+  than copy an execution narrative into the current file. External method-pack
+  templates do not override this allocation.
+- Before freezing an atomic HEAD, review the diff for carrier responsibility,
+  preserved obligations, duplicate meaning, and evidence binding. Format,
+  schema, and test success do not establish prose's semantic compliance. Keep
+  proof results in their existing Attestation or receipt, not in a result-only
+  source edit that creates another proof obligation. A task checkbox is never
+  a substitute for the executable exact-current proof precondition.
 - Keep one writer for an authority surface. Do not dispatch another agent unless
   the user or current procedure authorizes it and the delegated scope is
   disjoint, bounded, and ownership-safe.

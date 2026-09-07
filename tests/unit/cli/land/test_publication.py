@@ -242,6 +242,24 @@ def _proposal_ref(remote: Path) -> str:
     return git(remote, "for-each-ref", "--format=%(objectname)", _PROPOSAL_REF)
 
 
+def test_publish_preserves_source_trust_gap_before_remote_observation(tmp_path: Path) -> None:
+    repo, remotes, _signed_head = _branch_publication_fixture(tmp_path)
+    git(repo, "config", "commit.gpgsign", "false")
+    (repo / "unsigned.txt").write_text("unsigned proposal source\n", encoding="utf-8")
+    git(repo, "add", "unsigned.txt")
+    git(repo, "commit", "-m", "test: create unsigned publication source")
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+
+    payload = _branch_publication(repo, head, blocked=True)
+
+    assert payload["verdict"] == "block"
+    assert payload["required_gaps"] == [f"publication_source_signature_untrusted:{head}"]
+    assert payload["data"]["remote_observations"] == {}
+    assert payload["data"]["push_admission"] == {}
+    assert all(_proposal_ref(remote) == "" for remote in remotes.values())
+
+
 def _configure_publication_signer(repo: Path, root: Path) -> tuple[Path, str]:
     key = root / "publication-signer"
     subprocess.run(

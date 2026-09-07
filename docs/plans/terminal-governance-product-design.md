@@ -479,9 +479,29 @@ Python image. Isolated removal of runtime-kind congruence or wheel identity
 checks causes the intended regression to fail. The three test files lose 29
 net physical lines while preserving source identity and cleanup scenarios;
 the enforced test budget is 38298/38300. Product source, coverage policy, and
-the old full dataset remain unchanged. Continue with activation compensation
-and generation-retirement observations; full 95-percent proof, closeout, and
-accepted/runtime advancement remain unproved.
+the old full dataset remain unchanged.
+
+The activation batch consolidates linked-worktree setup while preserving common
+and per-worktree configuration restoration. Native configuration drift, unreadable
+observations, invalid admission inputs, and stale post-observed bindings are
+rejected. Compensation attempts every recorded worktree, the common config, and
+the selector even when individual restoration fails; exact selector CAS now
+executes rather than only recording a mock call. Cleanup failures preserve the
+activated runtime and report deferred removal or lost retained generations.
+These are isolated failure fixtures, not concurrent-process safety proof.
+
+The activation, materialization, and coverage-contract set passed 185 tests.
+Local activation coverage moved from 87.93 to 93.70 percent; neither measurement
+is whole-product coverage. In-memory removal of common-config validation or
+premature termination of worktree compensation makes the intended regression
+fail. The test file loses eight net physical lines; the test budget is
+38297/38300. A temporary test failure assumed an empty fixture root; comparing
+its actual before/after state corrected the assertion without changing product
+behavior. Product source, native coverage configuration, and the historical
+full dataset are unchanged. Next inspect remaining linked-root observation and
+generation-cleanup boundaries, including whether unreadable consumer paths are
+rejected before any retirement. Then freeze the source and run fresh full proof;
+95-percent compliance, closeout, and accepted/runtime advancement remain unproved.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

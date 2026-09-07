@@ -35,6 +35,16 @@ this Change into a generic policy engine or unrelated lifecycle redesign.
    terminal route records the acceptance hold and execution order; OpenSpec
    tasks record actions and progress only. Historical attestations remain true
    observations under their then-configured floor, not evidence of compliance.
+6. Close the archive-compensation defect exposed by the behavior tests at its
+   existing owners. Reuse the canonical archive-root grammar to bind the exact
+   Change and path independently of command success: a failed command may still
+   return a positively bound cleanup path, but malformed or foreign coordinates
+   cannot. The Git effect owner rejects root equality, path traversal, symlink
+   and junction components, and tracked targets before recursive removal. After
+   restoring the pre-effect tree, re-observe the worktree; unowned residue stays
+   intact and causes the existing retained-residue outcome, not a success claim.
+   Exercise destruction only within disposable fixture roots. This is a bounded
+   correction of measured failure behavior, not a new cleanup service or state.
 
 ## Risks / Trade-offs
 

@@ -16,7 +16,7 @@
 
 ## 3. Verify The Source Atom
 
-- [ ] 3.1 Freeze a signed exact HEAD and pass the complete repository proof before
+- [x] 3.1 Freeze a signed exact HEAD and pass the complete repository proof before
   official archive. Post-archive acceptance and resource retirement remain in
   the existing terminal route until their independent evidence is observed.
 
@@ -54,4 +54,11 @@ share one setup while retaining all six outcomes. This removes 138 test ELOC;
 the 38,300 limit remains unchanged and measurement is 38,284. The revised
 affected set passed 234 tests. The two-case count reduction reflects five
 plan tests becoming three matrix cases, not removal of a required invariant.
-Exact-HEAD full proof remains pending for the revised source.
+Revised signed HEAD `1d603d0a8b64c172c3cb2c7790e34fffbadef25c` passed all 25
+gates: 2,102 tests passed with one platform skip and total line/branch coverage
+93.10%, above the unchanged 93% floor. Proof Attestation
+`6fac9d8372de08f9a63050e10c8a3d51f1b250f9c5ff93e07e8a8e22eeae5849`
+binds that exact HEAD. The external test root was removed and real ref-intent
+storage remained empty. This completed task records that proved source; the
+task-record commit, archive, and accepted/runtime transitions still require
+their own current evidence.

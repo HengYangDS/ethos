@@ -34,6 +34,19 @@ Measurement SHALL NOT redefine the requirement as an aspiration.
 - **AND** remaining unowned content is preserved and reported as retained
   residue; a restored index alone does not prove compensation complete
 
+#### Scenario: A coverage regression exposes incomplete runtime-consumer observation
+
+- **WHEN** a current consumer root is not a readable real directory, or a nested
+  entry is linked, unreadable, neither a directory nor a regular file, or cannot
+  be completely enumerated
+- **THEN** the existing activation observer reports unknown consumers and blocks
+  generation retirement instead of treating an incomplete scan as no references
+- **AND** a dangling root link is not a genuinely absent consumer directory
+- **AND** initial observation failure preserves the selector, Lease state, and
+  runtime generations
+- **AND** readable nested receipts retain their referenced generations through
+  the same observer for operations, transactions, and ref intents
+
 #### Scenario: Hosted proof crosses an identity boundary
 
 - **WHEN** a hosted provider supplies a locked test environment and executes the

@@ -46,6 +46,17 @@ this Change into a generic policy engine or unrelated lifecycle redesign.
    Exercise destruction only within disposable fixture roots. This is a bounded
    correction of measured failure behavior, not a new cleanup service or state.
 
+7. Generation retirement needs complete current-consumer observation, not merely
+   the readable subset. The existing activation owner distinguishes genuinely
+   absent roots from linked, unreadable, or non-directory paths using non-following
+   metadata. Traverse real directories with error-propagating enumeration; read
+   only regular files, reject symlinks/junctions and unsupported kinds, and fail
+   closed on missing nested entries, scan failures, or invalid text. Preserve
+   selector, state, and every generation when initial observation is unknown.
+   Reuse the same observer during cleanup planning; add no registry or second
+   liveness model. Isolated static-path regressions do not prove filesystem-race
+   or new-consumer-after-observation safety.
+
 ## Risks / Trade-offs
 
 The restored gate initially fails. That is the correct outcome until actual

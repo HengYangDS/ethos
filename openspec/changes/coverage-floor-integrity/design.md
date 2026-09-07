@@ -31,6 +31,16 @@ this Change into a generic policy engine or unrelated lifecycle redesign.
    setup before adding test surface. Deletion is justified by redundant semantic
    ownership, not a desired denominator. No omit, pragma, branch disabling,
    synthetic execution in product proof, or budget relaxation is remediation.
+   The coordination projection is one such contradiction: four-field Leases
+   contain no issue timestamp or queue membership. Remove the fabricated queue
+   age and admission order; retain scope conflict precedence and independently
+   observed candidate backpressure. This deletes stale projection semantics,
+   not collaboration, competition, or an implemented scheduler.
+   Design-integrity diagnostics likewise use the already observed document
+   set. A missing canonical owner remains an explicit blocking finding; an
+   auxiliary derivation check must not reread that missing file and replace
+   the actionable result with an exception. Tests retain all current official
+   artifact-shape checks while retiring a vacuous check of one archived Change.
 5. Correct requirement and carrier descriptions in their existing owners. The
    terminal route records the acceptance hold and execution order; OpenSpec
    tasks record actions and progress only. Historical attestations remain true
@@ -69,6 +79,16 @@ this Change into a generic policy engine or unrelated lifecycle redesign.
    expiry. No persistent creation registry or second recovery protocol is added.
    These synchronous compensation cases do not establish process-crash recovery
    or protection against arbitrary concurrent filesystem replacement.
+
+9. Accepted-runtime expectation and source-build input are distinct observations.
+   The former compiles the accepted ref's exact commit/tree and canonical
+   `VERSION` blob through the existing BuildIdentity owner. Read raw ASCII bytes
+   so newline conversion cannot admit a noncanonical version. The worktree is
+   only a build source locator: untracked observations, staged version edits,
+   or a detached checkout cannot redefine an accepted object. Source builds
+   retain their actual non-ignored overlay, and materialization rejects a wheel
+   whose carried identity differs from the accepted expectation. Add no ignore
+   patterns, hook bypass, or unproved runtime activation.
 
 ## Risks / Trade-offs
 

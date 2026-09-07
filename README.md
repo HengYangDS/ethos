@@ -85,9 +85,10 @@ This section is a reader projection of the
 (Commitment, Facts, prior Attestations) -> TransitionPlan -> new Attestations
 ```
 
-Only Commitment and Attestation persist. Model Promotion is the canonical
-conflict adjudication; its full definition remains in the Product Design
-Contract rather than this projection.
+Only `Attestation` persists. `Commitment` is transient acceptance intent compiled
+from official OpenSpec; Facts and TransitionPlan are also transient. Model
+Promotion is the canonical conflict adjudication; its full definition remains
+in the Product Design Contract rather than this projection.
 
 ## Product Shape
 

@@ -35,53 +35,18 @@ def test_retirement_help_exposes_abandonment_and_one_recovery_route() -> None:
     assert "recover" in completed.stdout
 
 
-@pytest.mark.parametrize("historical_policy", [False, True])
-def test_landed_retires_clean_absorbed_topic_worktree(
-    tmp_path: Path, *, historical_policy: bool
+@pytest.mark.parametrize(
+    "boundary", ["current", "pre_adoption", "dirty", "foreign_lease", "stale_head", "locked"]
+)
+def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
+    tmp_path: Path, boundary: str
 ) -> None:
-    """Authoring prefixes do not prevent exact deletion-only accepted absorption."""
+    """The public command retires only exact, clean, admitted topic resources."""
     repo = init_git_repo(tmp_path / "repo")
     historical = git(repo, "rev-parse", "HEAD")
     adopt_and_commit(repo)
     accepted = git(repo, "rev-parse", "HEAD")
-    source = historical if historical_policy else accepted
-    branch = "topic/absorbed"
-    worktree = tmp_path / "absorbed"
-    git(repo, "worktree", "add", "-b", branch, worktree.as_posix(), source)
-    install_fixture_hook_runtime(repo)
-    args = (
-        "lane",
-        "retire",
-        "landed",
-        "--branch",
-        branch,
-        "--expect-head",
-        source,
-        "--root",
-        repo.as_posix(),
-        "--authorize",
-        "--json",
-    )
-
-    planned = run_ethos(*args, cwd=repo)
-    assert planned["required_gaps"] == []
-    assert planned["verdict"] == "pass"
-    applied = run_ethos(*args, "--apply", cwd=repo)
-
-    assert applied["verdict"] == "pass"
-    assert not worktree.exists()
-    assert git(repo, "branch", "--list", branch) == ""
-    assert git(repo, "rev-parse", "dev") == accepted
-    assert observe_lease(state_database(repo), branch).state == "missing"
-
-
-@pytest.mark.parametrize("boundary", ["dirty", "foreign_lease", "stale_head", "locked"])
-def test_landed_topic_retirement_preserves_unadmitted_resources(
-    tmp_path: Path, boundary: str
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    source = git(repo, "rev-parse", "HEAD")
+    source = historical if boundary == "pre_adoption" else accepted
     branch = "topic/absorbed"
     worktree = tmp_path / "absorbed"
     git(repo, "worktree", "add", "-b", branch, worktree.as_posix(), source)
@@ -96,7 +61,7 @@ def test_landed_topic_retirement_preserves_unadmitted_resources(
         git(repo, "worktree", "lock", worktree.as_posix())
     install_fixture_hook_runtime(repo)
 
-    blocked = run_ethos_blocked(
+    args = (
         "lane",
         "retire",
         "landed",
@@ -107,11 +72,18 @@ def test_landed_topic_retirement_preserves_unadmitted_resources(
         "--root",
         repo.as_posix(),
         "--authorize",
-        "--apply",
         "--json",
-        cwd=repo,
     )
-
+    if boundary in {"current", "pre_adoption"}:
+        planned = run_ethos(*args, cwd=repo)
+        assert (planned["verdict"], planned["required_gaps"]) == ("pass", [])
+        assert run_ethos(*args, "--apply", cwd=repo)["verdict"] == "pass"
+        assert not worktree.exists()
+        assert git(repo, "branch", "--list", branch) == ""
+        assert git(repo, "rev-parse", "dev") == accepted
+        assert observe_lease(state_database(repo), branch).state == "missing"
+        return
+    blocked = run_ethos_blocked(*args, "--apply", cwd=repo)
     expected = {
         "dirty": "work_lane_dirty",
         "foreign_lease": "foreign_work_lane_retire_authority_required",

@@ -12,8 +12,11 @@ rules:
     - Include at least one Scenario with WHEN and THEN clauses for each
       requirement.
   tasks:
-    - Track implementation, tests, documentation, and closeout evidence as
-      checkable items.
+    - Describe bounded actions and their completion checks using the official
+      task checkboxes. Record progress here; reference existing evidence when
+      needed instead of copying execution results or debugging narratives.
+    - Treat exact-current proof as an executable lifecycle precondition, not
+      a result to append to the source snapshot that the proof verifies.
   design:
     - Record architecture, tradeoffs, authority boundaries, and migration risks
       for non-trivial changes.

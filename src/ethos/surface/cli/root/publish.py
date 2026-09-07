@@ -153,13 +153,18 @@ def _publication_admission_gaps(
     for peer_id, remote in remotes.items():
         for target_ref in target_refs:
             observation = _remote_ref_observation(observations, peer_id, target_ref)
-            if observation.get("state") == "unavailable":
+            object_oid = observation.get("object_oid")
+            if (
+                observation.get("state") not in {"present", "absent"}
+                or not isinstance(object_oid, str)
+                or not object_oid
+            ):
                 continue
             reports[f"{peer_id}:{target_ref}"] = push_admission_report(
                 root=repo,
                 target_ref=target_ref,
                 pushed_head=current_head,
-                remote_head=str(observation["object_oid"]),
+                remote_head=object_oid,
                 remote_name=remote,
                 proof_admission=proof_admission,
             )

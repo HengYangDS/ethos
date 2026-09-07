@@ -65,7 +65,7 @@ def compile_retirement_operation(
     recovery_required = bool(lane.get("recovery_required"))
     return RetirementOperation(
         repository_common_dir=Path(git_common_dir(control_root)).resolve().as_posix(),
-        repository_identity=repository_identity(control_root, tree_ref=str(lane["head"])),
+        repository_identity=repository_identity(control_root, tree_ref=accepted_head),
         control_root=control_root.resolve().as_posix(),
         execution_root=execution_root.resolve().as_posix(),
         mode=mode,

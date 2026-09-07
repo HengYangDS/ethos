@@ -61,6 +61,23 @@ def test_remove_worktree_recognizes_absent_terminal_state(tmp_path) -> None:
     assert not target.exists()
 
 
+def test_remove_historical_worktree_uses_control_repository_identity(tmp_path) -> None:
+    """A subject predating adoption cannot own the control repository's identity."""
+    repo = init_git_repo(tmp_path / "repo")
+    historical = git(repo, "rev-parse", "HEAD")
+    adopt_and_commit(repo)
+    target = tmp_path / "historical"
+    git(repo, "worktree", "add", "-b", "topic/old", target.as_posix(), historical)
+
+    applied = remove_worktree(repo, target, head=historical, branch="topic/old")
+    recognized = remove_worktree(repo, target, head=historical, branch="topic/old")
+
+    assert applied.payload.body["repository"] == "repository:repo"
+    assert applied.payload.body["input"]["head"] == historical
+    assert recognized.payload.body["result"]["state"] == "recognized"
+    assert not target.exists()
+
+
 def test_remove_worktree_rejects_inexact_binding(tmp_path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)

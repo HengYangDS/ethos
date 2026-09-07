@@ -256,7 +256,8 @@ def preflight_operation(root: Path, request: RetirementOperation) -> None:
         _fail("lane_retirement_receipt_repository_mismatch")
     if (
         request.repository_identity
-        and repository_identity(control, tree_ref=request.head) != request.repository_identity
+        and repository_identity(control, tree_ref=request.accepted_head)
+        != request.repository_identity
     ):
         _fail("lane_retirement_receipt_repository_mismatch")
     git_executable(os.environ)

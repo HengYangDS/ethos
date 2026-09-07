@@ -77,6 +77,7 @@ def linked_retirement_plan(
             "actor": actor,
             "subject": branch,
             "execution_branch": execution_branch,
+            **({"repository_prestate": "absent"} if mode == "landed" else {}),
         },
         values={
             "linked_worktree": {

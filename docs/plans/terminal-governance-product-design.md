@@ -320,21 +320,18 @@ outcome is unknown, or a declared resource budget is exceeded. New feedback is
 mapped to the existing contract and current batch; it reopens source recovery
 only when it demonstrates a missing or contradictory terminal invariant.
 
-The current bounded implementation is `missing-lease-reconciliation`. The
-accepted retirement owner now distinguishes authoring from deletion-only
-accepted absorption. Historical dirty lanes still cannot be edited because
-their missing Lease has no public acquisition path: renew, resume, and takeover
-require an existing row, while start requires the current candidate object.
-This Change adds exact coordination reacquisition without content mutation and
-preserves the remaining source-policy regression. Its tasks own pre-archive
-progress; neither coordination nor a successful dry-run proves absorption.
+The current bounded implementation is `coverage-floor-integrity`, reusing the
+owned missing-Lease Work Lane. Missing-Lease reacquisition is implemented and
+archived at `6db593c2`, but not accepted: its 93.15036-percent proof fails the
+user-required 95-percent floor. The coverage repair below is now the acceptance
+prerequisite. Neither coordination nor a successful dry-run proves absorption.
 
 Last observed closeout evidence on 2026-09-07, not a second task system:
 
 | Boundary | Last verified state | Required next evidence |
 | --- | --- | --- |
-| Repository proof | Accepted `18aa8707a48a686d4b59f4814d11eb95907c4e8c` has full proof Attestation `63cf3584ba37e221cbd952f7229f451dff865aadfcae7b55bbfe7fa902d79acb` | Reacquisition needs its own frozen exact-HEAD full proof |
-| Archive and acceptance | `absorbed-resource-retirement` archived; candidate and accepted CAS completed; accepted effect `d8f0b37cc16a646ae4c5c215584c59cea4ba8726e0680e84cada147bff0c157e` | Reacquisition archive/reproof and candidate/accepted receipts |
+| Repository proof | Accepted `18aa8707a48a686d4b59f4814d11eb95907c4e8c` has full proof Attestation `63cf3584ba37e221cbd952f7229f451dff865aadfcae7b55bbfe7fa902d79acb` | Reacquisition proof at `6db593c2` exists but fails the required 95-percent floor; reprove the corrected candidate |
+| Archive and acceptance | `absorbed-resource-retirement` archived; candidate and accepted CAS completed; accepted effect `d8f0b37cc16a646ae4c5c215584c59cea4ba8726e0680e84cada147bff0c157e` | Reacquisition archive at `6db593c2` exists; coverage-compliant reproof and candidate/accepted CAS remain pending |
 | Package/runtime | Selected runtime `9c3cf688` reports Alpha.5 source `18aa8707`, tree `45a6f84e`, OpenSpec 1.12.0, and four armed hooks | Accepted package-only reacquisition runtime and readback before historical-lane effects |
 | Peer projections | Publication `80833fbc8f556ec6e572e01f1f53b96c06ae58d12b35a06fc431b132c297b24f` binds both peers at `18aa8707`; exact dev/main readback agreed. GitHub dev run `34121912399` and main run `34121913185` subsequently failed. The dev receipt reports proven execution but blocked before/after readiness; GitLab CI/signature remain unobserved | Resolve hosted checkout/readiness obligations separately from executed proof; inspect exact run artifacts rather than reused runner paths |
 | Lane residue | Retirement receipt `144d3ef4ee6af8407e188531106b91909181e11f3ea7b3ee8efaa0ee1bb76d8c` proves the previous implementation worktree, ref, and Lease absent; seven historical worktrees remain, five dirty | Accept reacquisition, preserve unique content, then exact public retirement; no bulk merge or dirty-tree deletion |
@@ -348,7 +345,7 @@ absorption:
 | `20260818-openspec-19-archive-owner` | The 1.8-to-1.9 supply upgrade is superseded by accepted 1.12; reject restoration of archived Commitment. Preserve valid no-spec and locked-supply obligations in their current owners before removing the ten dirty/staged paths. |
 | `codex-contracts-land-test-refactor` and `codex-lifecycle-hardening-test-refactor` | Overlapping histories must not be merged wholesale. Cross-worker immutable supply reuse, worker long-tail scheduling, and cheap non-archive fixtures need current-owner evidence; obsolete Commitment/rebind code must not return. |
 | `20260810-public-test-boundaries` | Preserve public Git preimage, out-of-scope-write, committed-effect diagnostics, and lock-after-observation race coverage. Reject the retired mutable ref-intent representation; prove scenario equivalence before disposal. |
-| `20260810-coverage-source-policy-matrices` | Nine added definitions match current AST; one differs only by the current reference-owner name. Four historical boundary probes pass against the current owner. The missing npm distribution-allowlist assertion is being restored as a maintained test; obsolete contributor roles are superseded. The three dirty files remain intact until legal reconciliation and retirement. |
+| `20260810-coverage-source-policy-matrices` | Nine added definitions match current AST; one differs only by the current reference-owner name. Four historical boundary probes pass against the current owner. The npm distribution-allowlist assertion is restored in the unaccepted reacquisition candidate; obsolete contributor roles are superseded. The three dirty files remain intact until legal reconciliation and retirement. |
 | `20260810-coverage-public-failure-matrix` | Nine dirty items, including untracked tests. Their unique failure scenarios still require comparison with current owners; ancestor HEADs do not prove dirty-content absorption. |
 | `20260811-repository-transition-model` | Fresh CAS/Attestation, local-or-multiple-peer topology and minimal-entity intent remain valid; persistent Commitment roots and historical scope/Lease bindings are superseded. The 341 dirty items are not yet semantically adjudicated. |
 | Unlinked `codex/openspec-19-archive-owner` ref | Retired through the accepted public owner; Attestation `067dd0dabfb6b6b6a5e6603c14ea84df11a026da6e8b0a0c7e0f72226b6a92bc`. Its absence does not retire the distinct dirty linked OpenSpec lane. |
@@ -362,6 +359,37 @@ Proceed to public-test-boundaries and its unresolved lock-after-observation
 cases, then the remaining finite historical resources. Reuse an admitted
 historical lane where feasible; do not create one successor lane per residue.
 Dirty-overlay disposal and semantic absorption remain separate proof boundaries.
+
+### Coverage Requirement Repair Before Acceptance
+
+The 2026-09-07 requirement audit supersedes any inference of compliance from
+historical 93-percent proof. Commit `efa43b9f` lowered the executable floor;
+current archived missing-Lease HEAD `6db593c2` measured 93.15036 percent and fails
+when evaluated at the required 95 percent. Its archive and proof observations
+remain evidence, but neither authorizes candidate/accepted advancement under
+the corrected requirement. Accepted `18aa8707` and its runtime are unchanged.
+
+`coverage-floor-integrity` reuses the owned missing-Lease Work Lane and the
+existing quality owners. Execute in this order:
+
+1. Watch the real gate incorrectly accept a below-required measurement, then
+   restore the sole hard floor and enforce it in default/full proof and local CI.
+2. Align the contract, config guide, quality skill, and official quality delta;
+   remove the aspirational split and pre-existing-debt acceptance exception.
+3. Close missing behavior using current coverage evidence and substantive
+   assertions; consolidate repeated fixtures without dropping unique scenarios,
+   excluding product code, disabling branches, or relaxing any budget.
+4. Obtain focused GREEN, reference closure, unchanged source budgets, and one
+   frozen exact-HEAD full proof. Archive/reproof must satisfy at least 95 percent
+   before the existing public candidate/accepted CAS and runtime readback.
+5. Resume the historical-lane absorption order above only with that accepted
+   runtime. Hosted topology/signature, adopter conformance, and the other global
+   batches remain independently unclosed.
+
+Run one writer and at most one heavy proof. A regression exposing a new semantic
+contradiction or a budget failure triggers owner-level replanning, never a
+threshold reduction. This section owns execution order; the official Change
+owns bounded task progress, and generated receipts own execution observations.
 
 ## Convergence Rules
 

@@ -113,12 +113,13 @@ def test_hook_install_migrates_state_before_returning_current_runtime(
         ]
 
 
-def test_hook_install_rolls_back_staged_state_when_activation_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("before_state", ["legacy", "absent"])
+def test_hook_install_rolls_back_state_when_activation_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before_state: str
 ) -> None:
     repo, _runtime, common = _materialized(tmp_path, monkeypatch)
-    database = _legacy_state(common)
-    before = database.read_bytes()
+    database = _legacy_state(common) if before_state == "legacy" else common / "ethos/state.sqlite"
+    before = database.read_bytes() if database.exists() else None
     monkeypatch.setattr(
         hook_activation,
         "_require_common_activation",
@@ -128,17 +129,18 @@ def test_hook_install_rolls_back_staged_state_when_activation_fails(
     with pytest.raises(ValueError, match="activation failed"):
         install_hook_launchers(repo)
 
-    assert database.read_bytes() == before
+    assert (database.read_bytes() if database.exists() else None) == before
     assert not database.with_name("state.sqlite-wal").exists()
     assert not database.with_name("state.sqlite-shm").exists()
-    with closing(sqlite3.connect(database)) as connection:
-        assert tuple(row[1] for row in connection.execute("pragma table_xinfo(leases)")) == (
-            "id",
-            "subject",
-            "owner",
-            "expires_at",
-            "payload_json",
-        )
+    if before_state == "legacy":
+        with closing(sqlite3.connect(database)) as connection:
+            assert tuple(row[1] for row in connection.execute("pragma table_xinfo(leases)")) == (
+                "id",
+                "subject",
+                "owner",
+                "expires_at",
+                "payload_json",
+            )
 
 
 def test_hook_install_restores_activation_when_state_commit_fails(
@@ -178,25 +180,6 @@ def test_hook_install_restores_activation_when_state_commit_fails(
     )
     assert database.read_bytes() == before
     assert runtime.parent.is_dir()
-
-
-def test_hook_install_failure_restores_absent_state_database(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
-    database = common / "ethos/state.sqlite"
-    monkeypatch.setattr(
-        hook_activation,
-        "_require_common_activation",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("activation failed")),
-    )
-
-    with pytest.raises(ValueError, match="activation failed"):
-        install_hook_launchers(repo)
-
-    assert not database.exists()
-    assert not database.with_name("state.sqlite-wal").exists()
-    assert not database.with_name("state.sqlite-shm").exists()
 
 
 def test_hook_install_reports_deferred_generation_cleanup_after_successful_activation(
@@ -557,16 +540,24 @@ def test_hook_generation_repairs_drift_without_changing_identity(tmp_path: Path)
     )
 
 
+@pytest.mark.parametrize("invalidity", ["symlink", "invalid-utf8", "directory-file"])
 def test_hook_install_blocks_cleanup_when_an_active_consumer_is_unreadable(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    invalidity: str,
 ) -> None:
     repo, _venv, common = _materialized(tmp_path, monkeypatch)
     hooks_root = common / "ethos" / "hooks"
     stale = hook_activation.materialize_hook_launchers(hooks_root)
     operations = common / "ethos" / "operations"
-    operations.mkdir()
-    (operations / "unknown").symlink_to(tmp_path / "missing-consumer")
+    if invalidity == "directory-file":
+        operations.write_text("not a directory", encoding="utf-8")
+    else:
+        operations.mkdir()
+        if invalidity == "symlink":
+            (operations / "unknown").symlink_to(tmp_path / "missing-consumer")
+        else:
+            (operations / "unknown").write_bytes(b"\xff")
 
     with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
         install_hook_launchers(repo)
@@ -574,26 +565,17 @@ def test_hook_install_blocks_cleanup_when_an_active_consumer_is_unreadable(
     assert stale.is_dir()
 
 
-def test_windows_consumer_observation_uses_native_powershell_outside_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("platform", ["nt", "posix"])
+@pytest.mark.parametrize("status", [0, 2])
+def test_consumer_observation_uses_native_tools_and_rejects_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, platform: str, status: int
 ) -> None:
     executable = tmp_path / "System32/WindowsPowerShell/v1.0/powershell.exe"
     executable.parent.mkdir(parents=True)
     executable.write_text("native\n", encoding="utf-8")
     monkeypatch.setenv("SYSTEMROOT", tmp_path.as_posix())
     monkeypatch.setenv("PATH", (tmp_path / "git-only").as_posix())
-    observed: list[tuple[str, ...]] = []
-
-    def capture_run(
-        _root: Path, command: tuple[str, ...], **_kwargs: object
-    ) -> subprocess.CompletedProcess[str]:
-        observed.append(command)
-        return subprocess.CompletedProcess(command, 0, "consumer\n", "")
-
-    monkeypatch.setattr(hook_activation, "run_command", capture_run)
-
-    assert hook_activation.process_commands(tmp_path, platform_name="nt") == "consumer\n"
-    assert observed == [
+    expected = (
         (
             executable.resolve().as_posix(),
             "-NoLogo",
@@ -602,45 +584,50 @@ def test_windows_consumer_observation_uses_native_powershell_outside_path(
             "-Command",
             "Get-CimInstance Win32_Process | % CommandLine",
         )
-    ]
-
-
-def test_posix_consumer_observation_uses_native_ps_outside_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("PATH", (tmp_path / "git-only").as_posix())
-    observed: list[tuple[str, ...]] = []
-    monkeypatch.setattr(
-        hook_activation,
-        "process_listing_command",
-        lambda **_kwargs: ("/native/ps", "-axo", "command="),
+        if platform == "nt"
+        else ("/native/ps", "-axo", "command=")
     )
+    if platform == "posix":
+        monkeypatch.setattr(hook_activation, "process_listing_command", lambda **_kwargs: expected)
+    observed = []
 
-    def capture_run(
-        _root: Path, command: tuple[str, ...], **_kwargs: object
-    ) -> subprocess.CompletedProcess[str]:
-        observed.append(command)
-        return subprocess.CompletedProcess(command, 0, "consumer\n", "")
+    def capture(_root, command, **kwargs):
+        observed.append((command, kwargs))
+        return subprocess.CompletedProcess(command, status, "consumer\n", "observer failed")
 
-    monkeypatch.setattr(hook_activation, "run_command", capture_run)
+    monkeypatch.setattr(hook_activation, "run_command", capture)
+    if status:
+        with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
+            hook_activation.process_commands(tmp_path, platform_name=platform)
+    else:
+        assert hook_activation.process_commands(tmp_path, platform_name=platform) == "consumer\n"
+    assert observed == [(expected, {"remove_env_prefixes": ("GIT_",)})]
 
-    assert hook_activation.process_commands(tmp_path, platform_name="posix") == "consumer\n"
-    assert observed == [("/native/ps", "-axo", "command=")]
 
-
-def test_hook_install_rejects_a_junction_runtime_generation_without_touching_it(
+@pytest.mark.parametrize("invalidity", ["junction", "file", "symlink"])
+def test_hook_install_rejects_invalid_runtime_generation_without_touching_it(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    invalidity: str,
 ) -> None:
     repo, _venv, common = _materialized(tmp_path, monkeypatch)
     junction = common / "ethos/runtime" / ("f" * 64)
-    junction.mkdir(parents=True)
-    sentinel = junction / "sentinel"
-    sentinel.write_text("outside authority\n", encoding="utf-8")
+    if invalidity == "file":
+        junction.write_text("outside authority\n", encoding="utf-8")
+        sentinel = junction
+    else:
+        external = tmp_path / "external-generation"
+        external.mkdir()
+        if invalidity == "symlink":
+            junction.symlink_to(external, target_is_directory=True)
+        else:
+            junction.mkdir(parents=True)
+        sentinel = junction / "sentinel"
+        sentinel.write_text("outside authority\n", encoding="utf-8")
     monkeypatch.setattr(
         runtime_filesystem,
         "is_junction",
-        lambda path: path == junction,
+        lambda path: invalidity == "junction" and path == junction,
     )
 
     with pytest.raises(ValueError, match="hook_runtime_generation_root_invalid"):
@@ -785,7 +772,7 @@ def test_hook_runtime_rejects_a_symlinked_ethos_root_before_writing(tmp_path: Pa
     assert not tuple(external.iterdir())
 
 
-@pytest.mark.parametrize("kind", ["file", "symlink"])
+@pytest.mark.parametrize("kind", ["file", "symlink", "directory"])
 def test_hook_install_retires_the_legacy_runtime_python_locator(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -795,11 +782,19 @@ def test_hook_install_retires_the_legacy_runtime_python_locator(
     legacy = common / "ethos-runtime-python"
     if kind == "symlink":
         legacy.symlink_to(tmp_path / "retired-python")
+    elif kind == "directory":
+        legacy.mkdir()
     else:
         legacy.write_text("/retired/runtime/bin/python\n", encoding="utf-8")
 
     report = install_hook_launchers(repo)
 
+    if kind == "directory":
+        assert legacy.is_dir()
+        assert report["legacy_runtime_locator"]["state"] == "retained"
+        assert report["required_gaps"] == ["hook_runtime_cleanup_deferred"]
+        assert report["next_action"] == "ethos hook install --json"
+        return
     assert not legacy.exists()
     assert not legacy.is_symlink()
     assert report["legacy_runtime_locator"] == {

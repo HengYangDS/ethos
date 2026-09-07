@@ -58,7 +58,7 @@ DELIVERY_SESSIONS = ("build", "install_smoke", "supply_chain")
 
 def owner_commands() -> list[str]:
     """Return the exact local verification closure in execution order."""
-    sessions = (*VERIFY_SESSIONS, "tests", *DELIVERY_SESSIONS)
+    sessions = (*VERIFY_SESSIONS, "tests", "coverage_floor", *DELIVERY_SESSIONS)
     return [
         *(f"uv run --frozen --offline python -m nox -s {name}" for name in sessions),
         *PLATFORM_ADAPTERS,
@@ -108,6 +108,7 @@ def run(session: nox.Session) -> None:
     for relative in PLATFORM_ADAPTERS:
         session.run(str(ROOT / relative), env={"PYTHONWARNINGS": "error"})
     _run_session(session, "tests")
+    _run_session(session, "coverage_floor")
     for name in DELIVERY_SESSIONS:
         _run_session(session, name)
     observed = current_tracked_head(ROOT)

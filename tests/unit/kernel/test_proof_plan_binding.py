@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -285,12 +286,16 @@ def test_proof_artifact_binding_drift_fails_closed(tmp_path: Path, case: str) ->
         _assert_proof(repo, head, gap="proof_attestation_artifact_digest_mismatch")
 
 
+@pytest.mark.parametrize("drift", ["tree", "head"])
 def test_proof_issuance_rechecks_live_facts(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift: str
 ) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     plan = current_proof_plan(repo, expected_head=head)
-    monkeypatch.setattr(proof_module, "current_tree", lambda *_args, **_kwargs: "0" * 40)
+    if drift == "head":
+        commit_fixture_file(repo, "next.txt", "next\n", "advance after plan")
+    else:
+        monkeypatch.setattr(proof_module, "current_tree", lambda *_args, **_kwargs: "0" * 40)
     with pytest.raises(ValueError, match="proof_attestation_live_facts_stale"):
         issue_conformant_proof(repo, head, plan=plan, issuer="agent:test:case:proof")
 
@@ -311,52 +316,34 @@ def test_proof_issuance_reuses_the_plan_commitment_without_rereading_exact_head(
 
 
 @pytest.mark.parametrize(
-    ("case", "error"),
+    ("updates", "error"),
     [
-        ("plan", "proof_attestation_plan_invalid"),
-        ("checks", "proof_attestation_checks_invalid"),
-        ("payload", "proof_attestation_payload_invalid"),
-        ("empty", "proof_attestation_payload_invalid"),
-        ("verdict", "proof_attestation_verdict_invalid"),
-        ("issued-at", "proof_attestation_issued_at_invalid"),
-        ("required-gaps-shape", "proof_attestation_required_gaps_invalid"),
-        ("required-gaps-item", "proof_attestation_required_gaps_invalid"),
+        ({"plan": None}, "proof_attestation_plan_invalid"),
+        ({"checks": []}, "proof_attestation_checks_invalid"),
+        ({"issuer": 1}, "proof_attestation_payload_invalid"),
+        ({"scope": ""}, "proof_attestation_payload_invalid"),
+        ({"verdict": "maybe"}, "proof_attestation_verdict_invalid"),
+        ({"issued_at": "now"}, "proof_attestation_issued_at_invalid"),
+        ({"required_gaps": []}, "proof_attestation_required_gaps_invalid"),
+        ({"required_gaps": (1,)}, "proof_attestation_required_gaps_invalid"),
+        ({"boundary": "unrecognized"}, "proof_attestation_boundary_mismatch"),
     ],
 )
-def test_proof_issuance_payload_is_a_closed_contract(
-    tmp_path: Path,
-    case: str,
-    error: str,
-) -> None:
+def test_proof_issuance_payload_is_a_closed_contract(tmp_path, updates, error):
     repo, head = _adopted_repo(tmp_path / "repo")
     plan = current_proof_plan(repo, expected_head=head)
-    checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes)
-    payload: dict[str, object] = {
+    payload = {
         "plan": plan,
-        "checks": checks,
+        "checks": tuple(
+            conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes
+        ),
         "verdict": "pass",
         "issuer": "agent:test:case:proof",
         "scope": "repository",
         "boundary": "repository",
     }
-    updates: dict[str, object] = {
-        "plan": None,
-        "checks": list(checks),
-        "payload": {"issuer": 1},
-        "empty": {"scope": ""},
-        "verdict": {"verdict": "maybe"},
-        "issued-at": {"issued_at": "now"},
-        "required-gaps-shape": {"required_gaps": []},
-        "required-gaps-item": {"required_gaps": (1,)},
-    }
-    update = updates[case]
-    if isinstance(update, dict):
-        payload.update(update)
-    else:
-        payload[case] = update
-
     with pytest.raises((TypeError, ValueError), match=error):
-        issue_proof_attestation(repo, payload)
+        issue_proof_attestation(repo, payload | updates)
 
 
 def test_proof_issuance_rejects_nonadmitted_plan_and_result_drift(tmp_path: Path) -> None:
@@ -393,16 +380,13 @@ def test_proof_issuance_rejects_nonadmitted_plan_and_result_drift(tmp_path: Path
         issue_proof_attestation(repo, payload)
 
 
-def test_work_lane_proof_plan_compiles_only_from_the_frozen_resolution(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.fixture
+def work_proof(tmp_path, monkeypatch):
     holder = "agent:test:case:proof-holder"
     root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
     head = git(root, "rev-parse", "HEAD")
-    tree = git(root, "rev-parse", "HEAD^{tree}")
-    commitment = commitment_fixture(id="change:fixture-change")
     lease = dict(proof_module.leases_by_branch(root)["work/feature"])
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
     resolution = CurrentResolution(
         verdict="pass",
         authority=CurrentAuthority(
@@ -412,47 +396,29 @@ def test_work_lane_proof_plan_compiles_only_from_the_frozen_resolution(
             actor=holder,
             lease=lease,
             current_head=head,
-            current_tree=tree,
+            current_tree=git(root, "rev-parse", "HEAD^{tree}"),
         ),
-        commitment=commitment,
+        commitment=commitment_fixture(id="change:fixture-change"),
         scope=CurrentScope(("FEATURE.md",)),
     )
-    monkeypatch.setattr(
-        proof_module,
-        "leases_by_branch",
-        lambda _root: (_ for _ in ()).throw(
-            AssertionError("proof planning must not reread Lease state")
-        ),
-    )
-    monkeypatch.setattr(
-        proof_module,
-        "resolve_current_authority",
-        lambda **_kwargs: (_ for _ in ()).throw(
-            AssertionError("proof planning must not resolve authority twice")
-        ),
-    )
-    monkeypatch.setattr(
-        proof_module,
-        "current_branch",
-        lambda _root: (_ for _ in ()).throw(
-            AssertionError("proof planning must use the resolved branch")
-        ),
-    )
-    monkeypatch.setattr(
-        proof_module,
-        "current_tree",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            AssertionError("proof planning must use the resolved tree")
-        ),
-    )
-    plan = proof_plan(root, resolution=resolution)
+    return root, head, resolution
 
-    assert mutable_json(plan.commitment) == commitment.model_dump(mode="json")
+
+def test_work_lane_proof_plan_compiles_only_from_the_frozen_resolution(work_proof, monkeypatch):
+    root, head, resolution = work_proof
+
+    def reread(*_args, **_kwargs):
+        pytest.fail("proof planning must use the frozen authority and Git facts")
+
+    for name in ("leases_by_branch", "resolve_current_authority", "current_branch", "current_tree"):
+        monkeypatch.setattr(proof_module, name, reread)
+    plan = proof_plan(root, resolution=resolution)
+    assert mutable_json(plan.commitment) == resolution.commitment.model_dump(mode="json")
     assert plan.facts["head"] == head
-    assert plan.facts["tree"] == tree
+    assert plan.facts["tree"] == resolution.authority.current_tree
     assert plan.facts["values"]["changed_paths"] == ("FEATURE.md",)
     assert plan.facts["values"]["lease_generation"] == {
-        key: lease[key] for key in ("lane_ref", "generation", "holder_ref", "expires_at")
+        key: resolution.lease[key] for key in ("lane_ref", "generation", "holder_ref", "expires_at")
     }
 
 
@@ -461,46 +427,62 @@ def test_work_lane_proof_plan_compiles_only_from_the_frozen_resolution(
     [
         ("generation", "proof_lease_generation_stale"),
         ("actor", "lease_holder_mismatch"),
+        ("branch", "proof_attestation_live_facts_stale"),
     ],
 )
-def test_work_lane_proof_issuance_rechecks_live_authority(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    drift: str,
-    gap: str,
-) -> None:
-    holder = "agent:test:case:proof-holder"
-    root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
-    head = git(root, "rev-parse", "HEAD")
-    tree = git(root, "rev-parse", "HEAD^{tree}")
-    lease = dict(proof_module.leases_by_branch(root)["work/feature"])
-    resolution = CurrentResolution(
-        verdict="pass",
-        authority=CurrentAuthority(
-            verdict="pass",
-            reason="matched",
-            branch="work/feature",
-            actor=holder,
-            lease=lease,
-            current_head=head,
-            current_tree=tree,
-        ),
-        commitment=commitment_fixture(id="change:fixture-change"),
-        scope=CurrentScope(()),
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", holder)
+def test_work_lane_proof_issuance_rechecks_live_authority(work_proof, monkeypatch, drift, gap):
+    root, head, resolution = work_proof
     plan = proof_plan(root, resolution=resolution)
     if drift == "generation":
         monkeypatch.setattr(
             proof_module,
             "leases_by_branch",
-            lambda _root: {"work/feature": lease | {"generation": int(lease["generation"]) + 1}},
+            lambda _root: {
+                "work/feature": resolution.lease
+                | {"generation": int(resolution.lease["generation"]) + 1}
+            },
         )
+    elif drift == "branch":
+        git(root, "switch", "--detach", head)
     else:
         monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
-
     with pytest.raises(ValueError, match=gap):
         issue_conformant_proof(root, head, plan=plan)
+
+
+@pytest.mark.parametrize(
+    ("verdict", "gaps", "coordinate", "error"),
+    [
+        ("block", ("intent_missing",), "", "intent_missing"),
+        ("unknown", (), "", "unknown"),
+        ("pass", (), "authority", "current_authority_unavailable"),
+        ("pass", (), "current_head", "current_authority_unavailable"),
+        ("pass", (), "current_tree", "current_authority_unavailable"),
+    ],
+)
+def test_proof_plan_rejects_unresolved_authority(tmp_path, verdict, gaps, coordinate, error):
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="matched",
+        branch="work/fixture",
+        actor="agent:test:case:owner",
+        lease={},
+        current_head="a" * 40,
+        current_tree="b" * 40,
+    )
+    if coordinate == "authority":
+        authority = None
+    elif coordinate:
+        authority = replace(authority, **{coordinate: ""})
+    resolution = CurrentResolution(
+        verdict=verdict,
+        authority=authority,
+        commitment=None,
+        scope=CurrentScope(()),
+        required_gaps=gaps,
+    )
+    with pytest.raises(ValueError, match=error):
+        proof_plan(tmp_path, resolution=resolution)
 
 
 @pytest.mark.parametrize(
@@ -524,6 +506,9 @@ def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, g
         policy=policy,
         prior_attestations=dict(plan.prior_attestations),
     )
+    if case == "policy":
+        with pytest.raises(ValueError, match="proof_plan_binding_mismatch"):
+            _issue(repo, head, plan=forged)
     _store(
         repo,
         _reissue(
@@ -712,3 +697,18 @@ def test_expired_or_other_query_proofs_do_not_pollute_current_authority(
     _assert_proof(repo, head, selected=current)
     _store(repo, _reissue(current, body=current.payload.body | {"scope": ("workspace",)}))
     _assert_proof(repo, head, selected=current)
+
+
+@pytest.mark.parametrize("gap", ["git_common_directory_unavailable", "artifact_store_unreadable"])
+def test_proof_gaps_preserves_nonrepository_and_store_failure_distinction(
+    tmp_path, monkeypatch, gap
+):
+    def unavailable(_root):
+        raise ValueError(gap)
+
+    if gap == "git_common_directory_unavailable":
+        assert proof_gaps(tmp_path, "a" * 40) == ["attestation_set_repository_invalid"]
+    else:
+        monkeypatch.setattr(proof_module, "proof_artifact_root", unavailable)
+        with pytest.raises(ValueError, match=gap):
+            proof_gaps(tmp_path, "a" * 40)

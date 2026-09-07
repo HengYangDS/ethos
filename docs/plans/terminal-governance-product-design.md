@@ -386,6 +386,19 @@ existing quality owners. Execute in this order:
    runtime. Hosted topology/signature, adopter conformance, and the other global
    batches remain independently unclosed.
 
+The 2026-09-07 behavior batch extends candidate CAS/projection recovery and proof
+issuance/persistence in their existing test owners. Real Git assertions preserve
+ref progress after projection failure, exact replay, Attestation idempotence,
+and dirty-overlay protection. Proof cases reject changed branch/HEAD, unresolved
+authority, mismatched policy, and malformed artifact persistence. Shared fixture
+consolidation preserves the previous scenarios within the unchanged test budget.
+These are focused observations, not an exact-HEAD repository proof. The combined
+diagnostic runs reach 107 previously missing line/branch obligations; at the
+unchanged baseline denominator, at least 361 more remain before 95 percent could
+be established. Do not merge diagnostic databases into acceptance evidence.
+Continue with archive, runtime selection, retirement, and scope failure owners;
+freeze and remeasure the complete declared product before closeout.
+
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a
 threshold reduction. This section owns execution order; the official Change

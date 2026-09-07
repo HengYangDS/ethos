@@ -270,39 +270,52 @@ def test_archive_command_uses_only_the_official_change_declaration(tmp_path, met
 
 
 @pytest.mark.parametrize(
-    ("result", "expected_gaps", "expected_path"),
+    ("path", "change", "exit_code", "parse_error", "bound"),
     [
-        (
-            {
-                "exit_code": 0,
-                "parse_error": "",
-                "json": {
-                    "archive": {
-                        "change": "change",
-                        "path": "openspec/changes/archive/2026-08-29-change",
-                    }
-                },
-            },
-            [],
-            "openspec/changes/archive/2026-08-29-change",
-        ),
-        ({"exit_code": 1, "parse_error": "", "json": {}}, ["openspec_archive_result_invalid"], ""),
-        (
-            {
-                "exit_code": 0,
-                "parse_error": "",
-                "json": {"archive": {"change": "other", "path": "/outside"}},
-            },
-            ["openspec_archive_result_invalid"],
-            "",
-        ),
+        ("openspec/changes/archive/2026-08-29-change", "change", 0, "", True),
+        ("openspec/changes/archive/2026-08-29-change", "change", 1, "", True),
+        ("openspec/changes/archive/2026-08-29-change", "change", 0, "truncated", True),
+        ("openspec/changes/archive/2026-08-29-change", "other", 0, "", False),
+        ("openspec/changes/archive/2026-08-29-other-change", "change", 0, "", False),
+        ("openspec/changes/archive/2026-08-29-change/nested-change", "change", 0, "", False),
+        ("openspec/changes/archive/2026-02-30-change", "change", 0, "", False),
+        ("openspec/changes/archive/invalid-change", "change", 0, "", False),
+        ("openspec/changes/archive", "change", 0, "", False),
+        (".", "change", 0, "", False),
+        ("unrelated", "change", 0, "", False),
+        ("/outside", "other", 0, "", False),
+        ("", "change", 0, "", False),
+        (None, "change", 1, "", False),
     ],
 )
 def test_archive_result_accepts_only_the_exact_repository_archive(
-    tmp_path, result, expected_gaps, expected_path
+    tmp_path, path, change, exit_code, parse_error, bound
 ):
-    path = result.get("json", {}).get("archive", {}).get("path")
-    if isinstance(path, str) and path.startswith("openspec/"):
-        result["json"]["archive"]["path"] = (tmp_path / path).as_posix()
+    result = {
+        "exit_code": exit_code,
+        "parse_error": parse_error,
+        "json": {"archive": {"change": change, "path": str(tmp_path / path) if path else path}}
+        if path is not None
+        else {},
+    }
+    gaps = (
+        [] if bound and exit_code == 0 and not parse_error else ["openspec_archive_result_invalid"]
+    )
+    assert cli.archive_result(tmp_path, "change", result) == (gaps, path if bound else "")
 
-    assert cli.archive_result(tmp_path, "change", result) == (expected_gaps, expected_path)
+
+@pytest.mark.parametrize("alias_path", ["alias", "openspec/changes/archive/2026-08-30-change"])
+def test_archive_receipt_cannot_authorize_a_symlink_alias(tmp_path, alias_path):
+    target = tmp_path / "openspec/changes/archive/2026-08-29-change"
+    target.mkdir(parents=True)
+    marker = target / "proposal.md"
+    marker.write_text("preserve unrelated archive\n")
+    alias = tmp_path / alias_path
+    alias.symlink_to(target, target_is_directory=True)
+    result = {"exit_code": 0, "json": {"archive": {"change": "change", "path": str(alias)}}}
+
+    assert cli.archive_result(tmp_path, "change", result) == (
+        ["openspec_archive_result_invalid"],
+        "",
+    )
+    assert marker.read_text() == "preserve unrelated archive\n"

@@ -18,6 +18,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
+from ethos.repository.openspec.identifiers import archived_change_root_matches
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
@@ -314,21 +315,17 @@ def archive_result(
     change: str,
     result: dict[str, Any],
 ) -> tuple[list[str], str]:
-    """Validate one official archive result and return its repository path."""
+    """Validate execution and return only an exactly bound archive cleanup path."""
     payload = result.get("json")
     archive = payload.get("archive") if isinstance(payload, dict) else None
     archive_path = ""
-    if isinstance(archive, dict):
+    if isinstance(archive, dict) and archive.get("change") == change:
         with suppress(ValueError, OSError):
-            archive_path = (
-                Path(str(archive.get("path") or "")).resolve().relative_to(root).as_posix()
-            )
-    valid = (
-        result.get("exit_code") == 0
-        and not result.get("parse_error")
-        and isinstance(archive, dict)
-        and archive.get("change") == change
-        and archive_path.startswith("openspec/changes/archive/")
-        and archive_path.endswith(f"-{change}")
-    )
+            raw = archive.get("path")
+            if isinstance(raw, str) and raw:
+                target = Path(raw)
+                relative = target.relative_to(root.resolve()).as_posix()
+                if archived_change_root_matches(relative, change) and target.resolve() == target:
+                    archive_path = relative
+    valid = result.get("exit_code") == 0 and not result.get("parse_error") and bool(archive_path)
     return ([] if valid else ["openspec_archive_result_invalid"], archive_path)

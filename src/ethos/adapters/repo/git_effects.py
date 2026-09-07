@@ -105,6 +105,9 @@ def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") 
         raise ValueError(completed.stderr.strip() or "git_effect_compensation_failed")
     if untracked_path:
         _remove_tree(root, untracked_path)
+    observed = run_git(root, "status", "--porcelain", "--untracked-files=all", check=False)
+    if observed.returncode or observed.stdout.strip():
+        raise ValueError(observed.stderr.strip() or "git_effect_compensation_residue")
 
 
 def compensate_created_paths(
@@ -137,16 +140,38 @@ def remove_untracked_tree(root: Path, path: str) -> None:
 
 def _remove_tree(root: Path, path: str) -> None:
     """Apply the sole containment and type check for effect-owned tree removal."""
-    target = (root / path).resolve()
+    base = root.resolve()
+    target = base / path
     try:
-        target.relative_to(root.resolve())
+        target.resolve().relative_to(base)
+        relative = target.relative_to(base)
     except ValueError as error:
         msg = "git_effect_compensation_path_outside_root"
         raise ValueError(msg) from error
-    if target.is_symlink() or (target.exists() and not target.is_dir()):
+    components = [
+        base.joinpath(*relative.parts[:index]) for index in range(1, len(relative.parts) + 1)
+    ]
+    if (
+        not relative.parts
+        or ".." in relative.parts
+        or any(part.is_symlink() or part.is_junction() for part in components)
+        or (target.exists() and not target.is_dir())
+    ):
         msg = "git_effect_compensation_path_unsafe"
         raise ValueError(msg)
     if target.exists():
+        tracked = run_git(
+            root,
+            "--literal-pathspecs",
+            "ls-files",
+            "--cached",
+            "-z",
+            "--",
+            relative.as_posix(),
+            check=False,
+        )
+        if tracked.returncode or tracked.stdout:
+            raise ValueError(tracked.stderr.strip() or "git_effect_compensation_path_tracked")
         shutil.rmtree(target, ignore_errors=False)
 
 

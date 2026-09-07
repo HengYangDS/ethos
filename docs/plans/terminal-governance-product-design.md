@@ -554,15 +554,32 @@ JUnit, and native coverage evidence remain under the existing ignored
 `build/evidence/quality/` owner, including
 `coverage-floor-focused/full-proof-48d73d29fb39.json`.
 
-Next, test the uncovered lifecycle admission and compensation behavior in
-Work Lane creation and official archive resolution. Reuse and consolidate their
-existing fixtures, preserve every unique scenario, and retain the 38300 test
-ELOC cap. If a new behavior defect is exposed, demonstrate RED before repairing
-its owner. Use separate diagnostic data to select the next coherent batch;
-then freeze the source for another complete proof. Do not combine diagnostic
-datasets or infer global compliance from local percentages. Archive, accepted
-CAS, and runtime activation remain held at 95; accepted `18aa8707` still carries
-the old 93-percent policy until this correction actually qualifies for landing.
+The start-compensation batch then exposed destructive ownership confusion:
+provenance, foreign-holder, and hook failures removed existing worktrees, and
+hook failure revoked a reused Lease. Six isolated cases failed before repair.
+Start now distinguishes acquired from reused Lease state and consumes the native
+worktree effect's applied/recognized result. Only proved new resources may be
+compensated. Unknown new paths and dirty projections retain their dependencies;
+failed cleanup remains visible. The existing four-field Lease revocation owner
+replaces the start adapter's duplicate three-coordinate SQL. No runtime schema,
+registry, or recovery carrier is added.
+
+The seven-file start/Lease/worktree/quality regression set passed 131 tests.
+The start failure matrix has 25 cases and 97.31-percent local diagnostic coverage;
+it does not prove the whole product meets 95 percent. In-memory restoration of
+forced worktree deletion and expiry-insensitive revocation each makes the
+corresponding regression fail. Consolidation preserves bootstrap, candidate,
+minimal Lease, idempotency, topology, and runtime-refusal assertions while
+removing net test lines. These synchronous tests do not establish crash recovery
+or arbitrary concurrent filesystem-replacement safety.
+
+Continue with official archive resolution's measured behavior gaps, preserving
+unique scenarios and the 38300 test ELOC cap. Use separate diagnostic data to
+select the next coherent batch, then freeze the source for another complete
+proof. Do not combine diagnostic datasets or infer global compliance from local
+percentages. Archive, accepted CAS, and runtime activation remain held at 95;
+accepted `18aa8707` still carries the old 93-percent policy until this correction
+actually qualifies for landing.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

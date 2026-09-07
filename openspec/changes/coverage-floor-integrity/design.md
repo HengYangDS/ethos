@@ -57,6 +57,19 @@ this Change into a generic policy engine or unrelated lifecycle redesign.
    liveness model. Isolated static-path regressions do not prove filesystem-race
    or new-consumer-after-observation safety.
 
+8. Compensate only resources created by the current start invocation. Lease
+   acquisition returns its creation disposition; existing native worktree
+   Attestations distinguish applied creation from recognition. Reused resources
+   never become deletion targets on provenance, holder, or hook failure. An
+   unreceipted new path is unknown, not owned; retain it and the supporting ref
+   and Lease. Remove proved new worktrees without force so later user content
+   blocks cleanup. A failed removal retains dependent ref/Lease state, and a
+   failed exact Lease revocation retains the ref. Reuse the existing four-field
+   Lease revocation owner, deleting the start adapter's duplicate SQL that omitted
+   expiry. No persistent creation registry or second recovery protocol is added.
+   These synchronous compensation cases do not establish process-crash recovery
+   or protection against arbitrary concurrent filesystem replacement.
+
 ## Risks / Trade-offs
 
 The restored gate initially fails. That is the correct outcome until actual

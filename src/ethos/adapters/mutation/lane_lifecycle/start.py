@@ -5,12 +5,11 @@ from __future__ import annotations
 import os
 import re
 import shlex
-import sqlite3
-from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
@@ -29,6 +28,7 @@ from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.repo.worktree_effects import remove_worktree
+from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import observe_lease
@@ -38,8 +38,12 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
+from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def _slug(name: str) -> str:
@@ -135,7 +139,7 @@ def _admit(
     return candidate, None
 
 
-def _lease(repo: Path, branch: str, holder_ref: str) -> dict[str, object]:
+def _lease(repo: Path, branch: str, holder_ref: str) -> tuple[dict[str, object], bool]:
     observation = observe_lease(state_database(repo), branch)
     if observation.state != "missing":
         record = observation.record()
@@ -145,29 +149,20 @@ def _lease(repo: Path, branch: str, holder_ref: str) -> dict[str, object]:
         if record.get("holder_ref") != holder_ref:
             msg = f"lease_holder_mismatch:{branch}"
             raise ValueError(msg)
-        return record
+        return record, False
     now = datetime.now(UTC)
-    return acquire_lease(
-        state_database(repo),
-        lease=LaneLease(
-            lane_ref=branch,
-            holder_ref=HolderRef.parse(holder_ref),
-            generation=1,
-            expires_at=now + timedelta(days=1),
+    return (
+        acquire_lease(
+            state_database(repo),
+            lease=LaneLease(
+                lane_ref=branch,
+                holder_ref=HolderRef.parse(holder_ref),
+                generation=1,
+                expires_at=now + timedelta(days=1),
+            ),
         ),
+        True,
     )
-
-
-def _revoke_started_lease(repo: Path, *, branch: str, holder_ref: str, generation: int) -> bool:
-    database = state_database(repo)
-    with closing(sqlite3.connect(database)) as connection, connection:
-        connection.execute("begin immediate")
-        cursor = connection.execute(
-            "delete from leases where lane_ref = ? and holder_ref = ? and generation = ?",
-            (branch, holder_ref, generation),
-        )
-        connection.commit()
-    return cursor.rowcount == 1
 
 
 def _rollback_start(
@@ -180,20 +175,32 @@ def _rollback_start(
     holder_ref: str,
     lease: dict[str, object] | None,
     ref_created: bool,
+    worktree_created: bool | None,
 ) -> list[str]:
+    """Compensate proved creations; retain unknown projections and their dependencies."""
     gaps: list[str] = []
-    if os.path.lexists(target):
+    if worktree_created is None and os.path.lexists(target):
+        return ["lane_start_worktree_cleanup_failed"]
+    if worktree_created:
         try:
-            remove_worktree(repo, target, branch=branch, head=head, force=True)
-        except ValueError:
-            gaps.append("lane_start_worktree_cleanup_failed")
-    if lease is not None and not _revoke_started_lease(
-        repo,
-        branch=branch,
-        holder_ref=holder_ref,
-        generation=integer_value(lease.get("generation")),
-    ):
-        gaps.append("lane_start_lease_cleanup_failed")
+            remove_worktree(repo, target, branch=branch, head=head, force=False)
+        except (OSError, ValueError):
+            return ["lane_start_worktree_cleanup_failed"]
+    if lease is not None:
+        try:
+            revoke_lease(
+                state_database(repo),
+                request=LeaseOperationRequest(
+                    operation="revoke",
+                    branch=branch,
+                    holder_ref=holder_ref,
+                    generation=integer_value(lease["generation"]),
+                    expires_at=str(lease["expires_at"]),
+                    apply=True,
+                ),
+            )
+        except (OSError, ValueError):
+            return ["lane_start_lease_cleanup_failed"]
     if ref_created:
         try:
             _delete_started_ref(
@@ -203,7 +210,7 @@ def _rollback_start(
                 head=head,
                 holder_ref=holder_ref,
             )
-        except ValueError:
+        except (OSError, ValueError):
             gaps.append("lane_start_ref_cleanup_failed")
     return gaps
 
@@ -339,7 +346,9 @@ def start_work_lane(
             "next_action": apply_action,
         }
     lease: dict[str, object] | None = None
+    lease_created = False
     ref_created = False
+    worktree_created = False if os.path.lexists(target) else None
     try:
         require_runtime_wheel_provenance()
         if ref_head(repo, branch) == head:
@@ -353,8 +362,12 @@ def start_work_lane(
                 holder_ref=holder_ref,
             )
             ref_created = True
-        lease = _lease(repo, branch, holder_ref)
+        lease, lease_created = _lease(repo, branch, holder_ref)
         worktree_attestation = add_worktree(repo, target, branch=branch, head=head)
+        worktree_created = (
+            cast("Mapping[str, object]", worktree_attestation.payload.body["result"])["state"]
+            == "applied"
+        )
         hook_runtime = install_hook_launchers(target)
     except (OSError, ValueError) as error:
         cleanup_gaps = _rollback_start(
@@ -364,8 +377,9 @@ def start_work_lane(
             target=target,
             head=head,
             holder_ref=holder_ref,
-            lease=lease,
+            lease=lease if lease_created else None,
             ref_created=ref_created,
+            worktree_created=worktree_created,
         )
         return _blocked(
             branch,

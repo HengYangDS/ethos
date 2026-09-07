@@ -284,7 +284,6 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
         lambda _root, _environment: {"SIGNED_REPLAY": "1"},
         raising=False,
     )
-    revisions = ("d" * 40, "e" * 40)
     rebase_environments: list[object] = []
 
     def run_git(_root: Path, *args: str, **kwargs: object) -> SimpleNamespace:
@@ -299,23 +298,13 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
         return _completed()
 
     monkeypatch.setattr(refresh, "run_git", run_git)
+    validated: list[tuple[str, str, CommitPolicy]] = []
     monkeypatch.setattr(
         refresh,
-        "introduced_commit_revisions",
-        lambda _root, *, proposed_commit, baseline_commit: (
-            revisions
-            if (proposed_commit, baseline_commit) == (REBASED, CANDIDATE)
-            else pytest.fail("refresh selected the wrong replay coordinates")
+        "validate_replayed_commits",
+        lambda _root, *, proposed_commit, baseline_commit, policy: (
+            validated.append((proposed_commit, baseline_commit, policy)) or []
         ),
-    )
-    validated: list[tuple[tuple[str, ...], CommitPolicy, bool]] = []
-    monkeypatch.setattr(
-        refresh,
-        "validate_commit_revisions",
-        lambda _root, observed, *, policy, verify_trust: (
-            validated.append((observed, policy, verify_trust)) or ([], [])
-        ),
-        raising=False,
     )
     _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(
@@ -336,11 +325,19 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
     assert report["state"] == "base_refreshed"
     assert observed_policy == [(CANDIDATE, ".ethos/workspace.toml")]
     assert rebase_environments == [{"SIGNED_REPLAY": "1"}]
-    assert validated == [(revisions, policy, True)]
+    assert validated == [(REBASED, CANDIDATE, policy)]
 
 
-def test_refresh_policy_failure_restores_before_repository_effects(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+@pytest.mark.parametrize(
+    ("signing", "gap"),
+    [
+        (True, f"commit_subject_invalid:{'d' * 40}:invalid subject"),
+        (False, f"commit_range_unreadable:{CANDIDATE}:{REBASED}"),
+    ],
+    ids=["policy-rejected", "range-unreadable"],
+)
+def test_refresh_admission_failure_restores_before_repository_effects(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, signing: bool, gap: str
 ) -> None:
     _common(monkeypatch)
     ancestry = iter((False, True))
@@ -349,7 +346,7 @@ def test_refresh_policy_failure_restores_before_repository_effects(
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     policy = CommitPolicy(
         subject_pattern=r"^fix: .+",
-        signing_required=True,
+        signing_required=signing,
         signing_format="ssh",
     )
     monkeypatch.setattr(
@@ -367,7 +364,6 @@ def test_refresh_policy_failure_restores_before_repository_effects(
         raising=False,
     )
     monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {}, raising=False)
-    replayed = "d" * 40
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
         if args[-2:] == ("rev-parse", "HEAD"):
@@ -379,19 +375,12 @@ def test_refresh_policy_failure_restores_before_repository_effects(
     monkeypatch.setattr(refresh, "run_git", run_git)
     monkeypatch.setattr(
         refresh,
-        "introduced_commit_revisions",
-        lambda _root, *, proposed_commit, baseline_commit: (
-            (replayed,)
-            if (proposed_commit, baseline_commit) == (REBASED, CANDIDATE)
+        "validate_replayed_commits",
+        lambda _root, *, proposed_commit, baseline_commit, policy: (
+            [gap]
+            if (proposed_commit, baseline_commit) == (REBASED, CANDIDATE) and policy is not None
             else pytest.fail("refresh selected the wrong replay coordinates")
         ),
-    )
-    gap = f"commit_subject_invalid:{replayed}:invalid subject"
-    monkeypatch.setattr(
-        refresh,
-        "validate_commit_revisions",
-        lambda *_args, **_kwargs: ([{"commit": replayed, "required_gaps": [gap]}], [gap]),
-        raising=False,
     )
     monkeypatch.setattr(
         refresh,
@@ -422,78 +411,6 @@ def test_refresh_policy_failure_restores_before_repository_effects(
 
     assert report["state"] == "blocked"
     assert report["required_gaps"] == [gap]
-    assert compensated == [HEAD]
-    assert restored == [(BRANCH, HEAD)]
-
-
-def test_refresh_unreadable_replay_range_restores_before_repository_effects(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _common(monkeypatch)
-    ancestry = iter((False, True))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, HEAD))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
-    policy = CommitPolicy(
-        subject_pattern=r"^fix: .+",
-        signing_required=False,
-        signing_format="ssh",
-    )
-    monkeypatch.setattr(
-        refresh,
-        "committed_file_text",
-        lambda _root, ref, path: (
-            "candidate policy" if (ref, path) == (CANDIDATE, ".ethos/workspace.toml") else ""
-        ),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "commit_policy_from_text",
-        lambda text: policy if text == "candidate policy" else None,
-    )
-    monkeypatch.setattr(
-        refresh,
-        "introduced_commit_revisions",
-        lambda _root, *, proposed_commit, baseline_commit: (
-            None
-            if (proposed_commit, baseline_commit) == (REBASED, CANDIDATE)
-            else pytest.fail("refresh selected the wrong replay coordinates")
-        ),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "validate_commit_revisions",
-        lambda *_args, **_kwargs: pytest.fail("an unreadable range must not be validated"),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "issue_native_effect",
-        lambda *_args, **_kwargs: pytest.fail("an unreadable range must not be attested"),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: pytest.fail("an unreadable range must not update refs or Lease"),
-    )
-    compensated: list[str] = []
-    monkeypatch.setattr(
-        refresh,
-        "compensate_git_worktree",
-        lambda _root, *, head: compensated.append(head),
-    )
-    restored: list[tuple[str, str]] = []
-    monkeypatch.setattr(
-        refresh,
-        "attach_worktree",
-        lambda _root, _path, *, branch, head: restored.append((branch, head)) or SimpleNamespace(),
-    )
-
-    report = refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
-    )
-
-    assert report["state"] == "blocked"
-    assert report["required_gaps"] == [f"commit_range_unreadable:{CANDIDATE}:{REBASED}"]
     assert compensated == [HEAD]
     assert restored == [(BRANCH, HEAD)]
 

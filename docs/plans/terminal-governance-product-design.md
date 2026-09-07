@@ -181,7 +181,12 @@ passes; its own official Change must close the stated exit boundary.
    cases pass without replay, rebuild, re-signing, implicit primary remote, or
    cross-peer authority.
 6. **Close semantic and physical repository structure.** Apply the existing
-   module-layout rule repository-wide; remove empty shells, accidental
+   module-layout rule and the product-wide deep-module obligation to code,
+   CLI, runtime, effects, schemas, docs, rules, skills, CI, and renderers. Review
+   complete capabilities and caller knowledge, not file counts: absorb exposed
+   internal sequences and duplicate decisions into their existing owners;
+   retain necessary authority inputs and genuine transport boundaries. Remove
+   empty shells, accidental
    one-module packages, suffix-flat splits, facades, and stale imports while
    retaining real namespaces. Reconcile documentation to one entrypoint,
    `guides/quickstart.md`, necessary READMEs, and a restored
@@ -269,6 +274,15 @@ may become an active backlog. Recurrent execution failures are absorbed into
 the existing product owner, regression test, rule, or admitted skill rather than
 creating a feedback registry.
 
+A concrete defect is evidence for a possibly general invariant, not permission
+to narrow a general instruction to the reported file or current Change. First
+identify its applicability and semantic owner, distinguish observation from
+inference and remedy, and resolve contradictions or supersession on the same
+subject. Then schedule bounded implementations in this route. Neither a local
+fix nor a documented principle proves repository-wide fulfillment; each
+affected surface needs its own evidence. Do not reopen already-settled product
+decisions merely because a new example uses different filenames.
+
 ### Bounded Change Convergence Route
 
 This file owns the current dependency order above; archived Changes are evidence
@@ -300,6 +314,18 @@ changes, another live owner overlaps the same authority surface, an effect
 outcome is unknown, or a declared resource budget is exceeded. New feedback is
 mapped to the existing contract and current batch; it reopens source recovery
 only when it demonstrates a missing or contradictory terminal invariant.
+
+The current bounded implementation is `commit-policy-execution-closure`.
+Its deep-module convergence must retain one declaration/compiler, hide replay
+range and per-object validation sequencing, preserve explicit candidate-policy
+and signer-trust authority, and keep native hooks and hosted CI as transports.
+Its `tasks.md` owns verification and closeout progress. Complete its exact
+proof, archive/reproof, candidate/accepted CAS, immutable-runtime readback,
+publication, and owned-lane retirement before another overlapping mutation.
+Then re-observe remaining lanes and worktrees, preserve their unique semantics,
+and absorb or retire them through existing public transitions. Unproven global
+structure obligations remain in batch 6; this first instance does not close
+that batch. No new lane is justified solely to restate this principle.
 
 ## Convergence Rules
 

@@ -7,28 +7,20 @@ import pytest
 
 import ethos.surface.cli.hook.commands as hook_commands
 from tests.support.ethos_cli_runner import run_ethos_raw
-from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_commit_range_help_exposes_required_coordinates_only_as_named_options() -> None:
-    completed = run_ethos_raw("hook", "commit-range", "--help")
+def test_commit_range_grammar_requires_named_coordinates() -> None:
+    help_result = run_ethos_raw("hook", "commit-range", "--help")
 
-    assert completed.returncode == 0, completed.stderr
-    usage = completed.stdout.splitlines()[0]
-    assert "TARGET-REF" not in usage
-    assert "PROPOSED-HEAD" not in usage
-    assert "REMOTE-HEAD" not in usage
-    assert " REMOTE " not in usage
+    assert help_result.returncode == 0, help_result.stderr
+    usage = help_result.stdout.splitlines()[0]
+    assert all(name not in usage for name in ("TARGET-REF", "PROPOSED-HEAD", "REMOTE-HEAD"))
     for option in ("--target-ref", "--proposed-head", "--remote-head", "--remote"):
-        assert option in completed.stdout
-
-
-def test_commit_range_rejects_positional_coordinates() -> None:
-    completed = run_ethos_raw(
+        assert option in help_result.stdout
+    rejected = run_ethos_raw(
         "hook",
         "commit-range",
         "refs/heads/dev",
@@ -40,24 +32,32 @@ def test_commit_range_rejects_positional_coordinates() -> None:
         "--json",
     )
 
-    assert completed.returncode != 0
-    assert "--target-ref requires an argument" in completed.stderr
+    assert rejected.returncode != 0
+    assert "--target-ref requires an argument" in rejected.stderr
 
 
-def test_commit_range_command_uses_explicit_coordinates_without_mutation(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    baseline = git(repo, "rev-parse", "HEAD")
-    policy = repo / ".ethos/workspace.toml"
-    policy.parent.mkdir(parents=True, exist_ok=True)
-    policy.write_text(
-        '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
-        'signing_required = false\nsigning_format = "ssh"\n',
-        encoding="utf-8",
+def test_commit_range_command_forwards_explicit_coordinates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    proposed, remote, baseline = "a" * 40, "b" * 40, "c" * 40
+    calls: list[tuple[Path, dict[str, object]]] = []
+    monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: tmp_path)
+    monkeypatch.setattr(
+        hook_commands,
+        "commit_range_admission_report",
+        lambda root, **kwargs: (
+            calls.append((root, kwargs))
+            or {
+                "verdict": "pass",
+                "state": "admitted",
+                "target_ref": kwargs["target_ref"],
+                "update_kind": "existing",
+                "checked_commit_count": 1,
+                "revisions": [kwargs["proposed_head"]],
+                "required_gaps": [],
+            }
+        ),
     )
-    (repo / "change.txt").write_text("change\n", encoding="utf-8")
-    git(repo, "add", ".")
-    git(repo, "commit", "-m", "fix: validate range")
-    proposed = git(repo, "rev-parse", "HEAD")
 
     completed = run_ethos_raw(
         "hook",
@@ -67,30 +67,29 @@ def test_commit_range_command_uses_explicit_coordinates_without_mutation(tmp_pat
         "--proposed-head",
         proposed,
         "--remote-head",
-        baseline,
+        remote,
         "--remote",
         "origin",
-        "--root",
-        repo.as_posix(),
+        "--trusted-baseline",
+        baseline,
         "--json",
-        cwd=repo,
     )
 
     assert completed.returncode == 0, completed.stderr
     payload = json.loads(completed.stdout)
-    assert payload["command"] == "hook commit-range"
-    assert payload["verdict"] == "pass"
-    assert payload["state"] == "admitted"
-    assert payload["summary"] == {
-        "target_ref": "refs/heads/dev",
-        "update_kind": "existing",
-        "checked_commit_count": 1,
-    }
-    assert payload["data"]["baseline_commit"] == baseline
-    assert payload["data"]["proposed_commit"] == proposed
-    assert payload["data"]["revisions"] == [proposed]
-    assert payload["data"]["required_gaps"] == []
-    assert git(repo, "rev-parse", "HEAD") == proposed
+    assert calls == [
+        (
+            tmp_path,
+            {
+                "target_ref": "refs/heads/dev",
+                "proposed_head": proposed,
+                "remote_head": remote,
+                "remote_name": "origin",
+                "trusted_baseline": baseline,
+            },
+        )
+    ]
+    assert (payload["verdict"], payload["data"]["revisions"]) == ("pass", [proposed])
 
 
 def test_hook_run_refuses_unknown_hook_before_execution(

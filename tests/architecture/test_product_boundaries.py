@@ -20,57 +20,50 @@ COMMIT_ADMISSION_OWNER = ROOT / "src/ethos/adapters/repo/commit/admission.py"
 
 
 def test_commit_policy_execution_has_one_semantic_owner() -> None:
-    """Only the commit admission adapter may interpret compiled commit policy."""
-    subject_callers: list[str] = []
-    gap_owners: list[str] = []
-    policy_gaps = (
-        "commit_subject_invalid:",
-        "commit_signature_missing:",
-        "commit_signature_format_mismatch:",
-    )
-
-    for path in sorted((ROOT / "src/ethos").rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=path.as_posix())
-        relative = path.relative_to(ROOT).as_posix()
+    """One adapter owns policy interpretation and introduced-range projection."""
+    subject_owners, gap_owners, range_owners = set(), set(), set()
+    for path in (ROOT / "src/ethos").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr == "accepts_subject"
-            ):
-                subject_callers.append(relative)
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Attribute) and node.func.attr == "accepts_subject":
+                    subject_owners.add(path)
+                arguments = {
+                    arg.value
+                    for arg in node.args
+                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+                }
+                if {"rev-list", "--reverse"} <= arguments:
+                    range_owners.add(path)
             if (
                 isinstance(node, ast.Constant)
                 and isinstance(node.value, str)
-                and any(gap in node.value for gap in policy_gaps)
+                and node.value.startswith(
+                    (
+                        "commit_subject_invalid:",
+                        "commit_signature_missing:",
+                        "commit_signature_format_mismatch:",
+                    )
+                )
             ):
-                gap_owners.append(relative)
-
-    owner = COMMIT_ADMISSION_OWNER.relative_to(ROOT).as_posix()
-    assert sorted(set(subject_callers)) == [owner]
-    assert sorted(set(gap_owners)) == [owner]
+                gap_owners.add(path)
+    assert subject_owners == gap_owners == range_owners == {COMMIT_ADMISSION_OWNER}
 
 
-def test_commit_introduced_range_has_one_projector() -> None:
-    """Only the commit admission adapter may derive oldest-first introduced revisions."""
-    projectors: list[str] = []
-
-    for path in sorted((ROOT / "src/ethos").rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=path.as_posix())
-        relative = path.relative_to(ROOT).as_posix()
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
-                continue
-            literals = {
-                argument.value
-                for argument in node.args
-                if isinstance(argument, ast.Constant) and isinstance(argument.value, str)
-            }
-            if {"rev-list", "--reverse"} <= literals:
-                projectors.append(relative)
-
-    owner = COMMIT_ADMISSION_OWNER.relative_to(ROOT).as_posix()
-    assert sorted(set(projectors)) == [owner]
+def test_commit_admission_exposes_operations_not_internal_steps() -> None:
+    """The concrete owner exports complete operations without a forwarding facade."""
+    tree = ast.parse(COMMIT_ADMISSION_OWNER.read_text(encoding="utf-8"))
+    assert {
+        node.name
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_")
+    } == {
+        "commit_message_report",
+        "commit_subject_gap",
+        "commit_policy_report",
+        "commit_range_admission_report",
+        "validate_replayed_commits",
+    }
 
 
 def _launcher(tmp_path: Path) -> Path:

@@ -413,6 +413,22 @@ set passed 74 tests. Six executed coverage-contract regressions also passed.
 These remain working-tree focused observations, not exact-HEAD full proof.
 This safety work neither lowers the floor nor establishes current full coverage.
 
+The next runtime-selection batch preserves package authentication under the real
+selection lock, exact command projection, stale-CAS refusal, compensation and
+selector-byte preservation, linked or invalid coordinates, release attestation
+and closure uniqueness, and read-only legacy migration rejection. Consolidated
+setup removes repeated materializations without removing those assertions. The
+four-file runtime/hook set passed 86 tests; the two selected files passed 26
+tests with 98.27-percent local selection-module coverage. Isolated removal of
+the CAS guard or legacy schema guard makes the corresponding test fail. These
+diagnostics reach 23 additional baseline obligations beyond the prior 107; the
+archive fix changed production code, so neither that sum nor any combined
+historical dataset establishes current whole-product coverage. The test budget
+is exactly 38300/38300. Before further tests, consolidate genuinely redundant
+setup in the next retirement/scope owner; do not raise the cap, shorten away
+behavior, or switch to unrelated files merely to offset growth. Frozen full
+proof and accepted/runtime advancement remain pending.
+
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a
 threshold reduction. This section owns execution order; the official Change

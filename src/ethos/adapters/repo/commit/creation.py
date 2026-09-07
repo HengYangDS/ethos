@@ -1,4 +1,4 @@
-"""Bind an exact repository-selected SSH signer to one Git invocation."""
+"""Create repository commits through the declared subject and signing policy."""
 
 from __future__ import annotations
 
@@ -9,15 +9,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.repo.commit.admission import commit_subject_gap
+from ethos.adapters.repo.commit.admission import validate_commit_revisions
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_object import verify_commit_trust
 from ethos.repository.policy.commit import load_commit_policy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Mapping
-
-    from ethos.repository.policy.commit import CommitPolicy
 
 
 def _config(root: Path, name: str) -> str:
@@ -45,7 +44,7 @@ def _config(root: Path, name: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def commit_environment(root: Path, environment: Mapping[str, str] | None) -> dict[str, str] | None:
+def commit_environment(root: Path, environment: Mapping[str, str] | None) -> dict[str, str]:
     """Return the explicit Git configuration for one required signed commit."""
     bound = dict(environment or {})
     signing = run_git(root, "config", "--local", "--get", "user.signingkey", check=False)
@@ -95,9 +94,8 @@ def create_git_commit(
 ) -> Any:
     """Create and verify one commit object under repository signing policy."""
     policy = load_commit_policy(root)
-    if policy is not None and not policy.accepts_subject(message):
-        error = f"commit_subject_invalid:{message.partition(chr(10))[0]}"
-        raise ValueError(error)
+    if gap := commit_subject_gap(policy, message):
+        raise ValueError(gap)
     sign = policy is not None and policy.signing_required
     completed = runner(
         root,
@@ -114,35 +112,16 @@ def create_git_commit(
     if completed.returncode or not sign:
         return completed
     revision = completed.stdout.strip()
-    trust = verify_commit_trust(root, revision) if revision else {}
-    required_gaps = trust.get("required_gaps")
-    gaps = required_gaps if isinstance(required_gaps, list) else []
+    _violations, gaps = (
+        validate_commit_revisions(root, (revision,), policy=policy, verify_trust=True)
+        if revision
+        else ([], ["git_effect_signed_commit_missing"])
+    )
     if revision and not gaps:
         return completed
     return subprocess.CompletedProcess(
         completed.args,
         1,
         completed.stdout,
-        str(gaps[0]) if gaps else "git_effect_signed_commit_missing",
+        gaps[0],
     )
-
-
-def validate_commits(
-    root: Path,
-    revisions: tuple[str, ...],
-    *,
-    policy: CommitPolicy,
-) -> list[str]:
-    """Return the first tracked-policy gap in an ordered commit range."""
-    for revision in revisions:
-        completed = run_git(root, "show", "-s", "--format=%s", revision, check=False)
-        subject = completed.stdout.rstrip("\n")
-        if not policy.accepts_subject(subject):
-            return [f"commit_subject_invalid:{revision}:{subject}"]
-        if policy.signing_required:
-            trust = verify_commit_trust(root, revision)
-            required_gaps = trust.get("required_gaps")
-            gaps = required_gaps if isinstance(required_gaps, list) else []
-            if gaps:
-                return [str(gaps[0])]
-    return []

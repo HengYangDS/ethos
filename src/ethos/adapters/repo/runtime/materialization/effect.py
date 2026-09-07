@@ -67,6 +67,8 @@ def materialize_runtime(
         _fail("hook_runtime_root_invalid")
     work = runtime_root / f".build-{uuid.uuid4().hex}"
     try:
+        if reusable := _reusable_runtime(repo, expected_build, project):
+            return reusable / "python"
         dependency_python = (
             resolve_locked_environment_python(project)
             if build_source is not None
@@ -79,8 +81,6 @@ def materialize_runtime(
             interpreter,
             python_facts=python_facts,
         )
-        if reusable := _reusable_runtime(repo, expected_build, environment):
-            return reusable / "python"
         reuse_selected_closure = build_source is None and is_selected_runtime_source(package_source)
         locked_requirements = (
             None
@@ -122,22 +122,15 @@ def materialize_runtime(
 def _reusable_runtime(
     repo: Path,
     expected_build: BuildIdentity,
-    environment: RuntimeEnvironment,
+    project: Path,
 ) -> Path | None:
     common = Path(git_common_dir(repo))
     try:
         selected = current_runtime(common, expected_build=expected_build)
-    except ValueError:
+        dependency_lock_sha256 = file_sha256(project / "uv.lock")
+    except (OSError, ValueError):
         return None
-    observed_environment = RuntimeEnvironment(
-        selected.python_abi,
-        selected.python_version,
-        selected.python_implementation,
-        selected.dependency_lock_sha256,
-        selected.platform,
-        selected.architecture,
-    )
-    if observed_environment != environment:
+    if selected.dependency_lock_sha256 != dependency_lock_sha256:
         return None
     package_root = common / "ethos" / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():

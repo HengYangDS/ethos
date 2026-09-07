@@ -78,6 +78,34 @@ def test_node_package_supply_rejects_a_tree_from_another_lock(
         resolve_node_package_supply(source)
 
 
+def test_node_package_supply_ignores_workspace_projection_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source"
+    supply = tmp_path / "prepared/node_modules"
+    source.mkdir()
+    supply.mkdir(parents=True)
+    dependency = {"node_modules/tool": {"version": "1.0.0"}}
+    _write_lock(
+        source / "package-lock.json",
+        {
+            "": {},
+            "distributions/npm": {"version": "0.2.0-alpha.5", "link": True},
+            **dependency,
+        },
+    )
+    _write_lock(
+        supply / ".package-lock.json",
+        {
+            "distributions/npm": {"version": "0.2.0-alpha.4", "link": True},
+            **dependency,
+        },
+    )
+    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", supply.as_posix())
+
+    assert resolve_node_package_supply(source) == supply.resolve()
+
+
 def test_node_package_projection_selects_its_coordinate_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

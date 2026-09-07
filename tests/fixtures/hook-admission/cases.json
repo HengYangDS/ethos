@@ -355,31 +355,5 @@
         "block"
       ]
     }
-  ],
-  "proposal_baseline_states": [
-    {
-      "id": "valid",
-      "values": [
-        "valid",
-        1,
-        ""
-      ]
-    },
-    {
-      "id": "missing",
-      "values": [
-        "missing",
-        0,
-        "push_identity_proposal_baseline_missing:origin/dev"
-      ]
-    },
-    {
-      "id": "diverged",
-      "values": [
-        "diverged",
-        0,
-        "push_identity_proposal_baseline_not_ancestor:origin/dev"
-      ]
-    }
   ]
 }

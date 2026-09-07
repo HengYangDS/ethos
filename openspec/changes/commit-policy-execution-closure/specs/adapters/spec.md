@@ -16,6 +16,25 @@ exceptions.
 - **AND** activation, rollback, cleanup, and status treat that set as one
   generation rather than modifying a current generation in place.
 
+#### Scenario: Candidate hook semantics await acceptance
+
+- **WHEN** a Work Lane adds a hook capability that is absent from the exact
+  selected accepted runtime
+- **THEN** observation validates the incumbent generation through that selected
+  package's own hook contract
+- **AND** the candidate capability remains pending until accepted source or an
+  immutable package built from it performs the next activation transaction.
+
+#### Scenario: The exact selected runtime is already reusable
+
+- **WHEN** hook activation observes a selected immutable runtime whose build,
+  manifest, platform, architecture, dependency-lock digest, and retained wheel
+  match the requested package runtime
+- **THEN** it reuses that generation before requiring another Python image
+  source
+- **AND** any mismatch continues through fresh materialization rather than
+  accepting stale runtime bytes.
+
 #### Scenario: Pre-push receives several updates
 
 - **WHEN** Git supplies multiple branch or tag update records on standard input

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.identity import commit_contained_in
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
@@ -33,7 +32,7 @@ def accepted_advance_gaps(
     """Return candidate-head and fast-forward gaps for an accepted advance."""
     candidate = policy.candidate_branch
     identity_replacement = equivalent_commit_identity(repo, old_value, new_value)
-    contained = commit_contained_in(repo, new_value, candidate)
+    contained = is_ancestor(repo, new_value, candidate)
     candidate_head = git_stdout(repo, "rev-parse", "--verify", "--quiet", candidate)
     gaps = (
         []
@@ -45,7 +44,7 @@ def accepted_advance_gaps(
     if (
         not identity_replacement
         and old_value not in _ZERO_OIDS
-        and not commit_contained_in(repo, old_value, new_value)
+        and not is_ancestor(repo, old_value, new_value)
     ):
         gaps.append("accepted_ref_move_not_fast_forward")
     return gaps

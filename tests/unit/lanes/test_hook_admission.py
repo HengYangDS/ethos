@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 
-import ethos.adapters.admission.identity as admission_identity
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.identity import push_identity_policy_report
@@ -53,7 +52,6 @@ class CaseMatrix(BaseModel):
     stash_operation_states: tuple[Case, ...]
     postwrite_states: tuple[Case, ...]
     identity_states: tuple[Case, ...]
-    proposal_baseline_states: tuple[Case, ...]
 
 
 CASE_ARITY = {
@@ -67,7 +65,6 @@ CASE_ARITY = {
     "stash_operation_states": 3,
     "postwrite_states": 3,
     "identity_states": 3,
-    "proposal_baseline_states": 3,
 }
 CASE_PAYLOAD = CaseMatrix.model_validate_json(
     (Path(__file__).parents[2] / "fixtures/hook-admission/cases.json").read_text()
@@ -527,7 +524,7 @@ def test_identity_state_matrix(
     repo = _identity_repo(tmp_path / "repo")
     remote_head = git(repo, "rev-parse", "HEAD")
     pushed_head = _identity_commit(repo, monkeypatch, author, committer)
-    policy = push_identity_policy_report(repo, pushed_head, remote_head)
+    policy = push_identity_policy_report(repo, (pushed_head,))
     report = push_admission_report(
         root=repo,
         target_ref="refs/heads/work/identity",
@@ -546,65 +543,54 @@ def test_identity_state_matrix(
         ) is (identity != "Canonical User")
 
 
-@pytest.mark.parametrize(("state", "count", "gap"), _cases("proposal_baseline_states"))
-def test_proposal_baseline_state_matrix(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, state: str, count: int, gap: str
+def test_push_admission_composes_policy_and_identity_over_one_introduced_range(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     repo = _identity_repo(tmp_path / "repo")
-    if state == "valid":
-        git(
-            repo,
-            "update-ref",
-            "refs/remotes/origin/dev",
-            _identity_commit(repo, monkeypatch, "Legacy User", "Legacy User", "legacy"),
-        )
-    elif state == "diverged":
-        git(repo, "checkout", "-b", "remote-source")
-        git(
-            repo,
-            "update-ref",
-            "refs/remotes/origin/dev",
-            _identity_commit(repo, monkeypatch, name="remote"),
-        )
-        git(repo, "checkout", "dev")
-    policy = push_admission_report(
+    remote_head = git(repo, "rev-parse", "HEAD")
+    workspace = repo / ".ethos/workspace.toml"
+    workspace.parent.mkdir(exist_ok=True)
+    workspace.write_text(
+        '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
+        'signing_required = false\nsigning_format = "ssh"\n',
+        encoding="utf-8",
+    )
+    git(repo, "add", ".ethos/workspace.toml")
+    pushed_head = _identity_commit(repo, monkeypatch)
+
+    report = push_admission_report(
         root=repo,
-        target_ref="refs/heads/proposal/identity-baseline",
-        pushed_head=_identity_commit(repo, monkeypatch),
-        remote_head="0" * 40,
-    )["identity_policy"]
-    assert policy["checked_commit_count"] == count
-    assert gap in policy["required_gaps"] if gap else policy["verdict"] == "pass"
+        target_ref="refs/heads/proposal/identity",
+        pushed_head=pushed_head,
+        remote_head=remote_head,
+    )
+
+    commit_policy = report["commit_policy_admission"]
+    assert commit_policy["revisions"] == [pushed_head]
+    assert commit_policy["required_gaps"] == [f"commit_subject_invalid:{pushed_head}:new identity"]
+    assert report["identity_policy"]["checked_commit_count"] == 1
+    assert commit_policy["required_gaps"][0] in report["required_gaps"]
 
 
 def test_identity_failure_state_matrix(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
-    assert set(push_identity_policy_report(repo, "missing-head")["required_gaps"]) >= {
+    assert set(push_identity_policy_report(repo, ("missing-head",))["required_gaps"]) >= {
         "push_identity_user_name_missing",
         "push_identity_user_email_missing",
-        "push_identity_commit_range_unreadable",
+        "push_identity_commit_unreadable:missing-head",
     }
     git(repo, "config", "user.name", "Test User")
     git(repo, "config", "user.email", "test@example.com")
-    run_git = admission_identity.run_git
-
-    def fail_rev_list(root, *args, **kwargs):
-        return (
-            type("FailedProcess", (), {"returncode": 1, "stdout": "", "stderr": "fatal"})()
-            if args[:1] == ("rev-list",)
-            else run_git(root, *args, **kwargs)
-        )
-
-    monkeypatch.setattr(admission_identity, "run_git", fail_rev_list)
-    report = push_identity_policy_report(repo, git(repo, "rev-parse", "HEAD"))
+    report = push_identity_policy_report(repo, ("missing-head",))
     _assert(
         report,
         {
             "verdict": "block",
             "checked_commit_count": 0,
-            "required_gaps": ["push_identity_commit_range_unreadable"],
+            "required_gaps": ["push_identity_commit_unreadable:missing-head"],
         },
     )
     assert "ok" not in report

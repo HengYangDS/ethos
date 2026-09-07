@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 import tomllib
 from pathlib import Path
 
@@ -41,6 +42,131 @@ def test_hosted_repository_proof_does_not_activate_local_mutation_runtime() -> N
     assert all("tools/ci/scripts/configure-git-checkout.sh" not in text for text in texts)
     assert all("tools/ci/scripts/run-head-bound-proof.sh" in text for text in texts)
     assert all("ethos hook install" not in text for text in texts)
+
+
+def test_integration_events_transport_exact_commit_range_coordinates() -> None:
+    github = yaml.safe_load(
+        (ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text(encoding="utf-8")
+    )
+    github_steps = {
+        step["name"]: step
+        for step in github["jobs"]["quality"]["steps"]
+        if isinstance(step, dict) and "name" in step
+    }
+
+    push = github_steps["Admit pushed commit range"]
+    assert push["if"] == "github.event_name == 'push'"
+    assert shlex.split(push["run"]) == [
+        "uv",
+        "run",
+        "--frozen",
+        "--offline",
+        "ethos",
+        "hook",
+        "commit-range",
+        "--target-ref",
+        "${{ github.ref }}",
+        "--proposed-head",
+        "${{ github.sha }}",
+        "--remote-head",
+        "${{ github.event.before }}",
+        "--remote",
+        "origin",
+        "--root",
+        ".",
+        "--json",
+    ]
+
+    pull_request = github_steps["Admit pull request commit range"]
+    assert pull_request["if"] == "github.event_name == 'pull_request'"
+    assert shlex.split(pull_request["run"]) == [
+        "uv",
+        "run",
+        "--frozen",
+        "--offline",
+        "ethos",
+        "hook",
+        "commit-range",
+        "--target-ref",
+        "refs/heads/${{ github.event.pull_request.base.ref }}",
+        "--proposed-head",
+        "${{ github.event.pull_request.head.sha }}",
+        "--remote-head",
+        "${{ github.event.pull_request.base.sha }}",
+        "--remote",
+        "origin",
+        "--root",
+        ".",
+        "--json",
+    ]
+
+    gitlab = yaml.safe_load(
+        (ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text(encoding="utf-8")
+    )
+    gitlab_job = gitlab["ethos:commit-policy"]
+    assert gitlab_job["variables"] == {"GIT_STRATEGY": "clone"}
+    assert gitlab_job["rules"] == [
+        {
+            "if": '$CI_PIPELINE_SOURCE == "push"',
+            "variables": {
+                "ETHOS_COMMIT_TARGET_REF": "refs/heads/${CI_COMMIT_BRANCH}",
+                "ETHOS_COMMIT_PROPOSED_HEAD": "${CI_COMMIT_SHA}",
+                "ETHOS_COMMIT_REMOTE_HEAD": "${CI_COMMIT_BEFORE_SHA}",
+            },
+        },
+        {
+            "if": (
+                '$CI_PIPELINE_SOURCE == "merge_request_event" '
+                "&& $CI_MERGE_REQUEST_SOURCE_BRANCH_SHA "
+                "&& $CI_MERGE_REQUEST_TARGET_BRANCH_SHA"
+            ),
+            "variables": {
+                "ETHOS_COMMIT_TARGET_REF": ("refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"),
+                "ETHOS_COMMIT_PROPOSED_HEAD": ("${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA}"),
+                "ETHOS_COMMIT_REMOTE_HEAD": ("${CI_MERGE_REQUEST_TARGET_BRANCH_SHA}"),
+            },
+        },
+        {
+            "if": (
+                '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DIFF_BASE_SHA'
+            ),
+            "variables": {
+                "ETHOS_COMMIT_TARGET_REF": ("refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"),
+                "ETHOS_COMMIT_PROPOSED_HEAD": "${CI_COMMIT_SHA}",
+                "ETHOS_COMMIT_REMOTE_HEAD": "${CI_MERGE_REQUEST_DIFF_BASE_SHA}",
+            },
+        },
+        {"when": "never"},
+    ]
+    assert shlex.split(gitlab_job["script"][0]) == [
+        "uv",
+        "run",
+        "--frozen",
+        "--offline",
+        "ethos",
+        "hook",
+        "commit-range",
+        "--target-ref",
+        "${ETHOS_COMMIT_TARGET_REF}",
+        "--proposed-head",
+        "${ETHOS_COMMIT_PROPOSED_HEAD}",
+        "--remote-head",
+        "${ETHOS_COMMIT_REMOTE_HEAD}",
+        "--remote",
+        "origin",
+        "--root",
+        ".",
+        "--json",
+    ]
+
+    provider_text = "\n".join(
+        (
+            (ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text(encoding="utf-8"),
+            (ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text(encoding="utf-8"),
+        )
+    )
+    assert "rev-list" not in provider_text
+    assert "subject_pattern" not in provider_text
 
 
 def test_provider_emulators_are_digest_bound_and_fail_closed() -> None:

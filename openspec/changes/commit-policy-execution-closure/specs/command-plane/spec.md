@@ -64,6 +64,23 @@ launchers for the selected immutable runtime.
 - **AND** it returns the existing exact `ethos hook install --root <root> --json`
   repair command rather than asking the adopter to inspect source.
 
+#### Scenario: A new transport exists only in an unaccepted Change
+
+- **WHEN** the selected immutable runtime exactly matches accepted Git truth but
+  the invoking Work Lane contains a newer commit-policy execution capability
+- **THEN** status keeps the accepted runtime current and reports the newer
+  capability as `pending_acceptance`
+- **AND** it does not instruct the older accepted runtime to install a launcher
+  or command that package does not contain.
+
+#### Scenario: Accepted source requires a newer runtime
+
+- **WHEN** accepted Git truth advances to source whose commit-policy execution
+  capability is newer than the selected immutable runtime
+- **THEN** status reports the selected runtime stale
+- **AND** its repair action invokes the new accepted package rather than asking
+  the superseded runtime to manufacture unknown semantics.
+
 #### Scenario: Policy is not declared
 
 - **WHEN** the repository has no `[commit_policy]` declaration

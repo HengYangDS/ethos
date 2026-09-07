@@ -57,6 +57,38 @@ default:
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
 
+ethos:commit-policy:
+  <<: *python_setup
+  stage: quality
+  variables:
+    GIT_STRATEGY: clone
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      variables:
+        ETHOS_COMMIT_TARGET_REF: refs/heads/${CI_COMMIT_BRANCH}
+        ETHOS_COMMIT_PROPOSED_HEAD: ${CI_COMMIT_SHA}
+        ETHOS_COMMIT_REMOTE_HEAD: ${CI_COMMIT_BEFORE_SHA}
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_SHA && $CI_MERGE_REQUEST_TARGET_BRANCH_SHA'
+      variables:
+        ETHOS_COMMIT_TARGET_REF: refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}
+        ETHOS_COMMIT_PROPOSED_HEAD: ${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA}
+        ETHOS_COMMIT_REMOTE_HEAD: ${CI_MERGE_REQUEST_TARGET_BRANCH_SHA}
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DIFF_BASE_SHA'
+      variables:
+        ETHOS_COMMIT_TARGET_REF: refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}
+        ETHOS_COMMIT_PROPOSED_HEAD: ${CI_COMMIT_SHA}
+        ETHOS_COMMIT_REMOTE_HEAD: ${CI_MERGE_REQUEST_DIFF_BASE_SHA}
+    - when: never
+  script:
+    - >-
+      uv run --frozen --offline ethos hook commit-range
+      --target-ref "${ETHOS_COMMIT_TARGET_REF}"
+      --proposed-head "${ETHOS_COMMIT_PROPOSED_HEAD}"
+      --remote-head "${ETHOS_COMMIT_REMOTE_HEAD}"
+      --remote origin
+      --root .
+      --json
+
 ethos:carrier-quality:
   <<: *python_setup
   stage: quality

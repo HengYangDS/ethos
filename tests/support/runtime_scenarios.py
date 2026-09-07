@@ -12,11 +12,13 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.transition as identity_transition
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.hook.activation import materialize_hook_launchers
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -78,7 +80,16 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
         wheel.write_bytes(package)
         assert file_sha256(wheel) == wheel_sha256
         activate_runtime(common, target)
-        return install_hook_launchers(root)
+        hooks = materialize_hook_launchers(common / "ethos/hooks")
+        config_effects.set_common_config(
+            root,
+            {
+                "extensions.worktreeConfig": "true",
+                "gc.packRefs": "false",
+                "core.hooksPath": hooks.as_posix(),
+            },
+        )
+        return hook_runtime_binding(root)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
@@ -158,6 +169,17 @@ def materialize_runtime_case(
     wheel = tmp_path / "ethos-test.whl"
     wheel.write_bytes(b"wheel")
     source_python = Path(sys.executable)
+    python_facts = runtime_materialization.observe_python_facts(source_python)
+
+    def require_python_image_source(interpreter: Path) -> dict[str, str]:
+        assert interpreter.samefile(source_python)
+        return python_facts
+
+    monkeypatch.setattr(
+        runtime_materialization,
+        "require_python_image_source",
+        require_python_image_source,
+    )
     monkeypatch.setattr(
         runtime_materialization,
         "resolve_runtime_wheel",
@@ -197,10 +219,7 @@ def materialize_runtime_case(
         assert locked_requirements == tmp_path / "locked-requirements.txt"
         assert dependency_python is not None
         assert dependency_python.samefile(source_python)
-        runtime_python = runtime_executable(target, "python")
-        runtime_python.parent.mkdir(parents=True)
-        runtime_python.write_bytes(b"python")
-        runtime_python.chmod(0o755)
+        create_fixture_python(target)
         package = target / "lib/python3.14/site-packages/ethos/module.py"
         package.parent.mkdir(parents=True)
         package.write_text("original\n", encoding="utf-8")

@@ -33,6 +33,9 @@ transport happened to create or publish an object.
   closed.
 - Delete or absorb the duplicate push-range walker after all identity, subject,
   and signature checks consume one exact integration-range projection.
+- Keep prepared Node dependency supply reusable across product-version-only
+  workspace projection changes by binding it solely to locked
+  `node_modules/*` package entries.
 
 ## Capabilities
 
@@ -48,11 +51,14 @@ None.
   machine-composable commit-policy admission result.
 - `adapters`: Git hooks and forge/CI projections invoke the same repository
   owner and do not duplicate policy parsing or range semantics.
+- `distribution`: The next prerelease identity advances when this accepted
+  product behavior becomes observable; source and artifact digests remain
+  additional identities rather than substitutes for product version.
 
 ## Impact
 
 The repository commit-policy validator, Git range observation, hook runtime and
 activation, pre-push admission, repository status/audit projection, native CI
-owner commands, and focused tests change. No adopter schema, historical
-exception list, compatibility layer, persistent state, or second parser is
-introduced.
+owner commands, local toolchain bootstrap, product-version projections, and
+focused tests change. No adopter schema, historical exception list,
+compatibility layer, persistent state, or second parser is introduced.

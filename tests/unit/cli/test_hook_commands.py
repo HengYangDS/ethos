@@ -1,13 +1,96 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.surface.cli.hook.commands as hook_commands
+from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_commit_range_help_exposes_required_coordinates_only_as_named_options() -> None:
+    completed = run_ethos_raw("hook", "commit-range", "--help")
+
+    assert completed.returncode == 0, completed.stderr
+    usage = completed.stdout.splitlines()[0]
+    assert "TARGET-REF" not in usage
+    assert "PROPOSED-HEAD" not in usage
+    assert "REMOTE-HEAD" not in usage
+    assert " REMOTE " not in usage
+    for option in ("--target-ref", "--proposed-head", "--remote-head", "--remote"):
+        assert option in completed.stdout
+
+
+def test_commit_range_rejects_positional_coordinates() -> None:
+    completed = run_ethos_raw(
+        "hook",
+        "commit-range",
+        "refs/heads/dev",
+        "a" * 40,
+        "b" * 40,
+        "origin",
+        "--root",
+        ".",
+        "--json",
+    )
+
+    assert completed.returncode != 0
+    assert "--target-ref requires an argument" in completed.stderr
+
+
+def test_commit_range_command_uses_explicit_coordinates_without_mutation(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    baseline = git(repo, "rev-parse", "HEAD")
+    policy = repo / ".ethos/workspace.toml"
+    policy.parent.mkdir(parents=True, exist_ok=True)
+    policy.write_text(
+        '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
+        'signing_required = false\nsigning_format = "ssh"\n',
+        encoding="utf-8",
+    )
+    (repo / "change.txt").write_text("change\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "fix: validate range")
+    proposed = git(repo, "rev-parse", "HEAD")
+
+    completed = run_ethos_raw(
+        "hook",
+        "commit-range",
+        "--target-ref",
+        "refs/heads/dev",
+        "--proposed-head",
+        proposed,
+        "--remote-head",
+        baseline,
+        "--remote",
+        "origin",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["command"] == "hook commit-range"
+    assert payload["verdict"] == "pass"
+    assert payload["state"] == "admitted"
+    assert payload["summary"] == {
+        "target_ref": "refs/heads/dev",
+        "update_kind": "existing",
+        "checked_commit_count": 1,
+    }
+    assert payload["data"]["baseline_commit"] == baseline
+    assert payload["data"]["proposed_commit"] == proposed
+    assert payload["data"]["revisions"] == [proposed]
+    assert payload["data"]["required_gaps"] == []
+    assert git(repo, "rev-parse", "HEAD") == proposed
 
 
 def test_hook_run_refuses_unknown_hook_before_execution(
@@ -60,7 +143,7 @@ def test_hook_install_emits_runtime_binding_on_success(
     runtime = {
         "hooks_path": str(tmp_path / "hooks"),
         "python": str(tmp_path / "python"),
-        "scripts": ["pre-commit", "pre-push", "reference-transaction"],
+        "scripts": ["commit-msg", "pre-commit", "pre-push", "reference-transaction"],
         "linked_worktrees": [
             {"path": str(tmp_path), "state": "repaired"},
             {"path": str(tmp_path / "linked"), "state": "checked"},
@@ -108,7 +191,7 @@ def test_hook_install_blocks_until_deferred_cleanup_converges(
     runtime = {
         "hooks_path": str(tmp_path / "hooks"),
         "python": str(tmp_path / "python"),
-        "scripts": ["pre-commit", "pre-push", "reference-transaction"],
+        "scripts": ["commit-msg", "pre-commit", "pre-push", "reference-transaction"],
         "required_gaps": ["hook_runtime_cleanup_deferred"],
         "linked_worktrees": [],
         "generation_cleanup": {

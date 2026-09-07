@@ -18,7 +18,9 @@ from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.repo.commit.admission import commit_range_admission_report
 from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import HookAdmissionRequest
@@ -63,6 +65,19 @@ class PushOptions:
 
     remote_head: Annotated[str, Parameter(name="--remote-head", group=_PUSH_OPTIONS)] = ""
     remote: Annotated[str, Parameter(name="--remote", group=_PUSH_OPTIONS)] = "origin"
+    root: RootOption | None = None
+    json_output: JsonFlag = False
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CommitRangeOptions:
+    """Explicit coordinates for one read-only introduced-range admission."""
+
+    target_ref: Annotated[str, Parameter(name="--target-ref")]
+    proposed_head: Annotated[str, Parameter(name="--proposed-head")]
+    remote_head: Annotated[str, Parameter(name="--remote-head")]
+    remote: Annotated[str, Parameter(name="--remote")]
+    trusted_baseline: Annotated[str, Parameter(name="--trusted-baseline")] = ""
     root: RootOption | None = None
     json_output: JsonFlag = False
 
@@ -143,6 +158,31 @@ def _hook_admit_next_action(report: dict[str, object], verdict: Verdict) -> str:
     if verdict == "pass":
         return ""
     return str(report.get("next_action") or _LANE_PREWRITE_ACTION)
+
+
+@_app.command(name="commit-range")
+def commit_range(options: Annotated[CommitRangeOptions, Parameter(name="*")]) -> None:
+    """Evaluate commit policy over one exact proposed Git integration range."""
+    repo = resolve_root(options.root)
+    report = commit_range_admission_report(
+        repo,
+        target_ref=options.target_ref,
+        proposed_head=options.proposed_head,
+        remote_head=options.remote_head,
+        remote_name=options.remote,
+        trusted_baseline=options.trusted_baseline,
+    )
+    result = _report_result(
+        "hook commit-range",
+        report,
+        {
+            "target_ref": report["target_ref"],
+            "update_kind": report["update_kind"],
+            "checked_commit_count": report["checked_commit_count"],
+        },
+        lambda verdict: "" if verdict == "pass" else f"ethos status --root {repo} --json",
+    )
+    emit(result, json_output=options.json_output, enforce=True)
 
 
 @_app.command
@@ -258,7 +298,7 @@ def run_hook(
     arguments: Annotated[tuple[str, ...], Parameter(consume_multiple=True)] = (),
 ) -> None:
     """Execute one installed Git hook through the Python semantic owner."""
-    if name not in {"pre-commit", "pre-push", "reference-transaction"}:
+    if name not in HOOK_NAMES:
         raise SystemExit(1)
     repo = resolve_root(None)
     raise SystemExit(execute_hook(repo, name, arguments, stdin=sys.stdin))

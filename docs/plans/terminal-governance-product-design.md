@@ -424,10 +424,28 @@ the CAS guard or legacy schema guard makes the corresponding test fail. These
 diagnostics reach 23 additional baseline obligations beyond the prior 107; the
 archive fix changed production code, so neither that sum nor any combined
 historical dataset establishes current whole-product coverage. The test budget
-is exactly 38300/38300. Before further tests, consolidate genuinely redundant
-setup in the next retirement/scope owner; do not raise the cap, shorten away
-behavior, or switch to unrelated files merely to offset growth. Frozen full
-proof and accepted/runtime advancement remain pending.
+was exactly 38300/38300 at that batch. The following retirement batch replaces
+mocked coordinate compilation with real divergent Git/Lease fixtures, preserves
+partial-effect recovery and repeat execution, and checks terminal receipt
+contents through the public recovery result instead of a separate persistence
+fixture. Invalid branch role, absent coordinates or accepted checkout,
+non-divergent histories, ambiguous or dirty worktrees, missing or foreign
+Lease authority, malformed reasons, wrong receipt mode, and stale execution
+coordinates are rejected without changes to refs, worktrees, content, or Leases.
+Receipt tests preserve repository binding, digest validation, missing/tampered
+bytes, and invalid JSON/schema rejection.
+
+The two retirement files passed 48 tests; the retirement and quality-contract
+regression set passed 169. Local diagnostic coverage is 97.74 percent for
+abandonment and 97.83 percent for operation, not whole-product coverage. Isolated
+in-memory removal of the holder or execution-root guard makes its regression
+fail. Moving terminal-receipt assertions into real recovery and consolidating
+repeated setup removes 34 net physical test lines; the enforced test budget is
+38296/38300. The observed global baseline remains the unchanged `6db593c2`
+dataset. Continue with measured uncovered behavior, preserving unique scenarios
+and the existing budget; then freeze source for a fresh full proof. No focused
+dataset, arithmetic extrapolation, or old proof establishes 95-percent product
+coverage. Archive/reproof and accepted/runtime advancement remain pending.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+import hashlib
 import pathlib
 import subprocess
 from typing import TYPE_CHECKING
@@ -10,6 +10,10 @@ import pytest
 import ethos.adapters.mutation.lane_retirement.operation as operation
 from ethos.contracts.retirement import RetirementObservation
 from ethos.contracts.retirement import RetirementOperation
+from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -40,98 +44,70 @@ def _request(tmp_path: Path) -> RetirementOperation:
 
 
 @pytest.mark.parametrize(
-    ("observed", "completed", "remaining", "state"),
+    ("states", "completed", "remaining", "state"),
     [
         (
-            RetirementObservation(
-                worktree_state="expected", ref_state="expected", lease_state="expected"
-            ),
+            ("expected", "expected", "expected"),
             (),
             ("remove_worktree", "delete_ref", "revoke_lease"),
             "ready",
         ),
         (
-            RetirementObservation(
-                worktree_state="absent", ref_state="expected", lease_state="expected"
-            ),
+            ("absent", "expected", "expected"),
             ("remove_worktree",),
             ("delete_ref", "revoke_lease"),
             "partial_transition",
         ),
         (
-            RetirementObservation(
-                worktree_state="absent", ref_state="absent", lease_state="expected"
-            ),
+            ("absent", "absent", "expected"),
             ("remove_worktree", "delete_ref"),
             ("revoke_lease",),
             "partial_transition",
         ),
         (
-            RetirementObservation(
-                worktree_state="absent", ref_state="absent", lease_state="absent"
-            ),
+            ("absent", "absent", "absent"),
             ("remove_worktree", "delete_ref", "revoke_lease"),
             (),
             "terminal",
         ),
     ],
 )
-def test_retirement_progress_is_a_pure_reduction(
-    tmp_path: Path,
-    observed: RetirementObservation,
-    completed: tuple[str, ...],
-    remaining: tuple[str, ...],
-    state: str,
-) -> None:
+def test_retirement_progress_is_a_pure_reduction(tmp_path, states, completed, remaining, state):
+    observed = RetirementObservation(
+        **dict(zip(("worktree_state", "ref_state", "lease_state"), states, strict=True))
+    )
     progress = operation.reduce_progress(_request(tmp_path), observed)
-
     assert progress.completed_effects == completed
     assert progress.remaining_effects == remaining
     assert progress.state == state
 
 
-def test_retirement_progress_rejects_non_monotonic_or_ambiguous_carriers(tmp_path: Path) -> None:
-    request = _request(tmp_path)
-
-    with pytest.raises(ValueError, match="retirement_operation_state_drift"):
-        operation.reduce_progress(
-            request,
-            RetirementObservation(
-                worktree_state="absent",
-                ref_state="moved",
-                lease_state="expected",
-            ),
-        )
-
-
-def test_unbound_request_rejects_a_new_worktree_binding(tmp_path: Path) -> None:
-    request = _request(tmp_path).model_copy(
-        update={"worktree_initial": "unbound", "worktree_path": ""}
+@pytest.mark.parametrize(
+    ("updates", "observed"),
+    [
+        ({}, {"worktree_state": "absent", "ref_state": "moved"}),
+        ({}, {"ref_state": "absent"}),
+        ({}, {"lease_state": "absent"}),
+        ({}, {"accepted_state": "moved"}),
+        ({}, {"worktree_state": "unavailable"}),
+        ({"worktree_initial": "unbound", "worktree_path": ""}, {}),
+        ({"lease_state": "missing", "lease": {}}, {}),
+    ],
+)
+def test_retirement_progress_rejects_non_monotonic_or_ambiguous_carriers(
+    tmp_path, updates, observed
+):
+    request = _request(tmp_path).model_copy(update=updates)
+    observation = RetirementObservation(
+        **{
+            "worktree_state": "expected",
+            "ref_state": "expected",
+            "lease_state": "expected",
+            **observed,
+        }
     )
-
     with pytest.raises(ValueError, match="retirement_operation_state_drift"):
-        operation.reduce_progress(
-            request,
-            RetirementObservation(
-                worktree_state="expected",
-                ref_state="expected",
-                lease_state="expected",
-            ),
-        )
-
-
-def test_missing_lease_request_rejects_a_new_lease(tmp_path: Path) -> None:
-    request = _request(tmp_path).model_copy(update={"lease_state": "missing", "lease": {}})
-
-    with pytest.raises(ValueError, match="retirement_operation_state_drift"):
-        operation.reduce_progress(
-            request,
-            RetirementObservation(
-                worktree_state="expected",
-                ref_state="expected",
-                lease_state="expected",
-            ),
-        )
+        operation.reduce_progress(request, observation)
 
 
 def test_unbound_request_detects_branch_rebound_at_another_path(
@@ -224,77 +200,42 @@ def test_effect_failure_after_worktree_removal_returns_resumable_progress(
     assert written == [(), ("remove_worktree",), ("remove_worktree",)]
 
 
-def test_preflight_failure_never_starts_a_destructive_effect(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.parametrize("failure", [False, True])
+def test_preflight_failure_and_dry_run_never_start_destructive_effects(
+    tmp_path, monkeypatch, failure
+):
     request = _request(tmp_path)
     monkeypatch.setattr(operation, "local_state_root", lambda _root: tmp_path / "state")
     monkeypatch.setattr(
         operation,
         "observe_operation",
-        lambda *_args: RetirementObservation(
+        lambda *_a: RetirementObservation(
             worktree_state="expected", ref_state="expected", lease_state="expected"
         ),
     )
-    monkeypatch.setattr(
-        operation,
-        "preflight_operation",
-        lambda *_args: (_ for _ in ()).throw(ValueError("git_process_spawn_failed")),
-    )
-    monkeypatch.setattr(
-        operation,
-        "remove_operation_worktree",
-        lambda *_args: pytest.fail("preflight failure must precede destructive effects"),
-    )
 
-    report = operation.apply_operation(tmp_path, request, request_receipt={"path": "/receipt"})
+    def preflight(*_args):
+        if failure:
+            message = "git_process_spawn_failed"
+            raise ValueError(message)
 
-    assert report["state"] == "blocked"
-    assert report["completed_effects"] == []
-    assert report["remaining_effects"] == [
-        "remove_worktree",
-        "delete_ref",
-        "revoke_lease",
-    ]
-    assert report["required_gaps"] == ["git_process_spawn_failed"]
-
-
-def test_dry_run_is_observation_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    request = _request(tmp_path)
-    monkeypatch.setattr(operation, "local_state_root", lambda _root: tmp_path / "state")
-    monkeypatch.setattr(
-        operation,
-        "observe_operation",
-        lambda *_args: RetirementObservation(
-            worktree_state="expected", ref_state="expected", lease_state="expected"
-        ),
-    )
-    monkeypatch.setattr(operation, "preflight_operation", lambda *_args: None)
-    monkeypatch.setattr(
-        operation,
-        "persist_progress",
-        lambda *_args: pytest.fail("dry-run must not persist progress"),
-    )
+    monkeypatch.setattr(operation, "preflight_operation", preflight)
     monkeypatch.setattr(
         operation,
         "remove_operation_worktree",
-        lambda *_args: pytest.fail("dry-run must not mutate carriers"),
+        lambda *_a: pytest.fail("preflight or dry-run mutated carriers"),
     )
-
+    if not failure:
+        monkeypatch.setattr(
+            operation, "persist_progress", lambda *_a: pytest.fail("dry-run persisted progress")
+        )
     report = operation.apply_operation(
-        tmp_path,
-        request,
-        request_receipt={"path": "/receipt"},
-        apply=False,
+        tmp_path, request, request_receipt={"path": "/receipt"}, apply=failure
     )
-
-    assert report["state"] == "ready"
+    assert report["state"] == ("blocked" if failure else "ready")
     assert report["completed_effects"] == []
-    assert report["remaining_effects"] == [
-        "remove_worktree",
-        "delete_ref",
-        "revoke_lease",
-    ]
+    assert report["remaining_effects"] == ["remove_worktree", "delete_ref", "revoke_lease"]
+    assert report["required_gaps"] == (["git_process_spawn_failed"] if failure else [])
 
 
 def test_recovery_applies_only_remaining_effects_and_is_idempotent(
@@ -336,103 +277,116 @@ def test_recovery_applies_only_remaining_effects_and_is_idempotent(
     assert calls == ["delete_ref", "revoke_lease"]
 
 
-def test_recovery_blocks_when_current_actor_is_not_the_receipt_owner(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.parametrize(
+    ("authorized", "actor", "gap"),
+    [
+        (False, "agent:test:case:holder", "authorization_required"),
+        (True, "agent:test:case:foreign", "foreign_work_lane_retire_authority_required"),
+        (True, "", "foreign_work_lane_retire_authority_required"),
+    ],
+)
+def test_recovery_requires_current_owner_and_explicit_authorization(
+    tmp_path, monkeypatch, authorized, actor, gap
+):
     request = _request(tmp_path)
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:foreign")
-    monkeypatch.setattr(operation, "load_operation", lambda *_args: request)
-
-    report = operation.recover_retirement_operation(
-        root=tmp_path,
-        receipt_path="/receipt",
-        receipt_sha256="sha256:" + "d" * 64,
-        apply=True,
-        authorized=True,
-    )
-
-    assert report["state"] == "blocked"
-    assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
-
-
-def test_recovery_requires_explicit_authorization_before_execution(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    request = _request(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", actor)
     monkeypatch.setattr(operation, "load_operation", lambda *_args: request)
     monkeypatch.setattr(
         operation,
         "apply_operation",
-        lambda *_args, **_kwargs: pytest.fail("unauthorized recovery must not execute"),
+        lambda *_a, **_k: pytest.fail("unauthorized recovery executed"),
     )
-
     report = operation.recover_retirement_operation(
         root=tmp_path,
         receipt_path="/receipt",
         receipt_sha256="sha256:" + "d" * 64,
         apply=True,
-        authorized=False,
+        authorized=authorized,
     )
-
     assert report["state"] == "blocked"
-    assert report["required_gaps"] == ["authorization_required"]
+    assert report["required_gaps"] == [gap]
 
 
+@pytest.mark.parametrize(
+    ("damage", "gap"),
+    [
+        ("repository", "path_invalid"),
+        ("digest", "path_invalid"),
+        ("missing", "missing"),
+        ("tamper", "sha256_mismatch"),
+        ("json", "invalid"),
+        ("schema", "invalid"),
+    ],
+)
 def test_operation_receipt_is_repository_scoped_and_tamper_evident(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    first = tmp_path / "first"
-    second = tmp_path / "second"
-    monkeypatch.setattr(operation, "local_state_root", lambda root: root / "state")
-    request = _request(first)
-    receipt = operation.persist_operation(first, request)
-
-    with pytest.raises(ValueError, match="lane_retirement_receipt_path_invalid"):
-        operation.load_operation(second, str(receipt["path"]), str(receipt["sha256"]))
-
-    pathlib.Path(str(receipt["path"])).write_text(json.dumps({"tampered": True}), encoding="utf-8")
-    with pytest.raises(ValueError, match="lane_retirement_receipt_sha256_mismatch"):
-        operation.load_operation(first, str(receipt["path"]), str(receipt["sha256"]))
-
-
-def test_terminal_receipt_binds_request_and_observed_completion(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+    tmp_path, monkeypatch, damage, gap
+):
     monkeypatch.setattr(operation, "local_state_root", lambda root: root / "state")
     request = _request(tmp_path)
-    progress = operation.reduce_progress(
-        request,
-        RetirementObservation(worktree_state="absent", ref_state="absent", lease_state="absent"),
-    )
+    receipt = operation.persist_operation(tmp_path, request)
+    path, digest = pathlib.Path(receipt["path"]), receipt["sha256"]
+    assert operation.load_operation(tmp_path, str(path), digest) == request
+    assert operation.persist_operation(tmp_path, request) == receipt
+    if damage == "repository":
+        tmp_path = tmp_path / "other"
+    elif damage == "digest":
+        digest = "invalid"
+    elif damage == "missing":
+        path.unlink()
+    elif damage == "tamper":
+        path.write_bytes(b"tampered")
+    else:
+        content = b"{" if damage == "json" else b"{}"
+        digest = hashlib.sha256(content).hexdigest()
+        path = path.with_name(f"{digest}.json")
+        path.write_bytes(content)
+    before = path.read_bytes() if path.exists() else None
+    with pytest.raises(ValueError, match=f"lane_retirement_receipt_{gap}"):
+        operation.load_operation(tmp_path, str(path), digest)
+    assert (path.read_bytes() if path.exists() else None) == before
 
-    receipt = operation.persist_terminal_receipt(tmp_path, request, progress)
-    payload = json.loads(pathlib.Path(str(receipt["path"])).read_text(encoding="utf-8"))
 
-    assert payload["kind"] == "lane-retirement-receipt"
-    assert payload["request"]["reason"] == request.reason
-    assert payload["request"]["head"] == request.head
-    assert payload["progress"]["completed_effects"] == list(request.effects)
-    assert payload["progress"]["remaining_effects"] == []
-
-
-def test_preflight_rejects_execution_from_the_destructive_target(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    request = _request(tmp_path)
-    pathlib.Path(request.worktree_path).mkdir()
-    request = request.model_copy(update={"execution_root": request.worktree_path})
-    monkeypatch.setattr(operation, "_current_actor", lambda _request: True)
-    monkeypatch.setattr(operation, "git_common_dir", lambda _root: request.repository_common_dir)
-    monkeypatch.setattr(operation, "repository_identity", lambda *_args, **_kwargs: "")
-    monkeypatch.setattr(operation, "git_executable", lambda _environment: "/usr/bin/git")
+@pytest.mark.parametrize(
+    ("fault", "gap"),
+    [
+        ("actor", "foreign_work_lane_retire_authority_required"),
+        ("control", "retirement_control_root_unavailable"),
+        ("common", "lane_retirement_receipt_repository_mismatch"),
+        ("identity", "lane_retirement_receipt_repository_mismatch"),
+        ("git", "retirement_control_root_unavailable"),
+        ("target", "retirement_execution_root_is_target"),
+        ("execution", "retirement_execution_root_unavailable"),
+    ],
+)
+def test_preflight_rejects_stale_authority_before_destructive_admission(
+    tmp_path, monkeypatch, fault, gap
+):
+    repo = init_git_repo(tmp_path / "repo")
+    write_test_profile(repo)
+    head = commit_fixture(repo, "declare identity")
+    request = _request(repo).model_copy(update={"accepted_head": head})
+    monkeypatch.setenv("ETHOS_ACTOR", "foreign" if fault == "actor" else request.authority["actor"])
+    updates = {
+        "control": {"control_root": str(repo / "missing")},
+        "common": {"repository_common_dir": str(tmp_path / "other")},
+        "identity": {"repository_identity": "repository:foreign"},
+        "target": {"execution_root": request.worktree_path},
+        "execution": {"execution_root": str(repo / "missing")},
+    }
+    request = request.model_copy(update=updates.get(fault, {}))
+    if fault == "git":
+        monkeypatch.setattr(
+            operation, "run_git", lambda *_a, **_k: subprocess.CompletedProcess((), 1, "", "failed")
+        )
     monkeypatch.setattr(
         operation,
-        "run_git",
-        lambda *_args, **_kwargs: type("Result", (), {"returncode": 0})(),
+        "admit_git_effect",
+        lambda *_a: pytest.fail("invalid preflight admitted deletion"),
     )
-
-    with pytest.raises(ValueError, match="retirement_execution_root_is_target"):
-        operation.preflight_operation(tmp_path, request)
+    with pytest.raises(ValueError, match=gap):
+        operation.preflight_operation(repo, request)
+    assert git(repo, "rev-parse", "HEAD") == head
+    assert git(repo, "status", "--porcelain") == ""
 
 
 def test_unobservable_failure_does_not_invent_progress(

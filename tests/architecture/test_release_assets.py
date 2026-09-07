@@ -19,6 +19,7 @@ import tools.ci.python_test_gate as python_test_gate
 import tools.ci.sessions as ci_sessions
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
+from ethos.contracts.gates import GateRegistryDeclaration
 from tools.ci.dependency_hygiene import declaration_gaps
 
 if TYPE_CHECKING:
@@ -317,60 +318,144 @@ def test_python_test_sessions_receive_the_frozen_node_package_supply(
     ]
 
 
-def test_coverage_gate_state() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    gates = {gate["id"]: gate for gate in declaration["gates"]}
-    assert gates["coverage-floor"]["depends_on"] == ["unit-architecture"]
-    assert gates["coverage-floor"]["command"] == [
-        "{python}",
-        "-m",
-        "nox",
-        "-s",
-        "coverage_floor",
-    ]
-
-
-def test_coverage_floor_reuses_the_test_run_configuration(tmp_path, monkeypatch) -> None:
-    policy = tomllib.loads(python_test_gate.COVERAGE_POLICY.read_text(encoding="utf-8"))
-    settings = python_test_gate.Settings(
-        head="a" * 40,
-        evidence=tmp_path / "evidence",
-        basetemp=tmp_path / "pytest",
-        basetemp_owned=True,
-        workers=None,
-        shards=None,
-        durations=0,
-        timeout=None,
-        lock_wait=0,
-        uv_cache=None,
-        node_package_supply=tmp_path / "node_modules",
-        identity=None,
+@pytest.mark.parametrize("full", [False, True])
+def test_coverage_gate_is_in_the_resolved_proof_closure(*, full: bool) -> None:
+    declaration = GateRegistryDeclaration.model_validate(
+        tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     )
-    gate = python_test_gate.PythonTestGate(settings)
+    selected = declaration.proof_gates(full=full, python_executable=str(python_test_gate.PYTHON))
+    identifiers = [gate.id for gate in selected]
+    assert identifiers.count("coverage-floor") == 1
+    assert identifiers.index("unit-architecture") < identifiers.index("coverage-floor")
+    gate = selected[identifiers.index("coverage-floor")]
+    assert gate.command == (str(python_test_gate.PYTHON), "-m", "nox", "-s", "coverage_floor")
+
+
+@pytest.mark.parametrize(("covered", "exit_code"), [(94, 2), (95, 0)])
+def test_coverage_floor_rejects_below_required_measurement(
+    tmp_path, monkeypatch, covered, exit_code
+):
+    subject = tmp_path / "subject.py"
+    subject.write_text(
+        "def uncalled():\n" + "    value = 0\n" * (100 - covered) + "value = 1\n" * (covered - 1),
+        encoding="utf-8",
+    )
+    gate = _test_gate(tmp_path)
     gate.coverage.mkdir(parents=True)
-    gate.data.touch()
-    gate.head_file.write_text(settings.head + "\n", encoding="utf-8")
-    monkeypatch.setattr(gate, "_stable_head", lambda: None)
-    commands: list[tuple[str, ...]] = []
+    environment = {
+        key: value for key, value in os.environ.items() if not key.startswith("COVERAGE")
+    }
+    subprocess.run(
+        [
+            str(python_test_gate.PYTHON),
+            "-m",
+            "coverage",
+            "run",
+            f"--rcfile={python_test_gate.COVERAGE_CONFIG}",
+            f"--data-file={gate.data}",
+            f"--source={tmp_path}",
+            str(subject),
+        ],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    subprocess.run(
+        [
+            str(python_test_gate.PYTHON),
+            "-m",
+            "coverage",
+            "combine",
+            f"--rcfile={python_test_gate.COVERAGE_CONFIG}",
+            f"--data-file={gate.data}",
+        ],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    gate.head_file.write_text(gate.s.head + "\n", encoding="utf-8")
+    before = gate.data.read_bytes()
+    monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)
+    observed = []
 
     class Session:
         @staticmethod
         def run(*command: str, **_kwargs: object) -> None:
-            commands.append(command)
+            observed.append(
+                subprocess.run(
+                    command,
+                    cwd=tmp_path,
+                    env=environment,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+            )
 
     gate.enforce_floor(cast("nox.Session", Session()))
 
-    assert commands == [
-        (
-            str(python_test_gate.PYTHON),
-            "-m",
-            "coverage",
-            "report",
-            f"--rcfile={python_test_gate.COVERAGE_CONFIG}",
-            f"--data-file={gate.data}",
-            f"--fail-under={policy['current_hard_floor']}",
+    assert len(observed) == 1
+    assert observed[0].returncode == exit_code, observed[0].stdout + observed[0].stderr
+    assert "TOTAL" in observed[0].stdout
+    assert f"{covered}.00%" in observed[0].stdout
+    assert gate.data.read_bytes() == before
+
+
+def _test_gate(tmp_path: Path, *, identity: tuple[int, int] | None = None):
+    return python_test_gate.PythonTestGate(
+        python_test_gate.Settings(
+            head="a" * 40,
+            evidence=tmp_path / "evidence",
+            basetemp=tmp_path / "pytest",
+            basetemp_owned=True,
+            workers=None,
+            shards=None,
+            durations=0,
+            timeout=None,
+            lock_wait=0,
+            uv_cache=None,
+            node_package_supply=tmp_path / "node_modules",
+            identity=identity,
         )
-    ]
+    )
+
+
+@pytest.mark.parametrize("floor_fails", [False, True])
+def test_local_ci_checks_coverage_before_delivery(tmp_path, monkeypatch, floor_fails):
+    monkeypatch.setattr(local_ci, "EVIDENCE", tmp_path / "result.json")
+    monkeypatch.setattr(local_ci, "current_tracked_head", lambda _root: "a" * 40)
+    monkeypatch.setattr(local_ci, "_run_parallel_sessions", lambda _session: None)
+    observed = []
+
+    class Session:
+        @staticmethod
+        def run(*command: str, **_kwargs: object) -> None:
+            if "-s" in command:
+                name = command[command.index("-s") + 1]
+                observed.append(name)
+                if name == "coverage_floor" and floor_fails:
+                    raise RuntimeError(name)
+
+        @staticmethod
+        def log(*_args: object) -> None:
+            pass
+
+    if floor_fails:
+        with pytest.raises(RuntimeError, match="coverage_floor"):
+            local_ci.run(cast("nox.Session", Session()))
+        assert not local_ci.EVIDENCE.exists()
+        assert not set(observed) & set(local_ci.DELIVERY_SESSIONS)
+    else:
+        local_ci.run(cast("nox.Session", Session()))
+        assert local_ci.EVIDENCE.is_file()
+    assert observed.count("tests") == observed.count("coverage_floor") == 1
+    assert observed.index("coverage_floor") == observed.index("tests") + 1
+    commands = local_ci.owner_commands()
+    assert commands.count("uv run --frozen --offline python -m nox -s coverage_floor") == 1
 
 
 def test_python_cleanup_propagates_removal_failure(tmp_path, monkeypatch) -> None:
@@ -443,23 +528,8 @@ def test_python_basetemp_ownership(tmp_path, monkeypatch, failure, ownership) ->
 def test_identity_drop_projects_only_repository_safe_directory(tmp_path, monkeypatch) -> None:
     root = tmp_path / "repo"
     root.mkdir()
-    settings = python_test_gate.Settings(
-        head="a" * 40,
-        evidence=tmp_path / "evidence",
-        basetemp=tmp_path / "pytest",
-        basetemp_owned=True,
-        workers=None,
-        shards=None,
-        durations=0,
-        timeout=None,
-        lock_wait=0,
-        uv_cache=None,
-        node_package_supply=tmp_path / "node_modules",
-        identity=(65534, 65534),
-    )
     monkeypatch.setattr(python_test_gate, "ROOT", root)
-
-    gate = python_test_gate.PythonTestGate(settings)
+    gate = _test_gate(tmp_path, identity=(65534, 65534))
     environment = vars(python_test_gate.PythonTestGate)["_env"](gate)
     count = int(environment["GIT_CONFIG_COUNT"])
     overlay = tuple(

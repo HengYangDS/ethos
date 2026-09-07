@@ -31,8 +31,10 @@ The product hard floor is intentionally compact:
   not emit diagnostics.
 - Unit and architecture tests run with branch coverage through the Nox `tests` session.
 - Coverage configuration lives in `.config/checks/coverage/coverage.ini`; the
-  current hard floor is read from `.config/checks/coverage/policy.toml`, mirrored
-  by `coverage.ini`, and branch coverage is required.
+  required hard floor is read only from `.config/checks/coverage/policy.toml`.
+  Default proof, full proof, and local CI enforce it against the same current-HEAD
+  line-and-branch evidence. Measured shortfalls block acceptance; they never
+  authorize lowering the requirement or replacing it with an aspiration.
 - Public-surface docstring policy lives in `.config/checks/docstrings/policy.toml`
   and is executed by the Nox `docstrings` session.
 - TOML/YAML config lint, shell lint, import boundaries, security, and link checks
@@ -44,8 +46,8 @@ Root configuration is allowed only when the tool or substrate requires root-nati
 discovery and no explicit owner path can preserve the same behavior. `pyproject.toml`
 stays package/workspace metadata. Ruff and pytest are owned explicitly by
 `ruff.toml` and `.config/checks/pytest/pytest.ini`; owner
-scripts pass those paths, so repository root `ruff.toml` and `pytest.ini` are
-stale-root pollution rather than admitted owners.
+scripts pass those paths. Root `ruff.toml` is intentional; a second pytest or
+Ruff configuration would be a competing owner.
 
 ## Tightening Rule
 

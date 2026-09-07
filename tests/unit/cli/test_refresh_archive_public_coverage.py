@@ -345,8 +345,9 @@ def test_archive_public_missing_native_command_does_not_mutate(
     )
 
 
-def test_archive_public_exception_compensates_exact_tree(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+@pytest.mark.parametrize("committed", [False, True])
+def test_archive_public_exception_compensates_only_before_ref_advancement(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, committed: bool
 ) -> None:
     _stub_archive_public(monkeypatch, tmp_path)
     monkeypatch.setattr(
@@ -360,20 +361,22 @@ def test_archive_public_exception_compensates_exact_tree(
         "compensate_git_worktree",
         lambda _root, **kwargs: compensated.append(kwargs),
     )
+    if committed:
+        monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
 
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
-    assert report["state"] == "blocked"
+    assert report["state"] == ("repair_required" if committed else "blocked")
     assert report["required_gaps"] == ["archive_failed"]
     assert_lifecycle_outcome(
         report,
-        "mutated",
-        "completed",
-        "absent",
+        "committed" if committed else "mutated",
+        "not_required" if committed else "completed",
+        "retained" if committed else "absent",
         f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} "
         f"--subject 'chore(openspec): archive {CHANGE}' --apply --json",
     )
-    assert compensated == [{"head": HEAD, "untracked_path": ""}]
+    assert compensated == ([] if committed else [{"head": HEAD, "untracked_path": ""}])
 
 
 @pytest.mark.parametrize("collision", [False, True])
@@ -615,3 +618,141 @@ def test_archive_zero_effect_preflight_has_no_compensation_gap(
     required_gaps = report["required_gaps"]
     assert isinstance(required_gaps, list)
     assert not any("compensation" in gap or "cleanup" in gap for gap in required_gaps)
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    ["recovery", "role", "head", "proof", "commitment", "lifecycle", "postimage", "exception"],
+)
+def test_archive_public_rejects_invalid_coordinates_before_any_effect(
+    monkeypatch, tmp_path, boundary
+):
+    _stub_archive_public(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        archive.openspec_cli, "run_json", lambda *_args: pytest.fail("preflight must not mutate")
+    )
+    expected = HEAD
+    if boundary in {"recovery", "head"}:
+        expected = "earlier-head"
+        monkeypatch.setattr(
+            archive_effect,
+            "recover_archive_effect",
+            lambda *_args, **_kwargs: {"state": "recognized"} if boundary == "recovery" else None,
+        )
+        gap = "expect_head_mismatch"
+    elif boundary == "role":
+        monkeypatch.setattr(
+            archive,
+            "workspace_status_observation",
+            lambda *_args, **_kwargs: (
+                {"branch": BRANCH, "head": HEAD, "role": "accepted_root"},
+                _current_authority(),
+            ),
+        )
+        gap = "archive_requires_work_lane"
+    elif boundary == "proof":
+        monkeypatch.setattr(archive, "proof_gaps", lambda *_args: ["proof_not_proven"])
+        gap = "proof_not_proven"
+    elif boundary in {"commitment", "lifecycle"}:
+        resolution = CurrentResolution(
+            verdict="pass",
+            authority=_current_authority(),
+            commitment=None
+            if boundary == "commitment"
+            else commitment_fixture(id=f"change:{CHANGE}"),
+            scope=CurrentScope(()),
+            openspec=_completed_governance() if boundary == "commitment" else {},
+        )
+        monkeypatch.setattr(
+            archive, "resolve_current_resolution", lambda *_args, **_kwargs: resolution
+        )
+        gap = (
+            f"commitment_invalid:{CHANGE}"
+            if boundary == "commitment"
+            else f"openspec_change_incomplete:{CHANGE}"
+        )
+    elif boundary == "postimage":
+        monkeypatch.setattr(archive, "archive_postimage", lambda *_args, **_kwargs: None)
+        gap = "openspec_archive_delta_invalid"
+    else:
+
+        def refuse(*_args, **_kwargs):
+            message = "postimage_unavailable"
+            raise ValueError(message)
+
+        monkeypatch.setattr(archive, "archive_postimage", refuse)
+        gap = "postimage_unavailable"
+    result = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=expected, apply=True)
+    if boundary == "recovery":
+        assert result == {"state": "recognized"}
+    else:
+        assert result["required_gaps"] == [gap]
+        assert result["effect_state"] == "zero_effect"
+        assert result["residue_state"] == "absent"
+
+
+@pytest.mark.parametrize(
+    "invalid_postimage",
+    [
+        None,
+        ArchivePostimage(CHANGE, HEAD, None, active_present=True),
+        ArchivePostimage(CHANGE, HEAD, None, active_present=False),
+    ],
+)
+def test_archive_public_compensates_unrecognized_official_output(
+    monkeypatch, tmp_path, invalid_postimage
+):
+    _stub_archive_public(monkeypatch, tmp_path)
+    images = iter((ArchivePostimage(CHANGE, HEAD, None, active_present=True), invalid_postimage))
+    monkeypatch.setattr(archive, "archive_postimage", lambda *_args, **_kwargs: next(images))
+    removed = []
+    monkeypatch.setattr(
+        archive, "compensate_git_worktree", lambda _root, **kwargs: removed.append(kwargs)
+    )
+    result = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
+    assert result["required_gaps"] == ["openspec_archive_delta_invalid"]
+    assert result["compensation_state"] == "completed"
+    assert removed == [{"head": HEAD, "untracked_path": ARCHIVE_PATH}]
+
+
+@pytest.mark.parametrize(
+    "mode", ["ready", "missing_commitment", "incomplete", "missing_lifecycle", "dirty"]
+)
+def test_archive_public_staged_and_active_readiness_are_distinct(monkeypatch, tmp_path, mode):
+    _stub_archive_public(monkeypatch, tmp_path)
+    resolution = CurrentResolution(
+        verdict="pass",
+        authority=_current_authority(),
+        commitment=None
+        if mode == "missing_commitment"
+        else commitment_fixture(id=f"change:{CHANGE}"),
+        scope=CurrentScope(()),
+        openspec={}
+        if mode == "missing_lifecycle"
+        else _completed_governance(remaining=1 if mode == "incomplete" else 0),
+    )
+    monkeypatch.setattr(archive, "resolve_current_resolution", lambda *_args, **_kwargs: resolution)
+    if mode in {"ready", "missing_commitment"}:
+        postimage = ArchivePostimage(
+            CHANGE,
+            HEAD,
+            {"archive_path": ARCHIVE_PATH, "changed_paths": [f"{ARCHIVE_PATH}/tasks.md"]},
+            active_present=False,
+        )
+        monkeypatch.setattr(archive, "archive_postimage", lambda *_args, **_kwargs: postimage)
+    elif mode == "dirty":
+        monkeypatch.setattr(archive, "git_stdout", lambda *_args: " M user-content")
+    monkeypatch.setattr(
+        archive.openspec_cli, "run_json", lambda *_args: pytest.fail("readiness is read only")
+    )
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
+    gap = {
+        "ready": "",
+        "missing_commitment": f"commitment_invalid:{CHANGE}",
+        "dirty": "work_lane_dirty",
+    }.get(mode, f"openspec_change_incomplete:{CHANGE}")
+    assert report["required_gaps"] == ([gap] if gap else [])
+    assert report["effect_state"] == "zero_effect"
+    if mode == "ready":
+        assert report["state"] == "ready_to_finalize_archive"
+        assert report["archive_path"] == ARCHIVE_PATH

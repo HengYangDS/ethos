@@ -218,8 +218,10 @@ def test_archive_change_blocks_when_the_work_lane_lease_is_missing(
         "zero_effect",
         "not_required",
         "absent",
-        f"ethos lane status --root {lifecycle.worktree.resolve().as_posix()} --json",
-        user_decision_required=False,
+        f"ethos lane lease reacquire --path {lifecycle.worktree.resolve().as_posix()} "
+        "--holder-ref agent:test:case:agent-test "
+        f"--root {lifecycle.worktree.resolve().as_posix()} --json",
+        user_decision_required=True,
     )
     assert lifecycle.head == lifecycle.completed_head
     assert lifecycle.active.is_dir()

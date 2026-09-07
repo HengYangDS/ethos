@@ -254,6 +254,7 @@ def _retired_reference_consumers(
     files: dict[str, str],
 ) -> list[SemanticClosureFinding]:
     findings = []
+    current_modules = {module_name(path) for path in files if path.endswith(".py")}
     for retired_path in _retired_paths_since_candidate(root):
         path_sources = tuple(
             sorted(
@@ -276,7 +277,11 @@ def _retired_reference_consumers(
         if not retired_path.endswith(".py"):
             continue
         retired_module = module_name(retired_path)
-        if not retired_module or not all(part.isidentifier() for part in retired_module.split(".")):
+        if (
+            not retired_module
+            or retired_module in current_modules
+            or not all(part.isidentifier() for part in retired_module.split("."))
+        ):
             continue
         module_pattern = re.compile(
             rf"(?<![A-Za-z0-9_.]){re.escape(retired_module)}(?![A-Za-z0-9_])"

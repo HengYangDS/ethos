@@ -47,6 +47,21 @@ def _commit_current_tree(root: Path) -> None:
     _git(root, "commit", "-m", "test: retire reference owner")
 
 
+def _runtime_surface(root: Path) -> None:
+    """Declare the shared runtime boundary for reference ownership scenarios."""
+    _write(
+        root,
+        "system/surfaces.toml",
+        """
+schema = "system/schemas/contracts/surfaces.schema.json"
+
+[[surface]]
+name = "runtime"
+carrier = "src/example"
+""",
+    )
+
+
 def test_repository_reference_closure_preserves_duplicate_command_owners(
     tmp_path: Path,
 ) -> None:
@@ -124,17 +139,7 @@ def {function}() -> None:
 
 def test_repository_reference_closure_reports_orphan_consumers(tmp_path: Path) -> None:
     """A consumer without a native owner is one explicit orphan relation."""
-    _write(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "runtime"
-carrier = "src/example"
-""",
-    )
+    _runtime_surface(tmp_path)
     _write(
         tmp_path,
         "pyproject.toml",
@@ -165,17 +170,7 @@ version = "1"
 
 def test_repository_reference_closure_rejects_deleted_path_consumers(tmp_path: Path) -> None:
     """An active carrier cannot keep consuming a path deleted after candidate."""
-    _write(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "runtime"
-carrier = "src/example"
-""",
-    )
+    _runtime_surface(tmp_path)
     _write(tmp_path, "src/example/retired.py", "VALUE = 1")
     _commit_candidate_baseline(tmp_path)
     (tmp_path / "src/example/retired.py").unlink()
@@ -203,17 +198,7 @@ def test_repository_reference_closure_does_not_treat_change_intent_as_a_live_con
     tmp_path: Path,
 ) -> None:
     """OpenSpec migration prose names old paths without consuming them."""
-    _write(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "runtime"
-carrier = "src/example"
-""",
-    )
+    _runtime_surface(tmp_path)
     _write(tmp_path, "src/example/retired.py", "VALUE = 1")
     _commit_candidate_baseline(tmp_path)
     (tmp_path / "src/example/retired.py").unlink()
@@ -417,19 +402,12 @@ The [runtime owner](../../../src/example/retired.py), unlike an
     } in report["superseded"]
 
 
-def test_repository_reference_closure_rejects_renamed_module_consumers(tmp_path: Path) -> None:
-    """An exact rename cannot leave imports of the old Python module name."""
-    _write(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "runtime"
-carrier = "src/example"
-""",
-    )
+@pytest.mark.parametrize("replacement", ["rename", "expand", "collapse"])
+def test_repository_reference_closure_resolves_replaced_module_identity(
+    tmp_path: Path, replacement: str
+) -> None:
+    """File retirement removes an import identity only without a current owner."""
+    _runtime_surface(tmp_path)
     _write(
         tmp_path,
         "pyproject.toml",
@@ -439,23 +417,38 @@ name = "example"
 version = "1"
 """,
     )
-    _write(tmp_path, "src/example/legacy.py", "VALUE = 1")
+    source = (
+        "src/example/legacy/__init__.py" if replacement == "collapse" else "src/example/legacy.py"
+    )
+    target = {
+        "rename": "src/example/current.py",
+        "expand": "src/example/legacy/operation.py",
+        "collapse": "src/example/legacy.py",
+    }[replacement]
+    _write(tmp_path, source, "VALUE = 1")
     _commit_candidate_baseline(tmp_path)
-    _git(tmp_path, "mv", "src/example/legacy.py", "src/example/current.py")
+    (tmp_path / source).unlink()
+    _write(tmp_path, target, "VALUE = 1")
+    if replacement == "expand":
+        _write(tmp_path, "src/example/legacy/__init__.py", '"""Lease operation namespace."""')
     _commit_current_tree(tmp_path)
 
     assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
 
-    _write(tmp_path, "src/example/consumer.py", "from example.legacy import VALUE")
+    module = "example.legacy.operation" if replacement == "expand" else "example.legacy"
+    _write(tmp_path, "src/example/consumer.py", f"from {module} import VALUE")
     report = repository_semantic_closure(tmp_path)
 
-    assert report["verdict"] == "block"
-    assert {
-        "relation": "consumer",
-        "kind": "import",
-        "identity": "example.legacy",
-        "sources": ["src/example/consumer.py"],
-    } in report["superseded"]
+    assert report["verdict"] == ("block" if replacement == "rename" else "pass")
+    assert (
+        {
+            "relation": "consumer",
+            "kind": "import",
+            "identity": "example.legacy",
+            "sources": ["src/example/consumer.py"],
+        }
+        in report["superseded"]
+    ) is (replacement == "rename")
 
 
 def test_repository_reference_closure_ignores_prohibited_command_examples(

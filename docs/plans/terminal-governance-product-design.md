@@ -518,9 +518,29 @@ activation coverage is 94.43 percent. The repair adds 11 physical product lines
 and removes 16 net test lines; test ELOC remains 38299/38300. The initial scanner
 fault injector missed the cached native scanner; real isolated permissions,
 not that ineffective injection, establish the third RED. Native coverage config
-and old full evidence remain unchanged. Continue from measured whole-product
-coverage gaps before freezing source for exact-HEAD proof; 95-percent compliance,
-closeout, and accepted/runtime advancement remain unproved.
+and old full evidence remain unchanged in that batch.
+
+The supply batch proves complete-manifest validation before dependency copying,
+Python identity and prefix separation, linked input refusal, copied-byte checks,
+locked requirement export, and offline install ordering. Native-observer result
+validation uses controlled subprocess responses, not a claim of rebuilding an
+entire interpreter. Node cases preserve exact prepared-coordinate selection,
+workspace metadata independence, production-only nested package projection,
+invalid lock/declaration rejection, and undeclared-package refusal. The existing
+fixtures are consolidated without dropping their earlier assertions.
+
+The materialization/activation/coverage-contract set passed 237 tests. Diagnostic
+coverage is 100 percent for dependency supply and 95.17 percent for Node supply;
+removing the Python identity or lock congruence guard causes the corresponding
+regression to fail. Two test files lose 13 net physical lines and retain the
+38299/38300 test budget. Product code and measurement configuration are unchanged.
+The installed accepted runtime still rejects the already-corrected retained
+module identity during full-proof readiness, whereas the source CLI reports
+only that execution is required. This is a verifier-version difference, not an
+admission exemption. Freeze this batch, run the current-source public full proof
+at its exact HEAD, and use the fresh complete result to select remaining work.
+Do not combine diagnostic datasets or infer global compliance from these local
+percentages. Archive, accepted CAS, and runtime activation remain held at 95.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

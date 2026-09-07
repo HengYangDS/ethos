@@ -480,19 +480,30 @@ def _legacy_hook_directories(common: Path) -> tuple[Path, ...]:
 
 def _consumer_text(root: Path, common: Path) -> str:
     texts = [process_commands(root)]
-    for name in _ACTIVE_CONSUMER_DIRECTORIES:
-        directory = common / "ethos" / name
-        if not directory.exists():
-            continue
-        if directory.is_symlink() or not directory.is_dir():
-            _fail("hook_runtime_consumers_unknown")
-        for path in (item for item in directory.rglob("*") if not item.is_dir()):
-            if path.is_symlink() or not path.is_file():
-                _fail("hook_runtime_consumers_unknown")
+    directories: list[Path] = []
+    try:
+        for name in _ACTIVE_CONSUMER_DIRECTORIES:
+            directory = common / "ethos" / name
             try:
-                texts.append(path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeError) as error:
-                _fail("hook_runtime_consumers_unknown", error)
+                mode = directory.lstat().st_mode
+            except FileNotFoundError:
+                continue
+            if not stat.S_ISDIR(mode) or runtime_filesystem.is_junction(directory):
+                _fail("hook_runtime_consumers_unknown")
+            directories.append(directory)
+        while directories:
+            for path in directories.pop().iterdir():
+                mode = path.lstat().st_mode
+                if runtime_filesystem.is_junction(path):
+                    _fail("hook_runtime_consumers_unknown")
+                if stat.S_ISDIR(mode):
+                    directories.append(path)
+                elif stat.S_ISREG(mode):
+                    texts.append(path.read_text(encoding="utf-8"))
+                else:
+                    _fail("hook_runtime_consumers_unknown")
+    except (OSError, UnicodeError) as error:
+        _fail("hook_runtime_consumers_unknown", error)
     return "\n".join(texts)
 
 

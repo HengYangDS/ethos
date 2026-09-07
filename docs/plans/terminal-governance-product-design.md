@@ -498,10 +498,29 @@ fail. The test file loses eight net physical lines; the test budget is
 38297/38300. A temporary test failure assumed an empty fixture root; comparing
 its actual before/after state corrected the assertion without changing product
 behavior. Product source, native coverage configuration, and the historical
-full dataset are unchanged. Next inspect remaining linked-root observation and
-generation-cleanup boundaries, including whether unreadable consumer paths are
-rejected before any retirement. Then freeze the source and run fresh full proof;
-95-percent compliance, closeout, and accepted/runtime advancement remain unproved.
+full dataset are unchanged in that batch.
+
+Consumer-boundary regressions then exposed three genuine deletion defects:
+nested directory links were filtered before validation, dangling root links
+were treated as absence, and unreadable directories were silently omitted. Each
+case deleted an isolated runtime sentinel under the previous implementation.
+The existing observer now uses non-following metadata, complete directory
+iteration, and regular-file reads; every unknown input blocks retirement.
+Native permission failure proves unreadable-directory handling on POSIX;
+Windows junction observations are simulated, not native Windows proof. Static
+observations do not close consumer-acquisition or filesystem races.
+
+All three consumer roots share the same rejection matrix and retain readable
+nested references. Consolidated state-failure and selector-recovery tests retain
+their unique assertions, including native SQLite rollback and exact selector
+CAS. The hook/materialization/coverage-contract set passed 264 tests; local
+activation coverage is 94.43 percent. The repair adds 11 physical product lines
+and removes 16 net test lines; test ELOC remains 38299/38300. The initial scanner
+fault injector missed the cached native scanner; real isolated permissions,
+not that ineffective injection, establish the third RED. Native coverage config
+and old full evidence remain unchanged. Continue from measured whole-product
+coverage gaps before freezing source for exact-HEAD proof; 95-percent compliance,
+closeout, and accepted/runtime advancement remain unproved.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

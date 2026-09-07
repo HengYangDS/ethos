@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import subprocess
 import sys
@@ -53,14 +54,8 @@ def _legacy_state(common: Path) -> Path:
         )
         connection.execute("create unique index leases_subject_unique on leases(subject)")
         connection.execute(
-            "insert into leases values (?, ?, ?, ?, ?)",
-            (
-                "lease:legacy",
-                "work/example",
-                "agent:test:case:owner",
-                "2026-08-31T00:00:00+00:00",
-                json.dumps(payload, sort_keys=True),
-            ),
+            "insert into leases values (:id, :lane_ref, :holder_ref, :expires_at, :payload_json)",
+            payload | {"id": "lease:legacy", "payload_json": json.dumps(payload, sort_keys=True)},
         )
         connection.commit()
     return database
@@ -84,11 +79,11 @@ def test_hook_install_rejects_invalid_admission_before_creating_state(
     assert frozenset(tmp_path.iterdir()) == before
 
 
-def test_hook_install_observes_runtime_bytes_only_at_admission_and_post_observe(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+def test_hook_install_migrates_state_before_returning_current_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, runtime, _common = _materialized(tmp_path, monkeypatch)
+    repo, runtime, common = _materialized(tmp_path, monkeypatch)
+    database = _legacy_state(common)
     observed: list[Path] = []
     inventory = runtime_selection.runtime_file_inventory
 
@@ -99,18 +94,8 @@ def test_hook_install_observes_runtime_bytes_only_at_admission_and_post_observe(
     monkeypatch.setattr(runtime_selection, "runtime_file_inventory", record_inventory)
 
     installed = install_hook_launchers(repo)
-
-    assert installed["required_gaps"] == []
     assert observed == [runtime.parent, runtime.parent]
-
-
-def test_hook_install_migrates_state_before_returning_current_runtime(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
-    database = _legacy_state(common)
-
-    installed = install_hook_launchers(repo)
+    assert installed["required_gaps"] == []
 
     assert installed["state_transition"] == {
         "before": "legacy",
@@ -132,24 +117,45 @@ def test_hook_install_migrates_state_before_returning_current_runtime(
 
 
 @pytest.mark.parametrize("before_state", ["legacy", "absent"])
-def test_hook_install_rolls_back_state_when_activation_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before_state: str
+@pytest.mark.parametrize("failure", ["activation", "commit"])
+def test_hook_install_restores_state_and_activation_after_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before_state: str, failure: str
 ) -> None:
-    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
+    repo, runtime, common = _materialized(tmp_path, monkeypatch)
     database = _legacy_state(common) if before_state == "legacy" else common / "ethos/state.sqlite"
     before = database.read_bytes() if database.exists() else None
-    monkeypatch.setattr(
-        hook_activation,
-        "_require_common_activation",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("activation failed")),
-    )
+    keys = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
+    configured = hook_activation.config_effects.config_values(repo, keys, scope="local")
+    connect = sqlite3.connect
 
-    with pytest.raises(ValueError, match="activation failed"):
-        install_hook_launchers(repo)
+    class CommitFailure(sqlite3.Connection):
+        def commit(self) -> None:
+            message = "commit failed"
+            raise sqlite3.OperationalError(message)
 
+    def fail_activation(*_args, **_kwargs):
+        message = "activation failed"
+        raise ValueError(message)
+
+    with monkeypatch.context() as patch:
+        if failure == "activation":
+            patch.setattr(hook_activation, "_require_common_activation", fail_activation)
+        else:
+            patch.setattr(sqlite3, "connect", lambda path: connect(path, factory=CommitFailure))
+        reason = (
+            "activation failed"
+            if failure == "activation"
+            else "state_activation_failed:commit failed"
+        )
+        with pytest.raises(ValueError, match=reason):
+            install_hook_launchers(repo)
     assert (database.read_bytes() if database.exists() else None) == before
-    assert not database.with_name("state.sqlite-wal").exists()
-    assert not database.with_name("state.sqlite-shm").exists()
+    assert all(
+        not database.with_name(database.name + suffix).exists() for suffix in ("-wal", "-shm")
+    )
+    assert not (common / "ethos/runtime/CURRENT").exists()
+    assert hook_activation.config_effects.config_values(repo, keys, scope="local") == configured
+    assert runtime.parent.is_dir()
     if before_state == "legacy":
         with closing(sqlite3.connect(database)) as connection:
             assert tuple(row[1] for row in connection.execute("pragma table_xinfo(leases)")) == (
@@ -159,45 +165,6 @@ def test_hook_install_rolls_back_state_when_activation_fails(
                 "expires_at",
                 "payload_json",
             )
-
-
-def test_hook_install_restores_activation_when_state_commit_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, runtime, common = _materialized(tmp_path, monkeypatch)
-    database = _legacy_state(common)
-    before = database.read_bytes()
-    selector = common / "ethos/runtime/CURRENT"
-    activation_keys = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
-    configured = hook_activation.config_effects.config_values(repo, activation_keys, scope="local")
-    connect = sqlite3.connect
-
-    class CommitFailure:
-        def __init__(self, path: Path) -> None:
-            self.connection = connect(path)
-
-        def __getattr__(self, name: str) -> object:
-            return getattr(self.connection, name)
-
-        def close(self) -> None:
-            self.connection.close()
-
-        def commit(self) -> None:
-            message = "commit failed"
-            raise sqlite3.OperationalError(message)
-
-    monkeypatch.setattr(hook_activation.sqlite3, "connect", CommitFailure)
-
-    with pytest.raises(ValueError, match="state_activation_failed:commit failed"):
-        install_hook_launchers(repo)
-
-    assert not selector.exists()
-    assert (
-        hook_activation.config_effects.config_values(repo, activation_keys, scope="local")
-        == configured
-    )
-    assert database.read_bytes() == before
-    assert runtime.parent.is_dir()
 
 
 @pytest.mark.parametrize("failure", ["io", "residue", "retained"])
@@ -289,51 +256,39 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
     assert first["runtime_digest"] == second["runtime_digest"]
 
 
+@pytest.mark.parametrize("consumer", ["operations", "transactions", "ref-intent"])
 def test_hook_install_removes_only_unreferenced_generated_paths(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, consumer: str
 ) -> None:
-    repo, _venv, common = _materialized(tmp_path, monkeypatch)
-    hooks_root = common / "ethos" / "hooks"
-    runtime_root = common / "ethos" / "runtime"
-    retained_digest = "a" * 64
-    removed_digest = "b" * 64
-    retained_runtime = runtime_root / retained_digest
-    removed_runtime = runtime_root / removed_digest
-    retained_runtime.mkdir(parents=True)
-    removed_runtime.mkdir()
-    sealed = removed_runtime / "sealed.txt"
+    repo, runtime, common = _materialized(tmp_path, monkeypatch)
+    runtime_root = common / "ethos/runtime"
+    retained, unrelated = runtime_root / ("a" * 64), common / "ethos-hooks-manual"
+    removable = (
+        runtime_root / ("b" * 64),
+        common / "ethos-hooks",
+        common / ("ethos-hooks-" + "c" * 64),
+    )
+    for path in (retained, unrelated, *removable):
+        path.mkdir(parents=True)
+    sealed = removable[0] / "sealed.txt"
     sealed.write_text("immutable\n", encoding="utf-8")
     sealed.chmod(0o444)
-    removed_runtime.chmod(0o555)
-    active_hooks = hook_activation.materialize_hook_launchers(hooks_root)
-    legacy = common / "ethos-hooks"
-    digest_legacy = common / ("ethos-hooks-" + "c" * 64)
-    unrelated = common / "ethos-hooks-manual"
-    for path in (legacy, digest_legacy, unrelated):
-        path.mkdir()
-    operations = common / "ethos" / "operations"
-    operations.mkdir()
-    (operations / "consumer.json").write_text(
-        json.dumps({"runtime": retained_runtime.as_posix()}),
-        encoding="utf-8",
+    removable[0].chmod(0o555)
+    hooks = hook_activation.materialize_hook_launchers(common / "ethos/hooks")
+    operations = common / "ethos" / consumer / "nested"
+    operations.mkdir(parents=True)
+    receipt = json.dumps({"runtime": retained.as_posix()})
+    (operations / "consumer.json").write_text(receipt, encoding="utf-8")
+
+    cleanup = install_hook_launchers(repo)["generation_cleanup"]
+
+    assert set(cleanup["removed"]) == {path.as_posix() for path in removable}
+    assert all(not path.exists() for path in removable)
+    assert {path.as_posix() for path in (retained, hooks, runtime.parent)} <= set(
+        cleanup["retained"]
     )
-
-    installed = install_hook_launchers(repo)
-
-    cleanup = installed["generation_cleanup"]
-    removed = cleanup["removed"]
-    assert removed_runtime.as_posix() in removed
-    assert retained_runtime.as_posix() in cleanup["retained"]
-    assert active_hooks.as_posix() in cleanup["retained"]
-    assert not removed_runtime.exists()
-    assert retained_runtime.is_dir()
-    assert active_hooks.is_dir()
-    assert legacy.as_posix() in removed
-    assert digest_legacy.as_posix() in removed
-    assert not legacy.exists()
-    assert not digest_legacy.exists()
-    assert unrelated.is_dir()
+    assert all(path.is_dir() for path in (retained, hooks, unrelated, runtime.parent))
+    assert (operations / "consumer.json").read_text(encoding="utf-8") == receipt
 
 
 def _configured_worktrees(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -523,29 +478,73 @@ def test_hook_generation_repairs_drift_without_changing_identity(tmp_path: Path)
     )
 
 
-@pytest.mark.parametrize("invalidity", ["symlink", "invalid-utf8", "directory-file"])
+@pytest.mark.parametrize("consumer", ["operations", "transactions", "ref-intent"])
+@pytest.mark.parametrize(
+    "invalidity",
+    [
+        "symlink",
+        "invalid-utf8",
+        "directory-file",
+        "nested-link",
+        "root-link",
+        "root-junction",
+        "nested-junction",
+        pytest.param(
+            "scan-error",
+            marks=pytest.mark.skipif(os.name == "nt", reason="POSIX directory permissions"),
+        ),
+    ],
+)
 def test_hook_install_blocks_cleanup_when_an_active_consumer_is_unreadable(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    invalidity: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, invalidity: str, consumer: str
 ) -> None:
     repo, _venv, common = _materialized(tmp_path, monkeypatch)
-    hooks_root = common / "ethos" / "hooks"
-    stale = hook_activation.materialize_hook_launchers(hooks_root)
-    operations = common / "ethos" / "operations"
+    stale = common / "ethos/runtime" / ("f" * 64)
+    stale.mkdir()
+    sentinel = stale / "needed"
+    sentinel.write_bytes(b"retained runtime")
+    monkeypatch.setattr(hook_activation, "process_commands", lambda _root: "")
+    operations = common / "ethos" / consumer
+    external = tmp_path / "external"
+    external.mkdir()
+    (external / "receipt").write_text(stale.as_posix(), encoding="utf-8")
     if invalidity == "directory-file":
         operations.write_text("not a directory", encoding="utf-8")
+    elif invalidity == "root-link":
+        operations.symlink_to(tmp_path / "missing", target_is_directory=True)
     else:
         operations.mkdir()
-        if invalidity == "symlink":
-            (operations / "unknown").symlink_to(tmp_path / "missing-consumer")
+        if invalidity in {"symlink", "nested-link"}:
+            (operations / "unknown").symlink_to(
+                external if invalidity == "nested-link" else tmp_path / "missing"
+            )
         else:
-            (operations / "unknown").write_bytes(b"\xff")
-
-    with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
+            (operations / "unknown").write_bytes(b"ok" if "junction" in invalidity else b"\xff")
+    if invalidity == "nested-junction":
+        (operations / "nested").mkdir()
+    monkeypatch.setattr(
+        runtime_filesystem,
+        "is_junction",
+        lambda path: (
+            (invalidity == "root-junction" and path == operations)
+            or (invalidity == "nested-junction" and path == operations / "nested")
+        ),
+    )
+    refused = ""
+    if invalidity == "scan-error":
+        operations.chmod(0o000)
+    try:
         install_hook_launchers(repo)
-
-    assert stale.is_dir()
+    except ValueError as error:
+        refused = str(error)
+    finally:
+        if invalidity == "scan-error":
+            operations.chmod(0o700)
+    assert sentinel.is_file(), "cleanup deleted an unobserved consumer's runtime"
+    assert sentinel.read_bytes() == b"retained runtime"
+    assert refused == "hook_runtime_consumers_unknown"
+    assert not (common / "ethos/runtime/CURRENT").exists()
+    assert not (common / "ethos/state.sqlite").exists()
 
 
 @pytest.mark.parametrize("platform", ["nt", "posix"])
@@ -788,8 +787,9 @@ def test_hook_install_retires_the_legacy_runtime_python_locator(
     }
 
 
-def test_install_restores_runtime_selector_with_exact_cas_when_activation_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("boundary", ["selection", "config"])
+def test_install_restores_only_changed_selector_with_exact_cas_after_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
 ) -> None:
     repo, runtime, common = _materialized(tmp_path, monkeypatch)
     restored = []
@@ -799,15 +799,25 @@ def test_install_restores_runtime_selector_with_exact_cas_when_activation_fails(
         restored.append((root, previous, expected_current))
         restore(root, previous, expected_current=expected_current)
 
-    def fail_config(*_args, **_kwargs):
-        message = "activation failed"
+    def fail(*_args, **_kwargs):
+        message = f"{boundary} failed"
         raise ValueError(message)
 
-    monkeypatch.setattr(hook_activation.config_effects, "set_common_config", fail_config)
+    owner, name = (
+        (hook_activation, "activate_runtime")
+        if boundary == "selection"
+        else (hook_activation.config_effects, "set_common_config")
+    )
+    monkeypatch.setattr(owner, name, fail)
     monkeypatch.setattr(hook_activation, "restore_runtime_selection", record_restore)
-    with pytest.raises(ValueError, match="activation failed"):
+    with pytest.raises(ValueError, match=f"{boundary} failed"):
         install_hook_launchers(repo)
-    assert restored == [(common, None, f"{runtime.parent.name}\n".encode("ascii"))]
+    expected = (
+        []
+        if boundary == "selection"
+        else [(common, None, f"{runtime.parent.name}\n".encode("ascii"))]
+    )
+    assert restored == expected
     assert not (common / "ethos/runtime/CURRENT").exists()
     assert runtime.parent.is_dir()
 
@@ -862,29 +872,3 @@ def test_failed_activation_attempts_every_compensation_and_reports_failures(
         assert selector.is_dir()
     else:
         assert not selector.exists()
-
-
-def test_install_does_not_restore_an_unchanged_selector_when_selection_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, runtime, common = _materialized(tmp_path, monkeypatch)
-    selector = common / "ethos/runtime/CURRENT"
-    assert not selector.exists()
-    restored: list[object] = []
-    monkeypatch.setattr(
-        hook_activation,
-        "activate_runtime",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("selection failed")),
-    )
-    monkeypatch.setattr(
-        hook_activation,
-        "restore_runtime_selection",
-        lambda *_args, **_kwargs: restored.append(object()),
-    )
-
-    with pytest.raises(ValueError, match="selection failed"):
-        install_hook_launchers(repo)
-
-    assert not selector.exists()
-    assert runtime.parent.is_dir()
-    assert restored == []

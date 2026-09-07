@@ -12,6 +12,8 @@ import ethos.adapters.openspec.lifecycle.archive_transition as archive
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.repository.profile import INVALID_PROFILE_ERROR
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_repo_with_candidate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -180,508 +182,234 @@ def test_committed_archive_scope_is_inferred_without_a_lease_or_carrier(
     assert report["changes"] == [{"name": CHANGE, "path": ARCHIVE}]
 
 
-def test_archive_attestation_remains_current_for_descendant_head(monkeypatch, tmp_path) -> None:
-    desired = "c" * 40
-    current = "d" * 40
+@pytest.fixture
+def archive_graph(tmp_path, monkeypatch):
+    """Isolate graph resolution while validating native nested rebase evidence."""
+    items, plans, effects, distances, objects, validated = [], {}, {}, {}, {}, []
+    branch = "work/change"
 
-    def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
-        if args[:3] == ("merge-base", "--is-ancestor", desired):
-            return SimpleNamespace(returncode=0, stdout="")
-        if args == ("rev-list", "--count", f"{desired}..{current}"):
-            return SimpleNamespace(returncode=0, stdout="2\n")
-        return SimpleNamespace(returncode=1, stdout="")
+    def archive_effect(name, head, *, change=CHANGE):
+        path = ARCHIVE if change == CHANGE else f"openspec/changes/archive/2026-08-10-{change}"
+        item = SimpleNamespace(
+            predicate="effect:git-ref-update", verifier="agent:test", id=name, effect_digest=name
+        )
+        plans[name] = SimpleNamespace(
+            policy={"transition": "openspec.archive", "change": change, "branch": branch},
+            commitment={"schema_version": 3, "id": f"change:{change}", "acceptance": ["done"]},
+            facts={"values": {"archive_path": path, "changed_paths": [f"{path}/tasks.md"]}},
+            digest=name,
+            prior_attestations={},
+        )
+        effects[name] = SimpleNamespace(
+            updates={f"refs/heads/{branch}": SimpleNamespace(desired=head)}
+        )
+        objects[f"{head}:{path}"] = "archive-tree"
+        items.append(item)
+        return item
 
-    plan = SimpleNamespace(
-        policy={"transition": "openspec.archive", "change": CHANGE, "branch": "work/change"},
-        commitment={"schema_version": 3, "id": f"change:{CHANGE}", "acceptance": ["done"]},
-        facts={
-            "values": {
-                "archive_path": ARCHIVE,
-                "changed_paths": [f"{ARCHIVE}/tasks.md"],
-            }
-        },
-        digest="plan",
+    def refresh_effect(name, previous, current):
+        item = archive_effect(name, current)
+        rebase = issue_native_effect(
+            tmp_path,
+            effect=NativeEffect(
+                predicate="effect:git-rebase",
+                operation="git.rebase",
+                command=("git", "rebase"),
+                subject={"branch": branch, "candidate_head": HEAD},
+                before={"branch": branch, "head": previous, "candidate_head": HEAD},
+                after={"branch": "detached", "head": current, "candidate_head": HEAD},
+            ),
+            state="applied",
+            commitment_digest=None,
+            repository_id="repository:test",
+            issued_at=datetime(2026, 9, 1, tzinfo=UTC),
+        )
+        plans[name].policy = {"transition": "lane.refresh", "execution_branch": branch}
+        plans[name].commitment = None
+        plans[name].prior_attestations = {"rebase": rebase.model_dump(mode="json")}
+        effects[name] = SimpleNamespace(
+            updates={f"refs/heads/{branch}": SimpleNamespace(expected=previous, desired=current)},
+            assertions={"refs/heads/candidate/dev": HEAD},
+        )
+        return item
+
+    def validate(_root, effect, item, *, issuer, plan, current_postconditions):
+        assert effect is effects[item.id]
+        assert plan is plans[item.id]
+        assert issuer == item.verifier
+        assert current_postconditions is False
+        validated.append(item.id)
+
+    def ancestry(_root, *args, **_kwargs):
+        previous = args[2] if args[0] == "merge-base" else args[2].split("..")[0]
+        distance = distances.get(previous)
+        return SimpleNamespace(returncode=0 if distance is not None else 1, stdout=str(distance))
+
+    for module in (archive, refresh):
+        monkeypatch.setattr(module, "plan_from_attestation", lambda item: plans[item.id])
+        monkeypatch.setattr(module, "git_effect_from_plan", lambda plan: effects[plan.digest])
+        monkeypatch.setattr(module, "validate_git_effect_attestation", validate)
+    monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ({}, tuple(items)))
+    monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
+    monkeypatch.setattr(refresh, "repository_identity", lambda *_args, **_kwargs: "repository:test")
+    monkeypatch.setattr(archive, "run_git", ancestry)
+    monkeypatch.setattr(archive, "_object_id", lambda _root, spec, **_kwargs: objects.get(spec, ""))
+    return SimpleNamespace(
+        archive=archive_effect,
+        refresh=refresh_effect,
+        items=items,
+        plans=plans,
+        effects=effects,
+        distances=distances,
+        objects=objects,
+        validated=validated,
+        resolve=lambda **kwargs: archive.attested_archive_transition(
+            tmp_path, head="f" * 40, **kwargs
+        ),
     )
-    effect = SimpleNamespace(
-        updates={
-            "refs/heads/work/change": SimpleNamespace(desired=desired),
-        }
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "direct",
+        "refresh",
+        "chain",
+        "changed_tree",
+        "fork",
+        "cycle",
+        "missing_tree",
+        "malformed",
+    ],
+)
+def test_archive_graph_selects_only_unambiguous_current_evidence(archive_graph, mode):
+    graph = archive_graph
+    previous, current, other = "c" * 40, "d" * 40, "e" * 40
+    graph.archive("archive", previous)
+    graph.archive("unrelated", other, change="unrelated")
+    graph.distances[other] = 3
+    if mode == "direct":
+        graph.distances[previous] = 2
+    else:
+        graph.refresh("refresh", previous, current)
+        graph.distances[current] = 0
+    if mode == "chain":
+        graph.distances.pop(current)
+        graph.refresh("second", current, "1" * 40)
+        graph.distances["1" * 40] = 0
+    elif mode == "changed_tree":
+        graph.objects[f"{current}:{ARCHIVE}"] = "changed-tree"
+    elif mode == "fork":
+        graph.refresh("second", previous, "1" * 40)
+        graph.distances["1" * 40] = 1
+    elif mode == "cycle":
+        graph.refresh("cycle", current, previous)
+    elif mode == "missing_tree":
+        graph.objects.pop(f"{previous}:{ARCHIVE}")
+    elif mode == "malformed":
+        graph.plans["refresh"].prior_attestations = {"rebase": {"schema_version": 2}}
+    recovered = graph.resolve(change=CHANGE)
+    if mode in {"changed_tree", "fork", "missing_tree", "malformed"}:
+        assert recovered is None
+        return
+    assert recovered is not None
+    commitment, authority = recovered
+    assert commitment.id == f"change:{CHANGE}"
+    assert authority["attestation_id"] == "archive"
+    assert authority["resolved_head"] == (
+        previous if mode == "direct" else "1" * 40 if mode == "chain" else current
     )
-    attestation = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="attestation",
-        effect_digest="effect",
+    assert authority["refresh_attestation_ids"] == (
+        [] if mode == "direct" else ["refresh", "second"] if mode == "chain" else ["refresh"]
     )
-    monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ({}, [attestation]))
-    monkeypatch.setattr(archive, "plan_from_attestation", lambda _attestation: plan)
-    monkeypatch.setattr(archive, "git_effect_from_plan", lambda _plan: effect)
-    monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(
-        archive, "current_tree", lambda _root, commit: "tree" if commit == desired else ""
-    )
+    assert authority["authorized_paths"] == [f"{ARCHIVE}/tasks.md"]
+    assert "archive" in graph.validated
+    if mode in {"refresh", "chain", "cycle"}:
+        assert "refresh" in graph.validated
+    assert graph.resolve()[0].id == f"change:{CHANGE}"
+
+
+def test_archive_recovery_rejects_equally_near_attestations(archive_graph):
+    archive_graph.archive("first", HEAD)
+    archive_graph.archive("second", HEAD)
+    archive_graph.distances[HEAD] = 0
+    with pytest.raises(ValueError, match="openspec_archive_attestation_ambiguous"):
+        archive_graph.resolve(change=CHANGE)
+
+
+@pytest.mark.parametrize(
+    "flaw",
+    [
+        "read",
+        "predicate",
+        "transition",
+        "change",
+        "branch",
+        "update",
+        "commitment",
+        "paths",
+        "facts",
+        "tree",
+        "validation",
+        "acceptance",
+        "archive_path",
+    ],
+)
+def test_archive_recovery_rejects_incomplete_or_invalid_evidence(archive_graph, monkeypatch, flaw):
+    graph = archive_graph
+    previous = "c" * 40
+    item = graph.archive("archive", previous)
+    plan = graph.plans[item.id]
+    graph.distances[previous] = 0
+    if flaw in {"read", "validation"}:
+
+        def refuse(*_args, **_kwargs):
+            message = "invalid evidence"
+            raise ValueError(message)
+
+        monkeypatch.setattr(
+            archive,
+            "read_attestation_set" if flaw == "read" else "validate_git_effect_attestation",
+            refuse,
+        )
+    elif flaw == "predicate":
+        item.predicate = "proof:execution"
+    elif flaw in {"transition", "change", "branch"}:
+        plan.policy[flaw] = ""
+    elif flaw == "update":
+        graph.effects[item.id].updates.clear()
+    elif flaw == "commitment":
+        plan.commitment = None
+    elif flaw in {"paths", "facts"}:
+        plan.facts["values"] = {"changed_paths": []} if flaw == "paths" else None
+    elif flaw == "tree":
+        monkeypatch.setattr(archive, "current_tree", lambda *_args: "")
+    elif flaw == "acceptance":
+        plan.commitment["acceptance"] = []
+    else:
+        graph.distances.clear()
+        plan.facts["values"]["archive_path"] = ""
+    assert graph.resolve(change=CHANGE) is None
+
+
+@pytest.mark.parametrize(
+    ("code", "count", "expected"), [(0, "2\n", 2), (1, "2", None), (0, "invalid", None)]
+)
+def test_archive_ancestry_observation_rejects_failed_or_malformed_count(
+    archive_graph, monkeypatch, code, count, expected
+):
+    archive_graph.archive("archive", HEAD)
+
+    def run_git(_root, *args, **_kwargs):
+        return SimpleNamespace(returncode=code if args[0] == "rev-list" else 0, stdout=count)
+
     monkeypatch.setattr(archive, "run_git", run_git)
-
-    recovered = archive.attested_archive_transition(tmp_path, head=current)
-
-    assert recovered is not None
-    commitment, authority = recovered
-    assert commitment.id == f"change:{CHANGE}"
-    assert authority["attestation_id"] == "attestation"
-
-
-def test_archive_attestation_follows_exact_refresh_chain_without_selecting_other_archive(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    archived_head = "c" * 40
-    refreshed_head = "d" * 40
-    unrelated_head = "e" * 40
-    branch = "work/change"
-    rebase = issue_native_effect(
-        tmp_path,
-        effect=NativeEffect(
-            predicate="effect:git-rebase",
-            operation="git.rebase",
-            command=("git", "rebase"),
-            subject={"branch": branch, "candidate_head": "f" * 40},
-            before={"branch": branch, "head": archived_head, "candidate_head": "f" * 40},
-            after={"branch": "detached", "head": refreshed_head, "candidate_head": "f" * 40},
-        ),
-        state="applied",
-        commitment_digest=None,
-        repository_id="repository:test",
-        issued_at=datetime(2026, 9, 1, tzinfo=UTC),
-    )
-    archive_attestation = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="archive-attestation",
-        effect_digest="archive-effect",
-    )
-    refresh_attestation = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="refresh-attestation",
-        effect_digest="refresh-effect",
-    )
-    unrelated_attestation = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="unrelated-attestation",
-        effect_digest="unrelated-effect",
-    )
-    archive_plan = SimpleNamespace(
-        policy={"transition": "openspec.archive", "change": CHANGE, "branch": branch},
-        commitment={"schema_version": 3, "id": f"change:{CHANGE}", "acceptance": ["done"]},
-        facts={
-            "values": {
-                "archive_path": ARCHIVE,
-                "changed_paths": [f"{ARCHIVE}/tasks.md"],
-            }
-        },
-        digest="archive-plan",
-        prior_attestations={},
-    )
-    refresh_plan = SimpleNamespace(
-        policy={"transition": "lane.refresh", "execution_branch": branch},
-        commitment=None,
-        facts={"values": {}},
-        digest="refresh-plan",
-        prior_attestations={"rebase": rebase.model_dump(mode="json")},
-    )
-    unrelated_plan = SimpleNamespace(
-        policy={
-            "transition": "openspec.archive",
-            "change": "unrelated",
-            "branch": "work/unrelated",
-        },
-        commitment={"schema_version": 3, "id": "change:unrelated", "acceptance": ["done"]},
-        facts={
-            "values": {
-                "archive_path": "openspec/changes/archive/2026-09-01-unrelated",
-                "changed_paths": ["openspec/changes/archive/2026-09-01-unrelated/tasks.md"],
-            }
-        },
-        digest="unrelated-plan",
-        prior_attestations={},
-    )
-    plans = {
-        "archive-attestation": archive_plan,
-        "refresh-attestation": refresh_plan,
-        "unrelated-attestation": unrelated_plan,
-    }
-    effects = {
-        "archive-plan": SimpleNamespace(
-            updates={f"refs/heads/{branch}": SimpleNamespace(desired=archived_head)}
-        ),
-        "refresh-plan": SimpleNamespace(
-            updates={
-                f"refs/heads/{branch}": SimpleNamespace(
-                    expected=archived_head,
-                    desired=refreshed_head,
-                )
-            },
-            assertions={"refs/heads/candidate/dev": "f" * 40},
-        ),
-        "unrelated-plan": SimpleNamespace(
-            updates={"refs/heads/work/unrelated": SimpleNamespace(desired=unrelated_head)}
-        ),
-    }
-    monkeypatch.setattr(
-        archive,
-        "read_attestation_set",
-        lambda _root: ({}, [archive_attestation, refresh_attestation, unrelated_attestation]),
-    )
-    monkeypatch.setattr(archive, "plan_from_attestation", lambda item: plans[item.id])
-    monkeypatch.setattr(archive, "git_effect_from_plan", lambda plan: effects[plan.digest])
-    monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(refresh, "plan_from_attestation", lambda item: plans[item.id])
-    monkeypatch.setattr(refresh, "git_effect_from_plan", lambda plan: effects[plan.digest])
-    monkeypatch.setattr(refresh, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
-    monkeypatch.setattr(refresh, "repository_identity", lambda *_a, **_k: "repository:test")
-    monkeypatch.setattr(
-        archive,
-        "_ancestor_distance",
-        lambda _root, ancestor, _descendant: {
-            archived_head: None,
-            refreshed_head: 0,
-            unrelated_head: 1,
-        }.get(ancestor),
-    )
-    monkeypatch.setattr(
-        archive,
-        "_object_id",
-        lambda _root, specification, **_kwargs: (
-            "archive-tree"
-            if specification in {f"{archived_head}:{ARCHIVE}", f"{refreshed_head}:{ARCHIVE}"}
-            else "unrelated-tree"
-        ),
-    )
-
-    recovered = archive.attested_archive_transition(tmp_path, head=refreshed_head)
-
-    assert recovered is not None
-    commitment, authority = recovered
-    assert commitment.id == f"change:{CHANGE}"
-    assert authority["resolved_head"] == refreshed_head
-    assert authority["refresh_attestation_ids"] == ["refresh-attestation"]
-
-
-def test_archive_attestation_rejects_refresh_that_changes_the_archive_postimage(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    archived_head = "c" * 40
-    changed_head = "d" * 40
-    branch = "work/change"
-    rebase = issue_native_effect(
-        tmp_path,
-        effect=NativeEffect(
-            predicate="effect:git-rebase",
-            operation="git.rebase",
-            command=("git", "rebase"),
-            subject={"branch": branch, "candidate_head": "f" * 40},
-            before={"branch": branch, "head": archived_head, "candidate_head": "f" * 40},
-            after={"branch": "detached", "head": changed_head, "candidate_head": "f" * 40},
-        ),
-        state="applied",
-        commitment_digest=None,
-        repository_id="repository:test",
-        issued_at=datetime(2026, 9, 1, tzinfo=UTC),
-    )
-    archive_attestation = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="archive-attestation",
-        effect_digest="archive-effect",
-    )
-    refresh_attestation = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="refresh-attestation",
-        effect_digest="refresh-effect",
-    )
-    plans = {
-        "archive-attestation": SimpleNamespace(
-            policy={"transition": "openspec.archive", "change": CHANGE, "branch": branch},
-            commitment={
-                "schema_version": 3,
-                "id": f"change:{CHANGE}",
-                "acceptance": ["done"],
-            },
-            facts={
-                "values": {
-                    "archive_path": ARCHIVE,
-                    "changed_paths": [f"{ARCHIVE}/tasks.md"],
-                }
-            },
-            digest="archive-plan",
-            prior_attestations={},
-        ),
-        "refresh-attestation": SimpleNamespace(
-            policy={"transition": "lane.refresh", "execution_branch": branch},
-            commitment=None,
-            facts={"values": {}},
-            digest="refresh-plan",
-            prior_attestations={"rebase": rebase.model_dump(mode="json")},
-        ),
-    }
-    effects = {
-        "archive-plan": SimpleNamespace(
-            updates={f"refs/heads/{branch}": SimpleNamespace(desired=archived_head)}
-        ),
-        "refresh-plan": SimpleNamespace(
-            updates={
-                f"refs/heads/{branch}": SimpleNamespace(
-                    expected=archived_head,
-                    desired=changed_head,
-                )
-            },
-            assertions={"refs/heads/candidate/dev": "f" * 40},
-        ),
-    }
-    monkeypatch.setattr(
-        archive,
-        "read_attestation_set",
-        lambda _root: ({}, [archive_attestation, refresh_attestation]),
-    )
-    monkeypatch.setattr(archive, "plan_from_attestation", lambda item: plans[item.id])
-    monkeypatch.setattr(archive, "git_effect_from_plan", lambda plan: effects[plan.digest])
-    monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(refresh, "plan_from_attestation", lambda item: plans[item.id])
-    monkeypatch.setattr(refresh, "git_effect_from_plan", lambda plan: effects[plan.digest])
-    monkeypatch.setattr(refresh, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
-    monkeypatch.setattr(refresh, "repository_identity", lambda *_a, **_k: "repository:test")
-    monkeypatch.setattr(
-        archive,
-        "_ancestor_distance",
-        lambda _root, ancestor, _descendant: 0 if ancestor == changed_head else None,
-    )
-    monkeypatch.setattr(
-        archive,
-        "_object_id",
-        lambda _root, specification, **_kwargs: {
-            f"{archived_head}:{ARCHIVE}": "archive-tree",
-            f"{changed_head}:{ARCHIVE}": "changed-tree",
-        }.get(specification, ""),
-    )
-
-    assert archive.attested_archive_transition(tmp_path, head=changed_head) is None
-
-
-def test_archive_refresh_resolution_fails_closed_on_fork(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    archived_head = "c" * 40
-    first_head = "d" * 40
-    second_head = "e" * 40
-    current_head = "f" * 40
-    branch = "work/change"
-    candidate_head = "1" * 40
-    first_rebase = issue_native_effect(
-        tmp_path,
-        effect=NativeEffect(
-            predicate="effect:git-rebase",
-            operation="git.rebase",
-            command=("git", "rebase"),
-            subject={"branch": branch, "candidate_head": candidate_head},
-            before={"branch": branch, "head": archived_head, "candidate_head": candidate_head},
-            after={"branch": "detached", "head": first_head, "candidate_head": candidate_head},
-        ),
-        state="applied",
-        commitment_digest=None,
-        repository_id="repository:test",
-        issued_at=datetime(2026, 9, 1, tzinfo=UTC),
-    )
-    second_rebase = issue_native_effect(
-        tmp_path,
-        effect=NativeEffect(
-            predicate="effect:git-rebase",
-            operation="git.rebase",
-            command=("git", "rebase"),
-            subject={"branch": branch, "candidate_head": candidate_head},
-            before={"branch": branch, "head": archived_head, "candidate_head": candidate_head},
-            after={"branch": "detached", "head": second_head, "candidate_head": candidate_head},
-        ),
-        state="applied",
-        commitment_digest=None,
-        repository_id="repository:test",
-        issued_at=datetime(2026, 9, 1, tzinfo=UTC),
-    )
-    archive_attestation = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="archive-attestation",
-        effect_digest="archive-effect",
-    )
-    first_refresh = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="refresh-first",
-        effect_digest="refresh-first-effect",
-    )
-    second_refresh = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="refresh-second",
-        effect_digest="refresh-second-effect",
-    )
-    plans = {
-        "archive-attestation": SimpleNamespace(
-            policy={"transition": "openspec.archive", "change": CHANGE, "branch": branch},
-            commitment={
-                "schema_version": 3,
-                "id": f"change:{CHANGE}",
-                "acceptance": ["done"],
-            },
-            facts={
-                "values": {
-                    "archive_path": ARCHIVE,
-                    "changed_paths": [f"{ARCHIVE}/tasks.md"],
-                }
-            },
-            digest="archive-plan",
-            prior_attestations={},
-        ),
-        "refresh-first": SimpleNamespace(
-            policy={"transition": "lane.refresh", "execution_branch": branch},
-            commitment=None,
-            facts={"values": {}},
-            digest="refresh-first-plan",
-            prior_attestations={"rebase": first_rebase.model_dump(mode="json")},
-        ),
-        "refresh-second": SimpleNamespace(
-            policy={"transition": "lane.refresh", "execution_branch": branch},
-            commitment=None,
-            facts={"values": {}},
-            digest="refresh-second-plan",
-            prior_attestations={"rebase": second_rebase.model_dump(mode="json")},
-        ),
-    }
-    effects = {
-        "archive-plan": SimpleNamespace(
-            updates={f"refs/heads/{branch}": SimpleNamespace(desired=archived_head)}
-        ),
-        "refresh-first-plan": SimpleNamespace(
-            updates={
-                f"refs/heads/{branch}": SimpleNamespace(
-                    expected=archived_head,
-                    desired=first_head,
-                )
-            },
-            assertions={"refs/heads/candidate/dev": candidate_head},
-        ),
-        "refresh-second-plan": SimpleNamespace(
-            updates={
-                f"refs/heads/{branch}": SimpleNamespace(
-                    expected=archived_head,
-                    desired=second_head,
-                )
-            },
-            assertions={"refs/heads/candidate/dev": candidate_head},
-        ),
-    }
-    monkeypatch.setattr(
-        archive,
-        "read_attestation_set",
-        lambda _root: ({}, [archive_attestation, first_refresh, second_refresh]),
-    )
-    monkeypatch.setattr(archive, "plan_from_attestation", lambda item: plans[item.id])
-    monkeypatch.setattr(archive, "git_effect_from_plan", lambda plan: effects[plan.digest])
-    monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(refresh, "plan_from_attestation", lambda item: plans[item.id])
-    monkeypatch.setattr(refresh, "git_effect_from_plan", lambda plan: effects[plan.digest])
-    monkeypatch.setattr(refresh, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(refresh, "repository_identity", lambda *_a, **_k: "repository:test")
-    monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
-    monkeypatch.setattr(
-        archive,
-        "_ancestor_distance",
-        lambda _root, ancestor, _descendant: 1 if ancestor in {first_head, second_head} else None,
-    )
-    monkeypatch.setattr(archive, "_object_id", lambda *_a, **_k: "archive-tree")
-
-    assert archive.attested_archive_transition(tmp_path, head=current_head) is None
-
-
-def test_archive_attestation_rejects_malformed_nested_refresh_evidence(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    archived_head = "c" * 40
-    refreshed_head = "d" * 40
-    branch = "work/change"
-    archive_attestation = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="archive-attestation",
-        effect_digest="archive-effect",
-    )
-    refresh_attestation = SimpleNamespace(
-        predicate="effect:git-ref-update",
-        verifier="agent:test",
-        id="refresh-attestation",
-        effect_digest="refresh-effect",
-    )
-    plans = {
-        "archive-attestation": SimpleNamespace(
-            policy={"transition": "openspec.archive", "change": CHANGE, "branch": branch},
-            commitment={
-                "schema_version": 3,
-                "id": f"change:{CHANGE}",
-                "acceptance": ["done"],
-            },
-            facts={
-                "values": {
-                    "archive_path": ARCHIVE,
-                    "changed_paths": [f"{ARCHIVE}/tasks.md"],
-                }
-            },
-            digest="archive-plan",
-            prior_attestations={},
-        ),
-        "refresh-attestation": SimpleNamespace(
-            policy={"transition": "lane.refresh", "execution_branch": branch},
-            commitment=None,
-            facts={"values": {}},
-            digest="refresh-plan",
-            prior_attestations={"rebase": {"schema_version": 2}},
-        ),
-    }
-    effects = {
-        "archive-plan": SimpleNamespace(
-            updates={f"refs/heads/{branch}": SimpleNamespace(desired=archived_head)}
-        ),
-        "refresh-plan": SimpleNamespace(
-            updates={
-                f"refs/heads/{branch}": SimpleNamespace(
-                    expected=archived_head,
-                    desired=refreshed_head,
-                )
-            },
-            assertions={"refs/heads/candidate/dev": "f" * 40},
-        ),
-    }
-    monkeypatch.setattr(
-        archive,
-        "read_attestation_set",
-        lambda _root: ({}, [archive_attestation, refresh_attestation]),
-    )
-    monkeypatch.setattr(archive, "plan_from_attestation", lambda item: plans[item.id])
-    monkeypatch.setattr(archive, "git_effect_from_plan", lambda plan: effects[plan.digest])
-    monkeypatch.setattr(archive, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(refresh, "plan_from_attestation", lambda item: plans[item.id])
-    monkeypatch.setattr(refresh, "git_effect_from_plan", lambda plan: effects[plan.digest])
-    monkeypatch.setattr(refresh, "validate_git_effect_attestation", lambda *_a, **_k: None)
-    monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
-    monkeypatch.setattr(
-        archive,
-        "_ancestor_distance",
-        lambda _root, ancestor, _descendant: 0 if ancestor == refreshed_head else None,
-    )
-    monkeypatch.setattr(archive, "_object_id", lambda *_a, **_k: "archive-tree")
-
-    assert archive.attested_archive_transition(tmp_path, head=refreshed_head) is None
+    recovered = archive_graph.resolve(change=CHANGE)
+    if expected is None:
+        assert recovered is None
+    else:
+        assert recovered is not None
+        assert recovered[1]["resolved_head"] == HEAD
 
 
 def test_archive_scope_rejects_invalid_profile(
@@ -699,3 +427,131 @@ def test_archive_scope_rejects_invalid_profile(
             tree=TREE,
             source_head=HEAD,
         )
+
+
+@pytest.fixture
+def native_archive(tmp_path):
+    """Provide real Git objects, not an official CLI execution claim."""
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    for relative in SOURCE_ARTIFACTS:
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"source artifact: {relative}\n")
+    git(repo, "add", "--all")
+    git(repo, "commit", "-m", "declare archive source")
+    head = git(repo, "rev-parse", "HEAD")
+    return repo, head
+
+
+@pytest.mark.parametrize(
+    "mode", ["unchanged", "move", "changed", "retained_active", "foreign", "missing_change"]
+)
+def test_archive_postimage_uses_isolated_native_git_projection(native_archive, mode):
+    repo, head = native_archive
+    index = (repo / ".git/index").read_bytes()
+    target = repo / ARCHIVE
+    if mode not in {"unchanged", "missing_change"}:
+        target.parent.mkdir(parents=True)
+        (repo / ACTIVE).rename(target)
+        if mode == "changed":
+            (target / "tasks.md").write_text("changed acceptance\n")
+        elif mode == "retained_active":
+            (repo / ACTIVE).mkdir()
+            (repo / ACTIVE / "tasks.md").write_text("not fully archived\n")
+        elif mode == "foreign":
+            (repo / "foreign.txt").write_text("unrelated\n")
+    before = git(repo, "status", "--porcelain")
+    report = archive.archive_postimage(
+        repo, head=head, change="" if mode == "missing_change" else CHANGE
+    )
+    assert (repo / ".git/index").read_bytes() == index
+    assert git(repo, "rev-parse", "HEAD") == head
+    assert git(repo, "status", "--porcelain") == before
+    if mode == "missing_change":
+        assert report is None
+        return
+    assert report is not None
+    assert report.active_present is (mode in {"unchanged", "retained_active"})
+    if mode == "move":
+        assert report.scope["verdict"] == "pass"
+        assert report.scope["archive_path"] == ARCHIVE
+        assert report.scope["completion_artifacts"] == sorted(SOURCE_ARTIFACTS)
+    else:
+        assert report.scope is None
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "inferred",
+        "selected",
+        "wrong_change",
+        "preservation_mismatch",
+        "nonarchive",
+        "missing_parent",
+        "missing_source",
+    ],
+)
+def test_committed_archive_selection_binds_current_git_diff(native_archive, monkeypatch, mode):
+    repo, head = native_archive
+    target = repo / ARCHIVE
+    target.parent.mkdir(parents=True)
+    (repo / ACTIVE).rename(target)
+    git(repo, "add", "--all")
+    git(repo, "commit", "-m", "archive exact source")
+    kwargs = {}
+    if mode in {"selected", "wrong_change"}:
+        kwargs["requested_change"] = CHANGE if mode == "selected" else "another"
+    elif mode == "preservation_mismatch":
+        kwargs["preserved_archive"] = (ARCHIVE, ARCHIVE + "-unbound")
+    elif mode == "nonarchive":
+        kwargs["changed_paths"] = ("README.md",)
+    elif mode == "missing_parent":
+        native = archive.git_stdout
+        monkeypatch.setattr(
+            archive,
+            "git_stdout",
+            lambda root, *args: "" if args[-1].endswith("^") else native(root, *args),
+        )
+    elif mode == "missing_source":
+        native = archive.run_git
+
+        def run(root, *args, **kwargs):
+            return (
+                SimpleNamespace(returncode=1, stdout="")
+                if args == ("rev-parse", f"{head}:{ACTIVE}")
+                else native(root, *args, **kwargs)
+            )
+
+        monkeypatch.setattr(archive, "run_git", run)
+    result = archive.lease_bound_archive_scope_report(repo, **kwargs)
+    if mode in {"inferred", "selected"}:
+        assert result["verdict"] == "pass"
+        assert result["state"] == "post_archive_closeout"
+        assert result["changes"] == [{"name": CHANGE, "path": ARCHIVE}]
+    else:
+        assert result is None
+
+
+def test_archive_scope_requires_complete_source_enumeration(tmp_path, monkeypatch):
+    _git(monkeypatch)
+    native = archive.run_git
+
+    def run(root, *args, **kwargs):
+        return (
+            SimpleNamespace(returncode=1, stdout="")
+            if args[0] == "ls-tree"
+            else native(root, *args, **kwargs)
+        )
+
+    monkeypatch.setattr(archive, "run_git", run)
+    assert (
+        archive.archive_postimage_scope_report(
+            tmp_path,
+            changed_paths=(f"{ARCHIVE}/tasks.md",),
+            requested_change=CHANGE,
+            tree=TREE,
+            source_head=HEAD,
+        )
+        is None
+    )

@@ -573,13 +573,41 @@ minimal Lease, idempotency, topology, and runtime-refusal assertions while
 removing net test lines. These synchronous tests do not establish crash recovery
 or arbitrary concurrent filesystem-replacement safety.
 
-Continue with official archive resolution's measured behavior gaps, preserving
-unique scenarios and the 38300 test ELOC cap. Use separate diagnostic data to
-select the next coherent batch, then freeze the source for another complete
-proof. Do not combine diagnostic datasets or infer global compliance from local
-percentages. Archive, accepted CAS, and runtime activation remain held at 95;
-accepted `18aa8707` still carries the old 93-percent policy until this correction
-actually qualifies for landing.
+The archive batch preserves the former descendant, exact refresh, unrelated
+archive, changed-tree, fork, malformed nested evidence, source mapping, collision,
+and profile scenarios while consolidating repeated graph construction. New cases
+cover multi-edge chains, cycles, equally near attestations, incomplete evidence,
+and failed ancestry observations. Native Git fixtures verify that postimage
+observation preserves the real index, HEAD, and working contents; they exercise
+exact relocation and committed-diff selection, not a new official CLI run.
+Public command tests distinguish staged from active intent, preserve diagnostic
+gaps, reject invalid coordinates before effects, compensate invalid native
+output, and forbid rollback after ref advancement.
+
+The seven-file archive/proof/quality regression set passed 183 tests in 273.67
+seconds; its disposable root was removed. The two changed test files passed
+87 focused cases. Local diagnostic coverage is 98.59 percent for archive intent
+resolution and 97.82 percent for the archive command. In-memory removal of tree
+congruence, tie rejection, or committed-effect protection makes the corresponding
+regression fail. An initial fault harness omitted future-annotation semantics;
+that harness error was corrected and is not counted as detected product failure.
+One test expectation also incorrectly invented `not_available`; the existing
+committed/not-required/retained outcome and no-rollback assertion are preserved.
+
+Product source is unchanged in this batch. The tests lose three net physical
+lines and 25 ELOC, leaving test ELOC at 38263/38300. Comparison against the
+unchanged full source identifies 30 newly observed statements and 24 branch
+obligations in these two owners; this diagnostic delta is not a merged dataset
+or a claim of whole-product coverage. The full XML and JUnit hashes remain
+unchanged. Detailed command and fault observations stay under the existing
+ignored quality evidence owner rather than OpenSpec tasks.
+
+Continue with the full report's remaining Git-effect attestation validation and
+resource-coordination gaps, preserving unique scenarios and all budgets. Freeze
+the next coherent batch before another complete proof; do not combine diagnostic
+datasets or infer global compliance from local percentages. Archive, accepted
+CAS, and runtime activation remain held at 95. Accepted `18aa8707` still carries
+the old 93-percent policy until this correction actually qualifies for landing.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

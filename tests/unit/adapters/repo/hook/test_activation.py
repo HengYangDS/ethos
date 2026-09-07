@@ -66,6 +66,24 @@ def _legacy_state(common: Path) -> Path:
     return database
 
 
+@pytest.mark.parametrize(
+    ("reset", "relative", "reason"),
+    [
+        (True, False, "state_reset_authorization_required"),
+        (False, True, "hook_runtime_python_invalid"),
+        (False, False, "hook_runtime_python_invalid"),
+    ],
+)
+def test_hook_install_rejects_invalid_admission_before_creating_state(
+    tmp_path: Path, reason: str, *, reset: bool, relative: bool
+) -> None:
+    python = Path("relative-python") if relative else tmp_path / "missing-python"
+    before = frozenset(tmp_path.iterdir())
+    with pytest.raises(ValueError, match=reason):
+        install_hook_launchers(tmp_path / "repo", python=python, reset_state=reset)
+    assert frozenset(tmp_path.iterdir()) == before
+
+
 def test_hook_install_observes_runtime_bytes_only_at_admission_and_post_observe(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -182,28 +200,43 @@ def test_hook_install_restores_activation_when_state_commit_fails(
     assert runtime.parent.is_dir()
 
 
+@pytest.mark.parametrize("failure", ["io", "residue", "retained"])
 def test_hook_install_reports_deferred_generation_cleanup_after_successful_activation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
     repo, runtime, common = _materialized(tmp_path, monkeypatch)
-    stale = common / "ethos/runtime" / ("b" * 64)
-    stale.mkdir(parents=True)
-    monkeypatch.setattr(
-        hook_activation,
-        "_apply_generation_cleanup",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("cleanup failed")),
-    )
+    stale, retained = (common / "ethos/runtime" / (letter * 64) for letter in "bc")
+    stale.mkdir()
+    retained.mkdir()
+    monkeypatch.setattr(hook_activation, "process_commands", lambda _root: retained.as_posix())
+    remove = runtime_materialization.remove_generated_tree
 
+    def remove_tree(path):
+        assert path == stale
+        if failure == "io":
+            message = "cleanup failed"
+            raise OSError(message)
+        if failure == "retained":
+            remove(path)
+            retained.rmdir()
+
+    monkeypatch.setattr(runtime_materialization, "remove_generated_tree", remove_tree)
     installed = install_hook_launchers(repo)
-
-    assert (common / "ethos/runtime/CURRENT").read_text(encoding="ascii") == (
-        f"{runtime.parent.name}\n"
-    )
+    cleanup = installed["generation_cleanup"]
+    assert (common / "ethos/runtime/CURRENT").read_text(
+        encoding="ascii"
+    ) == f"{runtime.parent.name}\n"
     assert installed["state_transition"]["after"] == "current"
-    assert installed["generation_cleanup"]["state"] == "deferred"
-    assert installed["generation_cleanup"]["error"] == "cleanup failed"
-    assert installed["required_gaps"] == ["hook_runtime_cleanup_deferred"]
     assert installed["current"] is True
+    assert installed["required_gaps"] == ["hook_runtime_cleanup_deferred"]
+    assert installed["next_action"] == "ethos hook install --json"
+    assert cleanup["state"] == "deferred"
+    assert cleanup["removed"] == []
+    assert cleanup["error"] == (
+        "cleanup failed" if failure == "io" else "hook_runtime_generation_cleanup_failed"
+    )
+    assert cleanup["deferred"] == ([] if failure == "retained" else [stale.as_posix()])
+    assert stale.exists() is (failure != "retained")
 
 
 def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
@@ -303,84 +336,101 @@ def test_hook_install_removes_only_unreferenced_generated_paths(
     assert unrelated.is_dir()
 
 
+def _configured_worktrees(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    repo, linked, _runtime, generations = linked_runtime_case(tmp_path, monkeypatch)
+    stale = hook_activation.materialize_hook_launchers(generations)
+    config = hook_activation.config_effects
+    common_values = {
+        "extensions.worktreeConfig": ("true",),
+        "gc.packRefs": ("true",),
+        "core.hooksPath": (stale.as_posix(),),
+    }
+    worktree_values = {key: common_values[key] for key in ("core.hooksPath", "gc.packRefs")}
+    configs = [(repo, "local", common_values)] + [
+        (root, "worktree", worktree_values) for root in (repo, linked)
+    ]
+    for root, scope, values in configs:
+        config.replace_config_values(root, values, scope=scope)
+    common = Path(git_common_dir(repo))
+    return repo, linked, stale, common, configs
+
+
 def test_hook_install_converges_every_linked_worktree_on_one_common_activation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, linked, _venv, generations = linked_runtime_case(tmp_path, monkeypatch)
-    root_stale = hook_activation.materialize_hook_launchers(generations)
-    linked_stale = hook_activation.materialize_hook_launchers(generations)
-    assert git_process(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
-    assert (
-        git_process(
-            repo, "config", "--worktree", "core.hooksPath", root_stale.as_posix()
-        ).returncode
-        == 0
-    )
-    assert git_process(repo, "config", "--worktree", "gc.packRefs", "true").returncode == 0
-    assert (
-        git_process(
-            linked,
-            "config",
-            "--worktree",
-            "core.hooksPath",
-            linked_stale.as_posix(),
-        ).returncode
-        == 0
-    )
-    assert git_process(linked, "config", "--worktree", "gc.packRefs", "true").returncode == 0
-
+    repo, linked, _stale, _common, configs = _configured_worktrees(tmp_path, monkeypatch)
+    read = hook_activation.config_effects.config_values
+    common_values, worktree_values = configs[0][2], configs[1][2]
     installed = install_hook_launchers(linked)
-
     expected = installed["hooks_path"]
     assert installed["linked_worktrees"] == [
-        {"path": repo.as_posix(), "state": "repaired"},
-        {"path": linked.as_posix(), "state": "repaired"},
+        {"path": root.as_posix(), "state": "repaired"} for root in (repo, linked)
     ]
-    assert (
-        git_process(repo, "config", "--local", "--path", "--get", "core.hooksPath").stdout.strip()
-        == expected
-    )
-    assert git_process(repo, "config", "--local", "--get", "gc.packRefs").stdout.strip() == "false"
-    for worktree in (repo, linked):
+    assert read(repo, tuple(common_values), scope="local") == {
+        "extensions.worktreeConfig": ("true",),
+        "gc.packRefs": ("false",),
+        "core.hooksPath": (expected,),
+    }
+    for root in (repo, linked):
+        assert read(root, tuple(worktree_values), scope="worktree") == dict.fromkeys(
+            worktree_values, ()
+        )
+        assert git_process(root, "config", "--get", "gc.packRefs").stdout.strip() == "false"
         assert (
-            git_process(worktree, "config", "--path", "--get", "core.hooksPath").stdout.strip()
+            git_process(root, "config", "--path", "--get", "core.hooksPath").stdout.strip()
             == expected
         )
-        assert git_process(worktree, "config", "--get", "gc.packRefs").stdout.strip() == "false"
-        assert (
-            git_process(worktree, "config", "--worktree", "--get", "core.hooksPath").returncode == 1
-        )
-        assert git_process(worktree, "config", "--worktree", "--get", "gc.packRefs").returncode == 1
-        assert hook_runtime_binding(worktree)["required_gaps"] == []
+        assert hook_runtime_binding(root)["required_gaps"] == []
 
 
-def test_hook_install_rolls_back_when_linked_worktree_config_is_unreadable(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    ("fault", "reason"),
+    [
+        ("unset", "activation failed"),
+        ("unreadable", "git_config_observation_failed"),
+        ("common", "hook_runtime_common_activation_drift"),
+        ("worktree", "hook_runtime_worktree_activation_drift"),
+    ],
+)
+def test_hook_install_restores_all_configs_after_linked_activation_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str, reason: str
 ) -> None:
-    repo, linked, _venv, hooks_root = linked_runtime_case(tmp_path, monkeypatch)
-    stale = hook_activation.materialize_hook_launchers(hooks_root)
-    assert (
-        git_process(repo, "config", "--local", "core.hooksPath", stale.as_posix()).returncode == 0
+    repo, linked, stale, common, configs = _configured_worktrees(tmp_path, monkeypatch)
+    config = hook_activation.config_effects
+    unset, set_common, read = (
+        config.unset_worktree_config,
+        config.set_common_config,
+        config.config_values,
     )
-    real_values = hook_activation.config_effects.config_values
 
-    def unreadable(root_path: Path, keys: tuple[str, ...], *, scope: str):
-        if root_path == linked and scope == "worktree":
+    def unset_worktree(root, keys):
+        if root == linked and fault == "unset":
+            message = "activation failed"
+            raise ValueError(message)
+        unset(root, keys)
+        if root == linked and fault == "worktree":
+            config.replace_config_values(root, {"gc.packRefs": ("true",)}, scope="worktree")
+
+    def set_common_config(root, values):
+        set_common(root, values)
+        if fault == "common" and "core.hooksPath" in values:
+            set_common(root, {"gc.packRefs": "true"})
+
+    def read_config(root, keys, *, scope):
+        if fault == "unreadable" and root == linked and scope == "worktree":
             message = "git_config_observation_failed"
             raise ValueError(message)
-        return real_values(root_path, keys, scope=scope)
+        return read(root, keys, scope=scope)
 
-    monkeypatch.setattr(hook_activation.config_effects, "config_values", unreadable)
-
-    with pytest.raises(ValueError, match="git_config_observation_failed"):
-        install_hook_launchers(repo)
-
-    assert (
-        git_process(repo, "config", "--local", "--path", "--get", "core.hooksPath").stdout.strip()
-        == stale.as_posix()
-    )
+    with monkeypatch.context() as patch:
+        patch.setattr(config, "unset_worktree_config", unset_worktree)
+        patch.setattr(config, "set_common_config", set_common_config)
+        patch.setattr(config, "config_values", read_config)
+        with pytest.raises(ValueError, match=reason):
+            install_hook_launchers(repo)
+    assert not (common / "ethos/runtime/CURRENT").exists()
+    assert not (common / "ethos/state.sqlite").exists()
+    assert all(read(root, tuple(values), scope=scope) == values for root, scope, values in configs)
     assert stale.is_dir()
 
 
@@ -449,73 +499,6 @@ def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
     assert installed["expected_source_commit"] == accepted_identity.source_commit
     assert installed["expected_source_tree"] == accepted_identity.source_tree
     assert installed["required_gaps"] == []
-
-
-def test_hook_activation_failure_keeps_the_old_generation_configured(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, linked, _venv, root = linked_runtime_case(tmp_path, monkeypatch)
-    old_common = hook_activation.materialize_hook_launchers(root)
-    old_root = hook_activation.materialize_hook_launchers(root)
-    old_linked = hook_activation.materialize_hook_launchers(root)
-    assert git_process(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
-    assert (
-        git_process(repo, "config", "--local", "core.hooksPath", old_common.as_posix()).returncode
-        == 0
-    )
-    assert git_process(repo, "config", "--local", "gc.packRefs", "true").returncode == 0
-    assert (
-        git_process(repo, "config", "--worktree", "core.hooksPath", old_root.as_posix()).returncode
-        == 0
-    )
-    assert git_process(repo, "config", "--worktree", "gc.packRefs", "true").returncode == 0
-    assert (
-        git_process(
-            linked, "config", "--worktree", "core.hooksPath", old_linked.as_posix()
-        ).returncode
-        == 0
-    )
-    assert git_process(linked, "config", "--worktree", "gc.packRefs", "true").returncode == 0
-    real_unset = hook_activation.config_effects.unset_worktree_config
-    failed = False
-
-    def fail_activation(root_path: Path, keys: tuple[str, ...]) -> None:
-        nonlocal failed
-        if root_path == linked and not failed:
-            failed = True
-            message = "activation failed"
-            raise ValueError(message)
-        real_unset(root_path, keys)
-
-    monkeypatch.setattr(hook_activation.config_effects, "unset_worktree_config", fail_activation)
-
-    with pytest.raises(ValueError, match="activation failed"):
-        install_hook_launchers(repo)
-
-    assert (
-        git_process(repo, "config", "--local", "--path", "--get", "core.hooksPath").stdout.strip()
-        == old_common.as_posix()
-    )
-    assert git_process(repo, "config", "--local", "--get", "gc.packRefs").stdout.strip() == "true"
-    assert (
-        git_process(
-            repo, "config", "--worktree", "--path", "--get", "core.hooksPath"
-        ).stdout.strip()
-        == old_root.as_posix()
-    )
-    assert (
-        git_process(repo, "config", "--worktree", "--get", "gc.packRefs").stdout.strip() == "true"
-    )
-    assert (
-        git_process(
-            linked, "config", "--worktree", "--path", "--get", "core.hooksPath"
-        ).stdout.strip()
-        == old_linked.as_posix()
-    )
-    assert (
-        git_process(linked, "config", "--worktree", "--get", "gc.packRefs").stdout.strip() == "true"
-    )
-    assert {old_common, old_root, old_linked} <= set(root.iterdir())
 
 
 def test_hook_generation_repairs_drift_without_changing_identity(tmp_path: Path) -> None:
@@ -675,28 +658,29 @@ def test_hook_generation_rejects_an_existing_symlink_target(tmp_path: Path) -> N
         hook_activation.materialize_hook_launchers(root)
 
 
+@pytest.mark.parametrize("drift", ["path", "gaps"])
 def test_hook_activation_rejects_a_non_current_post_observation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift: str
 ) -> None:
     repo, _runtime, common = _materialized(tmp_path, monkeypatch)
-    hooks = common / "ethos/hooks" / ("b" * 64)
-    hooks.mkdir(parents=True)
-    monkeypatch.setattr(hook_activation, "materialize_hook_launchers", lambda *_args: hooks)
-    monkeypatch.setattr(
-        hook_activation,
-        "hook_runtime_binding",
-        lambda _root, **_kwargs: {
-            "hooks_path": hooks.as_posix(),
-            "required_gaps": ["write_admission_not_armed:runtime_build_stale"],
-        },
+    observe = hook_activation.hook_runtime_binding
+
+    def stale_binding(*args, **kwargs):
+        binding = observe(*args, **kwargs)
+        if drift == "path":
+            binding["hooks_path"] = (common / "foreign-hooks").as_posix()
+        else:
+            binding["required_gaps"] = ["write_admission_not_armed:runtime_build_stale"]
+        return binding
+
+    monkeypatch.setattr(hook_activation, "hook_runtime_binding", stale_binding)
+    reason = (
+        "hook_runtime_activation_drift" if drift == "path" else "hook_runtime_activation_invalid"
     )
-
-    with pytest.raises(ValueError, match="hook_runtime_activation_invalid"):
+    with pytest.raises(ValueError, match=reason):
         install_hook_launchers(repo)
-
-    selector = common / "ethos" / "runtime" / "CURRENT"
-    assert not selector.exists()
+    assert not (common / "ethos/runtime/CURRENT").exists()
+    assert not (common / "ethos/state.sqlite").exists()
 
 
 def test_hook_activation_compensates_when_expected_build_drifts_during_effect(
@@ -807,69 +791,77 @@ def test_hook_install_retires_the_legacy_runtime_python_locator(
 def test_install_restores_runtime_selector_with_exact_cas_when_activation_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    python = tmp_path / "python"
-    python.write_text("python", encoding="utf-8")
-    common = Path(git_common_dir(repo))
-    runtime_digest = "a" * 64
-    runtime = common / "ethos" / "runtime" / runtime_digest / "python"
-    source = BuildIdentity(
-        "0.2.0-alpha.2",
-        "0.2.0a2.dev0+gcccccccccccc.tdddddddddddd",
-        "c" * 40,
-        "d" * 40,
-    )
-    restored: list[tuple[bytes | None, bytes | None]] = []
-    monkeypatch.setattr(hook_activation, "expected_runtime_build", lambda _root: (source, None))
-    monkeypatch.setattr(
-        hook_activation.runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: runtime,
-    )
+    repo, runtime, common = _materialized(tmp_path, monkeypatch)
+    restored = []
+    restore = hook_activation.restore_runtime_selection
 
-    def select_runtime(*_args: object, **_kwargs: object) -> None:
-        selector = common / "ethos/runtime/CURRENT"
-        selector.parent.mkdir(parents=True, exist_ok=True)
-        selector.write_bytes(f"{runtime_digest}\n".encode("ascii"))
+    def record_restore(root, previous, *, expected_current):
+        restored.append((root, previous, expected_current))
+        restore(root, previous, expected_current=expected_current)
 
-    monkeypatch.setattr(hook_activation, "activate_runtime", select_runtime)
-
-    def fail_config(*_args: object, **_kwargs: object) -> None:
+    def fail_config(*_args, **_kwargs):
         message = "activation failed"
         raise ValueError(message)
 
     monkeypatch.setattr(hook_activation.config_effects, "set_common_config", fail_config)
-    monkeypatch.setattr(
-        hook_activation,
-        "restore_runtime_selection",
-        lambda _common, previous, *, expected_current: restored.append(
-            (previous, expected_current)
-        ),
-    )
-
+    monkeypatch.setattr(hook_activation, "restore_runtime_selection", record_restore)
     with pytest.raises(ValueError, match="activation failed"):
-        hook_activation.install_hook_launchers(repo, python=python)
+        install_hook_launchers(repo)
+    assert restored == [(common, None, f"{runtime.parent.name}\n".encode("ascii"))]
+    assert not (common / "ethos/runtime/CURRENT").exists()
+    assert runtime.parent.is_dir()
 
-    selected = f"{runtime_digest}\n".encode("ascii")
-    assert restored == [(None, selected)]
 
-
-def test_failed_activation_reports_compensation_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("failure", ["config", "selector", "both", "unreadable"])
+def test_failed_activation_attempts_every_compensation_and_reports_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
-    repo, _runtime, common = _materialized(tmp_path, monkeypatch)
+    common, linked = tmp_path / "common", tmp_path / "linked"
+    selector = common / "ethos/runtime/CURRENT"
+    selector.parent.mkdir(parents=True)
+    selected = b"a" * 64 + b"\n"
+    if failure == "unreadable":
+        selector.mkdir()
+    else:
+        selector.write_bytes(selected)
+    attempted = []
+    restore = hook_activation.restore_runtime_selection
 
-    def fail(*_args: object, **_kwargs: object) -> None:
-        message = "compensation"
-        raise ValueError(message)
+    def replace(root, values, *, scope):
+        assert values == {}
+        attempted.append((root, scope))
+        if failure in {"config", "both"} and (root == linked or scope == "local"):
+            message = f"{scope} compensation"
+            raise ValueError(message)
 
-    monkeypatch.setattr(hook_activation, "_restore_activation", fail)
-    monkeypatch.setattr(hook_activation, "restore_runtime_selection", fail)
+    def restore_selector(root, previous, *, expected_current):
+        attempted.append((root, "selector"))
+        assert previous is None
+        assert expected_current == selected
+        if failure in {"selector", "both"}:
+            message = "selector compensation"
+            raise OSError(message)
+        restore(root, previous, expected_current=expected_current)
 
-    with pytest.raises(ValueError, match="hook_runtime_activation_compensation_failed"):
-        vars(hook_activation)["_restore_failed_activation"](repo, common, {}, {}, None)
+    monkeypatch.setattr(hook_activation.config_effects, "replace_config_values", replace)
+    monkeypatch.setattr(hook_activation, "restore_runtime_selection", restore_selector)
+    with pytest.raises(ValueError, match="hook_runtime_activation_compensation_failed") as error:
+        vars(hook_activation)["_restore_failed_activation"](
+            tmp_path, common, {}, {linked: {}, tmp_path: {}}, None, selected_runtime=selected
+        )
+    expected = [(linked, "worktree"), (tmp_path, "worktree"), (tmp_path, "local")]
+    assert attempted == expected + ([] if failure == "unreadable" else [(common, "selector")])
+    if failure in {"config", "both"}:
+        assert "worktree compensation" in str(error.value)
+        assert "local compensation" in str(error.value)
+    if failure in {"selector", "both"}:
+        assert "selector compensation" in str(error.value)
+        assert selector.read_bytes() == selected
+    elif failure == "unreadable":
+        assert "hook_runtime_current_invalid" in str(error.value)
+        assert selector.is_dir()
+    else:
+        assert not selector.exists()
 
 
 def test_install_does_not_restore_an_unchanged_selector_when_selection_fails(

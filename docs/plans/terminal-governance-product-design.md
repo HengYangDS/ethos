@@ -602,12 +602,122 @@ or a claim of whole-product coverage. The full XML and JUnit hashes remain
 unchanged. Detailed command and fault observations stay under the existing
 ignored quality evidence owner rather than OpenSpec tasks.
 
-Continue with the full report's remaining Git-effect attestation validation and
-resource-coordination gaps, preserving unique scenarios and all budgets. Freeze
-the next coherent batch before another complete proof; do not combine diagnostic
-datasets or infer global compliance from local percentages. Archive, accepted
-CAS, and runtime activation remain held at 95. Accepted `18aa8707` still carries
-the old 93-percent policy until this correction actually qualifies for landing.
+Archive boundary tests are committed at `5dc63eef0`; its signature and committed
+blobs match the tested hashes. The subsequent Git-effect evidence batch replaces
+plan/validator stubs with real Git objects, committed repository identity,
+TransitionPlan compilation, typed Attestations, and current-postcondition
+validation. It preserves issuer, ambiguity, malformed-plan, recovery-membership,
+and store-collision scenarios while adding exact candidate/ref/assertion
+selection, failed observation, timestamp ordering, and storage-error propagation.
+The focused set passes 36 cases and the related Git-effect/accepted/archive set
+passes 140 in 17.44 seconds. Four isolated guard-removal faults are detected.
+Production source is unchanged; 15 statements and four branch obligations newly
+observed against the previous full report are diagnostic only. Test ELOC is
+38293/38300 after splitting mixed failure stages and consolidating duplicate
+positive fixtures; an intermediate 38301 result was rejected, not grandfathered.
+
+Post-commit runtime observation uncovered another boundary: two foreign-created
+untracked browser logs in the canonical accepted checkout change its build
+overlay while accepted commit/tree remain unchanged. The installed runtime's
+expected-build observer consequently reports source/build unavailable and
+package-entry prewrite reports root-binding mismatch. Do not delete unknown
+owners' files, reinstall an identical runtime, or bypass hooks. The unchanged
+source entrypoint admits exact-root/path test writes, but that does not prove
+installed hook recovery. One normal signed commit attempt was rejected by
+pre-commit with `root_binding_mismatch`; HEAD remains `5dc63eef0`, and the tested
+files remain staged. Do not replay that mutation until its preconditions change.
+An isolated repository reproduces the same error from one untracked observation
+file with accepted commit/tree unchanged; the fixture and its log are removed
+after recording the result in the existing ignored quality evidence owner.
+The accepted-object repair now derives expected commit, tree, and raw canonical
+version bytes from the accepted Git objects; checkout overlay remains a build
+input, not acceptance identity. Isolated untracked/staged/detached cases failed
+before repair; a separate CRLF case failed before binary blob observation. The
+latest runtime/coverage-boundary set passes 24 tests with tested bytes unchanged.
+Source status passes, but the installed runtime still reports expected-source
+and expected-build unavailable. Its hooks have not been replaced and normal
+commit remains blocked. No acceptance or installed-repair claim follows from
+source-only GREEN. The two unknown-owner browser observations remain untouched;
+a narrowly specified preservation relocation has been requested, not applied.
+
+Coverage examination also exposed a fabricated coordination queue: four-field
+Leases have no issue time, and no current consumer establishes queue membership.
+A full projection regression rejected the stale age/order fields. The existing
+owner and planning caller now omit them, retaining unknown/deferred-scope
+precedence, overlap coordination, independent disjoint work, and candidate lag
+or stalled-progress advisories. Collaboration and competition remain supported;
+no scheduler, queue record, replacement registry, or Lease field is introduced.
+The coordination/terminal-surface set passed 100 tests.
+
+Git-object regressions preserve signed authorization, confirmation, signature
+status parsing, invalid keys, and both anchor-CAS failure stages. They now assert
+protected external-anchor requirements, failed native observation, unchanged
+anchor bytes, and temporary-file cleanup through existing public owners. A fault
+injection initially intercepted object-type discovery rather than raw commit
+reading; narrowing its exact argument boundary corrected that test error, not a
+product defect. Repeated trust setup and an unnecessary signed-commit content
+fixture were consolidated without removing their assertions. Test budget
+violations were rejected; the current total is exactly 38300/38300. The final
+Git-object/coordination/post-archive planning set passed 95 tests. These native
+Git/OpenSSH fixtures touch no workstation trust anchor. No Git-object production
+change was needed, and neither focused set proves whole-product coverage.
+
+The final seven-file runtime/Git-object/coordination/planning set passed 149
+cases in 7.81 seconds; fixture roots were removed. Invalid-key and unsigned
+refusals retain their earlier dry-run boundary rather than only testing apply.
+Three in-memory faults are detected: removed unknown-scope precedence, missing
+object-ID congruence, and omitted final anchor CAS. Source-wide types, scoped
+Ruff/types, official OpenSpec, and Markdown validation pass; repository reference
+closure reports zero findings. Live source `plan --changed` passes and its actual
+payload retains conflict coordination and candidate-stall evidence without a
+queue. Full coverage XML/JUnit remain unchanged and are still bound to the older
+94.3885-percent proof. Focused coverage was isolated and discarded, not combined.
+
+The subsequent bounded verification adds native Git object-kind, tag-peeling,
+and missing-tree refusal cases. No Git-object production behavior changed;
+existing signature-status and fixture construction were consolidated without
+losing their assertions. Design-integrity testing exposed a real diagnostic
+failure: after identifying a missing canonical owner, the axiom check reread
+that file and raised instead of returning the blocking finding. The existing
+owner now uses its already observed document set. Tests distinguish an absent
+tracked document from an existing untracked document for every required design
+carrier. A vacuous check naming the already archived topology Change was removed;
+the general test still checks every current official Change's artifact shape.
+
+The root README and engineering axioms still asserted persistent Commitment,
+contradicting the canonical transient model. A regression failed before those
+two projections were corrected; no second semantic contract was added. The
+final eight-file design/Git-object/runtime/coordination set passed 175 tests in
+15.43 seconds, with unchanged tested bytes and removed disposable roots. Three
+additional fault injections detect absent peeled-commit validation, absent tree
+validation, and suppressed missing-owner diagnostics. Test ELOC is 38299/38300;
+intermediate overflow was rejected, not accepted. Product-wide types and scoped
+Ruff/types pass. These remain focused observations; the previous complete
+coverage XML and JUnit hashes are unchanged and no dataset was merged.
+
+The user-authorized preservation moved the two exact browser outputs into the
+existing ignored runtime work directory without overwriting content. Their
+hashes, inode identities, modes, and modification times remained unchanged;
+the accepted checkout became clean and installed-runtime status passed. This
+unblocks normal commit admission but does not deploy the source repair. The
+exact operation is recorded in `accepted-browser-preservation.json` alongside
+the focused evidence. No hook was bypassed and no runtime was activated.
+
+After preservation, 242 related tests passed; their disposable root was removed
+and the previous full-coverage evidence remained unchanged. A broader type probe
+found 12 diagnostics in unchanged CI tools, outside the current provider's
+`src` target. Keep this quality-surface gap pending; a passing product type gate
+does not establish repository-wide typing. The exact diagnostics remain in
+`object-design-preserved-checks.json`; do not expand this frozen source batch.
+
+This batch remains frozen except for this execution checkpoint. Complete final
+reference, OpenSpec, and documentation checks, commit normally, and freeze for
+one complete proof; do not merge diagnostic datasets or infer global compliance
+from local ratios.
+Archive, candidate/accepted CAS, and runtime activation remain held at 95.
+Accepted `18aa8707` still carries the old 93-percent policy until this correction
+actually qualifies for landing. If full proof remains below the floor, return
+to the measured behavior owners rather than widening acceptance or budgets.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

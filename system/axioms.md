@@ -12,8 +12,9 @@ These are derived, machine-adjacent engineering constraints from the [Root
 Constraint](../docs/governance/product-design-contract.md#root-constraint). They
 do not create a second semantic owner, ontology, or authority center.
 
-1. **Persist only roots.** `Commitment` and `Attestation` persist semantic
-   meaning; Facts are observed anew and TransitionPlan is regenerated.
+1. **Keep persistence singular.** Only `Attestation` persists.
+   `Commitment` is transient intent compiled from official OpenSpec;
+   Facts are observed anew and TransitionPlan is regenerated.
 2. **Bind propositions.** An authorizing proposition names its subject,
    predicate, scope, plane, bindings, validity, verifier, and evidence.
 3. **Fail closed.** Unknown required facts, ambiguous authority, stale bindings,

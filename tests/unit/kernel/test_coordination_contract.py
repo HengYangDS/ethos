@@ -36,8 +36,10 @@ def test_holder_ref_rejects_provider_only_or_ambiguous_values(value: str) -> Non
 
 @pytest.mark.parametrize(
     "value",
-    literal_case(
-        "kernel.test_coordination_contract:parametrize:test_repository_relative_path_accepts_canonical_posix_values:0"
+    TypeAdapter(list[str]).validate_python(
+        literal_case(
+            "kernel.test_coordination_contract:parametrize:test_repository_relative_path_accepts_canonical_posix_values:0"
+        )
     ),
 )
 def test_repository_relative_path_accepts_canonical_posix_values(value: str) -> None:
@@ -111,55 +113,51 @@ def test_lane_lease_rejects_non_json_python_wire_values() -> None:
 
 
 @pytest.mark.parametrize(
-    ("lanes", "candidate", "state", "reason"),
+    ("scopes", "state", "reason"),
     [
-        ([], {}, "independent", "no_peer_work_lanes"),
+        ([], "independent", "no_peer_work_lanes"),
+        (["unknown", "overlap"], "await_facts", "peer_scope_unknown"),
+        (["deferred"], "await_facts", "peer_scope_unknown"),
+        (["overlap", "disjoint"], "collaborate", "overlapping_intents_require_coordination"),
+        (["disjoint"], "independent", "peer_scopes_disjoint"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("candidate", "backpressure"),
+    [
+        (None, "open"),
+        ({"behind_accepted": 1}, "candidate_behind_accepted"),
+        ({"latest_advance_age_seconds": 20, "latest_interval_seconds": 10}, "candidate_stalled"),
+        ({"latest_advance_age_seconds": 10, "latest_interval_seconds": 10}, "open"),
+        ({"latest_advance_age_seconds": 20, "latest_interval_seconds": 0}, "open"),
+        ({"latest_advance_age_seconds": "unknown", "latest_interval_seconds": 10}, "open"),
+        ({"latest_interval_seconds": 10}, "open"),
         (
-            [{"branch": "work/unknown", "coordination_state": "unknown"}],
-            {},
-            "await_facts",
-            "peer_scope_unknown",
-        ),
-        (
-            [{"branch": "work/conflict", "coordination_state": "overlap"}],
-            {},
-            "collaborate",
-            "overlapping_intents_require_coordination",
-        ),
-        (
-            [{"branch": "work/disjoint", "coordination_state": "disjoint"}],
-            {},
-            "independent",
-            "peer_scopes_disjoint",
-        ),
-        (
-            [
-                {
-                    "branch": "work/same",
-                    "coordination_state": "overlap",
-                    "lease": {"issued_at": "2026-07-09T00:00:00+00:00"},
-                }
-            ],
-            {"latest_advance_age_seconds": 20, "latest_interval_seconds": 10},
-            "collaborate",
-            "overlapping_intents_require_coordination",
+            {"behind_accepted": 1, "latest_advance_age_seconds": 20, "latest_interval_seconds": 10},
+            "candidate_behind_accepted",
         ),
     ],
 )
 def test_collaboration_competition_public_state_matrix(
-    lanes: list[dict[str, object]],
-    candidate: dict[str, object],
-    state: str,
-    reason: str,
-) -> None:
-    result = collaboration_competition_projection(
-        lanes,
-        observed_at=datetime(2026, 7, 10, tzinfo=UTC),
-        candidate=candidate,
-    )
-
-    assert (result["state"], result["reason"]) == (state, reason)
-    if candidate.get("behind_accepted"):
-        assert result["backpressure"] == "candidate_behind_accepted"
-    elif candidate:
-        assert result["backpressure"] == "candidate_stalled"
+    scopes, candidate, state, reason, backpressure
+):
+    branches = [f"work/peer-{index}" for index in range(len(scopes))]
+    lanes = [
+        {
+            "branch": branch,
+            "coordination_state": scope,
+            "lease": LaneLease.from_payload(_lease_payload(lane_ref=branch)).to_payload(),
+        }
+        for branch, scope in zip(branches, scopes, strict=True)
+    ]
+    result = collaboration_competition_projection(lanes, candidate=candidate)
+    assert result == {
+        "state": state,
+        "reason": reason,
+        "peer_count": len(lanes),
+        "overlap_count": scopes.count("overlap"),
+        "unknown_count": scopes.count("unknown") + scopes.count("deferred"),
+        "branches": branches,
+        "backpressure": backpressure,
+        "candidate_progress": candidate or {},
+    }

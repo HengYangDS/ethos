@@ -7,53 +7,58 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.repo.runtime.authority as authority
-from tests.support.runtime_scenarios import git_process
+from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import runtime_build
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _git(root: Path, *args: str) -> str:
-    result = git_process(root, *args)
-    assert result.returncode == 0
-    return result.stdout.strip()
-
-
-def _commit(root: Path, message: str) -> None:
-    _git(root, "add", ".")
-    _git(root, "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", message)
-
-
 def _repository(tmp_path: Path, *, version: bool) -> tuple[Path, Path]:
-    repo, lane = tmp_path / "ethos", tmp_path / "lane"
-    repo.mkdir()
-    _git(repo, "init", "--quiet", "--initial-branch=dev")
+    repo, lane = init_git_repo(tmp_path / "ethos"), tmp_path / "lane"
     (repo / ".ethos").mkdir()
     (repo / ".ethos/profile.toml").write_text('profile_id = "ethos"\n')
     (repo / ".ethos/workspace.toml").write_text('[branch_roles]\naccepted_branch = "dev"\n')
-    (repo / "tracked.txt").write_text("accepted\n")
     if version:
         (repo / "VERSION").write_text("0.2.0-alpha.2\n")
-    _commit(repo, "accepted")
-    _git(repo, "worktree", "add", "-q", "-b", "work/runtime", str(lane))
+    commit_fixture(repo, "accepted")
+    git(repo, "worktree", "add", "-q", "-b", "work/runtime", str(lane))
     return repo, lane
 
 
-def test_self_hosted_expectation_uses_accepted_checkout_and_rejects_drift(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.parametrize(
+    "mode", ["lane", "untracked", "staged", "detached", "advanced", "invalid", "crlf"]
+)
+def test_self_hosted_expectation_binds_accepted_objects_not_checkout_overlay(tmp_path, mode):
     repo, lane = _repository(tmp_path, version=True)
-    expected = runtime_build(_git(repo, "rev-parse", "dev"), _git(repo, "rev-parse", "dev^{tree}"))
-    (lane / "tracked.txt").write_text("candidate\n")
-    _commit(lane, "candidate")
+    (lane / "README.md").write_text("candidate\n")
+    commit_fixture(lane, "candidate")
+    if mode == "untracked":
+        (repo / "observation.log").write_text("foreign observation\n")
+    elif mode in {"staged", "invalid", "crlf"}:
+        (repo / "VERSION").write_bytes(
+            b"0.2.0-alpha.2\r\n" if mode == "crlf" else b"invalid version\n"
+        )
+        git(repo, "config", "core.autocrlf", "false")
+        git(repo, "add", "VERSION")
+        if mode != "staged":
+            commit_fixture(repo, "invalid version")
+    elif mode == "detached":
+        git(repo, "checkout", "--detach")
+    elif mode == "advanced":
+        (repo / "README.md").write_text("new accepted\n")
+        commit_fixture(repo, "advance accepted")
+    expected = runtime_build(git(repo, "rev-parse", "dev"), git(repo, "rev-parse", "dev^{tree}"))
+    before = git(repo, "status", "--porcelain"), (repo / ".git/index").read_bytes()
+    if mode in {"invalid", "crlf"}:
+        with pytest.raises(ValueError, match="product_version_invalid"):
+            authority.expected_runtime_build(lane)
+        return
     identity, source_root = authority.expected_runtime_build(lane)
-    assert (identity, source_root) == (expected, repo.resolve())
-    monkeypatch.setattr(
-        authority, "source_build_identity", lambda *_a, **_k: runtime_build("a" * 40, "b" * 40)
-    )
-    with pytest.raises(ValueError, match="source_build_identity_unavailable"):
-        authority.expected_runtime_build(lane)
+    assert (identity, source_root) == (expected, (lane if mode == "detached" else repo).resolve())
+    assert before == (git(repo, "status", "--porcelain"), (repo / ".git/index").read_bytes())
 
 
 def test_version_migration_uses_exact_invoking_lane(
@@ -66,15 +71,13 @@ def test_version_migration_uses_exact_invoking_lane(
     module.parent.mkdir(parents=True)
     module.touch()
     monkeypatch.setattr(authority, "__file__", str(module))
-    _commit(lane, "version migration")
-    (lane / "tracked.txt").write_text("staged postimage\n")
-    _git(lane, "add", "tracked.txt")
+    commit_fixture(lane, "version migration")
+    (lane / "README.md").write_text("staged postimage\n")
+    git(lane, "add", "README.md")
     identity, source_root = authority.expected_runtime_build(lane)
-    assert identity.source_commit == _git(lane, "rev-parse", "HEAD")
-    assert identity.source_tree == _git(lane, "rev-parse", "HEAD^{tree}")
     assert authority.expected_runtime_source(lane) == identity[2:4]
-    assert (identity.distribution_version.endswith(identity.source_tree), source_root) == (
-        True,
+    assert (identity, source_root) == (
+        runtime_build(git(lane, "rev-parse", "HEAD"), git(lane, "rev-parse", "HEAD^{tree}")),
         lane.resolve(),
     )
 

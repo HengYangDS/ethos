@@ -187,7 +187,8 @@ def _axiom_gaps(root: Path, documents: dict[str, tuple[Path, str, frozenset[str]
         for term in ("Commitment", "Attestation", "proposition")
         if term not in text
     )
-    owner_text = (root / DESIGN_OWNER).read_text(encoding="utf-8")
+    canonical = documents.get(DESIGN_OWNER)
+    owner_text = canonical[1] if canonical is not None else ""
     verse_lines = [
         line.removeprefix("> ").strip() for line in owner_text.splitlines() if line.startswith("> ")
     ]

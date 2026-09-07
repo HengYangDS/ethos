@@ -14,7 +14,9 @@ from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.identity import BuildIdentity
+from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import packaged_build_identity
+from ethos.repository.release.identity import product_version_from_text
 
 
 def runtime_build_identity(source: Path, *, include_overlay: bool = True) -> BuildIdentity:
@@ -50,12 +52,11 @@ def expected_runtime_build(root: Path) -> tuple[BuildIdentity, Path | None]:
     tree = current_tree(repo, commit)
     if accepted_version_migration_pending(repo, accepted_commit=commit):
         return runtime_build_identity(package_source, include_overlay=False), source_authority
-    accepted_root = _accepted_worktree(repo, policy.accepted_branch)
-    identity = source_build_identity(accepted_root)
-    if identity.source_commit != commit or identity.source_tree != tree:
-        message = "hook_runtime_source_build_identity_unavailable"
-        raise ValueError(message)
-    return identity, accepted_root
+    version = run_git(repo, "show", f"{commit}:VERSION", text=False).stdout.decode("ascii")
+    identity = build_identity(
+        product=product_version_from_text(version), source_commit=commit, source_tree=tree
+    )
+    return identity, _accepted_worktree(repo, policy.accepted_branch)
 
 
 def expected_runtime_source(root: Path) -> tuple[str, str]:

@@ -6,6 +6,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from ethos.contracts.semantic import Commitment
 from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.design.integrity import design_integrity_report
@@ -33,14 +35,6 @@ AGENT_ENTRY_LINKS = (
 )
 
 
-def _copy_design_documents(target: Path) -> tuple[str, ...]:
-    for relative in DESIGN_DOCUMENTS:
-        destination = target / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT / relative, destination)
-    return DESIGN_DOCUMENTS
-
-
 def _active_change_carriers() -> tuple[Path, ...]:
     return tuple(
         path
@@ -49,19 +43,34 @@ def _active_change_carriers() -> tuple[Path, ...]:
     )
 
 
+@pytest.mark.parametrize("missing", [None, *DESIGN_DOCUMENTS])
+@pytest.mark.parametrize("on_disk", [False, True])
 def test_design_integrity_uses_supplied_tracked_documents_as_authority(
-    tmp_path: Path,
-) -> None:
-    tracked = _copy_design_documents(tmp_path)
+    tmp_path, missing, *, on_disk
+):
+    tracked = DESIGN_DOCUMENTS
+    for relative in tracked:
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
     rogue = tmp_path / "docs/rogue.md"
-    rogue.write_text(
-        "[Owner](governance/product-design-contract.md#semantic-kernel)\n",
-        encoding="utf-8",
-    )
-
+    rogue.write_text("[Owner](governance/product-design-contract.md#semantic-kernel)\n")
+    if missing is not None:
+        if on_disk:
+            tracked = tuple(path for path in tracked if path != missing)
+        else:
+            (tmp_path / missing).unlink()
     report = design_integrity_report(tmp_path, tracked_documents=tracked)
-
-    assert report["verdict"] == "pass", report["required_gaps"]
+    expected = (
+        f"design_canonical_owner_missing:{missing}"
+        if missing == "docs/governance/product-design-contract.md"
+        else f"design_axioms_missing:{missing}"
+        if missing == "system/axioms.md"
+        else f"design_projection_missing:{missing}"
+    )
+    assert report["required_gaps"] == ([expected] if missing else [])
+    assert report["verdict"] == ("block" if missing else "pass")
+    assert isinstance(report["references"], list)
     assert "docs/rogue.md" not in report["references"]
 
 
@@ -155,6 +164,9 @@ def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> Non
     only sources available to current planning.
     """
     assert tuple(Commitment.model_fields) == ("schema_version", "id", "acceptance")
+    for relative in ("README.md", "system/axioms.md"):
+        assert "Only `Attestation` persists." in (ROOT / relative).read_text(encoding="utf-8")
+        assert "`Commitment` is transient" in (ROOT / relative).read_text(encoding="utf-8")
 
     lineage_spec = ROOT / "openspec/changes/archive/2026-08-22-change-lineage-dag"
     assert (lineage_spec / "specs/contracts/spec.md").is_file()
@@ -169,24 +181,6 @@ def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> Non
         path.startswith("src/ethos/adapters/openspec/change_lineage/") for path in tracked
     )
     assert not any(path.startswith("src/ethos/contracts/change_lineage/") for path in tracked)
-    assert not any(
-        path.endswith("commitment.toml")
-        for path in tracked
-        if path.startswith("openspec/changes/semantic-topology-convergence/")
-    )
-
-    active_paths = {
-        path.relative_to(ROOT / "openspec/changes/semantic-topology-convergence").as_posix()
-        for path in (ROOT / "openspec/changes/semantic-topology-convergence").rglob("*")
-        if path.is_file()
-    }
-    assert active_paths <= {
-        ".openspec.yaml",
-        "proposal.md",
-        "design.md",
-        "tasks.md",
-    } | {path for path in active_paths if path.startswith("specs/") and path.endswith(".md")}
-
     registry = build_docs_registry(ROOT)
     assert not any(entry["path"].startswith("openspec/changes/archive/") for entry in registry)
     assert not any(

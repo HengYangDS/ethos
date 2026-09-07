@@ -32,7 +32,11 @@ def retirement_target(
     candidates = [
         item
         for item in worktrees
-        if item["role"] == ROLE_WORK_LANE
+        if (
+            policy.is_topic_branch(str(item["branch"]))
+            if mode == "landed" and request.branch is not None
+            else item["role"] == ROLE_WORK_LANE
+        )
         and ((mode == "landed" and request.branch is None) or item["branch"] == branch)
     ]
     lanes = [

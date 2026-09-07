@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.admission.git_admission as admission
 from ethos.contracts.admission import HookAdmissionRequest
+from ethos.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -62,7 +62,7 @@ def test_ref_move_policy_failure_and_noop_are_structured(
         old_value="a" * 40,
         new_value="b" * 40,
     )
-    policy = SimpleNamespace(
+    policy = BranchRolePolicy(
         release_branch="release",
         release_mirror="none",
         candidate_branch="candidate/dev",
@@ -85,7 +85,7 @@ def test_ref_move_policy_failure_and_noop_are_structured(
 def test_committed_intent_gap_is_repair_required(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    policy = SimpleNamespace(
+    policy = BranchRolePolicy(
         release_branch="release",
         release_mirror="none",
         candidate_branch="candidate/dev",

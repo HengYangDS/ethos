@@ -20,6 +20,27 @@ canonical_sibling_worktrees = false
 
 
 @pytest.mark.parametrize(
+    ("branch", "topic"),
+    [
+        ("work/one", True),
+        ("codex/one", True),
+        ("topic/one", True),
+        ("proposal/one", True),
+        ("dev", False),
+        ("main", False),
+        ("candidate/dev", False),
+        ("detached", False),
+        ("", False),
+    ],
+)
+def test_topic_identity_is_not_authoring_permission(branch: str, *, topic: bool) -> None:
+    policy = BranchRolePolicy()
+    assert policy.is_topic_branch(branch) is topic
+    if branch in {"codex/one", "topic/one", "proposal/one"}:
+        assert policy.role_for_branch(branch) == "other"
+
+
+@pytest.mark.parametrize(
     ("text", "error"),
     [
         ("[branch_roles\n", None),

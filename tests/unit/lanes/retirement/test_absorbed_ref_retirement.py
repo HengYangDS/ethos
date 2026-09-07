@@ -4,6 +4,8 @@ import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
+import pytest
+
 import ethos.adapters.mutation.lane_retirement.absorbed as absorbed_retirement
 import ethos.adapters.repo.git_effect_attestation as git_effect_attestation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
@@ -25,8 +27,6 @@ from tests.support.runtime_scenarios import install_fixture_hook_runtime
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
-
-    import pytest
 
     from ethos.contracts.plan import TransitionPlan
 
@@ -317,8 +317,10 @@ def test_absorbed_ref_deletion_without_exact_retirement_intent_is_blocked(
     assert git(repo, "rev-parse", "work/unintended") == source
 
 
+@pytest.mark.parametrize("prefix", ["work", "codex", "topic", "proposal"])
 def test_installed_hook_retires_two_refs_under_exact_accepted_policy(
     tmp_path: Path,
+    prefix: str,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     source = git(repo, "rev-parse", "HEAD")
@@ -337,7 +339,7 @@ canonical_sibling_worktrees = true
     git(repo, "add", workspace.relative_to(repo).as_posix())
     git(repo, "commit", "-m", "adopt accepted branch-role policy")
     accepted = git(repo, "rev-parse", "HEAD")
-    branches = ("work/absorbed-one", "work/absorbed-two")
+    branches = (f"{prefix}/absorbed-one", f"{prefix}/absorbed-two")
     for branch in branches:
         git(repo, "branch", branch, source)
     install_fixture_hook_runtime(repo)
@@ -352,7 +354,31 @@ canonical_sibling_worktrees = true
             "retired_absorbed_ref",
         )
 
-    assert git(repo, "branch", "--list", "work/*") == ""
+    assert git(repo, "branch", "--list", f"{prefix}/*") == ""
+
+
+def test_current_topic_ref_requires_exact_retirement_intent(tmp_path: Path) -> None:
+    """Current policy does not make a raw topic deletion an admitted retirement."""
+    repo, source, accepted = _absorbed_ref(tmp_path)
+    branch = "topic/absorbed"
+    git(repo, "branch", branch, source)
+    install_fixture_hook_runtime(repo)
+
+    assert _raw_delete(repo, branch, source).returncode != 0
+    assert git(repo, "rev-parse", branch) == source
+    assert _retire(repo, branch=branch, source=source, accepted=accepted)["verdict"] == "pass"
+
+
+@pytest.mark.parametrize("branch", ["dev", "main", "candidate/dev"])
+def test_absorbed_ref_never_retires_repository_roots(tmp_path: Path, branch: str) -> None:
+    repo, _source, accepted = _absorbed_ref(tmp_path)
+    if branch != "dev":
+        git(repo, "branch", branch, accepted)
+
+    blocked = _retire(repo, branch=branch, source=accepted, accepted=accepted, blocked=True)
+
+    assert "absorbed_ref_role_invalid" in blocked["required_gaps"]
+    assert git(repo, "rev-parse", branch) == accepted
 
 
 def test_absorbed_ref_fails_closed_when_ref_is_not_an_accepted_ancestor(tmp_path: Path) -> None:

@@ -367,7 +367,9 @@ def ref_move_admission_report(
         else "candidate.integrate"
         if branch == policy.candidate_branch
         else "lane.retire"
-        if branch.startswith(policy.work_branch_prefix) and new_value in _ZERO_OIDS
+        if ref_name.startswith("refs/heads/")
+        and policy.is_topic_branch(branch)
+        and new_value in _ZERO_OIDS
         else "lane.import"
         if branch.startswith(policy.work_branch_prefix) and old_value in _ZERO_OIDS
         else ""
@@ -416,10 +418,11 @@ def ref_move_admission_report(
             else "accepted_ref_move_bypasses_candidate_train"
         )
     elif branch == policy.candidate_branch:
-        if is_ancestor(repo, new_value, policy.accepted_branch):
-            gaps = []
-        else:
-            gaps = proof_gaps(repo, new_value)
+        gaps = (
+            []
+            if is_ancestor(repo, new_value, policy.accepted_branch)
+            else proof_gaps(repo, new_value)
+        )
         if not gaps:
             gaps.extend(
                 prepared_ref_intent_gaps(
@@ -431,6 +434,15 @@ def ref_move_admission_report(
                 )
             )
         reason = "protected_ref_move_not_proven"
+    elif operation == "lane.retire":
+        gaps = prepared_ref_intent_gaps(
+            repo=repo,
+            ref_name=ref_name,
+            update=GitRefUpdate(expected=old_value, desired=new_value),
+            operation=operation,
+            missing_gap="retirement_ref_move_no_ref_intent",
+        )
+        reason = "retirement_ref_move_not_admitted"
     else:
         return base
     return _verdict(base, "block", "blocked", "block", reason, gaps) if gaps else base

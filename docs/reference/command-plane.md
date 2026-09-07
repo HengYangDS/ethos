@@ -96,6 +96,19 @@ For a tracked write, bind the exact checkout and paths before editing:
 ethos lane prewrite <paths> --editor-root <worktree> --require-editor-root --json
 ```
 
+Authoring permission and resource retirement are distinct. An explicitly named
+local topic ref may retire after exact accepted absorption even if its name is
+not `work/*`. Use `ethos lane retire absorbed-ref --branch <branch> --expect-head
+<source-oid> --accepted-head <accepted-oid> --root <accepted-root> --json` for an
+unlinked, unleased ref; use `ethos lane retire landed --branch <branch>
+--expect-head <source-oid> --root <accepted-root> --json` for a clean linked
+worktree. First inspect the dry-run and follow its exact authorized apply
+command. Existing retirement receipts own partial-effect recovery.
+
+Neither path grants source writes, deletes repository root resources, discards
+dirty work, or closes a remote review. Current Lease and exact-object checks
+remain in force, and installed hooks require the admitted retirement intent.
+
 ## OpenSpec Ownership
 
 The official OpenSpec CLI owns OpenSpec lifecycle operations. ETHOS consumes

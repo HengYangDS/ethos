@@ -22,7 +22,6 @@ from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
-from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -76,7 +75,7 @@ def retire_absorbed_ref(
     gaps = [
         gap
         for failed, gap in (
-            (policy.role_for_branch(branch) != ROLE_WORK_LANE, "absorbed_ref_role_invalid"),
+            (not policy.is_topic_branch(branch), "absorbed_ref_role_invalid"),
             (not branch, "branch_required"),
             (not expect_head, "expect_head_required"),
             (not accepted_head, "accepted_head_required"),
@@ -110,7 +109,7 @@ def retire_absorbed_ref(
             },
             assertions={f"refs/heads/{policy.accepted_branch}": accepted_head},
         )
-        if expect_head and accepted_head
+        if verdict == "pass"
         else None
     )
     mutation = _mutation(

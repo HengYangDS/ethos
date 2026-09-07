@@ -87,6 +87,36 @@ than one Cyclopts application, is a hard layout defect.
 
 ## 2. Logical organization — public vs private
 
+### Information hiding and interface depth
+
+Apply the product contract's deep-module obligation before deciding package
+shape. Review the concrete callers and ask:
+
+1. Does the interface express a complete capability, with necessary authority
+   inputs, effects, failure evidence, and continuation explicit?
+2. Can the owner change its observation, algorithm, or internal representation
+   without requiring consumers to reconstruct those decisions?
+3. Does each exposed operation have a real consumer-level obligation, rather
+   than expose one step of a sequence every caller must assemble?
+4. Does a proposed split remove knowledge from callers, or merely move lines
+   into more wrappers and helpers?
+
+Absorb repeated internal sequencing and report assembly into the existing
+owner. Retain a small operation when it completely owns a necessary invariant;
+do not hide it behind an extra facade merely to reduce public-name count. Thin
+CLI, hook, protocol, and renderer adapters remain valid when their only role is
+native transport and projection. Complete-use-case tests exercise the owner;
+transport tests exercise the real protocol boundary, not another copy of its
+algorithm matrix.
+
+Existing layout and import gates detect structural defects; they do not prove
+information hiding by counting files or matching names. Review and focused
+behavioral evidence must also establish that callers no longer orchestrate
+the replaced internal mechanism. This follows John Ousterhout's
+[CS 190 modular-design analysis](https://web.stanford.edu/~ouster/cgi-bin/cs190-winter18/lecture.php?topic=modularDesign)
+of interface complexity and implementation depth, not a universal method-length
+threshold.
+
 ### Modules
 
 - **Public module**: name without a leading underscore. It may be imported across

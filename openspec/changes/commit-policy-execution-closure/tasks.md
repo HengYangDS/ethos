@@ -40,13 +40,17 @@
 - [x] 2.9 Make the existing local toolchain bootstrap admit or provision one
   shared exact-version native Python image before offline runtime activation;
   keep activation itself free of installation and fallback behavior.
+- [x] 2.10 Apply the global deep-module obligation through the existing product
+  contract, layout rule, and terminal route; hide commit-policy implementation
+  steps, consolidate object judgment, and test complete replay admission without
+  duplicating its algorithm in lifecycle callers or tests.
 
 ## 3. Closure
 
 - [x] 3.1 Prove repository-wide reference closure: one declaration, compiler,
   range projector, and validator; no old module, duplicate walker, facade,
   policy regex, state store, or historical exception list.
-- [x] 3.2 Run focused hook, commit, admission, status, lifecycle, CI-template,
+- [ ] 3.2 Run focused hook, commit, admission, status, lifecycle, CI-template,
   SHA-1/SHA-256, version, Node-supply, bootstrap-provisioning, Ruff, type,
   import-boundary, module-layout, and strict OpenSpec gates with no warnings.
 - [ ] 3.3 Run exact-HEAD full proof, archive the official Change, land through

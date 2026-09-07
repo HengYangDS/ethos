@@ -8,7 +8,7 @@ from typing import cast
 import ethos.repository.audit as repository_audit_module
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.observation import openspec_shape_report
-from ethos.adapters.repo.commit.admission import head_commit_policy_report
+from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.git import git_files
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.context import repository_context
@@ -28,7 +28,7 @@ def audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, obj
             openspec_reporter=reporter,
             tracked_documents=tuple(git_files(root, "*.md")),
             openspec_shape=openspec_shape_report(root),
-            commit_policy_observer=head_commit_policy_report,
+            commit_policy_observer=commit_policy_report,
         )
     return adopter_audit(root)
 

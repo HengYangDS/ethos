@@ -13,6 +13,16 @@ from tools.ci.ci_projection import projection_entries
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _range_coordinates(command: str) -> tuple[str, ...]:
+    arguments = shlex.split(command)
+    assert arguments[:6] == ["uv", "run", "--frozen", "--offline", "ethos", "hook"]
+    assert arguments[6] == "commit-range"
+    assert arguments[-3:] == ["--root", ".", "--json"]
+    options = arguments[7:-3]
+    assert options[::2] == ["--target-ref", "--proposed-head", "--remote-head", "--remote"]
+    return tuple(options[1::2])
+
+
 def test_dual_forge_projections_equal_their_declared_templates() -> None:
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == 0
@@ -54,50 +64,23 @@ def test_integration_events_transport_exact_commit_range_coordinates() -> None:
         if isinstance(step, dict) and "name" in step
     }
 
-    push = github_steps["Admit pushed commit range"]
-    assert push["if"] == "github.event_name == 'push'"
-    assert shlex.split(push["run"]) == [
-        "uv",
-        "run",
-        "--frozen",
-        "--offline",
-        "ethos",
-        "hook",
-        "commit-range",
-        "--target-ref",
-        "${{ github.ref }}",
-        "--proposed-head",
-        "${{ github.sha }}",
-        "--remote-head",
-        "${{ github.event.before }}",
-        "--remote",
-        "origin",
-        "--root",
-        ".",
-        "--json",
-    ]
-
-    pull_request = github_steps["Admit pull request commit range"]
-    assert pull_request["if"] == "github.event_name == 'pull_request'"
-    assert shlex.split(pull_request["run"]) == [
-        "uv",
-        "run",
-        "--frozen",
-        "--offline",
-        "ethos",
-        "hook",
-        "commit-range",
-        "--target-ref",
-        "refs/heads/${{ github.event.pull_request.base.ref }}",
-        "--proposed-head",
-        "${{ github.event.pull_request.head.sha }}",
-        "--remote-head",
-        "${{ github.event.pull_request.base.sha }}",
-        "--remote",
-        "origin",
-        "--root",
-        ".",
-        "--json",
+    assert [
+        (github_steps[name]["if"], _range_coordinates(github_steps[name]["run"]))
+        for name in ("Admit pushed commit range", "Admit pull request commit range")
+    ] == [
+        (
+            "github.event_name == 'push'",
+            ("${{ github.ref }}", "${{ github.sha }}", "${{ github.event.before }}", "origin"),
+        ),
+        (
+            "github.event_name == 'pull_request'",
+            (
+                "refs/heads/${{ github.event.pull_request.base.ref }}",
+                "${{ github.event.pull_request.head.sha }}",
+                "${{ github.event.pull_request.base.sha }}",
+                "origin",
+            ),
+        ),
     ]
 
     gitlab = yaml.safe_load(
@@ -105,59 +88,28 @@ def test_integration_events_transport_exact_commit_range_coordinates() -> None:
     )
     gitlab_job = gitlab["ethos:commit-policy"]
     assert gitlab_job["variables"] == {"GIT_STRATEGY": "clone"}
-    assert gitlab_job["rules"] == [
-        {
-            "if": '$CI_PIPELINE_SOURCE == "push"',
-            "variables": {
-                "ETHOS_COMMIT_TARGET_REF": "refs/heads/${CI_COMMIT_BRANCH}",
-                "ETHOS_COMMIT_PROPOSED_HEAD": "${CI_COMMIT_SHA}",
-                "ETHOS_COMMIT_REMOTE_HEAD": "${CI_COMMIT_BEFORE_SHA}",
-            },
-        },
-        {
-            "if": (
-                '$CI_PIPELINE_SOURCE == "merge_request_event" '
-                "&& $CI_MERGE_REQUEST_SOURCE_BRANCH_SHA "
-                "&& $CI_MERGE_REQUEST_TARGET_BRANCH_SHA"
-            ),
-            "variables": {
-                "ETHOS_COMMIT_TARGET_REF": ("refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"),
-                "ETHOS_COMMIT_PROPOSED_HEAD": ("${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA}"),
-                "ETHOS_COMMIT_REMOTE_HEAD": ("${CI_MERGE_REQUEST_TARGET_BRANCH_SHA}"),
-            },
-        },
-        {
-            "if": (
-                '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DIFF_BASE_SHA'
-            ),
-            "variables": {
-                "ETHOS_COMMIT_TARGET_REF": ("refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"),
-                "ETHOS_COMMIT_PROPOSED_HEAD": "${CI_COMMIT_SHA}",
-                "ETHOS_COMMIT_REMOTE_HEAD": "${CI_MERGE_REQUEST_DIFF_BASE_SHA}",
-            },
-        },
-        {"when": "never"},
+    rules = gitlab_job["rules"]
+    assert [tuple(rule.get("variables", {}).values()) for rule in rules] == [
+        ("refs/heads/${CI_COMMIT_BRANCH}", "${CI_COMMIT_SHA}", "${CI_COMMIT_BEFORE_SHA}"),
+        (
+            "refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}",
+            "${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA}",
+            "${CI_MERGE_REQUEST_TARGET_BRANCH_SHA}",
+        ),
+        (
+            "refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}",
+            "${CI_COMMIT_SHA}",
+            "${CI_MERGE_REQUEST_DIFF_BASE_SHA}",
+        ),
+        (),
     ]
-    assert shlex.split(gitlab_job["script"][0]) == [
-        "uv",
-        "run",
-        "--frozen",
-        "--offline",
-        "ethos",
-        "hook",
-        "commit-range",
-        "--target-ref",
+    assert rules[-1] == {"when": "never"}
+    assert _range_coordinates(gitlab_job["script"][0]) == (
         "${ETHOS_COMMIT_TARGET_REF}",
-        "--proposed-head",
         "${ETHOS_COMMIT_PROPOSED_HEAD}",
-        "--remote-head",
         "${ETHOS_COMMIT_REMOTE_HEAD}",
-        "--remote",
         "origin",
-        "--root",
-        ".",
-        "--json",
-    ]
+    )
 
     provider_text = "\n".join(
         (

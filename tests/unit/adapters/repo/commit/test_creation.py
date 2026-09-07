@@ -113,8 +113,8 @@ def test_create_git_commit_uses_tracked_signing_when_ambient_git_disables_it(
     )
     monkeypatch.setattr(
         creation,
-        "validate_commit_revisions",
-        lambda *_args, **_kwargs: ([], []),
+        "commit_policy_report",
+        lambda *_args, **_kwargs: {"required_gaps": []},
     )
 
     def runner(_root: Path, *args: str, **kwargs: object) -> subprocess.CompletedProcess[str]:

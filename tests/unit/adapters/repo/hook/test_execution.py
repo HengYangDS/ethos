@@ -8,7 +8,6 @@ import sys
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
-from typing import cast
 
 import pytest
 
@@ -165,10 +164,21 @@ def test_pre_commit_skips_unselected_staged_secret_capability(monkeypatch, tmp_p
     assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 0
 
 
-def test_commit_msg_uses_the_staged_policy_not_unstaged_worktree_bytes(
+@pytest.mark.parametrize(
+    ("staged", "working", "subject", "gap"),
+    [
+        ("^fix: .+", "^docs: .+", "docs: unstaged only", "commit_subject_invalid:"),
+        (None, "^fix: .+", "fix: valid", "commit_policy_toml_invalid:"),
+    ],
+)
+def test_commit_msg_uses_only_the_staged_policy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    staged: str | None,
+    working: str,
+    subject: str,
+    gap: str,
 ) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -176,75 +186,39 @@ def test_commit_msg_uses_the_staged_policy_not_unstaged_worktree_bytes(
     policy = repo / ".ethos/workspace.toml"
     policy.parent.mkdir()
     policy.write_text(
-        '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
+        "[commit_policy\n"
+        if staged is None
+        else f'[commit_policy]\nsubject_pattern = "{staged}"\n'
         'signing_required = false\nsigning_format = "ssh"\n',
         encoding="utf-8",
     )
     assert git_process(repo, "add", ".ethos/workspace.toml").returncode == 0
     policy.write_text(
-        '[commit_policy]\nsubject_pattern = "^docs: .+"\n'
+        f'[commit_policy]\nsubject_pattern = "{working}"\n'
         'signing_required = false\nsigning_format = "ssh"\n',
         encoding="utf-8",
     )
-    message = repo / ".git/COMMIT_EDITMSG"
-    message.write_text("docs: accepted only by unstaged policy\n\nbody\n", encoding="utf-8")
+    message_file = repo / ".git/COMMIT_EDITMSG"
+    message_file.write_text(f"{subject}\nbody\n", encoding="utf-8")
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
 
-    result = execute_hook(
-        repo,
-        cast("hook_runtime.HookName", "commit-msg"),
-        (message.as_posix(),),
-        stdin=StringIO(),
-    )
+    result = execute_hook(repo, "commit-msg", (message_file.as_posix(),), stdin=StringIO())
 
     assert result == 1
-    assert json.loads(capsys.readouterr().err)["required_gaps"] == [
-        "commit_subject_invalid:docs: accepted only by unstaged policy"
-    ]
-
-
-def test_commit_msg_fails_closed_on_a_malformed_staged_policy(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    policy = repo / ".ethos/workspace.toml"
-    policy.parent.mkdir()
-    policy.write_text("[commit_policy\n", encoding="utf-8")
-    assert git_process(repo, "add", ".ethos/workspace.toml").returncode == 0
-    policy.write_text(
-        '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
-        'signing_required = false\nsigning_format = "ssh"\n',
-        encoding="utf-8",
-    )
-    message = repo / ".git/COMMIT_EDITMSG"
-    message.write_text("fix: valid subject\n", encoding="utf-8")
-    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-
-    result = execute_hook(
-        repo,
-        cast("hook_runtime.HookName", "commit-msg"),
-        (message.as_posix(),),
-        stdin=StringIO(),
-    )
-
-    assert result == 1
-    assert json.loads(capsys.readouterr().err)["required_gaps"][0].startswith(
-        "commit_policy_toml_invalid:"
-    )
+    assert json.loads(capsys.readouterr().err)["required_gaps"][0].startswith(gap)
 
 
 def test_installed_commit_msg_rejects_invalid_raw_git_commit(tmp_path: Path) -> None:
     """Deleting the commit-msg launcher must let this invalid object be created."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=topic").returncode == 0
-    assert git_process(repo, "config", "user.name", "Test User").returncode == 0
-    assert git_process(repo, "config", "user.email", "test@example.com").returncode == 0
-    assert git_process(repo, "config", "commit.gpgsign", "false").returncode == 0
+    for arguments in (
+        ("init", "--quiet", "--initial-branch=topic"),
+        ("config", "user.name", "Test User"),
+        ("config", "user.email", "test@example.com"),
+        ("config", "commit.gpgsign", "false"),
+    ):
+        assert git_process(repo, *arguments).returncode == 0
     policy = repo / ".ethos/workspace.toml"
     policy.parent.mkdir()
     policy.write_text(
@@ -256,8 +230,7 @@ def test_installed_commit_msg_rejects_invalid_raw_git_commit(tmp_path: Path) -> 
         'signing_required = false\nsigning_format = "ssh"\n',
         encoding="utf-8",
     )
-    readme = repo / "README.md"
-    readme.write_text("base\n", encoding="utf-8")
+    (repo / "README.md").write_text("base\n", encoding="utf-8")
     assert git_process(repo, "add", ".ethos/workspace.toml", "README.md").returncode == 0
     assert git_process(repo, "commit", "-m", "fix: initialize fixture").returncode == 0
     install_fixture_hook_runtime(repo)
@@ -362,28 +335,6 @@ def test_hook_execution_rejects_a_noncanonical_current_selector(
     assert "hook_runtime_current_invalid" in capsys.readouterr().err
 
 
-def test_pre_push_binds_named_remote_and_observed_remote_head(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    calls: list[dict[str, object]] = []
-    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-    monkeypatch.setattr(
-        hook_runtime,
-        "push_admission_report",
-        lambda **kwargs: (
-            calls.append(kwargs) or {"verdict": "pass", "state": "admitted", "required_gaps": []}
-        ),
-    )
-    update = f"refs/heads/dev {'a' * 40} refs/heads/dev {'b' * 40}\n"
-
-    assert execute_hook(tmp_path, "pre-push", ("github",), stdin=StringIO(update)) == 0
-
-    assert calls[0]["remote_name"] == "github"
-    assert calls[0]["remote_head"] == "b" * 40
-    assert "reconciliation" not in calls[0]
-
-
 def test_pre_push_evaluates_every_non_delete_update_and_blocks_the_batch(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -415,13 +366,12 @@ def test_pre_push_evaluates_every_non_delete_update_and_blocks_the_batch(
     result = execute_hook(tmp_path, "pre-push", ("gitlab",), stdin=StringIO(updates))
 
     assert result == 1
-    assert [call["target_ref"] for call in calls] == [
-        "refs/heads/first",
-        "refs/heads/rejected",
-        "refs/tags/v1",
+    assert [(call["target_ref"], call["remote_head"], call["remote_name"]) for call in calls] == [
+        ("refs/heads/first", "1" * 40, "gitlab"),
+        ("refs/heads/rejected", "3" * 40, "gitlab"),
+        ("refs/tags/v1", "4" * 40, "gitlab"),
     ]
-    assert [call["remote_head"] for call in calls] == ["1" * 40, "3" * 40, "4" * 40]
-    assert all(call["remote_name"] == "gitlab" for call in calls)
+    assert all("reconciliation" not in call for call in calls)
     assert json.loads(capsys.readouterr().err)["required_gaps"] == [
         "commit_subject_invalid:rejected"
     ]

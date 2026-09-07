@@ -38,3 +38,20 @@ preserved the committed-intent failure assertion. All test roots from these
 verification runs were removed on exit. Local logs are under
 `build/evidence/debug/retirement-*`; they are diagnostic observations, not
 exact-HEAD proof, accepted-runtime evidence, or historical-resource retirement.
+
+The first full proof at `0a5c23b6` blocked: 18 tests failed because its temporary
+root was inside the checkout and non-repository fixtures discovered the parent
+Git repository. All 18 passed unchanged with an external isolated temporary
+root. Five synthetic ref-intents were identified by exact bytes and nonexistent
+test OIDs, recorded, and removed through the existing intent owner; real refs
+remained unchanged. Full proof must use a temporary root outside every worktree.
+
+The same run exceeded the independent test-source limit by 122 ELOC. Five
+repetitive landed-plan tests were replaced by one real Git/Lease matrix covering
+valid, expired, and missing Lease state. It preserves exact facts and no-proof
+assertions and now executes admission for every state. Linked-topic CLI cases
+share one setup while retaining all six outcomes. This removes 138 test ELOC;
+the 38,300 limit remains unchanged and measurement is 38,284. The revised
+affected set passed 234 tests. The two-case count reduction reflects five
+plan tests becoming three matrix cases, not removal of a required invariant.
+Exact-HEAD full proof remains pending for the revised source.

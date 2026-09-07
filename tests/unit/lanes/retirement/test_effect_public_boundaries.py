@@ -72,63 +72,6 @@ def _lane(
     }
 
 
-def test_landed_plan_is_commitment_free_and_does_not_read_proof(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, object] = {}
-    lane = _lane()
-
-    monkeypatch.setattr(Path, "is_dir", lambda _path: False)
-    monkeypatch.setattr(
-        linked_effect,
-        "proof_attestation",
-        lambda *_args: pytest.fail("landed retirement must not read proof"),
-    )
-
-    def compile_plan(
-        _root: Path,
-        commitment: object,
-        _effect: object,
-        **kwargs: object,
-    ) -> object:
-        captured["commitment"] = commitment
-        policy = kwargs["policy"]
-        assert isinstance(policy, dict)
-        captured["policy"] = policy
-        captured["retirement_mode"] = policy["retirement_mode"]
-        captured["values"] = kwargs["values"]
-        return object()
-
-    monkeypatch.setattr(linked_effect, "compile_observed_git_effect", compile_plan)
-
-    _root, plan = linked_effect.linked_retirement_plan(
-        Path("/control"),
-        lane,
-        accepted=("dev", "b" * 40),
-        authority=lane,
-        mode="landed",
-        actor=ACTOR,
-        worktree_clean=True,
-    )
-
-    assert plan is not None
-    assert captured["commitment"] is None
-    assert captured["retirement_mode"] == "landed"
-    assert captured["policy"]["actor"] == ACTOR
-    assert captured["policy"]["subject"] == "work/source"
-    assert captured["values"] == {
-        "linked_worktree": {"path": "/lane", "clean": True},
-        "target_lease_state": "valid",
-        "lease_generation": {
-            "lane_ref": "work/source",
-            "generation": 1,
-            "holder_ref": "agent:test:holder",
-            "expires_at": "2026-08-11T00:00:00+00:00",
-        },
-        "lease_generation_state": "valid",
-    }
-
-
 def test_superseded_plan_preserves_proof_commitment_and_mode(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -184,135 +127,47 @@ def test_superseded_plan_preserves_proof_commitment_and_mode(
     }
 
 
-def test_landed_plan_binds_expired_lease_generation() -> None:
-    captured: dict[str, object] = {}
-    lane = _lane()
-    lane["lease_state"] = "expired"
-
-    with pytest.MonkeyPatch.context() as monkeypatch:
-        monkeypatch.setattr(Path, "is_dir", lambda _path: False)
-        monkeypatch.setattr(
-            linked_effect,
-            "compile_observed_git_effect",
-            lambda _root, _commitment, _effect, **kwargs: captured.update(kwargs) or object(),
-        )
-
-        linked_effect.linked_retirement_plan(
-            Path("/control"),
-            lane,
-            accepted=("dev", "b" * 40),
-            authority=lane,
-            mode="landed",
-            actor=ACTOR,
-            worktree_clean=True,
-        )
-
-    assert captured["values"]["target_lease_state"] == "expired"
-    assert captured["values"]["lease_generation_state"] == "expired"
-    assert captured["values"]["lease_generation"] == {
-        "lane_ref": "work/source",
-        "generation": 1,
-        "holder_ref": "agent:test:holder",
-        "expires_at": "2026-08-11T00:00:00+00:00",
-    }
-
-
-def test_landed_plan_binds_missing_lease_without_inventing_generation(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("lease_state", ["valid", "expired", "missing"])
+def test_landed_plan_binds_and_admits_exact_git_and_lease_facts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, lease_state: str
 ) -> None:
-    captured: dict[str, object] = {}
-    lane = _lane()
-    lane["lease_state"] = "missing"
-    lane["lease"] = {"mints_authority": False}
-
-    monkeypatch.setattr(Path, "is_dir", lambda _path: False)
-    monkeypatch.setattr(
-        linked_effect,
-        "compile_observed_git_effect",
-        lambda _root, _commitment, _effect, **kwargs: captured.update(kwargs) or object(),
-    )
-
-    linked_effect.linked_retirement_plan(
-        Path("/control"),
-        lane,
-        accepted=("dev", "b" * 40),
-        authority=lane,
-        mode="landed",
-        actor=ACTOR,
-        worktree_clean=True,
-    )
-
-    assert captured["values"] == {
-        "linked_worktree": {"path": "/lane", "clean": True},
-        "target_lease_state": "missing",
-    }
-
-
-def test_landed_plan_binds_actor_subject_and_exact_git_facts(
-    tmp_path: Path,
-) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    write_test_profile(root)
-    git(root, "add", ".ethos/profile.toml")
-    git(root, "commit", "-m", "declare repository identity")
-    head = git(root, "rev-parse", "HEAD")
-    lane = _lane(path=(tmp_path / "lane").as_posix(), head=head)
-
-    _root, plan = linked_effect.linked_retirement_plan(
-        root,
-        lane,
-        accepted=("dev", head),
-        authority=lane,
-        mode="landed",
-        actor=ACTOR,
-        worktree_clean=True,
-    )
-
-    assert plan.request["subject"] == "work/source"
-    assert plan.authority["actor"] == ACTOR
-    assert plan.authority["subject"] == "work/source"
-    for duplicated_coordinate in (
-        "branch",
-        "accepted_branch",
-        "accepted_head",
-        "authority_branch",
-        "authority_head",
-    ):
-        assert duplicated_coordinate not in plan.policy
-    assert plan.facts["values"]["refs"] == {"refs/heads/work/source": head}
-    assert plan.facts["values"]["assertions"] == {"refs/heads/dev": head}
-    assert plan.facts["values"]["linked_worktree"] == {
-        "path": (tmp_path / "lane").as_posix(),
-        "clean": True,
-    }
-
-
-def test_landed_plan_admits_the_exact_expired_lease_observation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+    """Compile real effects without proof reads or a simulated plan compiler."""
     root = init_git_repo(tmp_path / "repo")
     write_test_profile(root)
     git(root, "add", ".ethos/profile.toml")
     git(root, "commit", "-m", "declare repository identity")
     head = git(root, "rev-parse", "HEAD")
     git(root, "branch", "work/source", head)
-    lease = strict_lease(
-        branch="work/source",
-        holder="agent:test:case:former-holder",
-        expires_at=datetime.now(UTC) - timedelta(days=1),
-    )
-    record = acquire_lease(state_database(root), lease=lease)
     lane = _lane(path=(tmp_path / "lane").as_posix(), head=head)
-    lane["lease_state"] = "expired"
-    lane["lease"] = {
-        "holder_ref": record["holder_ref"],
-        "generation": record["generation"],
-        "expires_at": record["expires_at"],
+    lane.update(lease_state=lease_state, lease={"mints_authority": False})
+    expected = {
+        "refs": {"refs/heads/work/source": head},
+        "assertions": {"refs/heads/dev": head},
+        "linked_worktree": {"path": lane["path"], "clean": True},
+        "target_lease_state": lease_state,
     }
+    if lease_state != "missing":
+        record = acquire_lease(
+            state_database(root),
+            lease=strict_lease(
+                branch="work/source",
+                holder=ACTOR if lease_state == "valid" else "agent:test:case:former-holder",
+                expires_at=datetime.now(UTC) + timedelta(days=1 if lease_state == "valid" else -1),
+            ),
+        )
+        lane["lease"] = {key: record[key] for key in ("holder_ref", "generation", "expires_at")}
+        expected.update(
+            lease_generation={"lane_ref": "work/source", **lane["lease"]},
+            lease_generation_state=lease_state,
+        )
     monkeypatch.setenv("ETHOS_ACTOR", ACTOR)
+    monkeypatch.setattr(
+        linked_effect,
+        "proof_attestation",
+        lambda *_args: pytest.fail("landed retirement must not read proof"),
+    )
 
-    _root, plan = linked_effect.linked_retirement_plan(
+    transaction_root, plan = linked_effect.linked_retirement_plan(
         root,
         lane,
         accepted=("dev", head),
@@ -322,6 +177,16 @@ def test_landed_plan_admits_the_exact_expired_lease_observation(
         worktree_clean=True,
     )
 
+    assert transaction_root == root
+    assert plan.commitment is None
+    assert plan.request["subject"] == plan.authority["subject"] == "work/source"
+    assert plan.authority["actor"] == ACTOR
+    assert plan.policy["retirement_mode"] == "landed"
+    assert (
+        not {"branch", "accepted_branch", "accepted_head", "authority_branch", "authority_head"}
+        & plan.policy.keys()
+    )
+    assert plan.facts["values"] == expected
     admit_git_effect(root, plan)
 
 

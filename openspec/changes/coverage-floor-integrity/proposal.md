@@ -17,6 +17,8 @@ not satisfy the repository requirement.
 - Repair the unsafe archive-compensation boundary exposed by those tests:
   invalid receipt coordinates cannot authorize deletion, and compensation must
   retain and report unowned residue rather than claim a clean restoration.
+- Repair incomplete runtime-consumer observation exposed by the same failure
+  tests: linked or unreadable consumer paths cannot authorize generation cleanup.
 - Correct the existing contract, terminal route, config guide, and quality skill
   projection without rewriting historical results or archived Changes.
 

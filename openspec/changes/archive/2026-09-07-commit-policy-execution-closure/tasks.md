@@ -59,6 +59,7 @@ full proof remains a mandatory precondition of the public archive operation;
 the previous proof at `bed87c044` failed the unchanged 93% coverage floor.
 Archive/reproof, candidate/accepted CAS, immutable runtime readback, Work Lane
 retirement, same-object publication, and independent hosted observation remain
-uncompleted obligations in the existing
-[terminal route](../../../docs/plans/terminal-governance-product-design.md#bounded-change-convergence-route).
+uncompleted obligations in the existing terminal route,
+`docs/plans/terminal-governance-product-design.md`, section “Bounded Change
+Convergence Route”.
 They cannot be prerequisites checked off before the archive that enables them.

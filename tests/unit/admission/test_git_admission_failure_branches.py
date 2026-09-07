@@ -3,61 +3,49 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+import pytest
+
 import ethos.adapters.admission.git_admission as admission
 from ethos.contracts.admission import HookAdmissionRequest
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import pytest
-
 
 def _status(role: str = "work_lane") -> dict[str, object]:
     return {"role": role, "branch": "work/example", "changed_paths": []}
 
 
-def test_fallback_and_observe_only_hook_layers_are_explicit(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("layer", "command", "gap"),
+    [
+        ("git", "", ""),
+        ("pre-run", "git status", ""),
+        ("pre-run", "git stash", "git_stash_forbidden"),
+        ("pre-run", "git commit", "hook_prerun_paths_required"),
+        ("pre-run", "cat 'unterminated", "shell_command_unclassifiable"),
+        ("unknown", "", "hook_layer_invalid"),
+        ("pre-tool", "", "protected_root_pretool_paths_required"),
+        ("context", "", ""),
+        ("context", "foreign", "hook_context_root_mismatch"),
+    ],
+)
+def test_hook_context_and_command_boundaries_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, layer: str, command: str, gap: str
 ) -> None:
-    monkeypatch.setattr(admission, "workspace_status", lambda *_args, **_kwargs: _status())
-    fallback = admission.hook_admission_report(HookAdmissionRequest(root=tmp_path, layer="git"))
-    monkeypatch.setattr(
-        admission,
-        "command_risk",
-        lambda _command: {"unclassifiable": False, "tracked_mutation_risk": False},
+    monkeypatch.setattr(admission, "workspace_status", lambda *_a, **_k: _status("accepted_root"))
+    report = admission.hook_admission_report(
+        HookAdmissionRequest(
+            root=tmp_path,
+            layer=layer,
+            command=command,
+            expected_root=tmp_path / "foreign" if command == "foreign" else tmp_path,
+        )
     )
-    monkeypatch.setattr(admission, "git_stash_policy", lambda _command: {"forbidden": False})
-    observed = admission.hook_admission_report(
-        HookAdmissionRequest(root=tmp_path, layer="pre-run", command="git status")
-    )
-
-    assert (fallback["state"], fallback["fallback"]) == ("fallback", True)
-    assert fallback["required_gaps"] == []
-    assert observed["decision"]["reason"] == "command_observe_only"
-
-
-def test_stash_and_mutation_without_paths_fail_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(admission, "workspace_status", lambda *_args, **_kwargs: _status())
-    monkeypatch.setattr(
-        admission,
-        "command_risk",
-        lambda _command: {"unclassifiable": False, "tracked_mutation_risk": True},
-    )
-    monkeypatch.setattr(
-        admission, "git_stash_policy", lambda command: {"forbidden": command == "stash"}
-    )
-
-    stash = admission.hook_admission_report(
-        HookAdmissionRequest(root=tmp_path, layer="pre-run", command="stash")
-    )
-    missing = admission.hook_admission_report(
-        HookAdmissionRequest(root=tmp_path, layer="pre-run", command="write")
-    )
-
-    assert stash["required_gaps"] == ["git_stash_forbidden"]
-    assert missing["required_gaps"] == ["hook_prerun_paths_required"]
+    assert report["verdict"] == ("block" if gap else "pass")
+    assert report["required_gaps"] == ([gap] if gap else [])
+    if layer == "git":
+        assert (report["state"], report["fallback"]) == ("fallback", True)
 
 
 def test_ref_move_policy_failure_and_noop_are_structured(

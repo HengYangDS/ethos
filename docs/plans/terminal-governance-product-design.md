@@ -296,6 +296,42 @@ creates a causal cycle. Archive alone never closes the implementation atom.
 A Change splits when its outcomes are independently useful or require
 different owners, not because a file or line-count threshold was crossed.
 
+**Work Lane convergence is the highest delivery priority.** Only a demonstrated
+prerequisite for safe absorption or retirement may precede it. Keep unrelated
+features, supply upgrades, and structural refactors behind this priority rather
+than expanding the current batch. Preserve live owners and unique dirty content;
+priority never grants permission to bypass admission or weaken the 95-percent
+floor.
+
+Use current public capabilities to retire any lane already proven semantically
+absorbed and safely deletable; do not make it wait for the entire product roadmap
+or a runtime repair it does not need. For a lane that requires missing-Lease
+reconciliation, first accept and read back that repair, then immediately absorb
+and retire the affected resources. Order the existing inventory by demonstrated
+readiness and dependency, close each outcome before opening another overlapping
+one, and reuse an admitted lane. Measure progress by unique obligations absorbed
+and exact refs, worktrees, Leases, and owned projections verified retired, not by
+commits, tests, inventory passes, or documentation volume.
+
+Housekeeping is part of each lane's closeout, not a later bulk sweep. Before
+disposal, account for unique committed, staged, unstaged, and untracked meaning;
+prove its absorption, supersession, or authorized rejection. Then retire exact
+obsolete refs, worktree registrations and paths, Lease rows, and owned
+projections through their existing public owners. Inspect the runtime, package,
+supply, temporary, and generated resources that the retired lane produced or
+referenced; preserve live consumers and required proof, and reclaim only what
+has no remaining owner or retention obligation.
+
+Post-observe both logical state and physical paths: no dangling references,
+orphan coordination, stale launchers, broken links, abandoned temporary roots,
+or unconsumed duplicate carriers may be hidden by a successful command. Moving
+material into an ignored directory is preservation, not disposal or completed
+housekeeping; its existing receipt must retain the reason and next disposition.
+Use exact owned paths, bounded liveness checks, and safe handling of read-only
+trees, never broad prefix deletion. Record any unresolved residue in this route
+and its existing effect evidence, without creating a cleanup registry. A lane
+is closed only when its semantic and resource obligations are both discharged.
+
 Every implementation atom follows the same bounded route:
 
 ```text
@@ -332,9 +368,9 @@ Last observed closeout evidence on 2026-09-07, not a second task system:
 | --- | --- | --- |
 | Repository proof | Accepted `18aa8707a48a686d4b59f4814d11eb95907c4e8c` has full proof Attestation `63cf3584ba37e221cbd952f7229f451dff865aadfcae7b55bbfe7fa902d79acb` | Reacquisition proof at `6db593c2` exists but fails the required 95-percent floor; reprove the corrected candidate |
 | Archive and acceptance | `absorbed-resource-retirement` archived; candidate and accepted CAS completed; accepted effect `d8f0b37cc16a646ae4c5c215584c59cea4ba8726e0680e84cada147bff0c157e` | Reacquisition archive at `6db593c2` exists; coverage-compliant reproof and candidate/accepted CAS remain pending |
-| Package/runtime | Selected runtime `9c3cf688` reports Alpha.5 source `18aa8707`, tree `45a6f84e`, OpenSpec 1.12.0, and four armed hooks | Accepted package-only reacquisition runtime and readback before historical-lane effects |
+| Package/runtime | Selected runtime `9c3cf688` reports Alpha.5 source `18aa8707`, tree `45a6f84e`, OpenSpec 1.12.0, and four armed hooks | Accept and read back reacquisition before effects that require it; existing public retirement remains usable when its own preconditions hold |
 | Peer projections | Publication `80833fbc8f556ec6e572e01f1f53b96c06ae58d12b35a06fc431b132c297b24f` binds both peers at `18aa8707`; exact dev/main readback agreed. GitHub dev run `34121912399` and main run `34121913185` subsequently failed. The dev receipt reports proven execution but blocked before/after readiness; GitLab CI/signature remain unobserved | Resolve hosted checkout/readiness obligations separately from executed proof; inspect exact run artifacts rather than reused runner paths |
-| Lane residue | Retirement receipt `144d3ef4ee6af8407e188531106b91909181e11f3ea7b3ee8efaa0ee1bb76d8c` proves the previous implementation worktree, ref, and Lease absent; seven historical worktrees remain, five dirty | Accept reacquisition, preserve unique content, then exact public retirement; no bulk merge or dirty-tree deletion |
+| Lane residue | Retirement receipt `144d3ef4ee6af8407e188531106b91909181e11f3ea7b3ee8efaa0ee1bb76d8c` proves the previous implementation worktree, ref, and Lease absent; seven historical worktrees remain, five dirty | Prioritize proven-safe public retirement; accept reacquisition for lanes that need it, preserve unique content, and prove absorption before disposal; no bulk merge or dirty-tree deletion |
 
 Historical work remains finite and classified by obligations rather than commit
 count. These are observed disposition boundaries, not claims of completed

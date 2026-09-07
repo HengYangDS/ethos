@@ -19,6 +19,7 @@ from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.coordination import LeaseTakeoverRequest
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -52,6 +53,31 @@ def acquire_lease_from_connection(
         msg = f"lane_lease_conflict:{lease.lane_ref}"
         raise ValueError(msg) from exc
     return lease_record((lease.lane_ref, holder, lease.generation, expires_at))
+
+
+def acquire_or_recognize_lease(
+    db_path: Path, *, lease: LaneLease, recheck: Callable[[], None]
+) -> tuple[dict[str, object], bool]:
+    """Insert missing coordination or recognize its exact four-field postimage."""
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute("begin immediate")
+        initialize_state_connection(connection)
+        observed = observe_lease_from_connection(connection, lease.lane_ref)
+        recognized = observed.state == "valid" and observed.lease == lease
+        if observed.state != "missing" and not recognized:
+            message = f"lease_reacquire_existing_lease:{observed.state}"
+            raise ValueError(message)
+        recheck()
+        result = (
+            observed.record()
+            if recognized
+            else acquire_lease_from_connection(connection, lease=lease)
+        )
+        recheck()
+        connection.commit()
+    return result, recognized
 
 
 def apply_lease_operation(

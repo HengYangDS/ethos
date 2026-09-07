@@ -109,6 +109,22 @@ Neither path grants source writes, deletes repository root resources, discards
 dirty work, or closes a remote review. Current Lease and exact-object checks
 remain in force, and installed hooks require the admitted retirement intent.
 
+For a registered Work Lane that has lost its Lease, derive coordination recovery
+without recreating its checkout or changing its staged and unstaged content:
+
+```bash
+ethos lane lease reacquire --path <worktree> --holder-ref "$ETHOS_ACTOR" --root <accepted-root> --json
+```
+
+Inspect the exact coordinates and follow the returned authorized apply command.
+That command binds the proposed Lease expiry as well as content; replay recognizes
+only the exact four-field relation and reuses its existing effect evidence.
+An existing foreign or expired Lease requires its own handoff or takeover path;
+reacquisition does not overwrite it. The recovered relation does not grant
+OpenSpec acceptance or tracked-write permission: obtain fresh prewrite admission
+before editing. A partial result identifies a committed Lease separately from
+missing effect evidence, so its continuation does not repeat the insertion.
+
 ## OpenSpec Ownership
 
 The official OpenSpec CLI owns OpenSpec lifecycle operations. ETHOS consumes

@@ -180,7 +180,6 @@ def plan(
     candidate_branch = str(candidate.get("branch") or "candidate/dev")
     strategy = collaboration_competition_projection(
         foreign,
-        observed_at=facts.observed_at,
         candidate=ref_progress(repo, candidate_branch, observed_at=facts.observed_at)
         | {"behind_accepted": candidate.get("behind_accepted", 0)},
     )

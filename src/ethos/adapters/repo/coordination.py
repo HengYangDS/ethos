@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -192,7 +191,6 @@ def coordination_gaps(
 def collaboration_competition_projection(
     foreign_work_lanes: list[dict[str, object]],
     *,
-    observed_at: datetime,
     candidate: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Derive coordination from current lane ownership and path conflicts."""
@@ -203,13 +201,6 @@ def collaboration_competition_projection(
         for lane in foreign_work_lanes
         if lane.get("coordination_state") in {"deferred", "unknown"}
     ]
-    now = observed_at
-    queue_age = {
-        branch: _queue_age_seconds(lane, now)
-        for lane in foreign_work_lanes
-        if (branch := str(lane.get("branch") or ""))
-    }
-    admission_order = sorted(branches, key=lambda branch: (-queue_age.get(branch, 0), branch))
     progress = candidate or {}
     candidate_behind_accepted = progress.get("behind_accepted", 0)
     latest_age = progress.get("latest_advance_age_seconds")
@@ -242,25 +233,9 @@ def collaboration_competition_projection(
         "overlap_count": len(overlap),
         "unknown_count": len(unknown),
         "branches": branches,
-        "admission_order": admission_order,
-        "queue_age_seconds": queue_age,
         "backpressure": backpressure,
         "candidate_progress": progress,
     }
-
-
-def _queue_age_seconds(lane: dict[str, object], observed_at: datetime) -> int:
-    lease = lane.get("lease")
-    if not isinstance(lease, dict):
-        return 0
-    issued = str(lease.get("issued_at") or "")
-    try:
-        instant = datetime.fromisoformat(issued)
-    except ValueError:
-        return 0
-    if instant.tzinfo is None:
-        return 0
-    return max(0, int((observed_at - instant).total_seconds()))
 
 
 def scopes_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:

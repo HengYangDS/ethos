@@ -18,7 +18,12 @@ def _trust_root(tmp_path: Path) -> Path:
     return root
 
 
-def _signer(tmp_path: Path) -> Path:
+def _configured_repository(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    signed: bool,
+) -> tuple[Path, Path, str, str]:
     key = tmp_path / "signer"
     subprocess.run(
         ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
@@ -26,21 +31,11 @@ def _signer(tmp_path: Path) -> Path:
         capture_output=True,
         text=True,
     )
-    return key.with_suffix(".pub")
-
-
-def _configured_repository(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    signed: bool,
-) -> tuple[Path, Path, str, str]:
-    monkeypatch.setenv("GIT_AUTHOR_NAME", "Test User")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "owner@example.com")
-    monkeypatch.setenv("GIT_COMMITTER_NAME", "Test User")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "owner@example.com")
+    signer = key.with_suffix(".pub")
+    for role in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{role}_NAME", "Test User")
+        monkeypatch.setenv(f"GIT_{role}_EMAIL", "owner@example.com")
     repo = init_git_repo(tmp_path / "repo")
-    signer = _signer(tmp_path)
     anchor = _trust_root(tmp_path) / "allowed-signers"
     anchor.write_bytes(b"")
     anchor.chmod(0o600)
@@ -49,9 +44,7 @@ def _configured_repository(
     git(repo, "config", "user.email", "owner@example.com")
     git(repo, "config", "gpg.ssh.allowedSignersFile", anchor.as_posix())
     if signed:
-        (repo / "target.txt").write_text("signed\n", encoding="utf-8")
-        git(repo, "add", "target.txt")
-        git(repo, "-c", "commit.gpgsign=true", "commit", "-m", "signed target")
+        git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed target")
     target = git(repo, "rev-parse", "HEAD")
     return repo, anchor, target, hashlib.sha256(anchor.read_bytes()).hexdigest()
 
@@ -69,120 +62,61 @@ def test_commit_payload_missing_separator_fails_closed(
 
 
 @pytest.mark.parametrize(
-    ("status", "expected_verdict", "expected_gaps"),
+    ("suffix", "gap"),
     [
-        (
-            (
-                'Good "git" signature for owner@example.com with ED25519 key SHA256:abc=\n'
-                "additional verifier detail"
-            ),
-            "pass",
-            [],
-        ),
-        (
-            (
-                'Good "git" signature for owner@example.com with ED25519 key SHA256:abc=\r\n'
-                "additional verifier detail"
-            ),
-            "pass",
-            [],
-        ),
-        (
-            'Good "git" signature for owner@example.com with ED25519 key',
-            "block",
-            ["git_object_signature_observation_unavailable"],
-        ),
+        (" SHA256:abc=\nadditional verifier detail", ""),
+        (" SHA256:abc=\r\nadditional verifier detail", ""),
+        ("", "git_object_signature_observation_unavailable"),
     ],
 )
 def test_git_object_trust_requires_a_portable_terminal_signature_status(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    status: str,
-    expected_verdict: str,
-    expected_gaps: list[str],
-) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    anchor = _trust_root(tmp_path) / "allowed-signers"
-    anchor.write_text("owner@example.com ssh-ed25519 AAAA\n", encoding="utf-8")
-    anchor.chmod(0o600)
+    tmp_path, monkeypatch, suffix, gap
+):
+    repo, _anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=False)
+    native = identity.run_git
+    status = f'Good "git" signature for owner@example.com with ED25519 key{suffix}'
 
-    def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
-        if args[:4] == ("config", "--path", "--get", "gpg.ssh.allowedSignersFile"):
-            return SimpleNamespace(returncode=0, stdout=anchor.as_posix(), stderr="")
-        if args == ("version",):
-            return SimpleNamespace(returncode=0, stdout="git version test", stderr="")
-        return SimpleNamespace(returncode=0, stdout="", stderr=status)
+    def verify(root, *args, **kwargs):
+        return (
+            SimpleNamespace(returncode=0, stdout="", stderr=status)
+            if "verify-commit" in args
+            else native(root, *args, **kwargs)
+        )
 
-    monkeypatch.setattr(identity, "run_git", run_git)
-
-    report = identity.verify_git_object_trust(repo, "revision", "commit")
-
-    assert report["verdict"] == expected_verdict
-    assert report["required_gaps"] == expected_gaps
-    assert report["principal"] == ("owner@example.com" if expected_verdict == "pass" else "")
-    assert report["fingerprint"] == ("SHA256:abc=" if expected_verdict == "pass" else "")
+    monkeypatch.setattr(identity, "run_git", verify)
+    report = identity.verify_git_object_trust(repo, target, "commit")
+    assert report["verdict"] == ("block" if gap else "pass")
+    assert report["required_gaps"] == ([gap] if gap else [])
+    assert report["principal"] == ("" if gap else "owner@example.com")
+    assert report["fingerprint"] == ("" if gap else "SHA256:abc=")
 
 
 @pytest.mark.parametrize(
     ("configured", "expected"),
     [
-        ("relative/allowed-signers", "commit_trust_anchor_not_absolute"),
+        ("relative", "commit_trust_anchor_not_absolute"),
         ("missing", "commit_trust_anchor_missing"),
+        ("absent", "commit_trust_anchor_missing"),
+        ("inside", "commit_trust_anchor_inside_repository"),
+        ("directory", "commit_trust_anchor_missing"),
+        ("unprotected", "commit_trust_anchor_unprotected"),
     ],
 )
-def test_commit_trust_public_report_rejects_invalid_anchor_location(
-    tmp_path: Path, configured: str, expected: str
-) -> None:
+def test_commit_trust_public_report_rejects_invalid_anchor_location(tmp_path, configured, expected):
     repo = init_git_repo(tmp_path / "repo")
-    value = (
-        (tmp_path.parent / "missing-allowed-signers").as_posix()
-        if configured == "missing"
-        else configured
-    )
-    git(repo, "config", "gpg.ssh.allowedSignersFile", value)
-
+    anchor = (repo if configured == "inside" else _trust_root(tmp_path)) / "allowed-signers"
+    if configured == "directory":
+        anchor.mkdir()
+    elif configured in {"inside", "unprotected"}:
+        anchor.write_text("untrusted\n")
+        anchor.chmod(0o666)
+    value = "relative/allowed-signers" if configured == "relative" else str(anchor)
+    if configured != "absent":
+        git(repo, "config", "gpg.ssh.allowedSignersFile", value)
     report = identity.verify_commit_trust(repo, git(repo, "rev-parse", "HEAD"))
-
     assert report["required_gaps"] == [expected]
-
-
-def test_signer_authorization_rejects_invalid_public_key(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    anchor = _trust_root(tmp_path) / "allowed-signers"
-    anchor.write_bytes(b"")
-    anchor.chmod(0o600)
-    key = tmp_path / "invalid.pub"
-    key.write_text("not-a-key\n", encoding="utf-8")
-    git(repo, "config", "gpg.ssh.allowedSignersFile", anchor.as_posix())
-    git(repo, "config", "user.signingkey", key.as_posix())
-    git(repo, "config", "user.email", "owner@example.com")
-
-    report = identity.authorize_configured_commit_signer(
-        repo,
-        git(repo, "rev-parse", "HEAD"),
-        expected_anchor_sha256=hashlib.sha256(b"").hexdigest(),
-        apply=False,
-        authorized=False,
-    )
-
-    assert report["required_gaps"] == ["commit_signer_configuration_invalid"]
-
-
-def test_signer_authorization_rejects_unverified_candidate(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, _anchor, target, digest = _configured_repository(tmp_path, monkeypatch, signed=False)
-
-    report = identity.authorize_configured_commit_signer(
-        repo,
-        target,
-        expected_anchor_sha256=digest,
-        apply=False,
-        authorized=False,
-    )
-
-    assert report["required_gaps"] == ["commit_signature_untrusted"]
+    action = identity.commit_trust_setup_action(repo, "HEAD")
+    assert action == "git config --global gpg.ssh.allowedSignersFile <absolute-owner-only-path>"
 
 
 def test_signer_authorization_requires_confirmation_before_atomic_apply(
@@ -207,54 +141,107 @@ def test_signer_authorization_requires_confirmation_before_atomic_apply(
     assert anchor.stat().st_mode & 0o777 == 0o600
 
 
-def test_signer_authorization_reports_atomic_write_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, anchor, target, digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+@pytest.mark.parametrize(
+    ("failure", "gap"),
+    [
+        ("unsigned", "commit_signature_untrusted"),
+        ("not-a-key", "commit_signer_configuration_invalid"),
+        ("rsa AAAA", "commit_signer_configuration_invalid"),
+        ("ssh-ed25519", "commit_signer_configuration_invalid"),
+        ("preflight", "commit_trust_anchor_stale"),
+        ("initial-cas", "commit_trust_anchor_stale"),
+        ("final-cas", "commit_trust_anchor_stale"),
+        ("write", "commit_trust_anchor_write_failed"),
+    ],
+)
+def test_signer_authorization_preserves_anchor_on_public_failure(
+    tmp_path, monkeypatch, failure, gap
+):
+    invalid_key = gap == "commit_signer_configuration_invalid"
+    repo, anchor, target, digest = _configured_repository(
+        tmp_path, monkeypatch, signed=failure != "unsigned" and not invalid_key
+    )
+    native_read = Path.read_bytes
+    if invalid_key:
+        Path(git(repo, "config", "--get", "user.signingkey")).write_text(failure)
+    elif failure in {"initial-cas", "final-cas"}:
+        reads = iter([b""] * (1 if failure == "initial-cas" else 2) + [b"drift", b"drift"])
+        monkeypatch.setattr(
+            Path, "read_bytes", lambda path: next(reads) if path == anchor else native_read(path)
+        )
+    elif failure == "write":
 
-    def unavailable(*_args: object, **_kwargs: object) -> tuple[int, str]:
-        raise OSError
+        def unavailable(*_args, **_kwargs):
+            raise OSError
 
-    monkeypatch.setattr(identity.tempfile, "mkstemp", unavailable)
+        monkeypatch.setattr(identity.tempfile, "mkstemp", unavailable)
     report = identity.authorize_configured_commit_signer(
         repo,
         target,
-        expected_anchor_sha256=digest,
-        apply=True,
+        expected_anchor_sha256="0" * 64 if failure == "preflight" else digest,
+        apply=not invalid_key and failure != "unsigned",
         authorized=True,
     )
-
-    assert report["state"] == "blocked"
-    assert report["required_gaps"] == ["commit_trust_anchor_write_failed"]
-    assert anchor.read_bytes() == b""
-
-
-@pytest.mark.parametrize("drift_at", ["initial-cas", "final-cas"])
-def test_signer_authorization_rejects_anchor_cas_drift_through_public_api(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    drift_at: str,
-) -> None:
-    repo, anchor, target, digest = _configured_repository(tmp_path, monkeypatch, signed=True)
-    current = anchor.read_bytes()
-    observed = (
-        iter((current, b"drift", b"drift"))
-        if drift_at == "initial-cas"
-        else iter((current, current, b"drift", b"drift"))
+    assert (report["verdict"], report["state"], report["required_gaps"]) == (
+        "block",
+        "blocked",
+        [gap],
     )
-    original = Path.read_bytes
+    assert native_read(anchor) == b""
+    assert list(anchor.parent.iterdir()) == [anchor]
 
-    def drifting_read(path: Path) -> bytes:
-        return next(observed) if path == anchor else original(path)
 
-    monkeypatch.setattr(Path, "read_bytes", drifting_read)
-    report = identity.authorize_configured_commit_signer(
-        repo,
+@pytest.mark.parametrize("failure", ["status", "status-oid", "status-fields", "raw"])
+def test_commit_observation_rejects_incomplete_native_facts(tmp_path, monkeypatch, failure):
+    repo = init_git_repo(tmp_path / "repo")
+    target = git(repo, "rev-parse", "HEAD")
+    observed = identity.observe_commit(repo, target)
+    assert observed["verdict"] == "pass"
+    native = identity.run_git
+
+    def interrupted(root, *args, **kwargs):
+        result = native(root, *args, **kwargs)
+        if args[:2] == ("cat-file", "commit") if failure == "raw" else args[0] == "show":
+            if failure in {"raw", "status"}:
+                result.returncode = 1
+            elif failure == "status-oid":
+                result.stdout = result.stdout.replace(target, "0" * len(target), 1)
+            else:
+                result.stdout = result.stdout.split("\x00")[0]
+        return result
+
+    monkeypatch.setattr(identity, "run_git", interrupted)
+    result = identity.observe_commit(repo, target)
+    assert (result["verdict"], result["state"], result["object_oid"]) == (
+        "block",
+        "unavailable",
         target,
-        expected_anchor_sha256=digest,
-        apply=True,
-        authorized=True,
     )
+    assert result["required_gaps"] == [f"commit_observation_unavailable:{target}"]
+    assert result["signature"] == {"present": False, "format": ""}
+    assert result["subject"] == (observed["subject"] if failure == "raw" else "")
 
-    assert report["state"] == "blocked"
-    assert report["required_gaps"] == ["commit_trust_anchor_stale"]
+
+@pytest.mark.parametrize(
+    ("failure", "gap"),
+    [
+        ("wrong-kind", "git_object_kind_mismatch"),
+        ("tagged-tree", "git_object_peeled_commit_invalid"),
+        ("unreadable-tree", "git_object_tree_unreadable"),
+    ],
+)
+def test_object_observation_refuses_incomplete_commit_binding(tmp_path, monkeypatch, failure, gap):
+    repo = init_git_repo(tmp_path / "repo")
+    target = git(repo, "rev-parse", "HEAD^{tree}" if failure != "unreadable-tree" else "HEAD")
+    if failure == "tagged-tree":
+        git(repo, "tag", "-a", "tree-tag", target, "-m", "tree target")
+        target = git(repo, "rev-parse", "refs/tags/tree-tag")
+    elif failure == "unreadable-tree":
+        monkeypatch.setattr(identity, "current_tree", lambda *_args: "")
+    before = git(repo, "show-ref"), (repo / ".git/index").read_bytes()
+    result = identity.observe_git_object(
+        repo, target, "annotated-tag" if failure == "tagged-tree" else "commit"
+    )
+    assert result["required_gaps"] == [gap]
+    assert (result["verdict"], result["object_oid"], result["tree_oid"]) == ("block", target, "")
+    assert (git(repo, "show-ref"), (repo / ".git/index").read_bytes()) == before

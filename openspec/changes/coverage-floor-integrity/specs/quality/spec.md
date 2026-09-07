@@ -61,6 +61,41 @@ Measurement SHALL NOT redefine the requirement as an aspiration.
   the existing revocation owner; expiry drift blocks removal and preserves the ref
 - **AND** cleanup failure remains visible rather than becoming a clean rollback
 
+#### Scenario: Accepted runtime expectation observes immutable source objects
+
+- **WHEN** the accepted checkout contains untracked observations or staged
+  source/version edits, or the canonical checkout is detached
+- **THEN** runtime expectation compiles the configured accepted ref's exact
+  commit, tree, and canonical version blob without modifying checkout contents
+- **AND** accepted-ref advancement changes the expected identity, while invalid
+  accepted version bytes fail closed
+- **AND** constructing a runtime still requires the wheel's complete build
+  identity to equal that accepted expectation; mutable source cannot be silently
+  labeled as accepted
+
+#### Scenario: Coverage exposes obsolete coordination projection semantics
+
+- **WHEN** current peer scopes and candidate progress are observed with valid
+  four-field Leases
+- **THEN** the collaboration projection reports those facts without inventing
+  queue membership, queue age, or mutation-admission order from Lease data
+- **AND** unknown or deferred scope takes precedence over overlap; overlap
+  requires coordination and disjoint scopes remain independent
+- **AND** candidate lag takes precedence over a stale progress interval; neither
+  advisory condition mints mutation authority
+
+#### Scenario: Design-integrity failure remains diagnosable
+
+- **WHEN** a tracked canonical design owner, required projection, or root axiom
+  document is missing
+- **THEN** the existing design-integrity audit returns its exact blocking
+  missing-document finding rather than throwing during an auxiliary check
+- **AND** derivation comparison uses the same observed document set; an untracked
+  document cannot silently become the canonical owner
+- **AND** the root README and engineering axioms preserve the canonical
+  distinction between transient Commitment and durable Attestation, rather
+  than reviving the retired persistent-Commitment model
+
 #### Scenario: Hosted proof crosses an identity boundary
 
 - **WHEN** a hosted provider supplies a locked test environment and executes the

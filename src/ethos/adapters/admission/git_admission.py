@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.admission.identity import commit_contained_in
 from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
@@ -17,7 +16,9 @@ from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.repo.commit.admission import commit_range_admission_report
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
@@ -37,6 +38,7 @@ from ethos.repository.release.publication import publication_topology
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.contracts.admission import HookAdmissionRequest
+    from ethos.contracts.branch.roles import BranchRolePolicy
 
 HOOK_LAYERS = {
     name: {"timing": timing, "duty": duty, "fallback": fallback}
@@ -168,13 +170,34 @@ def push_admission_report(
     role = str(ref_admission["role"])
     ref_kind = str(ref_admission["ref_kind"])
     ref_gaps = list(cast("list[str]", ref_admission["enforcement_gaps"]))
+    proof_head = (
+        git_stdout(repo, "rev-parse", "--verify", f"{pushed_head}^{{commit}}")
+        if ref_kind == "tag"
+        else pushed_head
+    )
+    accepted_closeout, closeout_gaps, trusted_baseline, trusted_baseline_source = (
+        _accepted_closeout_baseline(
+            repo,
+            policy=policy,
+            branch=branch,
+            role=role,
+            proof_head=proof_head,
+            remote_head=remote_head,
+        )
+    )
+    commit_policy = commit_range_admission_report(
+        repo,
+        target_ref=target_ref,
+        proposed_head=pushed_head,
+        remote_head=remote_head,
+        remote_name=remote_name,
+        trusted_baseline=trusted_baseline,
+        trusted_baseline_source=trusted_baseline_source,
+    )
+    commit_policy_gaps = list(string_sequence(commit_policy.get("required_gaps")))
     identity = push_identity_policy_report(
         repo,
-        pushed_head,
-        remote_head,
-        f"{remote_name}/{policy.accepted_branch}"
-        if role == "proposal_ref" and remote_head in _ZERO_OIDS
-        else "",
+        tuple(string_sequence(commit_policy.get("revisions"))),
     )
     identity_gaps = list(cast("list[str]", identity["required_gaps"]))
     base: dict[str, object] = {"verdict": "pass", "state": "admitted", "hook": "pre-push"}
@@ -188,14 +211,10 @@ def push_admission_report(
     base.update(pushed_head=pushed_head, remote_head=remote_head)
     base.update(
         publication_ref_admission=ref_admission,
+        commit_policy_admission=commit_policy,
         identity_policy=identity,
     )
     base.update(decision={"action": "allow", "reason": "push_admitted"}, required_gaps=[])
-    proof_head = (
-        git_stdout(repo, "rev-parse", "--verify", f"{pushed_head}^{{commit}}")
-        if ref_kind == "tag"
-        else pushed_head
-    )
     supplied_proof = options.get("proof_admission")
     proof_admission = (
         dict(supplied_proof)
@@ -227,36 +246,12 @@ def push_admission_report(
         if branch == policy.accepted_branch
         else []
     )
-    accepted_closeout: dict[str, object] = {}
-    closeout_gaps: list[str] = []
-    if branch == policy.accepted_branch:
-        try:
-            closeout = accepted_closeout_attestation(
-                repo,
-                accepted_ref=target_ref,
-                candidate_ref=f"refs/heads/{policy.candidate_branch}",
-                candidate_head=pushed_head,
-            )
-        except ValueError as error:
-            closeout_gaps.append(str(error))
-        else:
-            if closeout is None:
-                closeout_gaps.append("accepted_closeout_effect_not_attested")
-            else:
-                plan, attestation = closeout
-                accepted_closeout = {
-                    "attestation_id": attestation.id,
-                    "plan_digest": plan.digest,
-                    "accepted_ref": target_ref,
-                    "accepted_before": git_effect_from_plan(plan).updates[target_ref].expected,
-                    "remote_head": remote_head,
-                    "candidate_head": pushed_head,
-                }
     base["accepted_closeout_effect"] = accepted_closeout
     gaps = list(
         dict.fromkeys(
             (
                 *ref_gaps,
+                *commit_policy_gaps,
                 *identity_gaps,
                 *proof_gap_list,
                 *topology_gaps,
@@ -276,9 +271,54 @@ def push_admission_report(
         if any(gap.startswith("publication_remote_target_unknown:") for gap in ref_gaps)
         else "push_to_protected_role_not_proven"
         if proof_gap_list or topology_gaps or closeout_gaps
+        else "pushed_commit_policy_not_allowed"
+        if commit_policy_gaps
         else "pushed_commit_identity_not_allowed"
     )
     return _verdict(base, "block", "blocked", "block", reason, gaps)
+
+
+def _accepted_closeout_baseline(
+    repo: Path,
+    *,
+    policy: BranchRolePolicy,
+    branch: str,
+    role: str,
+    proof_head: str,
+    remote_head: str,
+) -> tuple[dict[str, object], list[str], str, str]:
+    accepted_branch = policy.accepted_branch
+    candidate_branch = policy.candidate_branch
+    required = branch == accepted_branch or (
+        remote_head in _ZERO_OIDS and publication_proof_selection(role) == "repository_transition"
+    )
+    if not required:
+        return {}, [], "", ""
+    accepted_ref = f"refs/heads/{accepted_branch}"
+    try:
+        closeout = accepted_closeout_attestation(
+            repo,
+            accepted_ref=accepted_ref,
+            candidate_ref=f"refs/heads/{candidate_branch}",
+            candidate_head=proof_head,
+        )
+    except ValueError as error:
+        return {}, [str(error)], "", ""
+    if closeout is None:
+        return {}, ["accepted_closeout_effect_not_attested"], "", ""
+    plan, attestation = closeout
+    accepted_before = git_effect_from_plan(plan).updates[accepted_ref].expected
+    projection = {
+        "attestation_id": attestation.id,
+        "plan_digest": plan.digest,
+        "accepted_ref": accepted_ref,
+        "accepted_before": accepted_before,
+        "remote_head": remote_head,
+        "candidate_head": proof_head,
+    }
+    if remote_head not in _ZERO_OIDS:
+        return projection, [], "", ""
+    return projection, [], accepted_before, "accepted_closeout_effect"
 
 
 def ref_move_admission_report(
@@ -323,7 +363,7 @@ def ref_move_admission_report(
         if branch == policy.candidate_branch and old_value in _ZERO_OIDS
         else "candidate.refresh"
         if branch == policy.candidate_branch
-        and commit_contained_in(repo, new_value, policy.accepted_branch)
+        and is_ancestor(repo, new_value, policy.accepted_branch)
         else "candidate.integrate"
         if branch == policy.candidate_branch
         else "lane.retire"
@@ -376,7 +416,7 @@ def ref_move_admission_report(
             else "accepted_ref_move_bypasses_candidate_train"
         )
     elif branch == policy.candidate_branch:
-        if commit_contained_in(repo, new_value, policy.accepted_branch):
+        if is_ancestor(repo, new_value, policy.accepted_branch):
             gaps = []
         else:
             gaps = proof_gaps(repo, new_value)

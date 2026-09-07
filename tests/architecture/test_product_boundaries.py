@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import shutil
 import subprocess
@@ -15,6 +16,61 @@ from ethos.repository.policy.references.closure import repository_semantic_closu
 from tests.support.architecture import isolated_path
 
 ROOT = Path(__file__).resolve().parents[2]
+COMMIT_ADMISSION_OWNER = ROOT / "src/ethos/adapters/repo/commit/admission.py"
+
+
+def test_commit_policy_execution_has_one_semantic_owner() -> None:
+    """Only the commit admission adapter may interpret compiled commit policy."""
+    subject_callers: list[str] = []
+    gap_owners: list[str] = []
+    policy_gaps = (
+        "commit_subject_invalid:",
+        "commit_signature_missing:",
+        "commit_signature_format_mismatch:",
+    )
+
+    for path in sorted((ROOT / "src/ethos").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=path.as_posix())
+        relative = path.relative_to(ROOT).as_posix()
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "accepts_subject"
+            ):
+                subject_callers.append(relative)
+            if (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and any(gap in node.value for gap in policy_gaps)
+            ):
+                gap_owners.append(relative)
+
+    owner = COMMIT_ADMISSION_OWNER.relative_to(ROOT).as_posix()
+    assert sorted(set(subject_callers)) == [owner]
+    assert sorted(set(gap_owners)) == [owner]
+
+
+def test_commit_introduced_range_has_one_projector() -> None:
+    """Only the commit admission adapter may derive oldest-first introduced revisions."""
+    projectors: list[str] = []
+
+    for path in sorted((ROOT / "src/ethos").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=path.as_posix())
+        relative = path.relative_to(ROOT).as_posix()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            literals = {
+                argument.value
+                for argument in node.args
+                if isinstance(argument, ast.Constant) and isinstance(argument.value, str)
+            }
+            if {"rev-list", "--reverse"} <= literals:
+                projectors.append(relative)
+
+    owner = COMMIT_ADMISSION_OWNER.relative_to(ROOT).as_posix()
+    assert sorted(set(projectors)) == [owner]
 
 
 def _launcher(tmp_path: Path) -> Path:

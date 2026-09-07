@@ -134,29 +134,36 @@ def test_python_path_identity_prefers_native_object_identity(
     assert observed == [("/native/first", "/native/alias")]
 
 
-def test_virtual_environment_selects_a_congruent_relocatable_image() -> None:
+def test_virtual_environment_selects_a_congruent_relocatable_image(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A venv supplies identity without forcing its base to supply the image."""
-    invoked = Path(sys.executable)
+    invoked, source, source_root, observations = _observed_pair(tmp_path)
+    _observe(monkeypatch, observations)
 
     source_facts = require_python_image_source(invoked)
 
-    assert Path(source_facts["executable"]).is_file()
+    assert Path(source_facts["executable"]).resolve() == source.resolve()
     assert source_facts["prefix"] == source_facts["base_prefix"]
+    assert Path(source_facts["prefix"]).resolve() == source_root.resolve()
     assert source_facts.get("python_framework", "") == ""
     assert {
         key: source_facts[key]
         for key in ("python_abi", "python_version", "python_implementation", "architecture")
     } == {
-        key: observe_python_facts(invoked)[key]
+        key: observations[invoked.resolve()][key]
         for key in ("python_abi", "python_version", "python_implementation", "architecture")
     }
 
 
 def test_direct_relocatable_interpreter_admits_itself_without_discovery(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """A directly invoked image is selected without fallback discovery."""
-    invoked = Path(require_python_image_source(Path(sys.executable))["executable"])
+    invoked = _image(tmp_path / "standalone")
+    _observe(monkeypatch, {invoked.resolve(): _facts(invoked)})
     monkeypatch.setattr(
         python_environment,
         "_installed_python_candidates",

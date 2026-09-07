@@ -30,8 +30,8 @@ def _select_supply(source: Path) -> tuple[Path, Path, bool]:
 def _validate_complete_supply(source: Path, supply: Path) -> Path:
     if supply.is_symlink() or not supply.is_dir():
         _fail("node_package_supply_unavailable")
-    source_packages = _lock_packages(source / "package-lock.json", include_root=False)
-    installed_packages = _lock_packages(supply / ".package-lock.json", include_root=True)
+    source_packages = _locked_node_modules(source / "package-lock.json")
+    installed_packages = _locked_node_modules(supply / ".package-lock.json")
     if source_packages != installed_packages:
         _fail("node_package_supply_lock_mismatch")
     return supply.resolve()
@@ -44,7 +44,7 @@ def resolve_node_package_projection(source: Path) -> tuple[Path, tuple[Path, ...
         _fail("node_package_supply_unavailable")
     if explicit or (supply / ".package-lock.json").is_file():
         supply = _validate_complete_supply(source, supply)
-    packages = _lock_packages(source / "package-lock.json", include_root=True)
+    packages = _locked_node_modules(source / "package-lock.json")
     selected: list[Path] = []
     declared: set[Path] = set()
     for key, metadata in sorted(packages.items()):
@@ -64,7 +64,7 @@ def resolve_node_package_projection(source: Path) -> tuple[Path, tuple[Path, ...
     return supply.resolve(), tuple(selected)
 
 
-def _lock_packages(path: Path, *, include_root: bool) -> dict[str, object]:
+def _locked_node_modules(path: Path) -> dict[str, object]:
     if path.is_symlink() or not path.is_file():
         _fail("node_package_supply_lock_invalid")
     try:
@@ -79,7 +79,7 @@ def _lock_packages(path: Path, *, include_root: bool) -> dict[str, object]:
     return {
         key: value
         for key, value in packages.items()
-        if isinstance(key, str) and (include_root or key)
+        if isinstance(key, str) and key.startswith(_LOCK_PREFIX)
     }
 
 

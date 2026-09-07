@@ -60,9 +60,13 @@ the oldest-first set reachable from the proposed commit but not from the exact
 baseline. A readable non-zero remote object is the baseline even for a
 non-fast-forward update; topology separately decides whether that movement is
 legal. A new proposal ref derives the declared remote accepted ref as its
-trusted baseline. Other zero-remote updates require an explicit trusted baseline
-and fail closed without one. A missing endpoint or failed `rev-list` is an
-unreadable-range result, never permission to scan from the root.
+trusted baseline. A zero-remote accepted, release, or annotated-tag projection
+derives its historical boundary only from the exact accepted-closeout
+Attestation selected for the proposed commit. Other zero-remote updates require
+an explicit trusted baseline and fail closed without one. A missing endpoint,
+missing accepted-closeout effect, or failed `rev-list` is an unreadable-range
+result, never permission to scan from the root or trust a sibling ref merely
+because it appears in the same push batch.
 
 This supports SHA-1 and SHA-256 by recognizing either native zero width and by
 asking Git to resolve and peel objects. Deletions produce an empty, explicitly
@@ -126,16 +130,76 @@ canonical Git adapter.
 ### 6. Treat hooks and hosted jobs as projections
 
 The immutable hook generation expands from three to four launchers. Binding and
-activation continue to compare the complete generated set atomically. Status
-projects whether policy is declared and whether `commit-msg` and `pre-push` are
-the exact current launchers, using the existing hook-install command as the sole
-repair action.
+activation compare the complete generated set atomically against the selected
+package runtime's own hook contract, not against unaccepted Work Lane source.
+Status projects a newer source-only capability as `pending_acceptance` without
+asking the incumbent runtime to manufacture a command it does not contain. Once
+accepted Git truth advances, the new accepted package owns the ordinary
+hook-install transaction and creates a fresh four-launcher generation; no
+generation is edited in place.
+
+Hook activation first accepts an already selected immutable runtime only when
+its exact build identity, manifest, platform, architecture, dependency-lock
+digest, and retained wheel all remain valid. That reuse decision precedes any
+attempt to provision another Python image. A matching package runtime therefore
+does not become unusable merely because the ambient host interpreter is not an
+admissible image source; any lock or identity drift still forces a fresh runtime
+build through the normal materialization boundary.
 
 GitHub push and pull-request events and GitLab branch and merge-request events
 pass their provider-native base/head coordinates to `ethos hook commit-range`.
 Manual or observational dispatches with no integration pair do not invoke the
 range command and make no range-enforcement claim. Generated provider files
 remain byte projections of `.config/ci/templates/hosted/*`.
+
+### 7. Advance the existing product identity instead of reusing it
+
+`VERSION` remains the only product-version owner. This Change adds observable
+commit admission and runtime capability, so acceptance advances the next
+prerelease from `0.2.0-alpha.4` to `0.2.0-alpha.5`; npm metadata and the lockfile
+remain checked projections. Exact source commit/tree and wheel/runtime digests
+continue to distinguish builds within that product identity and do not replace
+the user-comparable SemVer value.
+
+Alternative rejected: retain `0.2.0-alpha.4` because source and runtime digests
+are unique. That would reuse one product identity for materially different
+public behavior and force adopters to compare internal coordinates to discover
+the capability boundary.
+
+### 8. Bind shared Node supply to dependencies, not workspace projections
+
+The prepared Node supply contains installed `node_modules/*` dependencies. Its
+reuse check therefore compares only those lock entries. Root and linked
+workspace records describe source and distribution projections that are not
+materialized inside the shared supply; including them makes a product-version
+advance falsely invalidate identical dependency bytes and drives unnecessary
+installation, cache, and temporary-tree churn.
+
+Alternative rejected: rebuild the shared supply after every workspace version
+change. That would conceal an authority error with repeated I/O while producing
+the same dependency closure.
+
+### 9. Make bootstrap satisfy the existing interpreter-supply contract
+
+The final package-only acceptance run exposed an existing projection defect:
+the local bootstrap synchronized a lock-current `.venv` but did not ensure that
+runtime activation could discover a congruent, copyable native Python image.
+On macOS, Homebrew's framework Python can own the `.venv` while remaining an
+invalid immutable-image source, so offline activation correctly failed even
+though dependency provisioning had succeeded.
+
+The existing bootstrap owner now asks the runtime's own image-source admission
+whether the synchronized environment already has a valid installed source. It
+provisions the exact observed Python version through uv only when that check
+fails, then re-runs the same admission before returning. The image lives in uv's
+shared managed installation root, not in a test repository or per-run cache;
+subsequent bootstrap and every package acceptance remain idempotent and reuse
+it. Runtime activation still performs no download, fallback, or compatibility
+selection.
+
+Alternative rejected: let hook installation download Python after activation
+starts. That would merge toolchain provisioning into repository mutation,
+weaken offline determinism, and conceal the missing caller prerequisite.
 
 ## Risks / Trade-offs
 
@@ -146,13 +210,24 @@ remain byte projections of `.config/ci/templates/hosted/*`.
   is explicit: tracked policy governs shape, while lifecycle/publication trust
   remains separately verified and evidenced. No passing report claims signer
   trust unless that verifier ran.
-- **Adding `commit-msg` makes an existing runtime generation incomplete.** →
-  Status reports the missing launcher and the ordinary immutable `hook install`
-  transaction creates and activates a new generation; no generation is edited
-  in place.
+- **Adding `commit-msg` could make candidate source misclassify the accepted
+  generation.** → Observation validates the incumbent generation through its
+  selected package contract and reports the candidate capability as pending.
+  After acceptance, the new package creates and activates a new immutable
+  generation; no old package is asked to synthesize unknown launchers and no
+  generation is edited in place.
+- **Activation could reject a valid selected runtime before comparing it.** →
+  Runtime reuse is decided from the selected generation and repository lock
+  identity before provisioning. Reuse never weakens manifest, wheel, platform,
+  architecture, source, or lock validation.
 - **Provider environment variables may be absent for non-integration events.**
   → Templates gate the range command on event kind and never manufacture a
   baseline.
+- **A lock-current local `.venv` may be backed by a non-copyable framework
+  Python.** → Bootstrap tests the actual runtime admission relation, provisions
+  only the exact selected version when necessary, and requires the same check
+  to pass afterward; activation itself remains offline and read-only over
+  interpreter supply.
 
 ## Migration Plan
 

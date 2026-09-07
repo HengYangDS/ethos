@@ -586,6 +586,8 @@ def _signed_publication_fixture(
 ) -> tuple[Path, dict[str, Path], str, str, str, str, str]:
     repo = init_git_repo(tmp_path / "publication-repo")
     adopt_and_commit(repo)
+    accepted_before = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-b", "candidate/dev")
     anchor, fingerprint = _configure_publication_signer(repo, tmp_path)
     release = repo / ".ethos/release.toml"
     release.write_text(
@@ -599,6 +601,8 @@ def _signed_publication_fixture(
     git(repo, "commit", "-m", "feat: publish exact local object")
     commit = git(repo, "rev-parse", "HEAD")
     tree = git(repo, "rev-parse", "HEAD^{tree}")
+    seed_executed_proof(repo, commit)
+    apply_accepted_closeout(repo, accepted_before, commit)
     git(repo, "tag", "-s", "-m", "release v1.2.3", "v1.2.3")
     tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
     remotes: dict[str, Path] = {}
@@ -624,7 +628,6 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
     repo, remotes, commit, tag, tree, fingerprint, anchor_sha256 = _signed_publication_fixture(
         tmp_path
     )
-    seed_executed_proof(repo, commit)
     dry_run = run_ethos(
         "publish",
         "--ref",
@@ -649,6 +652,10 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
             "verifier_version": git(repo, "version"),
         },
     }
+    assert {
+        report["commit_policy_admission"]["baseline_source"]
+        for report in dry_run["data"]["push_admission"].values()
+    } == {"accepted_closeout_effect"}
     receipt = dry_run["data"]["request_receipt"]
     anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
     trust = anchor.read_text()
@@ -943,6 +950,14 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(tmp_path: Path) -> 
     )
     receipt = dry_run["data"]["request_receipt"]
     targets = dry_run["data"]["remote_effect"]["targets"]
+    reports = dry_run["data"]["push_admission"]
+    main_reports = [report for key, report in reports.items() if key.endswith(":refs/heads/main")]
+    assert {report["commit_policy_admission"]["baseline_source"] for report in main_reports} == {
+        "accepted_closeout_effect"
+    }
+    assert {report["commit_policy_admission"]["baseline_commit"] for report in main_reports} == {
+        old
+    }
     assert {target["id"] for target in targets} == {"gitlab", "github"}
     assert all(
         {update["target_ref"] for update in target["updates"]}

@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.repo.commit.admission import introduced_commit_revisions
+from ethos.adapters.repo.commit.admission import validate_commit_revisions
+from ethos.adapters.repo.commit.creation import commit_environment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_tracked_head
@@ -17,8 +20,6 @@ from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
-from ethos.adapters.repo.git_signing import commit_environment
-from ethos.adapters.repo.git_signing import validate_commits
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
@@ -251,16 +252,20 @@ def _replayed_policy_gaps(
     """Validate the complete replay range through the tracked policy owner."""
     if policy is None:
         return []
-    revisions = tuple(
-        run_git(
-            root,
-            "rev-list",
-            "--reverse",
-            f"{candidate_head}..{rebased_head}",
-            check=False,
-        ).stdout.splitlines()
+    revisions = introduced_commit_revisions(
+        root,
+        proposed_commit=rebased_head,
+        baseline_commit=candidate_head,
     )
-    return validate_commits(root, revisions, policy=policy)
+    if revisions is None:
+        return [f"commit_range_unreadable:{candidate_head}:{rebased_head}"]
+    _violations, gaps = validate_commit_revisions(
+        root,
+        revisions,
+        policy=policy,
+        verify_trust=True,
+    )
+    return gaps
 
 
 def _reattach_original_work_lane(root: Path, branch: str, head: str) -> list[str]:

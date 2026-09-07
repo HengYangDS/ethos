@@ -12,6 +12,7 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_repo
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage_scope_report
+from ethos.adapters.repo.commit.creation import create_git_commit
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
@@ -22,7 +23,6 @@ from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import restore_git_index
 from ethos.adapters.repo.git_effects import stage_git_worktree
-from ethos.adapters.repo.git_signing import create_git_commit
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate

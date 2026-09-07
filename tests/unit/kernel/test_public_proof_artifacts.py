@@ -30,39 +30,26 @@ def _reissue(record: Attestation, **updates: object) -> Attestation:
 
 
 @pytest.mark.parametrize(
-    ("checks", "empty_allowed", "error"),
+    ("shape", "error"),
     [
-        (None, False, "proof_attestation_checks_required"),
-        ([], False, "proof_attestation_checks_required"),
-        (["invalid"], False, "proof_attestation_check_invalid"),
-        (
-            [
-                {
-                    "action_id": "gate",
-                    "command": ["python", "-m", "pytest"],
-                    "verdict": "pass",
-                    "exit_code": 0,
-                    "diagnostics": [{1: "invalid"}],
-                }
-            ],
-            False,
-            "proof_attestation_check_invalid:gate",
-        ),
-        (
-            [
-                {"action_id": "gate", "command": ["true"], "verdict": "pass"},
-                {"action_id": "gate", "command": ["true"], "verdict": "pass"},
-            ],
-            False,
-            "proof_attestation_check_duplicate",
-        ),
+        ("none", "proof_attestation_checks_required"),
+        ("empty", "proof_attestation_checks_required"),
+        ("item", "proof_attestation_check_invalid"),
+        ("diagnostics", "proof_attestation_check_invalid:gate"),
+        ("duplicate", "proof_attestation_check_duplicate"),
     ],
 )
-def test_proof_check_envelope_fails_closed(
-    checks: object, empty_allowed: object, error: str
-) -> None:
+def test_proof_check_envelope_fails_closed(shape, error):
+    check = {"action_id": "gate", "command": ["true"], "verdict": "pass", "exit_code": 0}
+    checks = {
+        "none": None,
+        "empty": [],
+        "item": ["invalid"],
+        "diagnostics": [check | {"diagnostics": [{1: "invalid"}]}],
+        "duplicate": [check, check],
+    }
     with pytest.raises((TypeError, ValueError), match=error):
-        proof_artifacts.normalize_checks(checks, allow_empty=empty_allowed)
+        proof_artifacts.normalize_checks(checks[shape], allow_empty=False)
 
 
 @pytest.mark.parametrize(
@@ -87,41 +74,32 @@ def test_public_proof_artifact_binding_fails_closed(
     store = proof_artifact_root(candidate)
     path = store / str(descriptor["path"])
 
+    forged = record
     if mutation == "missing":
         path.unlink()
     elif mutation == "size":
-        forged = _reissue(
-            record,
-            body=record.payload.body
-            | {"artifact": descriptor | {"size_bytes": path.stat().st_size + 1}},
-        )
-        assert proof_artifacts.artifact_checks(store, forged)[1] == [gap]
-        return
+        descriptor["size_bytes"] = path.stat().st_size + 1
+        forged = _reissue(record, body=record.payload.body | {"artifact": descriptor})
     else:
         document = json.loads(path.read_text())
-        path.write_text(
-            "{" if mutation == "json" else json.dumps(document | {"head": "0" * 40}),
-            encoding="utf-8",
-        )
-        payload = path.read_bytes()
+        payload = (
+            "{" if mutation == "json" else json.dumps(document | {"head": "0" * 40})
+        ).encode()
         digest = hashlib.sha256(payload).hexdigest()
-        relative = f"artifacts/{digest}.json"
-        rebound = descriptor | {
-            "path": relative,
-            "sha256": f"sha256:{digest}",
-            "size_bytes": len(payload),
-        }
-        target = store / relative
-        target.write_bytes(payload)
+        descriptor.update(
+            path=f"artifacts/{digest}.json", sha256=f"sha256:{digest}", size_bytes=len(payload)
+        )
+        (store / descriptor["path"]).write_bytes(payload)
         forged = _reissue(
             record,
-            body=record.payload.body | {"artifact": rebound},
+            body=record.payload.body | {"artifact": descriptor},
             evidence_refs=(f"sha256:{digest}",),
         )
-        assert proof_artifacts.artifact_checks(store, forged)[1] == [gap]
-        return
-
-    assert proof_artifacts.artifact_checks(store, record)[1] == [gap]
+    before = read_attestation_set(candidate)
+    assert proof_artifacts.artifact_checks(store, forged)[1] == [gap]
+    with pytest.raises(ValueError, match=gap):
+        persist_proof_attestation(candidate, forged)
+    assert read_attestation_set(candidate) == before
 
 
 def test_poisoned_local_attestation_copy_cannot_block_selected_set(
@@ -139,3 +117,7 @@ def test_poisoned_local_attestation_copy_cannot_block_selected_set(
     _root, selected = read_attestation_set(candidate)
     assert selected == (record,)
     assert poison.read_text(encoding="utf-8") == "{}"
+    for updates in ({"predicate": "experiment:observed"}, {"subject": "repository:other"}):
+        with pytest.raises(ValueError, match="proof_attestation_binding_missing"):
+            persist_proof_attestation(candidate, _reissue(record, **updates))
+    assert read_attestation_set(candidate)[1] == (record,)

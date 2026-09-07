@@ -14,6 +14,9 @@ not satisfy the repository requirement.
 - Replace the self-referential gate assertion with executed boundary cases.
 - Cover missing behavior in current authority and lifecycle owners, consolidate
   redundant fixtures, and preserve all existing source and resource budgets.
+- Repair the unsafe archive-compensation boundary exposed by those tests:
+  invalid receipt coordinates cannot authorize deletion, and compensation must
+  retain and report unowned residue rather than claim a clean restoration.
 - Correct the existing contract, terminal route, config guide, and quality skill
   projection without rewriting historical results or archived Changes.
 

@@ -22,6 +22,18 @@ Measurement SHALL NOT redefine the requirement as an aspiration.
 - **AND** a test that only reaches a branch without asserting behavior is not a
   substitute for capability proof
 
+#### Scenario: A coverage regression exposes unsafe compensation
+
+- **WHEN** an archive result names the repository root, another Change, a
+  non-archive path, or a symlink alias
+- **THEN** the receipt supplies no deletion authority for that path
+- **AND** the Git effect owner refuses root, traversal, linked, and tracked
+  removal targets even when called independently of the archive adapter
+- **AND** a failed command with an exactly bound archive path may still be
+  compensated through the same owner
+- **AND** remaining unowned content is preserved and reported as retained
+  residue; a restored index alone does not prove compensation complete
+
 #### Scenario: Hosted proof crosses an identity boundary
 
 - **WHEN** a hosted provider supplies a locked test environment and executes the
@@ -59,4 +71,3 @@ Measurement SHALL NOT redefine the requirement as an aspiration.
   accepts a 95 percent measurement when all other evidence preconditions hold
 - **AND** excluded product paths, disabled branches, suppressed lines, or tests
   without behavior assertions are not valid ways to satisfy the requirement
-

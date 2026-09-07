@@ -116,6 +116,9 @@ def test_move_and_compensation_refuse_unsafe_paths_and_restore_exact_tree(
     git_effects.compensate_git_worktree(repo, head=head, untracked_path="archive")
     assert (repo / "source/tracked.txt").is_file()
     assert not (repo / "archive").exists()
+    with pytest.raises(ValueError, match="git_effect_compensation_path_tracked"):
+        git_effects.remove_untracked_tree(repo, "source")
+    assert (repo / "source/tracked.txt").read_text() == "tracked\n"
 
     outside = tmp_path / "outside"
     outside.mkdir()
@@ -132,6 +135,40 @@ def test_move_and_compensation_refuse_unsafe_paths_and_restore_exact_tree(
         git_effects.remove_untracked_tree(repo, "unsafe")
     with pytest.raises(ValueError, match="git_effect_compensation_path_outside_root"):
         git_effects.remove_untracked_tree(repo, "../outside")
+
+
+@pytest.mark.parametrize("path", ["", ".", "owned/..", "alias", "alias/child", "dangling"])
+def test_compensation_never_removes_the_repository_or_follows_path_links(tmp_path, path):
+    repo = tmp_path / "repo"
+    marker = repo / "owned/child/keep.txt"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("not owned by this effect\n")
+    (repo / "alias").symlink_to(repo / "owned", target_is_directory=True)
+    (repo / "dangling").symlink_to(repo / "missing", target_is_directory=True)
+
+    with pytest.raises(ValueError, match="git_effect_compensation_path_unsafe"):
+        git_effects.remove_untracked_tree(repo, path)
+
+    assert marker.read_text() == "not owned by this effect\n"
+    assert (repo / "alias").is_symlink()
+    assert (repo / "dangling").is_symlink()
+
+
+def test_compensation_reports_unowned_residue_without_removing_it(tmp_path):
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    original = (repo / "README.md").read_bytes()
+    (repo / "README.md").write_text("failed mutation\n")
+    residue = repo / "unowned/keep.txt"
+    residue.parent.mkdir()
+    residue.write_text("preserve\n")
+
+    with pytest.raises(ValueError, match="git_effect_compensation_residue"):
+        git_effects.compensate_git_worktree(repo, head=head)
+
+    assert (repo / "README.md").read_bytes() == original
+    assert residue.read_text() == "preserve\n"
+    assert git(repo, "rev-parse", "HEAD") == head
 
 
 def test_created_path_compensation_reports_restore_failure(

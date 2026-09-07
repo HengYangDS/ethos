@@ -399,6 +399,20 @@ be established. Do not merge diagnostic databases into acceptance evidence.
 Continue with archive, runtime selection, retirement, and scope failure owners;
 freeze and remeasure the complete declared product before closeout.
 
+Archive fixture consolidation exposed a real deletion-boundary defect: changing
+an empty receipt-path fixture into an absolute repository-root path returned `.`
+as the compensation target. Dedicated isolated regressions subsequently proved
+root deletion and symlink following, mismatched archive binding, and false clean
+compensation with retained unowned content. Close these in the existing archive
+parser and Git effect owner before resuming runtime coverage. Preserve the empty
+receipt case, exact failed-command compensation, and collision preservation;
+validate the real Git poststate rather than accepting a mocked cleanup call.
+The bounded lifecycle set passed 102 tests; after preserving public collision
+outcomes and adding an archive-shaped symlink case, the final three-file safety
+set passed 74 tests. Six executed coverage-contract regressions also passed.
+These remain working-tree focused observations, not exact-HEAD full proof.
+This safety work neither lowers the floor nor establishes current full coverage.
+
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a
 threshold reduction. This section owns execution order; the official Change

@@ -45,17 +45,20 @@
   steps, consolidate object judgment, and test complete replay admission without
   duplicating its algorithm in lifecycle callers or tests.
 
-## 3. Closure
+## 3. Pre-Archive Verification
 
 - [x] 3.1 Prove repository-wide reference closure: one declaration, compiler,
   range projector, and validator; no old module, duplicate walker, facade,
   policy regex, state store, or historical exception list.
-- [ ] 3.2 Run focused hook, commit, admission, status, lifecycle, CI-template,
+- [x] 3.2 Run focused hook, commit, admission, status, lifecycle, CI-template,
   SHA-1/SHA-256, version, Node-supply, bootstrap-provisioning, Ruff, type,
   import-boundary, module-layout, and strict OpenSpec gates with no warnings.
-- [ ] 3.3 Run exact-HEAD full proof, archive the official Change, land through
-  candidate and accepted closeout, install and read back the immutable accepted
-  runtime, and retire the Work Lane with no ref, worktree, Lease, or active
-  Change residue.
-- [ ] 3.4 Publish the same accepted commit to every declared remote and observe
-  GitHub and GitLab hosted results independently before claiming remote closure.
+
+Completion of these implementation tasks is not delivery completion. Exact-HEAD
+full proof remains a mandatory precondition of the public archive operation;
+the previous proof at `bed87c044` failed the unchanged 93% coverage floor.
+Archive/reproof, candidate/accepted CAS, immutable runtime readback, Work Lane
+retirement, same-object publication, and independent hosted observation remain
+uncompleted obligations in the existing
+[terminal route](../../../docs/plans/terminal-governance-product-design.md#bounded-change-convergence-route).
+They cannot be prerequisites checked off before the archive that enables them.

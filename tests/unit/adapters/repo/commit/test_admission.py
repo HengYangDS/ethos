@@ -325,7 +325,9 @@ def test_object_policy_and_optional_trust_matrix(
     expected: list[str],
     state: str,
 ) -> None:
-    revision = "a" * 40
+    repo = init_git_repo(tmp_path / "repo")
+    baseline = git(repo, "rev-parse", "HEAD")
+    revision = _commit(repo, "fix: signed", "signed")
     monkeypatch.setattr(
         admission,
         "observe_commit",
@@ -357,6 +359,14 @@ def test_object_policy_and_optional_trust_matrix(
     assert report["required_gaps"] == formatted
     assert report["verdict"] == ("block" if formatted else "pass")
     assert verified == ([revision] if trust is not None else [])
+    if trust is not None:
+        assert (
+            admission.validate_replayed_commits(
+                repo, baseline_commit=baseline, proposed_commit=revision, policy=policy
+            )
+            == formatted
+        )
+        assert verified == [revision, revision]
     if policy is None:
         assert report["state"] == state
     else:
@@ -435,35 +445,3 @@ def test_replay_admission_owns_range_and_candidate_policy(tmp_path: Path, case: 
         if case == "unreadable"
         else []
     )
-
-
-def test_replay_admission_preserves_trust_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    baseline = git(repo, "rev-parse", "HEAD")
-    revision = _commit(repo, "fix: signed", "signed")
-    monkeypatch.setattr(
-        admission,
-        "observe_commit",
-        lambda *_args: {
-            "state": "current",
-            "object_oid": revision,
-            "subject": "fix: signed",
-            "signature": {"present": True, "format": "ssh"},
-            "required_gaps": [],
-        },
-    )
-    verified = []
-    monkeypatch.setattr(
-        admission,
-        "verify_commit_trust",
-        lambda _root, oid: (
-            verified.append(oid) or {"required_gaps": ["git_object_signature_untrusted"]}
-        ),
-    )
-    gaps = admission.validate_replayed_commits(
-        repo, baseline_commit=baseline, proposed_commit=revision, policy=_policy(signing=True)
-    )
-    assert gaps == ["git_object_signature_untrusted"]
-    assert verified == [revision]

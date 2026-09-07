@@ -42,6 +42,10 @@ ownership, introduce a second workflow database, or broaden takeover.
    missing coordination, changing an existing relation, and accepted-authorized
    takeover. Each hides its own admission and recovery; the CLI only transports
    inputs. The former mixed module is removed without a forwarding facade.
+   Reference closure distinguishes its deleted file from the retained Python
+   namespace using current source owners. Imports of replacement submodules are
+   valid; references to the deleted physical path or genuinely retired import
+   identities remain invalid. No name-specific exception is introduced.
 
 ## Risks / Trade-offs
 

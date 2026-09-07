@@ -15,6 +15,8 @@ an obsolete Lease prevents the existing content from converging safely.
   suggesting lane creation or implying that coordination authorizes edits.
 - Preserve the remaining distribution-allowlist regression from the historical
   source-policy lane and update the existing terminal route's dispositions.
+- Close the Lease module migration against current import ownership: removing
+  a physical module does not retire a namespace still owned by its replacement.
 
 ## Capabilities
 

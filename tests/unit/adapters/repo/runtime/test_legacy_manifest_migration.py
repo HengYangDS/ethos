@@ -83,6 +83,12 @@ def test_binding_uses_exact_legacy_source_only_as_migration_evidence(
     assert observed["expected_source_commit"] == source[0]
     assert observed["state"] == "stale"
     assert observed["target_current"] is False
+    manifest = common / "ethos/runtime" / ("a" * 64) / "manifest.json"
+    manifest.unlink()
+    manifest.symlink_to(generation / "missing")
+    assert legacy_runtime_migration_source(common) is None
+    manifest.unlink()
+    _legacy_manifest(common, source=source)
 
     expected[0] = ("c" * 40, "d" * 40)
     stale = hook_binding.hook_runtime_binding(repo)
@@ -93,7 +99,20 @@ def test_binding_uses_exact_legacy_source_only_as_migration_evidence(
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("schema_version", 999), ("unexpected", "field")],
+    [
+        ("schema_version", 999),
+        ("unexpected", "field"),
+        ("runtime_digest", "f" * 64),
+        ("platform", "unsupported"),
+        ("source_commit", "invalid"),
+        ("runtime_files", {}),
+        ("runtime_files", []),
+        ("runtime_files", {"missing": "a" * 64, "another": "b" * 64}),
+        ("raw", "{"),
+        ("raw", "[]"),
+        ("raw", "{}"),
+        ("raw", "\ufffd"),
+    ],
 )
 def test_legacy_migration_rejects_non_exact_schema(
     tmp_path: Path, field: str, value: object
@@ -102,9 +121,12 @@ def test_legacy_migration_rejects_non_exact_schema(
     manifest = _legacy_manifest(common)
     payload = json.loads(manifest.read_text(encoding="utf-8"))
     payload[field] = value
-    manifest.write_text(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
-        encoding="utf-8",
+    raw = (
+        value
+        if field == "raw"
+        else json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
     )
+    manifest.write_text(raw, encoding="utf-8")
 
     assert legacy_runtime_migration_source(common) is None
+    assert manifest.read_text(encoding="utf-8") == raw

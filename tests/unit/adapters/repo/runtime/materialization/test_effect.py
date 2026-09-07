@@ -15,7 +15,6 @@ import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.materialization.python_environment as runtime_python_environment
-import ethos.adapters.repo.runtime.materialization.python_image as runtime_python_image
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
@@ -179,69 +178,6 @@ def test_runtime_materialization_binds_package_dependency_and_image_sources(
         expected["prepared"] = (project, dependency, supply == "source")
     assert observed == expected
     assert result == tmp_path / "runtime-generation/python"
-
-
-def test_materialized_python_is_a_product_owned_non_mutating_closure(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    home = tmp_path / "managed-python"
-    interpreter = _write(home / "bin/python3.14", b"python-runtime")
-    interpreter.chmod(0o755)
-    for relative in (
-        "lib/python3.14/os.py",
-        "lib/python3.14/test/support.py",
-        "include/Python.h",
-        "share/python.1",
-    ):
-        _write(home / relative)
-    _write(home / "lib/python3.14/site-packages/_yaml/__init__.py").chmod(0o444)
-    target = tmp_path / "runtime/python"
-    monkeypatch.setattr(
-        runtime_python_image, "observe_python_facts", lambda _python: _python_facts(home)
-    )
-
-    def install(
-        _source: Path,
-        _dependency_python: Path,
-        python: Path,
-        _wheel: Path,
-        _requirements: Path,
-    ) -> None:
-        _write(target / "lib/python3.14/site-packages/_yaml/__init__.py", b"installed")
-        scripts = python.parent
-        for name in ("ethos", "uv"):
-            payload = f"#!{target}/staging-python\nprint({name!r})\n".encode()
-            script = _write(scripts / name, payload)
-            script.chmod(0o755)
-        _write(target / "lib/python3.14/site-packages/ethos/__pycache__/module.pyc")
-
-    monkeypatch.setattr(runtime_python_image, "install_locked_runtime", install)
-    monkeypatch.setattr(
-        runtime_python_image,
-        "console_script_entries",
-        lambda _python: {"ethos": "ethos.cli:main", "uv": "uv:main"},
-        raising=False,
-    )
-
-    runtime_python_image.materialize_python_image(
-        target,
-        tmp_path,
-        interpreter,
-        tmp_path / "ethos.whl",
-        dependency_python=interpreter,
-        locked_requirements=tmp_path / "requirements.txt",
-    )
-
-    assert (target / "bin/python").read_bytes() == b"python-runtime"
-    assert not any((target / path).exists() for path in ("include", "share", "lib/python3.14/test"))
-    assert not tuple(target.rglob("__pycache__")) + tuple(target.rglob("*.pyc"))
-    assert not (target / "bin/ethos").exists()
-    script = target / "bin/uv"
-    text = script.read_text(encoding="utf-8")
-    assert text.startswith("#!/bin/sh\n")
-    assert " -B -I " in text
-    assert target.as_posix() not in text
 
 
 def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(

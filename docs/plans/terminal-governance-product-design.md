@@ -461,6 +461,28 @@ native coverage denominator are unchanged in this batch. Continue with the
 uncovered runtime activation/materialization failure behavior; retain the full
 95-percent acceptance hold and do not merge diagnostic coverage databases.
 
+The Python-image batch replaces copy-call-only mocks with exact copied-byte,
+source-permission, and relative-link assertions. One real image-copy fixture now
+owns package/lock source identity, dependency absence, missing interpreter,
+non-relocatable source refusal, writable installation over a read-only copy,
+residue removal, and console-script regeneration; its previous effect-file
+scenario is absorbed rather than retained in parallel. Interpreter discovery
+proves offline, installed-only, invoking-Python execution with ambient virtual
+environment removal; incongruent candidates cannot precede the valid image.
+Windows layout cases exercise native directory/DLL copying, and the generated
+POSIX launcher executes with spaced arguments preserved. These are bounded
+fixtures, not proof of complete native Windows execution or crash scavenging.
+
+The eight-file materialization/hook regression set passed 143 tests. Local
+coverage measures 97.46 percent for Python environment and 97.77 percent for
+Python image. Isolated removal of runtime-kind congruence or wheel identity
+checks causes the intended regression to fail. The three test files lose 29
+net physical lines while preserving source identity and cleanup scenarios;
+the enforced test budget is 38298/38300. Product source, coverage policy, and
+the old full dataset remain unchanged. Continue with activation compensation
+and generation-retirement observations; full 95-percent proof, closeout, and
+accepted/runtime advancement remain unproved.
+
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a
 threshold reduction. This section owns execution order; the official Change

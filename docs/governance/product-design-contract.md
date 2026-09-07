@@ -465,6 +465,14 @@ admitted only when it proves a property Ruff does not already own. Configuration
 follows native tool resolution and one truthful evaluation root; another
 repository's directory shape is not a reason to copy it.
 
+Quality requirements constrain implementation and acceptance; observed results
+do not redefine them. ETHOS requires at least 95 percent combined Python
+line-and-branch coverage across the declared product surface. The existing
+coverage policy owns its executable threshold, and default proof, full proof,
+and local CI enforce the same current-HEAD evidence. Coverage debt is a failing
+requirement, not an aspiration or an acceptance exemption. Regressions must
+exercise independently chosen boundary outcomes, not only mirror configuration.
+
 Formatting, lint, schema, link, security, portability, and source-budget
 coverage apply to every admitted carrier for which the property is meaningful.
 Budgets are evaluated at the narrow owner where growth occurs; unrelated source

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -176,46 +178,24 @@ def test_direct_relocatable_interpreter_admits_itself_without_discovery(
     assert source_facts["prefix"] == source_facts["base_prefix"]
 
 
-def test_non_relocatable_base_selects_an_installed_congruent_image(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+@pytest.mark.parametrize("base_kind", ["framework", "missing-stdlib"])
+def test_unusable_base_selects_an_installed_congruent_copyable_image(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, base_kind: str
 ) -> None:
-    """Invocation ancestry does not override native image capability."""
-    invoked, _framework, _root, observations = _observed_pair(
+    """Ancestry and identity cannot override native image capability."""
+    invoked, base, base_root, observations = _observed_pair(
         tmp_path,
-        source_name="framework",
-        framework="Python",
+        framework="Python" if base_kind == "framework" else "",
     )
-    standalone_root = tmp_path / "standalone"
-    standalone = _image(standalone_root)
-    observations[standalone.resolve()] = _facts(standalone, prefix=standalone_root)
+    if base_kind == "missing-stdlib":
+        shutil.rmtree(base_root / "lib")
+    standalone = _image(tmp_path / "standalone")
+    observations[standalone.resolve()] = _facts(standalone)
     _observe(monkeypatch, observations)
     monkeypatch.setattr(
         python_environment,
         "_installed_python_candidates",
-        lambda _python, _facts: (standalone,),
-    )
-
-    source_facts = require_python_image_source(invoked)
-
-    assert Path(source_facts["executable"]).resolve() == standalone.resolve()
-
-
-def test_noncopyable_base_selects_an_installed_copyable_image(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Runtime identity alone cannot admit a source without a native image."""
-    invoked, _base, base_root, observations = _observed_pair(tmp_path)
-    shutil.rmtree(base_root / "lib")
-    standalone_root = tmp_path / "standalone"
-    standalone = _image(standalone_root)
-    observations[standalone.resolve()] = _facts(standalone, prefix=standalone_root)
-    _observe(monkeypatch, observations)
-    monkeypatch.setattr(
-        python_environment,
-        "_installed_python_candidates",
-        lambda _python, _facts: (standalone,),
+        lambda *_args: (base, standalone),
     )
 
     source_facts = require_python_image_source(invoked)
@@ -343,7 +323,7 @@ def test_python_image_source_delegates_every_containment_decision_to_one_owner(
 
 @pytest.mark.parametrize(
     "invalidity",
-    ["missing", "outside_base_prefix", "virtual_source", "identity_mismatch"],
+    ["missing", "outside_base_prefix", "virtual_source", "identity_mismatch", "relative_source"],
 )
 def test_python_image_source_rejects_invalid_base_relations(
     invalidity: str,
@@ -366,6 +346,8 @@ def test_python_image_source_rejects_invalid_base_relations(
         | ({"python_version": "3.14.8"} if invalidity == "identity_mismatch" else {}),
     )
 
+    if invalidity == "relative_source":
+        observations[candidate.resolve()]["prefix"] = "relative-prefix"
     _reject_without_candidates(invoked, observations, monkeypatch)
 
 
@@ -387,3 +369,65 @@ def test_python_image_source_rejects_relative_observed_coordinates(
     monkeypatch.chdir(tmp_path)
 
     _reject_without_candidates(invoked, observations, monkeypatch)
+
+
+@pytest.mark.parametrize(("payload", "status"), [("not-json", 0), ("[]", 0), ("{}", 0), ("{}", 2)])
+def test_python_facts_reject_failed_or_incomplete_observation(monkeypatch, payload, status):
+    monkeypatch.setattr(
+        python_environment.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], status, payload, "probe failed"),
+    )
+    with pytest.raises(ValueError, match="hook_runtime_python_abi_invalid"):
+        observe_python_facts(Path(sys.executable))
+
+
+@pytest.mark.parametrize(
+    "payload", ["bad-json", "{}", "[null]", '[{"path":1}]', '[{"path":"relative"}]']
+)
+def test_installed_image_discovery_rejects_invalid_coordinates(tmp_path, monkeypatch, payload):
+    invoked, _base, _root, observations = _observed_pair(tmp_path, framework="Python")
+    _observe(monkeypatch, observations)
+    monkeypatch.setattr(
+        python_environment.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, payload, ""),
+    )
+    with pytest.raises(ValueError, match="hook_runtime_interpreter_source_unavailable"):
+        require_python_image_source(invoked)
+
+
+@pytest.mark.parametrize(
+    ("link", "admitted"),
+    [("inside", True), ("escape", False), ("absolute", False), ("broken", False)],
+)
+def test_python_image_requires_relocatable_library_links(tmp_path, link, admitted):
+    source = _image(tmp_path / "image")
+    library = source.parent.parent / "lib"
+    stdlib = library / "python3.14"
+    _python(tmp_path / "outside.py")
+    destination = {
+        "inside": "os.py",
+        "escape": "../../../outside.py",
+        "absolute": str(stdlib / "os.py"),
+        "broken": "missing.py",
+    }[link]
+    (stdlib / "alias.py").symlink_to(destination)
+    _python(library / "libpython3.14.1.dylib")
+    (library / "libpython3.14.dylib").symlink_to("libpython3.14.1.dylib")
+    assert python_environment.python_image_source_capable(source, _facts(source)) is admitted
+
+
+@pytest.mark.parametrize(
+    ("candidate", "boundary", "contained"),
+    [
+        (r"C:\PYTHON\python.exe", r"c:\python", True),
+        (r"D:\python.exe", r"C:\python", False),
+        (r"C:\python-other\python.exe", r"C:\python", False),
+    ],
+)
+def test_windows_python_containment_uses_native_drive_boundaries(
+    monkeypatch, candidate, boundary, contained
+):
+    monkeypatch.setattr(python_environment, "os", SimpleNamespace(name="nt", fspath=os.fspath))
+    assert python_environment.python_path_within(candidate, boundary) is contained

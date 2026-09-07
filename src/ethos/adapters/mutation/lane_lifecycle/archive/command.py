@@ -20,6 +20,7 @@ from ethos.adapters.mutation.remediation.guidance import archive_recovery_comman
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
+from ethos.adapters.repo.commit.admission import commit_subject_gap
 from ethos.adapters.repo.dirty.change_provenance import changed_paths as dirty_changed_paths
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_stdout
@@ -167,11 +168,10 @@ def _archive_commit_subject(root: Path, change: str, explicit: str | None) -> tu
     default = f"chore(openspec): archive {change}"
     policy = load_commit_policy(root)
     selected = explicit if explicit is not None else default
-    if policy is None or policy.accepts_subject(selected):
+    if not (gap := commit_subject_gap(policy, selected)):
         return selected, ""
     if explicit is None:
         return "", "archive_commit_subject_required"
-    gap = f"commit_subject_invalid:{selected.partition(chr(10))[0]}"
     return "", gap
 
 

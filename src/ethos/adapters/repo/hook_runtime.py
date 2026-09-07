@@ -17,6 +17,7 @@ from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.commit.admission import commit_message_report
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
@@ -33,7 +34,7 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import report_verdict
 
-HookName = Literal["pre-commit", "pre-push", "reference-transaction"]
+HookName = Literal["commit-msg", "pre-commit", "pre-push", "reference-transaction"]
 _ZERO_OIDS = {"0" * 40, "0" * 64}
 
 
@@ -48,7 +49,9 @@ def execute_hook(
     repo = root.resolve()
     try:
         selected_runtime = current_runtime(Path(git_common_dir(repo)))
-        if name == "pre-commit":
+        if name == "commit-msg":
+            reports = (_commit_msg(repo, args),)
+        elif name == "pre-commit":
             reports = (_pre_commit(repo, selected_runtime=selected_runtime),)
         elif name == "pre-push":
             reports = _pre_push(repo, args, stdin)
@@ -61,6 +64,12 @@ def execute_hook(
         sys.stderr.write(json.dumps(failed[0], sort_keys=True) + "\n")
         return 1
     return 0
+
+
+def _commit_msg(root: Path, args: tuple[str, ...]) -> dict[str, object]:
+    if len(args) != 1:
+        return _blocked("commit-msg", "commit_message_file_missing")
+    return commit_message_report(root, Path(args[0]))
 
 
 def _pre_commit(root: Path, *, selected_runtime: SelectedRuntime) -> dict[str, object]:

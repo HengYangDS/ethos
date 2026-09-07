@@ -41,6 +41,17 @@ already reachable from the trusted baseline.
 - **THEN** ETHOS fails closed with a baseline gap
 - **AND** it does not substitute the root commit or scan all repository history.
 
+#### Scenario: An accepted or release object is projected to an absent ref
+
+- **WHEN** an accepted branch, release branch, or annotated release tag has a
+  zero remote object ID
+- **AND** the exact proposed commit has one valid accepted-closeout Attestation
+- **THEN** ETHOS uses that Attestation's accepted pre-state as the trusted
+  historical baseline
+- **AND** local publication dry-run and the real pre-push transport validate the
+  same introduced revisions without trusting another remote or an unrelated
+  sibling ref.
+
 #### Scenario: A delete update is observed
 
 - **WHEN** the proposed object ID is the repository-native zero object ID

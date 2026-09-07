@@ -21,6 +21,7 @@ from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.transition import PackageArtifact
+from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 
@@ -206,6 +207,7 @@ def test_runtime_materialization_separates_dependency_supply_from_python_image(
     requirements = _write(tmp_path / "locked-requirements.txt", b"package==1\n")
     identity = runtime_build("a" * 40, "b" * 40)
     environment = _environment()
+    image_root = tmp_path / "native-python"
     observed: dict[str, object] = {}
 
     monkeypatch.setattr(runtime_materialization, "__file__", module.as_posix())
@@ -215,6 +217,11 @@ def test_runtime_materialization_separates_dependency_supply_from_python_image(
         runtime_materialization,
         "is_selected_runtime_source",
         lambda _source: False,
+    )
+    monkeypatch.setattr(
+        runtime_materialization,
+        "require_python_image_source",
+        lambda selected: observed.update(image_source_input=selected) or _python_facts(image_root),
     )
     monkeypatch.setattr(
         runtime_materialization,
@@ -263,9 +270,8 @@ def test_runtime_materialization_separates_dependency_supply_from_python_image(
         expected_build=identity,
     )
 
-    source = Path(
-        runtime_python_environment.require_python_image_source(Path(sys.executable))["executable"]
-    ).resolve()
+    source = (image_root / "bin/python").resolve()
+    assert observed["image_source_input"] == Path(sys.executable)
     assert observed["environment_interpreter"] == source
     assert observed["requirements_interpreter"] == Path(sys.executable)
     assert observed["generation_interpreter"] == source
@@ -568,19 +574,26 @@ def test_runtime_finalization_requires_python(tmp_path: Path) -> None:
         )
 
 
-def test_runtime_reuse_rejects_architecture_drift(
+def test_runtime_reuse_rejects_dependency_lock_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
     selected = activate_runtime(Path(git_common_dir(repo)), venv.parent)
+    drifted_lock = "e" * 64
     drifted = runtime_environment(
         python_abi=selected.python_abi,
         python_version=selected.python_version,
         python_implementation=selected.python_implementation,
-        dependency_lock_sha256=selected.dependency_lock_sha256,
+        dependency_lock_sha256=drifted_lock,
         platform_name=selected.platform,
-        architecture_name="x86_64" if selected.architecture != "x86_64" else "arm64",
+        architecture_name=selected.architecture,
+    )
+    digest = runtime_materialization.file_sha256
+    monkeypatch.setattr(
+        runtime_materialization,
+        "file_sha256",
+        lambda path: drifted_lock if path == REPOSITORY_ROOT / "uv.lock" else digest(path),
     )
     monkeypatch.setattr(
         runtime_materialization,
@@ -599,17 +612,49 @@ def test_runtime_reuse_rejects_architecture_drift(
     monkeypatch.setattr(
         runtime_materialization, "observe_runtime_environment", lambda *_args, **_kwargs: drifted
     )
+    requirements = _write(tmp_path / "locked-requirements.txt", b"fixture==1\n")
+    monkeypatch.setattr(
+        runtime_materialization,
+        "prepare_locked_requirements",
+        lambda *_args, **_kwargs: requirements,
+    )
 
     def rebuild_required(*_args: object, **_kwargs: object) -> Path:
-        message = "architecture rebuild required"
+        message = "dependency-lock rebuild required"
         raise RuntimeError(message)
 
     monkeypatch.setattr(runtime_materialization, "resolve_runtime_wheel", rebuild_required)
 
-    with pytest.raises(RuntimeError, match="architecture rebuild required"):
+    with pytest.raises(RuntimeError, match="dependency-lock rebuild required"):
         runtime_materialization.materialize_runtime(
             repo, selected.python, expected_build=selected.build
         )
+
+
+def test_runtime_reuse_does_not_require_a_new_python_image_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = activate_runtime(Path(git_common_dir(repo)), runtime.parent)
+
+    def image_source_not_needed(_python: Path) -> dict[str, str]:
+        msg = "existing runtime should be selected before provisioning"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(
+        runtime_materialization,
+        "require_python_image_source",
+        image_source_not_needed,
+    )
+
+    reused = runtime_materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=selected.build,
+    )
+
+    assert reused == selected.root / "python"
 
 
 @pytest.mark.parametrize("operation", ["seal", "remove"])

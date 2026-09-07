@@ -11,52 +11,16 @@ from ethos.adapters.repo.git_object import observe_commit
 if TYPE_CHECKING:
     from pathlib import Path
 
-_ZERO = "0" * 40
-
 
 def _git(root: Path, *args: str):
     return run_git(root, *args, check=False)
 
 
-def commit_contained_in(root: Path, commit: str, branch: str) -> bool:
-    """Return whether Git proves commit is contained in branch."""
-    return _git(root, "merge-base", "--is-ancestor", commit, branch).returncode == 0
-
-
-def _exists(root: Path, revision: str) -> bool:
-    return (
-        bool(revision and revision != _ZERO)
-        and _git(root, "cat-file", "-e", f"{revision}^{{commit}}").returncode == 0
-    )
-
-
-def _pushed_commit_range(
-    root: Path, *, pushed_head: str, remote_head: str
-) -> tuple[list[str], bool]:
-    if not _exists(root, pushed_head):
-        return [], False
-    revision = f"{remote_head}..{pushed_head}" if _exists(root, remote_head) else pushed_head
-    result = _git(root, "rev-list", revision)
-    return (result.stdout.splitlines(), True) if result.returncode == 0 else ([], False)
-
-
-def _range_base(root: Path, pushed: str, remote: str, trusted: str) -> tuple[str, list[str]]:
-    if remote != _ZERO or not trusted:
-        return remote, []
-    if not _exists(root, trusted):
-        return "", [f"push_identity_proposal_baseline_missing:{trusted}"]
-    if not _exists(root, pushed) or commit_contained_in(root, trusted, pushed):
-        return trusted, []
-    return "", [f"push_identity_proposal_baseline_not_ancestor:{trusted}"]
-
-
 def push_identity_policy_report(
     root: Path,
-    pushed_head: str,
-    remote_head: str = "",
-    trusted_baseline: str = "",
+    revisions: tuple[str, ...],
 ) -> dict[str, object]:
-    """Require configured author and committer identity for newly pushed commits."""
+    """Require configured identity for one already-derived commit sequence."""
     mode = _git(root, "config", "--get", "ethos.pushIdentityPolicy").stdout.strip()
     if mode != "configured-user":
         return {
@@ -77,19 +41,21 @@ def push_identity_policy_report(
         )
         if not value
     ]
-    head_exists = _exists(root, pushed_head)
-    range_base, baseline_gaps = _range_base(root, pushed_head, remote_head, trusted_baseline)
-    gaps.extend(baseline_gaps)
-    commits, range_readable = (
-        _pushed_commit_range(root, pushed_head=pushed_head, remote_head=range_base)
-        if head_exists and not baseline_gaps
-        else ([], True)
-    )
-    if pushed_head and (not head_exists or not range_readable):
-        gaps.append("push_identity_commit_range_unreadable")
     violations = []
-    for commit in commits:
+    checked_commit_count = 0
+    for commit in revisions:
         observation = observe_commit(root, commit)
+        observation_gaps = [
+            str(gap) for gap in cast("list[object]", observation.get("required_gaps", []))
+        ]
+        if observation_gaps:
+            gap = f"push_identity_commit_unreadable:{commit}"
+            gaps.append(gap)
+            violations.append(
+                {"commit": commit, "author": "", "committer": "", "required_gaps": [gap]}
+            )
+            continue
+        checked_commit_count += 1
         author = cast("dict[str, str]", observation["author"])
         committer = cast("dict[str, str]", observation["committer"])
         author_ok = (author["name"], author["email"]) == (name, email)
@@ -101,17 +67,23 @@ def push_identity_policy_report(
                 "commit": commit,
                 "author": f"{author['name']} <{author['email']}>",
                 "committer": f"{committer['name']} <{committer['email']}>",
+                "required_gaps": [],
             }
         )
         if not author_ok:
-            gaps.append(f"pushed_commit_author_not_configured_identity:{commit}")
+            gap = f"pushed_commit_author_not_configured_identity:{commit}"
+            gaps.append(gap)
+            cast("list[str]", violations[-1]["required_gaps"]).append(gap)
         if not committer_ok:
-            gaps.append(f"pushed_commit_committer_not_configured_identity:{commit}")
+            gap = f"pushed_commit_committer_not_configured_identity:{commit}"
+            gaps.append(gap)
+            cast("list[str]", violations[-1]["required_gaps"]).append(gap)
     return {
         "verdict": "block" if gaps else "pass",
         "mode": mode,
         "expected_identity": f"{name} <{email}>" if name or email else "",
-        "checked_commit_count": len(commits),
+        "checked_commit_count": checked_commit_count,
+        "revisions": list(revisions),
         "violations": violations,
         "required_gaps": gaps,
     }

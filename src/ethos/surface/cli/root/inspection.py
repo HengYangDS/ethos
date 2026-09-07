@@ -6,6 +6,7 @@ from typing import cast
 
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.repo.hook.binding import commit_policy_enforcement
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -68,6 +69,10 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     unbound = cast("list[dict[str, object]]", observed.get("unbound_work_lane_refs") or [])
     coordination_gaps = string_sequence(observed.get("coordination_gaps"))
     authority_projection = authority.projection() if authority is not None else {}
+    runtime = hook_runtime_binding(repo)
+    commit_policy = commit_policy_enforcement(repo, runtime)
+    commit_policy_gaps = string_sequence(commit_policy.get("required_gaps"))
+    gaps = tuple(dict.fromkeys((*gaps, *commit_policy_gaps)))
     data = {
         "root": observed.get("root", ""),
         "branch": observed.get("branch", ""),
@@ -83,7 +88,8 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
             "required_gaps": string_sequence(landing.get("required_gaps")),
             "next_action": landing.get("next_action", ""),
         },
-        "hook_runtime": hook_runtime_binding(repo),
+        "hook_runtime": runtime,
+        "commit_policy_enforcement": commit_policy,
         "coordination": {
             "detail_state": "deferred",
             "blocking": any(gap.startswith("coordination_gap:") for gap in gaps),
@@ -100,15 +106,22 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     stage_gates = cast("dict[str, object]", observed.get("stage_gates") or {})
     stage_action = str(stage_gates.get("next_action") or "")
     scope_exceeded = any(item.state == "uncovered" for item in generation_scope.attributions)
-    next_action = closeout_action or (
-        "repair the selected Commitment scope for the uncovered current-generation paths"
-        if scope_exceeded
-        else resolution.next_action
-        if resolution is not None and resolution.next_action
-        else stage_action
+    commit_policy_action = str(commit_policy.get("next_action") or "")
+    next_action = (
+        commit_policy_action
+        or closeout_action
+        or (
+            "repair the selected Commitment scope for the uncovered current-generation paths"
+            if scope_exceeded
+            else resolution.next_action
+            if resolution is not None and resolution.next_action
+            else stage_action
+        )
     )
     user_decision_required = (
-        resolution.user_decision_required
+        False
+        if next_action == commit_policy_action and commit_policy_action
+        else resolution.user_decision_required
         if resolution is not None and resolution.next_action
         else bool(stage_gates.get("user_decision_required", False))
         if next_action == stage_action

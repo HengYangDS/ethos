@@ -7,7 +7,6 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
@@ -15,9 +14,6 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
-
-if TYPE_CHECKING:
-    from ethos.repository.policy.commit import CommitPolicy
 
 GitObjectKind = Literal["commit", "annotated-tag"]
 
@@ -108,49 +104,6 @@ def observe_commit(root: Path, revision: str = "HEAD") -> dict[str, object]:
             "format": signature_format or "",
         },
         "required_gaps": [],
-    }
-
-
-def observe_commit_policy(root: Path, policy: CommitPolicy) -> dict[str, object]:
-    """Evaluate HEAD facts against one compiled tracked commit policy."""
-    observation = observe_commit(root)
-    head = {key: observation[key] for key in ("object_oid", "subject", "author", "committer")}
-    gaps = [str(gap) for gap in cast("list[object]", observation["required_gaps"])]
-    object_oid = str(observation["object_oid"])
-    subject = str(observation["subject"])
-    if not gaps and not policy.accepts_subject(subject):
-        gaps.append(f"commit_subject_invalid:{object_oid}:{subject}")
-    facts = cast("dict[str, object]", observation["signature"])
-    present = facts.get("present") is True
-    observed_format = str(facts.get("format", ""))
-    signature_gaps: list[str] = []
-    signature_state = "not_required"
-    if policy.signing_required and not present:
-        signature_state = "missing"
-        signature_gaps.append(f"commit_signature_missing:{object_oid}")
-    elif policy.signing_required and observed_format != policy.signing_format:
-        signature_state = "format_mismatch"
-        signature_gaps.append(
-            "commit_signature_format_mismatch:"
-            f"{object_oid}:expected={policy.signing_format}:observed={observed_format or 'unknown'}"
-        )
-    elif policy.signing_required:
-        signature_state = "present"
-    gaps.extend(signature_gaps)
-    signature = {
-        "verdict": "block" if signature_gaps else "pass",
-        "required": policy.signing_required,
-        "state": signature_state,
-        "present": present,
-        "format": observed_format,
-        "required_gaps": signature_gaps,
-    }
-    return {
-        "verdict": "block" if gaps else "pass",
-        "state": str(observation["state"]),
-        "head": head,
-        "signature": signature,
-        "required_gaps": gaps,
     }
 
 

@@ -5,8 +5,9 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"
+host_os="$(uname -s)"
 
-case "$(uname -s)" in
+case "${host_os}" in
 Linux)
 	missing_packages=()
 	if ! command -v git >/dev/null 2>&1; then missing_packages+=(git); fi
@@ -72,3 +73,26 @@ uv --version
 if [[ ! -x "${repo_root}/node_modules/.bin/openspec" ]]; then npm ci --ignore-scripts; fi
 "${repo_root}/node_modules/.bin/openspec" --version
 uv sync --locked --group dev
+
+python_image_available() {
+	"${UV_PROJECT_ENVIRONMENT}/bin/python" -B -I - <<'PY_IMAGE'
+import sys
+from pathlib import Path
+
+from ethos.adapters.repo.runtime.materialization.python_environment import (
+    require_python_image_source,
+)
+
+require_python_image_source(Path(sys.executable))
+PY_IMAGE
+}
+
+if ! python_image_available >/dev/null 2>&1; then
+	project_python="$(
+		"${UV_PROJECT_ENVIRONMENT}/bin/python" -B -I -c \
+			'import platform; print(platform.python_version())'
+	)"
+	printf 'Provisioning shared native Python image %s\n' "${project_python}"
+	uv python install --no-bin "${project_python}"
+	python_image_available
+fi

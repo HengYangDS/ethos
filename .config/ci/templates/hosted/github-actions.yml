@@ -81,6 +81,26 @@ jobs:
           version: "0.12.10"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
+      - name: Admit pushed commit range
+        if: github.event_name == 'push'
+        run: >-
+          uv run --frozen --offline ethos hook commit-range
+          --target-ref "${{ github.ref }}"
+          --proposed-head "${{ github.sha }}"
+          --remote-head "${{ github.event.before }}"
+          --remote origin
+          --root .
+          --json
+      - name: Admit pull request commit range
+        if: github.event_name == 'pull_request'
+        run: >-
+          uv run --frozen --offline ethos hook commit-range
+          --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}"
+          --proposed-head "${{ github.event.pull_request.head.sha }}"
+          --remote-head "${{ github.event.pull_request.base.sha }}"
+          --remote origin
+          --root .
+          --json
       - name: Carrier format and syntax
         run: uv run --frozen --offline python -m nox -s format_check
       - name: Type policy

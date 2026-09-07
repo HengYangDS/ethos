@@ -70,6 +70,10 @@ class BranchRolePolicy:
     def work_branch(self, slug: str) -> str:
         return f"{self.work_branch_prefix}{slug}"
 
+    def is_topic_branch(self, branch: str) -> bool:
+        """Identify a named local topic independently of authoring permission."""
+        return bool(branch) and self.role_for_branch(branch) in {ROLE_WORK_LANE, ROLE_OTHER}
+
     def proposal_branch_for_source(self, branch: str) -> str:
         if not self.work_branch_prefix or not branch.startswith(self.work_branch_prefix):
             return ""

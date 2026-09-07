@@ -144,7 +144,7 @@ def lane_retire_recover(options: Annotated[_RecoverOptions, Parameter(name="*")]
 def lane_retire_absorbed_ref(
     options: Annotated[_AbsorbedRefOptions, Parameter(name="*")],
 ) -> None:
-    """Retire one exact unbound, unleased Work Lane ref absorbed by accepted truth."""
+    """Retire one exact unlinked, unleased local topic ref absorbed by accepted truth."""
     report = retire_absorbed_ref(
         root=resolve_root(options.root),
         branch=options.branch,
@@ -199,7 +199,7 @@ def lane_retire_superseded(
 def lane_retire_landed(
     options: Annotated[_LandedOptions, Parameter(name="*")] = _DEFAULT_LANDED,
 ) -> None:
-    """Retire a landed Work Lane after integration into accepted truth."""
+    """Retire an explicitly selected clean topic worktree absorbed by accepted truth."""
     request = LinkedRetirementRequest(
         branch=options.branch,
         expect_head=options.expect_head,

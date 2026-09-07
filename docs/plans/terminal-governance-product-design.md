@@ -320,27 +320,42 @@ outcome is unknown, or a declared resource budget is exceeded. New feedback is
 mapped to the existing contract and current batch; it reopens source recovery
 only when it demonstrates a missing or contradictory terminal invariant.
 
-The current bounded implementation is `commit-policy-execution-closure`.
-Its deep-module convergence must retain one declaration/compiler, hide replay
-range and per-object validation sequencing, preserve explicit candidate-policy
-and signer-trust authority, and keep native hooks and hosted CI as transports.
-Its `tasks.md` owns pre-archive verification progress. Complete its exact
-proof, archive/reproof, candidate/accepted CAS, immutable-runtime readback,
-publication, and owned-lane retirement before another overlapping mutation.
-Then re-observe remaining lanes and worktrees, preserve their unique semantics,
-and absorb or retire them through existing public transitions. Unproven global
-structure obligations remain in batch 6; this first instance does not close
-that batch. No new lane is justified solely to restate this principle.
+The current bounded implementation is `absorbed-resource-retirement`. It closes
+the contradiction between prefix-bound authoring authority and deletion-only
+accepted absorption in the existing retirement owner and native hook. Its
+`tasks.md` owns pre-archive progress. The prior `commit-policy-execution-closure`
+source atom is accepted and its implementation lane retired; hosted completion
+is still unproven. Neither atom closes global structure obligations in batch 6.
 
-Current closeout evidence, not a second task system:
+Last observed closeout evidence on 2026-09-07, not a second task system:
 
 | Boundary | Last verified state | Required next evidence |
 | --- | --- | --- |
-| Repository proof | `bed87c044` passed 24/25 gates; combined coverage was 92.76%, below the unchanged 93% floor | Passing complete proof on the next exact clean HEAD, including lossless behavioral coverage after test consolidation |
-| Archive and acceptance | Not performed for this Change | Official archive, post-archive proof, and candidate/accepted CAS receipts |
-| Package/runtime | Source alpha.5 not accepted | Exact accepted source/tree, new immutable package identity, four-hook activation, and installed readback |
-| Peer projections | Not published for this Change | Every declared peer at the same accepted OID, with GitHub and GitLab results observed independently |
-| Lane residue | Current lane remains; seven other historical worktrees were observed, five dirty | Current-lane retirement, then unique-semantics disposition and exact retirement of remaining owned residue without discarding dirty work |
+| Repository proof | Accepted `43ec7d4df396b6bc0928955874d122b16d2bfc67` passed 25/25 gates; 2081 tests passed, one platform-specific skip, coverage 93.0384% with the 93% floor unchanged; proof Attestation `b63ac7ea4a36e035c8db7e543fcc3d9e2ff576aac48b6ed7f408dc0ba34a2944` | New exact-HEAD proof for the retirement atom; the prior proof does not cover its source changes |
+| Archive and acceptance | Prior Change archived; post-archive proof, candidate and accepted CAS completed at `43ec7d4d` | Retirement atom archive/reproof and candidate/accepted receipts |
+| Package/runtime | Alpha.5 runtime `a6342b55` reports accepted source `43ec7d4d`, tree `55a4d437`, OpenSpec 1.12.0, and four armed hooks | Immutable retirement-atom package identity and installed readback |
+| Peer projections | Prior publication Attestation `82a137ad69002241574d715f194fe6124c35c4644626c8bae247f0321dcd0e13` binds both peers at `43ec7d4d`; GitHub main run `34103876734` failed checkout HTTP/2 fetch before quality gates, while nine platform jobs passed; GitLab CI/signature remain unobserved | Separate current hosted results; do not infer CI success from publication or local proof |
+| Lane residue | Prior implementation worktree, ref, and Lease are absent; seven historical worktrees remain, five dirty | Complete semantic adjudication before exact public retirement; no bulk merge or dirty-tree deletion |
+
+Historical work remains finite and classified by obligations rather than commit
+count. These are observed disposition boundaries, not claims of completed
+absorption:
+
+| Historical resource | Semantic disposition and next evidence |
+| --- | --- |
+| `20260818-openspec-19-archive-owner` | The 1.8-to-1.9 supply upgrade is superseded by accepted 1.12; reject restoration of archived Commitment. Preserve valid no-spec and locked-supply obligations in their current owners before removing the ten dirty/staged paths. |
+| `codex-contracts-land-test-refactor` and `codex-lifecycle-hardening-test-refactor` | Overlapping histories must not be merged wholesale. Cross-worker immutable supply reuse, worker long-tail scheduling, and cheap non-archive fixtures need current-owner evidence; obsolete Commitment/rebind code must not return. |
+| `20260810-public-test-boundaries` | Preserve public Git preimage, out-of-scope-write, committed-effect diagnostics, and lock-after-observation race coverage. Reject the retired mutable ref-intent representation; prove scenario equivalence before disposal. |
+| `20260810-coverage-public-failure-matrix` and `20260810-coverage-source-policy-matrices` | Nine and three dirty items respectively, including untracked tests. Their unique failure scenarios still require comparison with current owners; ancestor HEADs do not prove dirty-content absorption. |
+| `20260811-repository-transition-model` | Fresh CAS/Attestation, local-or-multiple-peer topology and minimal-entity intent remain valid; persistent Commitment roots and historical scope/Lease bindings are superseded. The 341 dirty items are not yet semantically adjudicated. |
+| Unlinked `codex/openspec-19-archive-owner` ref | Exact object `7ceaf4a7` is an accepted ancestor without a worktree or Lease. Public dry-run blocks solely on `absorbed_ref_role_invalid`; validate the general retirement repair before deleting it. |
+
+The sole new implementation lane exists because none of these historical roots
+grants the current actor a passing prewrite decision. It repairs public resource
+retirement rather than creating another preservation store. After this atom is
+accepted, re-observe each target, transfer only still-unique semantics, and retire
+the corresponding exact resource. Missing-Lease takeover and dirty-overlay
+absorption remain separate unclosed boundaries; this atom must not claim them.
 
 ## Convergence Rules
 

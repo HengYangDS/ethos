@@ -309,7 +309,7 @@ def _attestation(
     predicate = "effect:git-worktree-index" if operation == "read-tree" else "effect:git-worktree"
     input_observation = _canonical_observation(path, branch, head, before)
     output_observation = _canonical_observation(path, branch, head, after)
-    repository = repository_identity(root, tree_ref=head, environment=environment)
+    repository = repository_identity(root, tree_ref="HEAD", environment=environment)
     return issue_native_effect(
         root,
         effect=NativeEffect(

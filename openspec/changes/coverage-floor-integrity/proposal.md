@@ -19,6 +19,9 @@ not satisfy the repository requirement.
   retain and report unowned residue rather than claim a clean restoration.
 - Repair incomplete runtime-consumer observation exposed by the same failure
   tests: linked or unreadable consumer paths cannot authorize generation cleanup.
+- Repair Work Lane start compensation exposed by the same tests: reused
+  resources are not new creations, and unknown or dirty worktree effects retain
+  their dependencies rather than being force-deleted.
 - Correct the existing contract, terminal route, config guide, and quality skill
   projection without rewriting historical results or archived Changes.
 

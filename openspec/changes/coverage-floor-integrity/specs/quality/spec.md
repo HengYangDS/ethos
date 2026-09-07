@@ -47,6 +47,20 @@ Measurement SHALL NOT redefine the requirement as an aspiration.
 - **AND** readable nested receipts retain their referenced generations through
   the same observer for operations, transactions, and ref intents
 
+#### Scenario: A coverage regression exposes destructive start compensation
+
+- **WHEN** Work Lane start fails after recognizing existing resources or while
+  creating new resources
+- **THEN** compensation applies only to proved creations of that invocation,
+  preserving reused worktrees, their contents, refs, and Lease rows
+- **AND** a missing worktree effect receipt cannot authorize deletion of a path
+  that appeared during the operation
+- **AND** new worktree cleanup does not force removal of later user content;
+  failed or unknown removal retains the supporting ref and Lease
+- **AND** only a newly acquired exact four-field Lease can be revoked through
+  the existing revocation owner; expiry drift blocks removal and preserves the ref
+- **AND** cleanup failure remains visible rather than becoming a clean rollback
+
 #### Scenario: Hosted proof crosses an identity boundary
 
 - **WHEN** a hosted provider supplies a locked test environment and executes the

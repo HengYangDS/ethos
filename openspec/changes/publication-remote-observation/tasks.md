@@ -11,4 +11,8 @@
 ## 3. Closure
 
 - [x] 3.1 Run strict OpenSpec validation and the affected formatting, lint, typing, and architecture checks.
-- [ ] 3.2 Complete exact-HEAD proof, archive, accepted local transition, immutable runtime installation, and a read-only Workstation publication probe with structured output.
+- [x] 3.2 Freeze a signed exact HEAD and complete the full repository proof before official archive.
+
+Archive, accepted local transition, immutable runtime installation, the
+read-only Workstation probe, and Work Lane retirement remain post-archive
+delivery obligations and are not represented as prematurely completed tasks.

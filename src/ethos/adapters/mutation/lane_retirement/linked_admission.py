@@ -6,7 +6,6 @@ from typing import Literal
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
-from ethos.adapters.mutation.lane_retirement.observation import output
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -55,7 +54,7 @@ def retirement_target(
         leases=leases,
         branch=branch,
         path=(request.path or "").strip(),
-        head=(output(repo, "rev-parse", "--verify", branch) or "") if branch else "",
+        head=(effects.output(repo, "rev-parse", "--verify", branch) or "") if branch else "",
     )
     return lanes, _with_archive_absorption(repo, lane, accepted_head) if lane else {}
 
@@ -245,7 +244,7 @@ def _superseded_target_gaps(
 ) -> list[str]:
     if not branch:
         return ["superseded_retire_branch_required"]
-    if output(repo, "rev-parse", "--verify", branch) is None:
+    if effects.output(repo, "rev-parse", "--verify", branch) is None:
         return ["superseded_retire_branch_not_found"]
     if policy.role_for_branch(branch) != ROLE_WORK_LANE:
         return ["superseded_retire_not_work_lane"]
@@ -300,7 +299,7 @@ def leased_successor(
     accepted_head: str,
 ) -> dict[str, object]:
     """Resolve the current exact leased Work Lane that absorbed a source lane."""
-    branch = output(repo, "symbolic-ref", "--short", "HEAD") or ""
+    branch = effects.output(repo, "symbolic-ref", "--short", "HEAD") or ""
     current = next(
         (
             worktree

@@ -132,17 +132,6 @@ def lease_record(row: sqlite3.Row | tuple[Any, ...]) -> dict[str, Any]:
     return observation.record()
 
 
-def project_lease(lease: LaneLease) -> dict[str, Any]:
-    return lease_record(
-        (
-            lease.lane_ref,
-            lease.holder_ref.serialize(),
-            lease.generation,
-            lease.expires_at.isoformat(),
-        )
-    )
-
-
 def lease_row(row: sqlite3.Row | tuple[Any, ...]) -> LeaseRow:
     return LeaseRow(str(row[0]), str(row[1]), integer_value(row[2]), str(row[3]))
 

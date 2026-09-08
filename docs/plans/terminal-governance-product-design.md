@@ -746,14 +746,52 @@ found 12 diagnostics in unchanged CI tools, outside the current provider's
 does not establish repository-wide typing. The exact diagnostics remain in
 `object-design-preserved-checks.json`; do not expand this frozen source batch.
 
-This batch remains frozen except for this execution checkpoint. Complete final
-reference, OpenSpec, and documentation checks, commit normally, and freeze for
-one complete proof; do not merge diagnostic datasets or infer global compliance
-from local ratios.
+The frozen batch was committed normally at `28ab608c`; the lane-priority plan
+followed at `019f5198`. Complete proof of that exact HEAD finished on
+2026-09-08: 2509 tests passed, one skipped, and 24 of 25 gates passed, including
+installation smoke. Its sole failure is the coverage floor: 19015/19791 lines
+and 5003/5518 branches, or 94.89904776956814 percent combined. Attestation
+`4cc66b70d4ebc6c1c48cf687324a4e85fd953def14671cdc0dd1db22e3ef02e7`
+is blocking. The source stayed clean and unchanged; the pytest root was removed.
+This supersedes the older measurement, not the 95-percent requirement.
+
+Consumer analysis then found a disconnected retirement observation/terminal
+chain alongside the current typed transaction observer, and an unused Lease
+projection helper. Remove those dead implementations, not their coverage
+obligations through exclusions. The still-used Git reader keeps its exact
+empty-output versus failed-observation distinction in the existing retirement
+effects owner; its three consumers use that owner. Six affected files lose
+77 net physical lines. The six-file retirement/Lease set passes 159 tests;
+its disposable root is absent and full coverage/JUnit evidence is unchanged.
+Ruff, product types, and official strict OpenSpec validation pass. An expanded
+type check finds ten diagnostics in the touched linked-retirement test file;
+the exact HEAD baseline reproduces all ten. They remain a quality-surface gap,
+not a new regression or permission to claim repository-wide typing passes.
+
+The nine dirty/untracked failure-matrix paths have a bounded semantic comparison
+in `historical-failure-matrix-audit.json`. Gate, hook, CLI request, worktree
+compensation, and newly added Git-effect scenarios have current counterparts;
+public Lease storage-error propagation and mixed-state projection still need
+complete correspondence. Preserve the original paths until those obligations
+and public disposal admission close. The clean historical lifecycle branch's
+accepted-runtime retirement dry-run returns `work_lane_not_merged`; no effect
+was applied. Cleanliness and AST/name correspondence alone never prove absorption.
+
+The two previously preserved browser files contained only a generic GitLab
+welcome and an unauthenticated login page, not CI/signature evidence. Their
+hashes and no-open-reference checks passed before exact deletion; the empty
+original directory is also absent. Other runtime work entries are unchanged,
+and accepted remains clean. The existing preservation receipt now records
+their final disposal and the retained observation, without another carrier.
+
+Next, absorb the remaining valid Lease failure/projection scenarios into their
+current test owner within the unchanged 38300 test budget, then obtain a new
+frozen full proof. Do not replay old coverage against shifted source lines,
+merge diagnostic datasets, or infer acceptance from subtraction arithmetic.
 Archive, candidate/accepted CAS, and runtime activation remain held at 95.
 Accepted `18aa8707` still carries the old 93-percent policy until this correction
-actually qualifies for landing. If full proof remains below the floor, return
-to the measured behavior owners rather than widening acceptance or budgets.
+actually qualifies for landing. Other lanes' live proofs remain serialized
+with this lane's heavy verification, not terminated for cleanup.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

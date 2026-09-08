@@ -68,8 +68,7 @@ def test_immutable_markdown_is_linted_without_rewrite_authority() -> None:
     immutable = [
         entry
         for entry in assignments
-        if entry["path"].startswith(("evidence/", "openspec/changes/archive/"))
-        and entry["path"].endswith(".md")
+        if entry["path"].startswith("openspec/changes/archive/") and entry["path"].endswith(".md")
     ]
 
     assert immutable

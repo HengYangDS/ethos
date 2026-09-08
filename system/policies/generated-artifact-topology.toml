@@ -124,14 +124,6 @@ prefix = "build/artifacts"
 boundary = "ignored local build and package artifacts"
 
 [[review_prefix]]
-prefix = "docs/evidence"
-boundary = "curated dated reviewable evidence"
-
-[[review_prefix]]
-prefix = "evidence"
-boundary = "durable Attestations plus immutable historical evidence"
-
-[[review_prefix]]
 prefix = "tools/ci/scripts"
 boundary = "repository-owned reusable runner scripts"
 
@@ -237,10 +229,3 @@ homes = ["build/artifacts"]
 tracked = false
 promotion_allowed = false
 cleanup = "rebuild from package metadata or release commands"
-
-[[lifecycle_class]]
-id = "curated_evidence"
-homes = ["docs/evidence", "evidence"]
-tracked = true
-promotion_allowed = false
-cleanup = "retire or supersede by tracked review, not by cache cleanup"

@@ -1,8 +1,9 @@
 schema: spec-driven
 context: |
   ETHOS is the repository governance product. It treats OpenSpec as the
-  official specification-change surface while source, tests, schemas, claims,
-  and evidence remain higher-authority proof carriers.
+  sole tracked Change intent. Source, tests and schemas implement its contracts;
+  exact Git objects and selected Attestations establish implementation facts
+  and bounded proof without replacing that intent.
 rules:
   proposal:
     - Explain the problem, intended change, and explicit out-of-scope boundary.

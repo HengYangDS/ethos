@@ -24,7 +24,6 @@ from ethos.contracts.openspec.models import OpenSpecPolicy
 DEFAULT_ROOTS = {
     "rules": "rules",
     "docs": "docs",
-    "durable_evidence": "evidence",
     "openspec": "openspec",
     "agent_skills": ".agents/skills",
 }
@@ -73,15 +72,8 @@ class _ProfileModel(BaseModel):
 class RepositoryRoots(_ProfileModel):
     rules: RepositoryPath = DEFAULT_ROOTS["rules"]
     docs: RepositoryPath = DEFAULT_ROOTS["docs"]
-    durable_evidence: RepositoryPath = DEFAULT_ROOTS["durable_evidence"]
     openspec: RepositoryPath = DEFAULT_ROOTS["openspec"]
     agent_skills: RepositoryPath = DEFAULT_ROOTS["agent_skills"]
-
-
-class EvidenceRoots(_ProfileModel):
-    durable_roots: RepositoryPathTuple = ()
-    generated_roots: RepositoryPathTuple = ()
-    host_local_roots: RepositoryPathTuple = ()
 
 
 class ProofPolicy(_ProfileModel):
@@ -138,7 +130,6 @@ class RepositoryProfileDeclaration(_ProfileModel):
     openspec: OpenSpecPolicy | None = None
     normative_sources: RepositoryPathTuple = ()
     roots: RepositoryRoots = Field(default_factory=RepositoryRoots)
-    evidence: EvidenceRoots = Field(default_factory=EvidenceRoots)
     proof: ProofPolicy = Field(default_factory=ProofPolicy)
     independent_verification: IndependentVerificationPolicy = Field(
         default_factory=IndependentVerificationPolicy
@@ -208,26 +199,6 @@ def profile_root(root: Path, key: str) -> Path:
 
 def profile_required_gaps(profile: RepositoryProfile) -> tuple[str, ...]:
     return (INVALID_PROFILE_ERROR,) if profile.state == "invalid" else ()
-
-
-def profile_evidence_roots(root: Path) -> tuple[str, ...]:
-    profile = load_repository_profile(root)
-    if profile.state == "invalid":
-        raise ValueError(INVALID_PROFILE_ERROR)
-    declaration = profile.declaration or RepositoryProfileDeclaration.bootstrap(root.name)
-    roots = declaration.roots
-    candidates = [
-        ".ethos/profile.toml",
-        *((declaration.proof.gate_registry,) if declaration.proof.gate_registry else ()),
-        roots.rules,
-        *declaration.normative_sources,
-        *((roots.openspec,) if declaration.openspec is not None else ()),
-        roots.durable_evidence,
-        roots.docs,
-    ]
-    for values in declaration.evidence.model_dump().values():
-        candidates.extend(values)
-    return tuple(dict.fromkeys(item for item in candidates if item))
 
 
 def profile_gate_registry(root: Path) -> str:

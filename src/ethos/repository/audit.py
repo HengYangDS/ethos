@@ -24,7 +24,6 @@ CommitPolicyObserver = Callable[[Path, CommitPolicy], dict[str, object]]
 REQUIRED_DOCS = (
     "docs/README.md",
     "docs/reference/README.md",
-    "docs/evidence/README.md",
     "docs/history/README.md",
     "docs/architecture/distribution.md",
     "docs/concepts/kernel-model.md",

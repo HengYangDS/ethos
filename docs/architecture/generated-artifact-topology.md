@@ -10,8 +10,8 @@ relations:
 
 Status: canonical.
 
-Purpose: define where generated outputs may exist, where curated evidence is
-promoted, and which repository paths must never accumulate generated drift.
+Purpose: define generated-output ownership, lifecycle and the boundary between
+rebuildable material, persistent proof and maintained source.
 
 See also: [Command Plane](../reference/command-plane.md), [Local State](local-state.md),
 and [Provenance And Attestation](../governance/provenance-and-attestation.md).
@@ -20,7 +20,7 @@ and [Provenance And Attestation](../governance/provenance-and-attestation.md).
 
 Generated artifact placement is product governance, not housekeeping. ETHOS
 routes each repository-relative path through one contract before it treats a
-file as source, local state, generated output, or curated evidence.
+file as source, local state or generated output.
 
 The product topology is now declaration-first. The source of the path families,
 required gap prefixes, lifecycle classes, generated filename rules, and product
@@ -43,26 +43,14 @@ table.
 | `build/ethos/`                                                                                                                                                    | Machine proof, logs, reports, artifacts, and projections.                                              | Yes                       | No                |
 | `build/evidence/`                                                                                                                                                 | Machine evidence bundles before review/promotion.                                                      | Yes                       | No                |
 | `build/artifacts/`                                                                                                                                                | Local package and build artifacts, grouped by artifact kind.                                           | Yes                       | No                |
-| `docs/evidence/`, `evidence/`                                                                                                                                     | Curated summaries and immutable historical evidence.                                                   | No raw output             | Yes, after review |
 | `docs/architecture/`, `docs/concepts/`, `docs/decisions/`, `docs/governance/`, `docs/reference/`, `docs/guides/`, `docs/plans/`, `docs/research/`, `docs/history/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No                        | Yes, after review |
 | `packages/`, `src/`, `tests/`, `rules/`, `system/`                                                                                                                | Source, tests, rules, schemas, and contracts.                                                          | No                        | Yes, after review |
 
-Evidence root topology is also declaration-first. The kernel `evidence/`
-subroots, profile-curated `docs/evidence` mode, allowed root entrypoints, glob
-patterns, and gap prefixes live in `system/policies/evidence-layout.toml`; its
-wheel resource is projected by `pyproject.toml` as
-`ethos/data/evidence_layout.toml`. `ethos.repository.evidence.topology`
-scans filesystem facts and projects the read model from that declaration instead
-of owning a second hand-written layout table.
-
-Profile-mapped durable evidence roots preserve the same logical evidence
-boundary without forcing every repository to copy the product repository's
-physical layout. The sole current Attestation authority is
-`refs/ethos/attestations-set`. Physically retained `evidence/attestations/`,
-`claims`, `chronicle`, and `parity` directories are immutable historical bytes:
-they have no current producer, selector, or authority. A repository that declares
-`[roots] durable_evidence = "docs/evidence"` keeps curated summaries there
-without creating a parallel evidence owner.
+Current proof belongs to the independent Git-native Attestation set selected
+by `refs/ethos/attestations-set`, not to a workspace directory. Generated-output
+placement does not establish proof currentness; the selected Attestation's
+predicate and exact bindings do. Historical records remain in Git rather than
+requiring a duplicate root or a profile evidence-directory declaration.
 
 Package metadata and lock files such as `package.json`, `package-lock.json`,
 `pyproject.toml`, and `uv.lock` remain source/package authority. They are not
@@ -94,9 +82,8 @@ how is it regenerated, and how is it cleaned up?
 | Lifecycle        | Homes                                                                                                          | Truth boundary                                        | Cleanup / promotion rule                                                                       |
 | ---------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Runtime cache    | `<git-common-dir>/ethos/`, `.cache/local-state/`, `.venv/`, `build/runtime/tool-cache/`, `build/runtime/work/` | Disposable host-local or provider-local state.        | Never promote. Delete or recreate from source commands.                                        |
-| Machine evidence | `build/evidence/`, `build/ethos/`                                                                              | Generated, HEAD-bound command output before review.   | Regenerate on HEAD movement. Promote only by explicit review or command into curated evidence. |
+| Machine evidence | `build/evidence/`, `build/ethos/`                                                                              | Generated, HEAD-bound command output before review.   | Regenerate on HEAD movement. Record a bounded Attestation through the existing command owner. |
 | Local artifact   | `build/artifacts/`                                                                                             | Rebuildable package/build output.                     | Never treat as repository truth. Rebuild from package metadata or release commands.            |
-| Curated evidence | `docs/evidence/`, `evidence/`                                                                                  | Curated summaries plus immutable historical evidence. | Review summaries; preserve historical bytes without selecting them as current.                 |
 
 This is the reason `.import_linter_cache/` in repo root is wrong even when it is
 ignored: it has a tool owner but no semantic lifecycle home. The right location
@@ -104,28 +91,22 @@ is `build/runtime/tool-cache/import-linter/`. Likewise, `build/cache/` is not
 accepted as a generic dumping ground because it does not say whether the bytes
 are cache, provider work, evidence, or package output.
 
-## Promotion path
+## Proof Recording
 
-Machine evidence does not become repository truth by living under
-`build/evidence/` or `build/ethos/`. Those homes are ignored, generated, and
-HEAD-bound. An explicit ETHOS command records a canonical Attestation in
-`refs/ethos/attestations-set`; a reviewer may separately publish a curated
-summary under `docs/evidence/`. Tracked historical evidence never selects the
-current set.
-
-The path is therefore:
+Machine output does not become proof by living under `build/evidence/` or
+`build/ethos/`. An explicit ETHOS command validates its bounded result and
+records a canonical Attestation in `refs/ethos/attestations-set`. Readers select
+the required predicate and exact bindings, not a directory or summary.
 
 ```text
-runtime command -> build/evidence/<concern>/... or build/ethos/<concern>/...
-  -> canonical Attestation selected by refs/ethos/attestations-set
-  -> optional curated summary under docs/evidence/
+bounded command -> generated output and post-effect observations
+  -> validated Attestation selected by refs/ethos/attestations-set
 ```
 
-Runtime caches under `<git-common-dir>/ethos/`, `.cache/local-state/`,
-`.venv/`, `build/runtime/tool-cache/`, or `build/runtime/work/`
-are outside this path and
-must never be promoted. Local artifacts under `build/artifacts/` are rebuilt
-from source/package metadata rather than promoted as truth.
+A useful explanation belongs with its existing semantic documentation owner.
+Runtime caches remain disposable; package artifacts remain rebuildable from
+source and locks. Proof records and required supporting objects retain their
+own reachability and retention lifecycle independently of workspace cleanup.
 
 ## Audit
 
@@ -181,15 +162,15 @@ declared in the adopter repository, for example under
 ignored runtime/build homes such as `build/runtime/tool-cache/`,
 `build/runtime/work/`, or `build/evidence/`. Rollback is likewise adopter-owned:
 remove or relax the adopter declaration, move raw generated outputs back to an
-ignored local/build home, and keep only curated evidence that has already been
-reviewed and promoted.
+ignored local/build home, and retain the selected Attestations and supporting
+objects still required by current consumers.
 
 `ethos prove --gate generated-artifacts --root <repo> --json` consumes this
 same audit before it can support an execution-substrate transition. A transition
 candidate must be clean under that proof gate; generated drift in repo
 root, `.config/`, semantic docs truth, or source trees remains a blocking
-adoption/rollback gap until moved to ignored runtime/build homes or promoted as
-curated evidence.
+adoption/rollback gap until its exact generated output is routed to an admitted
+home and any required proof has been recorded through the current owner.
 
 ## Documentation Kernel
 

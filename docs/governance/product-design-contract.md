@@ -47,45 +47,31 @@ derive checkable constraints from this section; they do not own product meaning.
 
 ## Construction And Evolution Discipline
 
-ETHOS concentrates custom code on its irreducible value: compiling repository
-intent and fresh facts into admitted, exact, attestable effects. For every other
-need, inspect official carrier capability, language or platform facilities, and
-mature standards, libraries, tools, and frameworks before authoring a local
-replacement. Reuse is admitted only by current evidence that it reduces total
-semantic entities, maintenance, operational risk, and adopter burden; novelty,
-fashion, or fewer source lines alone is not a reason to add a dependency.
+ETHOS concentrates custom code on compiling repository intent and fresh facts
+into admitted, exact, attestable effects. Official carriers, native platform
+capabilities and mature tools supply supporting functions. Their admission rests
+on demonstrated reductions in total maintenance, operational risk and adopter
+burden while preserving required behavior.
 
-The preferred implementation shape is declarative data plus pure extraction,
-normalization, compilation, and evaluation, with mutation isolated at explicit
-effect adapters. A DSL, framework, abstraction, or low-code layer is admitted
-only when it removes more product-specific machinery than it introduces and
-leaves one inspectable owner and verifier. Otherwise the smallest direct
-implementation is more truthful.
+Declarative inputs flow through pure extraction, normalization, compilation and
+evaluation into explicit effect adapters. Each invariant has one semantic owner,
+organized by its reason to change. Commands, hooks, CI, SDKs, documentation and
+skills consume or project that owner's decisions. Distinct authority, lifetime
+and failure boundaries remain explicit.
 
-Design boundaries as deep modules: a small, stable interface provides a complete
-capability while its owner hides the implementation decisions needed to deliver
-it. This is a product-wide obligation, not a rule for one Change or Python
-package. It governs code, commands, runtime and effect protocols, schemas,
-documentation, rules, skills, and rendered or hosted projections. Consumers
-must not reconstruct an owner's algorithm, recovery sequence, or policy from
-its fragments. Required authority inputs, effects, failure evidence, and
-continuations remain explicit; information hiding must not conceal them.
+Deep modules provide complete capabilities through small, stable interfaces.
+They encapsulate algorithms, policy evaluation and recovery while exposing
+required authority inputs, effects, failure evidence and continuations. Thin
+adapters translate real protocol and presentation boundaries. An abstraction
+earns its place by replacing local machinery and reducing the concepts callers
+must understand; the smallest sufficient implementation defines the boundary.
 
-A thin transport is legitimate when it owns a real protocol or presentation
-boundary and delegates semantics. A forwarding layer with no independent
-obligation is not. Interface count, file length, directory width, and net lines
-are review signals, never substitutes for reasoning about information hiding,
-change amplification, or preserved behavior. Global principles apply to every
-affected owner immediately; bounded Changes limit execution scope, not their
-applicability. Deleting a defective implementation must preserve its required
-product capability and unique evidence.
-
-Terminal correctness outranks historical compatibility. When a model boundary
-changes, migrate only still-live state whose meaning can be proved, move its
-unique invariant into the replacement owner, and delete aliases, shims,
-fallbacks, and retired schemas in the same bounded convergence sequence.
-Compatibility exists only when a current external contract explicitly requires
-it, with one owner and a tested removal condition.
+Evolution preserves required product capabilities and unique evidence while
+consolidating their implementations. Verified live state migrates into its
+current owner, and superseded mechanisms retire in the same bounded sequence.
+A required external compatibility contract has an explicit owner and tested
+exit condition. These principles apply across the product; individual Changes
+provide independently reviewable and provable increments of that evolution.
 
 ## Semantic Kernel
 
@@ -479,27 +465,26 @@ still exact, reviewed, auditable, and Attested.
 
 ### Documentation, Evidence, And Operational Resources
 
-Documentation is organized by reader purpose and semantic owner. In ETHOS,
-`docs/README.md` is the sole documentation entrypoint and
-`docs/guides/quickstart.md` is the first-run guide; a duplicate `docs/index.md`
-has no role. A directory receives a README only when that file is the real
-boundary or navigation owner for multiple meaningful children. Empty marker
-directories and one-document directories with placeholder READMEs are removed.
+Documentation is organized by reader purpose and semantic owner.
+`docs/README.md` provides the documentation entrypoint, and
+`docs/guides/quickstart.md` provides the first-run guide. A directory README owns
+a meaningful boundary or navigation among multiple substantive children.
 
 `docs/decisions/` preserves only irreducible cross-Change rationale that the
 current contract or source cannot express without losing alternatives,
 consequences, or a revisit condition. Decision filenames are lowercase and
-semantic, not numbered `DR-*` identities. A decision names its owner and
-retirement condition. Top-level `evidence/` retains only immutable bytes with a
-current producer, consumer, binding, and retention lifecycle; everything else
-is absorbed into its owner or deleted.
+semantic; each record names its owner and retirement condition. Retained evidence
+has a current producer, consumer, exact binding and retention lifecycle.
+Attestations carry durable results, Git preserves committed history, and current
+semantic owners carry still-valid obligations.
 
 Physical source layout follows [Module Layout Rules](../../rules/module_layout.md)
-rather than being restated here. Quality likewise has one executable owner per
-property: docstring coverage and style must be explicit, but a separate gate is
-admitted only when it proves a property Ruff does not already own. Configuration
-follows native tool resolution and one truthful evaluation root; another
-repository's directory shape is not a reason to copy it.
+rather than being restated here. Each quality property has one executable owner;
+native tools enforce the properties they support, and product-specific checks
+cover irreducible requirements. Documentation conveys contracts, reasons and
+non-obvious behavior. Configuration is organized by concern, with root placement
+justified by native integration and total maintenance cost. Direct commands,
+editors, hooks and CI resolve the same policy against the same evaluation base.
 
 Quality requirements constrain implementation and acceptance; observed results
 do not redefine them. ETHOS requires at least 95 percent combined Python

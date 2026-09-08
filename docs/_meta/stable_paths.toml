@@ -38,11 +38,6 @@ reason = "common docs topology root"
 freeze_level = "hard"
 
 [[stable_path]]
-path = "docs/evidence/README.md"
-reason = "common evidence-docs lane"
-freeze_level = "hard"
-
-[[stable_path]]
 path = "docs/governance/README.md"
 reason = "product governance docs index"
 freeze_level = "hard"

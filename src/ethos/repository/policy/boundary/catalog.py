@@ -30,12 +30,10 @@ PRODUCT_SURFACES = (
     "docs/architecture",
     "docs/concepts",
     "docs/decisions",
-    "docs/evidence",
     "docs/governance",
     "docs/reference",
     "docs/plans",
     "docs/guides",
-    "evidence/README.md",
     "openspec/README.md",
     "openspec/config.yaml",
     "openspec/specs",
@@ -45,10 +43,6 @@ PRODUCT_SURFACES = (
     "tools",
 )
 HISTORICAL_SURFACE_PREFIXES = (
-    "evidence/attestations/",
-    "evidence/claims/",
-    "evidence/chronicle/",
-    "evidence/parity/",
     "openspec/changes/archive/",
     "docs/history/",
 )
@@ -238,7 +232,6 @@ DISTRIBUTION_FORBIDDEN_FILE_PREFIXES = (
     ".git",
     "build/",
     "docs/history/",
-    "evidence/",
     "openspec/changes/archive/",
     "tests/",
 )

@@ -20,7 +20,6 @@ and machine contracts. No single directory owns every governance fact.
 | `.config/` | execution/config layer | tool configuration, reusable gate policy, CI scripts, boundary configs, worktree configs | ETHOS ontology, evidence truth, user decisions |
 | `rules/` | governance rule layer | human and agent rules, domain contracts, projection policies | tool implementation details, generated state |
 | `docs/` | explanation layer | canonical docs, decisions, reference material | local runtime state, durable evidence ownership |
-| `evidence/` | historical evidence layer | immutable historical Attestation and evidence bytes | current Attestation selection, generated output, local runtime state, parallel lifecycle ownership |
 | `system/` | optional machine-contract layer | machine-readable product or system contracts | adopter-only domain truth when absent |
 | `openspec/` | specification projection | official OpenSpec changes and specs | promoted runtime truth by itself |
 | `.agents/` | repo-local agent projection | skills and activation projections | independent truth store |
@@ -38,8 +37,8 @@ contents or make their physical layout universal.
 
 Product repositories may expose machine contracts under `system/`. Adopter
 repositories are not required to have a `system/` tree. ETHOS must work from the
-repository profile, configuration roots, rules, docs, and evidence when no
-system contract layer exists.
+repository profile, configuration roots, official intent and Git-native
+Attestations when no system contract layer exists.
 
 If `system/` exists, ETHOS may treat it as a machine-contract surface according
 to the repository authority order. If it is absent, absence is not a profile gap

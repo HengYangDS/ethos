@@ -67,7 +67,7 @@ def _owner_links(path: Path, text: str, owner: Path) -> frozenset[str]:
 def _current_carrier(relative: str, registry: dict[str, dict[str, str]]) -> bool:
     parts = relative.split("/")
     if (
-        relative.startswith(("evidence/", "docs/evidence/", "openspec/changes/archive/"))
+        relative.startswith("openspec/changes/archive/")
         or EXCLUDED_PARTS.intersection(parts)
         or registry.get(relative, {}).get("state") in {"archived", "superseded"}
     ):

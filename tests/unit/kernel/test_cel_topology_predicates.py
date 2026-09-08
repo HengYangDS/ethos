@@ -149,10 +149,10 @@ def test_topology_path_policy_reuses_immutable_declaration_decision(monkeypatch)
         return original(*args, **kwargs)
 
     monkeypatch.setattr(topology_contract, "evaluate_cel_predicate", counted)
-    first = path_policy_from_declaration("docs/evidence/cache-regression.md", declaration)
+    first = path_policy_from_declaration("tools/ci/scripts/cache-regression.md", declaration)
     first_calls = calls
     first["decision"] = "mutated-by-caller"
-    second = path_policy_from_declaration("docs/evidence/cache-regression.md", declaration)
+    second = path_policy_from_declaration("tools/ci/scripts/cache-regression.md", declaration)
 
     assert first_calls > 0
     assert calls == first_calls
@@ -186,7 +186,7 @@ def test_topology_cel_rules_compile_and_first_match_witnesses_cover_every_rule()
         "runtime-flat": "build/runtime/random-cache/state.json",
         "declarative": ".config/ethos/policy.toml",
         "allowed": "build/ethos/proof/report.json",
-        "review": "docs/evidence/2026-07-07.md",
+        "review": "tools/ci/scripts/check-source.sh",
         "denied-generated": ".config/ethos/report.json",
         "repo-root-generated": "report.json",
     }

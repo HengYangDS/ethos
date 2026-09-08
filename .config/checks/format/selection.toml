@@ -7,7 +7,7 @@ runner = "uv run --frozen --offline python -m nox -s format_selection"
 cross_check = { command = "scc", args = ["--no-cocomo", "--no-complexity", "--by-file", "--format", "json2", "--exclude-file=__never__", "--count-as", "c4:md,mmd:md", "."], timeout_seconds = 30, tolerance = { python_total = 2000, global_total = 3000 } }
 terminal = { python_product = 40000, python_tests = 40000 }
 aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "markdown", "shell", "js", "toml", "yaml", "json", "ini", "diagram"] }
-immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
+immutable_record_roots = ["openspec/changes/archive/"]
 line_width = 100
 
 [[format]]
@@ -309,7 +309,6 @@ yaml_allowed_roots = [
   "system/openspec/",
   "system/projections/",
   "tests/fixtures/",
-  "evidence/",
   "distributions/npm/",
 ], files = [
   "package.json",

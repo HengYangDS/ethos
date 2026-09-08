@@ -50,7 +50,7 @@ def _owner_matches(path: str, declaration: dict[str, object]) -> bool:
 
 
 def _assignment(path: str, declaration: dict[str, object]) -> dict[str, object]:
-    immutable = path.startswith(("evidence/", "openspec/changes/archive/"))
+    immutable = path.startswith("openspec/changes/archive/")
     mutation_policy = "forbidden" if immutable else declaration["mutation_policy"]
     format_owner = "immutable-carrier" if immutable else declaration["format_owner"]
     format_command = "not-applicable:immutable" if immutable else declaration["format_command"]

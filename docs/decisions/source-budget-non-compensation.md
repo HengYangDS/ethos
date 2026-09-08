@@ -32,8 +32,11 @@ carrier is necessary.
 
 ## Decision
 
-Measure owned source deterministically by carrier and Python role, enforce local
-ceilings plus a global ceiling, and cross-check measurements independently.
+Measure owned source deterministically by carrier and Python role, enforce the
+explicitly declared ceilings, and cross-check measurements independently.
+Python product and test ceilings are required and independent. Other categories
+and the heterogeneous global total remain observations unless explicitly bounded;
+the September 8 user decision removes the previous mandatory aggregate ceiling.
 Structural duplication, competing owners, and semantic overlap decide deletion;
 line count alone does not.
 
@@ -52,6 +55,9 @@ real ownership—not mechanical file fragmentation.
   custom metric runtime.
 - Passing a size gate never proves architectural quality; semantic ownership and
   behavior-preserving tests remain authoritative.
+- Generated outputs and archived OpenSpec remain separately visible, not charged
+  to maintained source. Handwritten generators, active intent, tests, and docs
+  remain measured; moving live authority into an excluded class is not deletion.
 
 ## Rejected Alternatives
 

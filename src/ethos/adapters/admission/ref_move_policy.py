@@ -120,7 +120,7 @@ def _absorbed_ref_transition_policy(
         accepted_policy is None
         or git_stdout(repo, "rev-parse", "HEAD") != accepted_head
         or not accepted_policy.is_topic_branch(branch)
-        or not is_ancestor(repo, old_value if deleting else new_value, accepted_head)
+        or (compensating and not is_ancestor(repo, new_value, accepted_head))
     ):
         return None
     intent = claim_ref_intent(

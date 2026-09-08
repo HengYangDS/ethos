@@ -263,6 +263,18 @@ retired by deletion-only exact CAS after confirming the selected ref, clean
 worktree or absent registered worktree, no live owner, and no unpublished unique
 object. Dirty or ambiguous content remains preserved and observe-only.
 
+A clean historical topic may instead retire while all its commits remain
+reachable through another explicit, distinct local topic ref. This preserves
+history; it does not establish accepted semantic absorption. The accepted
+control checkout derives the existing immutable retirement receipt, binding the
+source, retained ref/OID, accepted OID, actor, and current target Lease. A valid
+Lease requires its holder; missing or expired coordination does not require
+resurrection. Recovery rechecks the bound objects before removal and within the
+Git CAS. Neither protected nor candidate resources may be used as the retained
+topic or deleted target. Unique semantics remain an obligation of the surviving
+history. This deletion-only effect has no product Commitment and grants no
+authoring authority over either checkout.
+
 A zero-product-change history reconciliation is a Git DAG operation, not a new
 semantic state. It may create a signed descendant whose tree and compiled
 Commitment are unchanged and whose additional parent is an explicitly observed
@@ -500,7 +512,18 @@ exercise independently chosen boundary outcomes, not only mirror configuration.
 Formatting, lint, schema, link, security, portability, and source-budget
 coverage apply to every admitted carrier for which the property is meaningful.
 Budgets are evaluated at the narrow owner where growth occurs; unrelated source
-classes cannot compensate for a local violation. Python implementation may use
+classes cannot compensate for a local violation. Size is a maintenance-cost
+constraint, not a measure of correctness, productivity, or semantic quality.
+The native source-budget declaration owns the numeric limits: Python product
+and test source have independent hard ceilings; tools, other languages, and
+the heterogeneous project total are observations unless explicitly bounded.
+Generated outputs and archived OpenSpec records are reported separately, not
+charged as maintained source. Their handwritten generators, active intent,
+configuration, and documentation remain counted. Moving live authority into an
+excluded class, compressing formatting, or deleting necessary tests is not
+simplification. A size failure requires semantic consolidation while preserving
+behavior and the quality floor, not a compensating score or an automatic limit
+increase. Python implementation may use
 modern language features within the declared supported floor, while adapters
 preserve native macOS, Linux, and Windows behavior instead of assuming one
 shell, filesystem, or credential model.

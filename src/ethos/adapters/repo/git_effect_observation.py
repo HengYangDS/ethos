@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_head
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import repository_identity
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
@@ -65,6 +66,22 @@ def resolve_git_effect_repository(
         *effect.assertions.values(),
     } - _ZERO_OIDS
     expected = {update.expected for update in effect.updates.values()}
+    if allow_absent_prestate and all(
+        update.desired in _ZERO_OIDS for update in effect.updates.values()
+    ):
+        retained = {
+            revision
+            for revision in effect.assertions.values()
+            if revision != str(before["head"])
+            and any(
+                run_git(
+                    root, "merge-base", "--is-ancestor", old, revision, check=False, env=environment
+                ).returncode
+                == 0
+                for old in expected
+            )
+        }
+        expected |= retained
     identities = set()
     for revision in revisions:
         try:

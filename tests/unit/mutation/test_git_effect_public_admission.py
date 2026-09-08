@@ -266,7 +266,7 @@ def test_lease_generation_rejects_wrong_actor_before_effect(
         },
     ],
 )
-def test_expired_lease_generation_is_exclusive_to_linked_landed_retirement(
+def test_expired_lease_generation_rejects_operations_without_retirement_evidence(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     policy: dict[str, object],

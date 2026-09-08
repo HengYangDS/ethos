@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -184,7 +185,7 @@ def _measure(
     counts: dict[str, int] | None = None,
     *,
     include_all: bool = True,
-) -> dict[str, object]:
+) -> source_budget.SourceBudgetReport:
     _fake_scc(monkeypatch, root, counts, include_all=include_all)
     return source_budget.source_budget_report(root)
 
@@ -211,6 +212,61 @@ def test_product_policy_counts_markdown_in_global_budget() -> None:
 
     assert report["inventory"]["category_counts"]["markdown"] > 0
     assert report["metrics"]["global_total"] >= report["metrics"]["markdown"]
+
+
+@pytest.mark.parametrize("category", ["python_product", "python_tests"])
+@pytest.mark.parametrize("lines", [2, 3])
+def test_only_declared_limits_block_at_exact_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    category: str,
+    lines: int,
+) -> None:
+    selection, source = _repo(tmp_path)
+    selection.write_text(
+        selection.read_text().replace(
+            "python_product = 1000, python_tests = 1000, python_tools = 1000, "
+            "python_other = 1000, global_total = 2000",
+            "python_product = 2, python_tests = 2",
+        ),
+    )
+    target = source if category == "python_product" else tmp_path / "tests/test_demo.py"
+    target.parent.mkdir(exist_ok=True)
+    target.write_text("".join(f"VALUE_{index} = {index}\n" for index in range(lines)))
+    _tracked_file(tmp_path, "tools/demo.py", "TOOL = 1\n")
+    report = _measure(monkeypatch, tmp_path)
+
+    assert report["terminal"] == {"python_product": 2, "python_tests": 2}
+    assert set(report["enforced_metrics"]) == {"python_product", "python_tests"}
+    assert report["metrics"]["global_total"] > 4
+    assert report["required_gaps"] == (
+        [f"source_budget_terminal_exceeded:{category}:3>2"] if lines == 3 else []
+    )
+    assert report["verdict"] == ("block" if lines == 3 else "pass")
+
+
+def test_product_generated_projection_is_not_maintained_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selection, _ = _repo(tmp_path)
+    root = Path(__file__).resolve().parents[3]
+    selection.write_bytes((root / ".config/checks/format/selection.toml").read_bytes())
+    _tracked_file(tmp_path, ".config/checks/architecture/models/model.c4", "model { system x }\n")
+    before = _measure(monkeypatch, tmp_path)
+    _tracked_file(tmp_path, "docs/architecture/_generated/model.mmd", "graph TD; A-->B\n")
+    _tracked_file(tmp_path, "openspec/changes/archive/closed/design.md", "## Past intent\n")
+    after = source_budget.source_budget_report(tmp_path)
+
+    assert after["metrics"]["global_total"] == before["metrics"]["global_total"]
+    assert after["metrics"]["diagram"] == before["metrics"]["diagram"] > 0
+    assert after["metrics"]["generated_evidence_total"] > 0
+    assert after["metrics"]["record_total"] > 0
+    _tracked_file(tmp_path, "openspec/changes/active/design.md", "## Current intent\n")
+    assert (
+        source_budget.source_budget_report(tmp_path)["metrics"]["global_total"]
+        > after["metrics"]["global_total"]
+    )
 
 
 def test_direct_measurement_is_clean_when_bounded_counters_agree(
@@ -292,8 +348,11 @@ def test_generated_lock_is_dependency_evidence_not_owned_source(
 
 @pytest.mark.parametrize(
     "relative",
-    literal_case(
-        "domain.test_source_budget:parametrize:test_ecosystem_lockfile_patterns_share_one_evidence_class:0"
+    cast(
+        "tuple[str, ...]",
+        literal_case(
+            "domain.test_source_budget:parametrize:test_ecosystem_lockfile_patterns_share_one_evidence_class:0"
+        ),
     ),
 )
 def test_ecosystem_lockfile_patterns_share_one_evidence_class(
@@ -363,8 +422,11 @@ def test_terminal_verdict_uses_canonical_effective_lines_not_physical_cross_chec
 
 @pytest.mark.parametrize(
     ("category", "relative", "terminal"),
-    literal_case(
-        "domain.test_source_budget:parametrize:test_python_carrier_roles_cannot_compensate_for_one_another:1"
+    cast(
+        "tuple[tuple[str, str | None, tuple[int, int, int, int, int]], ...]",
+        literal_case(
+            "domain.test_source_budget:parametrize:test_python_carrier_roles_cannot_compensate_for_one_another:1"
+        ),
     ),
 )
 def test_python_carrier_roles_cannot_compensate_for_one_another(
@@ -504,8 +566,11 @@ def test_structured_measurement_cannot_be_reduced_by_minifying_json(
 
 @pytest.mark.parametrize(
     ("category", "suffix", "first", "second"),
-    literal_case(
-        "domain.test_source_budget:parametrize:test_structured_measurement_is_formatting_and_order_invariant:2"
+    cast(
+        "tuple[tuple[str, str, str, str], ...]",
+        literal_case(
+            "domain.test_source_budget:parametrize:test_structured_measurement_is_formatting_and_order_invariant:2"
+        ),
     ),
 )
 def test_structured_measurement_is_formatting_and_order_invariant(
@@ -546,7 +611,7 @@ def test_yaml_measurement_accepts_native_mixed_scalar_keys(
             'python_total = ["python_product", "python_tests", "python_tools", "python_other"]',
             'python_total = ["python_tests", "python_product", "python_tools", "python_other"]',
         ),
-        lambda text: text.replace("python_other = 1000", "python_unknown = 1000"),
+        lambda text: text.replace("python_product = 1000", "python_unknown = 1000"),
         lambda text: text.replace('shebangs = ["sh", "bash", "zsh"]', 'shebangs = "sh"'),
         lambda text: text.replace('comment_prefixes = ["#"]', 'comment_prefixes = "#"', 1),
     ],

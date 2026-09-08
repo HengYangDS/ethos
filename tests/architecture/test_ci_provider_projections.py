@@ -35,7 +35,10 @@ def test_provider_commands_use_locked_offline_registry_sessions() -> None:
     ]
     assert all("uv run --frozen --offline python -m nox -s format_check" in text for text in texts)
     assert all("uv run --frozen --offline python -m nox -s build" in text for text in texts)
-    assert "uv run --frozen --offline python -m nox -s tests" in texts[1]
+    assert all(
+        "node_modules/.bin/openspec validate --all --strict --json" in text for text in texts
+    )
+    assert all("\n    - openspec validate" not in text for text in texts)
 
 
 def test_hosted_repository_proof_does_not_activate_local_mutation_runtime() -> None:

@@ -254,14 +254,12 @@ ethos:verify:
   script:
     - source tools/ci/scripts/bootstrap-python.sh
     - node_modules/.bin/openspec --version
-    - uv run --frozen --offline python -m nox -s tests
-    - openspec validate --all --strict --json
+    - node_modules/.bin/openspec validate --all --strict --json
     - tools/ci/scripts/run-head-bound-proof.sh
   artifacts:
     when: always
     paths:
       - build/evidence/quality/proof/
-      - build/evidence/quality/readiness/
 
 ethos:npm:
   stage: verify

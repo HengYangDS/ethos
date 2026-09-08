@@ -143,32 +143,6 @@ matches.
 - **THEN** ETHOS does not give the skill capability full score from file
   presence alone
 
-### Requirement: Parity evidence is committed before Work Lane proof
-
-ETHOS SHALL treat stale configured generic parity evidence as an explicit
-evidence-freshness proof gap. A Work Lane that changes the parity-relevant tree
-shall refresh and commit its parity evidence before it executes proof or lands.
-
-#### Scenario: parity-relevant Work Lane source makes generic evidence stale
-
-- **GIVEN** a Work Lane has committed a parity-relevant source or contract change
-- **AND** its tracked generic parity evidence no longer matches the resulting
-  parity-relevant semantic tree
-- **WHEN** `ethos prove --gate evidence-freshness --json` or executed proof evaluates
-  the Work Lane
-- **THEN** ETHOS reports the parity evidence invalidity as a required gap
-- **AND** it returns the Work-Lane-owned parity refresh package
-- **AND** it does not require a candidate or accepted root to write tracked evidence.
-
-#### Scenario: evidence recording commit precedes proof and land
-
-- **GIVEN** an admitted Work Lane refreshes generic parity evidence after its
-  source commit
-- **WHEN** it commits only the resulting evidence record and then executes proof
-- **THEN** semantic-tree freshness accepts the evidence-recording commit
-- **AND** the Work Lane may proceed to normal candidate landing
-- **AND** candidate and accepted roots remain protected from direct parity writes.
-
 ### Requirement: Fast Daily Governance Checks
 ETHOS SHALL keep daily proof and report commands fast while preserving explicit
 deep OpenSpec validation.
@@ -2556,16 +2530,18 @@ reinterpretation, or synthesized declarations.
 - **AND** it SHALL not synthesize `normative_sources`.
 
 ### Requirement: Normative files remain distinct from directory roots
-ETHOS SHALL allow an adopter profile to declare one or more repository-relative
-normative source files independently from its directory roots. It SHALL retain
-the existing path safety rules for roots and SHALL not treat a declared file as
-a directory.
+
+ETHOS SHALL retain safe repository-relative normative source declarations as
+intent metadata independently from directory roots. Current proof SHALL be
+selected by its Attestation predicate and exact bindings, independently from
+documentation locations or historical evidence directories.
 
 #### Scenario: Root-level normative source is declared
+
 - **WHEN** an adopter declares `normative_sources = ["guidelines.md"]`
-- **THEN** ETHOS SHALL include `guidelines.md` in profile evidence-root
-  candidates
-- **AND** it SHALL keep `roots.rules` as an ordinary safe repository path.
+- **THEN** the typed current binding retains that exact safe source declaration
+- **AND** directory roots keep their path-safety contract without creating a
+  second evidence-root candidate selector.
 
 ### Requirement: Invalid repository profile commands return structured blocks
 Every public ETHOS reader, planning, proof, landing, publication, and OpenSpec
@@ -4036,3 +4012,31 @@ Lease coordination, immutable receipt, and recovery mechanism.
   historical topic whose own policy cannot be compiled
 - **THEN** the reference-transaction hook consumes accepted policy and that exact
   intent without granting authoring rights or accepting a raw unplanned deletion
+
+### Requirement: Historical workspace evidence has no current proof role
+
+ETHOS SHALL evaluate current proof through its existing selected Attestations
+and exact operation bindings. The proof floor and repository documentation
+audit SHALL operate independently of historical workspace evidence directories.
+Git SHALL preserve removed committed records for historical retrieval.
+
+#### Scenario: Historical directories are retired
+
+- **WHEN** reviewed historical evidence and its duplicate documentation are
+  removed from the current source tree
+- **THEN** current proof consumers retain the same predicate and binding checks
+- **AND** no directory-shape gate or required documentation placeholder remains.
+
+#### Scenario: A retirement batch contains many historical paths
+
+- **WHEN** current reference closure audits multiple retired paths
+- **THEN** it parses each current path-bearing carrier at most once for that
+  retirement audit, independently of the number of retired paths
+- **AND** it reports every exact surviving consumer with unchanged relative-link
+  and source interpretation.
+
+#### Scenario: A new source file uses an old evidence path
+
+- **WHEN** a maintained source file appears outside the official OpenSpec archive
+- **THEN** its ordinary source class and budget apply
+- **AND** an old evidence path supplies no automatic historical exclusion.

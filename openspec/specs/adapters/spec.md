@@ -427,15 +427,22 @@ the observed set and validated canonical members followed by exact CAS.
 
 ### Requirement: Non-authoritative Attestation stores are not current readers
 
-Git-common JSON directories and operation indexes MAY stage or cache bytes but
-SHALL NOT select current Attestations or authorize effects after cutover.
-Historical Claim and Chronicle bytes SHALL remain inert Git history.
+The Git-native set selected by `refs/ethos/attestations-set` SHALL be the sole
+current Attestation carrier. Git-common staging or caches SHALL NOT select
+current proof. Historical Claim and Chronicle bytes SHALL remain retrievable
+from Git history without requiring copies in the current workspace.
 
 #### Scenario: A stale local Attestation exists
 
-- **WHEN** it is absent from the selected Git set
-- **THEN** status, planning, proof, and effects ignore it as current evidence
-- **AND** no compatibility scan silently promotes it
+- **WHEN** a record is absent from the selected Git set
+- **THEN** current readers and effects ignore it as proof
+- **AND** neither its location nor a profile evidence-root declaration promotes it.
+
+#### Scenario: The worktree has no evidence directory
+
+- **WHEN** a valid Attestation is recorded or selected
+- **THEN** the existing Git-native set validates and returns it
+- **AND** the operation leaves the worktree index and files unchanged.
 
 ### Requirement: Shared external process execution has one adapter owner
 

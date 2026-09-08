@@ -22,7 +22,7 @@ def _repository(tmp_path: Path, *, extra_format: str = "") -> Path:
     selection.parent.mkdir(parents=True)
     selection.write_text(
         """[source_budget]
-immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
+immutable_record_roots = ["openspec/changes/archive/"]
 line_width = 100
 
 [source_budget.terminal]
@@ -107,7 +107,7 @@ def _scc_files(root: Path) -> object:
     [
         "[source_budget]\nterminal = []\n",
         """[source_budget]
-immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
+immutable_record_roots = ["openspec/changes/archive/"]
 line_width = 100
 
 [source_budget.terminal]
@@ -228,8 +228,8 @@ def test_source_budget_public_cross_check_rejects_invalid_immutable_counts(
     source = root / "src/example.py"
     source.parent.mkdir()
     source.write_text("VALUE = 1\n", encoding="utf-8")
-    record = root / "evidence/record.py"
-    record.parent.mkdir()
+    record = root / "openspec/changes/archive/record.py"
+    record.parent.mkdir(parents=True)
     record.write_text("VALUE = 1\n", encoding="utf-8")
     git(root, "add", ".")
     _fake_scc(

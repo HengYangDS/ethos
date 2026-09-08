@@ -402,12 +402,12 @@ Current closeout boundaries, observed on 2026-09-08:
 
 | Boundary | Last verified state | Required next evidence |
 | --- | --- | --- |
-| Repository proof | Accepted `06ea14f0` has its passing exact proof; deletion `a4d2877e` failed full proof at unit/architecture and coverage. The profiled repeated-parser cause now has a failing-then-passing regression and 23 covered focused cases | Freeze the repaired source and obtain its own full proof; neither old accepted proof nor focused coverage can substitute |
+| Repository proof | Accepted `06ea14f0` has its passing exact proof. Deletion follow-up `0fb749e7` completed full proof without timeout: 22/24 gates pass; eleven stale fixture failures block unit/architecture and the coverage success boundary | Correct the three fixture owners without restoring retired policy; freeze and obtain a passing exact full proof |
 | Archive and acceptance | Git history and current accepted/candidate refs include the archived coverage, retained-topic, source-policy, and hosted-verification Changes | Do not repeat completed effects; the new Change still needs its own archive, proof and exact acceptance |
 | Package/runtime | Current status binds runtime `f93e22cb` to Alpha.5 source `06ea14f0`, tree `af1b9143`, and four armed hooks; recorded embedded OpenSpec is 1.12.0 | Read back a new immutable runtime only after the next implementation is accepted |
-| Peer projections | GitHub and GitLab `dev`/`main` were verified at `06ea14f0`; GitLab pipelines 6307/6308 and GitHub main 34218640895 now succeed. GitHub dev 34218640885 is submitted for a targeted retry of checkout failure 102042092100 | Observe dev completion before the next shared-host heavy proof; hosted source, package and provider results remain separate evidence planes |
+| Peer projections | GitHub and GitLab `dev`/`main` were verified at `06ea14f0`; GitLab pipelines 6307/6308 and GitHub main 34218640895 succeed. GitHub dev retry job 102130838979 failed its all-ref unshallow fetch with HTTP2 framing errors | Diagnose actual transfer rather than infer health from `ls-remote` or repeat a blind retry; hosted source, package and provider results remain separate evidence planes |
 | Lane residue | One of the original seven historical worktrees is retired with its history retained by the contracts topic; six historical roots plus the handed signature lane remain | Close the two already-adjudicated content obligations through exact public disposal, then continue the remaining semantic inventory |
-| Current quality | The reference-closure repair measures product/test 39732/38606 ELOC; 23 covered reference/publication cases pass, in addition to the earlier deletion-focused checks | Both ceilings remain 40000; current full-proof combined coverage of at least 95 percent remains unproven |
+| Current quality | Reference repair measured product/test 39732/38606 ELOC. Its full run measured 95.11575 percent combined coverage, but eleven failed tests invalidate successful proof. Corrected budget/artifact fixtures pass 103 focused tests | Both ceilings remain 40000; numeric coverage alone is not a passing coverage gate or accepted proof |
 
 Historical work remains finite and classified by obligations rather than commit
 count. These are observed disposition boundaries, not claims of completed
@@ -540,6 +540,42 @@ preservation, old-owner deletion, reference closure and current delivery proof.
 Native tool configuration decisions require verified native behavior, not prose
 assertions. No file-count gate, new inventory registry, duplicate design document
 or repository-wide rename avalanche implements this obligation.
+
+The September 9 follow-through distinguishes shape from actual responsibility.
+The tracked-path inventory covers all fifteen root groups; it does not certify
+all bodies, import edges, package resources or ignored descendants. Current
+carrier reads and direct import/name searches establish these narrower findings:
+
+| Finding | Disposition and closure boundary |
+| --- | --- |
+| Documentation retirement contradiction | `docs-registry.md` requires superseded documents to live in `docs/history/`, while the product contract assigns historical bytes to Git. Replace the mandatory physical-history rule in the existing docs owner; transfer the useful Git retrieval instructions before removing redundant historical copies and their stable-path requirements. Preserve the three necessary decision records. |
+| Redundant test package | `tests/unit/lanes/retirement/admission/` contains only a declaration docstring. `tests/support/planning/rules.py` has a helper definition but no exact-name consumer in maintained tracked content. Confirm dynamic fixture/collection consumers before deleting both unused boundaries; do not relocate dead code. |
+| Product package questions | The seventeen one-module product leaves have real responsibilities and direct callers; that proves the capability is used, not that the extra directory is necessary. Review control replacement, independent verification, dirty provenance, trust protection, topology, branch roles, proof, OpenSpec policy, skill activation and system declarations with their existing domain owners. Mixed loading/evaluation code and an obsolete `ethos-contracts` package description need owner correction, not blanket flattening. |
+| Projection with no static import | `tools/projection/export_terminal_architecture.py` is selected by file path in its regression. Zero direct Python imports therefore do not authorize deletion. Inspect executable, resource and declaration consumers for every candidate. |
+| Documentation role drift | `adapter-lifecycle.md` declares explanation but specifies admission policy; `evolution-campaign.md` explains learning under a superseded concept name; `local-state.md` still describes a filesystem Attestation store. Reconcile each with the current owner before renaming or moving. A diagram or Purpose heading does not establish semantic agreement. |
+| Quality scope mismatch | Module-layout `semantic_paths` includes tests/tools but `package_paths` covers only product source. The empty test leaf demonstrates the resulting blind spot. Extend the existing semantic boundary where its invariant applies; do not introduce file-count quotas or another scanner. |
+| Native configuration evidence | Gitleaks supports explicit `--config`, already passed by the repository runner; its alleged root-only requirement is false. Ruff auto-discovery resolves config-relative paths, whereas explicit `--config` uses the invocation directory; moving it changes the contract for IDEs and direct commands. Pytest `-c` also affects root discovery, and `--rootdir` cannot be supplied through config `addopts`. Decide each placement against every real entrypoint, not a universal relocation rule. |
+| Source/declaration agreement | `.config/README.md` names absent local-state, emulator and helper surfaces; inspect every claimed native owner against tracked paths and actual callers. `system/`, `.ethos/`, `.agents/`, schemas and provider templates also need consumer-level comparison, not directory-presence checks. |
+
+The native behavior above was checked against the official
+[Ruff configuration documentation](https://docs.astral.sh/ruff/configuration/),
+[Gitleaks configuration contract](https://github.com/gitleaks/gitleaks#configuration),
+and [pytest root discovery](https://docs.pytest.org/en/stable/reference/customize.html).
+[Diataxis](https://diataxis.fr/start-here/) supports separating reader needs;
+it does not justify four mandatory directories or a README for every directory.
+Retain `guides/quickstart.md`, the documentation root and irreducible decisions;
+choose other locations by the content's actual policy, explanation, reference,
+execution-plan or decision responsibility. Configuration moves require a
+locked-version invocation test before implementation, not only upstream prose.
+
+Review closure requires a finite disposition for every root group, every
+candidate's unique meaning and consumers, exact move/deletion targets, and
+cross-plane reference/behavior verification. Tracked source, ignored output,
+shared Git state, installed packages, Work Lanes and provider projections must
+be reported separately. Current inventory and these decisions are partial
+review progress, not a completed whole-repository semantic audit. The work
+remains in this plan and the existing sequence; the current deletion Change
+does not acquire unrelated structure or quality implementations.
 
 ### Coverage Requirement Repair Before Acceptance
 
@@ -1260,14 +1296,15 @@ independently of scheduling order. No coverage floor or gate is relaxed.
 | Infer hosted success from local proof or partial tests | Bind each CI receipt to its declared evidence plane and exact expected HEAD. | Regress blocked, malformed, stale-head, and failed-execution observations; inspect both providers after publication. |
 | Guess transport, missing tools, or failure causes | Use declared API/Git endpoints and retain actual command, environment, stderr, and artifact facts. | HTTP `192.168.64.101:18086` is the GitLab API; SSH `:1122` is Git transport. Unknown link failures remain unknown until their diagnostics are read. |
 
-GitLab dev pipeline 6307 succeeds. Main pipeline 6308 still runs verification
-with package jobs pending. GitHub main's quality, nine native matrix jobs and
-source verification succeed, but package job 102059743208 fails in checkout:
-three Git HTTPS fetch attempts report `Error in the HTTP2 framing layer`.
-Dev retry job 102042092100 also fails before gates, with HTTP2 and receive-timeout
-errors. This identifies the failing transport boundary, not its network root
-cause. Diagnose the actual runner route with bounded probes before a targeted
-retry; do not hard-code a reachable IP or invent a product failure.
+GitLab dev/main pipelines 6307/6308 and GitHub main run 34218640895 succeed.
+GitHub dev run 34218640885 remains failed: retry job 102130838979 completed at
+2026-09-08 15:55:49 UTC after three `Error in the HTTP2 framing layer` failures
+in an all-ref `git fetch --unshallow`. The successful main package checkout was
+shallow; earlier `ls-remote` probes tested neither this transfer volume nor
+this fetch operation. The transport boundary is established, its network root
+cause is not. Diagnose the actual transfer before another retry; do not
+hard-code an IP, silently change host transport configuration, or invent a
+product test failure.
 
 The existing `hosted-ci-convergence-checkpoint.json` owns exact run observations;
 it must distinguish source verification, package delivery and provider outcome.

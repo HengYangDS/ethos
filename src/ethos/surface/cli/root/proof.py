@@ -126,7 +126,9 @@ def _host_gate_observation(
             for check in checks
             if check["verdict"] != "pass"
         )
-        if tuple(result.action_id for result in results) != tuple(node.id for node in policy.nodes):
+        if sorted(result.action_id for result in results) != sorted(
+            node.id for node in policy.nodes
+        ):
             required_gaps = (*required_gaps, "host_gate_results_incomplete")
     verdict: Verdict = "pass" if checks and not required_gaps else "block"
     return EthosResult(

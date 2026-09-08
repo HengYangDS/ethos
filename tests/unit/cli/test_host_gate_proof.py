@@ -69,7 +69,7 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
 
 
 @pytest.mark.parametrize("full", [False, True])
-@pytest.mark.parametrize("missing", ["none", "empty", "partial"])
+@pytest.mark.parametrize("missing", ["none", "empty", "partial", "reordered", "duplicate"])
 def test_host_default_selection_preserves_the_declared_gate_floor(
     monkeypatch, tmp_path: Path, *, full: bool, missing: str
 ) -> None:
@@ -80,7 +80,17 @@ def test_host_default_selection_preserves_the_declared_gate_floor(
 
     def run(_runner, nodes, _registry, **_kwargs):
         observed.extend(node.id for node in nodes)
-        selected = () if missing == "empty" else nodes[:1] if missing == "partial" else nodes
+        selected = (
+            ()
+            if missing == "empty"
+            else nodes[:1]
+            if missing == "partial"
+            else nodes[::-1]
+            if missing == "reordered"
+            else (*nodes[:-1], nodes[0])
+            if missing == "duplicate"
+            else nodes
+        )
         return tuple(ActionRunResult(node.id, node.command, "pass", 0) for node in selected)
 
     monkeypatch.setattr(proof_command, "run_gate_waves", run)
@@ -99,7 +109,6 @@ def test_host_default_selection_preserves_the_declared_gate_floor(
     assert observed == [node.id for node in policy.nodes]
     assert observed
     payload = json.loads(completed.stdout)
-    assert payload["verdict"] == ("pass" if missing == "none" else "block")
-    assert payload["required_gaps"] == (
-        [] if missing == "none" else ["host_gate_results_incomplete"]
-    )
+    complete = missing in {"none", "reordered"}
+    assert payload["verdict"] == ("pass" if complete else "block")
+    assert payload["required_gaps"] == ([] if complete else ["host_gate_results_incomplete"])

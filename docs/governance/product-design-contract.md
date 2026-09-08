@@ -419,12 +419,36 @@ generation ownership to their exact pre-state. Immutable generations are never
 modified in place, and cleanup restores owner permissions only within the exact
 owned generation before deletion.
 
-One declared supply-chain source owns dependency and embedded-tool versions.
-Current stable releases are the default convergence target; an older version
-survives only with a named incompatibility, risk, owner, and revisit condition.
-The package lock, built runtime, `--version`, and status projections must expose
-the same selected OpenSpec and toolchain identities rather than silently using
-ambient or stale versions.
+Each dependency or embedded tool has one native declaration owner; exact locks
+and generated consumers project that selection, not another version registry.
+The supply chain must converge to current upstream stable releases. Check the
+publisher's release channel and lifecycle declaration as well as version
+ordering: a `latest` tag or a version without a prerelease suffix alone does not
+prove stability. A latest wrapper package does not prove its embedded binary is
+current. This applies to production, build, development, package-manager,
+interpreter, embedded-tool, CI Action, and container supplies.
+
+Freshness observations bind the official source, observation time, selected
+version, and immutable artifact identity. Regenerate exact locks and hashes
+after upgrade; do not resolve floating `latest` versions during proof. Recheck
+upstream freshness at the release boundary and distinguish source selection,
+resolved closure, executed environment, built package, installed runtime, and
+provider projection. Each must report its actual identity. Supported-version
+compatibility tests do not authorize a stale default runtime.
+
+A dependency conflict, unavailable stable release, or unobservable publisher is
+an open convergence gap, not implicit permission to keep an older or preview
+release. Preserve the exact upstream constraint and repair or replace its owner;
+do not force incompatible transitive versions, invent releases, or weaken gates.
+Any requested exception needs explicit user approval and a bounded exit, and
+cannot be reported as satisfying the latest-stable requirement. Keep this work
+within a cohesive Change; freshness is not permission for unbounded scope.
+
+The package lock, built runtime, `--version`, and status projections expose the
+same selected OpenSpec and toolchain identities rather than silently using
+ambient or stale versions. Acceptance requires current compatibility and
+quality evidence plus immutable installed-runtime readback, not lock agreement
+alone.
 
 ### Bounded Maintainer Recovery
 

@@ -166,9 +166,10 @@ passes; its own official Change must close the stated exit boundary.
    password prompts, or residual refs/worktrees, and every failure preserves
    exact execution facts plus a typed non-replaying continuation. Converge every
    dependency and embedded tool through one locked supply-chain source to the
-   current stable release unless an explicit, evidenced hold applies; prove that
-   package/runtime/version output reports the selected OpenSpec and toolchain
-   identities exactly.
+   current upstream stable release. A hold remains an open gap, not satisfaction
+   of the requirement; any exception requires explicit user approval. Prove
+   that package/runtime/version output reports the selected OpenSpec and
+   toolchain identities exactly.
 5. **Close integration and publication topology.** Enforce `work/*` authoring,
    local candidate integration, unprotected `proposal/*` review, protected `dev`
    acceptance, and protected `main` release. Developer delivery uses MR/PR;
@@ -836,8 +837,58 @@ This is pending implementation, not a completed gate. Creating a second active
 Change caused `openspec_active_change_ambiguous`; the five self-created untracked
 artifacts were withdrawn exactly, with their contents preserved in the audit
 receipt. Do not create another lane or bypass this unresolved selection boundary.
-After the coverage atom closes, activate this bounded successor before another
-documentation-producing implementation batch; do not expand coverage scope.
+After the coverage atom closes, keep this bounded successor ahead of the next
+documentation-producing implementation batch. The supply successor below has
+priority over unrelated new implementation; neither expands coverage scope.
+
+### Latest-stable supply convergence
+
+The 2026-09-08 read-only audit at `afe52d9` queried official metadata for all
+72 Python and 150 distinct npm packages resolved in the locks. All requests
+succeeded; this establishes observed versions, not installation or security.
+The latest user requirement supersedes the previous default-with-hold wording:
+latest stable is mandatory, and an unresolved constraint remains unfinished.
+
+| Surface | Observed selection | Required disposition |
+| --- | --- | --- |
+| Cyclopts | Lock and installed runtime use 4.24.0; PyPI offers 4.25.1. | Update declaration and lock together; verify public CLI grammar and lifecycle commands. |
+| shfmt-py | Lock uses 4.1.0; PyPI offers 4.2.0. | Upgrade through the existing dependency owner and verify actual formatter identity and shell checks. |
+| ty | Lock uses 0.0.78; 0.0.79 is available, but upstream explicitly remains Beta. | Do not label the version bump stable. Establish a stable replacement in the existing type-check owner, or report the unsatisfied requirement; do not run parallel checkers indefinitely. |
+| Python interpreter | Owned environment and accepted runtime execute 3.13.15; Python publishes stable 3.14.7. | Converge the default build and installed interpreter without dropping supported-version tests. |
+| Embedded Node | Latest wheel wrapper 24.19.0 embeds Node 24.19.0; official stable is 26.8.1 and LTS is 24.20.0. | Resolve the package-runtime supply boundary; reuse the existing Node selection rather than hiding drift behind wrapper freshness or ambient PATH. |
+| Python transitive closure | Latest Pydantic 2.13.5 requires exactly pydantic-core 2.46.5, while standalone core 2.48.0 exists. | Preserve the upstream constraint; do not force 2.48.0 or claim every transitive component is latest. |
+| npm closure | All five direct selections match publisher `latest`; 53 transitive package names have at least one older resolution. | Refresh compatible resolutions and identify upstream constraints before any major-version replacement. |
+| CI and downloaded tools | Five Action pins resolve to their latest release commits; declared uv, Syft, lychee, gitleaks, and actionlint versions match official latest releases. | Retain exact pins; artifact-hash validation, image freshness, and executed provider identities still require evidence. |
+
+A dependency-only universal Python resolution succeeds and selects the new
+Cyclopts, shfmt-py, and ty releases while retaining Pydantic's exact core pin.
+It is not regenerated project-lock or stable-lifecycle evidence. The npm lock
+edge check finds 75 references whose latest target satisfies the parent range
+and 59 whose latest target does not; these are references, not package counts
+or proof of a globally solvable update. The failed root `uv --no-build` probe
+only prevented dynamic project metadata generation. The sparse `npm outdated`
+result lacked installed versions and did not audit the transitive closure.
+
+The source declarations, locks, environment, and immutable runtime are unchanged.
+Evidence remains in the existing `build/evidence/quality/coverage-floor-focused/`
+receipt directory: `supply-freshness-20260908.json`, the corrected
+`supply-runtime-freshness-20260908-verified.json`,
+`supply-stability-classification-20260908.json`,
+`supply-python-resolution-20260908.json`, and
+`supply-npm-constraints-20260908.json`. Their source URLs, observation times,
+input hashes, and limits support this dated assessment, not future freshness.
+
+Complete the current coverage atom without dependency churn, then execute a
+bounded supply successor through the current public lifecycle in the owned
+lane; do not create another lane or simultaneous active Change. First close
+stable-channel and embedded-runtime selection, then update native declarations,
+locks, artifact hashes, and their generated consumers together. Verify the
+affected CLI, type, shell, package, and runtime boundaries; freeze for full
+proof with the unchanged 95-percent floor and source budgets. Accept and read
+back the new immutable package/runtime before claiming upgrade completion.
+Historical lane absorption remains high priority: retire already-qualified
+residue without waiting for unrelated supply work, and do not add new lanes to
+this queue. Supply work must not become a reason to defer semantic absorption.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

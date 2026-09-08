@@ -3601,8 +3601,9 @@ authority.
 
 The existing remote-publication effect adapter SHALL be the sole owner of
 bounded live remote-ref observation for exact publication. It SHALL preserve
-whether a target ref is present, absent, or unavailable. Public CLI and Git
-hooks SHALL consume that observation and SHALL NOT recreate availability,
+whether a target ref is present, absent, unavailable, or not observed because
+an earlier publication precondition failed. Public CLI and Git hooks SHALL
+consume only complete observations and SHALL NOT recreate availability,
 ancestry, or object-identity judgments from missing coordinates.
 
 #### Scenario: exact publication uses the target observer
@@ -3612,6 +3613,14 @@ ancestry, or object-identity judgments from missing coordinates.
   each exact peer/ref target
 - **AND** remote-tracking state or general reachability SHALL NOT substitute for
   that exact ref fact.
+
+#### Scenario: publication fails before remote observation
+
+- **WHEN** source trust, source identity, or another pre-observation
+  publication precondition fails
+- **THEN** publication SHALL return a structured non-passing result with that
+  exact upstream gap
+- **AND** it SHALL NOT index, synthesize, or report a remote object OID.
 
 #### Scenario: a required remote fact is unavailable
 

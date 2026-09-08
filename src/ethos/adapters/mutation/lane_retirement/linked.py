@@ -84,7 +84,13 @@ def compile_retirement_operation(
             "head": str(authority.get("head") or ""),
         },
         reason={
-            "code": "accepted-absorption" if mode == "landed" else "successor-absorption",
+            "code": (
+                "retained-history"
+                if lane.get("retained_history")
+                else "accepted-absorption"
+                if mode == "landed"
+                else "successor-absorption"
+            ),
             "summary": reason or f"{mode} Work Lane retirement",
         },
         git_plan=plan.model_dump(mode="json"),
@@ -128,7 +134,9 @@ def retire_linked_work_lane(
             absorbed_by=absorbed_by,
             accepted_head=accepted_head,
         )
-        if mode == "superseded" and absorbed_by != accepted_head
+        if mode == "superseded"
+        and absorbed_by != accepted_head
+        and not absorbed_by.startswith("refs/heads/")
         else {}
     )
     authority = successor or lane
@@ -241,7 +249,7 @@ def retire_linked_work_lane(
     )
     if required_gaps:
         return report
-    if not request.apply:
+    if not request.apply and not lane.get("retained_history"):
         return report
 
     operation = compile_retirement_operation(
@@ -258,7 +266,7 @@ def retire_linked_work_lane(
         cast("Path", control_root),
         operation,
         request_receipt=receipt,
-        apply=True,
+        apply=request.apply,
     )
     effect_gaps = string_sequence(effect.get("required_gaps"))
     return report | effect | {"receipt": receipt, "mutation": mutation(effect_gaps)}
@@ -280,6 +288,14 @@ def _continuation(
             "next_action": f"export ETHOS_ACTOR={shlex.quote(holder)}",
             "user_decision_required": True,
         }
+    if "lane_retirement_receipt_required" in gaps:
+        return _continuation(
+            repo,
+            mode=mode,
+            request=request.model_copy(update={"apply": False}),
+            report={"required_gaps": []},
+            authority=authority,
+        )
     if gaps:
         return {
             "next_action": f"ethos lane status --root {shlex.quote(repo.as_posix())} --json",
@@ -300,5 +316,7 @@ def _continuation(
     ):
         if value:
             parts.extend((option, shlex.quote(value)))
-    parts.extend(("--authorize", "--apply", "--root", shlex.quote(repo.as_posix()), "--json"))
+    if not request.absorbed_by.startswith("refs/heads/"):
+        parts.extend(("--authorize", "--apply"))
+    parts.extend(("--root", shlex.quote(repo.as_posix()), "--json"))
     return {"next_action": " ".join(parts), "user_decision_required": True}

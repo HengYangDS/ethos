@@ -33,7 +33,8 @@ def retirement_target(
         for item in worktrees
         if (
             policy.is_topic_branch(str(item["branch"]))
-            if mode == "landed" and request.branch is not None
+            if request.branch is not None
+            and (mode == "landed" or request.absorbed_by.startswith("refs/heads/"))
             else item["role"] == ROLE_WORK_LANE
         )
         and ((mode == "landed" and request.branch is None) or item["branch"] == branch)
@@ -41,7 +42,14 @@ def retirement_target(
     lanes = [
         _with_archive_absorption(
             repo,
-            effects.lane(repo, item, leases, accepted_head=accepted_head, mode=mode),
+            effects.lane(
+                repo,
+                item,
+                leases,
+                accepted_head=accepted_head,
+                mode=mode,
+                retained=request.absorbed_by.startswith("refs/heads/"),
+            ),
             accepted_head,
         )
         for item in candidates
@@ -198,6 +206,8 @@ def superseded_gaps(
     branch = (request.branch or "").strip()
     reason = request.reason.strip()
     absorbed_by = request.absorbed_by.strip()
+    if absorbed_by.startswith("refs/heads/"):
+        return _retained_topic_gaps(repo, policy, request, lane)
     gaps = _superseded_target_gaps(repo, policy, branch, lane)
     if lane:
         gaps.extend(_source_lane_gaps(lane, branch=branch, successor=successor))
@@ -233,6 +243,55 @@ def superseded_gaps(
         gaps.append("expect_head_required")
     elif head and expected != head:
         gaps.append("expect_head_mismatch")
+    return gaps
+
+
+def _retained_topic_gaps(
+    repo: Path,
+    policy: BranchRolePolicy,
+    request: LinkedRetirementRequest,
+    lane: dict[str, object],
+) -> list[str]:
+    """Admit history retention independently of successor authoring authority."""
+    branch, retained = (request.branch or "").strip(), request.absorbed_by.strip()
+    head = effects.output(repo, "show-ref", "--verify", "--hash", retained) or ""
+    gaps = string_sequence(lane.get("required_gaps"))
+    gaps.extend(effects.holder_gaps(lane))
+    gaps.extend(
+        gap
+        for failed, gap in (
+            (
+                effects.output(repo, "symbolic-ref", "--short", "HEAD") != policy.accepted_branch,
+                "retirement_requires_accepted_control_root",
+            ),
+            (not policy.is_topic_branch(branch), "retirement_target_not_topic"),
+            (not lane, "superseded_retire_worktree_not_linked"),
+            (not request.reason.strip(), "retire_reason_required"),
+            (not request.expect_head, "expect_head_required"),
+            (
+                bool(request.expect_head and request.expect_head != lane.get("head")),
+                "expect_head_mismatch",
+            ),
+            (not head, "retained_ref_missing"),
+            (
+                not policy.is_topic_branch(retained.removeprefix("refs/heads/")),
+                "retained_ref_not_topic",
+            ),
+            (retained == f"refs/heads/{branch}", "retained_ref_is_target"),
+            (
+                effects.output(repo, "symbolic-ref", "--quiet", retained) is not None,
+                "retained_ref_symbolic",
+            ),
+            (
+                bool(head and lane and not is_ancestor(repo, str(lane["head"]), head)),
+                "retained_ref_does_not_contain_target",
+            ),
+            (request.apply, "lane_retirement_receipt_required"),
+        )
+        if failed
+    )
+    if not gaps:
+        lane["retained_history"] = {"ref": retained, "head": head}
     return gaps
 
 

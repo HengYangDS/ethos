@@ -16,7 +16,6 @@ from pydantic import model_validator
 
 POLICY_PATH = Path(".config/checks/format/selection.toml")
 PYTHON_CATEGORIES = ("python_product", "python_tests", "python_tools", "python_other")
-TERMINAL_TOTALS = (*PYTHON_CATEGORIES, "global_total")
 AGGREGATE_TOTALS = ("python_total", "global_total")
 IMMUTABLE_RECORD_ROOTS = ("evidence/", "openspec/changes/archive/")
 
@@ -33,9 +32,9 @@ class CrossCheckTotals(_Contract):
 class TerminalTotals(_Contract):
     python_product: Annotated[int, Field(ge=0)]
     python_tests: Annotated[int, Field(ge=0)]
-    python_tools: Annotated[int, Field(ge=0)]
-    python_other: Annotated[int, Field(ge=0)]
-    global_total: Annotated[int, Field(ge=0)]
+    python_tools: Annotated[int, Field(ge=0)] | None = None
+    python_other: Annotated[int, Field(ge=0)] | None = None
+    global_total: Annotated[int, Field(ge=0)] | None = None
 
 
 class CrossCheck(_Contract):

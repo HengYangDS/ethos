@@ -117,7 +117,13 @@ def _require_lease_actor(
         if not (
             operation == "lane.retire"
             and plan.policy.get("retirement_kind") == "linked-lane"
-            and plan.policy.get("retirement_mode") == "landed"
+            and (
+                plan.policy.get("retirement_mode") == "landed"
+                or (
+                    plan.policy.get("retirement_mode") == "superseded"
+                    and plan.facts.get("values", {}).get("retained_history")
+                )
+            )
             and str(plan.authority.get("actor") or "")
         ):
             message = "git_effect_expired_lease_not_admitted"

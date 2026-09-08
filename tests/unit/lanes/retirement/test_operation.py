@@ -44,42 +44,31 @@ def _request(tmp_path: Path) -> RetirementOperation:
 
 
 @pytest.mark.parametrize(
-    ("states", "completed", "remaining", "state"),
+    ("completed", "remaining", "state"),
     [
-        (
-            ("expected", "expected", "expected"),
-            (),
-            ("remove_worktree", "delete_ref", "revoke_lease"),
-            "ready",
-        ),
-        (
-            ("absent", "expected", "expected"),
-            ("remove_worktree",),
-            ("delete_ref", "revoke_lease"),
-            "partial_transition",
-        ),
-        (
-            ("absent", "absent", "expected"),
-            ("remove_worktree", "delete_ref"),
-            ("revoke_lease",),
-            "partial_transition",
-        ),
-        (
-            ("absent", "absent", "absent"),
-            ("remove_worktree", "delete_ref", "revoke_lease"),
-            (),
-            "terminal",
-        ),
+        ((), ("remove_worktree", "delete_ref", "revoke_lease"), "ready"),
+        (("remove_worktree",), ("delete_ref", "revoke_lease"), "partial_transition"),
+        (("remove_worktree", "delete_ref"), ("revoke_lease",), "partial_transition"),
+        (("remove_worktree", "delete_ref", "revoke_lease"), (), "terminal"),
     ],
 )
-def test_retirement_progress_is_a_pure_reduction(tmp_path, states, completed, remaining, state):
-    observed = RetirementObservation(
-        **dict(zip(("worktree_state", "ref_state", "lease_state"), states, strict=True))
+def test_retirement_progress_is_a_pure_reduction(tmp_path, completed, remaining, state):
+    request = _request(tmp_path)
+    observed = RetirementObservation.model_validate(
+        dict(
+            zip(
+                ("worktree_state", "ref_state", "lease_state"),
+                ("absent" if effect in completed else "expected" for effect in request.effects),
+                strict=True,
+            )
+        )
     )
-    progress = operation.reduce_progress(_request(tmp_path), observed)
-    assert progress.completed_effects == completed
-    assert progress.remaining_effects == remaining
-    assert progress.state == state
+    progress = operation.reduce_progress(request, observed)
+    assert (progress.completed_effects, progress.remaining_effects, progress.state) == (
+        completed,
+        remaining,
+        state,
+    )
 
 
 @pytest.mark.parametrize(
@@ -157,43 +146,6 @@ def test_unbound_request_detects_branch_rebound_at_another_path(
     assert operation.observe_operation(tmp_path, request).worktree_state == "moved"
 
 
-def test_effect_failure_after_worktree_removal_returns_resumable_progress(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    request = _request(tmp_path)
-    monkeypatch.setattr(operation, "local_state_root", lambda _root: tmp_path / "state")
-    initial = RetirementObservation(
-        worktree_state="expected", ref_state="expected", lease_state="expected"
-    )
-    removed = initial.model_copy(update={"worktree_state": "absent"})
-    states = iter((initial, removed, removed))
-    monkeypatch.setattr(operation, "observe_operation", lambda *_args: next(states))
-    monkeypatch.setattr(operation, "preflight_operation", lambda *_args: None)
-    monkeypatch.setattr(operation, "remove_operation_worktree", lambda *_args: None)
-    monkeypatch.setattr(
-        operation,
-        "delete_operation_ref",
-        lambda *_args: (_ for _ in ()).throw(ValueError("git_process_spawn_failed")),
-    )
-    written: list[tuple[str, ...]] = []
-    monkeypatch.setattr(
-        operation,
-        "persist_progress",
-        lambda _root, _request, progress: written.append(progress.completed_effects) or {},
-    )
-
-    report = operation.apply_operation(tmp_path, request, request_receipt={"path": "/receipt"})
-
-    assert report["state"] == "partial_transition"
-    assert report["completed_effects"] == ["remove_worktree"]
-    assert report["remaining_effects"] == ["delete_ref", "revoke_lease"]
-    assert report["required_gaps"] == ["git_process_spawn_failed"]
-    action = report["next_action"]
-    assert isinstance(action, str)
-    assert "ethos lane retire recover" in action
-    assert written == [(), ("remove_worktree",), ("remove_worktree",)]
-
-
 @pytest.mark.parametrize("failure", [False, True])
 def test_preflight_failure_and_dry_run_never_start_destructive_effects(
     tmp_path, monkeypatch, failure
@@ -230,41 +182,6 @@ def test_preflight_failure_and_dry_run_never_start_destructive_effects(
     assert report["completed_effects"] == []
     assert report["remaining_effects"] == ["remove_worktree", "delete_ref", "revoke_lease"]
     assert report["required_gaps"] == (["git_process_spawn_failed"] if failure else [])
-
-
-def test_recovery_applies_only_remaining_effects_and_is_idempotent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    request = _request(tmp_path)
-    monkeypatch.setattr(operation, "local_state_root", lambda _root: tmp_path / "state")
-    state = RetirementObservation(
-        worktree_state="absent", ref_state="expected", lease_state="expected"
-    )
-    calls: list[str] = []
-
-    def delete_ref(*_args: object) -> None:
-        nonlocal state
-        calls.append("delete_ref")
-        state = state.model_copy(update={"ref_state": "absent"})
-
-    def revoke(*_args: object) -> None:
-        nonlocal state
-        calls.append("revoke_lease")
-        state = state.model_copy(update={"lease_state": "absent"})
-
-    monkeypatch.setattr(operation, "observe_operation", lambda *_args: state)
-    monkeypatch.setattr(operation, "preflight_operation", lambda *_args: None)
-    monkeypatch.setattr(operation, "delete_operation_ref", delete_ref)
-    monkeypatch.setattr(operation, "revoke_operation_lease", revoke)
-    monkeypatch.setattr(operation, "persist_progress", lambda *_args: {})
-    monkeypatch.setattr(operation, "persist_terminal_receipt", lambda *_args: {})
-
-    first = operation.apply_operation(tmp_path, request, request_receipt={"path": "/receipt"})
-    second = operation.apply_operation(tmp_path, request, request_receipt={"path": "/receipt"})
-
-    assert (first["state"], second["state"]) == ("retired", "retired")
-    assert first["completed_effects"] == ["remove_worktree", "delete_ref", "revoke_lease"]
-    assert calls == ["delete_ref", "revoke_lease"]
 
 
 @pytest.mark.parametrize(

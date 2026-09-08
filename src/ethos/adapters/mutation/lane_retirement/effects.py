@@ -123,6 +123,7 @@ def lane(
     *,
     accepted_head: str,
     mode: Literal["landed", "superseded"],
+    retained: bool = False,
 ) -> dict[str, object]:
     branch, path = str(lane["branch"]), Path(str(lane["path"]))
     head = str(lane["head"])
@@ -138,7 +139,9 @@ def lane(
         )
         if failed
     ]
-    if lease_state == "unknown" or (mode == "superseded" and lease_state != "valid"):
+    if lease_state == "unknown" or (
+        mode == "superseded" and not retained and lease_state != "valid"
+    ):
         gaps.append(
             {
                 "unknown": f"work_lane_lease_unknown:{branch}",

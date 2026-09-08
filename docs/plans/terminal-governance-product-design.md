@@ -387,18 +387,27 @@ implementation starts at that public boundary and reuses existing native
 readers. Root/index symlinks, conflicts, special files, content/authority drift,
 interruption, read-only resources and supported platforms remain acceptance
 cases. No historical lane is disposable because this prototype was withdrawn.
-The current source changes have no full proof, archive or accepted delivery.
+The deletion is committed at `a4d2877eb04884672f010aa38391b49d206636b5`.
+Its first full proof failed: 22 of 24 gates passed, while a publication-test
+worker timeout left unit/architecture and coverage incomplete. Profiling
+located repeated reference parsing once per retired path, not a justified
+timeout increase. The current repair observes each carrier once per invocation;
+its regression first failed at four parses instead of one. The 23-case covered
+closure/publication run passes, with the public publication call taking
+12.15 seconds under the unchanged 120-second limit. This repair still needs a
+frozen full proof, archive and accepted delivery. The failed proof remains
+preserved; focused coverage is separate and cannot satisfy the full floor.
 
 Current closeout boundaries, observed on 2026-09-08:
 
 | Boundary | Last verified state | Required next evidence |
 | --- | --- | --- |
-| Repository proof | The existing exact-HEAD receipt at `06ea14f0` records 25 passing gates, 2558 passed tests, one skip, and approximately 95.15-percent combined coverage; Attestation `a16a0ff5b80d9228ae072085ae79e9016acc4e4b6938275660707fe1e6b235fc` | This does not cover the uncommitted evidence-retirement implementation; obtain its frozen full proof |
+| Repository proof | Accepted `06ea14f0` has its passing exact proof; deletion `a4d2877e` failed full proof at unit/architecture and coverage. The profiled repeated-parser cause now has a failing-then-passing regression and 23 covered focused cases | Freeze the repaired source and obtain its own full proof; neither old accepted proof nor focused coverage can substitute |
 | Archive and acceptance | Git history and current accepted/candidate refs include the archived coverage, retained-topic, source-policy, and hosted-verification Changes | Do not repeat completed effects; the new Change still needs its own archive, proof and exact acceptance |
 | Package/runtime | Current status binds runtime `f93e22cb` to Alpha.5 source `06ea14f0`, tree `af1b9143`, and four armed hooks; recorded embedded OpenSpec is 1.12.0 | Read back a new immutable runtime only after the next implementation is accepted |
-| Peer projections | GitHub and GitLab `dev`/`main` all read back as `06ea14f0`; GitLab dev pipeline 6307 succeeds; GitLab main package retry job 36221 succeeded at 13:16:16 UTC; whole-pipeline completion remains to be read back; GitHub dev 34218640885 and main 34218640895 fail during checkout | Diagnose runner Git HTTPS transport before a targeted rerun; successful main source verification is not successful package delivery |
+| Peer projections | GitHub and GitLab `dev`/`main` were verified at `06ea14f0`; GitLab pipelines 6307/6308 and GitHub main 34218640895 now succeed. GitHub dev 34218640885 is submitted for a targeted retry of checkout failure 102042092100 | Observe dev completion before the next shared-host heavy proof; hosted source, package and provider results remain separate evidence planes |
 | Lane residue | One of the original seven historical worktrees is retired with its history retained by the contracts topic; six historical roots plus the handed signature lane remain | Close the two already-adjudicated content obligations through exact public disposal, then continue the remaining semantic inventory |
-| Current quality | Evidence retirement measures product/test 39729/38563 ELOC; focused proof/binding tests pass 215 cases and architecture/policy checks pass 34 | Both ceilings remain 40000; current full-proof combined coverage of at least 95 percent remains unproven |
+| Current quality | The reference-closure repair measures product/test 39732/38606 ELOC; 23 covered reference/publication cases pass, in addition to the earlier deletion-focused checks | Both ceilings remain 40000; current full-proof combined coverage of at least 95 percent remains unproven |
 
 Historical work remains finite and classified by obligations rather than commit
 count. These are observed disposition boundaries, not claims of completed
@@ -418,7 +427,7 @@ absorption:
 Execute from these obligations rather than the historical lane names:
 
 1. Close current hosted checkout failures at their demonstrated transport
-   boundary, while letting running GitLab verification finish. Observe before
+   boundary; GitLab verification is complete. Observe the GitHub retry before
    retrying; never change product tests, DNS, host configuration, or gates on an
    untested network hypothesis. Independent lightweight retirement work need not
    wait for a network-only blocker, but a second heavy proof must not compete
@@ -484,8 +493,53 @@ only after implementation, exact proof and accepted delivery; this review has
 not activated `D`, moved root configs or retired another historical lane. The
 current evidence-retirement source batch has removed 557 exactly compared
 historical files and six obsolete implementation/declaration/test files in the
-owned lane only. Git history and the selected Attestation ref are unchanged;
-accepted-root deletion, full proof, archive and runtime delivery remain pending.
+owned lane only. Git history and existing selected Attestations are preserved;
+accepted-root deletion, passing full proof, archive and runtime delivery remain
+pending. The failed full proof legitimately added its own Attestation; removal
+of historical workspace files did not alter existing Attestations.
+
+### Whole-Repository Physical Organization Review
+
+The review includes every tracked root and the distinct physical projections:
+product and test packages, tools, configuration, documentation, official
+OpenSpec, schemas and rules, skills, hosted-provider files, distribution assets,
+generated output, shared Git state, installed runtimes and Work Lanes. File age,
+file count and path spelling select questions; none decides semantic validity.
+An empty leaf has no navigation or namespace justification. A parent containing
+only `__init__.py` may still own children and must be evaluated as a boundary.
+A one-module leaf survives only when its public namespace, package resources or
+independent responsibility justify the extra level. Conversely, flattening
+several real subdomains to meet a shape target is not simplification.
+
+The September 8 inventory at source `a4d2877e` covers 2592 tracked paths,
+including 258 product Python paths, 197 test paths, 47 documentation paths and
+17 root files. It records twenty one-module leaf packages, one init-only leaf,
+and three init-only parents with children. These are review candidates, not
+twenty-four deletion decisions. The ignored/local screen is shallow and does
+not establish lifecycle ownership, full recursive inventory or safe disposal.
+The hash-bound machine inventory is `physical-organization-inventory.json` in
+the current ignored working-evidence root; this section owns its decisions and
+execution obligations, not that disposable shape report.
+
+| Boundary | Current evidence and next semantic decision |
+| --- | --- |
+| Python responsibilities | Review the twenty leaf packages against their callers, exports, resource lookup and reasons to change. `adapters/` and `store/state/` have real child namespaces and cannot be collapsed by direct-file count. The init-only `tests/unit/lanes/retirement/admission/` leaf is residue unless a real import or collection obligation is demonstrated. |
+| Dense sibling modules | `tests/unit/cli` has 24 Python files, `adapters/repo` 17 and `tools/ci` 16. Review domain cohesion and ownership before deciding semantic subpackages; neither suffix families nor sibling count is an architectural contract. |
+| Documentation | `docs/decisions` contains three lowercase semantic records, and quickstart is in `docs/guides`. Preserve their responsibilities. Review all 47 documents for intent/implementation agreement and misplaced policy/design/plan roles. `docs/plans/README.md` routes only to the plan already directly linked by the docs root; absorb its unique guidance and remove the redundant route. `docs/history` duplicates superseded topology rationale also discussed by the decision record; reconcile unique reasoning and Git retrieval before retiring copies. |
+| Root and native configuration | Evaluate all seventeen root files through native discovery, IDE, hook, CI, package and direct-command consumers. Root placement is not justified by current existence. The configuration guide still references an absent local-state policy, demonstrating projection drift; the historical-evidence Markdown exemption is corrected in the current deletion atom. Compare tracked declarations with effective on-disk inputs and package contents before moving configuration. |
+| Generated and local content | `.config/checks/pytest/build/` is an observed misplaced ignored output; use repository-rooted pytest invocations and verify the creating entrypoint, then retire exact owned residue. Source-tree bytecode, tool caches, build output, immutable supplies and Git-common state require separate producer, consumer and reclamation checks; do not copy or recursively inventory supply trees merely to make the report larger. |
+| Cross-plane agreement | Trace each selected semantic move through imports, packaging, schemas, native config discovery, CLI/help, docs, rules, skills, CI and generated projections. Preserve official OpenSpec history as history, not an active state database. No relocation is complete while the old owner or its consumers remain active. |
+
+Execute this review in the existing route: complete current evidence retirement,
+dispose of already-adjudicated historical lanes, then combine structural
+corrections with the corresponding unique quality/runtime/domain owners. Review
+overlap before absorbing remaining historical semantics so obsolete structures
+are not revived. Each bounded replacement has an exact source/destination and
+consumer preflight, failing invariant or demonstrated redundancy, semantic
+preservation, old-owner deletion, reference closure and current delivery proof.
+Native tool configuration decisions require verified native behavior, not prose
+assertions. No file-count gate, new inventory registry, duplicate design document
+or repository-wide rename avalanche implements this obligation.
 
 ### Coverage Requirement Repair Before Acceptance
 

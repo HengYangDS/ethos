@@ -15,3 +15,5 @@
 
 - [x] 3.1 Pass focused regressions, static checks and native documentation/config
   validation with the unchanged quality and budget requirements.
+- [x] 3.2 Bound reference parsing independently of retirement count and pass
+  exact-consumer regressions plus the public publication test under coverage.

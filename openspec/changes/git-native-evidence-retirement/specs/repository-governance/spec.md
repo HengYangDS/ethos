@@ -39,6 +39,14 @@ Git SHALL preserve removed committed records for historical retrieval.
 - **THEN** current proof consumers retain the same predicate and binding checks
 - **AND** no directory-shape gate or required documentation placeholder remains.
 
+#### Scenario: A retirement batch contains many historical paths
+
+- **WHEN** current reference closure audits multiple retired paths
+- **THEN** it parses each current path-bearing carrier at most once for that
+  retirement audit, independently of the number of retired paths
+- **AND** it reports every exact surviving consumer with unchanged relative-link
+  and source interpretation.
+
 #### Scenario: A new source file uses an old evidence path
 
 - **WHEN** a maintained source file appears outside the official OpenSpec archive

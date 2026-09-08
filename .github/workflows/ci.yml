@@ -143,7 +143,7 @@ jobs:
         run: uv run --frozen --offline python -m nox -s hosted_observation
 
   verify:
-    name: repository proof
+    name: source verification
     runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     needs: quality
     env:
@@ -172,8 +172,8 @@ jobs:
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: OpenSpec strict validation
-        run: openspec validate --all --strict --json
-      - name: HEAD-bound proof receipt
+        run: node_modules/.bin/openspec validate --all --strict --json
+      - name: HEAD-bound hosted verification receipt
         run: tools/ci/scripts/run-head-bound-proof.sh
       - name: Upload proof receipt
         if: always()
@@ -182,7 +182,6 @@ jobs:
           name: ethos-proof-receipt
           path: |
             build/evidence/quality/proof/
-            build/evidence/quality/readiness/
           if-no-files-found: error
 
   package:

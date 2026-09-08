@@ -151,6 +151,7 @@ def run_runtime_tool(
         "UV_LINK_MODE": "copy",
         "UV_NO_CACHE": "1",
         "UV_OFFLINE": "1",
+        "UV_PYTHON": executable.as_posix(),
         "VIRTUAL_ENV": prefix.as_posix(),
     }
     environment.pop("ETHOS_UV_CACHE_DIR", None)

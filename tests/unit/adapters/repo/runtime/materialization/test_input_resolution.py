@@ -229,12 +229,15 @@ def test_runtime_tool_disables_persistent_cache_and_forces_copy_link_mode(
     )
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
     monkeypatch.setenv("UV_LINK_MODE", "hardlink")
+    monkeypatch.setenv("UV_PYTHON", "/unrelated/interpreter")
     monkeypatch.setenv("UV_CACHE_DIR", (tmp_path / "ambient-cache").as_posix())
     monkeypatch.setenv("ETHOS_UV_CACHE_DIR", (tmp_path / "legacy-cache").as_posix())
     observed: dict[str, str] = {}
 
-    def run(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        observed.update(kwargs["env"])
+    def run(
+        *_args: object, env: dict[str, str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        observed.update(env)
         return _completed(0)
 
     monkeypatch.setattr(runtime_inputs.subprocess, "run", run)
@@ -243,6 +246,7 @@ def test_runtime_tool_disables_persistent_cache_and_forces_copy_link_mode(
 
     assert observed["UV_LINK_MODE"] == "copy"
     assert observed["UV_NO_CACHE"] == "1"
+    assert observed["UV_PYTHON"] == python.as_posix()
     assert "UV_CACHE_DIR" not in observed
     assert "ETHOS_UV_CACHE_DIR" not in observed
     assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == supply.as_posix()

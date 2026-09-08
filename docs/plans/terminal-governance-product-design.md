@@ -813,15 +813,35 @@ the exact missing-control-root gap, not merely subset membership. Evidence is
 in `lease-historical-absorption-focused.json` and its bound log; local coverage
 is diagnostic only and used different options from the full proof.
 
-Next, freeze this absorbed test batch and obtain a new exact-HEAD full proof.
-Do not replay old coverage against shifted source lines, merge diagnostic
-datasets, or infer acceptance from subtraction arithmetic. Broader CI-tool
-typing and historical public schema-recovery correspondence still need closure;
-passing the changed test owners does not settle those separate obligations.
-Archive, candidate/accepted CAS, and runtime activation remain held at 95.
-Accepted `ca8f8110` still carries the old 93-percent policy until this correction
-actually qualifies for landing. Other lanes' live proofs remain serialized
-with this lane's heavy verification, not terminated for cleanup.
+Full proof of frozen `f191895e91b062422cf694264dae42776c9da6fe` completed on
+2026-09-08 with all 25 gates passing: 2518 tests passed and one was skipped.
+Native coverage records 19016/19762 lines and 5008/5514 branches, or
+95.04668460199399 percent combined. Attestation
+`45b4207572c6bf8ecd4f878bf7ed2f2316e88b93cce93cfafd3a9d5ddffc875b`
+binds that exact HEAD; source remained clean and unchanged throughout execution.
+The pytest root and owned proof processes are gone. The existing
+`full-proof-f191895e91b0-process.json` receipt binds output hashes and terminal
+status; `full-proof-f191895e91b0.json` retains every gate result. No focused
+coverage was merged, exclusion introduced, or threshold or budget relaxed.
+
+The post-proof check of all 53 changed Python files reports 96 type diagnostics,
+recorded in `coverage-atom-changed-typing.json` and its bound log. The existing
+product type gate checks `src`, not these additional test owners. This establishes
+a wider verification gap, not that every diagnostic is a new regression or that
+the full proof failed. Task 2.2 therefore stays open. Resolve diagnostics at their
+typed request, fixture, and assertion owners; preserve deliberate invalid-input
+scenarios and source budgets without ignores, casts hiding errors, or a second
+type-policy owner. Broader CI-tool typing and historical public schema-recovery
+correspondence also remain unresolved; product-gate success does not close them.
+
+The public land dry-run selects official Change archive as its next operation;
+it does not waive incomplete tasks. Finish the bounded type/semantic closure,
+then freeze and reprove changed source before archive/reproof and exact
+candidate/accepted CAS. Accepted `ca8f8110` still carries the old 93-percent
+policy until this correction lands. Runtime activation, hosted proof, historical
+lane retirement, and supply upgrades are not established by this local proof.
+Do not replay old coverage against shifted source lines or terminate another
+lane's live proof for cleanup.
 
 The structural obligation above is global and remains open. Reshape semantic
 owners while absorbing historical lanes, then finish the remaining repository

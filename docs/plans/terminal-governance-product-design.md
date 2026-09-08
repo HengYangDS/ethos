@@ -779,9 +779,9 @@ not a new regression or permission to claim repository-wide typing passes.
 The nine dirty/untracked failure-matrix paths have a bounded semantic comparison
 in `historical-failure-matrix-audit.json`. Gate, hook, CLI request, worktree
 compensation, and newly added Git-effect scenarios have current counterparts;
-public Lease storage-error propagation and mixed-state projection still need
-complete correspondence. Preserve the original paths until those obligations
-and public disposal admission close. The clean historical lifecycle branch's
+public Lease storage-error propagation and mixed-state projection were the
+remaining test correspondences addressed below. Preserve the original paths
+until all remaining obligations and public disposal admission close. The clean historical lifecycle branch's
 accepted-runtime retirement dry-run returns `work_lane_not_merged`; no effect
 was applied. Cleanliness and AST/name correspondence alone never prove absorption.
 
@@ -796,15 +796,28 @@ The public installed-runtime refresh subsequently rebased all 19 lane commits
 onto accepted `ca8f8110`, producing `3467aef5`. Every range-diff entry is
 equivalent; local signatures verify, the candidate is an ancestor, the checkout
 is clean, and installed-runtime status passes. This is a base-alignment result,
-not new proof. The peer's additional tests raise merged test ELOC to 38312/38300;
-the budget correctly blocks. Consolidate repeated setup or competing imports
-while preserving every scenario before adding the missing Lease assertions.
-Do not relax the budget or claim the previous proof covers this new tree.
+not new proof. The peer's additional tests raised merged test ELOC to
+38312/38300; the budget correctly blocked. The current absorption batch removes
+duplicate retirement setup, parallel import bindings, and repeated outcome
+assertions without dropping their policy, ordering, receipt, or failure claims.
+It adds historical missing/uninitialized/mixed Lease observation and public
+SQLite/value-failure scenarios in the existing test owner. Current typed
+request validation owns malformed-holder rejection; old migration-guard and
+payload-binding tests cannot be restored as current runtime requirements.
 
-Next, absorb the remaining valid Lease failure/projection scenarios into their
-current test owner within the unchanged 38300 test budget, then obtain a new
-frozen full proof. Do not replay old coverage against shifted source lines,
-merge diagnostic datasets, or infer acceptance from subtraction arithmetic.
+The 203-test Lease, retirement, CLI, and schema focused set passes. Source and
+both changed test owners pass typing, Ruff, and formatting. The isolated test
+root is removed and all nine historical source hashes are unchanged. Test ELOC
+is back within 38300 without changing its policy; two further assertions retain
+the exact missing-control-root gap, not merely subset membership. Evidence is
+in `lease-historical-absorption-focused.json` and its bound log; local coverage
+is diagnostic only and used different options from the full proof.
+
+Next, freeze this absorbed test batch and obtain a new exact-HEAD full proof.
+Do not replay old coverage against shifted source lines, merge diagnostic
+datasets, or infer acceptance from subtraction arithmetic. Broader CI-tool
+typing and historical public schema-recovery correspondence still need closure;
+passing the changed test owners does not settle those separate obligations.
 Archive, candidate/accepted CAS, and runtime activation remain held at 95.
 Accepted `ca8f8110` still carries the old 93-percent policy until this correction
 actually qualifies for landing. Other lanes' live proofs remain serialized

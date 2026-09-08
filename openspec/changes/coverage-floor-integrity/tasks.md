@@ -6,7 +6,7 @@
 
 ## 2. Close measured behavior gaps
 
-- [ ] 2.1 Add substantive assertions for uncovered authority, effect-failure, and resource-lifecycle behavior using current coverage evidence.
+- [x] 2.1 Add substantive assertions for uncovered authority, effect-failure, and resource-lifecycle behavior using current coverage evidence.
 - [ ] 2.2 Consolidate redundant fixtures without deleting unique scenarios; verify source budgets, reference closure, lint, types, and focused tests.
 - [x] 2.3 Reject unbound archive cleanup paths, protect repository and tracked content, and verify retained-residue reporting with isolated regressions.
 

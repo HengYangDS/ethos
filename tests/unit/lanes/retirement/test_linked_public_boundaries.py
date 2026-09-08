@@ -86,59 +86,46 @@ def _stub_retirement(
 
 
 @pytest.mark.parametrize(
-    ("worktrees", "retirement_request", "expected"),
+    ("updates", "lane_gaps", "expected"),
     [
-        ([], LinkedRetirementRequest(apply=True, authorize=True), "retire_branch_required"),
+        ({"branch": ""}, [], {"retire_branch_required"}),
+        ({"branch": "work/missing"}, [], {"retire_branch_not_found"}),
+        ({"authorize": False}, [], {"authorization_required"}),
+        ({"expect_head": ""}, [], {"expect_head_required"}),
+        ({}, [], {"retirement_control_root_unavailable"}),
         (
-            [],
-            LinkedRetirementRequest(branch="work/missing"),
-            "retire_branch_not_found",
-        ),
-        (
-            [_worktree()],
-            LinkedRetirementRequest(branch=SOURCE, apply=True),
-            "authorization_required",
-        ),
-        (
-            [_worktree()],
-            LinkedRetirementRequest(branch=SOURCE, apply=True, authorize=True),
-            "expect_head_required",
+            {"expect_head": "d" * 40},
+            ["work_lane_dirty"],
+            {"work_lane_dirty", "expect_head_mismatch"},
         ),
     ],
 )
 def test_landed_public_pre_effect_matrix_is_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    worktrees: list[dict[str, object]],
-    retirement_request: LinkedRetirementRequest,
-    expected: str,
+    updates,
+    lane_gaps: list[str],
+    expected: set[str],
 ) -> None:
-    _stub_retirement(monkeypatch, worktrees=worktrees)
+    _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: _lane(gaps=lane_gaps)})
+    retirement_request = LinkedRetirementRequest(
+        **{"branch": SOURCE, "expect_head": SOURCE_HEAD, "apply": True, "authorize": True} | updates
+    )
+    compiled: list[bool] = []
+    monkeypatch.setattr(
+        linked, "compile_retirement_operation", lambda *_args, **_kwargs: compiled.append(True)
+    )
 
     report = retire_linked_work_lane(root=tmp_path, mode="landed", request=retirement_request)
 
-    assert expected in report["required_gaps"]
-    assert report["mutation"]["decision"]["verdict"] == report["verdict"]
-
-
-def test_landed_public_preserves_lane_and_head_gaps(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    lane = _lane(gaps=["work_lane_dirty"])
-    _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane})
-
-    report = retire_linked_work_lane(
-        root=tmp_path,
-        mode="landed",
-        request=LinkedRetirementRequest(
-            branch=SOURCE,
-            expect_head="d" * 40,
-            apply=True,
-            authorize=True,
-        ),
-    )
-
-    assert {"work_lane_dirty", "expect_head_mismatch"} <= set(report["required_gaps"])
+    gaps, mutation = report["required_gaps"], report["mutation"]
+    assert isinstance(gaps, list)
+    assert isinstance(mutation, dict)
+    assert expected <= set(gaps)
+    if expected == {"retirement_control_root_unavailable"}:
+        assert gaps == ["retirement_control_root_unavailable"]
+    assert mutation["decision"]["verdict"] == report["verdict"]
+    assert compiled == []
 
 
 @pytest.mark.parametrize(
@@ -193,33 +180,15 @@ def test_landed_public_actor_and_lease_state_matrix(
         request=LinkedRetirementRequest(branch=SOURCE, expect_head=SOURCE_HEAD),
     )
 
-    assert set(report["required_gaps"]) == expected
+    gaps, mutation = report["required_gaps"], report["mutation"]
+    assert isinstance(gaps, list)
+    assert isinstance(mutation, dict)
+    assert set(gaps) == expected
     expected_verdict = (
         "unknown" if lease_state == "unknown" else "pass" if not expected else "block"
     )
     assert report["verdict"] == expected_verdict
-
-
-def test_landed_public_decision_names_repository_policy_not_commitment(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    lane = _lane(lease_state="missing", holder="")
-    _stub_retirement(
-        monkeypatch,
-        worktrees=[_worktree()],
-        lanes={SOURCE: lane},
-        stub_holder_gaps=False,
-    )
-    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:cleanup")
-
-    report = retire_linked_work_lane(
-        root=tmp_path,
-        mode="landed",
-        request=LinkedRetirementRequest(branch=SOURCE, expect_head=SOURCE_HEAD),
-    )
-
-    assert report["verdict"] == "pass"
-    assert report["mutation"]["decision"]["policy_refs"] == [
+    assert mutation["decision"]["policy_refs"] == [
         (
             "openspec/specs/repository-governance/spec.md"
             "#linked-work-lane-retirement-has-one-exact-effect"
@@ -257,7 +226,9 @@ def test_superseded_public_target_resolution_rejects_invalid_subjects(
         ),
     )
 
-    assert gap in report["required_gaps"]
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert gap in gaps
 
 
 def test_superseded_public_successor_filters_only_missing_source_lease(
@@ -286,9 +257,10 @@ def test_superseded_public_successor_filters_only_missing_source_lease(
         ),
     )
 
-    gaps = set(report["required_gaps"])
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
     assert f"work_lane_missing_lease:{SOURCE}" not in gaps
-    assert {"work_lane_dirty", "retirement_source_lease_present"} <= gaps
+    assert {"work_lane_dirty", "retirement_source_lease_present"} <= set(gaps)
 
 
 @pytest.mark.parametrize(
@@ -338,95 +310,42 @@ def test_superseded_public_absorption_authority_matrix(
         ),
     )
 
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
     if gap:
-        assert gap in report["required_gaps"]
+        assert gap in gaps
     else:
-        assert not any(
-            str(item).startswith("superseded_lane_not_absorbed") for item in report["required_gaps"]
-        )
+        assert not any(str(item).startswith("superseded_lane_not_absorbed") for item in gaps)
 
 
-def test_linked_apply_rejects_missing_control_root_before_effect(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+@pytest.mark.parametrize("failed", [False, True], ids=["retired", "partial-transition"])
+def test_linked_apply_preserves_order_receipt_and_exact_effect_result(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, failed: bool
 ) -> None:
-    _stub_retirement(monkeypatch, worktrees=[_worktree()])
-    applied: list[bool] = []
-    monkeypatch.setattr(
-        linked,
-        "compile_retirement_operation",
-        lambda *_args, **_kwargs: applied.append(True),
-    )
-
-    report = retire_linked_work_lane(
-        root=tmp_path,
-        mode="landed",
-        request=LinkedRetirementRequest(
-            branch=SOURCE,
-            expect_head=SOURCE_HEAD,
-            authorize=True,
-            apply=True,
-        ),
-    )
-
-    assert report["required_gaps"] == ["retirement_control_root_unavailable"]
-    assert applied == []
-
-
-def test_linked_effect_failure_is_projected_as_a_fresh_block(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    lane = _lane()
-    _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane})
-    monkeypatch.setattr(effects, "control_root", lambda *_args: tmp_path)
-    monkeypatch.setattr(linked, "effect_readiness_gaps", lambda *_args, **_kwargs: [])
-    compiled = object()
-    receipt = {"path": "/receipt", "sha256": "sha256:" + "d" * 64}
-    monkeypatch.setattr(
-        linked,
-        "compile_retirement_operation",
-        lambda *_args, **_kwargs: compiled,
-    )
-    monkeypatch.setattr(linked, "persist_operation", lambda *_args, **_kwargs: receipt)
-    monkeypatch.setattr(
-        linked,
-        "apply_operation",
-        lambda *_args, **_kwargs: {
-            "verdict": "block",
-            "state": "partial_transition",
-            "required_gaps": ["branch_delete_failed_after_worktree_removed"],
-            "stderr": "git effect rejected",
-            "observed": {"ref_state": "expected"},
-        },
-    )
-
-    report = retire_linked_work_lane(
-        root=tmp_path,
-        mode="landed",
-        request=LinkedRetirementRequest(
-            branch=SOURCE,
-            expect_head=SOURCE_HEAD,
-            authorize=True,
-            apply=True,
-        ),
-    )
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["branch_delete_failed_after_worktree_removed"]
-    assert report["observed"] == {"ref_state": "expected"}
-    assert report["receipt"] == receipt
-    assert report["mutation"]["decision"]["verdict"] == "block"
-
-
-def test_linked_apply_persists_and_executes_the_common_retirement_operation(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    lane = _lane()
-    _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane})
+    _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: _lane()})
     monkeypatch.setattr(effects, "control_root", lambda *_args: tmp_path)
     monkeypatch.setattr(linked, "effect_readiness_gaps", lambda *_args, **_kwargs: [])
     compiled = object()
     receipt = {"path": "/receipt", "sha256": "sha256:" + "d" * 64}
     calls: list[str] = []
+    outcome = {
+        "verdict": "block" if failed else "pass",
+        "state": "partial_transition" if failed else "retired",
+        "observed": {
+            "worktree_state": "absent",
+            "ref_state": "expected" if failed else "absent",
+            "lease_state": "expected" if failed else "absent",
+            "accepted_state": "expected",
+        },
+        "completed_effects": ["remove_worktree"]
+        if failed
+        else ["remove_worktree", "delete_ref", "revoke_lease"],
+        "remaining_effects": ["delete_ref", "revoke_lease"] if failed else [],
+        "required_gaps": ["branch_delete_failed_after_worktree_removed"] if failed else [],
+        "stderr": "git effect rejected" if failed else "",
+        "next_action": "ethos status",
+        "user_decision_required": False,
+    }
     monkeypatch.setattr(
         linked,
         "compile_retirement_operation",
@@ -440,24 +359,7 @@ def test_linked_apply_persists_and_executes_the_common_retirement_operation(
     monkeypatch.setattr(
         linked,
         "apply_operation",
-        lambda *_args, **_kwargs: (
-            calls.append("apply")
-            or {
-                "verdict": "pass",
-                "state": "retired",
-                "observed": {
-                    "worktree_state": "absent",
-                    "ref_state": "absent",
-                    "lease_state": "absent",
-                    "accepted_state": "expected",
-                },
-                "completed_effects": ["remove_worktree", "delete_ref", "revoke_lease"],
-                "remaining_effects": [],
-                "required_gaps": [],
-                "next_action": "ethos status",
-                "user_decision_required": False,
-            }
-        ),
+        lambda *_args, **_kwargs: calls.append("apply") or outcome,
     )
     report = retire_linked_work_lane(
         root=tmp_path,
@@ -471,5 +373,8 @@ def test_linked_apply_persists_and_executes_the_common_retirement_operation(
     )
 
     assert calls == ["compile", "persist", "apply"]
-    assert report["state"] == "retired"
     assert report["receipt"] == receipt
+    assert report.items() >= outcome.items()
+    mutation = report["mutation"]
+    assert isinstance(mutation, dict)
+    assert mutation["decision"]["verdict"] == outcome["verdict"]

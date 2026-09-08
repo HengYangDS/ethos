@@ -21,7 +21,7 @@ def _policy() -> Policy:
                 "python_other": 10,
                 "global_total": 20,
             },
-            "immutable_record_roots": ("evidence/", "openspec/changes/archive/"),
+            "immutable_record_roots": ("openspec/changes/archive/",),
             "line_width": 100,
             "cross_check": {
                 "command": "scc",

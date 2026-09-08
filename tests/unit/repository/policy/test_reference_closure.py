@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.repository.policy.references.closure as reference_closure
 import ethos.repository.policy.references.declarations as reference_declarations
 import ethos.repository.policy.references.markdown as reference_markdown
 from ethos.repository.policy.references.closure import repository_semantic_closure
@@ -189,6 +190,55 @@ def test_repository_reference_closure_rejects_deleted_path_consumers(tmp_path: P
             "sources": ["docs/reference/runtime.md"],
         }
     ]
+
+
+@pytest.mark.parametrize("retired_count", [0, 1, 4])
+def test_retired_reference_audit_parses_each_carrier_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    retired_count: int,
+) -> None:
+    """Retirement volume cannot multiply parsing or lose exact consumers."""
+    _runtime_surface(tmp_path)
+    retired = tuple(f"src/example/retired-{index}.txt" for index in range(retired_count))
+    for path in retired:
+        _write(tmp_path, path, "historical content")
+    _commit_candidate_baseline(tmp_path)
+    for path in retired:
+        (tmp_path / path).unlink()
+    document = "# Consumers\n" + "".join(
+        f"[relative](../../{path}#details) [root]({path}?view=source)\n" for path in retired
+    )
+    source = f"PATHS = {retired!r}\n"
+    _write(tmp_path, "docs/reference/runtime.md", document)
+    _write(tmp_path, "src/example/runtime.py", source)
+    _commit_current_tree(tmp_path)
+    parsed: dict[str, list[str]] = {}
+    for name in ("_markdown_link_destinations", "_path_literals"):
+        original = getattr(reference_closure, name)
+        calls: list[str] = []
+        parsed[name] = calls
+
+        def record_parse(text: str, parse=original, observed=calls) -> tuple[str, ...]:
+            observed.append(text)
+            return parse(text)
+
+        monkeypatch.setattr(reference_closure, name, record_parse)
+
+    report = repository_semantic_closure(tmp_path)
+
+    assert report["verdict"] == ("block" if retired else "pass")
+    assert report["superseded"] == [
+        {
+            "relation": "consumer",
+            "kind": "path",
+            "identity": path,
+            "sources": ["docs/reference/runtime.md", "src/example/runtime.py"],
+        }
+        for path in retired
+    ]
+    assert parsed["_markdown_link_destinations"].count(document.strip() + "\n") == bool(retired)
+    assert parsed["_path_literals"].count(source) == bool(retired)
 
 
 def test_repository_reference_closure_does_not_treat_change_intent_as_a_live_consumer(

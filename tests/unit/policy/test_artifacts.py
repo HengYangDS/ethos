@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 
@@ -19,8 +20,11 @@ if TYPE_CHECKING:
 
 @pytest.mark.parametrize(
     ("script", "expected_gap_count"),
-    literal_case(
-        "policy.test_artifacts:parametrize:test_entrypoint_audit_requires_semantic_package_build_output:0"
+    cast(
+        "list[tuple[str, int]]",
+        literal_case(
+            "policy.test_artifacts:parametrize:test_entrypoint_audit_requires_semantic_package_build_output:0"
+        ),
     ),
 )
 def test_entrypoint_audit_requires_semantic_package_build_output(
@@ -163,7 +167,7 @@ def test_topology_report_classifies_every_generated_home_and_prunes_runtime_tree
 ) -> None:
     cases = (
         "build/evidence/proof.json",
-        "evidence/review.json",
+        "tools/ci/scripts/review.json",
         ".config/result.json",
         ".pytest_cache",
         "build/runtime/flat/report.json",
@@ -189,7 +193,7 @@ def test_topology_report_classifies_every_generated_home_and_prunes_runtime_tree
         tracked_untracked_paths=(),
     )
 
-    assert "evidence/review.json" in report["review_paths"]
+    assert "tools/ci/scripts/review.json" in report["review_paths"]
     assert report["ignored_local_paths"] == ["ignored.json"]
     assert report["allowed_paths"] == []
     assert not any(

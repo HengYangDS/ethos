@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+import pytest
 
 import ethos.domain.source_budget.measurement as source_budget
 from ethos.repository.openspec.audit import active_change_names_from_paths
@@ -19,9 +20,6 @@ from ethos.repository.policy.references.commands import shebang_executable
 from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
 from tests.support.governed_repository import git
-
-if TYPE_CHECKING:
-    import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -47,7 +45,18 @@ def test_product_boundary_reports_native_metadata_and_identity_failures(tmp_path
     )
     _write(
         tmp_path / "distributions/npm/package.json",
-        json.dumps({"files": ["../private", "bin/ethos.mjs"], "bin": {}}),
+        json.dumps(
+            {
+                "files": [
+                    "bin/ethos.mjs",
+                    "./bin/ethos.mjs",
+                    "../private",
+                    "tests/",
+                    "private.txt",
+                ],
+                "bin": {},
+            }
+        ),
     )
     _write(
         tmp_path / "pyproject.toml",
@@ -57,7 +66,9 @@ def test_product_boundary_reports_native_metadata_and_identity_failures(tmp_path
     host_path = f"/{'Users'}/owner/repo\n"
     _write(tmp_path / "openspec/changes/archive/private-change/proposal.md", host_path)
     report = product_boundary_report(tmp_path)
-    kinds = {finding["kind"] for finding in report["findings"]}
+    findings = report["findings"]
+    assert isinstance(findings, list)
+    kinds = {finding["kind"] for finding in findings}
     assert report["verdict"] == "block"
     assert {
         "single_author_metadata",
@@ -67,6 +78,40 @@ def test_product_boundary_reports_native_metadata_and_identity_failures(tmp_path
         "distribution_file_scope_leak",
         "archival_local_workstation_path",
     } <= kinds
+    assert {
+        finding["detail"]
+        for finding in findings
+        if finding["kind"] == "distribution_file_scope_leak"
+    } == {"../private", "tests/", "private.txt"}
+
+
+@pytest.mark.parametrize(("package", "project"), [("{", "[project"), ("[]", "project = []")])
+def test_unreadable_metadata_does_not_invent_semantic_leak_findings(
+    tmp_path: Path, package: str, project: str
+) -> None:
+    """Native syntax validation owns malformed carriers, not invented leak findings."""
+    for relative in ("package.json", "distributions/npm/package.json"):
+        _write(tmp_path / relative, package)
+    _write(tmp_path / "pyproject.toml", project)
+    report = product_boundary_report(tmp_path)
+    assert report["findings"] == []
+    assert report["required_gaps"] == []
+
+
+@pytest.mark.parametrize("prefix", ["docs/history", "openspec/changes/archive"])
+def test_release_visible_history_checks_paths_and_content(tmp_path: Path, prefix: str) -> None:
+    """Both historical surfaces retain path and content provenance checks."""
+    relative = f"{prefix}/~" + "/projects/private.md"
+    _write(tmp_path / relative, f"/{'Users'}/owner/repo\n")
+    report = product_boundary_report(tmp_path)
+    observed = report["findings"]
+    assert isinstance(observed, list)
+    findings = [
+        finding for finding in observed if finding["kind"] == "archival_local_workstation_path"
+    ]
+    assert report["verdict"] == "block"
+    assert [finding["path"] for finding in findings] == [relative, relative]
+    assert len({finding["detail"] for finding in findings}) == 2
 
 
 def test_openspec_audit_preserves_unknown_and_blocks_native_shape_loss(tmp_path: Path) -> None:
@@ -79,16 +124,20 @@ def test_openspec_audit_preserves_unknown_and_blocks_native_shape_loss(tmp_path:
     _write(tmp_path / "openspec/config.yaml", "schema: [unterminated\n")
     invalid = official_config_report(tmp_path)
     assert invalid["verdict"] == "block"
-    assert invalid["required_gaps"][0].startswith("openspec_config_invalid:")
+    gaps = invalid["required_gaps"]
+    assert isinstance(gaps, list)
+    assert gaps[0].startswith("openspec_config_invalid:")
     _write(tmp_path / "openspec/config.yaml", "defaultStore: legacy\nproject: old\nversion: 1\n")
     legacy = official_config_report(tmp_path)
     assert legacy["verdict"] == "block"
+    gaps = legacy["required_gaps"]
+    assert isinstance(gaps, list)
     assert {
         "openspec_config_schema_missing",
         "openspec_config_default_store_forbidden",
         "openspec_config_legacy_key:project",
         "openspec_config_legacy_key:version",
-    } <= set(legacy["required_gaps"])
+    } <= set(gaps)
 
     _write(
         tmp_path / ".ethos/workspace.toml",
@@ -102,7 +151,7 @@ release_mirror = "accepted_ff"
 canonical_sibling_worktrees = true
 """,
     )
-    observations = {
+    observations: dict[str, tuple[dict[str, object], dict[str, object] | None]] = {
         "main": (
             {"verdict": "unknown", "state": "unknown", "required_gaps": ["main_unreadable"]},
             None,

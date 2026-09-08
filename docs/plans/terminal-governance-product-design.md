@@ -394,7 +394,7 @@ absorption:
 | `20260818-openspec-19-archive-owner` | The 1.8-to-1.9 supply upgrade is superseded by accepted 1.12; reject restoration of archived Commitment. Preserve valid no-spec and locked-supply obligations in their current owners before removing the ten dirty/staged paths. |
 | `codex-contracts-land-test-refactor` and `codex-lifecycle-hardening-test-refactor` | Overlapping histories must not be merged wholesale. Cross-worker immutable supply reuse, worker long-tail scheduling, and cheap non-archive fixtures need current-owner evidence; obsolete Commitment/rebind code must not return. |
 | `20260810-public-test-boundaries` | Preserve public Git preimage, out-of-scope-write, committed-effect diagnostics, and lock-after-observation race coverage. Reject the retired mutable ref-intent representation; prove scenario equivalence before disposal. |
-| `20260810-coverage-source-policy-matrices` | Nine added definitions match current AST; one differs only by the current reference-owner name. Four historical boundary probes pass against the current owner. The npm distribution-allowlist assertion is restored in the unaccepted reacquisition candidate; obsolete contributor roles are superseded. The three dirty files remain intact until legal reconciliation and retirement. |
+| `20260810-coverage-source-policy-matrices` | All fifteen added definitions are adjudicated: nine current AST matches, one equivalent current-owner rename, one accepted allowlist test, three boundary cases absorbed in the current unaccepted Change, and one superseded contributor-role test. The three dirty files remain intact until exact public reconciliation and retirement. |
 | `20260810-coverage-public-failure-matrix` | Nine dirty items, including untracked tests. Their unique failure scenarios still require comparison with current owners; ancestor HEADs do not prove dirty-content absorption. |
 | `20260811-repository-transition-model` | Fresh CAS/Attestation, local-or-multiple-peer topology and minimal-entity intent remain valid; persistent Commitment roots and historical scope/Lease bindings are superseded. The 341 dirty items are not yet semantically adjudicated. |
 | Unlinked `codex/openspec-19-archive-owner` ref | Retired through the accepted public owner; Attestation `067dd0dabfb6b6b6a5e6603c14ea84df11a026da6e8b0a0c7e0f72226b6a92bc`. Its absence does not retire the distinct dirty linked OpenSpec lane. |
@@ -1082,6 +1082,53 @@ semantics, prove the result, and retire the source lane. Do not blindly merge it
 command-private recovery mechanism or make it an adopter-release prerequisite.
 The sender has stopped implementation; one receiver owns serial execution, and
 AIGW/Proxy remain read-only.
+
+### Historical Source-Policy Absorption — 2026-09-08
+
+The retained-topic batch is now locally accepted at
+`53a99db42d02a5d8b22775ac77c3e2da6517026b`. Its archive-HEAD full proof passed
+25 gates, with Attestation
+`912c40f0b72794ba45b149c79a55d1b1cc5d96ee26ef3b0fab31e4e2d0b51ec7`.
+The selected immutable runtime reports that same source and tree. The shorter
+`codex/lifecycle-hardening-test-refactor` topic is retired through the public
+receipt, with worktree/ref/Lease absence observed; the contracts topic still
+retains its history. Historical retirement is **one of seven**, not seven
+accepted semantic absorptions. Six historical roots and the separately handed
+signature lane remain. Remote publication and hosted CI are not proved by this
+local acceptance.
+
+The next existing-lane Change, `historical-source-policy-absorption`, preserves
+the complete three-file dirty increment at historical HEAD
+`d66b2df586666afba435a3840cfd40dea8eadc7a`. All 404 added physical lines were
+compared through their fifteen added definitions; pre-existing definitions and
+the three source-file hashes remain unchanged. Nine definitions match current
+ASTs, one matches after its reference-owner rename, and the explicit npm
+allowlist test already exists. Three missing boundary cases now extend the
+existing policy tests: normalized/forbidden distribution entries, malformed
+metadata without invented leak findings, and both historical path/content
+surfaces. The historical contributor-role taxonomy is superseded; the current
+commit-policy compiler still rejects malformed and unknown old fields.
+
+The five-file focused set passes 101 tests. Five in-process fault substitutions
+were rejected by the strengthened tests without editing product source. Targeted
+typing exposed six report-consumption diagnostics, including pre-existing ones;
+actual shape assertions and one explicit fixture annotation resolve them without
+suppression or a replacement report model. Product/test ELOC is 39980/38410
+against separate 40000 ceilings. These are unaccepted working-tree observations,
+not exact-HEAD full proof or a retirement receipt.
+
+Evidence remains under the existing working evidence root:
+`source-policy-semantic-absorption.json`, `source-policy-test-sensitivity.json`,
+`source-policy-absorption-focused.log`, and `source-policy-absorption-budget.json`.
+No second ledger or roadmap is introduced. Finish this preservation increment's
+proof and acceptance, then resolve dirty-content disposal at the existing
+retirement/worktree effect boundary. Current ordinary prewrite is blocked by
+the historical invalid intent; retirement and handoff export require clean
+content. Do not restore old Commitment carriers, discard staged/unstaged meaning,
+or call an externally stored patch accepted absorption. An exact public
+preservation/disposal transition must protect content drift, index state,
+ownership, retained evidence, interrupted effects, and unknown untracked data.
+Its absence does not justify abandoning the remaining finite lane inventory.
 
 ## Convergence Rules
 

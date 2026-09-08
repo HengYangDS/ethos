@@ -211,7 +211,9 @@ def test_archive_subject_is_admitted_before_native_mutation(monkeypatch, tmp_pat
     if gap:
         assert report["required_gaps"] == [gap]
         assert report["user_decision_required"] is True
-        assert "--subject" in report["next_action"]
+        action = report["next_action"]
+        assert isinstance(action, str)
+        assert "--subject" in action
         assert observed == {}
     else:
         assert report == {"state": "archived"}
@@ -264,6 +266,7 @@ def test_archive_collision_observes_exact_git_and_preserves_existing_bytes(
     if collision == "tracked":
         head = "HEAD"
     found = archive.archive_collision(repo, head, CHANGE)
+    assert found is not None
     assert found.path == ARCHIVE_PATH
     assert found.tree == git(repo, "rev-parse", f"{head}:{ARCHIVE_PATH}")
     assert found.preserved_path.startswith(ARCHIVE_PATH + "-")

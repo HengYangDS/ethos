@@ -29,6 +29,7 @@ from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from ethos.contracts.value import frozen_tuple
 from ethos.contracts.value import mutable_json
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
@@ -46,6 +47,8 @@ from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from tests.support.governed_repository import WorkLaneFixture
 
 
 def _adopted_repo(path: Path) -> tuple[Path, str]:
@@ -166,8 +169,10 @@ def test_repository_proof_without_active_change_has_no_commitment(tmp_path: Path
 
 @pytest.mark.parametrize(
     ("field", "value", "gap"),
-    literal_case(
-        "kernel.test_proof_plan_binding:parametrize:test_proof_predicate_evidence_drift_fails_closed:0"
+    frozen_tuple(
+        literal_case(
+            "kernel.test_proof_plan_binding:parametrize:test_proof_predicate_evidence_drift_fails_closed:0"
+        )
     ),
 )
 def test_proof_predicate_evidence_drift_fails_closed(
@@ -487,8 +492,10 @@ def test_proof_plan_rejects_unresolved_authority(tmp_path, verdict, gaps, coordi
 
 @pytest.mark.parametrize(
     ("case", "gap"),
-    literal_case(
-        "kernel.test_proof_plan_binding:parametrize:test_proof_admission_rechecks_live_plan_closure:1"
+    frozen_tuple(
+        literal_case(
+            "kernel.test_proof_plan_binding:parametrize:test_proof_admission_rechecks_live_plan_closure:1"
+        )
     ),
 )
 def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, gap: str) -> None:
@@ -590,7 +597,7 @@ def test_repository_transition_ignores_an_unarchived_work_lane_proof(
     assert proof_statement_gaps(former, checks) == ["model_gap"]
 
 
-def _archive_bound_work_proof(tmp_path: Path) -> tuple[object, str, Attestation]:
+def _archive_bound_work_proof(tmp_path: Path) -> tuple[WorkLaneFixture, str, Attestation]:
     fixture = start_adopted_work_lane(tmp_path)
     head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
     base = current_proof_plan(fixture.worktree, expected_head=head)
@@ -666,7 +673,7 @@ def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(tmp_p
     persist_proof_attestation(repo, first)
     later = _reissue(first, issued_at=first.issued_at + timedelta(seconds=1))
     persist_proof_attestation(repo, later)
-    assert proof_attestation(repo, head).id == min(first.id, later.id)
+    _assert_proof(repo, head, selected=min((first, later), key=lambda record: record.id))
     conflict = _reissue(
         first,
         verifier="agent:test:case:conflict",

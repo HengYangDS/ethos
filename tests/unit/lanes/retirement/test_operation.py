@@ -98,8 +98,8 @@ def test_retirement_progress_rejects_non_monotonic_or_ambiguous_carriers(
     tmp_path, updates, observed
 ):
     request = _request(tmp_path).model_copy(update=updates)
-    observation = RetirementObservation(
-        **{
+    observation = RetirementObservation.model_validate(
+        {
             "worktree_state": "expected",
             "ref_state": "expected",
             "lease_state": "expected",
@@ -162,19 +162,11 @@ def test_effect_failure_after_worktree_removal_returns_resumable_progress(
 ) -> None:
     request = _request(tmp_path)
     monkeypatch.setattr(operation, "local_state_root", lambda _root: tmp_path / "state")
-    states = iter(
-        (
-            RetirementObservation(
-                worktree_state="expected", ref_state="expected", lease_state="expected"
-            ),
-            RetirementObservation(
-                worktree_state="absent", ref_state="expected", lease_state="expected"
-            ),
-            RetirementObservation(
-                worktree_state="absent", ref_state="expected", lease_state="expected"
-            ),
-        )
+    initial = RetirementObservation(
+        worktree_state="expected", ref_state="expected", lease_state="expected"
     )
+    removed = initial.model_copy(update={"worktree_state": "absent"})
+    states = iter((initial, removed, removed))
     monkeypatch.setattr(operation, "observe_operation", lambda *_args: next(states))
     monkeypatch.setattr(operation, "preflight_operation", lambda *_args: None)
     monkeypatch.setattr(operation, "remove_operation_worktree", lambda *_args: None)
@@ -196,7 +188,9 @@ def test_effect_failure_after_worktree_removal_returns_resumable_progress(
     assert report["completed_effects"] == ["remove_worktree"]
     assert report["remaining_effects"] == ["delete_ref", "revoke_lease"]
     assert report["required_gaps"] == ["git_process_spawn_failed"]
-    assert "ethos lane retire recover" in report["next_action"]
+    action = report["next_action"]
+    assert isinstance(action, str)
+    assert "ethos lane retire recover" in action
     assert written == [(), ("remove_worktree",), ("remove_worktree",)]
 
 
@@ -243,25 +237,22 @@ def test_recovery_applies_only_remaining_effects_and_is_idempotent(
 ) -> None:
     request = _request(tmp_path)
     monkeypatch.setattr(operation, "local_state_root", lambda _root: tmp_path / "state")
-    state = {"worktree": "absent", "ref": "expected", "lease": "expected"}
+    state = RetirementObservation(
+        worktree_state="absent", ref_state="expected", lease_state="expected"
+    )
     calls: list[str] = []
 
-    def observe(*_args: object) -> RetirementObservation:
-        return RetirementObservation(
-            worktree_state=state["worktree"],
-            ref_state=state["ref"],
-            lease_state=state["lease"],
-        )
-
     def delete_ref(*_args: object) -> None:
+        nonlocal state
         calls.append("delete_ref")
-        state["ref"] = "absent"
+        state = state.model_copy(update={"ref_state": "absent"})
 
     def revoke(*_args: object) -> None:
+        nonlocal state
         calls.append("revoke_lease")
-        state["lease"] = "absent"
+        state = state.model_copy(update={"lease_state": "absent"})
 
-    monkeypatch.setattr(operation, "observe_operation", observe)
+    monkeypatch.setattr(operation, "observe_operation", lambda *_args: state)
     monkeypatch.setattr(operation, "preflight_operation", lambda *_args: None)
     monkeypatch.setattr(operation, "delete_operation_ref", delete_ref)
     monkeypatch.setattr(operation, "revoke_operation_lease", revoke)
@@ -271,8 +262,7 @@ def test_recovery_applies_only_remaining_effects_and_is_idempotent(
     first = operation.apply_operation(tmp_path, request, request_receipt={"path": "/receipt"})
     second = operation.apply_operation(tmp_path, request, request_receipt={"path": "/receipt"})
 
-    assert first["state"] == "retired"
-    assert second["state"] == "retired"
+    assert (first["state"], second["state"]) == ("retired", "retired")
     assert first["completed_effects"] == ["remove_worktree", "delete_ref", "revoke_lease"]
     assert calls == ["delete_ref", "revoke_lease"]
 
@@ -324,7 +314,10 @@ def test_operation_receipt_is_repository_scoped_and_tamper_evident(
     monkeypatch.setattr(operation, "local_state_root", lambda root: root / "state")
     request = _request(tmp_path)
     receipt = operation.persist_operation(tmp_path, request)
-    path, digest = pathlib.Path(receipt["path"]), receipt["sha256"]
+    path_value, digest = receipt["path"], receipt["sha256"]
+    assert isinstance(path_value, str)
+    assert isinstance(digest, str)
+    path = pathlib.Path(path_value)
     assert operation.load_operation(tmp_path, str(path), digest) == request
     assert operation.persist_operation(tmp_path, request) == receipt
     if damage == "repository":

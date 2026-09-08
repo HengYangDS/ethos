@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 from contextlib import closing
 from typing import TYPE_CHECKING
-from typing import cast
+from unittest.mock import Mock
 
 import pytest
 
@@ -113,7 +114,8 @@ def test_archive_plan_is_one_common_git_ref_effect(
     assert plan.policy["branch"] == lifecycle.branch
     update = git_effect_from_plan(plan).updates[f"refs/heads/{lifecycle.branch}"]
     assert (update.expected, update.desired) == (lifecycle.completed_head, target)
-    values = cast("dict[str, object]", plan.facts["values"])
+    values = plan.facts["values"]
+    assert isinstance(values, Mapping)
     assert values["archive_path"] == archive_path
 
 
@@ -129,40 +131,23 @@ def test_archive_executor_replay_recognizes_the_durable_effect_without_reexecuti
     assert issued.predicate == "effect:git-ref-update"
     assert git(lifecycle.worktree, "rev-parse", "HEAD") == target
 
-    native_execute = archive_effect.execute_git_effect
-    calls = {"execute": 0}
-
-    def execute(*args: object, **kwargs: object):
-        calls["execute"] += 1
-        return native_execute(*args, **kwargs)
-
-    monkeypatch.setattr(archive_effect, "execute_git_effect", execute)
-
-    recovered = archive_effect.complete_archive(
-        lifecycle.worktree,
-        lifecycle.branch,
-        "fixture-change",
-        plan,
-        target,
-        apply=True,
-    )
-    replayed = archive_effect.complete_archive(
-        lifecycle.worktree,
-        lifecycle.branch,
-        "fixture-change",
-        plan,
-        target,
-        apply=True,
+    monkeypatch.setattr(
+        archive_effect, "execute_git_effect", lambda *_a, **_k: pytest.fail("replayed Git effect")
     )
 
-    assert recovered["state"] == "recognized"
-    assert replayed["state"] == "recognized"
-    assert calls == {"execute": 0}
-    assert recovered["attestation"] == replayed["attestation"]
-    assert recovered["attestation"]["predicate"] == "effect:git-ref-update"
+    recovered, replayed = [
+        archive_effect.complete_archive(
+            lifecycle.worktree, lifecycle.branch, "fixture-change", plan, target, apply=True
+        )
+        for _ in range(2)
+    ]
+
+    assert (recovered["state"], replayed["state"]) == ("recognized", "recognized")
+    assert (recovered["attestation"], replayed["attestation"]) == (
+        issued.model_dump(mode="json"),
+    ) * 2
     assert recovered["archive_path"] == archive_path
-    for field in ("lane_ref", "holder_ref", "generation", "expires_at"):
-        assert replayed["lease"][field] == recovered["lease"][field]
+    assert (replayed["lease"], recovered["lease"]) == (lifecycle.lease,) * 2
 
 
 def test_archive_common_effect_rejects_cas_drift_before_mutation(
@@ -233,13 +218,7 @@ def test_staged_archive_recovery_resolves_intent_from_the_exact_source_head(
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
     _stage_exact_archive(lifecycle)
     monkeypatch.setattr(archive, "archive_postimage", _staged_postimage)
-    native_resolve = archive.resolve_current_resolution
-    intent_tree_refs: list[str | None] = []
-
-    def resolve(*args: object, **kwargs: object):
-        intent_tree_refs.append(kwargs.get("intent_tree_ref"))
-        return native_resolve(*args, **kwargs)
-
+    resolve = Mock(wraps=archive.resolve_current_resolution)
     monkeypatch.setattr(archive, "resolve_current_resolution", resolve)
 
     report = archive.archive_change(
@@ -249,7 +228,8 @@ def test_staged_archive_recovery_resolves_intent_from_the_exact_source_head(
     )
 
     assert report["state"] == "ready_to_finalize_archive"
-    assert intent_tree_refs == [lifecycle.completed_head]
+    assert resolve.call_count == 1
+    assert resolve.call_args.kwargs["intent_tree_ref"] == lifecycle.completed_head
 
 
 def test_archive_finalization_failure_restores_the_exact_staged_postimage(

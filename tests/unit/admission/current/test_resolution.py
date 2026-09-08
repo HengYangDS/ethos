@@ -58,7 +58,7 @@ def _official_report(
     *,
     change: str | None = None,
     gaps: tuple[str, ...] = (),
-    artifacts: tuple[dict[str, object], ...] = (),
+    artifacts: tuple[object, ...] = (),
     commitment: object = ABSENT,
     change_path: str | None = None,
     scope_binding: dict[str, object] | None = None,
@@ -92,6 +92,23 @@ def _official_report(
     if commitment is not ABSENT:
         report["commitment"] = commitment
     return report
+
+
+def _corrupt_report_coordinate(
+    subject: object, coordinate: tuple[str | int, ...], value: object
+) -> None:
+    """Replace one field of an otherwise valid untrusted OpenSpec report."""
+    for key in coordinate[:-1]:
+        if isinstance(key, int):
+            assert isinstance(subject, list)
+            subject = subject[key]
+        else:
+            assert isinstance(subject, dict)
+            subject = subject[key]
+    field = coordinate[-1]
+    assert isinstance(field, str)
+    assert isinstance(subject, dict)
+    subject[field] = value
 
 
 def _resolve_report(
@@ -533,14 +550,11 @@ def test_current_resolution_rejects_untrusted_active_change_validation_items(
     valid = _resolve_report(monkeypatch, report, root=tmp_path, paths=(ACTIVE_SPEC,))
     assert valid.verdict == "pass"
     assert valid.scope.material_scope["authorized_paths"] == [ACTIVE_SPEC]
-    subject = report
-    for key in coordinate[:-1]:
-        subject = subject[key]
-    subject[coordinate[-1]] = value
+    _corrupt_report_coordinate(report, coordinate, value)
     resolution = _resolve_report(monkeypatch, report, root=tmp_path, paths=(ACTIVE_SPEC,))
     assert resolution.verdict == "block"
     assert not resolution.scope.material_scope.get("authorized_paths")
-    assert resolution.required_gaps == tuple(report["required_gaps"])
+    assert list(resolution.required_gaps) == report["required_gaps"]
 
 
 def test_current_resolution_ignores_info_beside_strict_blocking_change_issue(
@@ -670,10 +684,7 @@ def test_current_resolution_requires_valid_change_contract_for_canonical_repair(
     report = _canonical_repair_report()
     paths = ("openspec/specs/distribution/spec.md",)
     assert _resolve_report(monkeypatch, report, paths=paths).verdict == "pass"
-    subject = report
-    for key in coordinate[:-1]:
-        subject = subject[key]
-    subject[coordinate[-1]] = value
+    _corrupt_report_coordinate(report, coordinate, value)
     resolution = _resolve_report(monkeypatch, report, paths=paths)
     assert resolution.verdict == "block"
     assert not resolution.scope.material_scope.get("authorized_paths")
@@ -715,21 +726,22 @@ def test_current_resolution_rejects_ambiguous_or_invalid_new_change_bootstrap(
 def test_current_resolution_keeps_incomplete_or_invalid_artifact_authority_bounded(
     monkeypatch, fault
 ):
-    report = _official_report(
-        change="example",
-        gaps=("openspec_status_incomplete:example",),
-        artifacts=(_artifact("proposal", "proposal.md", status="ready"),),
-    )
-    artifact = report["lifecycle"]["changes"][0]["artifacts"][0]
+    artifact = _artifact("proposal", "proposal.md", status="ready")
     if fault == "complete-invalid":
-        report["required_gaps"] = ["commitment_invalid:example"]
         artifact["status"] = "done"
-    elif fault == "non-object":
-        report["lifecycle"]["changes"][0]["artifacts"] = [None]
     elif fault in {"missing-output", "missing-requires"}:
         artifact.pop("outputPath" if fault == "missing-output" else "requires")
     elif fault == "not-ready":
         artifact["status"] = "blocked"
+    report = _official_report(
+        change="example",
+        gaps=(
+            "commitment_invalid:example"
+            if fault == "complete-invalid"
+            else "openspec_status_incomplete:example",
+        ),
+        artifacts=(None if fault == "non-object" else artifact,),
+    )
     resolution = _resolve_report(
         monkeypatch,
         report,
@@ -739,7 +751,7 @@ def test_current_resolution_keeps_incomplete_or_invalid_artifact_authority_bound
     )
     assert resolution.verdict == "block"
     assert resolution.commitment is None
-    assert resolution.required_gaps == tuple(report["required_gaps"])
+    assert list(resolution.required_gaps) == report["required_gaps"]
     assert not resolution.scope.material_scope.get("authorized_paths")
     if fault in {"not-prewrite", "not-ready"}:
         expected = "instructions proposal" if fault == "not-prewrite" else "status"

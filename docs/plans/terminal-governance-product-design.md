@@ -357,6 +357,11 @@ fresh current facts
 -> lane, ref, worktree, and temporary-resource retirement
 ```
 
+OpenSpec implementation tasks cannot require their own archive or a later
+accepted transition as an archive prerequisite. Keep those delivery obligations
+in this execution route, explicitly pending until their effects are verified.
+Moving a misplaced obligation here preserves it; it does not mark it complete.
+
 Re-plan only when a fresh accepted head or runtime invalidates the input, an
 executable test disproves the stated model, an external stable dependency
 changes, another live owner overlaps the same authority surface, an effect
@@ -813,15 +818,15 @@ the exact missing-control-root gap, not merely subset membership. Evidence is
 in `lease-historical-absorption-focused.json` and its bound log; local coverage
 is diagnostic only and used different options from the full proof.
 
-Full proof of frozen `f191895e91b062422cf694264dae42776c9da6fe` completed on
+Full proof of frozen `62e95342266b97c092dd9e4b20e878172b17453e` completed on
 2026-09-08 with all 25 gates passing: 2518 tests passed and one was skipped.
 Native coverage records 19016/19762 lines and 5008/5514 branches, or
 95.04668460199399 percent combined. Attestation
-`45b4207572c6bf8ecd4f878bf7ed2f2316e88b93cce93cfafd3a9d5ddffc875b`
+`1d7605fd72de820d1cf8d24f6b0c3449a9d379b23338ce370b4b044be1df9984`
 binds that exact HEAD; source remained clean and unchanged throughout execution.
 The pytest root and owned proof processes are gone. The existing
-`full-proof-f191895e91b0-process.json` receipt binds output hashes and terminal
-status; `full-proof-f191895e91b0.json` retains every gate result. No focused
+`full-proof-62e95342266b-process.json` receipt binds output hashes and terminal
+status; `full-proof-62e95342266b.json` retains every gate result. No focused
 coverage was merged, exclusion introduced, or threshold or budget relaxed.
 
 The post-proof check of all 53 changed Python files initially reported 96 type
@@ -847,10 +852,15 @@ not merged with these focused runs. `typed-authority-closure.json` and the
 Task 2.2 is closed. Whole-repository typing, including other CI tools, and
 historical public schema-recovery correspondence remain separate open gaps.
 
-The public land dry-run selects official Change archive as its next operation;
-it does not waive incomplete tasks. Freeze and reprove the changed source before
-archive/reproof and exact
-candidate/accepted CAS. Accepted `ca8f8110` still carries the old 93-percent
+The public land dry-run selects official Change archive as its next operation.
+Archive then rejects the self-dependent task 3.2: it required that very archive
+and later acceptance before permitting archive. The duplicate task is removed,
+not checked off. Its unchanged delivery obligation remains **pending** here:
+archive through the official owner, reprove, complete public candidate/accepted
+CAS, and read back the immutable runtime. The two-file task/plan correction
+changes the proved HEAD; obtain current proof before executing archive. The
+zero-effect rejection is recorded in `archive-62e95342266b-dry.json` and its
+cause in `archive-task-cycle.txt`. Accepted `ca8f8110` still carries the old 93-percent
 policy until this correction lands. Runtime activation, hosted proof, historical
 lane retirement, and supply upgrades are not established by this local proof.
 Do not replay old coverage against shifted source lines or terminate another
@@ -923,6 +933,16 @@ receipt directory: `supply-freshness-20260908.json`, the corrected
 `supply-python-resolution-20260908.json`, and
 `supply-npm-constraints-20260908.json`. Their source URLs, observation times,
 input hashes, and limits support this dated assessment, not future freshness.
+
+The 03:14-03:17 UTC publisher recheck confirms the wrapper still supplies Node
+24.19.0, behind both Current 26.8.1 and LTS 24.20.0. Node recommends LTS for
+production; channel suitability must be explicit rather than inferred from
+version ordering. The ty README still declares Beta and no stable API. Pyright
+is an unelected replacement candidate: GitHub's latest release is 1.1.412, but
+native npm publishes 1.1.413 with a matching repository tag and no GitHub release
+record. Do not call 1.1.412 universally latest or treat these surfaces as equal.
+`supply-stable-boundary-recheck-20260908.json` retains the official responses,
+hashes, unavailable guessed ty page, and unresolved artifact-selection boundary.
 
 Complete the current coverage atom without dependency churn, then execute a
 bounded supply successor through the current public lifecycle in the owned

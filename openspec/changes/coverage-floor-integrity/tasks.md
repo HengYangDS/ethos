@@ -10,7 +10,6 @@
 - [x] 2.2 Consolidate redundant fixtures without deleting unique scenarios; verify source budgets, reference closure, lint, types, and focused tests.
 - [x] 2.3 Reject unbound archive cleanup paths, protect repository and tracked content, and verify retained-residue reporting with isolated regressions.
 
-## 3. Verify and close out
+## 3. Verify implementation
 
 - [x] 3.1 Freeze the source and obtain exact-HEAD full proof with coverage at least 95 percent and no exclusions or weakened budgets.
-- [ ] 3.2 Archive through the official owner, reprove, and complete the public candidate/accepted CAS transitions and immutable runtime readback.

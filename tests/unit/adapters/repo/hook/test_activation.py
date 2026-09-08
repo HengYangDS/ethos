@@ -282,10 +282,10 @@ def test_hook_install_removes_only_unreferenced_generated_paths(
 
     cleanup = install_hook_launchers(repo)["generation_cleanup"]
 
-    assert set(cleanup["removed"]) == {path.as_posix() for path in removable}
+    assert cleanup["removed"] == sorted(path.as_posix() for path in removable)
     assert all(not path.exists() for path in removable)
-    assert {path.as_posix() for path in (retained, hooks, runtime.parent)} <= set(
-        cleanup["retained"]
+    assert cleanup["retained"] == sorted(
+        path.as_posix() for path in (retained, hooks, runtime.parent)
     )
     assert all(path.is_dir() for path in (retained, hooks, unrelated, runtime.parent))
     assert (operations / "consumer.json").read_text(encoding="utf-8") == receipt
@@ -295,7 +295,7 @@ def _configured_worktrees(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     repo, linked, _runtime, generations = linked_runtime_case(tmp_path, monkeypatch)
     stale = hook_activation.materialize_hook_launchers(generations)
     config = hook_activation.config_effects
-    common_values = {
+    common_values: dict[str, tuple[str, ...]] = {
         "extensions.worktreeConfig": ("true",),
         "gc.packRefs": ("true",),
         "core.hooksPath": (stale.as_posix(),),
@@ -399,7 +399,7 @@ def test_hook_generation_failure_never_mutates_an_existing_generation(
     before = {path.name: path.read_bytes() for path in old.iterdir()}
     write_text = Path.write_text
 
-    def fail_pre_push(path: Path, data: str, **kwargs: object) -> int:
+    def fail_pre_push(path: Path, data: str, **kwargs: str | None) -> int:
         if path.name == "pre-push" and path.parent.name.startswith(".generation-"):
             message = "staging failed"
             raise OSError(message)

@@ -824,19 +824,32 @@ The pytest root and owned proof processes are gone. The existing
 status; `full-proof-f191895e91b0.json` retains every gate result. No focused
 coverage was merged, exclusion introduced, or threshold or budget relaxed.
 
-The post-proof check of all 53 changed Python files reports 96 type diagnostics,
-recorded in `coverage-atom-changed-typing.json` and its bound log. The existing
-product type gate checks `src`, not these additional test owners. This establishes
-a wider verification gap, not that every diagnostic is a new regression or that
-the full proof failed. Task 2.2 therefore stays open. Resolve diagnostics at their
-typed request, fixture, and assertion owners; preserve deliberate invalid-input
-scenarios and source budgets without ignores, casts hiding errors, or a second
-type-policy owner. Broader CI-tool typing and historical public schema-recovery
-correspondence also remain unresolved; product-gate success does not close them.
+The post-proof check of all 53 changed Python files initially reported 96 type
+diagnostics in `coverage-atom-changed-typing.json`. That same command now passes;
+the production gate alone checks `src` and did not establish this wider result.
+Seventeen existing test owners now use accurate fixture types, explicit shape
+checks, and the current immutable contract. Deliberately malformed official
+reports remain untrusted inputs; no production signature, policy, exclusion,
+ignore, or type suppression was relaxed. Duplicate metadata construction and
+recovery forwarding were removed without deleting scenarios. A too-narrow
+`dict` assertion introduced during this work failed against correct immutable
+facts; `Mapping` narrowing repairs the test, not production behavior.
+
+The final archive, resolution, proof, and reference-closure set passes all 254
+tests. Earlier runtime and retirement sets passed 149 and 78 tests respectively;
+their recorded source hashes still match. Ruff, formatting, the exact 53-file
+type command, repository audit, and semantic-reference closure pass. Test ELOC
+is 38296/38300, with product and tool measurements unchanged. Temporary test
+roots are removed; native full-proof coverage and JUnit hashes are unchanged,
+not merged with these focused runs. `typed-authority-closure.json` and the
+`typed-runtime-focused.json`, `typed-retirement-focused.json`, and
+`typed-closure-reference-closure.json` receipts bind these bounded results.
+Task 2.2 is closed. Whole-repository typing, including other CI tools, and
+historical public schema-recovery correspondence remain separate open gaps.
 
 The public land dry-run selects official Change archive as its next operation;
-it does not waive incomplete tasks. Finish the bounded type/semantic closure,
-then freeze and reprove changed source before archive/reproof and exact
+it does not waive incomplete tasks. Freeze and reprove the changed source before
+archive/reproof and exact
 candidate/accepted CAS. Accepted `ca8f8110` still carries the old 93-percent
 policy until this correction lands. Runtime activation, hosted proof, historical
 lane retirement, and supply upgrades are not established by this local proof.

@@ -126,6 +126,7 @@ def test_legacy_migration_rejects_non_exact_schema(
         if field == "raw"
         else json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
     )
+    assert isinstance(raw, str)
     manifest.write_text(raw, encoding="utf-8")
 
     assert legacy_runtime_migration_source(common) is None

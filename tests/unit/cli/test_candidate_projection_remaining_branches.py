@@ -105,9 +105,11 @@ def test_refresh_readiness_does_not_execute(
         root=tmp_path, apply=apply, authorized=apply, expect_head="head" if apply else None
     )
     assert (report["state"], report["required_gaps"]) == (state, gaps)
-    assert report["next_action"]
+    action = report["next_action"]
+    assert isinstance(action, str)
+    assert action
     if state == "ready_to_refresh_from_accepted":
-        assert "--expect-head head" in report["next_action"]
+        assert "--expect-head head" in action
 
 
 @pytest.mark.parametrize(

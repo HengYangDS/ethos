@@ -1130,6 +1130,64 @@ preservation/disposal transition must protect content drift, index state,
 ownership, retained evidence, interrupted effects, and unknown untracked data.
 Its absence does not justify abandoning the remaining finite lane inventory.
 
+### CI Priority And Preservation Strategy Correction — 2026-09-08
+
+The unaccepted `preserved-worktree-retirement` prototype is withdrawn, not
+completed or archived as a successful Change. Its whole-worktree archive would
+copy Git-recoverable content, virtual environments, and caches while providing
+no consuming transition or executable disposal condition. Its two modified
+files are restored to HEAD; its two new modules/tests and five official draft
+artifacts are removed. No historical source content, ref, worktree, or Lease is
+deleted. Hash-bound withdrawal observations remain in the existing evidence
+root until this correction is accepted; the rejected implementation is not
+copied into another retention store.
+
+The immediate outcome is green hosted CI at the selected published object,
+not another local-only implementation increment. Downloaded GitHub receipts
+for `18aa8707` show dev proof passed but wrapper readiness was blocked by absent
+candidate/local runtime state; main additionally failed active-Change selection.
+GitLab dev verification stopped at an unresolved bare `openspec` command;
+package conformance lacked an offline-resolvable Python interpreter. GitLab
+main external-link failure lacks the individual failed-link diagnostic in its
+job trace and remains unclassified. These are separate observed boundaries,
+not evidence that one guessed fix closes all providers.
+
+| Recurring judgment error | Guardrail in the existing owner | Required verification |
+| --- | --- | --- |
+| Confuse semantic recovery with reviving a historical lane | Apply Convergence Rule 4; select authoring topology by current authority and isolation need. | Map each unique obligation to its accepted implementation/test or reasoned rejection before source disposal. |
+| Treat copying as preservation completion | Keep only unresolved irreplaceable inputs; name consumer and exit condition before retention. | No archive of reproducible supplies; terminal resource absence is observed separately from semantic acceptance. |
+| Infer hosted success from local proof or partial tests | Bind each CI receipt to its declared evidence plane and exact expected HEAD. | Regress blocked, malformed, stale-head, and failed-execution observations; inspect both providers after publication. |
+| Guess transport, missing tools, or failure causes | Use declared API/Git endpoints and retain actual command, environment, stderr, and artifact facts. | HTTP `192.168.64.101:18086` is the GitLab API; SSH `:1122` is Git transport. Unknown link failures remain unknown until their diagnostics are read. |
+
+Current bounded implementation reuses the host gate owner with unchanged
+canonical default/full gate selection, binds uv to its current interpreter,
+uses repository OpenSpec explicitly, and retains provider stdout/stderr. The
+shell receipt rejects stale, malformed, partial, wrong-plane, and unsuccessful
+results. Focused regressions pass 64 tests; configuration, projection equality,
+Markdown, Ruff, type checks, shell checks, and seven static gates pass. A real
+isolated offline uv probe reproduces exit 2 without interpreter binding and
+exit 0 with the exact interpreter selected. These are authoring observations,
+not accepted or hosted completion.
+
+Current local external-link observation passes, but does not reconstruct the
+old GitLab link failure or prove that runner's network state. No exclusion,
+retry allowance, coverage reduction, or fabricated green result is added.
+The exact-current hosted run must supply its diagnostic if this failure recurs.
+
+The next checks are a reviewed source freeze, exact-HEAD full proof, official
+archive and post-archive proof, accepted CAS and package runtime readback, then
+same-object publication and independent GitHub/GitLab CI observation. Those
+external lifecycle results are not source task checkboxes: editing them after
+proof would invalidate the proof input and create a closeout dependency cycle.
+Keep this Change and the global goal incomplete until their required evidence
+planes close; local test success cannot retire that obligation.
+
+After the CI boundary closes, resume easiest-first semantic absorption. A new
+lane is permitted when it enables a coherent terminal increment, not as a
+substitute for finishing the current one. Count accepted obligations and retired
+resources independently. Do not add a second roadmap, preservation registry,
+or prohibition against useful isolation.
+
 ## Convergence Rules
 
 1. **Promote before compatibility.** Replace a missing model boundary before
@@ -1140,11 +1198,15 @@ Its absence does not justify abandoning the remaining finite lane inventory.
    to them as a projection.
 3. **Separate planes.** Local proof and each declared peer observation produce
    distinct attestations and cannot imply one another.
-4. **Subtract before succession.** For every obsolete carrier or Work Lane,
-   move only unique terminal semantics into the existing owner, then delete the
-   implementation, tests, schema, documentation, state, ref, and worktree that
-   no longer have a consumer. Foreign dirty work waits only for explicit owner
-   handoff; it does not justify a preservation store or parallel lifecycle.
+4. **Absorb meaning; retire carriers.** The unit of convergence is a valid
+   semantic obligation, not a branch or directory. Move unique terminal meaning
+   into its current owner in an authorized existing or, when isolation warrants
+   it, new Work Lane. Historical lane revival and whole-branch merging are not
+   prerequisites. Prove coverage before retiring the source through exact public
+   effects. Git-recoverable bytes and reproducible supplies need no duplicate
+   archive. Unresolved unique content remains protected with a named consumer,
+   next resolving action, and exit condition; uncertainty is not indefinite
+   retention authority. Foreign ownership requires handoff, not a new store.
 5. **Prove across shapes.** Product, code, and documentation adopters demonstrate
    the same input-to-verdict relation while retaining their native carriers.
 6. **One obvious safe path.** Defaults select the least-powerful useful operation;

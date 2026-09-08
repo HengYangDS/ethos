@@ -89,20 +89,18 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
 
 
 def _host_gate_observation(
-    *, repo: Path, gate_ids: tuple[str, ...], expect_head: str | None
+    *, repo: Path, gate_ids: tuple[str, ...], expect_head: str | None, full: bool = False
 ) -> EthosResult:
     """Execute focused gates without repository lifecycle or Attestation authority."""
     current_head = git.current_head(repo)
     required_gaps = (
-        ("host_gate_selection_required",)
-        if not gate_ids
-        else ("expected_head_mismatch",)
+        ("expected_head_mismatch",)
         if expect_head is not None and expect_head != current_head
         else ()
     )
     checks: list[dict[str, object]] = []
     if not required_gaps:
-        policy = resolve_gate_policy(repo, tree_ref=current_head, gate_ids=gate_ids)
+        policy = resolve_gate_policy(repo, tree_ref=current_head, gate_ids=gate_ids, full=full)
         results = run_gate_waves(
             LocalGateRunner(),
             policy.nodes,
@@ -118,6 +116,8 @@ def _host_gate_observation(
                 "exit_code": result.exit_code,
                 "verdict": result.verdict,
                 "diagnostics": list(result.diagnostics),
+                "stdout": result.stdout,
+                "stderr": result.stderr,
             }
             for result in results
         ]
@@ -126,6 +126,8 @@ def _host_gate_observation(
             for check in checks
             if check["verdict"] != "pass"
         )
+        if tuple(result.action_id for result in results) != tuple(node.id for node in policy.nodes):
+            required_gaps = (*required_gaps, "host_gate_results_incomplete")
     verdict: Verdict = "pass" if checks and not required_gaps else "block"
     return EthosResult(
         command="prove",
@@ -162,6 +164,7 @@ def _emit_host_gate_observation(*, repo: Path, options: _ProofOptions, json_outp
             repo=repo,
             gate_ids=options.gate,
             expect_head=options.expect_head,
+            full=options.full,
         ),
         json_output=json_output,
     )

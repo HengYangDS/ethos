@@ -15,18 +15,10 @@ import ethos.adapters.mutation.lane_lifecycle.lease.acquisition as lease_acquisi
 import ethos.adapters.mutation.lane_lifecycle.lease.operation as lease_operation
 import ethos.adapters.mutation.lane_lifecycle.lease.takeover as lease_takeover
 import ethos.adapters.store.state.lease.lifecycle.transitions as lease_storage
+import ethos.adapters.store.state.lease.projection as lease_projection
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
-from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
-from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
-from ethos.adapters.store.state.lease.lifecycle.transitions import (
-    replace_exact_lease_from_connection,
-)
-from ethos.adapters.store.state.lease.lifecycle.transitions import takeover_lease
-from ethos.adapters.store.state.lease.projection import LeaseRow
-from ethos.adapters.store.state.lease.projection import active_leases
-from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
@@ -90,7 +82,7 @@ def test_reacquire_missing_lease_preserves_index_and_dirty_content(
         cwd=repo,
     )
     assert planned["verdict"] == "pass"
-    assert observe_lease(state_database(repo), "work/retained").state == "missing"
+    assert lease_projection.observe_lease(state_database(repo), "work/retained").state == "missing"
     arguments = shlex.split(planned["next_action"])
     assert arguments[:4] == ["ethos", "lane", "lease", "reacquire"]
     assert "--expect-snapshot" in arguments
@@ -138,7 +130,7 @@ def test_reacquire_rejects_exact_snapshot_or_ownership_drift(tmp_path, monkeypat
     elif drift in {"working", "untracked"}:
         (target / ("README.md" if drift == "working" else "untracked.txt")).write_text("changed\n")
     elif drift in {"lease", "expired", "same-holder", "renewed"}:
-        acquire_lease(
+        lease_storage.acquire_lease(
             state_database(repo),
             lease=strict_lease(
                 branch="work/retained",
@@ -161,7 +153,7 @@ def test_reacquire_rejects_exact_snapshot_or_ownership_drift(tmp_path, monkeypat
         target, _candidate = init_repo_with_candidate(tmp_path / "foreign")
     result = _reacquire(repo, target, **arguments)
     assert result["verdict"] == "block", result
-    observed = observe_lease(state_database(repo), "work/retained")
+    observed = lease_projection.observe_lease(state_database(repo), "work/retained")
     assert observed.state == {
         "lease": "valid",
         "same-holder": "valid",
@@ -182,7 +174,9 @@ def test_reacquire_rejects_invalid_request_and_unreadable_state(tmp_path, monkey
         {"expires_at": "2020-01-01T00:00:00Z"},
     ):
         assert _reacquire(repo, target, **(arguments | invalid))["verdict"] == "block"
-        assert observe_lease(state_database(repo), "work/retained").state == "missing"
+        assert (
+            lease_projection.observe_lease(state_database(repo), "work/retained").state == "missing"
+        )
     state_database(repo).parent.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(state_database(repo))) as connection, connection:
         connection.execute("create table leases (old_id text)")
@@ -207,7 +201,7 @@ def test_reacquire_rolls_back_lease_when_content_changes_during_insertion(tmp_pa
 
     assert result["verdict"] == "block"
     assert "lease_reacquire_snapshot_drift" in result["required_gaps"]
-    assert observe_lease(state_database(repo), "work/retained").state == "missing"
+    assert lease_projection.observe_lease(state_database(repo), "work/retained").state == "missing"
     assert (target / "README.md").read_text() == "concurrent edit\n"
 
 
@@ -226,7 +220,7 @@ def test_reacquire_recovers_evidence_failure_without_replacing_committed_lease(
     monkeypatch.setattr(lease_acquisition, "record_attestations", unavailable)
     partial = _reacquire(repo, target, **_reacquire_arguments(planned))
     assert partial["state"] == "partial_transition"
-    lease = observe_lease(state_database(repo), "work/retained").record()
+    lease = lease_projection.observe_lease(state_database(repo), "work/retained").record()
     assert lease["holder_ref"] == TARGET
     monkeypatch.setattr(lease_acquisition, "record_attestations", record)
     recovered = _reacquire(repo, target, **_reacquire_arguments(planned))
@@ -286,12 +280,12 @@ def _takeover(
         ("expires_at", "2026-08-29T00:00:00+00:00"),
     ],
 )
-@pytest.mark.parametrize("effect", [apply_lease_operation, revoke_lease])
+@pytest.mark.parametrize("effect", [lease_storage.apply_lease_operation, revoke_lease])
 def test_stale_coordinate_rejects_without_mutation(
     tmp_path, field: str, value: object, effect
 ) -> None:
     database = tmp_path / "state.sqlite"
-    acquired = acquire_lease(database, lease=strict_lease(holder=SOURCE))
+    acquired = lease_storage.acquire_lease(database, lease=strict_lease(holder=SOURCE))
 
     with pytest.raises(ValueError, match="lease_generation_stale:work/example"):
         effect(
@@ -299,15 +293,15 @@ def test_stale_coordinate_rejects_without_mutation(
             request=_operation(acquired).model_copy(update={field: value}),
         )
 
-    assert observe_lease(database, "work/example").record() == acquired
+    assert lease_projection.observe_lease(database, "work/example").record() == acquired
 
 
 def test_storage_rejects_conflicting_nonapplying_or_unknown_operations(tmp_path) -> None:
     database = tmp_path / "state.sqlite"
     lease = strict_lease(holder=SOURCE)
-    acquired = acquire_lease(database, lease=lease)
+    acquired = lease_storage.acquire_lease(database, lease=lease)
     with pytest.raises(ValueError, match="lane_lease_conflict:work/example"):
-        acquire_lease(database, lease=lease)
+        lease_storage.acquire_lease(database, lease=lease)
 
     for request, gap in (
         (_operation(acquired, "unknown"), "lease_operation_unknown:unknown"),
@@ -315,62 +309,97 @@ def test_storage_rejects_conflicting_nonapplying_or_unknown_operations(tmp_path)
         (_operation(acquired).model_copy(update={"apply": False}), "lease_apply_required:renew"),
     ):
         with pytest.raises(ValueError, match=gap):
-            apply_lease_operation(database, request=request)
+            lease_storage.apply_lease_operation(database, request=request)
     with pytest.raises(ValueError, match="lease_apply_required:takeover"):
-        takeover_lease(database, request=_takeover(acquired, apply=False))
-    assert observe_lease(database, "work/example").record() == acquired
+        lease_storage.takeover_lease(database, request=_takeover(acquired, apply=False))
+    assert lease_projection.observe_lease(database, "work/example").record() == acquired
 
 
 def test_storage_observation_and_exact_cas_fail_closed(tmp_path) -> None:
     lease = strict_lease(holder=SOURCE)
     request = _operation(lease.to_payload())
-    assert observe_lease(tmp_path / "missing.sqlite", "work/missing").state == "missing"
+    assert (
+        lease_projection.observe_lease(tmp_path / "missing.sqlite", "work/missing").state
+        == "missing"
+    )
+    assert lease_projection.lease_observations(tmp_path / "missing.sqlite") == []
     with pytest.raises(ValueError, match="work_lane_missing_lease:work/example"):
-        apply_lease_operation(tmp_path / "missing.sqlite", request=request)
+        lease_storage.apply_lease_operation(tmp_path / "missing.sqlite", request=request)
 
     unknown = tmp_path / "unknown.sqlite"
     with closing(sqlite3.connect(unknown)) as connection, connection:
+        assert lease_projection.observe_lease(unknown, "work/example").record() == {
+            "subject": "work/example",
+            "lease_state": "missing",
+        }
+        assert lease_projection.lease_rows(unknown) == []
         connection.execute("begin immediate")
         initialize_state_connection(connection)
         connection.execute(
             "insert into leases(lane_ref, holder_ref, generation, expires_at) values (?, ?, ?, ?)",
             ("work/example", SOURCE, 1, "not-a-time"),
         )
-    assert observe_lease(unknown, "work/example").state == "unknown"
-    assert active_leases(unknown) == []
+    assert lease_projection.observe_lease(unknown, "work/example").state == "unknown"
+    assert lease_projection.active_leases(unknown) == []
+    assert lease_projection.observe_lease(unknown, "work/example").record()["error"]
     with pytest.raises(ValueError, match="lease_unknown:work/example"):
-        apply_lease_operation(
+        lease_projection.lease_record(("work/example", SOURCE, 1, "not-a-time"))
+    with pytest.raises(ValueError, match="lease_unknown:work/example"):
+        lease_storage.apply_lease_operation(
             unknown,
             request=request.model_copy(update={"expires_at": "not-a-time"}),
         )
 
     expired = tmp_path / "expired.sqlite"
-    expired_record = acquire_lease(
+    expired_record = lease_storage.acquire_lease(
         expired,
         lease=strict_lease(holder=SOURCE, expires_at=datetime.now(UTC) - timedelta(seconds=1)),
     )
     with pytest.raises(ValueError, match="lease_expired:work/example"):
-        apply_lease_operation(expired, request=_operation(expired_record))
-    resumed = apply_lease_operation(expired, request=_operation(expired_record, "resume"))
+        lease_storage.apply_lease_operation(expired, request=_operation(expired_record))
+    resumed = lease_storage.apply_lease_operation(
+        expired, request=_operation(expired_record, "resume")
+    )
     assert (resumed["generation"], resumed["holder_ref"]) == (2, SOURCE)
 
+    now = datetime.now(UTC)
+    for branch, expires in (("valid", now + timedelta(days=1)), ("expired", now)):
+        lease_storage.acquire_lease(
+            unknown, lease=strict_lease(branch=f"work/{branch}", expires_at=expires)
+        )
+    observations = lease_projection.lease_observations(unknown, observed_at=now)
+    assert [(item.subject, item.state) for item in observations] == [
+        ("work/example", "unknown"),
+        ("work/expired", "expired"),
+        ("work/valid", "valid"),
+    ]
+    assert [item["subject"] for item in lease_projection.active_leases(unknown)] == ["work/valid"]
+
     database = tmp_path / "cas.sqlite"
-    acquired = acquire_lease(database, lease=lease)
-    current = LeaseRow(**{key: acquired[key] for key in LeaseRow.__dataclass_fields__})
+    lease_storage.acquire_lease(database, lease=lease)
+    current = lease_projection.observe_lease(database, "work/example").row
+    assert current is not None
     with closing(sqlite3.connect(database)) as connection, connection:
         with pytest.raises(ValueError, match="lease_reissue_identity_mismatch:work/example"):
-            replace_exact_lease_from_connection(
+            lease_storage.replace_exact_lease_from_connection(
                 connection,
                 current=current,
                 replacement=strict_lease(branch="work/other", holder=SOURCE),
             )
         connection.execute("delete from leases where lane_ref = ?", ("work/example",))
         with pytest.raises(ValueError, match="lease_generation_stale:work/example"):
-            replace_exact_lease_from_connection(
+            lease_storage.replace_exact_lease_from_connection(
                 connection,
                 current=current,
                 replacement=strict_lease(holder=SOURCE, generation=2),
             )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"), [(True, 0), (7, 7), ("8", 8), ("bad", 0), (None, 0)]
+)
+def test_generation_projection_preserves_integer_or_rejects_unknown(value, expected):
+    assert lease_projection.integer_value(value) == expected
 
 
 @pytest.fixture
@@ -380,9 +409,40 @@ def lease_context(tmp_path, monkeypatch):
     root = tmp_path / "owned"
     git(repo, "worktree", "add", "-b", "work/example", str(root), "dev")
     database = state_database(root)
-    acquired = acquire_lease(database, lease=strict_lease(holder=SOURCE))
+    acquired = lease_storage.acquire_lease(database, lease=strict_lease(holder=SOURCE))
     monkeypatch.setenv("ETHOS_ACTOR", SOURCE)
     return root, database, acquired
+
+
+@pytest.mark.parametrize("takeover", [False, True], ids=["renew", "takeover"])
+@pytest.mark.parametrize("error", [sqlite3.OperationalError("locked"), ValueError("stale")])
+def test_public_lease_storage_failure_preserves_generation(
+    lease_context, monkeypatch, takeover, error
+):
+    root, database, acquired = lease_context
+    request = _takeover(acquired) if takeover else _operation(acquired)
+    module = lease_takeover if takeover else lease_operation
+    if isinstance(request, LeaseTakeoverRequest):
+        monkeypatch.setenv("ETHOS_ACTOR", TARGET)
+        record_attestations(root, (request.authorization,))
+    before = read_attestation_set(root)
+
+    def reject(*_args, **_kwargs):
+        raise error
+
+    monkeypatch.setattr(module, "takeover_lease" if takeover else "apply_lease_operation", reject)
+    report = (
+        lease_takeover.execute_lease_takeover(root=root, request=request)
+        if isinstance(request, LeaseTakeoverRequest)
+        else lease_operation.execute_lease_operation(root=root, request=request)
+    )
+    assert (report["verdict"], report["required_gaps"], report["lease"]) == (
+        "block",
+        [str(error)],
+        {},
+    )
+    assert lease_projection.observe_lease(database, "work/example").record() == acquired
+    assert read_attestation_set(root) == before
 
 
 @pytest.mark.parametrize("operation", ["renew", "transfer"])
@@ -398,14 +458,17 @@ def test_public_lease_operation_projects_and_applies_exact_four_coordinate_cas(
         request=request.model_copy(update={"apply": False}),
     )
     applied = lease_operation.execute_lease_operation(root=root, request=request)
+    lease, mutation = applied["lease"], applied["mutation"]
+    assert isinstance(lease, dict)
+    assert isinstance(mutation, dict)
     assert (planned["verdict"], planned["state"], planned["lease"]) == ("pass", "planned", {})
     assert (applied["verdict"], applied["state"]) == (
         "pass",
         "transferred" if operation == "transfer" else "renewed",
     )
-    assert applied["lease"]["generation"] == 2
-    assert applied["lease"]["holder_ref"] == (TARGET if operation == "transfer" else SOURCE)
-    assert set(applied["lease"]) == {
+    assert lease["generation"] == 2
+    assert lease["holder_ref"] == (TARGET if operation == "transfer" else SOURCE)
+    assert set(lease) == {
         "subject",
         "lease_state",
         "lane_ref",
@@ -413,7 +476,7 @@ def test_public_lease_operation_projects_and_applies_exact_four_coordinate_cas(
         "generation",
         "expires_at",
     }
-    assert applied["mutation"]["decision"]["decision_basis"]["enforcement_boundary"] == (
+    assert mutation["decision"]["decision_basis"]["enforcement_boundary"] == (
         "local_sqlite_compare_and_swap"
     )
 
@@ -463,7 +526,9 @@ def test_public_lease_operation_fails_closed_with_one_precise_reason(
     request = _operation(acquired, operation).model_copy(update=changes.get("request", {}))
     report = lease_operation.execute_lease_operation(root=root, request=request)
     assert report["verdict"] == ("unknown" if changes.get("lease") == "unknown" else "block")
-    assert gap in report["required_gaps"]
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert gap in gaps
     assert report["lease"] == {}
 
 
@@ -476,28 +541,31 @@ def test_public_lease_takeover_requires_accepted_authorization_and_is_idempotent
     record_attestations(root, (request.authorization,))
     applied = lease_takeover.execute_lease_takeover(root=root, request=request)
     recovered = lease_takeover.execute_lease_takeover(root=root, request=request)
+    lease, recovered_lease = applied["lease"], recovered["lease"]
+    assert isinstance(lease, dict)
+    assert isinstance(recovered_lease, dict)
 
-    assert (applied["verdict"], applied["state"], applied["lease"]["holder_ref"]) == (
+    assert (applied["verdict"], applied["state"], lease["holder_ref"]) == (
         "pass",
         "taken_over",
         TARGET,
     )
-    assert (recovered["verdict"], recovered["state"], recovered["lease"]["generation"]) == (
+    assert (recovered["verdict"], recovered["state"], recovered_lease["generation"]) == (
         "pass",
         "taken_over",
         2,
     )
     _selected, records = read_attestation_set(root)
     assert len([item for item in records if item.payload.kind == "effect:native"]) == 2
-    revoked = revoke_lease(database, request=_operation(applied["lease"], "revoke"))
+    revoked = revoke_lease(database, request=_operation(lease, "revoke"))
     assert revoked == {
         "revoked": True,
         "lane_ref": "work/example",
         "holder_ref": TARGET,
         "generation": 2,
-        "expires_at": applied["lease"]["expires_at"],
+        "expires_at": lease["expires_at"],
     }
-    assert observe_lease(database, "work/example").state == "missing"
+    assert lease_projection.observe_lease(database, "work/example").state == "missing"
 
 
 @pytest.mark.parametrize(
@@ -526,5 +594,7 @@ def test_public_lease_takeover_rejects_unaccepted_or_drifted_coordinates(
     report = lease_takeover.execute_lease_takeover(root=root, request=request)
 
     assert report["verdict"] == "block"
-    assert gap in report["required_gaps"]
-    assert observe_lease(database, "work/example").record() == acquired
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert gap in gaps
+    assert lease_projection.observe_lease(database, "work/example").record() == acquired

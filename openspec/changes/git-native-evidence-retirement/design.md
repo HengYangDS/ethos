@@ -36,6 +36,13 @@ than add a forbidden-path blacklist. Ordinary source classification applies
 again to any newly introduced files at those paths; official OpenSpec archive
 accounting remains distinct.
 
+Reference closure observes each current path-bearing carrier once per audit
+and joins normalized references to the retired paths. Deletion count must not
+multiply Markdown or source parsing. This invocation-local relation replaces
+the repeated per-deletion scan; it is not a persistent cache or another
+reference owner. Relative links, exact source findings, migration prose and
+retired-module checks retain their existing interpretation.
+
 ## Verification And Delivery
 
 Regressions exercise default profile semantics, source-budget accounting and

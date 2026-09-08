@@ -253,17 +253,14 @@ def _retired_reference_consumers(
     root: Path,
     files: dict[str, str],
 ) -> list[SemanticClosureFinding]:
+    retired_paths = _retired_paths_since_candidate(root)
+    if not retired_paths:
+        return []
+    path_consumers = _retired_path_sources(files, retired_paths)
     findings = []
     current_modules = {module_name(path) for path in files if path.endswith(".py")}
-    for retired_path in _retired_paths_since_candidate(root):
-        path_sources = tuple(
-            sorted(
-                source
-                for source, text in files.items()
-                if not _is_change_intent_source(source)
-                if _references_path(source, text, retired_path)
-            )
-        )
+    for retired_path in retired_paths:
+        path_sources = path_consumers[retired_path]
         if path_sources:
             findings.append(
                 SemanticClosureFinding(
@@ -356,20 +353,27 @@ def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:
     return tuple(sorted(set(retired)))
 
 
-def _references_path(source: str, text: str, retired_path: str) -> bool:
-    if source.startswith("tests/"):
-        return False
-    source_parent = posixpath.dirname(source)
-    values = _markdown_link_destinations(text) if source.endswith(".md") else _path_literals(text)
-    for value in values:
-        observed = (
-            posixpath.normpath(posixpath.join(source_parent, value))
-            if value.startswith(("./", "../"))
-            else posixpath.normpath(value)
+def _retired_path_sources(
+    files: dict[str, str], retired_paths: tuple[str, ...]
+) -> dict[str, tuple[str, ...]]:
+    """Join each current carrier's path references to retired identities once."""
+    consumers: dict[str, set[str]] = {path: set() for path in retired_paths}
+    for source, text in files.items():
+        if source.startswith("tests/") or _is_change_intent_source(source):
+            continue
+        source_parent = posixpath.dirname(source)
+        values = (
+            _markdown_link_destinations(text) if source.endswith(".md") else _path_literals(text)
         )
-        if observed == retired_path:
-            return True
-    return False
+        for value in values:
+            observed = (
+                posixpath.normpath(posixpath.join(source_parent, value))
+                if value.startswith(("./", "../"))
+                else posixpath.normpath(value)
+            )
+            if observed in consumers:
+                consumers[observed].add(source)
+    return {path: tuple(sorted(sources)) for path, sources in consumers.items()}
 
 
 def _path_literals(text: str) -> tuple[str, ...]:

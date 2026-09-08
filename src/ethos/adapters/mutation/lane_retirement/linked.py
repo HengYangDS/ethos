@@ -15,7 +15,6 @@ from ethos.adapters.mutation.lane_retirement.linked_admission import retirement_
 from ethos.adapters.mutation.lane_retirement.linked_admission import retirement_verdict
 from ethos.adapters.mutation.lane_retirement.linked_admission import superseded_gaps
 from ethos.adapters.mutation.lane_retirement.linked_effect import linked_retirement_plan
-from ethos.adapters.mutation.lane_retirement.observation import output
 from ethos.adapters.mutation.lane_retirement.operation import apply_operation
 from ethos.adapters.mutation.lane_retirement.operation import persist_operation
 from ethos.adapters.repo.git import current_tree
@@ -106,7 +105,7 @@ def retire_linked_work_lane(
     branch = (request.branch or "").strip()
     reason = request.reason.strip()
     absorbed_by = request.absorbed_by.strip()
-    accepted_head = output(repo, "rev-parse", policy.accepted_branch) or ""
+    accepted_head = effects.output(repo, "rev-parse", policy.accepted_branch) or ""
     control_root = effects.control_root(worktrees, repo)
     leases = leases_by_branch(repo)
     lanes, lane = retirement_target(

@@ -82,8 +82,7 @@ def _stub_retirement(
             return current_branch
         return None
 
-    monkeypatch.setattr(linked, "output", output)
-    monkeypatch.setattr(linked_admission, "output", output)
+    monkeypatch.setattr(effects, "output", output)
 
 
 @pytest.mark.parametrize(

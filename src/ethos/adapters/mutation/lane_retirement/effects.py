@@ -9,7 +9,6 @@ from typing import Literal
 from typing import cast
 
 from ethos.adapters.mutation.lane_retirement.linked_effect import linked_retirement_plan
-from ethos.adapters.mutation.lane_retirement.observation import output
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effects import admit_git_effect
@@ -20,6 +19,12 @@ from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 
 if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
+
+
+def output(root: Path, *args: str) -> str | None:
+    """Return stdout for one successful read-only Git observation."""
+    completed = run_git(root, *args, check=False)
+    return completed.stdout.rstrip("\n") if completed.returncode == 0 else None
 
 
 def absorbed(repo: Path, head: str, accepted_head: str) -> bool:

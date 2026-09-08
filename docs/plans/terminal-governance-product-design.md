@@ -961,6 +961,128 @@ contradiction or a budget failure triggers owner-level replanning, never a
 threshold reduction. This section owns execution order; the official Change
 owns bounded task progress, and generated receipts own execution observations.
 
+### Easiest-First Retained History Retirement — 2026-09-08
+
+The accepted source remains `d3fc9b4c356224e267dea97f743658d7bb89f531`.
+The seven historical roots are not retired. The clean lifecycle topic at
+`994b301f73604780202d25a8ef52d239c24ec4fe` is wholly reachable through the
+contracts topic at `c4ec2ebbc05beb11df15b1b8528c182402c0effe`: their exact
+left/right unique commit counts are `1/0`. This is retention evidence, not
+accepted semantic equivalence. Removing the shorter duplicate leaves the
+longer history as the sole remaining absorption subject for their common work.
+
+The active `retained-topic-retirement` Change extends existing superseded
+retirement without new lanes or stores. A full local ref selects retained
+history, derivation binds its OID in the existing immutable operation, and the
+existing recovery command performs the authorized deletion. Missing or expired
+source Lease is not authoring permission; a valid Lease remains holder-bound.
+Historical configuration is not revived. Tests first reproduced the current
+rejection, then exercised installed hooks, exact retained assertions, ownership,
+invalid retention, stale coordinates, and pre-CAS races. The initial focused
+retirement/Git-effect set passed 235 tests; subsequent test consolidation and
+projection edits require a fresh check before freezing. No new full proof,
+acceptance, runtime installation, or real retirement is established by that run.
+
+Execute in this order:
+
+1. Finish this bounded retirement owner, preserve all distinct regressions while
+   consolidating duplicate setup, and retain the current native source-budget
+   limits and 95-percent combined coverage floor. The September 8 user decision
+   supersedes older budget snapshots: product and tests each have a 40000-ELOC
+   ceiling; the project total is observational, not a 90000-ELOC blocker.
+   Check source, command help, and existing docs.
+2. Freeze, prove, officially archive and reprove, accept and install the immutable
+   runtime. Reobserve the two historical heads, clean content, ownership, and
+   retained path; derive and execute the shorter topic's public retirement.
+3. Verify target worktree/ref/Lease absence and retained object/content equality.
+   Count that as duplicate-resource retirement, not accepted semantic absorption.
+4. Absorb the remaining smallest, already-understood semantic deltas into current
+   owners, then retire their roots. Leave the 311-dirty/30-untracked transition
+   root until the bounded sources are closed. The cwd-sensitive old gate registry
+   problem is deferred, not silently solved or made a prerequisite for every root.
+
+The execution measure is fully retired resources plus independently preserved
+semantic obligations, not Lease restoration, scans, or additional Changes.
+
+The subsequent freeze checks passed 337 retirement/Git-effect/budget tests and
+34 ref-policy tests. Changed Python files pass Ruff, formatting, and typing;
+the current production source also passes its declared type check. Official
+strict Change validation and 1917-file Markdown lint pass. Product/test ELOC
+is 39980/38367 against independent 40000 ceilings. The existing budget report
+now distinguishes optional ceilings and excludes generated Mermaid output from
+maintained source, retaining its C4 input. These observations do not establish
+exact-HEAD full proof, coverage, acceptance, runtime installation, or retirement.
+
+### Quality-System Effectiveness — 2026-09-08
+
+The user requires repository-wide quality, not only budget compliance. Preserve
+the existing source-budget decision's maintenance-cost rationale; replace its
+mandatory aggregate ceiling rather than inventing a new score, metric runtime,
+or report registry. Product and test size are independent hard constraints;
+other category totals expose growth but do not substitute for semantic review.
+Generated and archived records remain visible separately; active intent, docs,
+configuration, and generators remain maintained source. The 95-percent combined
+coverage floor is unchanged and cannot be paid for with source reduction.
+
+Current evidence identifies a concrete assurance gap: the type adapter translates
+configured package `.` into `src`, so its successful repository configuration
+does not prove tests or tools are type-correct. Explicit changed-file checking
+found 92 diagnostics in test/report contracts and fixtures; this batch resolves
+them without suppressions, widening to `Any`, or a second runtime model. The
+existing report's wire shape is described with TypedDict and fixture assertions
+narrow actual values. Full test/tool typing is still unproved, not implicitly
+covered by this repair.
+
+After the current retirement result, audit quality owners by the failure each
+must detect, exact source/fixture scope, admission phase, evidence binding,
+runtime cost, and public failure action. Prioritize false-green scope and
+identity gaps, then decisive independent boundary assertions, native-tool
+reuse, duplicate gate removal, and resource/crash closure. Reuse official tool
+documentation and existing decision rationale before introducing a metric.
+Verify representative faults are rejected by their real gates; a counter, test
+count, formatter result, or passing package smoke alone cannot establish this.
+Correct scope declarations and consumers together, measure the affected baseline,
+and close bounded owners without pausing already-safe lane retirement for an
+unlimited audit. The current Change does not redesign the whole quality system.
+
+### Accepted-Carrier Lane Handoff Received — 2026-09-08
+
+The original ETHOS thread `019f477e-7aaf-7fd0-837b-41606d7a8b5f` handed its
+remaining `work/20260908-accepted-carrier-signature-repair` lane to this existing
+terminal-convergence thread `01a00063-d09e-7a71-a52e-a663800a7a0f`. The receiver
+read the package and confirmed actual message receipt, separately from Lease
+transfer and file-panel visibility. The package's earlier failed delivery status
+does not describe the subsequent native-queue delivery. No new task, roadmap,
+ledger, or historical `model-promotion` goal is created.
+
+Fresh public status confirms the receiver's exact actor, generation 2, expiry
+`2026-09-09T05:31:37.974614+00:00`, and matched authority. The clean lane remains
+at `aece154744bc7b2460de1dc478f52ed4426eaa44`, tree
+`8da3bdccf19a15da59eaf879cd9eef46ab2ced81`; all 18 transferred file hashes,
+the selected refs, and runtime identity match the package. This supersedes the
+earlier operational instruction to treat it as an independent peer. Ownership
+does not replace fresh exact-path prewrite or prove implementation acceptance.
+
+The handoff bytes have SHA256
+`0f1bfcba54df49ae50cbf5696caed822649287b73831795900eb02f0e1f1baea`.
+Its recovered historical appendix has SHA256
+`bee19e261008d6824bc2ee388ec53613fd61034834e439617e4caa0f4a93aba0`;
+that appendix preserves evidence only. Current product meaning, this plan, and
+official Change intent supersede obsolete models, commands, dates, and budgets.
+Receiver observations remain in the existing working evidence root under
+`build/evidence/quality/coverage-floor-focused/signature-handoff-*.json`.
+
+This lane has no accepted delivery. Its last full proof at `9072090bb5cf` blocked;
+latest-HEAD proof, archive, landing, and runtime activation remain unproved.
+The implementation repairs one accepted tip's signature, not an entire Git DAG.
+Preserve the lane unchanged while finishing the easiest retained-topic retirement;
+then adjudicate its unique invariants against the existing transaction owner,
+resolve the quality and archive-task-cycle risks, absorb or replace the necessary
+semantics, prove the result, and retire the source lane. Do not blindly merge its
+command-private recovery mechanism or make it an adopter-release prerequisite.
+The sender has stopped implementation; one receiver owns serial execution, and
+AIGW/Proxy remain read-only.
+
 ## Convergence Rules
 
 1. **Promote before compatibility.** Replace a missing model boundary before

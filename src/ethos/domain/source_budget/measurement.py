@@ -11,17 +11,50 @@ import subprocess
 import tomllib
 from collections import Counter
 from pathlib import Path
+from typing import NotRequired
+from typing import TypedDict
 from typing import cast
 
 import yaml
 
 import ethos.adapters.repo.git as git_adapter
 from ethos.domain.source_budget.measurement_policy import PYTHON_CATEGORIES
-from ethos.domain.source_budget.measurement_policy import TERMINAL_TOTALS
 from ethos.domain.source_budget.measurement_policy import Carrier
 from ethos.domain.source_budget.measurement_policy import Policy
 from ethos.domain.source_budget.measurement_policy import policy_for_root
 from ethos.measure import effective_code_lines_for_source
+
+
+class Inventory(TypedDict):
+    """Measured carrier inventory, including empty blocked observations."""
+
+    file_count: int
+    category_counts: NotRequired[dict[str, int]]
+
+
+class CrossCheck(TypedDict, total=False):
+    """Native cross-check facts; unavailable observations contain no counters."""
+
+    command: str
+    python_total: int
+    global_total: int
+    record_total: int
+    generated_evidence_total: int
+    file_count: int
+
+
+class SourceBudgetReport(TypedDict):
+    """Existing report wire shape without a second runtime representation."""
+
+    verdict: str
+    state: str
+    terminal: dict[str, int]
+    metrics: dict[str, int]
+    enforced_metrics: dict[str, int]
+    inventory: Inventory
+    cross_check: CrossCheck
+    required_gaps: list[str]
+    advisory_gaps: list[str]
 
 
 def _table(value: object) -> dict[str, object]:
@@ -36,7 +69,7 @@ def _sequence(value: object) -> list[object]:
     return cast("list[object]", value)
 
 
-def _blocked(*gaps: str) -> dict[str, object]:
+def _blocked(*gaps: str) -> SourceBudgetReport:
     return {
         "verdict": "block",
         "state": "blocked",
@@ -213,7 +246,7 @@ def _measure(
     *,
     contents: dict[str, bytes] | None = None,
     classify_executables: bool = True,
-) -> tuple[dict[str, int], dict[str, object], dict[str, dict[str, object]], tuple[str, ...]]:
+) -> tuple[dict[str, int], Inventory, dict[str, dict[str, object]], tuple[str, ...]]:
     metrics: Counter[str] = Counter(
         {
             **{
@@ -286,7 +319,7 @@ def _measure(
         }
     for name, members in policy.aggregates.items():
         metrics[name] = sum(metrics[member] for member in members)
-    inventory = {
+    inventory: Inventory = {
         "file_count": len(records),
         "category_counts": dict(
             sorted(Counter(str(item["category"]) for item in records.values()).items())
@@ -353,7 +386,7 @@ def _cross_check(
     policy: Policy,
     records: dict[str, dict[str, object]],
     canonical: dict[str, int],
-) -> tuple[dict[str, object], tuple[str, ...]]:
+) -> tuple[CrossCheck, tuple[str, ...]]:
     implementation_records = {
         relative: record for relative, record in records.items() if record["accounting"] == "source"
     }
@@ -388,7 +421,7 @@ def _cross_check(
     )
     global_total = sum(implementation_counts.values())
     record_total = sum(record_counts.values())
-    observed: dict[str, object] = {
+    observed: CrossCheck = {
         "command": policy.cross_check.command,
         "python_total": python_total,
         "global_total": global_total,
@@ -420,7 +453,7 @@ def _cross_check(
     return observed, tuple(gaps)
 
 
-def source_budget_report(root: Path) -> dict[str, object]:
+def source_budget_report(root: Path) -> SourceBudgetReport:
     """Measure implementation and immutable records, then enforce implementation limits."""
     policy, gaps = policy_for_root(root)
     if policy is None:
@@ -430,11 +463,11 @@ def source_budget_report(root: Path) -> dict[str, object]:
         return _blocked(*gaps)
     metrics, inventory, records, measure_gaps = _measure(root, paths, policy)
     cross_check, cross_gaps = _cross_check(root, policy, records, metrics)
-    enforced = {name: metrics[name] for name in TERMINAL_TOTALS}
-    terminal = policy.terminal.model_dump()
+    terminal = policy.terminal.model_dump(exclude_none=True)
+    enforced = {name: metrics[name] for name in terminal}
     terminal_gaps = tuple(
         f"source_budget_terminal_exceeded:{name}:{enforced[name]}>{terminal[name]}"
-        for name in TERMINAL_TOTALS
+        for name in terminal
         if enforced[name] > terminal[name]
     )
     required = list(dict.fromkeys((*measure_gaps, *cross_gaps, *terminal_gaps)))

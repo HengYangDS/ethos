@@ -162,6 +162,14 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
     assert request.head == head
     assert request.tree == git(lane, "rev-parse", "HEAD^{tree}")
     assert operation.persist_operation(repo, request) == receipt
+    written = []
+    persist = operation.persist_progress
+
+    def record(root, request, progress):
+        written.append(progress.completed_effects)
+        return persist(root, request, progress)
+
+    monkeypatch.setattr(operation, "persist_progress", record)
     original = operation.delete_operation_ref
     monkeypatch.setattr(
         operation,
@@ -177,6 +185,9 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
         authorized=True,
     )
 
+    assert written == [(), ("remove_worktree",), ("remove_worktree",)]
+    assert partial["required_gaps"] == ["git_process_spawn_failed"]
+    assert "ethos lane retire recover" in str(partial["next_action"])
     assert partial["state"] == "partial_transition"
     assert partial["completed_effects"] == ["remove_worktree"]
     assert partial["remaining_effects"] == ["delete_ref", "revoke_lease"]
@@ -185,6 +196,11 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
     assert observe_lease(state_database(repo), "work/abandon").state == "valid"
 
     monkeypatch.setattr(operation, "delete_operation_ref", original)
+    monkeypatch.setattr(
+        operation,
+        "remove_operation_worktree",
+        lambda *_a: pytest.fail("recovery replays worktree removal"),
+    )
     for _ in range(2):
         recovered = operation.recover_retirement_operation(
             root=repo,
@@ -194,6 +210,11 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
             authorized=True,
         )
         assert recovered["state"] == "retired", recovered
+        monkeypatch.setattr(
+            operation,
+            "delete_operation_ref",
+            lambda *_a: pytest.fail("terminal recovery replays deletion"),
+        )
         terminal = recovered["terminal_receipt"]
         assert isinstance(terminal, dict)
         payload = json.loads(Path(terminal["path"]).read_text())

@@ -44,9 +44,12 @@ def linked_retirement_plan(
     )
     execution_branch = authority_branch if transaction_root != control_root else accepted_branch
     execution_head = authority_head if transaction_root != control_root else accepted_head
+    retained = cast("dict[str, str]", lane.get("retained_history") or {})
     assertions = {f"refs/heads/{accepted_branch}": accepted_head}
     if authority_branch not in {accepted_branch, branch}:
         assertions[f"refs/heads/{authority_branch}"] = authority_head
+    if retained:
+        assertions[retained["ref"]] = retained["head"]
     effect = GitEffect(
         updates={
             f"refs/heads/{branch}": GitRefUpdate(expected=expected, desired="0" * len(expected))
@@ -54,7 +57,7 @@ def linked_retirement_plan(
         assertions=assertions,
     )
     commitment = None
-    if mode == "superseded":
+    if mode == "superseded" and not retained:
         proof = proof_attestation(transaction_root, execution_head)
         if proof is None:
             msg = "proof_not_proven"
@@ -77,13 +80,14 @@ def linked_retirement_plan(
             "actor": actor,
             "subject": branch,
             "execution_branch": execution_branch,
-            **({"repository_prestate": "absent"} if mode == "landed" else {}),
+            **({"repository_prestate": "absent"} if mode == "landed" or retained else {}),
         },
         values={
             "linked_worktree": {
                 "path": str(lane.get("path") or ""),
                 "clean": worktree_clean,
             },
+            **({"retained_history": retained} if retained else {}),
             "target_lease_state": str(lane.get("lease_state") or "unknown"),
             **(
                 {

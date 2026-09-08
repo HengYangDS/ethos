@@ -30,7 +30,13 @@ class _SupersededOptions(AppliedLaneCommandOptions):
     branch: Annotated[str | None, Parameter(name="--branch")] = None
     path: Annotated[str | None, Parameter(name="--path")] = None
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
-    absorbed_by: Annotated[str, Parameter(name="--absorbed-by")] = ""
+    absorbed_by: Annotated[
+        str,
+        Parameter(
+            name="--absorbed-by",
+            help="Accepted/successor OID, or refs/heads/<topic> for history retention.",
+        ),
+    ] = ""
     reason: Annotated[str, Parameter(name="--reason")] = ""
     authorize: bool = False
 
@@ -172,7 +178,7 @@ def lane_retire_absorbed_ref(
 def lane_retire_superseded(
     options: Annotated[_SupersededOptions, Parameter(name="*")] = _DEFAULT_SUPERSEDED,
 ) -> None:
-    """Retire a clean lane absorbed by accepted truth or its current leased successor."""
+    """Retire absorbed work, or derive exact receipt-bound retained-topic retirement."""
     request = LinkedRetirementRequest(**options.model_dump(exclude={"root", "json_output"}))
     report = retire_linked_work_lane(
         root=resolve_root(options.root),

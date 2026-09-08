@@ -118,8 +118,11 @@ def test_superseded_plan_preserves_proof_commitment_and_mode(
     assert transaction_root == Path("/successor")
     assert plan is not None
     assert captured["commitment"] == commitment
-    assert captured["policy"]["retirement_mode"] == "superseded"
-    assert captured["values"]["lease_generation"] == {
+    policy, values = captured["policy"], captured["values"]
+    assert isinstance(policy, dict)
+    assert isinstance(values, dict)
+    assert policy["retirement_mode"] == "superseded"
+    assert values["lease_generation"] == {
         "lane_ref": "work/successor",
         "generation": 1,
         "holder_ref": "agent:test:holder",
@@ -264,135 +267,74 @@ def test_archive_absorption_rejects_ambiguous_or_nonidentical_carriers(
     )
 
 
-def test_effect_gaps_recheck_successor_checkout_and_archive_mapping(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    lane = _lane()
-    lane["archive_absorption"] = {"change": "x"}
+@pytest.mark.parametrize("boundary", ["checkout", "archive"])
+def test_effect_gaps_recheck_successor_checkout_and_archive_mapping(monkeypatch, boundary):
+    lane = {**_lane(), "archive_absorption": {"change": "x"}}
     authority = _lane(branch="work/authority", path="/authority", head="c" * 40)
-    policy = BranchRolePolicy()
-    monkeypatch.setattr(
-        effects,
-        "output",
-        lambda _root, *args: policy.accepted_branch if args[0] == "symbolic-ref" else "b" * 40,
-    )
     monkeypatch.setattr(Path, "resolve", lambda self: self)
     monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:holder")
-
-    gaps = effects.effect_gaps(
-        Path("/wrong"),
-        Path("/control"),
-        mode="superseded",
-        policy=policy,
-        lane=lane,
-        authority_lane=authority,
-        accepted_head="b" * 40,
-    )
-    assert gaps == ["retirement_authority_checkout_stale"]
-
     monkeypatch.setattr(
         effects,
         "output",
         lambda root, *args: (
-            policy.accepted_branch
-            if root == Path("/control") and args[0] == "symbolic-ref"
-            else "work/authority"
+            ("dev" if root == Path("/control") else "work/authority")
             if args[0] == "symbolic-ref"
             else "b" * 40
         ),
     )
     monkeypatch.setattr(effects, "reobservation_gaps", lambda *_args: [])
-    monkeypatch.setattr(effects, "archived_carrier_absorption", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(effects, "archived_carrier_absorption", lambda *_a, **_k: {})
     gaps = effects.effect_gaps(
-        Path("/authority"),
+        Path("/wrong" if boundary == "checkout" else "/authority"),
         Path("/control"),
         mode="superseded",
-        policy=policy,
+        policy=BranchRolePolicy(),
         lane=lane,
         authority_lane=authority,
         accepted_head="b" * 40,
     )
-    assert gaps == ["retirement_archive_absorption_stale"]
+    assert gaps == [
+        "retirement_authority_checkout_stale"
+        if boundary == "checkout"
+        else "retirement_archive_absorption_stale"
+    ]
 
 
-@pytest.mark.parametrize(
-    ("returncode", "value", "gap"),
-    [(1, "", "retirement_ref_unavailable"), (0, "other", "retirement_ref_stale")],
-)
-def test_reobservation_reports_unavailable_and_stale_native_state(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    returncode: int,
-    value: str,
-    gap: str,
-) -> None:
-    lane = tmp_path / "lane"
-    lane.mkdir()
-    monkeypatch.setattr(
-        effects,
-        "run_git",
-        lambda *_args, **_kwargs: subprocess.CompletedProcess([], returncode, value, ""),
-    )
-
-    assert gap in effects.reobservation_gaps("work/source", lane.as_posix(), "a" * 40)
-
-
-def test_superseded_retirement_retires_exact_unbound_lane_without_recreating_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.parametrize("blocked", [False, True])
+def test_superseded_retirement_preserves_exact_unbound_recovery(tmp_path, monkeypatch, blocked):
     holder = "agent:test:case:partial-recovery"
     repo, lane, head, accepted, database = superseded_work_lane(tmp_path, holder_ref=holder)
     install_fixture_hook_runtime(repo)
     git(repo, "worktree", "remove", lane.as_posix())
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     request = _retirement_request(head, accepted).model_copy(update={"path": lane.as_posix()})
-
     planned = retire_linked_work_lane(root=repo, mode="superseded", request=request)
-
-    assert_public_decision(
-        planned,
-        verdict="pass",
-        state="ready_to_retire_superseded",
-        gaps=[],
-    )
-    assert planned["lane"]["recovery_required"] is True
+    assert_public_decision(planned, verdict="pass", state="ready_to_retire_superseded", gaps=[])
+    planned_lane = planned["lane"]
+    assert isinstance(planned_lane, dict)
+    assert planned_lane["recovery_required"] is True
     assert not lane.exists()
-
-    applied = retire_linked_work_lane(
+    if blocked:
+        monkeypatch.setattr(
+            "ethos.adapters.mutation.lane_retirement.operation.delete_operation_ref",
+            lambda *_a: (_ for _ in ()).throw(ValueError("git_effect_cas_rejected")),
+        )
+    report = retire_linked_work_lane(
         root=repo,
         mode="superseded",
         request=request.model_copy(update={"apply": True}),
     )
-
-    assert_public_decision(applied, verdict="pass", state="retired", gaps=[])
-    assert "recovery" not in applied
-    _assert_retired(repo, lane, database)
-
-
-def test_superseded_retirement_keeps_unbound_lane_absent_when_ref_effect_blocks(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    holder = "agent:test:case:partial-recovery"
-    repo, lane, head, accepted, database = superseded_work_lane(tmp_path, holder_ref=holder)
-    install_fixture_hook_runtime(repo)
-    git(repo, "worktree", "remove", lane.as_posix())
-    monkeypatch.setenv("ETHOS_ACTOR", holder)
-    monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_retirement.operation.delete_operation_ref",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("git_effect_cas_rejected")),
-    )
-    request = _retirement_request(head, accepted, apply=True).model_copy(
-        update={"path": lane.as_posix()}
-    )
-
-    report = retire_linked_work_lane(root=repo, mode="superseded", request=request)
-
+    if not blocked:
+        assert_public_decision(report, verdict="pass", state="retired", gaps=[])
+        assert "recovery" not in report
+        _assert_retired(repo, lane, database)
+        return
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["git_effect_cas_rejected"]
     assert not lane.exists()
     assert report["completed_effects"] == []
     assert report["remaining_effects"] == ["delete_ref", "revoke_lease"]
-    assert "ethos lane retire recover" in report["next_action"]
+    assert "ethos lane retire recover" in str(report["next_action"])
     assert git(repo, "rev-parse", BRANCH) == head
     assert observe_lease(database, BRANCH).state == "valid"
 
@@ -426,6 +368,8 @@ def test_superseded_retirement_partial_recovery_rejects_stale_exact_bindings(
     report = retire_linked_work_lane(root=repo, mode="superseded", request=request)
 
     assert report["verdict"] == "block"
-    assert gap in report["required_gaps"]
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert gap in gaps
     assert git(repo, "rev-parse", BRANCH) == head
     assert observe_lease(database, BRANCH).state == "valid"

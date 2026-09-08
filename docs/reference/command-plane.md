@@ -109,6 +109,23 @@ Neither path grants source writes, deletes repository root resources, discards
 dirty work, or closes a remote review. Current Lease and exact-object checks
 remain in force, and installed hooks require the admitted retirement intent.
 
+When one clean historical topic is fully retained by another local topic, derive
+retirement without treating that history as accepted product semantics:
+
+```bash
+ethos lane retire superseded --branch <source-branch> --expect-head <source-oid> --absorbed-by refs/heads/<retained-branch> --reason '<retention reason>' --root <accepted-root> --json
+```
+
+This full-ref form creates the existing immutable retirement receipt and returns
+one `lane retire recover` command. Inspect that receipt, then follow its exact
+`--receipt`, `--receipt-sha256`, and `--authorize --apply` continuation. Direct
+`superseded --apply` with a retention ref is rejected: it would otherwise silently
+rebind a moved retained OID. Missing or expired target Lease is admissible; a
+valid target Lease requires its current holder. Retained ref movement invalidates
+the receipt. Re-derive from current facts instead of replaying stale coordinates.
+The surviving ref and checkout are not written, and their unique semantics still
+need adjudication before final retirement.
+
 For a registered Work Lane that has lost its Lease, derive coordination recovery
 without recreating its checkout or changing its staged and unstaged content:
 

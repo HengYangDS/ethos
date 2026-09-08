@@ -24,7 +24,7 @@ def _repo_without_candidate(tmp_path: Path) -> tuple[Path, str]:
 
 @pytest.mark.parametrize("should_apply", [False, True])
 def test_candidate_bootstrap_distinguishes_plan_from_path_collision(
-    tmp_path: Path, should_apply: object
+    tmp_path: Path, *, should_apply: bool
 ) -> None:
     repo, head = _repo_without_candidate(tmp_path)
     target = tmp_path / "candidate"

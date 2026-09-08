@@ -32,17 +32,12 @@ def divergent_lane(tmp_path, monkeypatch):
     return repo, lane
 
 
-def _derive(repo, **updates):
+def _derive(repo: Path, **updates: str):
     return abandonment.derive_lane_abandonment(
-        **(
-            {
-                "root": repo,
-                "branch": "work/abandon",
-                "reason_code": "superseded-experiment",
-                "reason": "discard divergent experiment",
-            }
-            | updates
-        )
+        root=repo,
+        branch=updates.get("branch", "work/abandon"),
+        reason_code=updates.get("reason_code", "superseded-experiment"),
+        reason=updates.get("reason", "discard divergent experiment"),
     )
 
 
@@ -84,8 +79,10 @@ def test_abandonment_rejects_invalid_current_facts_without_effects(
         git(repo, "reset", "--hard", target)
     elif fault == "ambiguous":
         status = abandonment.workspace_status(repo)
-        row = next(row for row in status["worktrees"] if row["branch"] == "work/abandon")
-        status["worktrees"].append(dict(row))
+        worktrees = status["worktrees"]
+        assert isinstance(worktrees, list)
+        row = next(row for row in worktrees if row["branch"] == "work/abandon")
+        worktrees.append(dict(row))
         monkeypatch.setattr(abandonment, "workspace_status", lambda _root: status)
     elif fault == "dirty":
         (lane / "abandoned.txt").write_text("preserve uncommitted work\n", encoding="utf-8")
@@ -110,11 +107,14 @@ def test_abandonment_rejects_invalid_current_facts_without_effects(
         )
 
     before = state()
+    receipt_path, receipt_sha256 = receipt["path"], receipt["sha256"]
+    assert isinstance(receipt_path, str)
+    assert isinstance(receipt_sha256, str)
     report = (
         abandonment.execute_lane_abandonment(
             root=repo,
-            receipt_path=receipt["path"],
-            receipt_sha256=receipt["sha256"],
+            receipt_path=receipt_path,
+            receipt_sha256=receipt_sha256,
             apply=True,
             authorized=True,
         )
@@ -194,7 +194,9 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
             authorized=True,
         )
         assert recovered["state"] == "retired", recovered
-        payload = json.loads(Path(recovered["terminal_receipt"]["path"]).read_text())
+        terminal = recovered["terminal_receipt"]
+        assert isinstance(terminal, dict)
+        payload = json.loads(Path(terminal["path"]).read_text())
         assert payload["kind"] == "lane-retirement-receipt"
         assert payload["request"] == request.model_dump(mode="json")
         assert payload["progress"]["completed_effects"] == [

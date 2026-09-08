@@ -4,6 +4,7 @@ import subprocess
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -18,6 +19,9 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
 from tests.support.semantic import commitment_fixture
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def _cas_plan(repo: Path, old: str, new: str):
@@ -207,9 +211,11 @@ def test_exact_ref_cas_compensates_a_failed_postcondition(
     observe = git_effects.observe_git_effect
     injected = False
 
-    def stale_once(*args: object, **kwargs: object) -> dict[str, object]:
+    def stale_once(
+        root: Path, effect: GitEffect, *, environment: Mapping[str, str] | None = None
+    ) -> dict[str, object]:
         nonlocal injected
-        observed = observe(*args, **kwargs)
+        observed = observe(root, effect, environment=environment)
         if not injected and observed["refs"] == {"refs/heads/dev": new}:
             injected = True
             return {**observed, "refs": {"refs/heads/dev": old}}

@@ -44,13 +44,15 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
         lease = leases_by_branch(lane)["work/feature"]
         revoke_lease(
             state_database(lane),
-            request=LeaseOperationRequest(
-                operation="revoke",
-                branch="work/feature",
-                holder_ref=actor,
-                generation=lease["generation"],
-                expires_at=lease["expires_at"],
-                apply=True,
+            request=LeaseOperationRequest.model_validate(
+                {
+                    "operation": "revoke",
+                    "branch": "work/feature",
+                    "holder_ref": actor,
+                    "generation": lease["generation"],
+                    "expires_at": lease["expires_at"],
+                    "apply": True,
+                }
             ),
         )
     path = "README.md"

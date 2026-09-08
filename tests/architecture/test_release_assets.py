@@ -170,7 +170,9 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     for name, body in commands.items():
         _write_fake_executable(fake_bin / name, body)
     for name in ("awk", "cat", "dirname", "grep"):
-        (fake_bin / name).symlink_to(shutil.which(name))
+        executable = shutil.which(name)
+        assert executable is not None, name
+        (fake_bin / name).symlink_to(executable)
     openspec = repo / "node_modules/.bin/openspec"
     openspec.parent.mkdir(parents=True)
     _write_fake_executable(openspec, "#!/bin/sh\nprintf '1.12.0\\n'")

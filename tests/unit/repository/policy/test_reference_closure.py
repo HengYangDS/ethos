@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import pytest
@@ -19,6 +20,16 @@ def _write(root: Path, relative: str, content: str) -> None:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.strip() + "\n", encoding="utf-8")
+
+
+def _project(root: Path, *, entry_point: str = "") -> None:
+    """Declare package ownership, including Cyclopts only for command surfaces."""
+    metadata = '[project]\nname = "example"\nversion = "1"\n'
+    if entry_point:
+        metadata += (
+            f'dependencies = ["cyclopts"]\n\n[project.scripts]\nethos = "{entry_point}:main"\n'
+        )
+    _write(root, "pyproject.toml", metadata)
 
 
 def _git(root: Path, *args: str) -> str:
@@ -77,19 +88,7 @@ name = "cli"
 carrier = "src/example"
 """,
     )
-    _write(
-        tmp_path,
-        "pyproject.toml",
-        """
-[project]
-name = "example"
-version = "1"
-dependencies = ["cyclopts"]
-
-[project.scripts]
-ethos = "example.primary:main"
-""",
-    )
+    _project(tmp_path, entry_point="example.primary")
     _write(
         tmp_path,
         "src/example/application.py",
@@ -117,7 +116,9 @@ def {function}() -> None:
     report = repository_semantic_closure(tmp_path)
 
     assert report["verdict"] == "block"
-    assert report["summary"]["duplicate"] == 1
+    summary = report["summary"]
+    assert isinstance(summary, Mapping)
+    assert summary["duplicate"] == 1
     assert report["duplicate"] == [
         {
             "relation": "owner",
@@ -140,21 +141,15 @@ def {function}() -> None:
 def test_repository_reference_closure_reports_orphan_consumers(tmp_path: Path) -> None:
     """A consumer without a native owner is one explicit orphan relation."""
     _runtime_surface(tmp_path)
-    _write(
-        tmp_path,
-        "pyproject.toml",
-        """
-[project]
-name = "example"
-version = "1"
-""",
-    )
+    _project(tmp_path)
     _write(tmp_path, "src/example/runtime.py", "import external_sdk")
 
     report = repository_semantic_closure(tmp_path)
 
     assert report["verdict"] == "block"
-    assert report["summary"]["orphan"] == 1
+    summary = report["summary"]
+    assert isinstance(summary, Mapping)
+    assert summary["orphan"] == 1
     assert report["orphan"] == [
         {
             "relation": "consumer",
@@ -186,12 +181,14 @@ def test_repository_reference_closure_rejects_deleted_path_consumers(tmp_path: P
     report = repository_semantic_closure(tmp_path)
 
     assert report["verdict"] == "block"
-    assert {
-        "relation": "consumer",
-        "kind": "path",
-        "identity": "src/example/retired.py",
-        "sources": ["docs/reference/runtime.md"],
-    } in report["superseded"]
+    assert report["superseded"] == [
+        {
+            "relation": "consumer",
+            "kind": "path",
+            "identity": "src/example/retired.py",
+            "sources": ["docs/reference/runtime.md"],
+        }
+    ]
 
 
 def test_repository_reference_closure_does_not_treat_change_intent_as_a_live_consumer(
@@ -394,12 +391,14 @@ The [runtime owner](../../../src/example/retired.py), unlike an
     report = repository_semantic_closure(tmp_path)
 
     assert report["verdict"] == "block"
-    assert {
-        "relation": "consumer",
-        "kind": "path",
-        "identity": "src/example/retired.py",
-        "sources": ["openspec/specs/runtime/spec.md"],
-    } in report["superseded"]
+    assert report["superseded"] == [
+        {
+            "relation": "consumer",
+            "kind": "path",
+            "identity": "src/example/retired.py",
+            "sources": ["openspec/specs/runtime/spec.md"],
+        }
+    ]
 
 
 @pytest.mark.parametrize("replacement", ["rename", "expand", "collapse"])
@@ -408,15 +407,7 @@ def test_repository_reference_closure_resolves_replaced_module_identity(
 ) -> None:
     """File retirement removes an import identity only without a current owner."""
     _runtime_surface(tmp_path)
-    _write(
-        tmp_path,
-        "pyproject.toml",
-        """
-[project]
-name = "example"
-version = "1"
-""",
-    )
+    _project(tmp_path)
     source = (
         "src/example/legacy/__init__.py" if replacement == "collapse" else "src/example/legacy.py"
     )
@@ -440,15 +431,18 @@ version = "1"
     report = repository_semantic_closure(tmp_path)
 
     assert report["verdict"] == ("block" if replacement == "rename" else "pass")
-    assert (
-        {
-            "relation": "consumer",
-            "kind": "import",
-            "identity": "example.legacy",
-            "sources": ["src/example/consumer.py"],
-        }
-        in report["superseded"]
-    ) is (replacement == "rename")
+    assert report["superseded"] == (
+        [
+            {
+                "relation": "consumer",
+                "kind": "import",
+                "identity": "example.legacy",
+                "sources": ["src/example/consumer.py"],
+            }
+        ]
+        if replacement == "rename"
+        else []
+    )
 
 
 def test_repository_reference_closure_ignores_prohibited_command_examples(
@@ -488,7 +482,9 @@ ETHOS SHALL reject retired command names.
     report = repository_semantic_closure(tmp_path)
 
     assert report["verdict"] == "pass"
-    assert report["summary"]["orphan"] == 0
+    summary = report["summary"]
+    assert isinstance(summary, Mapping)
+    assert summary["orphan"] == 0
 
 
 @pytest.mark.parametrize(
@@ -554,19 +550,7 @@ name = "cli"
 carrier = "src/example"
 """,
     )
-    _write(
-        tmp_path,
-        "pyproject.toml",
-        """
-[project]
-name = "example"
-version = "1"
-dependencies = ["cyclopts"]
-
-[project.scripts]
-ethos = "example.commands:main"
-""",
-    )
+    _project(tmp_path, entry_point="example.commands")
     command_text = (
         """
 from cyclopts import App

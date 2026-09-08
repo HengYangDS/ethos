@@ -16,7 +16,7 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
 )
 
 
-def _write_lock(path: Path, packages: dict[str, object]) -> None:
+def _write_lock[T](path: Path, packages: dict[str, T]) -> None:
     path.write_text(
         json.dumps({"lockfileVersion": 3, "packages": packages}) + "\n",
         encoding="utf-8",
@@ -110,20 +110,17 @@ def test_node_package_projection_selects_its_coordinate_once(
     package.parent.mkdir()
     package.write_text('{"name":"tool","version":"1.0.0"}\n', encoding="utf-8")
 
-    class Environment(dict[str, str]):
-        reads = 0
+    reads: list[str] = []
+    get = os.environ.get
 
-        def get(self, key: str, default: str | None = None) -> str | None:
-            if key == "ETHOS_NODE_PACKAGE_SUPPLY":
-                self.reads += 1
-            return super().get(key, default)
+    def observe(key: str, default: str | None = None) -> str | None:
+        reads.append(key)
+        return get(key, default)
 
-    environment = Environment(os.environ)
-    environment["ETHOS_NODE_PACKAGE_SUPPLY"] = supply.as_posix()
-    monkeypatch.setattr(os, "environ", environment)
+    monkeypatch.setattr(os.environ, "get", observe)
 
     assert resolve_node_package_projection(source) == (supply.resolve(), (Path("tool"),))
-    assert environment.reads == 1
+    assert reads.count("ETHOS_NODE_PACKAGE_SUPPLY") == 1
 
 
 @pytest.mark.parametrize(

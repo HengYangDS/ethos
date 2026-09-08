@@ -185,7 +185,7 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     args, observed = _generation_case(tmp_path, monkeypatch)
-    runtime_root, *_, environment = args
+    runtime_root, work, source, interpreter, artifact, environment = args
     target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
 
     assert len(observed) == 2
@@ -244,7 +244,11 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
         ),
     ):
         runtime_materialization.materialize_runtime_generation(
-            *args[:-1],
+            runtime_root,
+            work,
+            source,
+            interpreter,
+            artifact,
             _environment(architecture_name="other"),
             locked_requirements=None,
         )
@@ -286,9 +290,9 @@ def test_runtime_generation_smoke_uses_the_authenticated_python_module(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     args, _observed = _generation_case(tmp_path, monkeypatch)
-    commands: list[tuple[object, ...]] = []
+    commands: list[tuple[Path | str, ...]] = []
 
-    def run(command: tuple[object, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def run(command: tuple[Path | str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         commands.append(command)
         return subprocess.CompletedProcess(command, 0, "0.2.0-alpha.3\n", "")
 

@@ -473,6 +473,7 @@ def test_archive_postimage_uses_isolated_native_git_projection(native_archive, m
     assert report is not None
     assert report.active_present is (mode in {"unchanged", "retained_active"})
     if mode == "move":
+        assert report.scope is not None
         assert report.scope["verdict"] == "pass"
         assert report.scope["archive_path"] == ARCHIVE
         assert report.scope["completion_artifacts"] == sorted(SOURCE_ARTIFACTS)
@@ -499,14 +500,7 @@ def test_committed_archive_selection_binds_current_git_diff(native_archive, monk
     (repo / ACTIVE).rename(target)
     git(repo, "add", "--all")
     git(repo, "commit", "-m", "archive exact source")
-    kwargs = {}
-    if mode in {"selected", "wrong_change"}:
-        kwargs["requested_change"] = CHANGE if mode == "selected" else "another"
-    elif mode == "preservation_mismatch":
-        kwargs["preserved_archive"] = (ARCHIVE, ARCHIVE + "-unbound")
-    elif mode == "nonarchive":
-        kwargs["changed_paths"] = ("README.md",)
-    elif mode == "missing_parent":
+    if mode == "missing_parent":
         native = archive.git_stdout
         monkeypatch.setattr(
             archive,
@@ -524,8 +518,20 @@ def test_committed_archive_selection_binds_current_git_diff(native_archive, monk
             )
 
         monkeypatch.setattr(archive, "run_git", run)
-    result = archive.lease_bound_archive_scope_report(repo, **kwargs)
+    result = archive.lease_bound_archive_scope_report(
+        repo,
+        requested_change=CHANGE
+        if mode == "selected"
+        else "another"
+        if mode == "wrong_change"
+        else None,
+        preserved_archive=(ARCHIVE, ARCHIVE + "-unbound")
+        if mode == "preservation_mismatch"
+        else None,
+        changed_paths=("README.md",) if mode == "nonarchive" else (),
+    )
     if mode in {"inferred", "selected"}:
+        assert result is not None
         assert result["verdict"] == "pass"
         assert result["state"] == "post_archive_closeout"
         assert result["changes"] == [{"name": CHANGE, "path": ARCHIVE}]

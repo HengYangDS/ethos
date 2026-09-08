@@ -21,7 +21,6 @@ local_state = "SQLite"
 
 [artifacts]
 state_tracked_truth = false
-durable_evidence_roots = ["evidence", "evidence/claims"]
 generated_outputs_tracked_truth = false
 
 [quality.code_size]

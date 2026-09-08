@@ -35,7 +35,6 @@ and [Command Plane](reference/command-plane.md).
 | Lane | Owns |
 | --- | --- |
 | `decisions/` | Durable reasons for accepted or superseded design choices; never runtime authority. |
-| `evidence/` | Dated proof, manifests, smoke notes, and closeout records. |
 | `reference/` | Stable vocabulary, boundaries, and governance references. |
 | `history/` | Retired rationale and archival logs. |
 
@@ -58,7 +57,7 @@ current contracts alone. They do not own current behavior or workflow state.
 
 Navigation for larger subject areas remains with their genuine directory
 entrypoints: [Governance](governance/README.md), [Plans](plans/README.md),
-[Reference](reference/README.md), [Evidence](evidence/README.md), and
+[Reference](reference/README.md), and
 [History](history/README.md).
 
 Truth state is document metadata, not path topology. Use the explicit

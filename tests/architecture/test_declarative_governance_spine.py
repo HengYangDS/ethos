@@ -15,11 +15,18 @@ from ethos.repository.policy.gates import gate_execution_identity
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def test_proof_floor_has_no_workspace_history_precondition() -> None:
+    """Current proof is independent of a historical directory layout."""
+    declaration = load_gate_registry_declaration()
+    assert "evidence-freshness" not in declaration.registry()
+    assert not (ROOT / "evidence").exists()
+    assert not (ROOT / "docs/evidence").exists()
+
+
 @pytest.mark.parametrize(
     "gate_id",
     [
         "docs-registry",
-        "evidence-freshness",
         "module-layout",
         "playbooks-v2",
         "product-boundary",

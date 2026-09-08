@@ -17,7 +17,7 @@ from pydantic import model_validator
 POLICY_PATH = Path(".config/checks/format/selection.toml")
 PYTHON_CATEGORIES = ("python_product", "python_tests", "python_tools", "python_other")
 AGGREGATE_TOTALS = ("python_total", "global_total")
-IMMUTABLE_RECORD_ROOTS = ("evidence/", "openspec/changes/archive/")
+IMMUTABLE_RECORD_ROOTS = ("openspec/changes/archive/",)
 
 
 class _Contract(BaseModel):

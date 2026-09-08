@@ -8,7 +8,6 @@ globs:
   - ".gitlab/**/*.md"
   - "distributions/**/*.md"
   - "docs/**/*.md"
-  - "evidence/**/*.md"
   - "openspec/**/*.md"
   - "rules/**/*.md"
   - "system/**/*.md"
@@ -17,7 +16,6 @@ noInlineConfig: true
 
 overrides:
   - filter:
-      - "evidence/**/*.md"
       - "openspec/**/*.md"
     combine: replace
     config:

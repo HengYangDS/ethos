@@ -10,7 +10,6 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
-from ethos.repository.profile import profile_evidence_roots
 from ethos.repository.profile import profile_root
 from ethos.repository.profile import render_repository_profile
 from tests.support.literal_cases import literal_case
@@ -54,6 +53,19 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
     assert loaded.declaration is not None
     assert loaded.declaration.profile_id == 'sample<repo&"'
     assert loaded.declaration.openspec is None
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"roots": {"durable_evidence": "evidence"}},
+        {"evidence": {"durable_roots": ["evidence"]}},
+    ],
+)
+def test_profile_cannot_select_current_proof_by_directory(fields) -> None:
+    """Retired directory declarations cannot become a parallel proof selector."""
+    with pytest.raises(ValidationError):
+        RepositoryProfileDeclaration.model_validate({"profile_id": "sample", **fields})
 
 
 @pytest.mark.parametrize(
@@ -148,7 +160,7 @@ def test_profile_contract_rejects_non_string_paths() -> None:
             {
                 "profile_id": "sample",
                 "openspec": {"material_paths": ["openspec/**"]},
-                "roots": {"durable_evidence": 1},
+                "roots": {"docs": 1},
             }
         )
 
@@ -182,13 +194,10 @@ def test_current_profile_rejects_root_rules_workaround(tmp_path: Path) -> None:
 def test_profile_includes_declared_normative_sources_without_root_escape(tmp_path: Path) -> None:
     _write_profile(tmp_path, 'profile_id = "sample"\n\nnormative_sources = ["guidelines.md"]\n')
 
-    assert profile_evidence_roots(tmp_path) == (
-        ".ethos/profile.toml",
-        "rules",
-        "guidelines.md",
-        "evidence",
-        "docs",
-    )
+    profile = load_repository_profile(tmp_path)
+    assert profile.declaration is not None
+    assert profile.declaration.normative_sources == ("guidelines.md",)
+    assert profile_root(tmp_path, "docs") == tmp_path / "docs"
 
 
 def test_profile_loader_rejects_unreadable_profile(tmp_path: Path, monkeypatch) -> None:
@@ -208,14 +217,14 @@ def test_profile_loader_rejects_unreadable_profile(tmp_path: Path, monkeypatch) 
 def test_invalid_profile_never_falls_back_to_default_roots(tmp_path: Path) -> None:
     _write_profile(
         tmp_path,
-        "profile_id = 'sample'\n[roots]\ndurable_evidence = '../evidence'\n",
+        "profile_id = 'sample'\n[roots]\ndocs = '../docs'\n",
     )
 
     loaded = load_repository_profile(tmp_path)
 
     assert loaded.state == "invalid"
     with pytest.raises(ValueError, match="repository_profile_invalid"):
-        profile_root(tmp_path, "durable_evidence")
+        profile_root(tmp_path, "docs")
 
 
 def test_profile_loader_never_falls_back_from_an_invalid_tree_ref(tmp_path: Path) -> None:

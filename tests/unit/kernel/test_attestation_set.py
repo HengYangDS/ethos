@@ -111,6 +111,30 @@ def test_attestation_set_read_uses_constant_git_processes(
     assert counted_run_git.call_count <= 8
 
 
+def test_attestation_set_ignores_workspace_history_and_needs_no_directory(tmp_path: Path) -> None:
+    """A worktree file never selects or overrides a current Git-set member."""
+    repo = init_git_repo(tmp_path / "repo")
+    one, two = _attestation(41), _attestation(42)
+    index = (repo / ".git/index").read_bytes()
+    before = git(repo, "status", "--porcelain=v1", "--untracked-files=all")
+    current = attestation_set.record_attestations(repo, (one,))
+    assert not (repo / "evidence").exists()
+    historical = repo / f"evidence/attestations/{two.id}.json"
+    historical.parent.mkdir(parents=True)
+    historical.write_text("not a canonical Attestation\n")
+    assert attestation_set.read_attestation_set(repo) == (current["root"], (one,))
+    historical.unlink()
+    historical.parent.rmdir()
+    (repo / "evidence").rmdir()
+    attestation_set.record_attestations(repo, (two,))
+    assert attestation_set.read_attestation_set(repo)[1] == tuple(
+        sorted((one, two), key=lambda item: item.id)
+    )
+    assert not (repo / "evidence").exists()
+    assert (repo / ".git/index").read_bytes() == index
+    assert git(repo, "status", "--porcelain=v1", "--untracked-files=all") == before
+
+
 def test_attestation_set_rejects_identity_collision(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     record = _attestation(4)

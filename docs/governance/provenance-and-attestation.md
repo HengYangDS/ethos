@@ -21,8 +21,29 @@ adapter output never replaces the repository evidence chain.
 `ethos prove --json` emits a proof Attestation bound to the compiled Commitment
 identity, exact HEAD, Facts digest, TransitionPlan digest, policy
 digest, effect digest, and verifier boundary. It does not establish a release.
-That output remains local evidence until an adopter promotes it into durable
-repository evidence or a signed release artifact.
+The canonical record is selected through `refs/ethos/attestations-set`; local
+command output is a projection, not a second proof selector.
+
+## Storage And Currentness
+
+Current readers select Attestations from `refs/ethos/attestations-set` and
+validate the required predicate and exact bindings. Its internal
+`evidence/attestations` paths belong to an independent Git object tree, not a
+workspace directory. Neither a documentation path nor a profile directory
+can select current proof.
+
+Machine output under `build/ethos/` or `build/evidence/` is generated material.
+A bounded Attestation records the verifier, subject, scope and exact result;
+its required supporting objects must remain retrievable for its retention
+lifecycle. A human explanation belongs with the semantic subject it explains,
+not in a duplicate proof directory.
+
+Committed historical Claims and Chronicles remain retrievable through Git;
+see [History](../history/README.md). Their old state labels are dated
+observations, not current readiness. Still-valid requirements belong to their
+current specification, design or execution owner. Removing historical copies
+from a checkout does not resolve an unfinished requirement or authorize
+resource deletion.
 
 ## Optional Semantic Assurance
 

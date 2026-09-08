@@ -27,7 +27,7 @@ def _selection(
         f"python_product = {terminal[0]}, python_tests = {terminal[1]}, "
         f"python_tools = {terminal[2]}, python_other = {terminal[3]}, "
         f"global_total = {terminal[4]} }}\n"
-        f"""immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
+        f"""immutable_record_roots = ["openspec/changes/archive/"]
 line_width = 100
 
 [source_budget.cross_check]
@@ -289,12 +289,26 @@ def test_direct_measurement_is_clean_when_bounded_counters_agree(
     assert "digest" not in report["inventory"]
 
 
+def test_retired_evidence_path_does_not_exempt_maintained_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A legacy location cannot hide current source from its ordinary budget."""
+    _repo(tmp_path)
+    _tracked_file(tmp_path, "evidence/decision.py", "FIRST = 1\nSECOND = 2\n")
+    report = _measure(monkeypatch, tmp_path)
+    assert report["metrics"]["python_total"] == 4
+    assert report["metrics"]["record_total"] == 0
+
+
 def test_measurement_separates_exact_immutable_record_roots(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    _tracked_file(tmp_path, "evidence/chronicle/decision.py", "FIRST = 1\nSECOND = 2\n")
+    _tracked_file(
+        tmp_path, "openspec/changes/archive/closed/decision.py", "FIRST = 1\nSECOND = 2\n"
+    )
     _tracked_file(tmp_path, "openspec/changes/archive/closed/receipt.json", '{"closed": true}\n')
     report = _measure(monkeypatch, tmp_path)
 
@@ -309,7 +323,7 @@ def test_report_exposes_implementation_and_record_cross_check_totals(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    _tracked_file(tmp_path, "evidence/chronicle/decision.py", "RECORDED = 1\n")
+    _tracked_file(tmp_path, "openspec/changes/archive/closed/decision.py", "RECORDED = 1\n")
     report = _measure(
         monkeypatch,
         tmp_path,
@@ -317,7 +331,7 @@ def test_report_exposes_implementation_and_record_cross_check_totals(
             ".config/checks/format/selection.toml": 15,
             ".ethos/rules.toml": 1,
             "src/ethos/demo.py": 2,
-            "evidence/chronicle/decision.py": 1,
+            "openspec/changes/archive/closed/decision.py": 1,
         },
     )
 
@@ -384,7 +398,7 @@ def test_record_growth_is_visible_without_increasing_implementation_totals(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    record = _tracked_file(tmp_path, "evidence/chronicle/decision.py", "FIRST = 1\n")
+    record = _tracked_file(tmp_path, "openspec/changes/archive/closed/decision.py", "FIRST = 1\n")
     before = _measure(monkeypatch, tmp_path)
 
     record.write_text("FIRST = 1\nSECOND = 2\nTHIRD = 3\n", encoding="utf-8")
@@ -400,10 +414,10 @@ def test_record_root_does_not_hide_an_unclassified_executable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    _tracked_file(tmp_path, "evidence/chronicle/opaque", "opaque\n", executable=True)
+    _tracked_file(tmp_path, "openspec/changes/archive/closed/opaque", "opaque\n", executable=True)
     report = _measure(monkeypatch, tmp_path)
 
-    expected = "source_budget_executable_unclassified:evidence/chronicle/opaque"
+    expected = "source_budget_executable_unclassified:openspec/changes/archive/closed/opaque"
     assert expected in report["required_gaps"]
 
 

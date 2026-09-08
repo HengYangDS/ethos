@@ -55,7 +55,6 @@ this Change into a generic policy engine or unrelated lifecycle redesign.
    intact and causes the existing retained-residue outcome, not a success claim.
    Exercise destruction only within disposable fixture roots. This is a bounded
    correction of measured failure behavior, not a new cleanup service or state.
-
 7. Generation retirement needs complete current-consumer observation, not merely
    the readable subset. The existing activation owner distinguishes genuinely
    absent roots from linked, unreadable, or non-directory paths using non-following
@@ -66,7 +65,6 @@ this Change into a generic policy engine or unrelated lifecycle redesign.
    Reuse the same observer during cleanup planning; add no registry or second
    liveness model. Isolated static-path regressions do not prove filesystem-race
    or new-consumer-after-observation safety.
-
 8. Compensate only resources created by the current start invocation. Lease
    acquisition returns its creation disposition; existing native worktree
    Attestations distinguish applied creation from recognition. Reused resources
@@ -79,7 +77,6 @@ this Change into a generic policy engine or unrelated lifecycle redesign.
    expiry. No persistent creation registry or second recovery protocol is added.
    These synchronous compensation cases do not establish process-crash recovery
    or protection against arbitrary concurrent filesystem replacement.
-
 9. Accepted-runtime expectation and source-build input are distinct observations.
    The former compiles the accepted ref's exact commit/tree and canonical
    `VERSION` blob through the existing BuildIdentity owner. Read raw ASCII bytes

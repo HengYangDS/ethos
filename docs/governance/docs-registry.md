@@ -67,6 +67,22 @@ than one Change and cannot be expressed clearly by the current contract or
 source. It is not a feedback receipt, status page, task list, or archive index.
 Its filename is lowercase and semantic rather than a numbered identity.
 
+## Markdown list structure
+
+List spacing expresses block structure, not editing chronology. A list whose
+items each contain one paragraph is compact; wrapping that paragraph across
+source lines does not make it multiple paragraphs. Preserve necessary blank
+lines between paragraphs and other blocks inside compound items. Keep sibling
+spacing consistent within a list, and evaluate nested lists independently.
+Literal examples in code blocks are content, not formatting targets.
+
+These rules apply to current Markdown throughout the repository, including
+official OpenSpec artifacts; they do not replace OpenSpec's artifact ownership.
+Historical evidence is audited but cannot be rewritten merely for presentation.
+Any correction must preserve words, links, item order, task states, and block
+nesting. Successful parsing or native Markdown lint alone does not establish
+this consistency; executable enforcement remains a tracked terminal-plan gap.
+
 ## Portability Boundary
 
 The registry owns portable document metadata, role/state vocabulary, taxonomy

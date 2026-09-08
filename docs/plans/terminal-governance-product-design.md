@@ -180,15 +180,21 @@ passes; its own official Change must close the stated exit boundary.
    divergence. Exit when local-only, GitLab-only, GitHub-only, and dual-peer
    cases pass without replay, rebuild, re-signing, implicit primary remote, or
    cross-peer authority.
-6. **Close semantic and physical repository structure.** Apply the existing
-   module-layout rule and the product-wide deep-module obligation to code,
-   CLI, runtime, effects, schemas, docs, rules, skills, CI, and renderers. Review
-   complete capabilities and caller knowledge, not file counts: absorb exposed
-   internal sequences and duplicate decisions into their existing owners;
-   retain necessary authority inputs and genuine transport boundaries. Remove
-   empty shells, accidental
-   one-module packages, suffix-flat splits, facades, and stale imports while
-   retaining real namespaces. Reconcile documentation to one entrypoint,
+6. **Close semantic and physical repository structure.** Reshape the whole
+   repository by semantic ownership, not just the current Change or touched
+   files. Apply the existing module-layout rule and deep-module obligation to
+   source, tests, specifications, schemas, documentation, configuration, rules,
+   skills, CI, and renderers. Establish responsibility, invariant, consumers,
+   dependency direction, and reason to change before selecting a physical path.
+   Group cohesive capabilities into semantic subpackages; prohibit suffix-flat
+   sprawl, misplaced owners, and arbitrary nesting. Review complete capabilities
+   and caller knowledge: absorb exposed internal sequences and duplicate
+   decisions into their existing owners while retaining necessary authority
+   inputs and genuine transport boundaries. Neither directory width nor depth
+   proves good structure. Delete empty shells, unnecessary one-module packages,
+   facades, and stale imports; retain a small namespace only for a demonstrated
+   boundary. Move all consumers with each owner and retire its old path in the
+   same bounded batch, without aliases. Reconcile documentation to one entrypoint,
    `guides/quickstart.md`, necessary READMEs, and a restored
    `docs/decisions/` containing only irreducible lowercase semantic records.
    Classify top-level evidence by real producer, consumer, binding, and
@@ -197,9 +203,10 @@ passes; its own official Change must close the stated exit boundary.
    per-owner budgets, modern Python within the supported floor, and native
    configuration placement. Verify that architecture and brand projections are
    faithful, accessible, navigable `信、达、雅` views rather than parallel
-   ontology. Exit when semantic ownership reports no missing, duplicate,
-   orphan, superseded-active, or conflicting relation and every generated
-   projection matches its source.
+   ontology. Exit only after whole-repository ownership and dependency review,
+   executable import/resource/link checks, behavior preservation, and projection
+   readback find no missing, duplicate, orphan, superseded-active, conflicting,
+   or misplaced owner. A clean file-count report is not semantic verification.
 7. **Close temporary-resource and supply ownership.** Give every temporary,
    runtime, test, and supply tree an owner and liveness lease; use structured
    finalization plus bounded dead-owner scavenging; protect live roots; and make
@@ -784,14 +791,53 @@ original directory is also absent. Other runtime work entries are unchanged,
 and accepted remains clean. The existing preservation receipt now records
 their final disposal and the retained observation, without another carrier.
 
+The public installed-runtime refresh subsequently rebased all 19 lane commits
+onto accepted `ca8f8110`, producing `3467aef5`. Every range-diff entry is
+equivalent; local signatures verify, the candidate is an ancestor, the checkout
+is clean, and installed-runtime status passes. This is a base-alignment result,
+not new proof. The peer's additional tests raise merged test ELOC to 38312/38300;
+the budget correctly blocks. Consolidate repeated setup or competing imports
+while preserving every scenario before adding the missing Lease assertions.
+Do not relax the budget or claim the previous proof covers this new tree.
+
 Next, absorb the remaining valid Lease failure/projection scenarios into their
 current test owner within the unchanged 38300 test budget, then obtain a new
 frozen full proof. Do not replay old coverage against shifted source lines,
 merge diagnostic datasets, or infer acceptance from subtraction arithmetic.
 Archive, candidate/accepted CAS, and runtime activation remain held at 95.
-Accepted `18aa8707` still carries the old 93-percent policy until this correction
+Accepted `ca8f8110` still carries the old 93-percent policy until this correction
 actually qualifies for landing. Other lanes' live proofs remain serialized
 with this lane's heavy verification, not terminated for cleanup.
+
+The structural obligation above is global and remains open. Reshape semantic
+owners while absorbing historical lanes, then finish the remaining repository
+boundaries in independently provable batches; do not expand the coverage Change
+into an unbounded relocation. The latest worktree observation contains seven
+historical roots, this owned lane, and accepted/candidate projections. An
+independently created abandonment-recovery lane appeared and then disappeared
+during observation; neither action was this thread's work.
+
+The repository-wide Markdown audit parses all 1912 tracked files. Nine lists
+mix sibling spacing: two in current content and seven in historical records.
+Twenty-three single-paragraph lists use separators, of which 21 are historical.
+The existing native lint accepts the mixed-list reproducer; successful syntax
+checks therefore do not prove editorial consistency. The documentation policy
+now states the structural rule, and the two current corrections remove only
+five blank lines. Historical findings remain unresolved and byte-preserved.
+The exact inventory and source hashes are in `markdown-list-audit.json`.
+
+Close the systemic gap in the existing tracked-format owner and Markdown check,
+using the already locked CommonMark parser, not another formatter or registry.
+Enumerate tracked Markdown independently of directory; report immutable findings
+through the existing lifecycle policy. Require boundary regressions for compact
+and compound lists, nesting, blockquotes, code literals, and current/immutable
+carriers, then re-audit all paths and verify content and block preservation.
+This is pending implementation, not a completed gate. Creating a second active
+Change caused `openspec_active_change_ambiguous`; the five self-created untracked
+artifacts were withdrawn exactly, with their contents preserved in the audit
+receipt. Do not create another lane or bypass this unresolved selection boundary.
+After the coverage atom closes, activate this bounded successor before another
+documentation-producing implementation batch; do not expand coverage scope.
 
 Run one writer and at most one heavy proof. A regression exposing a new semantic
 contradiction or a budget failure triggers owner-level replanning, never a

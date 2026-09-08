@@ -13,7 +13,6 @@ Purpose: define tracked write admission and Work Lane discipline.
 ## Rules
 
 - Public mutation authorization is the closed `verdict` union `pass | block | unknown`; only `verdict=pass` authorizes an effect. Missing or unverifiable required facts produce `unknown`; conflicts, explicit failures, and warnings produce `block`.
-
 - Normal tracked mutation belongs only in an owned `work/*` Work Lane.
 - `accepted_root` and `candidate` checkouts are observe-only for normal edits.
 - Before writing, run `ethos status --json` and `ethos lane prewrite`.
@@ -47,7 +46,6 @@ Purpose: define tracked write admission and Work Lane discipline.
   pollution is reverted from the protected root. Only rollback, migration to a
   Work Lane, recovery evidence, or violation reporting is allowed until the
   protected root is clean.
-
 - Do not use `git stash` as a backup, handoff, residue, or closeout carrier.
   Dirty work must either be absorbed into an owned Work Lane with visible
   evidence or reverted from the protected root after classification.

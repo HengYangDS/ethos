@@ -125,10 +125,6 @@ def _takeover_gaps(
     }
     checks = (
         (lease_state in {"valid", "expired"}, "lease_takeover_lease_unknown"),
-        (
-            os.environ.get("ETHOS_ACTOR", "").strip() == request.target_holder_ref,
-            "lease_takeover_actor_mismatch",
-        ),
         (current == expected, "lease_takeover_generation_drift"),
     )
     return tuple(gap for valid, gap in checks if not valid) + _takeover_authorization_gaps(
@@ -149,6 +145,10 @@ def _takeover_authorization_gaps(
         accepted = None
     now = datetime.now(UTC)
     checks = (
+        (
+            os.environ.get("ETHOS_ACTOR", "").strip() == request.target_holder_ref,
+            "lease_takeover_actor_mismatch",
+        ),
         (accepted == authorization, "lease_takeover_authorization_unaccepted"),
         (
             authorization.predicate == "lane-resolution:takeover",

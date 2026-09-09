@@ -32,34 +32,8 @@ GIT_EXECUTABLE_UNAVAILABLE = "git_executable_unavailable"
 GIT_PROCESS_SPAWN_FAILED = "git_process_spawn_failed"
 
 
-class GitExecutionError(ValueError):
+class GitExecutionError(process_adapter.ProcessExecutionError):
     """Stable failure boundary for resolving or spawning the Git executable."""
-
-    def __init__(
-        self,
-        code: str,
-        *,
-        reason: str,
-        command: tuple[str, ...] = (),
-        cwd: str = "",
-        cause: str = "",
-    ) -> None:
-        super().__init__(code)
-        self.code = code
-        self.reason = reason
-        self.command = command
-        self.cwd = cwd
-        self.cause = cause
-
-    def evidence(self) -> dict[str, object]:
-        """Return the stable machine-readable Git execution failure evidence."""
-        return {
-            "code": self.code,
-            "reason": self.reason,
-            "command": list(self.command),
-            "cwd": self.cwd,
-            "cause": self.cause,
-        }
 
 
 def _git_config_overlay(*environments: Mapping[str, str]) -> dict[str, str]:

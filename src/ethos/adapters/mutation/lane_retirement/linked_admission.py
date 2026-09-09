@@ -130,33 +130,6 @@ def retirement_verdict(gaps: list[str] | tuple[str, ...]) -> Verdict:
     return "unknown" if all(gap.startswith("work_lane_lease_unknown:") for gap in gaps) else "block"
 
 
-def effect_readiness_gaps(
-    repo: Path,
-    control_root: Path | None,
-    *,
-    mode: Literal["landed", "superseded"],
-    policy: BranchRolePolicy,
-    lane: dict[str, object],
-    authority: dict[str, object],
-    accepted_head: str,
-    required_gaps: list[str],
-    apply: bool,
-) -> list[str]:
-    if apply and control_root is None:
-        return ["retirement_control_root_unavailable"]
-    if required_gaps or control_root is None:
-        return []
-    return effects.effect_gaps(
-        repo,
-        control_root,
-        mode=mode,
-        policy=policy,
-        lane=lane,
-        authority_lane=authority,
-        accepted_head=accepted_head,
-    )
-
-
 def _with_archive_absorption(
     repo: Path, lane: dict[str, object], accepted_head: str
 ) -> dict[str, object]:

@@ -291,3 +291,57 @@ def test_expired_lease_generation_rejects_operations_without_retirement_evidence
 
     with pytest.raises(ValueError, match="git_effect_expired_lease_not_admitted"):
         admission.require_lease_generation(root, carried)
+
+
+@pytest.mark.parametrize(
+    "fault", ["", "update", "foreign-ref", "multiple-refs", "zero-preimage", "actor", "no-actor"]
+)
+@pytest.mark.parametrize("mode", ["abandon", "landed", "superseded"])
+def test_expired_retirement_admits_only_exact_owned_ref_deletion(
+    tmp_path, monkeypatch, fault, mode
+):
+    root = init_git_repo(tmp_path / "repo")
+    head = git(root, "rev-parse", "HEAD")
+    branch = "work/example"
+    generation = _generation(branch)
+    update = GitRefUpdate(
+        expected=ZERO if fault == "zero-preimage" else head,
+        desired=head if fault == "update" else ZERO,
+    )
+    updates = {f"refs/heads/{'work/other' if fault == 'foreign-ref' else branch}": update}
+    if fault == "multiple-refs":
+        updates["refs/heads/work/other"] = update
+    carried = _plan(
+        root,
+        GitEffect(updates=updates),
+        values={
+            "lease_generation": generation,
+            "lease_generation_state": "expired",
+            **(
+                {"retained_history": {"ref": "refs/heads/work/retained", "head": head}}
+                if mode == "superseded"
+                else {}
+            ),
+        },
+        policy={
+            "operation": "lane.retire",
+            "retirement_kind": "linked-lane",
+            "retirement_mode": mode,
+            "execution_branch": "dev",
+            "actor": ACTOR,
+        },
+    )
+    monkeypatch.setenv(
+        "ETHOS_ACTOR",
+        "" if fault == "no-actor" else "agent:test:case:other" if fault == "actor" else ACTOR,
+    )
+    monkeypatch.setattr(
+        admission,
+        "leases_by_branch",
+        lambda _root: {branch: generation | {"lease_state": "expired"}},
+    )
+    if fault:
+        with pytest.raises(ValueError, match="git_effect_expired_lease_not_admitted"):
+            admission.require_lease_generation(root, carried)
+    else:
+        admission.require_lease_generation(root, carried)

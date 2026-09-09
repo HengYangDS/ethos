@@ -6,15 +6,18 @@ import pytest
 
 import ethos.surface.cli.hook.commands as commands
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.repo.git import GitExecutionError
 from tests.support.ethos_cli_runner import run_ethos_raw
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.result import EthosResult
+
 
 @pytest.fixture
-def emitted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[object]:
-    results: list[object] = []
+def emitted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[EthosResult]:
+    results: list[EthosResult] = []
     monkeypatch.setattr(commands, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(commands, "emit", lambda result, **_kwargs: results.append(result))
     return results
@@ -34,7 +37,7 @@ def test_commit_range_grammar_requires_named_coordinates() -> None:
 
 
 def test_commit_range_command_forwards_explicit_coordinates(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[object]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult]
 ) -> None:
     expected = {
         "target_ref": "refs/heads/dev",
@@ -72,7 +75,11 @@ def test_commit_range_command_forwards_explicit_coordinates(
     ("hook", "expected", "calls"), [("post-commit", 1, 0), ("pre-commit", 23, 1)]
 )
 def test_hook_run_validates_name_and_propagates_runtime_exit(
-    monkeypatch: pytest.MonkeyPatch, emitted: list[object], hook: str, expected: int, calls: int
+    monkeypatch: pytest.MonkeyPatch,
+    emitted: list[EthosResult],
+    hook: str,
+    expected: int,
+    calls: int,
 ) -> None:
     executed: list[object] = []
     monkeypatch.setattr(commands, "execute_hook", lambda *_a, **_k: executed.append(1) or 23)
@@ -93,10 +100,13 @@ def test_hook_run_validates_name_and_propagates_runtime_exit(
         ProcessExecutionError(
             "process_creation_failed", reason="missing_binary", command=("python",), cwd="/fixture"
         ),
+        GitExecutionError(
+            "git_process_spawn_failed", reason="missing_binary", command=("git",), cwd="/fixture"
+        ),
     ],
 )
 def test_install_failure_preserves_diagnostics_and_executable_recovery(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[object], failure: Exception
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult], failure: Exception
 ) -> None:
     monkeypatch.setattr(
         commands, "install_hook_launchers", lambda *_a, **_k: (_ for _ in ()).throw(failure)
@@ -120,9 +130,9 @@ def test_install_failure_preserves_diagnostics_and_executable_recovery(
         }
     if isinstance(failure, ProcessExecutionError):
         assert result.to_dict()["data"]["process_failure"] == {
-            "code": "process_creation_failed",
+            "code": str(failure),
             "reason": "missing_binary",
-            "command": ["python"],
+            "command": ["git"] if isinstance(failure, GitExecutionError) else ["python"],
             "cwd": "/fixture",
             "cause": "",
         }
@@ -130,7 +140,7 @@ def test_install_failure_preserves_diagnostics_and_executable_recovery(
 
 @pytest.mark.parametrize("deferred", [False, True])
 def test_install_projects_runtime_and_retains_deferred_cleanup(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[object], *, deferred: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult], *, deferred: bool
 ) -> None:
     runtime = {
         "hooks_path": str(tmp_path / "hooks"),
@@ -166,7 +176,7 @@ def test_install_projects_runtime_and_retains_deferred_cleanup(
 
 @pytest.mark.parametrize("verdict", ["pass", "unknown"])
 def test_pre_push_preserves_remote_and_never_upgrades_unknown_admission(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[object], verdict: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult], verdict: str
 ) -> None:
     def admit(**coordinates: object) -> dict[str, object]:
         assert coordinates["remote_name"] == "github"

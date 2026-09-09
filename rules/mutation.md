@@ -16,6 +16,11 @@ Purpose: define tracked write admission and Work Lane discipline.
 - Normal tracked mutation belongs only in an owned `work/*` Work Lane.
 - `accepted_root` and `candidate` checkouts are observe-only for normal edits.
 - Before writing, run `ethos status --json` and `ethos lane prewrite`.
+- Before destructive retirement, stop or drain every actual writer and keep
+  participants under lane coordination through disposal. Verify quiescence
+  before content review; a holder transfer or empty process scan is not proof
+  that writers stopped. Apply the [coordination boundary](../docs/governance/product-design-contract.md#git-native-repository-substrate)
+  with fresh exact content and authority checks; unknown liveness blocks.
 - Official OpenSpec is the sole tracked intent carrier. ETHOS compiles its exact
   selected projection into a transient Commitment containing only
   `schema_version`, `id`, and `acceptance`.

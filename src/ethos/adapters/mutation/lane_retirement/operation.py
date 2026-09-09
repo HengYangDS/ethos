@@ -3,25 +3,31 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import shlex
 import sqlite3
 from contextlib import closing
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Literal
 from typing import cast
 
 from filelock import FileLock
+from filelock import Timeout
 
+from ethos.adapters.mutation.lane_retirement.content import remove_reviewed_content
+from ethos.adapters.mutation.lane_retirement.content import verify_reviewed_content
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import process_file_identities
 from ethos.adapters.repo.git import GitExecutionError
-from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git import git_executable
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.profile import repository_identity
+from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.worktree_effects import raw_worktree_records
 from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
@@ -35,6 +41,7 @@ from ethos.contracts.retirement import CarrierState
 from ethos.contracts.retirement import RetirementObservation
 from ethos.contracts.retirement import RetirementOperation
 from ethos.contracts.retirement import RetirementProgress
+from ethos.contracts.semantic import canonical_json_bytes
 from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
@@ -45,12 +52,21 @@ def _fail(reason: str) -> None:
     raise ValueError(reason)
 
 
-def _json_bytes(value: object) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+def retirement_failure(error: Exception) -> dict[str, object]:
+    """Preserve failure evidence independently of observable retirement progress."""
+    gap = (
+        "lane_retirement_in_progress"
+        if isinstance(error, Timeout)
+        else getattr(error, "code", "") or str(error).partition(":")[0] or type(error).__name__
+    )
+    result: dict[str, object] = {"required_gaps": [str(gap)], "stderr": str(error)}
+    if isinstance(error, ProcessExecutionError):
+        result["process_failure"] = error.evidence()
+    return result
 
 
 def _receipt(store: Path, value: object, *, collision: str) -> dict[str, object]:
-    payload = _json_bytes(value)
+    payload = canonical_json_bytes(value)
     digest = hashlib.sha256(payload).hexdigest()
     path = write_content_addressed(store / f"{digest}.json", payload, collision=collision)
     return {
@@ -180,19 +196,10 @@ def _lease_outcome(root: Path, request: RetirementOperation) -> CarrierState:
 
 
 def _worktree_outcome(root: Path, request: RetirementOperation) -> CarrierState:
-    observed = run_git(root, "worktree", "list", "--porcelain", check=False)
-    if observed.returncode:
+    try:
+        records = raw_worktree_records(root, runner=run_git)
+    except ValueError:
         return "unavailable"
-    records = tuple(
-        {
-            parts[0]: parts[1] if len(parts) > 1 else ""
-            for line in block.splitlines()
-            if line
-            for parts in (line.split(" ", 1),)
-        }
-        for block in observed.stdout.split("\n\n")
-        if block.strip()
-    )
     matches = tuple(
         record
         for record in records
@@ -201,6 +208,8 @@ def _worktree_outcome(root: Path, request: RetirementOperation) -> CarrierState:
     if request.worktree_initial == "unbound":
         return "absent" if not matches else "moved"
     target = Path(request.worktree_path)
+    if target.is_symlink() or is_junction(target):
+        return "moved"
     if len(matches) != 1:
         return "moved" if matches or os.path.lexists(target) else "absent"
     record = matches[0]
@@ -208,6 +217,8 @@ def _worktree_outcome(root: Path, request: RetirementOperation) -> CarrierState:
         "expected"
         if Path(str(record.get("worktree") or "")).resolve() == target.resolve()
         and record.get("HEAD") == request.head
+        and "locked" not in record
+        and ("prunable" not in record or not os.path.lexists(target) or request.reviewed_content)
         else "moved"
     )
 
@@ -245,47 +256,75 @@ def _git_plan(request: RetirementOperation) -> TransitionPlan:
     return TransitionPlan.model_validate(mutable_json(request.git_plan))
 
 
-def preflight_operation(root: Path, request: RetirementOperation) -> None:
-    """Validate every process and authority coordinate before destruction."""
+def _admit_reviewed_content(root: Path, request: RetirementOperation) -> None:
+    expected = request.reviewed_content
+    nodes = (expected["root"], expected["index"], *expected["entries"].values())
+    identities = {(int(node["identity"][0]), int(node["identity"][1])) for node in nodes}
+    if identities & process_file_identities(root):
+        _fail("retirement_content_in_use")
+    verify_reviewed_content(
+        Path(request.worktree_path), cast("dict[str, object]", mutable_json(expected))
+    )
+
+
+def preflight_operation(root: Path, request: RetirementOperation) -> RetirementProgress:
+    """Return observed progress after validating process and authority coordinates."""
     if not _current_actor(request):
         _fail("foreign_work_lane_retire_authority_required")
     control = Path(request.control_root)
-    if not control.is_absolute() or not control.is_dir() or control.is_symlink():
-        _fail("retirement_control_root_unavailable")
-    if Path(git_common_dir(control)).resolve().as_posix() != request.repository_common_dir:
-        _fail("lane_retirement_receipt_repository_mismatch")
+    execution_root = Path(request.execution_root)
+    if request.worktree_path and execution_root.resolve() == Path(request.worktree_path).resolve():
+        _fail("retirement_execution_root_is_target")
+    for role, path in (("control", control), ("execution", execution_root)):
+        unavailable = f"retirement_{role}_root_unavailable"
+        if not path.is_absolute() or not path.is_dir() or path.is_symlink() or is_junction(path):
+            _fail(unavailable)
+        observed = run_git(
+            path,
+            "rev-parse",
+            "--path-format=absolute",
+            "--show-toplevel",
+            "--git-common-dir",
+            check=False,
+        )
+        coordinates = observed.stdout.splitlines()
+        if observed.returncode or len(coordinates) != 2 or Path(coordinates[0]) != path.resolve():
+            _fail(unavailable)
+        if Path(coordinates[1]).resolve().as_posix() != request.repository_common_dir:
+            _fail(
+                "lane_retirement_receipt_repository_mismatch" if role == "control" else unavailable
+            )
     if (
         request.repository_identity
         and repository_identity(control, tree_ref=request.accepted_head)
         != request.repository_identity
     ):
         _fail("lane_retirement_receipt_repository_mismatch")
-    git_executable(os.environ)
-    if run_git(control, "rev-parse", "--git-dir", check=False).returncode:
-        _fail("retirement_control_root_unavailable")
-    execution_root = Path(request.execution_root)
-    if request.worktree_path and execution_root.resolve() == Path(request.worktree_path).resolve():
-        _fail("retirement_execution_root_is_target")
-    if (
-        not execution_root.is_absolute()
-        or not execution_root.is_dir()
-        or execution_root.is_symlink()
-        or Path(git_common_dir(execution_root)).resolve().as_posix()
-        != request.repository_common_dir
-    ):
-        _fail("retirement_execution_root_unavailable")
     progress = reduce_progress(request, observe_operation(root, request))
     if "delete_ref" in progress.remaining_effects:
         admit_git_effect(execution_root, _git_plan(request))
+    if request.reviewed_content and "remove_worktree" in progress.remaining_effects:
+        _admit_reviewed_content(control, request)
+    return progress
 
 
-def remove_operation_worktree(_root: Path, request: RetirementOperation) -> None:
+def remove_operation_worktree(root: Path, request: RetirementOperation) -> None:
     """Remove or recognize the exact target worktree from the surviving root."""
     remove_worktree(
         Path(request.control_root),
         Path(request.worktree_path),
         branch=request.branch,
         head=request.head,
+        admit=partial(preflight_operation, root, request),
+        dispose=(
+            partial(
+                remove_reviewed_content,
+                Path(request.worktree_path),
+                cast("dict[str, object]", mutable_json(request.reviewed_content)),
+            )
+            if request.reviewed_content
+            else None
+        ),
     )
 
 
@@ -341,172 +380,131 @@ def _report(
     root: Path,
     request: RetirementOperation,
     request_receipt: Mapping[str, object],
-    progress: RetirementProgress,
+    progress: RetirementProgress | None,
     *,
-    gap: str = "",
-    detail: str = "",
+    failure: Mapping[str, object] | None = None,
     progress_receipt: Mapping[str, object] | None = None,
     terminal_receipt: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
-    partial = progress.state == "partial_transition"
-    state = (
-        "partial_transition"
-        if partial
-        else "retired"
-        if progress.state == "terminal"
-        else "blocked"
-        if gap
-        else "ready"
-    )
-    gaps = [gap] if gap else []
+    partial = progress is not None and progress.state == "partial_transition"
+    state = progress.state if progress is not None else "ready"
+    if state == "terminal":
+        state = "retired"
+    elif failure and not partial:
+        state = "blocked"
     result: dict[str, object] = {
-        "verdict": "block" if gaps or partial else "pass",
+        "verdict": "block" if failure or partial else "pass",
         "state": state,
         "branch": request.branch,
         "head": request.head,
         "receipt": dict(request_receipt),
-        "progress_receipt": dict(progress_receipt or {}),
-        "terminal_receipt": dict(terminal_receipt or {}),
-        "observed": progress.observation.model_dump(mode="json"),
-        "completed_effects": list(progress.completed_effects),
-        "remaining_effects": list(progress.remaining_effects),
-        "required_gaps": gaps or (["lane_retirement_partial"] if partial else []),
+        "required_gaps": ["lane_retirement_partial"] if partial else [],
         "next_action": (
             _recovery_command(root, request_receipt)
-            if progress.remaining_effects
+            if progress is None or progress.remaining_effects
             else f"ethos status --root {root.as_posix()} --json"
         ),
-        "user_decision_required": bool(progress.remaining_effects),
+        "user_decision_required": progress is None or bool(progress.remaining_effects),
+        **dict(failure or {}),
     }
-    if detail:
-        result["stderr"] = detail
+    if progress is not None:
+        result.update(
+            progress_receipt=dict(progress_receipt or {}),
+            terminal_receipt=dict(terminal_receipt or {}),
+            observed=progress.observation.model_dump(mode="json"),
+            completed_effects=list(progress.completed_effects),
+            remaining_effects=list(progress.remaining_effects),
+        )
     return result
 
 
 def apply_operation(
-    _root: Path,
     request: RetirementOperation,
     *,
     request_receipt: Mapping[str, object],
     apply: bool = True,
 ) -> dict[str, object]:
-    """Observe and monotonically converge one exact retirement operation."""
+    """Converge one exact retirement under its repository-scoped lock."""
     control_root = Path(request.control_root)
     lock = local_state_root(control_root) / "operations" / "lane-retirement.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
-    with FileLock(str(lock)):
-        return _apply_operation_locked(
-            control_root,
-            request,
-            request_receipt=request_receipt,
-            apply=apply,
-        )
-
-
-def _apply_operation_locked(
-    control_root: Path,
-    request: RetirementOperation,
-    *,
-    request_receipt: Mapping[str, object],
-    apply: bool,
-) -> dict[str, object]:
-    """Converge one operation while holding the repository retirement lock."""
     try:
-        progress = reduce_progress(request, observe_operation(control_root, request))
-        preflight_operation(control_root, request)
-        if not apply:
-            return _report(
-                control_root,
-                request,
-                request_receipt,
-                progress,
-            )
-        progress_receipt = persist_progress(control_root, request, progress)
-        if not progress.remaining_effects:
-            terminal_receipt = persist_terminal_receipt(control_root, request, progress)
-            return _report(
-                control_root,
-                request,
-                request_receipt,
-                progress,
-                progress_receipt=progress_receipt,
-                terminal_receipt=terminal_receipt,
-            )
-        actions = {
-            "remove_worktree": remove_operation_worktree,
-            "delete_ref": delete_operation_ref,
-            "revoke_lease": revoke_operation_lease,
-        }
-        for effect in progress.remaining_effects:
-            actions[effect](control_root, request)
-            progress = reduce_progress(request, observe_operation(control_root, request))
-            progress_receipt = persist_progress(control_root, request, progress)
-        terminal_receipt = (
-            persist_terminal_receipt(control_root, request, progress)
-            if progress.state == "terminal"
-            else {}
+        acquired = FileLock(str(lock)).acquire(timeout=0)
+    except Timeout as error:
+        return _report(
+            control_root, request, request_receipt, None, failure=retirement_failure(error)
         )
+    with acquired:
+        failure: dict[str, object] = {}
+        terminal_receipt: dict[str, object] = {}
+        try:
+            progress = preflight_operation(control_root, request)
+            if not apply:
+                return _report(
+                    control_root,
+                    request,
+                    request_receipt,
+                    progress,
+                )
+            progress_receipt = persist_progress(control_root, request, progress)
+            actions = {
+                "remove_worktree": remove_operation_worktree,
+                "delete_ref": delete_operation_ref,
+                "revoke_lease": revoke_operation_lease,
+            }
+            for effect in progress.remaining_effects:
+                actions[effect](control_root, request)
+                progress = reduce_progress(request, observe_operation(control_root, request))
+                progress_receipt = persist_progress(control_root, request, progress)
+            terminal_receipt = (
+                persist_terminal_receipt(control_root, request, progress)
+                if progress.state == "terminal"
+                else {}
+            )
+        except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError) as error:
+            failure = retirement_failure(error)
+            try:
+                progress = reduce_progress(request, observe_operation(control_root, request))
+                progress_receipt = persist_progress(control_root, request, progress)
+            except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError):
+                return _report(control_root, request, request_receipt, None, failure=failure)
         return _report(
             control_root,
             request,
             request_receipt,
             progress,
+            failure=failure,
             progress_receipt=progress_receipt,
             terminal_receipt=terminal_receipt,
         )
-    except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError) as error:
-        gap = getattr(error, "code", "") or str(error).partition(":")[0] or type(error).__name__
-        try:
-            progress = reduce_progress(request, observe_operation(control_root, request))
-            progress_receipt = persist_progress(control_root, request, progress)
-        except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError):
-            return {
-                "verdict": "block",
-                "state": "blocked",
-                "branch": request.branch,
-                "head": request.head,
-                "receipt": dict(request_receipt),
-                "required_gaps": [str(gap)],
-                "stderr": str(error),
-                "next_action": _recovery_command(control_root, request_receipt),
-                "user_decision_required": True,
-            }
-        return _report(
-            control_root,
-            request,
-            request_receipt,
-            progress,
-            gap=str(gap),
-            detail=str(error),
-            progress_receipt=progress_receipt,
-        )
 
 
-def recover_retirement_operation(
+def execute_retirement_operation(
     *,
     root: Path,
     receipt_path: str,
     receipt_sha256: str,
     apply: bool,
     authorized: bool,
+    expected_mode: Literal["landed", "superseded", "abandon"] | None = None,
 ) -> dict[str, object]:
-    """Resume one exact current retirement request from native carrier facts."""
+    """Apply or resume one receipt after authority and command-mode admission."""
     repo = root.resolve()
     receipt = {"path": receipt_path, "sha256": receipt_sha256}
     try:
         if apply and not authorized:
             _fail("authorization_required")
         request = load_operation(repo, receipt_path, receipt_sha256)
+        if expected_mode is not None and request.mode != expected_mode:
+            _fail("lane_retirement_receipt_mode_invalid")
         if not _current_actor(request):
             _fail("foreign_work_lane_retire_authority_required")
-        return apply_operation(repo, request, request_receipt=receipt, apply=apply)
+        return apply_operation(request, request_receipt=receipt, apply=apply)
     except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError) as error:
-        gap = getattr(error, "code", "") or str(error).partition(":")[0] or type(error).__name__
         return {
             "verdict": "block",
             "state": "blocked",
-            "required_gaps": [str(gap)],
-            "stderr": str(error),
+            **retirement_failure(error),
             "receipt": receipt,
             "next_action": "",
             "user_decision_required": False,

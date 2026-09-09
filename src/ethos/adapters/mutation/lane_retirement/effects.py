@@ -271,14 +271,3 @@ def reobservation_gaps(
 
 def actor_ref() -> str:
     return os.environ.get("ETHOS_ACTOR", "").strip()
-
-
-def blocked(gaps: list[str], stderr: str = "") -> dict[str, object]:
-    report: dict[str, object] = {
-        "verdict": "block",
-        "state": "blocked",
-        "required_gaps": gaps,
-    }
-    if stderr.strip():
-        report["stderr"] = stderr.strip()
-    return report

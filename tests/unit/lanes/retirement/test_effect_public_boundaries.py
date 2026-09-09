@@ -11,13 +11,15 @@ import pytest
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
 import ethos.adapters.mutation.lane_retirement.linked_effect as linked_effect
-from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
+import ethos.adapters.mutation.lane_retirement.operation as operation
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.contracts.retirement import LinkedRetirementRequest
+from ethos.contracts.retirement import RetirementOperation
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
@@ -300,43 +302,83 @@ def test_effect_gaps_recheck_successor_checkout_and_archive_mapping(monkeypatch,
     ]
 
 
-@pytest.mark.parametrize("blocked", [False, True])
-def test_superseded_retirement_preserves_exact_unbound_recovery(tmp_path, monkeypatch, blocked):
+@pytest.mark.parametrize("failure", ["none", "before-delete", "after-delete"])
+@pytest.mark.parametrize("unbound", [False, True])
+def test_superseded_retirement_recovers_observed_effects_without_replay(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str, *, unbound: bool
+) -> None:
     holder = "agent:test:case:partial-recovery"
     repo, lane, head, accepted, database = superseded_work_lane(tmp_path, holder_ref=holder)
     install_fixture_hook_runtime(repo)
-    git(repo, "worktree", "remove", lane.as_posix())
+    if unbound:
+        git(repo, "worktree", "remove", lane.as_posix())
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     request = _retirement_request(head, accepted).model_copy(update={"path": lane.as_posix()})
     planned = retire_linked_work_lane(root=repo, mode="superseded", request=request)
     assert_public_decision(planned, verdict="pass", state="ready_to_retire_superseded", gaps=[])
     planned_lane = planned["lane"]
     assert isinstance(planned_lane, dict)
-    assert planned_lane["recovery_required"] is True
-    assert not lane.exists()
-    if blocked:
-        monkeypatch.setattr(
-            "ethos.adapters.mutation.lane_retirement.operation.delete_operation_ref",
-            lambda *_a: (_ for _ in ()).throw(ValueError("git_effect_cas_rejected")),
-        )
+    assert bool(planned_lane.get("recovery_required")) is unbound
+    assert lane.exists() is not unbound
+    before_lease = observe_lease(database, BRANCH).record()
+    delete = operation.delete_operation_ref
+
+    def fail_delete(root: Path, request: RetirementOperation) -> None:
+        if failure == "after-delete":
+            delete(root, request)
+        message = "retirement_delete_interrupted"
+        raise ValueError(message)
+
+    if failure != "none":
+        monkeypatch.setattr(operation, "delete_operation_ref", fail_delete)
     report = retire_linked_work_lane(
         root=repo,
         mode="superseded",
         request=request.model_copy(update={"apply": True}),
     )
-    if not blocked:
+    if failure == "none":
         assert_public_decision(report, verdict="pass", state="retired", gaps=[])
         assert "recovery" not in report
         _assert_retired(repo, lane, database)
         return
     assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["git_effect_cas_rejected"]
+    assert report["required_gaps"] == ["retirement_delete_interrupted"]
     assert not lane.exists()
-    assert report["completed_effects"] == []
-    assert report["remaining_effects"] == ["delete_ref", "revoke_lease"]
+    deleted = failure == "after-delete"
+    assert report["state"] == ("partial_transition" if not unbound or deleted else "blocked")
+    assert report["completed_effects"] == (
+        ([] if unbound else ["remove_worktree"]) + (["delete_ref"] if deleted else [])
+    )
+    assert report["remaining_effects"] == (
+        ["revoke_lease"] if deleted else ["delete_ref", "revoke_lease"]
+    )
     assert "ethos lane retire recover" in str(report["next_action"])
-    assert git(repo, "rev-parse", BRANCH) == head
-    assert observe_lease(database, BRANCH).state == "valid"
+    assert git(repo, "for-each-ref", "--format=%(objectname)", f"refs/heads/{BRANCH}") == (
+        "" if deleted else head
+    )
+    assert observe_lease(database, BRANCH).record() == before_lease
+    assert git(repo, "rev-parse", "dev") == accepted
+    receipt = report["receipt"]
+    assert isinstance(receipt, dict)
+
+    def already_completed(*_args: object) -> None:
+        pytest.fail("recovery replayed a completed effect")
+
+    monkeypatch.setattr(operation, "remove_operation_worktree", already_completed)
+    monkeypatch.setattr(operation, "delete_operation_ref", already_completed if deleted else delete)
+    for _ in range(2):
+        recovered = operation.execute_retirement_operation(
+            root=repo,
+            receipt_path=str(receipt["path"]),
+            receipt_sha256=str(receipt["sha256"]),
+            apply=True,
+            authorized=True,
+        )
+        assert recovered["state"] == "retired", recovered
+        assert recovered["remaining_effects"] == []
+        _assert_retired(repo, lane, database)
+        monkeypatch.setattr(operation, "delete_operation_ref", already_completed)
+        monkeypatch.setattr(operation, "revoke_operation_lease", already_completed)
 
 
 @pytest.mark.parametrize(

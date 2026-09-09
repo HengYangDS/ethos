@@ -397,7 +397,7 @@ only to delete it. The predecessor handoff states implementation stopped and the
 selected lane has no listed open-path references; this is cooperative evidence,
 not OS-enforced isolation. Historical bytes still require reviewed disposal.
 
-The bounded Change is ready for a frozen commit, not accepted delivery. Its
+The bounded Change was committed at `bafb51cb7`, not accepted delivery. Its
 implementation checklist is backed by the 325-case affected retirement set,
 56-case Lease/CLI set and current 65-case ref-intent/hook recheck. All 28 changed
 Python files pass Ruff, format and explicit typing; official strict Change
@@ -405,6 +405,23 @@ validation, docs registry, Markdown and independent source budgets pass. Public
 command guidance now includes reviewed-content derivation and stopped-writer
 preconditions. Exact-HEAD full proof, archive, acceptance, runtime deployment
 and historical disposal are the next unproved effects; no checkbox claims them.
+
+That first 24-gate full proof blocks in Attestation `4f8a3988d5ab7ad586969103fcda90a9184f68ea600a67413d9e3743a7ed3ba7`.
+Both failing architecture tests and repository audit identify one cause: the
+native `lsof` consumer is absent from the existing runtime executable declaration
+in `system/surfaces.toml`. No second registry is needed. The complete test run
+records 2754 passed, two failed and one skipped. Its measured combined coverage
+is 95.16274333163605 percent, but failed tests prevent updating the HEAD stamp;
+the coverage gate correctly rejects stale evidence rather than accepting that
+number. `reviewed-content-first-proof-failure.json` binds the failed proof and
+XML hashes. Correct the missing declaration, rerun the exact architecture
+failures and audit, then freeze a new commit and prove it without weakening any
+gate. The first proof remains failed; build and install-smoke passes are not
+acceptance of this Change.
+The declared executable correction passes both original failing architecture
+tests, the complete repository audit and native configuration quality;
+`reviewed-content-lsof-declaration-green` binds the exact inputs and confirms
+test-root removal. No product code, gate, exclusion or coverage policy changed.
 
 `git-native-evidence-retirement` is archived and locally accepted at
 `bf825e26b07bb6353b8a0fc5777eed399eca3ee1`, tree

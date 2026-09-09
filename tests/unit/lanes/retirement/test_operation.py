@@ -190,6 +190,32 @@ def _reviewed_request(tmp_path: Path) -> dict[str, object]:
 
 
 @pytest.mark.parametrize(
+    "updates",
+    [
+        {"mode": "landed"},
+        {"worktree_initial": "unbound"},
+        {"reviewed_content": {}},
+        {"lease_state": "valid"},
+        {"lease": {"generation": 1}},
+        {"git_plan": {"digest": "a" * 64}},
+        {"effects": ["remove_worktree", "delete_ref"]},
+    ],
+)
+def test_detached_receipt_rejects_invented_resources(tmp_path, updates):
+    payload = _reviewed_request(tmp_path) | {
+        "branch": "",
+        "lease_state": "missing",
+        "lease": {},
+        "git_plan": {},
+        "effects": ["remove_worktree"],
+    }
+    with pytest.raises(
+        ValueError, match=r"retirement_(?:detached_resources|operation_effects)_invalid"
+    ):
+        RetirementOperation.model_validate(payload | updates)
+
+
+@pytest.mark.parametrize(
     ("coordinate", "replacement"),
     [
         (("root", "kind"), "file"),

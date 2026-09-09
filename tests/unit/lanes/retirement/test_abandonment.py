@@ -50,33 +50,45 @@ def _derive(
     *,
     review_content: bool = False,
     branch: str = "work/abandon",
+    path: Path | None = None,
     reason_code: str = "superseded-experiment",
     reason: str = "discard divergent experiment",
 ):
     return abandonment.derive_lane_abandonment(
         root=repo,
-        branch=branch,
+        branch="" if path else branch,
+        path=str(path) if path else "",
         reason_code=reason_code,
         reason=reason,
         review_content=review_content,
     )
 
 
+def _apply_receipt(repo, receipt):
+    """Apply the exact reviewed receipt without replacing production admission."""
+    return operation.execute_retirement_operation(
+        root=repo,
+        receipt_path=receipt["path"],
+        receipt_sha256=receipt["sha256"],
+        apply=True,
+        authorized=True,
+    )
+
+
 @pytest.mark.skipif(os.name != "posix", reason="native POSIX process-reference observation")
 @pytest.mark.parametrize("consumer", ["cwd", "file", "mapping", "hardlink", "writer"])
-def test_reviewed_retirement_preserves_content_held_by_live_process(divergent_lane, consumer):
+@pytest.mark.parametrize("detached", [False, True])
+def test_reviewed_retirement_preserves_content_held_by_live_process(
+    divergent_lane, consumer, detached
+):
     repo, lane = divergent_lane
+    if detached:
+        git(lane, "switch", "--detach")
     selected = lane if consumer == "cwd" else lane / "abandoned.txt"
     if consumer == "hardlink":
         selected = repo.parent / "external-hardlink"
         os.link(lane / "abandoned.txt", selected)
-    derived = abandonment.derive_lane_abandonment(
-        root=repo,
-        branch="work/abandon",
-        reason_code="superseded-experiment",
-        reason="reviewed bytes still require a fresh active-consumer check",
-        review_content=True,
-    )
+    derived = _derive(repo, review_content=True, path=lane if detached else None)
     assert derived["verdict"] == "pass", derived
     receipt = derived["receipt"]
     assert isinstance(receipt, dict)
@@ -113,13 +125,7 @@ if mode == 'writer':
             assert select.select([child.stdout], [], [], 10)[0], "consumer did not become ready"
             assert child.stdout.readline() == "ready\n"
             assert child.poll() is None
-            result = operation.execute_retirement_operation(
-                root=repo,
-                receipt_path=receipt["path"],
-                receipt_sha256=receipt["sha256"],
-                apply=True,
-                authorized=True,
-            )
+            result = _apply_receipt(repo, receipt)
         finally:
             child.communicate("x", timeout=10)
 
@@ -138,7 +144,7 @@ if mode == 'writer':
         authorized=False,
     )
     assert released["verdict"] == ("block" if consumer == "writer" else "pass"), released
-    reviewed = _derive(repo, review_content=True)
+    reviewed = _derive(repo, review_content=True, path=lane if detached else None)
     assert reviewed["verdict"] == "pass", reviewed
     final_receipt = reviewed["receipt"]
     assert isinstance(final_receipt, dict)
@@ -152,22 +158,22 @@ if mode == 'writer':
     assert retired["state"] == "retired", retired
     assert not lane.exists()
     assert str(lane) not in git(repo, "worktree", "list", "--porcelain")
-    assert git(repo, "branch", "--list", "work/abandon") == ""
-    assert observe_lease(state_database(repo), "work/abandon").state == "missing"
+    if not detached:
+        assert git(repo, "branch", "--list", "work/abandon") == ""
+    assert observe_lease(state_database(repo), "work/abandon").state == (
+        "valid" if detached else "missing"
+    )
 
 
 @pytest.mark.parametrize("error_type", [ProcessExecutionError, GitExecutionError])
+@pytest.mark.parametrize("detached", [False, True])
 def test_reviewed_retirement_rejects_unknown_process_references(
-    divergent_lane, monkeypatch, error_type
+    divergent_lane, monkeypatch, error_type, detached
 ):
     repo, lane = divergent_lane
-    derived = abandonment.derive_lane_abandonment(
-        root=repo,
-        branch="work/abandon",
-        reason_code="superseded-experiment",
-        reason="observation failure cannot authorize removal",
-        review_content=True,
-    )
+    if detached:
+        git(lane, "switch", "--detach")
+    derived = _derive(repo, review_content=True, path=lane if detached else None)
     assert derived["verdict"] == "pass", derived
     receipt = derived["receipt"]
     assert isinstance(receipt, dict)
@@ -185,13 +191,7 @@ def test_reviewed_retirement_rejects_unknown_process_references(
         raise error
 
     monkeypatch.setattr(operation, "process_file_identities", unavailable)
-    result = operation.execute_retirement_operation(
-        root=repo,
-        receipt_path=receipt["path"],
-        receipt_sha256=receipt["sha256"],
-        apply=True,
-        authorized=True,
-    )
+    result = _apply_receipt(repo, receipt)
 
     assert result["required_gaps"] == ["native_process_observer_unavailable"], result
     assert result["process_failure"] == error.evidence()
@@ -237,13 +237,7 @@ def test_reviewed_inventory_never_opens_through_replaced_parent(
     monkeypatch.setattr(content.os, "open", replace_before_open)
     before = git(repo, "show-ref")
     try:
-        result = abandonment.derive_lane_abandonment(
-            root=repo,
-            branch="work/abandon",
-            reason_code="superseded-experiment",
-            reason="reviewed content cannot authorize external traversal",
-            review_content=True,
-        )
+        result = _derive(repo, review_content=True)
     finally:
         if swapped:
             selected.unlink()
@@ -316,13 +310,7 @@ def test_reviewed_inventory_preserves_literal_link_without_opening_target(diverg
     literal = ".././external.txt"
     (lane / "external-link").symlink_to(literal)
 
-    result = abandonment.derive_lane_abandonment(
-        root=repo,
-        branch="work/abandon",
-        reason_code="superseded-experiment",
-        reason="only literal link belongs to selected content",
-        review_content=True,
-    )
+    result = _derive(repo, review_content=True)
 
     assert result["verdict"] == "pass", result
     receipt = result["receipt"]
@@ -355,13 +343,7 @@ def test_reviewed_inventory_rejects_incomplete_or_unsafe_observation(
         os.mkfifo(lane / "pipe")
     before = git(repo, "show-ref")
 
-    result = abandonment.derive_lane_abandonment(
-        root=repo,
-        branch="work/abandon",
-        reason_code="superseded-experiment",
-        reason="incomplete or unsafe observation never authorizes disposal",
-        review_content=True,
-    )
+    result = _derive(repo, review_content=True)
 
     assert result["verdict"] == "block", result
     assert result["required_gaps"] == [
@@ -471,9 +453,14 @@ def test_reviewed_retirement_uses_current_coordination_not_historical_ownership(
 
 
 @pytest.mark.parametrize("dirty_kind", ["staged", "unstaged", "untracked", "ignored"])
-def test_reviewed_absorbed_content_derives_exact_public_receipt(divergent_lane, dirty_kind):
+@pytest.mark.parametrize("detached", [False, True])
+def test_reviewed_absorbed_content_derives_exact_public_receipt(
+    divergent_lane, dirty_kind, detached
+):
     repo, lane = divergent_lane
     git(repo, "reset", "--hard", git(lane, "rev-parse", "HEAD"))
+    if detached:
+        git(lane, "switch", "--detach")
     target = lane / ("residual.txt" if dirty_kind in {"untracked", "ignored"} else "abandoned.txt")
     target.write_text("reviewed residual\n")
     if dirty_kind == "staged":
@@ -486,8 +473,8 @@ def test_reviewed_absorbed_content_derives_exact_public_receipt(divergent_lane, 
         "lane",
         "retire",
         "abandon",
-        "--branch",
-        "work/abandon",
+        "--path" if detached else "--branch",
+        str(lane) if detached else "work/abandon",
         "--reason-code",
         "absorbed-content",
         "--reason",
@@ -504,7 +491,11 @@ def test_reviewed_absorbed_content_derives_exact_public_receipt(divergent_lane, 
     assert request.reviewed_content["entries"][target.name]
     assert request.reviewed_content["index"]
     assert request.reviewed_content["root"]
-    assert request.git_plan["facts"]["values"]["linked_worktree"]["clean"] is False
+    if detached:
+        assert request.effects == ("remove_worktree",)
+        assert (request.branch, request.git_plan, request.lease) == ("", {}, {})
+    else:
+        assert request.git_plan["facts"]["values"]["linked_worktree"]["clean"] is False
     assert (
         request.digest()
         == operation.load_operation(repo, receipt["path"], receipt["sha256"]).digest()
@@ -527,10 +518,13 @@ def test_reviewed_absorbed_content_derives_exact_public_receipt(divergent_lane, 
 
 
 @pytest.mark.parametrize("fault", ["symlink", "unbound", "locked"])
+@pytest.mark.parametrize("detached", [False, True])
 def test_reviewed_derivation_rejects_unsafe_target_before_inventory(
-    divergent_lane, monkeypatch, fault
+    divergent_lane, monkeypatch, fault, detached
 ):
     repo, lane = divergent_lane
+    if detached:
+        git(lane, "switch", "--detach")
     if fault == "symlink":
         retained = lane.with_name("retained")
         lane.rename(retained)
@@ -545,13 +539,7 @@ def test_reviewed_derivation_rejects_unsafe_target_before_inventory(
         lambda _root: pytest.fail("unsafe or absent target reached inventory observation"),
     )
 
-    result = abandonment.derive_lane_abandonment(
-        root=repo,
-        branch="work/abandon",
-        reason_code="superseded-experiment",
-        reason="superseded experiment; selected root must still be exact",
-        review_content=True,
-    )
+    result = _derive(repo, review_content=True, path=lane if detached else None)
 
     assert result["verdict"] == "block", result
     assert result["required_gaps"] == [
@@ -565,10 +553,41 @@ def test_reviewed_derivation_rejects_unsafe_target_before_inventory(
     assert not operation.operation_store(repo).exists()
 
 
-@pytest.mark.parametrize("fault", ["symlink", "locked"])
+@pytest.mark.parametrize(
+    ("path", "branch", "review", "gap"),
+    [
+        (".", "", True, "retirement_target_path_not_absolute"),
+        ("lane", "work/abandon", True, "retirement_target_selection_invalid"),
+        ("lane", "", False, "retirement_target_selection_invalid"),
+        ("lane", "", True, "retirement_target_not_detached"),
+        ("root", "", True, "retirement_target_not_detached"),
+    ],
+)
+def test_detached_selection_rejects_ambiguous_or_bound_resources(
+    divergent_lane, path, branch, review, gap
+):
+    repo, lane = divergent_lane
+    before = (git(repo, "show-ref"), git(repo, "worktree", "list", "--porcelain"))
+    result = abandonment.derive_lane_abandonment(
+        root=repo,
+        branch=branch,
+        path={"lane": str(lane), "root": str(repo)}.get(path, path),
+        reason_code="absorbed-content",
+        reason="reviewed source",
+        review_content=review,
+    )
+    assert result["required_gaps"] == [gap], result
+    assert before == (git(repo, "show-ref"), git(repo, "worktree", "list", "--porcelain"))
+    assert not operation.operation_store(repo).exists()
+
+
+@pytest.mark.parametrize("fault", ["symlink", "locked", "reattached", "head"])
 def test_retirement_observes_replaced_or_locked_root_as_drift(divergent_lane, fault):
     repo, lane = divergent_lane
-    derived = _derive(repo)
+    detached = fault in {"reattached", "head"}
+    if detached:
+        git(lane, "switch", "--detach")
+    derived = _derive(repo, review_content=detached, path=lane if detached else None)
     receipt = derived["receipt"]
     request = operation.load_operation(repo, receipt["path"], receipt["sha256"])
     retained = lane
@@ -576,18 +595,16 @@ def test_retirement_observes_replaced_or_locked_root_as_drift(divergent_lane, fa
         retained = lane.with_name("relocated")
         lane.rename(retained)
         lane.symlink_to(retained, target_is_directory=True)
-    else:
+    elif fault == "locked":
         git(repo, "worktree", "lock", lane.as_posix())
+    else:
+        git(lane, "switch", "work/abandon") if fault == "reattached" else git(
+            lane, "reset", "--soft", "HEAD^"
+        )
     before = git(repo, "show-ref")
 
     assert operation.observe_operation(repo, request).worktree_state == "moved"
-    report = operation.execute_retirement_operation(
-        root=repo,
-        receipt_path=receipt["path"],
-        receipt_sha256=receipt["sha256"],
-        apply=True,
-        authorized=True,
-    )
+    report = _apply_receipt(repo, receipt)
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["retirement_operation_state_drift"]
@@ -597,19 +614,22 @@ def test_retirement_observes_replaced_or_locked_root_as_drift(divergent_lane, fa
 
 
 @pytest.mark.parametrize(
-    "drift", ["ignored", "process-scan", "git-admission", "actor", "lease", "accepted"]
+    ("drift", "detached"),
+    [
+        (case, False)
+        for case in ("ignored", "process-scan", "git-admission", "actor", "lease", "accepted")
+    ]
+    + [(case, True) for case in ("ignored", "process-scan", "actor", "accepted")],
 )
-def test_retirement_rechecks_after_native_worktree_observation(divergent_lane, monkeypatch, drift):
+def test_retirement_rechecks_after_native_worktree_observation(
+    divergent_lane, monkeypatch, drift, detached
+):
     repo, lane = divergent_lane
+    if detached:
+        git(lane, "switch", "--detach")
     (repo / ".git/info").mkdir(exist_ok=True)
     (repo / ".git/info/exclude").write_text("residual.txt\n")
-    derived = abandonment.derive_lane_abandonment(
-        root=repo,
-        branch="work/abandon",
-        reason_code="superseded-experiment",
-        reason="reviewed experiment with exact effect-time authority",
-        review_content=True,
-    )
+    derived = _derive(repo, review_content=True, path=lane if detached else None)
     assert derived["verdict"] == "pass", derived
     receipt = derived["receipt"]
     assert isinstance(receipt, dict)
@@ -643,13 +663,7 @@ def test_retirement_rechecks_after_native_worktree_observation(divergent_lane, m
         return record
 
     monkeypatch.setattr(worktree_effects, "worktree_record", observe_then_drift)
-    result = operation.execute_retirement_operation(
-        root=repo,
-        receipt_path=receipt["path"],
-        receipt_sha256=receipt["sha256"],
-        apply=True,
-        authorized=True,
-    )
+    result = _apply_receipt(repo, receipt)
 
     assert lane.is_dir(), result
     assert (lane / "abandoned.txt").read_bytes() == original_bytes
@@ -779,10 +793,16 @@ def test_abandonment_apply_requires_authorization_before_loading_receipt(
 
 
 @pytest.mark.parametrize("interrupted", ["", "first", "shared", ".git"])
+@pytest.mark.parametrize("detached", [False, True])
 def test_reviewed_disposal_preserves_shared_files_and_recovers_before_deregistration(
-    divergent_lane, monkeypatch, interrupted
+    divergent_lane, monkeypatch, interrupted, detached
 ):
     repo, lane = divergent_lane
+    if detached:
+        sibling = repo.parent / "same-head-sibling"
+        git(lane, "switch", "--detach")
+        git(repo, "worktree", "add", "--detach", str(sibling), git(lane, "rev-parse", "HEAD"))
+    refs_before = git(repo, "show-ref")
     generated = lane / "generated"
     generated.mkdir()
     external = repo.parent / "shared-source"
@@ -794,7 +814,7 @@ def test_reviewed_disposal_preserves_shared_files_and_recovers_before_deregistra
     (generated / "first").write_text("reviewed disposable bytes\n")
     generated.chmod(0o500)
     before = (external.read_bytes(), external.stat().st_mode, external.stat().st_ino)
-    derived = _derive(repo, review_content=True)
+    derived = _derive(repo, review_content=True, path=lane if detached else None)
     assert derived["verdict"] == "pass", derived
     receipt = derived["receipt"]
     admin = Path(git(lane, "rev-parse", "--absolute-git-dir"))
@@ -809,13 +829,7 @@ def test_reviewed_disposal_preserves_shared_files_and_recovers_before_deregistra
 
     if interrupted:
         monkeypatch.setattr(content.os, "unlink", stop_after_first)
-    result = operation.execute_retirement_operation(
-        root=repo,
-        receipt_path=receipt["path"],
-        receipt_sha256=receipt["sha256"],
-        apply=True,
-        authorized=True,
-    )
+    result = _apply_receipt(repo, receipt)
     if interrupted:
         assert result["verdict"] == "block", result
         assert not (generated / "first").exists(), result
@@ -823,21 +837,30 @@ def test_reviewed_disposal_preserves_shared_files_and_recovers_before_deregistra
         assert (lane / ".git").is_file() == (interrupted != ".git")
         assert "ethos lane retire recover" in str(result["next_action"])
         monkeypatch.setattr(content.os, "unlink", native_unlink)
-        result = operation.execute_retirement_operation(
-            root=repo,
-            receipt_path=receipt["path"],
-            receipt_sha256=receipt["sha256"],
-            apply=True,
-            authorized=True,
-        )
-    if generated.exists():
-        generated.chmod(0o700)
+        result = _apply_receipt(repo, receipt)
     assert result["state"] == "retired", result
     assert not lane.exists()
     assert not admin.exists()
-    assert git(repo, "branch", "--list", "work/abandon") == ""
-    assert observe_lease(state_database(repo), "work/abandon").state == "missing"
+    if detached:
+        assert git(repo, "show-ref") == refs_before
+        assert (sibling / "abandoned.txt").read_text() == "abandoned\n"
+    else:
+        assert git(repo, "branch", "--list", "work/abandon") == ""
+    assert observe_lease(state_database(repo), "work/abandon").state == (
+        "valid" if detached else "missing"
+    )
     assert (external.read_bytes(), external.stat().st_mode, external.stat().st_ino) == before
+    _assert_terminal_recovery(repo, lane, receipt, detached)
+
+
+def _assert_terminal_recovery(repo, lane, receipt, detached):
+    """Recognize completion but never admit replacement content at a retired path."""
+    assert _apply_receipt(repo, receipt)["state"] == "retired"
+    if detached:
+        lane.mkdir()
+        (lane / "replacement").write_text("new unreviewed bytes\n")
+        assert _apply_receipt(repo, receipt)["verdict"] == "block"
+        assert (lane / "replacement").read_text() == "new unreviewed bytes\n"
 
 
 def _change_reviewed_survivor(
@@ -893,26 +916,14 @@ def test_partial_reviewed_disposal_preserves_unreviewed_survivors(
             raise OSError(message)
 
     monkeypatch.setattr(content.os, "unlink", interrupt)
-    partial = operation.execute_retirement_operation(
-        root=repo,
-        receipt_path=receipt["path"],
-        receipt_sha256=receipt["sha256"],
-        apply=True,
-        authorized=True,
-    )
+    partial = _apply_receipt(repo, receipt)
     assert partial["verdict"] == "block", partial
     assert not (nested / "first").exists(), partial
     monkeypatch.setattr(content.os, "unlink", native_unlink)
     if timing == "recovery":
         survivor = _change_reviewed_survivor(repo, nested, survivor, index, drift)
     before = (git(repo, "show-ref"), survivor.read_bytes(), survivor.stat().st_ino)
-    recovered = operation.execute_retirement_operation(
-        root=repo,
-        receipt_path=receipt["path"],
-        receipt_sha256=receipt["sha256"],
-        apply=True,
-        authorized=True,
-    )
+    recovered = _apply_receipt(repo, receipt)
     assert recovered["verdict"] == "block", recovered
     assert recovered["required_gaps"] == ["retirement_content_drift"], recovered
     assert before == (git(repo, "show-ref"), survivor.read_bytes(), survivor.stat().st_ino)
@@ -921,11 +932,14 @@ def test_partial_reviewed_disposal_preserves_unreviewed_survivors(
 
 
 @pytest.mark.parametrize("drift", ["bytes", "replacement", "symlink", "root"])
+@pytest.mark.parametrize("detached", [False, True])
 def test_reviewed_absent_recovery_preserves_changed_index_and_recreated_content(
-    divergent_lane, drift
+    divergent_lane, drift, detached
 ):
     repo, lane = divergent_lane
-    derived = _derive(repo, review_content=True)
+    if detached:
+        git(lane, "switch", "--detach")
+    derived = _derive(repo, review_content=True, path=lane if detached else None)
     assert derived["verdict"] == "pass", derived
     receipt = derived["receipt"]
     admin = Path(git(lane, "rev-parse", "--absolute-git-dir"))
@@ -959,13 +973,7 @@ def test_reviewed_absent_recovery_preserves_changed_index_and_recreated_content(
 
     before = (git(repo, "show-ref"), index_state())
 
-    recovered = operation.execute_retirement_operation(
-        root=repo,
-        receipt_path=receipt["path"],
-        receipt_sha256=receipt["sha256"],
-        apply=True,
-        authorized=True,
-    )
+    recovered = _apply_receipt(repo, receipt)
 
     assert recovered["verdict"] == "block", recovered
     assert recovered["required_gaps"], recovered
@@ -1043,13 +1051,7 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
         lambda *_a: pytest.fail("recovery replays worktree removal"),
     )
     for _ in range(2):
-        recovered = operation.execute_retirement_operation(
-            root=repo,
-            receipt_path=receipt["path"],
-            receipt_sha256=receipt["sha256"],
-            apply=True,
-            authorized=True,
-        )
+        recovered = _apply_receipt(repo, receipt)
         assert recovered["state"] == "retired", recovered
         monkeypatch.setattr(
             operation,

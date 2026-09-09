@@ -90,13 +90,6 @@ def remove_generated_path(path: Path) -> None:
         path.unlink(missing_ok=True)
 
 
-def _chown(path: Path, uid: int, gid: int) -> None:
-    if not path.exists():
-        return
-    for child in (path, *path.rglob("*")):
-        shutil.chown(child, user=uid, group=gid)
-
-
 @dataclass(frozen=True, slots=True)
 class Settings:
     """Validated environment controls for one test graph."""
@@ -112,7 +105,6 @@ class Settings:
     lock_wait: int
     uv_cache: Path | None
     node_package_supply: Path
-    identity: tuple[int, int] | None
 
     @classmethod
     def load(cls, *, node_package_supply: Path) -> Self:
@@ -132,7 +124,6 @@ class Settings:
             _number("ETHOS_COVERAGE_LOCK_WAIT_SECONDS", 30, zero=True),
             _absolute_environment_path("UV_CACHE_DIR"),
             node_package_supply,
-            cls._identity(),
         )
 
     @staticmethod
@@ -145,19 +136,6 @@ class Settings:
             raise ValueError(message)
         return _number(first, 1), method
 
-    @staticmethod
-    def _identity() -> tuple[int, int] | None:
-        uid, gid = os.getenv("ETHOS_TEST_RUN_AS_UID"), os.getenv("ETHOS_TEST_RUN_AS_GID")
-        if not uid and not gid:
-            return None
-        if not uid or not gid or not uid.isdecimal() or not gid.isdecimal() or "0" in {uid, gid}:
-            message = "ETHOS_TEST_RUN_AS_UID/GID must be positive integers set together"
-            raise ValueError(message)
-        if os.getuid() != 0 or shutil.which("setpriv") is None:
-            message = "test identity drop requires a root launcher and setpriv"
-            raise ValueError(message)
-        return int(uid), int(gid)
-
 
 class PythonTestGate:
     """Own pytest, coverage, isolation, sharding, and HEAD freshness."""
@@ -168,7 +146,6 @@ class PythonTestGate:
         self.pytest = settings.evidence / "pytest"
         self.data = self.coverage / ".coverage"
         self.head_file = self.coverage / "head.txt"
-        self.identity_home = Path(tempfile.gettempdir()) / f"ethos-test-{os.getpid()}"
 
     @classmethod
     def from_environment(cls, *, node_package_supply: Path) -> Self:
@@ -214,10 +191,6 @@ class PythonTestGate:
         self._cleanup()
         for path in (self.coverage, self.pytest, self.s.basetemp):
             path.mkdir(parents=True, exist_ok=True)
-        if self.s.identity:
-            self.identity_home.mkdir(parents=True, exist_ok=True)
-            for path in (ROOT / "build", self.s.basetemp, self.identity_home):
-                _chown(path, *self.s.identity)
 
     def _cleanup(self) -> None:
         for path in (
@@ -228,10 +201,6 @@ class PythonTestGate:
             remove_generated_path(path)
         if self.s.basetemp_owned:
             remove_generated_path(self.s.basetemp)
-        if self.s.identity:
-            _chown(ROOT / "build", 0, 0)
-            _chown(self.s.basetemp, 0, 0)
-            remove_generated_path(self.identity_home)
 
     def _stable_head(self) -> None:
         if (current := _head()) != self.s.head:
@@ -242,20 +211,10 @@ class PythonTestGate:
         config = [
             ("core.fsmonitor", "false"),
         ]
-        config += (
-            [
-                ("safe.directory", str(ROOT)),
-                ("safe.directory", str(ROOT / ".git")),
-            ]
-            if self.s.identity
-            else []
-        )
         env: dict[str, str | None] = {
             "COVERAGE_FILE": str(data or self.data),
             "ETHOS_ACTOR": None,
             "ETHOS_NODE_PACKAGE_SUPPLY": str(self.s.node_package_supply),
-            "ETHOS_TEST_RUN_AS_GID": None,
-            "ETHOS_TEST_RUN_AS_UID": None,
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_COUNT": str(len(config)),
@@ -266,25 +225,10 @@ class PythonTestGate:
         }
         for index, (key, value) in enumerate(config):
             env[f"GIT_CONFIG_KEY_{index}"], env[f"GIT_CONFIG_VALUE_{index}"] = key, value
-        if self.s.identity:
-            env |= {
-                "HOME": str(self.identity_home),
-                "XDG_CACHE_HOME": str(self.identity_home / ".cache"),
-            }
         return env
 
     def _command(self) -> tuple[str, ...]:
-        prefix = (
-            (
-                "setpriv",
-                f"--reuid={self.s.identity[0]}",
-                f"--regid={self.s.identity[1]}",
-                "--clear-groups",
-            )
-            if self.s.identity
-            else ()
-        )
-        return (*prefix, str(PYTHON), "-m", "pytest")
+        return (str(PYTHON), "-m", "pytest")
 
     def _args(self) -> list[str]:
         args = [

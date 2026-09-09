@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from typing import Literal
 from typing import cast
 
 from cyclopts import App
@@ -59,6 +60,13 @@ class _AbsorbedRefOptions(AppliedLaneCommandOptions):
 class _AbandonOptions(AppliedLaneCommandOptions):
     command = "lane retire abandon"
     branch: Annotated[str | None, Parameter(name="--branch")] = None
+    path: Annotated[
+        str,
+        Parameter(
+            name="--path",
+            help="Exact registered detached worktree; requires --review-content and no --branch.",
+        ),
+    ] = ""
     reason_code: Annotated[str, Parameter(name="--reason-code")] = ""
     reason: Annotated[str, Parameter(name="--reason")] = ""
     review_content: Annotated[
@@ -92,15 +100,9 @@ def lane_retire_abandon(
     """Derive or apply exact abandonment of divergent history or reviewed content."""
     repo = resolve_root(options.root)
     if options.receipt or options.receipt_sha256:
-        report = execute_retirement_operation(
-            expected_mode="abandon",
-            root=repo,
-            receipt_path=options.receipt or "",
-            receipt_sha256=options.receipt_sha256 or "",
-            apply=options.apply,
-            authorized=options.authorize,
-        )
-    elif options.apply:
+        _receipt_command(options, expected_mode="abandon")
+        return
+    if options.apply:
         report: dict[str, object] = {
             "verdict": "block",
             "state": "blocked",
@@ -115,31 +117,33 @@ def lane_retire_abandon(
             reason_code=options.reason_code,
             reason=options.reason,
             review_content=options.review_content,
+            path=options.path,
         )
-    project_lane_result(
-        options.command,
-        report,
-        summary={
-            "branch": report.get("branch") or options.branch or "",
-            "head": report.get("head") or "",
-            "completed_effects": report.get("completed_effects") or [],
-            "remaining_effects": report.get("remaining_effects") or [],
-        },
-        enforce=options.apply,
-        json_output=options.json_output,
-    )
+    _receipt_command(options, report=report)
 
 
 @_app.command(name="recover")
 def lane_retire_recover(options: Annotated[_RecoverOptions, Parameter(name="*")]) -> None:
     """Resume one exact partial retirement from its immutable receipt."""
-    report = execute_retirement_operation(
-        root=resolve_root(options.root),
-        receipt_path=options.receipt,
-        receipt_sha256=options.receipt_sha256,
-        apply=options.apply,
-        authorized=options.authorize,
-    )
+    _receipt_command(options)
+
+
+def _receipt_command(
+    options: _RecoverOptions | _AbandonOptions,
+    *,
+    expected_mode: Literal["abandon"] | None = None,
+    report: dict[str, object] | None = None,
+) -> None:
+    """Project one receipt execution identically through apply and recovery."""
+    if report is None:
+        report = execute_retirement_operation(
+            root=resolve_root(options.root),
+            receipt_path=options.receipt or "",
+            receipt_sha256=options.receipt_sha256 or "",
+            apply=options.apply,
+            authorized=options.authorize,
+            expected_mode=expected_mode,
+        )
     project_lane_result(
         options.command,
         report,
@@ -161,12 +165,7 @@ def lane_retire_absorbed_ref(
     """Retire one exact unlinked, unleased local topic ref absorbed by accepted truth."""
     report = retire_absorbed_ref(
         root=resolve_root(options.root),
-        branch=options.branch,
-        expect_head=options.expect_head,
-        accepted_head=options.accepted_head,
-        authorize=options.authorize,
-        confirm_irreversible=options.confirm_irreversible,
-        apply=options.apply,
+        **options.model_dump(exclude={"root", "json_output"}),
     )
     project_lane_result(
         options.command,
@@ -214,12 +213,7 @@ def lane_retire_landed(
     options: Annotated[_LandedOptions, Parameter(name="*")] = _DEFAULT_LANDED,
 ) -> None:
     """Retire an explicitly selected clean topic worktree absorbed by accepted truth."""
-    request = LinkedRetirementRequest(
-        branch=options.branch,
-        expect_head=options.expect_head,
-        authorize=options.authorize,
-        apply=options.apply,
-    )
+    request = LinkedRetirementRequest(**options.model_dump(exclude={"root", "json_output"}))
     report = retire_linked_work_lane(
         root=resolve_root(options.root),
         mode="landed",

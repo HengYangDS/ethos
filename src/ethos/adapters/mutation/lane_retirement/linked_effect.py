@@ -134,17 +134,21 @@ def compile_retirement_operation(
     review_content: bool = False,
 ) -> RetirementOperation:
     """Compile one immutable linked retirement request from admitted facts."""
-    recovery_required = bool(lane.get("recovery_required")) or not lane.get("path")
-    execution_root, plan = linked_retirement_plan(
-        control_root,
-        lane,
-        accepted=(policy.accepted_branch, accepted_head),
-        authority=authority,
-        mode=mode,
-        actor=actor,
-        worktree_clean=recovery_required or not has_changed_paths(Path(str(lane["path"]))),
-    )
     branch = str(lane["branch"])
+    recovery_required = bool(lane.get("recovery_required")) or not lane.get("path")
+    execution_root, plan = (
+        linked_retirement_plan(
+            control_root,
+            lane,
+            accepted=(policy.accepted_branch, accepted_head),
+            authority=authority,
+            mode=mode,
+            actor=actor,
+            worktree_clean=recovery_required or not has_changed_paths(Path(str(lane["path"]))),
+        )
+        if branch
+        else (control_root, None)
+    )
     lease_state = str(lane.get("lease_state") or "missing")
     target_lease = (
         lease_generation({**cast("dict[str, object]", lane.get("lease") or {}), "lane_ref": branch})
@@ -183,6 +187,6 @@ def compile_retirement_operation(
             ),
             "summary": reason or f"{mode} Work Lane retirement",
         },
-        git_plan=plan.model_dump(mode="json"),
+        git_plan=plan.model_dump(mode="json") if plan is not None else {},
         reviewed_content=reviewed_content(Path(str(lane["path"]))) if review_content else {},
     )

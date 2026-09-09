@@ -369,8 +369,9 @@ outcome is unknown, or a declared resource budget is exceeded. New feedback is
 mapped to the existing contract and current batch; it reopens source recovery
 only when it demonstrates a missing or contradictory terminal invariant.
 
-The bounded implementation is now `reviewed-content-retirement` in the existing
-owned `work/20260907-missing-lease-reconciliation` lane. The earlier disconnected
+The bounded `reviewed-content-retirement` implementation is archived and accepted
+at `c051743a`; the next bounded Change is `detached-reviewed-retirement` in the
+same owned `work/20260907-missing-lease-reconciliation` lane. The earlier disconnected
 POSIX snapshot prototype remains withdrawn; its implementation is not restored.
 The official Change instead binds reviewed dirty content, index and ignored
 resources to the existing abandonment operation, with exact authority rechecks
@@ -397,7 +398,8 @@ only to delete it. The predecessor handoff states implementation stopped and the
 selected lane has no listed open-path references; this is cooperative evidence,
 not OS-enforced isolation. Historical bytes still require reviewed disposal.
 
-The bounded Change was committed at `bafb51cb7`, not accepted delivery. Its
+Historical pre-acceptance checkpoint: the bounded Change was committed at
+`bafb51cb7`, but was not yet accepted at that observation. Its
 implementation checklist is backed by the 325-case affected retirement set,
 56-case Lease/CLI set and current 65-case ref-intent/hook recheck. All 28 changed
 Python files pass Ruff, format and explicit typing; official strict Change
@@ -436,8 +438,8 @@ files, 782 additions and 30398 deletions. Both workspace evidence roots are
 absent; Git-native Attestation selection and historical Git objects remain.
 Earlier failed proofs remain failed observations, not the current verdict.
 
-Current reviewed-content retirement remains uncommitted. The September 9
-preflight correction uses the progress that admission actually observed instead
+Historical pre-commit checkpoint: reviewed-content retirement was uncommitted.
+The September 9 preflight correction uses the progress that admission actually observed instead
 of an earlier duplicate observation. Its regression first reported stale
 `ready` after preflight observed partial removal; `retirement-preflight-progress-red`
 records one failure. The operation/native-worktree run then passed 68 tests.
@@ -683,16 +685,90 @@ the actual `EthosResult` type now owns those annotations. Failure receipts under
 the unchanged product; only hook fixture annotations changed afterward and that
 module was rerun. No full proof or historical lane removal occurred in this batch.
 
-Current closeout boundaries at accepted `bf825e26`:
+Current closeout boundaries at accepted `c051743a` (September 9 UTC):
 
-| Boundary | Last verified state | Required next evidence |
+| Boundary | Verified evidence | Remaining obligation |
 | --- | --- | --- |
-| Repository proof | Archived `bf825e26` has the exact passing proof above | The current reviewed-content implementation still needs its own frozen proof |
-| Archive and acceptance | Accepted, main, candidate and authoring HEADs equal `bf825e26`; the evidence-retirement Change is archived | Do not replay those effects; complete the new Change's independent delivery |
-| Package/runtime | Selector `499f13ce` binds Alpha.5 source `bf825e26`, tree `23dce85e`, four hooks and OpenSpec 1.12.0; all 9680 typed manifest entries and wheel digest match. Previous `f93e22cb` is removed | Read back the next immutable runtime only after acceptance; this package does not contain current uncommitted work |
-| Peer projections | The accepted package runtime published `bf825e26` through receipt `57b9cf27`; GitHub and GitLab `dev`/`main` independently equal that object. September 9 readback confirms GitHub runs `34306146235`/`34306146228` and GitLab pipelines `6322`/`6323` succeed; both forges verify its signature. The current hosted checkpoint supersedes earlier EOF/404 observations | No retry or publication replay remains for this accepted object. The next accepted change requires its own hosted observations; these results do not prove general network reliability or product completion |
-| Lane residue | One of the original seven historical worktrees is retired with its history retained by the contracts topic; six historical roots plus the handed signature lane remain | Close the two already-adjudicated content obligations through exact public disposal, then continue the remaining semantic inventory |
-| Current quality | Accepted measurement is product/test 39732/38610; current measurement is 39998/39969. The stopped-writer sequence passes five cases and its affected set passes 325. The old native-unlink receipt remains RED under its explicitly superseded isolation premise, not relabeled GREEN. Focused counts apply only to their bound sources | Complete Change acceptance checks, then obtain frozen full proof; focused verification and budget compliance are not acceptance |
+| Repository proof | Archive-HEAD proof `2744f82f` passes all 24 gates, 2756 tests with one skip and 95.16274333163605 percent combined coverage. The earlier `bafb51cb` proof remains failed; corrected `b2e7e284` and archive HEAD have independent passes | New detached changes require their own frozen proof; do not rerun the unchanged accepted proof |
+| Archive and acceptance | `reviewed-content-retirement` is officially archived. Local dev, main, candidate/dev and authoring HEAD equal `c051743a`, tree `7b816511`; authoring now carries the next uncommitted Change | Do not repeat archive, land or closeout for this accepted object |
+| Package/runtime | Current immutable `4bed97e3` binds Alpha.5 source `c051743a`, tree `7b816511`, four hooks and OpenSpec 1.12.0. All 9681 manifest entries and wheel `8e3acd21` were verified; previous current `499f13ce` is removed | Five older retained runtime generations still need reference-safe adjudication; installed currentness is not all-residue closure |
+| Peer projections | Public receipt `a401b296` published the selected object. Independent GitHub/GitLab dev/main readbacks all equal `c051743a`; both providers verify its signature | No publication replay; hosted results below are distinct from object parity |
+| Hosted verification | GitHub dev run `34367600375` passes quality, nine native conformance jobs, source verification and package artifacts. Main run `34367600428` fails only external links; its nine native jobs pass. GitLab dev `6358` fails verification; main `6359` fails external links | GitHub/GitLab network observations are not product-link deletion evidence. Linux native observation requires the prerequisite and visibility repair below before a fresh hosted proof |
+| Physical retirement | Public accepted receipts `bb4c385a`, `94562cc8`, `aff5e7d3` retire source-policy, OpenSpec supply and public-boundaries roots, registrations, refs and Leases. Their postchecks preserve unrelated refs and external Python targets | Four historical worktrees remain. 38482 removed entries and 1051025594 logical regular-file bytes are not a claim of reclaimed APFS allocation |
+| Current quality | Accepted product/test ELOC is 39998/39969. Detached implementation is 40000/39987 without threshold or exclusion changes; the initial affected set passes 304, the final operation/abandonment set passes 190, and the subsequent exact-effect/recovery increment passes 18 | Close the native Linux prerequisite, freeze and prove the complete Change, then archive/accept, read back runtime and dispose of the exact historical resource |
+
+CI root-cause evidence is recorded in the existing retirement delivery receipts.
+The complete GitHub job log contains the provider's nested stdout, although
+`gh run view --log-failed` omitted that long line. Parsing the raw job log shows
+connection failure and timeout for the Gitleaks repository page, not a 404.
+Same-host lychee and bounded curl checks reproduce network failure; GitHub API
+still identifies the repository. No link exclusion, DNS/host rewrite or blind
+failed-job retry is justified by these observations.
+
+GitLab dev's exact proof records 39 failures, 2717 passes and one skip. All
+reported retirement failures hit `native_process_observer_unavailable`; coverage
+correctly rejects missing/stale evidence afterward. The exact cached Linux base
+image lacks `lsof`, and bootstrap omits it. A small isolated image probe then
+installs it: root observation succeeds, while UID 65534 fails on unreadable
+`/proc/1/cwd`. Thus dependency installation alone is insufficient. Complete the
+existing native-observation owner and declared CI prerequisites with a proved
+Linux visibility boundary; preserve unknown/liveness rejection, do not simply
+ignore permission errors or elevate the whole test suite. This is a prerequisite
+for portable retirement acceptance, not another cleanup state machine.
+
+The bounded bootstrap correction now installs `lsof` when absent. The existing
+executable bootstrap regression first failed on the omitted package; after the
+repair all 31 release-assets architecture tests pass. Receipts
+`ci-bootstrap-lsof-red` and `ci-bootstrap-lsof-green` bind the commands and source
+hashes; the context-managed test roots were removed. No source budget or
+visibility policy changed. This proves dependency provisioning, not CI recovery.
+
+`linux-single-uid-observer-probe` demonstrates a feasible unprivileged envelope:
+after setup the container replaces its root process, and PID 1 runs as UID 65534
+with zero effective capabilities. The unchanged observer detects the held file
+and its release, while a mode-zero directory still denies access. GitLab must
+apply and verify that identity boundary for the whole job, not just pytest.
+The existing bootstrap now implements this boundary for the GitLab verification
+entrypoint. It provisions before replacing PID 1, preserves the Runner's stdin,
+and prepares only the exact checkout and declared project cache. The obsolete
+pytest-only identity controls, temporary identity home, safe-directory overlay
+and repeated ownership transfers are removed. Native observation is unchanged.
+
+`ci-job-envelope-focused` records 32 architecture passes. The native execution
+snapshot uses the pinned hosted image and the actual source entrypoint without
+a writable host mount. `ci-job-envelope-native` proves PID 1 and the observer
+share UID 65534, active/released file visibility, genuine permission denial and
+writable declared caches. Its first test failure was a probe invocation error:
+the omitted existing `--rootdir` produced a spawn import named `builds`. A rooted
+retry instead failed while the ARM64 ShellCheck wrapper downloaded its binary.
+`shellcheck-arm-build-probe` independently verifies the upstream binary hash and
+successful same-version build before resuming the test invocation.
+`ci-job-envelope-native-rooted-recovered` records 226 passes, removal of the
+test root and container, and the exact copied-source manifest. These are native
+focused results, not repository proof or hosted CI acceptance.
+
+The GitLab CI lint API accepts the proposed configuration with no errors, but
+reports the existing deprecated retry reason `stuck_or_timeout_failure`.
+The native npm installation also reports two high-severity vulnerabilities;
+their exact dependency paths and remediation remain to be assessed under the
+existing supply-chain obligation. No automatic dependency upgrade, warning
+suppression or blanket retry is justified. Current product/test ELOC is
+40000/39963, with unchanged independent 40000 limits. Frozen full proof,
+archive/accepted runtime, hosted readback and historical disposal remain pending.
+
+AIGW also reports an independently proved signed proposal snapshot accepted by
+the installed pre-push hook, while public `publish` requires a candidate source
+for proposal targets. The current ETHOS source confirms that source-role check;
+the adopter's successful push is reported evidence, not locally reproduced here.
+Reconcile source-object selection and diagnostics in the existing publication
+owner without copying adopter history, inventing proof equivalence from tree
+equality or creating a second publication path.
+
+The failure-matrix adjudication also corrects an earlier inaccurate projection
+claim: `integer_value` still parses numeric strings and returns zero for invalid
+input, exactly as the historical helper did. Typed Lease validation then rejects
+invalid generations. The old helper behavior was retained, not superseded by
+strict parsing. Stale prose does not prove deletion or behavior change.
 
 Historical work remains finite and classified by obligations rather than commit
 count. These are observed disposition boundaries, not claims of completed
@@ -700,26 +776,24 @@ absorption:
 
 | Historical resource | Semantic disposition and next evidence |
 | --- | --- |
-| `20260818-openspec-19-archive-owner` | The ten-path increment is already adjudicated in `historical-openspec-supply-absorption.json`; its no-spec, locked-supply and projection obligations are satisfied or superseded, not pending reimplementation. September 9 revalidation at accepted `bf825e26` confirms all ten original hashes, the exact changed set, no untracked source and zero unique commits; the current 1.12.0 declaration, lock and integrity still agree. Only exact public content/resource disposal remains. This is not a fresh latest-stable or installed-runtime claim. |
+| `20260818-openspec-19-archive-owner` | Ten-path semantic review is complete; accepted public receipt `94562cc8` now proves physical retirement. Do not reimplement or recreate its historical supply. |
 | `codex-contracts-land-test-refactor` | The shorter lifecycle topic has retired and its commits remain reachable here. Review the remaining exact-CAS, proof selection, cross-worker immutable supply reuse, worker long-tail scheduling, and cheap non-archive fixture obligations; obsolete Commitment/rebind code must not return. |
-| `20260810-public-test-boundaries` | Three dirty source hashes remain unchanged at `6c523f29`. Changed test definitions and the earlier definitions replaced by that rewrite now have explicit current-owner correspondence below. Valid missing/replaced/cleanup/collision semantics are absorbed; malformed tracked Commitment scope is superseded. The 65-case set and nine-case invalid-input follow-up pass. This is source-level semantic absorption, not acceptance, full proof or permission to dispose of the source tree. |
-| `20260810-coverage-source-policy-matrices` | All fifteen added definitions are adjudicated: nine current AST matches, one equivalent current-owner rename, one accepted allowlist test, three boundary cases accepted at `4980cf57`, and one superseded contributor-role test. The three dirty files and generated resources still require exact public disposal. |
-| `20260810-coverage-public-failure-matrix` | All nine source hashes match the original inventory. The 38 changed/added or untracked test definitions are compared with current owners: seven paths have verified correspondence; two retain coordination obligations. The public ref-failure sequence now has six real-repository cases covering linked/unbound entry and failure before/after deletion. Neither focused evidence nor ancestry authorizes disposal. |
+| `20260810-public-test-boundaries` | Rewritten and replaced test obligations have current-owner correspondence below; accepted public receipt `aff5e7d3` now proves physical retirement. Preserve the existing ref-intent regressions, not the obsolete Commitment fixture. |
+| `20260810-coverage-source-policy-matrices` | All fifteen added definitions are adjudicated and accepted; public receipt `bb4c385a` now proves physical retirement. |
+| `20260810-coverage-public-failure-matrix` | Nine original source hashes and the exact dirty set still match. Four-field CAS, actor/readmission, public failure recovery and stopped-writer/content review discharge the remaining coordination semantics; old persistent content/offer Lease binding is superseded, not copied. The public path still rejects this detached resource. `detached-reviewed-retirement` adds exact path selection and resource-derived effects; source remains intact until acceptance and complete resource review. |
 | `20260811-repository-transition-model` | Fresh CAS/Attestation, local-or-multiple-peer topology and minimal-entity intent remain valid; persistent Commitment roots and historical scope/Lease bindings are superseded. The 341 dirty items are not yet semantically adjudicated. |
 | Unlinked `codex/openspec-19-archive-owner` ref | Retired through the accepted public owner; Attestation `067dd0dabfb6b6b6a5e6603c14ea84df11a026da6e8b0a0c7e0f72226b6a92bc`. Its absence does not retire the distinct dirty linked OpenSpec lane. |
 | `20260908-accepted-carrier-signature-repair` | Handoff is received; seven unique commits and eighteen paths remain unaccepted. Absorb necessary signature and transaction invariants, not the command-private repair implementation by default; failed historical proof is not current acceptance. |
 
 Execute from these obligations rather than the historical lane names:
 
-1. Preserve the completed evidence-retirement, publication, runtime and hosted
-   outcomes at `bf825e26`; do not replay those effects or rerun successful CI.
-   Their independent evidence does not prove the uncommitted retirement Change.
-2. Resolve the reviewed-content execution boundary, then complete, prove and
-   deploy its smallest sufficient owner. Immediately dispose of the already
-   adjudicated source-policy and OpenSpec 1.9 inputs under fresh authority;
-   do not redo their semantic absorption or wait for unrelated hardening.
-   Require selected path, registration, ref, Lease and unconsumed owned
-   projections absent; copied archives do not count.
+1. Preserve accepted `c051743a` proof, runtime, publication and the three completed
+   physical retirements. Track its actual hosted failures separately; do not
+   rerun already successful object effects or infer all-provider GREEN.
+2. Finish exact detached selection through the existing reviewed-content owner,
+   satisfy native Linux observation prerequisites without weakening admission,
+   then prove and accept it before disposing of the historical failure matrix.
+   No temporary topic ref, revived Lease, source backup or new authoring lane.
 3. Absorb the remaining finite sources in smallest independently provable
    semantic increments: contracts and public failure/race obligations first;
    signature-repair invariants through the current transaction owner; the large
@@ -858,9 +932,10 @@ the same necessity test.
 | Remaining physical structure | No complete semantic adjudication of the older 154 non-archive/non-evidence files or recent edits exists | Review by responsibility and shared invariant, not file age or count; merge duplicated owners and retain justified stable source, legal and integration files |
 
 Root evidence disposition is locally delivered; native docstring quality and
-configuration placement remain subsequent coherent owner replacements. The
-current reviewed-content Change addresses the withdrawn prototype's unresolved
-public disposal obligation, without restoring its preservation design. These
+configuration placement remain subsequent coherent owner replacements. Accepted
+reviewed-content retirement closes the withdrawn prototype's public disposal
+obligation without restoring its preservation design; detached selection and
+native Linux visibility remain unaccepted. These
 obligations reuse this lane and route; no second ledger is introduced.
 
 For each replacement, first reproduce the missing or contradictory property,
@@ -942,6 +1017,16 @@ prove it. Update the product contract, docs owner and their real validators in
 the corresponding bounded successor, deleting replaced rules and projections.
 This plan preserves the obligation now without expanding reviewed-content
 retirement, opening another lane or changing any comparison repository.
+
+AIGW's September 9 UTC feedback adds one unverified authored/generated admission
+case: at source `67108525`, runtime `0177926d`, deleting the authored Prettier
+configuration is reported as `generated_artifact_config_drift`. Its intended
+replacement uses native `--no-config` to preserve parent-config isolation.
+Verify classification and deletion admission in the existing artifact owner;
+retain the authored/generated distinction and unique native-policy consumer.
+Do not prescribe an unverified repair, bypass hooks, add a compatibility carrier
+or write the adopter. This belongs to the existing projection-conformance work,
+not the detached-retirement implementation.
 
 The September 8 inventory at source `a4d2877e` covers 2592 tracked paths,
 including 258 product Python paths, 197 test paths, 47 documentation paths and
@@ -1852,11 +1937,11 @@ does not establish project absence or authorize another authentication setup.
 
 The existing `hosted-ci-convergence-checkpoint.json` owns exact run observations;
 it must distinguish source verification, package delivery and provider outcome.
-Publication, runtime activation, archived source repair and current-head hosted
-verification are done. The current reviewed-content Change, historical source
-retirement and global obligations remain open; none inherits the accepted
-commit's proof. Resume the lane-convergence critical path without another CI
-retry. New feedback changes this route only when it supplies a missing
+That earlier checkpoint closed publication, runtime activation and hosted
+verification for `bf825e26` only. The current `c051743a` delivery and hosted
+failures are recorded in the current closeout table above. Detached retirement,
+four historical sources and global obligations remain open; none inherits
+another source snapshot's proof. New feedback changes this route only when it supplies a missing
 invariant, a disproved assumption or changed facts.
 
 ## Convergence Rules

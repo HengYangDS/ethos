@@ -185,6 +185,8 @@ def reduce_progress(
 
 
 def _lease_outcome(root: Path, request: RetirementOperation) -> CarrierState:
+    if not request.branch:
+        return "absent"
     current = observe_lease(state_database(root), request.branch)
     if request.lease_state == "missing":
         return "absent" if current.state == "missing" else "moved"
@@ -203,7 +205,11 @@ def _worktree_outcome(root: Path, request: RetirementOperation) -> CarrierState:
     matches = tuple(
         record
         for record in records
-        if str(record.get("branch") or "").removeprefix("refs/heads/") == request.branch
+        if (
+            str(record.get("branch") or "").removeprefix("refs/heads/") == request.branch
+            if request.branch
+            else record.get("worktree") == request.worktree_path
+        )
     )
     if request.worktree_initial == "unbound":
         return "absent" if not matches else "moved"
@@ -217,6 +223,7 @@ def _worktree_outcome(root: Path, request: RetirementOperation) -> CarrierState:
         "expected"
         if Path(str(record.get("worktree") or "")).resolve() == target.resolve()
         and record.get("HEAD") == request.head
+        and (bool(request.branch) or ("detached" in record and "branch" not in record))
         and "locked" not in record
         and ("prunable" not in record or not os.path.lexists(target) or request.reviewed_content)
         else "moved"
@@ -235,7 +242,11 @@ def observe_operation(root: Path, request: RetirementOperation) -> RetirementObs
     control = Path(request.control_root)
     return RetirementObservation(
         worktree_state=_worktree_outcome(control, request),
-        ref_state=_ref_outcome(control, f"refs/heads/{request.branch}", request.head),
+        ref_state=(
+            _ref_outcome(control, f"refs/heads/{request.branch}", request.head)
+            if request.branch
+            else "absent"
+        ),
         lease_state=_lease_outcome(root, request),
         accepted_state=_ref_outcome(
             control,
@@ -313,7 +324,7 @@ def remove_operation_worktree(root: Path, request: RetirementOperation) -> None:
     remove_worktree(
         Path(request.control_root),
         Path(request.worktree_path),
-        branch=request.branch,
+        branch=request.branch or "detached",
         head=request.head,
         admit=partial(preflight_operation, root, request),
         dispose=(
@@ -362,17 +373,10 @@ def revoke_operation_lease(root: Path, request: RetirementOperation) -> None:
 
 
 def _recovery_command(root: Path, receipt: Mapping[str, object]) -> str:
-    return " ".join(
-        (
-            "ethos lane retire recover",
-            "--receipt",
-            shlex.quote(str(receipt.get("path") or "")),
-            "--receipt-sha256",
-            shlex.quote(str(receipt.get("sha256") or "")),
-            "--authorize --apply --root",
-            shlex.quote(root.as_posix()),
-            "--json",
-        )
+    return (
+        f"ethos lane retire recover --receipt {shlex.quote(str(receipt.get('path') or ''))} "
+        f"--receipt-sha256 {shlex.quote(str(receipt.get('sha256') or ''))} "
+        f"--authorize --apply --root {shlex.quote(root.as_posix())} --json"
     )
 
 
@@ -426,26 +430,20 @@ def apply_operation(
 ) -> dict[str, object]:
     """Converge one exact retirement under its repository-scoped lock."""
     control_root = Path(request.control_root)
+    report = partial(_report, control_root, request, request_receipt)
     lock = local_state_root(control_root) / "operations" / "lane-retirement.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
     try:
         acquired = FileLock(str(lock)).acquire(timeout=0)
     except Timeout as error:
-        return _report(
-            control_root, request, request_receipt, None, failure=retirement_failure(error)
-        )
+        return report(None, failure=retirement_failure(error))
     with acquired:
         failure: dict[str, object] = {}
         terminal_receipt: dict[str, object] = {}
         try:
             progress = preflight_operation(control_root, request)
             if not apply:
-                return _report(
-                    control_root,
-                    request,
-                    request_receipt,
-                    progress,
-                )
+                return report(progress)
             progress_receipt = persist_progress(control_root, request, progress)
             actions = {
                 "remove_worktree": remove_operation_worktree,
@@ -467,11 +465,8 @@ def apply_operation(
                 progress = reduce_progress(request, observe_operation(control_root, request))
                 progress_receipt = persist_progress(control_root, request, progress)
             except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError):
-                return _report(control_root, request, request_receipt, None, failure=failure)
-        return _report(
-            control_root,
-            request,
-            request_receipt,
+                return report(None, failure=failure)
+        return report(
             progress,
             failure=failure,
             progress_receipt=progress_receipt,

@@ -127,7 +127,7 @@ class RetirementOperation(BaseModel):
     control_root: str = Field(min_length=1)
     execution_root: str = ""
     mode: Literal["landed", "superseded", "abandon"]
-    branch: str = Field(min_length=1)
+    branch: str
     head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     accepted_branch: str = Field(min_length=1)
@@ -151,9 +151,18 @@ class RetirementOperation(BaseModel):
 
     @model_validator(mode="after")
     def derive_effects(self) -> Self:
+        if not self.branch and (
+            self.mode != "abandon"
+            or self.worktree_initial != "linked"
+            or not self.reviewed_content
+            or self.lease_state != "missing"
+            or self.lease
+            or self.git_plan
+        ):
+            _fail("retirement_detached_resources_invalid")
         expected = (
             *(("remove_worktree",) if self.worktree_initial == "linked" else ()),
-            "delete_ref",
+            *(("delete_ref",) if self.branch else ()),
             *(("revoke_lease",) if self.lease_state != "missing" else ()),
         )
         if self.effects and self.effects != expected:

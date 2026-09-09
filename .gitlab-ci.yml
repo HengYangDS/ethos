@@ -53,7 +53,7 @@ default:
 # generated-artifact and release supply-chain checks.
 # A gate that does not run in CI is not a gate.
 .python_setup: &python_setup
-  image: ghcr.io/astral-sh/uv:0.12.10-python3.14-trixie-slim@sha256:d5ddd498c5a28ec77ff1c70276f8f3c4a116a303c8b5583a018ea43c2e89e366
+  image: &python_image ghcr.io/astral-sh/uv:0.12.10-python3.14-trixie-slim@sha256:d5ddd498c5a28ec77ff1c70276f8f3c4a116a303c8b5583a018ea43c2e89e366
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
 
@@ -236,6 +236,14 @@ ethos:host-conformance:
 
 ethos:verify:
   <<: *python_setup
+  image:
+    name: *python_image
+    entrypoint:
+      - bash
+      - -c
+      - 'exec "$CI_PROJECT_DIR/tools/ci/scripts/bootstrap-python.sh" -- "$@"'
+      - ethos-ci-entrypoint
+  before_script: []
   stage: verify
   variables:
     # GIT_DEPTH=0 does not repair a runner checkout that was previously
@@ -246,13 +254,9 @@ ethos:verify:
     # coverage suite. Keep the reusable owner script and its default parallel
     # capability intact; this hosted projection deliberately runs one worker.
     ETHOS_TEST_WORKERS: "1"
-    # The Docker executor starts python:3.14 as root, where RLIMIT_NPROC is not
-    # enforceable. The owner script drops only pytest to the image's numeric
-    # nobody identity.
-    ETHOS_TEST_RUN_AS_UID: "65534"
-    ETHOS_TEST_RUN_AS_GID: "65534"
+    # The entrypoint prepares the image and then replaces PID 1. The entire
+    # job runs unprivileged, preserving process visibility and permission tests.
   script:
-    - source tools/ci/scripts/bootstrap-python.sh
     - node_modules/.bin/openspec --version
     - node_modules/.bin/openspec validate --all --strict --json
     - tools/ci/scripts/run-head-bound-proof.sh

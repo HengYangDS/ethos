@@ -117,7 +117,7 @@ def test_python_bootstrap_supplies_the_declared_linux_signing_tool() -> None:
         (
             "Linux",
             "available",
-            ["update", "install -y --no-install-recommends procps util-linux"],
+            ["update", "install -y --no-install-recommends procps lsof util-linux"],
             "not-required",
         ),
         ("Darwin", "missing", None, "required"),
@@ -407,7 +407,7 @@ def test_coverage_floor_rejects_below_required_measurement(
     assert gate.data.read_bytes() == before
 
 
-def _test_gate(tmp_path: Path, *, identity: tuple[int, int] | None = None):
+def _test_gate(tmp_path: Path):
     return python_test_gate.PythonTestGate(
         python_test_gate.Settings(
             head="a" * 40,
@@ -421,7 +421,6 @@ def _test_gate(tmp_path: Path, *, identity: tuple[int, int] | None = None):
             lock_wait=0,
             uv_cache=None,
             node_package_supply=tmp_path / "node_modules",
-            identity=identity,
         )
     )
 
@@ -527,50 +526,21 @@ def test_python_basetemp_ownership(tmp_path, monkeypatch, failure, ownership) ->
     assert (gate.s.basetemp.exists(), cache.is_dir()) == (ownership == "external", True)
 
 
-def test_identity_drop_projects_only_repository_safe_directory(tmp_path, monkeypatch) -> None:
-    root = tmp_path / "repo"
-    root.mkdir()
-    monkeypatch.setattr(python_test_gate, "ROOT", root)
-    gate = _test_gate(tmp_path, identity=(65534, 65534))
-    environment = vars(python_test_gate.PythonTestGate)["_env"](gate)
-    count = int(environment["GIT_CONFIG_COUNT"])
-    overlay = tuple(
-        (environment[f"GIT_CONFIG_KEY_{index}"], environment[f"GIT_CONFIG_VALUE_{index}"])
-        for index in range(count)
+@pytest.mark.parametrize("arguments", [("--",), ("--", "true"), ("--invalid",)])
+def test_container_bootstrap_refuses_non_entrypoint_invocation(tmp_path, arguments) -> None:
+    before = tuple(tmp_path.iterdir())
+    result = subprocess.run(
+        ("/bin/bash", str(ROOT / "tools/ci/scripts/bootstrap-python.sh"), *arguments),
+        cwd=tmp_path,
+        env=os.environ | {"CI_PROJECT_DIR": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
     )
-
-    assert ("safe.directory", root.as_posix()) in overlay
-    assert not {"user.name", "user.email"} & {key for key, _value in overlay}
-    assert all(value for _, value in overlay)
-    assert environment["GIT_TERMINAL_PROMPT"] == "0"
-
-
-def test_identity_boundary_consumes_run_as_controls(tmp_path, monkeypatch) -> None:
-    root = tmp_path / "repo"
-    _write_empty_node_package_supply(root)
-    monkeypatch.setattr(python_test_gate, "ROOT", root)
-    monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
-    monkeypatch.setattr(python_test_gate.os, "getuid", lambda: 0)
-    monkeypatch.setattr(python_test_gate.shutil, "which", lambda _name: "/usr/bin/setpriv")
-    monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
-    monkeypatch.setenv("ETHOS_TEST_RUN_AS_UID", "65534")
-    monkeypatch.setenv("ETHOS_TEST_RUN_AS_GID", "65534")
-    gate = python_test_gate.PythonTestGate.from_environment(
-        node_package_supply=root / "node_modules"
-    )
-    for method in ("_prepare", "_cleanup", "_stable_head"):
-        monkeypatch.setattr(gate, method, lambda: None)
-    observed: dict[str, str | None] = {}
-
-    class Session:
-        @staticmethod
-        def run(*_command: str, **kwargs: object) -> None:
-            observed.update(cast("dict[str, str | None]", kwargs["env"]))
-
-    gate.run_tests(cast("nox.Session", Session()))
-
-    assert observed["ETHOS_TEST_RUN_AS_UID"] is None
-    assert observed["ETHOS_TEST_RUN_AS_GID"] is None
+    assert result.returncode == 2
+    assert "container_job_entrypoint_required" in result.stderr
+    assert tuple(tmp_path.iterdir()) == before
 
 
 def test_test_environment_freezes_locked_supply_as_absolute_paths(tmp_path, monkeypatch) -> None:

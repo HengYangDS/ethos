@@ -2,6 +2,37 @@
 # Synchronize the repository-local Python and OpenSpec runtimes from locked inputs.
 set -euo pipefail
 
+if (($#)); then
+	if [[ "$1" != -- || $# -lt 2 || $$ != 1 || ${EUID} != 0 ||
+		${CI_PROJECT_DIR:-} != /* || ${CI_PROJECT_DIR:-} == / ||
+		! -d ${CI_PROJECT_DIR:-}/.git || -L ${CI_PROJECT_DIR:-} ]]; then
+		echo 'container_job_entrypoint_required' >&2
+		exit 2
+	fi
+	shift
+	cd -- "${CI_PROJECT_DIR}"
+	[[ "$(pwd -P)" == "${CI_PROJECT_DIR}" ]] || exit 2
+	export HOME="${CI_PROJECT_DIR}/build/runtime/work/ci-home"
+	export XDG_CACHE_HOME="${HOME}/.cache"
+	export UV_PYTHON_INSTALL_DIR="${CI_PROJECT_DIR}/build/runtime/tool-cache/python"
+	# Preserve the Runner script on stdin; setup must not consume it.
+	bash "${BASH_SOURCE[0]}" </dev/null
+	owned_roots=("${CI_PROJECT_DIR}")
+	if [[ -n ${ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR:-} ]]; then
+		cache="/cache/${CI_PROJECT_PATH_SLUG:?}/ci-tools"
+		[[ ${ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR} == "${cache}" ]] || exit 2
+		mkdir -p -- "${cache}"
+		[[ "$(cd -- "${cache}" && pwd -P)" == "${cache}" ]] || exit 2
+		owned_roots+=("${cache}")
+	fi
+	mkdir -p -- "${HOME}"
+	for owned_root in "${owned_roots[@]}"; do
+		find "${owned_root}" -xdev ! -type l -exec chown --no-dereference 65534:65534 {} +
+	done
+	# Replace PID 1 before Runner creates shells, proof or pytest children.
+	exec setpriv --reuid=65534 --regid=65534 --clear-groups --no-new-privs "$@"
+fi
+
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"
@@ -13,6 +44,7 @@ Linux)
 	if ! command -v git >/dev/null 2>&1; then missing_packages+=(git); fi
 	if ! command -v ssh-keygen >/dev/null 2>&1; then missing_packages+=(openssh-client); fi
 	if ! command -v ps >/dev/null 2>&1; then missing_packages+=(procps); fi
+	if ! command -v lsof >/dev/null 2>&1; then missing_packages+=(lsof); fi
 	if ! command -v setpriv >/dev/null 2>&1; then missing_packages+=(util-linux); fi
 	if ! command -v ldconfig >/dev/null 2>&1 ||
 		! ldconfig -p 2>/dev/null | grep -q 'libatomic\.so\.1'; then

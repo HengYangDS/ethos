@@ -45,10 +45,7 @@ def test_reobservation_reports_unavailable_stale_and_dirty(
     assert expected in effects.reobservation_gaps("work/example", str(lane), "a" * 40)
 
 
-def test_blocked_trims_stderr_and_effect_gaps_detects_stale_control(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    assert effects.blocked(["gap"], " failure \n")["stderr"] == "failure"
+def test_effect_gaps_detects_stale_control(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     policy = BranchRolePolicy()
     monkeypatch.setattr(effects, "output", lambda *_args: "other")
     gaps = effects.effect_gaps(

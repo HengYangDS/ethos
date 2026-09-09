@@ -224,6 +224,15 @@ OpenSpec identity, Commitment, path scope, handoff workflow, or effect outcome.
 Those belong to fresh Facts, transient compilation, exact effect intent,
 Attestations, and post-observation.
 
+Destructive lane retirement uses coordinated quiescence: all actual writers
+finish or stop before the selected content is reviewed, and every participant
+honors lane coordination until disposal ends. The operator verifies that
+handoff; changing a holder or observing no open files does not stop a writer.
+Current authority, exact content checks and recovery preserve the admitted
+preimage within this boundary. Unknown liveness or observed drift blocks the
+effect. Isolation from uncooperative same-UID writers is not this protocol's
+guarantee; it must never be inferred from a Lease, file lock or process scan.
+
 ### Lane, Review, And Integration Roles
 
 `work/*` is the authoring role. The candidate ref and checkout are local

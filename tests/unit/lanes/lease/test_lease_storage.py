@@ -532,8 +532,9 @@ def test_public_lease_operation_fails_closed_with_one_precise_reason(
     assert report["lease"] == {}
 
 
+@pytest.mark.parametrize("recovery_actor", [SOURCE, ""])
 def test_public_lease_takeover_requires_accepted_authorization_and_is_idempotent(
-    lease_context, monkeypatch: pytest.MonkeyPatch
+    lease_context, monkeypatch: pytest.MonkeyPatch, recovery_actor: str
 ) -> None:
     root, database, acquired = lease_context
     request = _takeover(acquired)
@@ -555,6 +556,10 @@ def test_public_lease_takeover_requires_accepted_authorization_and_is_idempotent
         "taken_over",
         2,
     )
+    monkeypatch.setenv("ETHOS_ACTOR", recovery_actor)
+    denied = lease_takeover.execute_lease_takeover(root=root, request=request)
+    assert denied["verdict"] == "block", "recovery readmission bypassed the current actor"
+    assert denied["required_gaps"] == ["lease_takeover_actor_mismatch"]
     _selected, records = read_attestation_set(root)
     assert len([item for item in records if item.payload.kind == "effect:native"]) == 2
     revoked = revoke_lease(database, request=_operation(lease, "revoke"))

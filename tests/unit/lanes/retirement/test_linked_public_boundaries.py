@@ -7,9 +7,9 @@ import pytest
 import ethos.adapters.mutation.lane_retirement.effects as effects
 import ethos.adapters.mutation.lane_retirement.linked as linked
 import ethos.adapters.mutation.lane_retirement.linked_admission as linked_admission
-from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.contracts.retirement import LinkedRetirementRequest
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -324,7 +324,7 @@ def test_linked_apply_preserves_order_receipt_and_exact_effect_result(
 ) -> None:
     _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: _lane()})
     monkeypatch.setattr(effects, "control_root", lambda *_args: tmp_path)
-    monkeypatch.setattr(linked, "effect_readiness_gaps", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(effects, "effect_gaps", lambda *_args, **_kwargs: [])
     compiled = object()
     receipt = {"path": "/receipt", "sha256": "sha256:" + "d" * 64}
     calls: list[str] = []

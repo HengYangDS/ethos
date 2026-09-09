@@ -1,100 +1,33 @@
 from __future__ import annotations
 
 import shlex
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.lane_retirement.linked_admission import effect_readiness_gaps
 from ethos.adapters.mutation.lane_retirement.linked_admission import landed_gaps
 from ethos.adapters.mutation.lane_retirement.linked_admission import leased_successor
 from ethos.adapters.mutation.lane_retirement.linked_admission import retirement_target
 from ethos.adapters.mutation.lane_retirement.linked_admission import retirement_verdict
 from ethos.adapters.mutation.lane_retirement.linked_admission import superseded_gaps
-from ethos.adapters.mutation.lane_retirement.linked_effect import linked_retirement_plan
+from ethos.adapters.mutation.lane_retirement.linked_effect import compile_retirement_operation
 from ethos.adapters.mutation.lane_retirement.operation import apply_operation
 from ethos.adapters.mutation.lane_retirement.operation import persist_operation
-from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import repository_root
-from ethos.adapters.repo.profile import repository_identity
-from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
-from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.retirement import LinkedRetirementRequest
-from ethos.contracts.retirement import RetirementOperation
 from ethos.normalization.coercion import string_sequence
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def compile_retirement_operation(
-    control_root: Path,
-    *,
-    mode: Literal["landed", "superseded"],
-    policy: BranchRolePolicy,
-    lane: dict[str, object],
-    authority: dict[str, object],
-    accepted_head: str,
-    reason: str,
-) -> RetirementOperation:
-    """Compile one immutable linked retirement request from admitted facts."""
-    actor = effects.actor_ref()
-    execution_root, plan = linked_retirement_plan(
-        control_root,
-        lane,
-        accepted=(policy.accepted_branch, accepted_head),
-        authority=authority,
-        mode=mode,
-        actor=actor,
-        worktree_clean=True,
-    )
-    branch = str(lane["branch"])
-    lease_state = str(lane.get("lease_state") or "missing")
-    target_lease = (
-        lease_generation({**cast("dict[str, object]", lane.get("lease") or {}), "lane_ref": branch})
-        if lease_state != "missing"
-        else {}
-    )
-    recovery_required = bool(lane.get("recovery_required"))
-    return RetirementOperation(
-        repository_common_dir=Path(git_common_dir(control_root)).resolve().as_posix(),
-        repository_identity=repository_identity(control_root, tree_ref=accepted_head),
-        control_root=control_root.resolve().as_posix(),
-        execution_root=execution_root.resolve().as_posix(),
-        mode=mode,
-        branch=branch,
-        head=str(lane["head"]),
-        tree=current_tree(control_root, str(lane["head"])),
-        accepted_branch=policy.accepted_branch,
-        accepted_head=accepted_head,
-        worktree_path=str(lane.get("path") or ""),
-        worktree_initial="unbound" if recovery_required else "linked",
-        lease_state=cast("Literal['valid', 'expired', 'missing']", lease_state),
-        lease=target_lease,
-        authority={
-            "kind": "successor" if authority.get("branch") != lane.get("branch") else "owner",
-            "actor": actor,
-            "branch": str(authority.get("branch") or ""),
-            "head": str(authority.get("head") or ""),
-        },
-        reason={
-            "code": (
-                "retained-history"
-                if lane.get("retained_history")
-                else "accepted-absorption"
-                if mode == "landed"
-                else "successor-absorption"
-            ),
-            "summary": reason or f"{mode} Work Lane retirement",
-        },
-        git_plan=plan.model_dump(mode="json"),
-    )
+    from ethos.contracts.retirement import LinkedRetirementRequest
 
 
 def retire_linked_work_lane(
@@ -156,19 +89,20 @@ def retire_linked_work_lane(
             accepted_head=accepted_head,
         )
     )
-    gaps.extend(
-        effect_readiness_gaps(
-            repo,
-            control_root,
-            mode=mode,
-            policy=policy,
-            lane=lane,
-            authority=authority,
-            accepted_head=accepted_head,
-            required_gaps=gaps,
-            apply=request.apply,
+    if request.apply and control_root is None:
+        gaps.append("retirement_control_root_unavailable")
+    elif not gaps and control_root is not None:
+        gaps.extend(
+            effects.effect_gaps(
+                repo,
+                control_root,
+                mode=mode,
+                policy=policy,
+                lane=lane,
+                authority_lane=authority,
+                accepted_head=accepted_head,
+            )
         )
-    )
     required_gaps = sorted(set(gaps))
 
     verdict = retirement_verdict(required_gaps)
@@ -260,10 +194,10 @@ def retire_linked_work_lane(
         authority=authority,
         accepted_head=accepted_head,
         reason=reason,
+        actor=effects.actor_ref(),
     )
     receipt = persist_operation(cast("Path", control_root), operation)
     effect = apply_operation(
-        cast("Path", control_root),
         operation,
         request_receipt=receipt,
         apply=request.apply,

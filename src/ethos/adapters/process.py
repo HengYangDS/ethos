@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -85,6 +87,79 @@ def process_listing_command(*, platform_name: str | None = None) -> tuple[str, .
             reason="native_executable_missing",
         )
     return (Path(executable).resolve().as_posix(), "-axo", "command=")
+
+
+def _file_observation_failure(reason: str) -> None:
+    raise ValueError(reason)
+
+
+def _file_identities(payload: bytes) -> frozenset[tuple[int, int]]:
+    if not payload.endswith(b"\0\n"):
+        _file_observation_failure("file_observation_incomplete")
+    identities: set[tuple[int, int]] = set()
+    process_seen = False
+    for frame in payload[:-2].split(b"\0\n"):
+        pairs = [(item[:1], item[1:]) for item in frame.split(b"\0")]
+        fields = dict(pairs)
+        if len(fields) != len(pairs):
+            _file_observation_failure("file_observation_duplicate_field")
+        if b"p" in fields:
+            if set(fields) != {b"p"} or not fields[b"p"].isdigit():
+                _file_observation_failure("file_observation_process_invalid")
+            process_seen = True
+            continue
+        if (
+            sys.platform == "darwin"
+            and process_seen
+            and set(fields) == {b"f", b"n"}
+            and fields[b"f"].isdigit()
+            and re.fullmatch(
+                rb"(?:kqueue|pipe|semaphore|POSIX shared memory|vnode|socket): "
+                rb"(?:FD unavailable|process unavailable)",
+                fields[b"n"],
+            )
+        ):
+            continue
+        fields.pop(b"n", None)
+        if (
+            not process_seen
+            or set(fields) not in ({b"f", b"t"}, {b"f", b"t", b"D", b"i"})
+            or not all(fields.values())
+            or fields.get(b"f", b"NOFD") == b"NOFD"
+            or fields.get(b"t", b"unknown") == b"unknown"
+            or (b"i" in fields and not fields[b"i"].isdigit())
+            or (fields[b"t"] in {b"REG", b"DIR"} and b"i" not in fields)
+        ):
+            _file_observation_failure(f"file_observation_unreadable:{frame[:256]!r}")
+        if b"D" in fields:
+            identities.add((int(fields[b"D"], 16), int(fields[b"i"])))
+    if not identities:
+        _file_observation_failure("file_observation_empty")
+    return frozenset(identities)
+
+
+def process_file_identities(root: Path) -> frozenset[tuple[int, int]]:
+    """Observe native process file references; unavailable evidence is never empty."""
+    command: tuple[str, ...] = ()
+    try:
+        executable = shutil.which("lsof", path=os.defpath + os.pathsep + "/usr/sbin")
+        if os.name != "posix" or executable is None:
+            _file_observation_failure("native_file_observer_missing")
+        command = (str(executable), "-nP", "-F0pftDin")
+        result = run_command(root, command, text=False, timeout=10, remove_env_prefixes=("GIT_",))
+        if result.returncode or result.stderr:
+            _file_observation_failure(
+                result.stderr.decode(errors="replace") or "file_observation_incomplete"
+            )
+        return _file_identities(result.stdout)
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        raise ProcessExecutionError(
+            NATIVE_PROCESS_OBSERVER_UNAVAILABLE,
+            reason="file_references_unavailable",
+            command=command,
+            cwd=root.as_posix(),
+            cause=str(error),
+        ) from error
 
 
 def run_command(

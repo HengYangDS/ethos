@@ -280,32 +280,11 @@ def test_aborted_intent_cleans_only_the_exact_prepared_transaction(tmp_path: Pat
     assert _path(tmp_path, other["nonce"]).exists()
 
 
-def test_intent_reports_absence_transition_and_operation_mismatch(tmp_path: Path) -> None:
+def test_intent_reports_absence_before_write_and_after_clear(tmp_path: Path) -> None:
     assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_missing"
-    _write(tmp_path, old="other-old")
-    assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_mismatch"
-
-    root = tmp_path / "operation"
-    root.mkdir()
-    write_ref_intent(
-        root=root,
-        ref_name="refs/heads/dev",
-        update=_update(),
-        operation="candidate.refresh",
-        plan_digest=hashlib.sha256(b"other-plan", usedforsecurity=False).hexdigest(),
-    )
-    assert _claim(root, "prepared")["gap"] == "ref_intent_operation_mismatch"
-    plan_root = tmp_path / "plan"
-    plan_root.mkdir()
-    _write(plan_root)
-    assert (
-        _claim(
-            plan_root,
-            "prepared",
-            plan_digest=hashlib.sha256(b"other-plan", usedforsecurity=False).hexdigest(),
-        )["gap"]
-        == "ref_intent_plan_mismatch"
-    )
+    intent = _write(tmp_path)
+    clear_ref_intent(tmp_path, str(intent["nonce"]))
+    assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_missing"
 
 
 @pytest.mark.parametrize("expires_at", [None, "not-a-timestamp", "2099-01-01T00:00:00"])

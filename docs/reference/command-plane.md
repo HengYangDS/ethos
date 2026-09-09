@@ -109,6 +109,27 @@ Neither path grants source writes, deletes repository root resources, discards
 dirty work, or closes a remote review. Current Lease and exact-object checks
 remain in force, and installed hooks require the admitted retirement intent.
 
+Before destructive retirement, stop or drain every actual writer and keep all
+participants under lane coordination. Review the resulting final content, then
+derive and apply the exact receipt. A Lease transfer or empty process scan does
+not itself stop a writer. Active consumers, unknown liveness or changed content
+block disposal; re-derive after writer exit if the final content changed. This
+protocol does not isolate arbitrary uncooperative same-UID filesystem writes.
+
+For a historical topic with explicitly reviewed staged, unstaged, untracked or
+ignored residue, use the existing abandonment owner instead of copying a backup:
+
+```bash
+ethos lane retire abandon --branch <source-branch> --reason-code absorbed-semantics --reason '<current semantic owners and disposition>' --review-content --root <accepted-root> --json
+```
+
+Derivation records the exact literal tree and index; it does not prove semantic
+absorption. Inspect the receipt before using its returned authorized command.
+Changed content or authority requires fresh review; interrupted disposal uses
+the original receipt and checks surviving content before continuing. Unsupported
+native observation blocks; this capability does not imply verified Windows
+reviewed-content support.
+
 When one clean historical topic is fully retained by another local topic, derive
 retirement without treating that history as accepted product semantics:
 

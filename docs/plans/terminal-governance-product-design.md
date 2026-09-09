@@ -369,45 +369,313 @@ outcome is unknown, or a declared resource budget is exceeded. New feedback is
 mapped to the existing contract and current batch; it reopens source recovery
 only when it demonstrates a missing or contradictory terminal invariant.
 
-The current bounded implementation is `git-native-evidence-retirement`, in the
-owned `work/20260907-missing-lease-reconciliation` lane. It retires the obsolete
-tracked evidence topology while retaining the existing Git-native Attestation
-set and exact proof consumers. Coverage repair, retained-topic retirement,
-source-policy absorption and hosted-verification source repairs are already in
-accepted `06ea14f0ae9cfdf1e760ff8dc944b22c0b22361c`.
+The bounded implementation is now `reviewed-content-retirement` in the existing
+owned `work/20260907-missing-lease-reconciliation` lane. The earlier disconnected
+POSIX snapshot prototype remains withdrawn; its implementation is not restored.
+The official Change instead binds reviewed dirty content, index and ignored
+resources to the existing abandonment operation, with exact authority rechecks
+and recovery. Neither Git ancestry nor an ignored path authorizes deletion.
 
-The uncommitted `reviewed-content-retirement` experiment is withdrawn, not
-completed: its 108-line POSIX snapshot and 115-line isolated tests never joined
-the public effect, exceeded the product budget and did not establish portable
-safe removal. Its valid obligation remains: reviewed dirty content must bind
-accepted semantic disposition, exact index/worktree/ignored content and
-ref/Lease coordinates, protect unique unresolved input and live consumers, and
-recheck before removal and recovery through the existing operation. Future
-implementation starts at that public boundary and reuses existing native
-readers. Root/index symlinks, conflicts, special files, content/authority drift,
-interruption, read-only resources and supported platforms remain acceptance
-cases. No historical lane is disposable because this prototype was withdrawn.
-The deletion is committed at `a4d2877eb04884672f010aa38391b49d206636b5`.
-Its first full proof failed: 22 of 24 gates passed, while a publication-test
-worker timeout left unit/architecture and coverage incomplete. Profiling
-located repeated reference parsing once per retired path, not a justified
-timeout increase. The current repair observes each carrier once per invocation;
-its regression first failed at four parses instead of one. The 23-case covered
-closure/publication run passes, with the public publication call taking
-12.15 seconds under the unchanged 120-second limit. This repair still needs a
-frozen full proof, archive and accepted delivery. The failed proof remains
-preserved; focused coverage is separate and cannot satisfy the full floor.
+The September 9 user decision resolves the native-unlink trust boundary:
+all actual writers stop and honor lane coordination before destructive review
+and disposal. Uncooperative same-UID writers are outside that guarantee.
+Semantic acceptance, current authorization and verified writer quiescence remain
+distinct prerequisites. This decision retires the unsupported isolation promise,
+not drift rejection, active-consumer protection or interrupted-effect recovery.
+No further snapshot passes, preservation archive or unrelated Lease-storage
+consolidation belongs on this critical path.
 
-Current closeout boundaries, observed on 2026-09-08:
+The user also assigns every ETHOS lane to this conversation as the sole
+convergence owner. Public accepted-runtime takeover moved the only other
+recorded holder, `work/20260811-repository-transition-model`, from generation 1
+to 2. `central-owner-takeover-post.json` verifies unchanged HEAD, tree, index,
+all 341 changed entries, branch refs and worktree registrations. All four
+existing Lease rows now name `codex:openai:task:01a00063-d09e-7a71-a52e-a663800a7a0f`;
+two are valid and two expired at that observation. Missing-Lease and detached
+historical resources remain centrally managed without manufacturing coordination
+only to delete it. The predecessor handoff states implementation stopped and the
+selected lane has no listed open-path references; this is cooperative evidence,
+not OS-enforced isolation. Historical bytes still require reviewed disposal.
+
+The bounded Change is ready for a frozen commit, not accepted delivery. Its
+implementation checklist is backed by the 325-case affected retirement set,
+56-case Lease/CLI set and current 65-case ref-intent/hook recheck. All 28 changed
+Python files pass Ruff, format and explicit typing; official strict Change
+validation, docs registry, Markdown and independent source budgets pass. Public
+command guidance now includes reviewed-content derivation and stopped-writer
+preconditions. Exact-HEAD full proof, archive, acceptance, runtime deployment
+and historical disposal are the next unproved effects; no checkbox claims them.
+
+`git-native-evidence-retirement` is archived and locally accepted at
+`bf825e26b07bb6353b8a0fc5777eed399eca3ee1`, tree
+`23dce85e42a23a05c7ea61dca0e29b3e369edb78`. Its exact full proof has 24 passing
+gates, 2562 passed tests and one skip; combined coverage is 95.15943295080014
+percent. Attestation
+`32b60d578a6c1520d0942617134faf1484233edd71a7b4154ec3bab0c77ddc23`
+and accepted effect
+`80b795d30b4f1b9f446ef37fd8baf6bb09119896246ff900e3f218afa8e14829`
+record proof and delivery separately. The source delta from `06ea14f0` is 607
+files, 782 additions and 30398 deletions. Both workspace evidence roots are
+absent; Git-native Attestation selection and historical Git objects remain.
+Earlier failed proofs remain failed observations, not the current verdict.
+
+Current reviewed-content retirement remains uncommitted. The September 9
+preflight correction uses the progress that admission actually observed instead
+of an earlier duplicate observation. Its regression first reported stale
+`ready` after preflight observed partial removal; `retirement-preflight-progress-red`
+records one failure. The operation/native-worktree run then passed 68 tests.
+Two intermediate failures exposed a fixture without its required actor and Git
+root; the fixture now establishes both rather than bypassing preflight. `retirement-preflight-progress-final` binds the final 68-case result.
+`retirement-progress-all-static` verifies all 17 changed Python files with Ruff,
+format and typing; the documentation check reports zero Markdown issues. None
+of these checks proves full current coverage.
+
+`retirement-progress-full-affected` stopped at 22 passes and one native process
+observation failure. A six-case isolated diagnostic passed, but rerunning its
+preceding test sequence reproduced the failure. `native-observer-exact-frame`
+captured a descriptor-only `f36` record belonging to a Chrome Helper; a subsequent
+process-specific observation no longer listed that descriptor. The old lsof
+field selection omitted the native error-name field. Apple's Darwin libproc
+implementation positively distinguishes unavailable descriptors/processes from
+permission and unknown errors; an owned socket-turnover experiment reproduced
+that distinction. The observer now requests the field and admits only the exact
+Darwin absence grammar after a valid process frame. Unknown, permission-denied,
+orphan, malformed and non-Darwin diagnostic frames still block; an ordinary live
+file with a diagnostic-looking name remains an identity-bearing consumer.
+
+`native-observer-absence-parser-red` records three failures after the transport
+correction; `native-observer-absence-green` records 32 passes after the parser
+repair. `native-observer-retirement-focused` binds 100 passes across the real
+retirement/process sequence, unchanged selected source hashes, and removal of
+its owned temporary root. The September 9 readback independently reconfirmed
+those hashes and the 68-case preflight receipt. These results close the
+reproduced descriptor-turnover boundary, not restricted-visibility process
+enumeration, an atomic global snapshot, arbitrary same-UID writers, native
+Windows support, or full current proof.
+
+Earlier `reviewed-disposal-boundaries` binds 41 passing hardlink, survivor-drift
+and process cases; its unchanged selected source hashes remain valid, but it
+does not bind the later executor correction. The earlier 61/213-case runs
+precede later source changes and are not current aggregate proof. Every receipt
+above is under `build/evidence/quality/evidence-retirement/`; owned diagnostic
+temporary roots were verified removed. No current Change acceptance or
+historical lane deletion occurred.
+
+| Boundary | Verified implementation and evidence |
+| --- | --- |
+| Literal root identity | Reject symlink roots before resolution, missing targets before they become cwd, and replaced, locked or prunable roots as drift. `retirement-root-*` and `content-guards-*` retain RED and focused GREEN. |
+| Reviewed preimage | Staged, unstaged, untracked and ignored content bind the exact tree, native index and literal link targets. Native coordinates are eight decimal strings, preserving canonical JSON rather than widening its numeric grammar. Compilation observes actual cleanliness, not constant `clean=true`. `content-identity-*` and `content-boundary-*` retain evidence. |
+| Receipt grammar | Reject malformed nodes, noncanonical paths and symlink parents. Empty review content preserves historical no-review receipt bytes and digest. `content-contract-*` and `content-tree-*` prove grammar, not filesystem truth. |
+| Native traversal | Open each ancestor without following links; use descriptor-relative reads, traversal and `readlink`. Two real root/parent substitutions are rejected without opening external files. Enumeration errors, nested repositories, FIFO and unsupported native capability block. `content-parent-*` retains the regressions. |
+| Effect-time authority | Ordinary Git removal deletes ignored files without force. Recheck content, actor, Lease and accepted ref after native worktree observation, through the existing preflight callback. `content-effect-*` retains four real deletion failures and the repair. |
+| Active consumers | Native process file identities protect cwd, open files, mmap after fd close and external hardlink consumers whose paths are absent from argv. All four originally lost the worktree; current regressions preserve it and allow dry-run recovery after consumer exit. Unknown, malformed, truncated or failed observation blocks. `content-consumer-*` includes the 214-test affected result preceding the next ordering repair. |
+| Admission ordering | Two real cases added ignored bytes during the process scan or later Git admission; both old orders deleted them and returned retired. Complete Git admission, then process observation, then exact content verification. No product ELOC was added. `content-observation-window-*`, `content-git-admission-real-red` and `content-admission-order-*` retain RED, 10-case GREEN, static checks and the preceding 216-test affected result. A preceding probe failed from a test-local shadowed variable; it is not product RED. |
+| Semantic consolidation | Native worktree parsing, terminal reporting, receipt execution and request compilation each have one owner. Abandonment and linked retirement share the existing compiler and executor without aliases. Admitted unbound recovery skips only absent-worktree cleanliness; present reviewed content still observes actual cleanliness. The unsafe-inventory sentinel now intercepts the compiler's actual dependency. `retirement-unbound-compiler-focused` and `retirement-compiler-convergence` bind 11-case and 213-case GREEN; the prior two-failure compiler run remains RED. |
+| Failure evidence | Four regressions exposed lost command, cwd and cause after process/Git errors, including partial retirement and unavailable post-observation. Git now specializes the existing process error contract; retirement projects it through one failure owner instead of string-only duplicates. Product ELOC falls by 25. `retirement-process-evidence-red`, `retirement-process-evidence-affected` and `retirement-process-evidence-complete-checks` retain RED, 269 affected passes, current static checks and 14 hook passes after fixture typing repair. |
+| Surviving registration | Content absence with exact Git registration is recoverable without force. Three RED cases exposed post-admission HEAD/branch drift and reviewed recovery requiring a vanished root. Native removal now rechecks registration after admission; reviewed recovery verifies the original surviving index. Changed or replaced index bytes, index links and recreated content remain protected. `reviewed-absent-recovery-*` retains RED, 116 affected passes and static results. This registration evidence predates selective disposal; neither it nor the later disposal excludes arbitrary concurrent same-UID writers. |
+
+Selective disposal now precedes native deregistration: no-follow descriptor
+traversal rechecks surviving identities, preserves the original index, unlinks
+reviewed files and removes owned directories, leaving the Git marker until last.
+Read-only directory repair never chmods shared file inodes. Hardlink recovery
+accounts for missing reviewed aliases: device, inode, mode, owner, size and mtime
+must remain unchanged; ctime may advance only with the exact expected link-count
+reduction and unchanged content. External link-count/content drift still blocks.
+
+A real interrupted-disposal regression showed index changes after the first
+unlink were previously lost by native deregistration. The index is now checked
+before each deletion and at completion. These repairs close demonstrated cases,
+not the final check-to-syscall race or arbitrary same-UID concurrent writes.
+The reviewed public path now covers missing/expired coordination. Remaining
+mount/visibility boundaries and cross-platform evidence remain required;
+snapshots are not isolation.
+
+The September 9 native-unlink regression turns that limitation into two failing
+public cases. A separate Python child writes new bytes or atomically replaces
+the selected file immediately before the real unlink syscall. Both operations
+delete the unreviewed bytes despite the previous content check.
+`retirement-native-unlink-race-red` binds two failures, unchanged selected source
+hashes and verified temporary-root removal. No historical source was used or
+deleted. The later explicit user decision selects stopped, coordinated writers,
+so this uncooperative-writer acceptance premise is superseded, not repaired.
+Keep the RED receipt truthful; replace its unsupported guarantee with execution
+coverage of writer exit, final-content review, exact disposal and recovery.
+
+Native capability observations narrow the decision: moving a root leaves an
+already-open directory descriptor usable; this process's file-lease attempts
+return EPERM for a file and ENOTSUP for a directory. They do not establish a
+portable exclusion primitive. Apple lsof source also distinguishes two facts:
+`FD unavailable` and `process unavailable` encode EBADF and ESRCH, whereas its
+process enumeration silently skips EPERM. The former are not evidence that
+the parser currently ignores a permission-denied file; the latter disproves
+inferring complete visibility from a successful lsof exit and empty stderr.
+`native-lsof-visibility-research` preserves those exact upstream excerpts and
+hashes. Do not delete the legitimate vanished-descriptor handling as a patch.
+
+The confirmed boundary requires coordinated writer exit, not a new isolation
+subsystem. No same-principal lock, path rename or process list proves arbitrary
+same-UID exclusion. Unknown required liveness still preserves source bytes;
+verify actual participants rather than treating the user requirement as an
+observation that they have stopped. Current-head CI and signature closure
+remains independent of this disposal work.
+
+Native Git 2.55.0 also removes the linked-worktree admin directory and registration
+after recursive content removal fails with permission denied, leaving ignored
+bytes and the ref behind. `native-partial-removal-probe.json` records those exact
+postconditions; `native-isolation-probe.json` proves writes through a directory
+descriptor still reach a moved root. Content disposition must therefore finish
+before administrative deregistration destroys recovery coordinates. Neither
+moving the root nor another snapshot ordering is a complete disposal model.
+
+Windows reviewed-content support and completeness of native process observation
+under restricted visibility remain unproved. Runtime activation still consumes
+command-text process observations; it has not adopted the new file-identity
+observer. Reviewed missing/expired Lease admission now reuses the existing
+holder decision and exact Git deletion boundary; it remains unaccepted. Read-only
+cleanup must change only admitted owned directories, never external link
+targets or shared file inodes; the existing runtime cleaner does not satisfy
+that contract unchanged.
+
+September 9 measurement including untracked source is product/test
+39998/39969 after aligning retirement tests to the confirmed coordination
+boundary. Both independent 40000 ceilings pass. The old native-unlink receipt
+remains RED for its superseded isolation premise, not a repaired guarantee.
+The existing live-consumer test now includes an actual writer that flushes its
+last bytes before exiting: old reviewed content blocks, final-content review
+permits disposal, and worktree, registration, ref and Lease are verified absent.
+`coordinated-writer-stop-focused` records five passes with source hashes matched
+and its owned test root removed. Product code is unchanged by this adjustment;
+Ruff, format and explicit test typing pass. The retirement, native-process,
+worktree and Git-admission affected set passes 325 tests in 298 seconds;
+`coordinated-writer-retirement-affected` records matching selected source hashes
+and removal of its owned root. Markdown validation reports no issues across
+1638 selected files. This is focused behavioral verification, not full coverage,
+acceptance, deployment or historical disposal. Exact-root admission first
+moved product/test to 40019/39734; absorbing the forwarding-only failure-report
+layer into its existing operation-local owner then removed 23 product ELOC.
+The earlier 39997/39911, 39997/39873, 39996/39787, 39996/39734, 40015/39703, 40062/39645 and 40013/39640
+readings are historical. `native-unlink-race-checks` records its earlier Ruff,
+format, explicit test-file typing, Markdown, diff and budget results, not full
+behavior proof. Two lines of product headroom do not establish sustainable completion. Do not
+minify, weaken checks, exclude source or move semantics into an exempt carrier.
+Remaining safety work must still fit; metric correctness and calibration are a
+separate successor, not permission to relax this budget.
+
+Retirement contention now uses nonblocking acquisition at the existing operation
+owner. A held lock yields `lane_retirement_in_progress` and the original receipt
+identity/recovery command, without fabricated observations or progress receipts.
+The rooted RED timed out after ten seconds in the previous unbounded acquisition.
+The first harness run failed before contention because its pytest rootdir was
+wrong; subsequent intermediate failures were test expectations for a stale gap
+and optional receipt metadata, not new production defects. Those failed records
+remain failures. The eight-case regression covers apply/recover, dry-run/apply
+and normal/killed lock-holder exit; it proves re-entry into current-state
+admission, not successful disposal of its deliberately stale request.
+`retirement-lock-contention-affected` binds 129 passing tests, unchanged selected
+source hashes and removed test roots. State projection now reuses the existing
+progress state instead of independently reconstructing it; this also removes
+the brief 40001 product-ELOC overrun without changing the ceiling or exclusions.
+This increment resolves unbounded retirement coordination, not arbitrary
+same-UID filesystem exclusion. No historical lane was deleted or accepted by it.
+
+The consumerless retirement reporter and forwarding-only readiness layer are
+deleted. The single operation executor now owns its lock and request-bound
+control root. Their focused receipts record 62 and 95 passes at their respective
+source states. A later Unicode-key regression demonstrated that the private
+receipt serializer disagreed with the kernel's request identity. Removing that
+serializer closes the duplicate owner: `retirement-canonical-identity-red`
+records the failure, and `retirement-canonical-typed-green` binds 96 passes after
+the repair and test value narrowing. Ruff, formatting and Ty pass for those
+touched files; the original ASCII historical receipt identity remains tested.
+
+Eight injected native-stat cases showed that derivation accepted foreign UID
+or device observations for a root, directory, file or index. The existing entry
+observer now rejects those nodes before opening or descending, and effect-time
+verification uses the same owner. `content-native-boundary-red` records eight
+failures; `content-native-boundary-green` binds 29 passes including parent-swap,
+literal-link, shared-file and interrupted-disposal regressions. Native files
+and directories are used, but foreign ownership/device observations are injected;
+this is not a mounted-volume or privileged ownership test. Same-device mount
+aliases, restricted process visibility and arbitrary concurrent writers remain
+unproved. Both focused runs verified source hashes and removed their owned test
+roots. No full proof, acceptance or actual historical retirement follows.
+
+Control and execution roots now share one native Git coordinate observation:
+the selected absolute directory must be a non-link, non-junction exact worktree
+root in the request's Git common directory. A real nested directory, injected
+junction predicate and independent repository exercise both roles before any
+carrier observation. `retirement-root-owner-red` records four failures and two
+already-protected cases; `retirement-root-owner-green` binds 69 passing operation
+and public historical-coordination cases plus unchanged source hashes and owned
+temporary-root removal. This does not prove native Windows junction handling.
+
+The absorbed-ref failure projection had two layers for the same operation: a
+local closure forwarded eight existing context values to a private sole-consumer
+reporter. The closure now owns that projection directly; the forwarding helper
+is deleted, preserving fresh error inputs, mutation verdict and compensation.
+The unchanged public absorbed-ref suite passes all 16 tests both before and after
+the refactor (`absorbed-failure-owner-baseline` and `absorbed-failure-owner-green`).
+Both runs bind source hashes and verify temporary-root removal; Ruff, format and
+Ty pass. `absorbed-failure-owner-budget` records the passing independent budgets.
+This is behavior-preserving consolidation, not a new product RED or evidence
+that the complete retirement Change is accepted.
+
+The reviewed-coordination increment first reproduced four public derivation
+failures for missing/expired coordination while correctly protecting a live
+foreign holder. Reusing `holder_gaps` exposed one remaining expired-Lease Git
+admission failure. The shared Git boundary now requires exactly the coordinated
+topic's nonzero preimage-to-zero update and the current receipt actor. A
+21-case matrix exposed twelve previously accepted unsafe landed/retained-mode
+shapes as well: ordinary updates, unrelated or additional refs, zero preimages,
+and missing/foreign actors. Those negative cases now reject the effect.
+
+Real hook fixtures then exposed two failures retiring pre-adoption history;
+the existing absent-prestate deletion rule now covers abandonment, without
+creating a profile in the historical tree. The public matrix verifies missing
+and expired disposal, valid foreign-holder protection and post-derivation Lease
+acquisition protection, both at accepted equality and a pre-adoption ancestor.
+`reviewed-historical-hooks-green` records 46 passes before formatting;
+`reviewed-coordination-affected` binds that increment's selected source to 297 passes
+across retirement, Git admission, native worktrees and process observation.
+Owned test roots were removed. Its static, official OpenSpec and Markdown checks
+precede the later consolidation and native-boundary edits; they do not prove
+the entire current source. No full proof or historical retirement is claimed.
+
+Two preliminary fixture failures used a three-segment holder and an attribute
+on a dictionary result. They are not product RED. Two diagnostic static commands
+also guessed nonexistent/tool-incompatible config paths; the corrected calls
+use the actual root Ruff config and repository-native Ty invocation. These
+failures reinforce reading the owning entrypoint instead of inferring it from
+directory names. The canonical regression also initially left five un-narrowed
+test value diagnostics; explicit value checks fixed them without suppressions.
+After a tool-context refresh, the in-memory runner helper was absent and Serena
+queries resolved against the accepted root rather than the authoring worktree.
+The edit was inspected before continuation, no mutation was replayed, and exact
+absolute-worktree file reads replaced the wrong-root queries. Tool metadata and
+session caches are not repository coordinates or durable execution evidence.
+
+The diagnostic test batch found two harness mistakes, not product regressions:
+non-Git fixtures beneath the authoring worktree resolve their ancestor repository,
+and immutable result data requires JSON projection before list comparison.
+An inherited Git ceiling cannot isolate those fixtures because the Git adapter
+intentionally removes inherited `GIT_*` variables. The corrected bounded run used
+one context-managed external test root; its removal was verified. Reusing the
+existing hook matrix also exposed 19 static errors from `list[object]` fixtures;
+the actual `EthosResult` type now owns those annotations. Failure receipts under
+`retirement-process-evidence-*` preserve the distinctions. The 269-test run binds
+the unchanged product; only hook fixture annotations changed afterward and that
+module was rerun. No full proof or historical lane removal occurred in this batch.
+
+Current closeout boundaries at accepted `bf825e26`:
 
 | Boundary | Last verified state | Required next evidence |
 | --- | --- | --- |
-| Repository proof | Accepted `06ea14f0` has its passing exact proof. Deletion follow-up `0fb749e7` completed full proof without timeout: 22/24 gates pass; eleven stale fixture failures block unit/architecture and the coverage success boundary | Correct the three fixture owners without restoring retired policy; freeze and obtain a passing exact full proof |
-| Archive and acceptance | Git history and current accepted/candidate refs include the archived coverage, retained-topic, source-policy, and hosted-verification Changes | Do not repeat completed effects; the new Change still needs its own archive, proof and exact acceptance |
-| Package/runtime | Current status binds runtime `f93e22cb` to Alpha.5 source `06ea14f0`, tree `af1b9143`, and four armed hooks; recorded embedded OpenSpec is 1.12.0 | Read back a new immutable runtime only after the next implementation is accepted |
-| Peer projections | GitHub and GitLab `dev`/`main` were verified at `06ea14f0`; GitLab pipelines 6307/6308 and GitHub main 34218640895 succeed. GitHub dev retry job 102130838979 failed its all-ref unshallow fetch with HTTP2 framing errors | Diagnose actual transfer rather than infer health from `ls-remote` or repeat a blind retry; hosted source, package and provider results remain separate evidence planes |
+| Repository proof | Archived `bf825e26` has the exact passing proof above | The current reviewed-content implementation still needs its own frozen proof |
+| Archive and acceptance | Accepted, main, candidate and authoring HEADs equal `bf825e26`; the evidence-retirement Change is archived | Do not replay those effects; complete the new Change's independent delivery |
+| Package/runtime | Selector `499f13ce` binds Alpha.5 source `bf825e26`, tree `23dce85e`, four hooks and OpenSpec 1.12.0; all 9680 typed manifest entries and wheel digest match. Previous `f93e22cb` is removed | Read back the next immutable runtime only after acceptance; this package does not contain current uncommitted work |
+| Peer projections | The accepted package runtime published `bf825e26` through receipt `57b9cf27`; GitHub and GitLab `dev`/`main` independently equal that object. September 9 readback confirms GitHub runs `34306146235`/`34306146228` and GitLab pipelines `6322`/`6323` succeed; both forges verify its signature. The current hosted checkpoint supersedes earlier EOF/404 observations | No retry or publication replay remains for this accepted object. The next accepted change requires its own hosted observations; these results do not prove general network reliability or product completion |
 | Lane residue | One of the original seven historical worktrees is retired with its history retained by the contracts topic; six historical roots plus the handed signature lane remain | Close the two already-adjudicated content obligations through exact public disposal, then continue the remaining semantic inventory |
-| Current quality | Reference repair measured product/test 39732/38606 ELOC. Its full run measured 95.11575 percent combined coverage, but eleven failed tests invalidate successful proof. Corrected budget/artifact fixtures pass 103 focused tests | Both ceilings remain 40000; numeric coverage alone is not a passing coverage gate or accepted proof |
+| Current quality | Accepted measurement is product/test 39732/38610; current measurement is 39998/39969. The stopped-writer sequence passes five cases and its affected set passes 325. The old native-unlink receipt remains RED under its explicitly superseded isolation premise, not relabeled GREEN. Focused counts apply only to their bound sources | Complete Change acceptance checks, then obtain frozen full proof; focused verification and budget compliance are not acceptance |
 
 Historical work remains finite and classified by obligations rather than commit
 count. These are observed disposition boundaries, not claims of completed
@@ -415,40 +683,33 @@ absorption:
 
 | Historical resource | Semantic disposition and next evidence |
 | --- | --- |
-| `20260818-openspec-19-archive-owner` | The 1.8-to-1.9 supply upgrade is superseded by accepted 1.12; reject restoration of archived Commitment. Preserve valid no-spec and locked-supply obligations in their current owners before removing the ten dirty/staged paths. |
+| `20260818-openspec-19-archive-owner` | The ten-path increment is already adjudicated in `historical-openspec-supply-absorption.json`; its no-spec, locked-supply and projection obligations are satisfied or superseded, not pending reimplementation. September 9 revalidation at accepted `bf825e26` confirms all ten original hashes, the exact changed set, no untracked source and zero unique commits; the current 1.12.0 declaration, lock and integrity still agree. Only exact public content/resource disposal remains. This is not a fresh latest-stable or installed-runtime claim. |
 | `codex-contracts-land-test-refactor` | The shorter lifecycle topic has retired and its commits remain reachable here. Review the remaining exact-CAS, proof selection, cross-worker immutable supply reuse, worker long-tail scheduling, and cheap non-archive fixture obligations; obsolete Commitment/rebind code must not return. |
-| `20260810-public-test-boundaries` | Preserve public Git preimage, out-of-scope-write, committed-effect diagnostics, and lock-after-observation race coverage. Reject the retired mutable ref-intent representation; prove scenario equivalence before disposal. |
+| `20260810-public-test-boundaries` | Three dirty source hashes remain unchanged at `6c523f29`. Changed test definitions and the earlier definitions replaced by that rewrite now have explicit current-owner correspondence below. Valid missing/replaced/cleanup/collision semantics are absorbed; malformed tracked Commitment scope is superseded. The 65-case set and nine-case invalid-input follow-up pass. This is source-level semantic absorption, not acceptance, full proof or permission to dispose of the source tree. |
 | `20260810-coverage-source-policy-matrices` | All fifteen added definitions are adjudicated: nine current AST matches, one equivalent current-owner rename, one accepted allowlist test, three boundary cases accepted at `4980cf57`, and one superseded contributor-role test. The three dirty files and generated resources still require exact public disposal. |
-| `20260810-coverage-public-failure-matrix` | Nine dirty items, including untracked tests. Their unique failure scenarios still require comparison with current owners; ancestor HEADs do not prove dirty-content absorption. |
+| `20260810-coverage-public-failure-matrix` | All nine source hashes match the original inventory. The 38 changed/added or untracked test definitions are compared with current owners: seven paths have verified correspondence; two retain coordination obligations. The public ref-failure sequence now has six real-repository cases covering linked/unbound entry and failure before/after deletion. Neither focused evidence nor ancestry authorizes disposal. |
 | `20260811-repository-transition-model` | Fresh CAS/Attestation, local-or-multiple-peer topology and minimal-entity intent remain valid; persistent Commitment roots and historical scope/Lease bindings are superseded. The 341 dirty items are not yet semantically adjudicated. |
 | Unlinked `codex/openspec-19-archive-owner` ref | Retired through the accepted public owner; Attestation `067dd0dabfb6b6b6a5e6603c14ea84df11a026da6e8b0a0c7e0f72226b6a92bc`. Its absence does not retire the distinct dirty linked OpenSpec lane. |
 | `20260908-accepted-carrier-signature-repair` | Handoff is received; seven unique commits and eighteen paths remain unaccepted. Absorb necessary signature and transaction invariants, not the command-private repair implementation by default; failed historical proof is not current acceptance. |
 
 Execute from these obligations rather than the historical lane names:
 
-1. Close current hosted checkout failures at their demonstrated transport
-   boundary; GitLab verification is complete. Observe the GitHub retry before
-   retrying; never change product tests, DNS, host configuration, or gates on an
-   untested network hypothesis. Independent lightweight retirement work need not
-   wait for a network-only blocker, but a second heavy proof must not compete
-   with the hosted run on this workstation.
-2. Close `git-native-evidence-retirement`: remove the two obsolete workspace
-   evidence directories, their directory-derived quality gate, unused profile
-   carriers and retention scaffolding. Keep exact Attestation selection and
-   proof validation intact. Review current consumers and preserve historical
-   retrieval by Git object identity, not copied archives.
-3. Freeze, prove, archive and accept that deletion. Then resume the unresolved
-   reviewed-content public retirement boundary with a bounded replacement,
-   prove and deploy it, and dispose of the source-policy and OpenSpec 1.9 inputs
-   under fresh authority. Require selected path, registration, ref, Lease and
-   unconsumed owned projections absent; copied archives do not count.
-4. Absorb the remaining finite sources in smallest independently provable
+1. Preserve the completed evidence-retirement, publication, runtime and hosted
+   outcomes at `bf825e26`; do not replay those effects or rerun successful CI.
+   Their independent evidence does not prove the uncommitted retirement Change.
+2. Resolve the reviewed-content execution boundary, then complete, prove and
+   deploy its smallest sufficient owner. Immediately dispose of the already
+   adjudicated source-policy and OpenSpec 1.9 inputs under fresh authority;
+   do not redo their semantic absorption or wait for unrelated hardening.
+   Require selected path, registration, ref, Lease and unconsumed owned
+   projections absent; copied archives do not count.
+3. Absorb the remaining finite sources in smallest independently provable
    semantic increments: contracts and public failure/race obligations first;
    signature-repair invariants through the current transaction owner; the large
    transition-model residue last unless a demonstrated prerequisite changes
    that order. No whole-branch merge, historical runtime revival, or one new
    lane per source is required.
-5. Continue the global obligations already specified here: lifecycle and
+4. Continue the global obligations already specified here: lifecycle and
    adopter conformance, stable supply and installed identity, quality scope and
    resource lifecycle, semantic source/docs structure and projection agreement.
    Closing the historical lanes is the first milestone, not the product terminus.
@@ -458,7 +719,107 @@ one decisive failed invariant. If two iterations add machinery without making
 the selected public outcome closer to executable, reconsider replacement or
 deletion in the same owner; do not accumulate another prototype. Keep source
 absorption, accepted capability, hosted delivery and physical disposal separately
-evidenced. No unresolved item below is completed by this strategy correction.
+evidenced. Judge the next step by the terminal capability and residue it closes,
+not by a defect's proximity to the last edited file. Reuse confirmed supersession
+and unchanged source evidence instead of repeatedly reopening completed review.
+No unresolved item below is completed by this strategy correction.
+
+September 9 review of the public-boundaries lane corrects a semantic-loss risk:
+`ref_intent` is not retired. `git_effects` still writes, prepares, commits,
+recovers and clears these short-lived transaction records. Removing a durable
+Commitment or old test carrier does not prove removal of this separate protocol
+dependency. The patch-boundary file retains four AST-identical public tests
+(five parameterized cases); its fixture now uses official OpenSpec. The removed
+nonlist-scope test only validates the superseded tracked Commitment schema.
+The unexpected-path test is AST-identical, and committed-effect failure retains
+its repair-required result with the current typed branch policy.
+
+The expired-intent audit found an actual destructive race: selection sees an
+expired issued record, another write changes its expiry or phase, then locked
+reclamation compares only its identity and deletes the changed record. The
+preservation regression failed for renewed, prepared and committed states;
+unchanged expiry still passed. The existing owner now compares the complete
+typed record under its existing lock. Four focused cases and the 77-test
+Git-effect/admission set pass, with bound source hashes and removed test roots,
+in `ref-intent-reclamation-preservation-*` and `ref-intent-reclamation-affected`.
+Product ELOC is unchanged; no new lock, registry or compatibility path is added.
+This proves the observation-to-lock state recheck, not arbitrary same-UID
+filesystem isolation. The subsequent correspondence review below covers both
+the original tests and the uncommitted rewrite rather than assuming the newer
+file preserved all earlier obligations.
+
+The subsequent real-process regression found five failures: three killed-holder
+cases could not reclaim the exclusive-create lock, and both clear cases deleted
+the active writer's record without acquiring coordination. Normal release passed
+for the other three operations. `ref-intent-crash-red` records those failures,
+not a harness error. The custom lock class and retry constants are now removed;
+one existing-dependency native lock coordinates all record mutations, including
+clear. Timeout retains its public error, and native capability failure prevents
+mutation instead of falling back to marker ownership. One retained lock inode
+per intent directory avoids accumulating locks per transaction or unlinking a
+lock while contenders may still reference it. No owner registry or scavenger is
+introduced. The eight-case subprocess check passed; the subsequent admission/Git
+effect set passed 84 tests with byte-preservation, idempotent clear and bounded
+coordination-file assertions. `ref-intent-native-capability` separately passes
+the unsupported-native-lock negative boundary on Darwin. The expanded Git effect
+and public-retirement set passes 108 tests in 87.60 seconds, recorded in
+`ref-intent-crash-public-affected`. Receipts bind source hashes and verify owned
+temporary-root removal. The first static receipt reports a broad exception
+assertion in that negative test; its explicit match is corrected without changing
+production behavior. A focused recheck, not another full proof, follows it.
+
+The test's pause moved from the private store helper to the real filesystem
+replace boundary after a Ruff private-access finding; product locking and writes
+remain real. This increment leaves intent-directory placement unchanged: the
+linked worktree resolves it beneath its Git admin directory, not directly beneath
+the common root. Shared-authority placement still needs semantic adjudication.
+Old and new runtime lock protocols are not mutually coordinating: activation must
+exclude live old-runtime writers; this is not a claim of safe rolling upgrade.
+Windows execution, archived historical residue cleanup, full proof and acceptance
+remain unproved. The later user decision excludes uncooperative native-unlink
+writes from the coordination guarantee. No historical lane is disposed by
+these focused results.
+
+#### Public-Boundaries Source Absorption
+
+The bounded September 9 review covers the three dirty test files at historical
+HEAD `6c523f2937f1055a2429c61c1300c6c37318b472`, including test definitions that
+its uncommitted rewrite removed or narrowed. It does not claim all project
+history has been recovered. `public-boundaries-historical-absorption-final.json`
+binds their original and current source hashes, the current test owners and the
+65 passing cases. The source bytes remain unchanged.
+
+| Required semantic | Current owner and disposition |
+| --- | --- |
+| Absolute, escaping and missing patch preimages; escaping postimage; failed postimage application | Four functions in `tests/unit/adapters/admission/test_patch_admission_public_boundaries.py` are AST-identical to the historical rewritten tests; official OpenSpec replaces the old fixture carrier. Five parameterized cases pass. |
+| Malformed tracked Commitment scope | Superseded by official OpenSpec and transient compilation. Do not restore the deleted carrier or its schema test. |
+| Committed-effect failure requires repair; postwrite unexpected/outside paths | `test_committed_intent_gap_is_repair_required` keeps the public result with typed policy; `test_postwrite_reports_unexpected_and_outside_paths` is AST-identical. Both pass in the current failure-branches module. |
+| Active intent lock is not stolen; process death permits recovery | `test_ref_intent_protects_live_owner_and_recovers_after_exit` replaces private `os.open` failure injection with eight actual holder/contender cases and preserves record bytes. |
+| Missing before selection or disappearing after observation | `test_intent_reports_absence_before_write_and_after_clear` covers the first boundary; the `issued/missing` observation-matrix case covers the second, including `present=false`. |
+| A valid different record replaces the selected intent | The `issued/replaced` case in `test_intent_observation_rechecks_current_storage_before_effect` uses a real public-produced record and preserves its complete bytes. A forged typed object with unchanged digest but changed operation is not a valid storage input; malformed operation is tested at the parser boundary instead. |
+| Expired reclamation sees renewal or phase advancement | The same matrix retains unchanged, renewed, prepared and committed cases; prepared/committed replacements preserve the expired timestamp so phase preservation is tested independently of renewal. |
+| Invalid cleanup sees a newly valid replacement | The matrix covers both claim and committed lookup, intercepting the first real filesystem read while retaining real parser, lock and cleanup. Both preserve the replacement. |
+| Ambiguous claim or committed lookup | `test_ref_intent_claim_rejects_duplicate_exact_intents` covers duplicate issued and committed records; `test_committed_ref_intent_rejects_ambiguous_committed_receipts` independently covers distinct exact predecessor identities. |
+| Idempotent identical writes and conflicting valid stored identity | Existing serial/concurrent tests in `tests/unit/lanes/test_ref_intent.py` retain idempotency. `test_write_preserves_valid_foreign_record_at_requested_path` replaces the historical invalid-model mock with real stored collision and unchanged bytes. |
+| Invalid nonce, operation or phase; uncommitted lookup | `test_invalid_intent_rejected_and_uncommitted_lookup_ignored` covers prepared, aborted and lookup readers. Nine cases pass in `ref-intent-invalid-abort-final`; invalid phases are rejected by storage parsing, not injected beneath it. |
+| Abort after commit preserves recovery; abort only removes its own transaction | Existing concurrent committed/aborted and exact prepared-abort tests in `tests/unit/lanes/test_ref_intent.py` retain both obligations and pass in the bounded set. |
+
+Three isolated in-memory mutants demonstrate that the new tests reject using
+stale selected state, deleting without an invalid-record recheck, and accepting
+a foreign stored record on write. `ref-intent-historical-mutation-check*`
+records them. The first mutation harness omitted future annotations and two
+cases failed before pytest; those are harness failures, not caught defects.
+Their corrected runs fail at the intended assertions. A separate first fixture
+run used a nonexistent cwd; its corrected correspondence run passes. No current
+production source was changed by this absorption or mutation check.
+
+The existing test helper now accepts the transaction phase; repeated request
+construction and duplicate identity-mismatch setup are removed without deleting
+the authoritative mismatch matrix. Relative to the preceding iteration, product
+ELOC is unchanged and test ELOC rises by three, within the independent ceilings.
+Source absorption is complete for these changed definitions; deployment,
+cross-platform proof, reviewed content disposal and ignored resource ownership
+are separate obligations. This review does not authorize deleting the lane.
 
 ### Historical Necessity And Quality-Owner Review
 
@@ -479,24 +840,21 @@ the same necessity test.
 | Root quality configuration | Secret scans already pass an explicit config path, contradicting the claim that Gitleaks requires root placement; Ruff and pre-commit also have explicit-path consumers | Decide placement from verified native discovery and the complete consumer chain; prove equivalent effective policy before removing the old path, with no compatibility forwarding config |
 | Remaining physical structure | No complete semantic adjudication of the older 154 non-archive/non-evidence files or recent edits exists | Review by responsibility and shared invariant, not file age or count; merge duplicated owners and retain justified stable source, legal and integration files |
 
-Root evidence disposition is the current source atom; native docstring quality
-and configuration placement are subsequent coherent owner replacements. The
-withdrawn dirty-retirement experiment remains an unresolved product obligation,
-not an additional active Change or a preservation package. These obligations
-reuse this lane and the existing route; no second ledger or cleanup framework
-is introduced.
+Root evidence disposition is locally delivered; native docstring quality and
+configuration placement remain subsequent coherent owner replacements. The
+current reviewed-content Change addresses the withdrawn prototype's unresolved
+public disposal obligation, without restoring its preservation design. These
+obligations reuse this lane and route; no second ledger is introduced.
 
 For each replacement, first reproduce the missing or contradictory property,
 then select one existing/native owner, migrate necessary meaning, delete the
 superseded paths and prove the public consumers agree. Count a boundary closed
 only after implementation, exact proof and accepted delivery; this review has
 not activated `D`, moved root configs or retired another historical lane. The
-current evidence-retirement source batch has removed 557 exactly compared
-historical files and six obsolete implementation/declaration/test files in the
-owned lane only. Git history and existing selected Attestations are preserved;
-accepted-root deletion, passing full proof, archive and runtime delivery remain
-pending. The failed full proof legitimately added its own Attestation; removal
-of historical workspace files did not alter existing Attestations.
+evidence-retirement source, archive, acceptance and package readback above are
+complete locally; remote publication at that object remains unproved. Git
+history and selected Attestations are preserved. Each failed proof remains its
+own immutable observation, not a reason to restore workspace evidence roots.
 
 ### Whole-Repository Physical Organization Review
 
@@ -510,6 +868,63 @@ only `__init__.py` may still own children and must be evaluated as a boundary.
 A one-module leaf survives only when its public namespace, package resources or
 independent responsibility justify the extra level. Conversely, flattening
 several real subdomains to meet a shape target is not simplification.
+
+The September 9 user clarification makes this a product-wide convergence
+obligation, not a directory-cleanup campaign. ETHOS must provide a reusable
+repository foundation: explicit intent and ownership, discoverable decisions,
+cohesive implementation, executable quality, verifiable delivery and bounded
+resource retirement. Consistency means the same invariant yields the same
+admission and explanation across native repository shapes, not that every
+repository copies ETHOS's paths or uses every optional capability. These are
+requirements to realize in the existing owners, not claims that those owners
+already satisfy them.
+
+Bounded read-only comparison on September 9 sampled the following source
+snapshots. The samples establish declared practices and selected physical
+owners, not complete implementation quality or adopter conformance:
+
+| Source snapshot and inspected carrier | Meaning to evaluate in the ETHOS owner | Do not import |
+| --- | --- | --- |
+| `di-effect` at `8a168b6b`, `docs/guides/reference/documentation-operating-model.md` and agent entrypoint | Separate subject, reader purpose, authority and lifetime; let discovery lead to one semantic owner. | Its DocOS machinery, directive projections, ADR/DEC split, generated registers or extensive README topology merely because they exist. |
+| `alphasim-dmgr-fix-b3` at `513211af`, `docs/current/operations/platform/configuration-control-plane.md` | Separate deployment settings, business configuration and one-run controls; make precedence and redacted effective configuration diagnosable through one owner. | Lifecycle-shaped docs directories, embedded governance or database-specific policy. This is a distinct sample, not the `alphasim-dmgr` checkout at `57539a59` on `test/yheng-py312-np2`. |
+| `aigw-cli` at `36a6a283`, `docs/decisions/decision-register.md`, transactional projection decision and agent entrypoint | Stable decision identity, control/projection boundaries, locked execution, immutable local product identity and independent peer delivery. | Client-specific concepts, credentials, a copied decision register or another publication/transaction state machine. |
+| `codex-responses-proxy` at `210a108e`, decision grammar, `.config/quality/native/` and quality responsibility declarations | Separate native tool configuration from product policy; require a concrete detected risk, measured scope, remediation and review condition for each gate. | Its responsibility-map entity, transport lifecycle, thresholds or separate commit parser when ETHOS already owns the invariant. |
+
+The comparison is a source of hypotheses, not a vote among implementations.
+For each proposed absorption, identify the user outcome and invariant, compare
+official/native capability with the existing owner, show what parallel behavior
+will disappear, and define a counterexample the real public verifier must
+reject. Reject both extremes: a mandatory cloned repository tree and a generic
+metadata/registry framework that merely relocates accidental complexity.
+
+Decision-record repair is one instance of this foundation. Current
+`docs/governance/docs-registry.md` explicitly rejects numbered identity, whereas
+history at `82647f3ab` already defined a numbered record grammar. The user's
+lowercase correction never authorized removal of stable numbers. Reconcile the
+three restored records with their historical decisions before assigning
+`dr-<four-digit-sequence>-<kebab-topic>.md`; never reuse an old number for a
+different ruling. Preserve context and constraints, the selected decision and
+its rationale, consequences, status/date and decision provenance, verification
+references and revisit conditions. Record real alternatives where the choice
+needs them; do not fabricate alternatives or mandate empty sections.
+
+[Nygard's lightweight structure](https://adr.github.io/adr-templates/) and the
+[MADR template](https://adr.github.io/madr/decisions/adr-template.html) provide
+the research baseline; [MADR examples](https://adr.github.io/madr/examples.html)
+explicitly accommodate different levels of detail. They do not establish one
+universal filename or require a second decision register. Keep specification,
+decision rationale, execution progress and execution evidence in their existing
+distinct owners. A substantive reversal names a successor; editorial corrections
+remain traceable in Git, and decision acceptance never implies implementation.
+
+Implement each absorbed invariant once, then verify its native configuration,
+CLI, hooks, SDK, docs, skills and CI consumers where applicable. Conformance
+must cover different repository sizes, languages and declared capabilities,
+including local-only use; link checking or identical directory names cannot
+prove it. Update the product contract, docs owner and their real validators in
+the corresponding bounded successor, deleting replaced rules and projections.
+This plan preserves the obligation now without expanding reviewed-content
+retirement, opening another lane or changing any comparison repository.
 
 The September 8 inventory at source `a4d2877e` covers 2592 tracked paths,
 including 258 product Python paths, 197 test paths, 47 documentation paths and
@@ -525,7 +940,7 @@ execution obligations, not that disposable shape report.
 | --- | --- |
 | Python responsibilities | Review the twenty leaf packages against their callers, exports, resource lookup and reasons to change. `adapters/` and `store/state/` have real child namespaces and cannot be collapsed by direct-file count. The init-only `tests/unit/lanes/retirement/admission/` leaf is residue unless a real import or collection obligation is demonstrated. |
 | Dense sibling modules | `tests/unit/cli` has 24 Python files, `adapters/repo` 17 and `tools/ci` 16. Review domain cohesion and ownership before deciding semantic subpackages; neither suffix families nor sibling count is an architectural contract. |
-| Documentation | `docs/decisions` contains three lowercase semantic records, and quickstart is in `docs/guides`. Preserve their responsibilities. Review all 47 documents for intent/implementation agreement and misplaced policy/design/plan roles. `docs/plans/README.md` routes only to the plan already directly linked by the docs root; absorb its unique guidance and remove the redundant route. `docs/history` duplicates superseded topology rationale also discussed by the decision record; reconcile unique reasoning and Git retrieval before retiring copies. |
+| Documentation | Preserve quickstart in `docs/guides` and the three necessary decision rationales; repair their lost numbered identities and content grammar as specified above. Review all 47 documents for intent/implementation agreement and misplaced policy/design/plan roles. `docs/plans/README.md` routes only to the plan already directly linked by the docs root; absorb its unique guidance and remove the redundant route. `docs/history` duplicates superseded topology rationale also discussed by the decision record; reconcile unique reasoning and Git retrieval before retiring copies. |
 | Root and native configuration | Evaluate all seventeen root files through native discovery, IDE, hook, CI, package and direct-command consumers. Root placement is not justified by current existence. The configuration guide still references an absent local-state policy, demonstrating projection drift; the historical-evidence Markdown exemption is corrected in the current deletion atom. Compare tracked declarations with effective on-disk inputs and package contents before moving configuration. |
 | Generated and local content | `.config/checks/pytest/build/` is an observed misplaced ignored output; use repository-rooted pytest invocations and verify the creating entrypoint, then retire exact owned residue. Source-tree bytecode, tool caches, build output, immutable supplies and Git-common state require separate producer, consumer and reclamation checks; do not copy or recursively inventory supply trees merely to make the report larger. |
 | Cross-plane agreement | Trace each selected semantic move through imports, packaging, schemas, native config discovery, CLI/help, docs, rules, skills, CI and generated projections. Preserve official OpenSpec history as history, not an active state database. No relocation is complete while the old owner or its consumers remain active. |
@@ -957,14 +1372,75 @@ type check finds ten diagnostics in the touched linked-retirement test file;
 the exact HEAD baseline reproduces all ten. They remain a quality-surface gap,
 not a new regression or permission to claim repository-wide typing passes.
 
-The nine dirty/untracked failure-matrix paths have a bounded semantic comparison
-in `historical-failure-matrix-audit.json`. Gate, hook, CLI request, worktree
-compensation, and newly added Git-effect scenarios have current counterparts;
-public Lease storage-error propagation and mixed-state projection were the
-remaining test correspondences addressed below. Preserve the original paths
-until all remaining obligations and public disposal admission close. The clean historical lifecycle branch's
-accepted-runtime retirement dry-run returns `work_lane_not_merged`; no effect
-was applied. Cleanliness and AST/name correspondence alone never prove absorption.
+The September 7 failure-matrix comparison initially left public Lease
+storage-error and mixed-state projection correspondences open; the accepted
+tests described below cover them. September 9 revalidation in the same
+`historical-failure-matrix-audit.json` confirms all nine source hashes and
+compares 38 changed/added or untracked test definitions. Seven paths have current
+correspondence; two Lease/lifecycle files still require coordination adjudication.
+The earlier selected current owners passed 104 tests with
+unchanged hashes and no remaining temporary root. This is not full proof or
+retirement authorization.
+
+The public ref-failure sequence is now verified without restoring the historical
+compensation state machine. The existing real superseded-retirement test covers
+linked and already-unbound entry, success, failure before ref deletion, and an
+error returned after actual ref deletion. It checks unchanged accepted and Lease
+coordinates, exact completed/remaining effects, original-receipt recovery, and
+two recoveries without replaying completed removal, ref or Lease effects.
+`historical-retirement-public-sequence-corrected` records six passes; production
+source was unchanged. The preceding two failures were a fixture-output whitespace
+expectation, not product RED. A separate process-local mutant reintroduced the
+deleted ref into remaining effects; the new regression rejected that replay.
+Its failing receipt is `historical-retirement-public-sequence-replay-mutant`.
+All nine historical input hashes still match. These results close this specific
+failure-sequence evidence gap, not verified participant quiescence or authority
+to delete historical content under the later confirmed coordination boundary.
+
+An isolated process probe confirms the unique runner captures stdout and stderr;
+the retired `capture_output=False` option needs no replacement. Invalid holder
+input is rejected by the typed request. A malformed Lease schema raises inside
+the adapter, but the actual public CLI returns a structured block with observed
+and expected columns and an exact hook-install recovery command; it leaves the
+database unchanged. Do not misclassify an internal exception as missing public
+diagnostics, or claim migration succeeded when only its diagnostic was tested.
+
+Separate takeover probes write new content immediately before or after the
+holder CAS. Both retain those bytes and transfer the holder to generation 2.
+The old requirement to roll back a Lease bound to HEAD/tree/payload is not the
+current four-coordinate model; content loss was not observed. However, the
+current authorization's `quiesced` or `source_lost` assertion alone does not
+stop a writer. The user-confirmed boundary now requires actual writers to stop
+and honor coordination; it does not require fencing uncooperative same-UID
+processes. Finish the finite historical correspondence under that boundary,
+without restoring persistent content binding. All historical inputs remain
+untouched.
+
+The next finite coordination review exposed an actual authorization bypass:
+after a valid takeover, replaying the same request as the old holder returned
+`pass` and persisted another native effect Attestation. Initial application
+checked the actor, but the recovered path replaced those gaps with authorization
+checks that omitted it. `historical-lease-recovery-actor-red` reproduces this
+against real temporary Git/SQLite state. Actor equality now belongs to the shared
+authorization owner used by both initial and recovered invocation; the four-line
+check is moved, not duplicated. No Lease schema, content binding or new recovery
+state is introduced. Old-holder and empty-actor regressions pass; their record
+count and subsequent exact revocation also protect the no-additional-effect and
+unchanged-Lease postconditions. `historical-lease-recovery-actor-affected` binds
+56 passing Lease and CLI tests, unchanged source hashes and removed test roots.
+
+This closes recovered-invocation admission, not writer exclusion. The confirmed
+cooperative boundary requires stopping actual writers rather than inferring it
+from `source_state`; no filesystem-fencing subsystem follows. The two historical
+Lease/lifecycle files still require final bounded correspondence, not a new
+isolation guarantee. Their old persisted
+HEAD/tree/payload and offer identities remain superseded; the current actor,
+generation, expiry, accepted authorization and storage-failure obligations stay
+in their existing owners. All nine historical source hashes are unchanged.
+The authoritative OpenSpec projection still names handoff-offer/accept and a
+workflow-declaration owner although current code uses transfer and takeover;
+that projection discrepancy remains a separate unclosed semantic obligation,
+not a reason to restore the old state machine inside this retirement Change.
 
 The two previously preserved browser files contained only a generic GitLab
 welcome and an unauthenticated login page, not CI/signature evidence. Their
@@ -1196,6 +1672,41 @@ Correct scope declarations and consumers together, measure the affected baseline
 and close bounded owners without pausing already-safe lane retirement for an
 unlimited audit. The current Change does not redesign the whole quality system.
 
+#### ELOC Calibration At `bf825e26`
+
+Read-only measurement using the current owner found the following distribution.
+Percentiles use nearest rank over nonzero files; ordinary product excludes
+surface modules and tools. These observations do not establish optimal limits.
+
+| Role | Nonzero files | P90 | P95 | Maximum | Current limit |
+| --- | --- | --- | --- | --- | --- |
+| Ordinary product | 176 | 432 | 461 | 500 | 500 |
+| Surface | 19 | 536 | 697 | 697 | 800 |
+| Tests | 185 | 467 | 591 | 941 | 1100 |
+
+The config's percentile rationale and 1032-ELOC test maximum are stale. Its
+surface allowance assumes thin wiring, but publication and proof commands own
+business orchestration. The recommendation, not yet implemented policy, is 500
+for product including surface and 800 for tests. First absorb orchestration into
+existing use-case owners and organize the publication tests by independent
+readiness, branch-transaction and signed-tag obligations. Do not split by size,
+copy fixtures or introduce forwarding modules. Reassess against concrete
+cohesion and maintenance cost rather than rounding the current maximum upward.
+
+The metric and policy boundary must be repaired before calibration: a bare
+string on the same line as an assignment currently excludes that assignment;
+multiline string data starting with `#` is treated as a comment. The standalone
+size report accepts coerced numbers, silently defaults zero and ignores a rules
+parse error. These probes do not prove that other full-proof gates also accept
+malformed policy. Enforce positive integer hundred-unit thresholds, distinguish
+absent policy from invalid policy, and use one exact source inventory and metric
+with the aggregate budget owner. Product/test ceilings remain independently
+40000; the project total remains observational. External links in the preceding
+chat answer were not retrieved in that turn and are not threshold evidence.
+
+Execute this bounded quality successor after the current retirement boundary;
+do not mix it into reviewed-content disposal or add a parallel plan/ledger.
+
 ### Accepted-Carrier Lane Handoff Received — 2026-09-08
 
 The original ETHOS thread `019f477e-7aaf-7fd0-837b-41606d7a8b5f` handed its
@@ -1234,6 +1745,13 @@ semantics, prove the result, and retire the source lane. Do not blindly merge it
 command-private recovery mechanism or make it an adopter-release prerequisite.
 The sender has stopped implementation; one receiver owns serial execution, and
 AIGW/Proxy remain read-only.
+
+September 9 receiver re-observation supersedes the earlier admission snapshot:
+HEAD remains `aece154744bc7b2460de1dc478f52ed4426eaa44`, but public lane status
+now blocks on expired Lease and stale candidate base. Historical transfer proves
+receipt, not current write authority. No refresh, replay, signing repair or
+source-lane mutation was performed; absorption may read its unique semantics
+into the currently admitted authoring lane without reviving the old workflow.
 
 ### Historical Source-Policy Absorption — 2026-09-08
 
@@ -1296,23 +1814,33 @@ independently of scheduling order. No coverage floor or gate is relaxed.
 | Infer hosted success from local proof or partial tests | Bind each CI receipt to its declared evidence plane and exact expected HEAD. | Regress blocked, malformed, stale-head, and failed-execution observations; inspect both providers after publication. |
 | Guess transport, missing tools, or failure causes | Use declared API/Git endpoints and retain actual command, environment, stderr, and artifact facts. | HTTP `192.168.64.101:18086` is the GitLab API; SSH `:1122` is Git transport. Unknown link failures remain unknown until their diagnostics are read. |
 
-GitLab dev/main pipelines 6307/6308 and GitHub main run 34218640895 succeed.
-GitHub dev run 34218640885 remains failed: retry job 102130838979 completed at
-2026-09-08 15:55:49 UTC after three `Error in the HTTP2 framing layer` failures
-in an all-ref `git fetch --unshallow`. The successful main package checkout was
-shallow; earlier `ls-remote` probes tested neither this transfer volume nor
-this fetch operation. The transport boundary is established, its network root
-cause is not. Diagnose the actual transfer before another retry; do not
-hard-code an IP, silently change host transport configuration, or invent a
-product test failure.
+September 9 current-head observations supersede the earlier CI checkpoint.
+GitHub dev/main runs 34306146235/34306146228 and GitLab dev/main pipelines
+6322/6323 all succeed at `bf825e26b07bb6353b8a0fc5777eed399eca3ee1`.
+Each GitLab pipeline returned 26 successful jobs. Both forges verify this exact
+commit's signature; GitHub reports the expected Yang HENG author and committer.
+The configured GitHub and GitLab dev/main refs were independently observed at
+that same object. This closes the current accepted commit's hosted CI and
+signature observation gaps, not global product or formal release completion.
+
+GitHub main's original package job 102350471173 failed downloading setup-python
+during runner initialization: the native Worker log records a TLS unexpected
+EOF before repository steps. After the exact endpoint returned HTTP 200, one
+failed-job-only rerun produced successful job 102356538803. Do not replay it or
+call one successful retry a permanent network repair. Earlier HTTP/2 failures
+at `06ea14f0` remain historical evidence, not current-head failures. GitLab's
+repository-selected `glab api projects/423/...` route works; explicit hostname
+overrides returned 404. No credential or host configuration changed. That 404
+does not establish project absence or authorize another authentication setup.
 
 The existing `hosted-ci-convergence-checkpoint.json` owns exact run observations;
 it must distinguish source verification, package delivery and provider outcome.
-Publication, runtime activation and archived source repair are already done;
-hosted all-green remains open. Lightweight independent semantic work may proceed
-during a network blocker, but no competing full proof or unrelated feature may
-consume this delivery boundary. New feedback changes the current plan only when
-it supplies a missing invariant, a disproved assumption or changed facts.
+Publication, runtime activation, archived source repair and current-head hosted
+verification are done. The current reviewed-content Change, historical source
+retirement and global obligations remain open; none inherits the accepted
+commit's proof. Resume the lane-convergence critical path without another CI
+retry. New feedback changes this route only when it supplies a missing
+invariant, a disproved assumption or changed facts.
 
 ## Convergence Rules
 

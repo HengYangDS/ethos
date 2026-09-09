@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import operator
+from pathlib import Path
+from pathlib import PurePosixPath
+from typing import Annotated
 from typing import ClassVar
 from typing import Literal
 from typing import Self
@@ -9,6 +13,7 @@ from typing import Self
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import field_validator
 from pydantic import model_validator
 
 from ethos.contracts.semantic import canonical_json_digest
@@ -21,6 +26,68 @@ CarrierState = Literal["expected", "absent", "moved", "unavailable"]
 
 def _fail(reason: str) -> None:
     raise ValueError(reason)
+
+
+class _ContentNode(BaseModel):
+    """One exact literal filesystem node, without following its target."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    kind: Literal["directory", "file", "symlink"]
+    identity: FrozenTuple[Annotated[str, Field(pattern=r"^(?:0|-?[1-9][0-9]*)$")]] = Field(
+        min_length=8, max_length=8
+    )
+    sha256: str = Field(default="", pattern=r"^[a-f0-9]{64}$")
+    target: str = Field(default="", min_length=1)
+
+    @model_validator(mode="after")
+    def validate_payload(self) -> Self:
+        fields = {"kind", "identity"}
+        if self.kind != "directory":
+            fields.add("sha256" if self.kind == "file" else "target")
+        if self.model_fields_set != fields:
+            _fail("retirement_content_node_invalid")
+        return self
+
+
+class _ReviewedContent(BaseModel):
+    """A complete literal tree and native index selected for destructive review."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    root: _ContentNode
+    index_path: str
+    index: _ContentNode
+    entries: dict[str, _ContentNode] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_tree(self) -> Self:
+        marker = self.entries.get(".git")
+        if (
+            self.root.kind != "directory"
+            or self.index.kind != "file"
+            or not Path(self.index_path).is_absolute()
+            or marker is None
+            or marker.kind != "file"
+        ):
+            _fail("retirement_content_tree_invalid")
+        for name in self.entries:
+            path = PurePosixPath(name)
+            parent = self.entries.get(path.parent.as_posix())
+            if (
+                not name
+                or name == "."
+                or path.is_absolute()
+                or ".." in path.parts
+                or path.as_posix() != name
+                or (path.name == ".git" and name != ".git")
+                or (
+                    path.parent != PurePosixPath(".")
+                    and (parent is None or parent.kind != "directory")
+                )
+            ):
+                _fail("retirement_content_tree_invalid")
+        return self
 
 
 class LinkedRetirementRequest(BaseModel):
@@ -72,7 +139,15 @@ class RetirementOperation(BaseModel):
     authority: JsonObject
     reason: JsonObject
     git_plan: JsonObject
+    reviewed_content: JsonObject = Field(default_factory=dict, exclude_if=operator.not_)
     effects: FrozenTuple[RetirementEffect] = ()
+
+    @field_validator("reviewed_content", mode="before")
+    @classmethod
+    def validate_reviewed_content(cls, value: object) -> object:
+        if value:
+            _ReviewedContent.model_validate(value)
+        return value
 
     @model_validator(mode="after")
     def derive_effects(self) -> Self:
@@ -87,6 +162,8 @@ class RetirementOperation(BaseModel):
             _fail("retirement_operation_worktree_path_missing")
         if self.mode == "abandon" and not self.reason:
             _fail("lane_abandonment_reason_invalid")
+        if self.reviewed_content and (self.mode != "abandon" or self.worktree_initial != "linked"):
+            _fail("retirement_reviewed_content_invalid")
         if not self.execution_root:
             object.__setattr__(self, "execution_root", self.control_root)
         object.__setattr__(self, "effects", expected)

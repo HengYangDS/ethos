@@ -7,11 +7,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
+from ethos.adapters.repo.runtime.filesystem import is_junction
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -66,10 +68,14 @@ def remove_worktree(
     head: str,
     branch: str,
     force: bool = False,
+    admit: Callable[[], object] | None = None,
+    dispose: Callable[[], None] | None = None,
     environment: Mapping[str, str] | None = None,
     runner: Callable[..., Any] = run_git,
 ) -> Attestation:
-    """Remove or recognize absence of one exact worktree binding."""
+    """Remove an exact binding after caller admission, or recognize its absence."""
+    if path.is_symlink() or is_junction(path):
+        _fail("worktree_effect_binding_stale")
     target = path.resolve()
     record = worktree_record(root, target, environment=environment, runner=runner)
     if not record:
@@ -77,12 +83,26 @@ def remove_worktree(
             _fail("worktree_effect_path_ownership_unknown")
         effect = _effect("remove", target, branch, head)
         return _attestation(root, "recognized", effect, {}, {}, environment)
-    _require_binding(record, target=target, branch=branch, head=head)
+    absent = not os.path.lexists(target)
+    _require_binding(
+        record, target=target, branch=branch, head=head, absent=absent, reviewed=dispose is not None
+    )
     arguments = (
         ("worktree", "remove", "--force", target.as_posix())
         if force
         else ("worktree", "remove", target.as_posix())
     )
+    for callback, expected_absence in ((admit, absent), (dispose, True)):
+        if callback is not None:
+            callback()
+            _require_binding(
+                worktree_record(root, target, environment=environment, runner=runner),
+                target=target,
+                branch=branch,
+                head=head,
+                absent=expected_absence,
+                reviewed=dispose is not None,
+            )
     completed = runner(root, *arguments, check=False, env=environment)
     if completed.returncode:
         raise ValueError(completed.stderr.strip() or "worktree_effect_remove_failed")
@@ -107,10 +127,14 @@ def sync_worktree(
     """Synchronize or recognize one exact clean linked-worktree index effect."""
     target = path.resolve()
     before = _sync_observation(root, target, branch, environment=environment, runner=runner)
-    if before["head"] == head and before["tree"] == _commit_tree(root, head, environment):
+    if before["head"] == head and before["tree"] == current_tree(
+        root, head, environment=environment
+    ):
         effect = _effect("read-tree", target, branch, head)
         return _attestation(root, "recognized", effect, before, before, environment)
-    if before["head"] != head or before["tree"] != _commit_tree(root, previous, environment):
+    if before["head"] != head or before["tree"] != current_tree(
+        root, previous, environment=environment
+    ):
         _fail("worktree_effect_binding_stale")
     completed = runner(
         target,
@@ -125,7 +149,7 @@ def sync_worktree(
     if completed.returncode:
         raise ValueError(completed.stderr.strip() or "worktree_effect_sync_failed")
     after = _sync_observation(root, target, branch, environment=environment, runner=runner)
-    if after["head"] != head or after["tree"] != _commit_tree(root, head, environment):
+    if after["head"] != head or after["tree"] != current_tree(root, head, environment=environment):
         _fail("worktree_effect_postcondition_failed")
     effect = _effect("read-tree", target, branch, head)
     return _attestation(root, "applied", effect, before, after, environment)
@@ -140,7 +164,7 @@ def restore_rejected_checkout_projection(
 ) -> bool:
     """Restore a clean Git porcelain projection whose ref transaction was rejected."""
     current_head = runner(root, "rev-parse", "HEAD", check=False, env=environment).stdout.strip()
-    target_tree = _commit_tree(root, target_head, environment)
+    target_tree = current_tree(root, target_head, environment=environment)
     indexed = runner(root, "write-tree", check=False, env=environment)
     dirty = runner(root, "diff-files", "--quiet", check=False, env=environment)
     if (
@@ -166,7 +190,7 @@ def restore_rejected_checkout_projection(
     dirty = runner(root, "diff-files", "--quiet", check=False, env=environment)
     return (
         not indexed.returncode
-        and indexed.stdout.strip() == _commit_tree(root, current_head, environment)
+        and indexed.stdout.strip() == current_tree(root, current_head, environment=environment)
         and not dirty.returncode
     )
 
@@ -195,7 +219,7 @@ def attach_worktree(
     if (
         "detached" not in record
         or indexed.returncode
-        or indexed.stdout.strip() != _commit_tree(root, head, environment)
+        or indexed.stdout.strip() != current_tree(root, head, environment=environment)
         or dirty.returncode
     ):
         _fail("worktree_effect_binding_stale")
@@ -215,15 +239,10 @@ def worktree_record(
     runner: Callable[..., Any] = run_git,
 ) -> dict[str, str]:
     """Return the sole raw Git record for one exact worktree path."""
-    completed = runner(root, "worktree", "list", "--porcelain", check=False, env=environment)
-    if completed.returncode:
-        _fail("worktree_effect_observation_failed")
     target = path.resolve()
     matches = [
         record
-        for block in completed.stdout.split("\n\n")
-        if block.strip()
-        for record in (_record(block),)
+        for record in raw_worktree_records(root, environment=environment, runner=runner)
         if record.get("worktree") and Path(record["worktree"]).resolve() == target
     ]
     if len(matches) > 1:
@@ -231,16 +250,32 @@ def worktree_record(
     return matches[0] if matches else {}
 
 
-def _record(block: str) -> dict[str, str]:
-    return {
-        parts[0]: parts[1] if len(parts) > 1 else ""
-        for line in block.splitlines()
-        if line
-        for parts in (line.split(" ", 1),)
-    }
+def raw_worktree_records(
+    root: Path,
+    *,
+    environment: Mapping[str, str] | None = None,
+    runner: Callable[..., Any] = run_git,
+) -> tuple[dict[str, str], ...]:
+    """Observe native worktree records, preserving flags and observation failures."""
+    completed = runner(root, "worktree", "list", "--porcelain", check=False, env=environment)
+    if completed.returncode:
+        _fail("worktree_effect_observation_failed")
+    return tuple(
+        dict(line.partition(" ")[::2] for line in block.splitlines() if line)
+        for block in completed.stdout.split("\n\n")
+        if block.strip()
+    )
 
 
-def _require_binding(record: dict[str, str], *, target: Path, branch: str, head: str) -> None:
+def _require_binding(
+    record: dict[str, str],
+    *,
+    target: Path,
+    branch: str,
+    head: str,
+    absent: bool = False,
+    reviewed: bool = False,
+) -> None:
     observed_branch = (
         record.get("branch", "").removeprefix("refs/heads/")
         if "branch" in record
@@ -253,9 +288,10 @@ def _require_binding(record: dict[str, str], *, target: Path, branch: str, head:
         or Path(record.get("worktree", "")).resolve() != target
         or record.get("HEAD") != head
         or observed_branch != branch
-        or any(flag in record for flag in ("locked", "prunable"))
+        or "locked" in record
+        or ("prunable" in record and not (absent or reviewed))
         or target.is_symlink()
-        or not target.is_dir()
+        or (os.path.lexists(target) if absent else not target.is_dir())
     ):
         _fail("worktree_effect_binding_stale")
 
@@ -285,11 +321,6 @@ def _sync_observation(
         "head": record.get("HEAD", ""),
         "tree": indexed.stdout.strip(),
     }
-
-
-def _commit_tree(root: Path, head: str, environment: Mapping[str, str] | None) -> str:
-    completed = run_git(root, "rev-parse", f"{head}^{{tree}}", check=False, env=environment)
-    return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
 def _attestation(

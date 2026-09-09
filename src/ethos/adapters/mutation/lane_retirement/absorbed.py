@@ -150,17 +150,23 @@ def retire_absorbed_ref(
     )
 
     def block_effect(current: dict[str, object], error: OSError | ValueError) -> dict[str, object]:
-        return _block_effect_report(
-            current,
-            repo=repo,
-            branch=branch,
-            expect_head=expect_head,
-            accepted_head=accepted_head,
-            authorize=authorize,
-            confirm_irreversible=confirm_irreversible,
-            apply=apply,
-            error=error,
-        )
+        gaps = [str(error)]
+        return current | {
+            "verdict": "block",
+            "state": "blocked",
+            "required_gaps": gaps,
+            "mutation": _mutation(
+                repo=repo,
+                branch=branch,
+                expect_head=expect_head,
+                accepted_head=accepted_head,
+                authorize=authorize,
+                confirm_irreversible=confirm_irreversible,
+                apply=apply,
+                verdict="block",
+                required_gaps=gaps,
+            ),
+        }
 
     if verdict != "pass":
         return report
@@ -266,38 +272,6 @@ def _admitted_retirement_plan(
         _require_recovery_plan(plan.digest, recovery_intent)
     admit_git_effect(repo, plan)
     return plan
-
-
-def _block_effect_report(
-    report: dict[str, object],
-    *,
-    repo: Path,
-    branch: str,
-    expect_head: str,
-    accepted_head: str,
-    authorize: bool,
-    confirm_irreversible: bool,
-    apply: bool,
-    error: OSError | ValueError,
-) -> dict[str, object]:
-    """Return a blocked effect projection without mutating the admitted report."""
-    gaps = [str(error)]
-    return report | {
-        "verdict": "block",
-        "state": "blocked",
-        "required_gaps": gaps,
-        "mutation": _mutation(
-            repo=repo,
-            branch=branch,
-            expect_head=expect_head,
-            accepted_head=accepted_head,
-            authorize=authorize,
-            confirm_irreversible=confirm_irreversible,
-            apply=apply,
-            verdict="block",
-            required_gaps=gaps,
-        ),
-    }
 
 
 def _project_retirement_postcondition(

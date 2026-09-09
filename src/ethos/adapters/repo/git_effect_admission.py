@@ -11,6 +11,7 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
@@ -112,19 +113,27 @@ def _require_lease_actor(
     operation: str,
     state: str,
 ) -> None:
-    """Admit the holder, or the sole deletion-only expired-Lease transition."""
+    """Admit the holder, or exact deletion of the expired coordination target."""
     if state == "expired":
+        effect = git_effect_from_plan(plan)
+        update = effect.updates.get(f"refs/heads/{generation.get('lane_ref')}")
+        actor = os.environ.get("ETHOS_ACTOR", "").strip()
         if not (
             operation == "lane.retire"
             and plan.policy.get("retirement_kind") == "linked-lane"
             and (
-                plan.policy.get("retirement_mode") == "landed"
+                plan.policy.get("retirement_mode") in {"landed", "abandon"}
                 or (
                     plan.policy.get("retirement_mode") == "superseded"
                     and plan.facts.get("values", {}).get("retained_history")
                 )
             )
-            and str(plan.authority.get("actor") or "")
+            and len(effect.updates) == 1
+            and update is not None
+            and update.expected != "0" * len(update.expected)
+            and update.desired == "0" * len(update.expected)
+            and actor
+            and actor == plan.authority.get("actor")
         ):
             message = "git_effect_expired_lease_not_admitted"
             raise ValueError(message)

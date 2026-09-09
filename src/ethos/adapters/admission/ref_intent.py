@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -12,6 +13,8 @@ from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Literal
 
+from filelock import FileLock
+from filelock import Timeout
 from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -22,12 +25,12 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.contracts.semantic import canonical_json_digest
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from ethos.contracts.plan import GitRefUpdate
 
 _INTENT_TTL = timedelta(minutes=1)
 _INTENT_SUBDIR = Path("ethos") / "ref-intent"
-_LOCK_ATTEMPTS = 1_000
-_LOCK_DELAY_SECONDS = 0.001
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 Oid = Annotated[str, Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")]
 
@@ -95,7 +98,7 @@ def write_ref_intent(
     directory = ref_intent_dir(root)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{intent.nonce}.json"
-    with _IntentLock(path.with_suffix(".lock")):
+    with _locked_intents(directory):
         existing = _read(path)
         if existing:
             if existing.nonce == intent.nonce:
@@ -107,30 +110,25 @@ def write_ref_intent(
     return intent.model_dump(mode="json")
 
 
-class _IntentLock:
-    def __init__(self, path: Path) -> None:
-        self.path = path
-        self.descriptor = -1
-
-    def __enter__(self) -> _IntentLock:
-        for _ in range(_LOCK_ATTEMPTS):
-            try:
-                self.descriptor = os.open(
-                    self.path,
-                    os.O_CREAT | os.O_EXCL | os.O_WRONLY,
-                    0o600,
-                )
-            except FileExistsError:
-                time.sleep(_LOCK_DELAY_SECONDS)
-                continue
-            return self
+@contextmanager
+def _locked_intents(directory: Path) -> Iterator[None]:
+    # One stable inode per intent directory, not per transaction.
+    lock = FileLock(
+        directory / ".lock",
+        timeout=1,
+        mode=0o600,
+        fallback_to_soft=False,
+        preserve_lock_file=True,
+    )
+    try:
+        lock.acquire()
+    except Timeout as error:
         msg = "ref_intent_lock_timeout"
-        raise ValueError(msg)
-
-    def __exit__(self, *_args: object) -> None:
-        if self.descriptor >= 0:
-            os.close(self.descriptor)
-        self.path.unlink(missing_ok=True)
+        raise ValueError(msg) from error
+    try:
+        yield
+    finally:
+        lock.release()
 
 
 def claim_ref_intent(
@@ -156,7 +154,7 @@ def claim_ref_intent(
     if terminal or not match:
         return terminal or _claim(present=bool(mismatch), gap=mismatch or "ref_intent_missing")
     path, intent = match
-    with _IntentLock(path.with_suffix(".lock")):
+    with _locked_intents(directory):
         current = _read(path)
         if current is None:
             return _claim(present=False, gap="ref_intent_missing")
@@ -253,7 +251,10 @@ def committed_ref_intent(
 
 def clear_ref_intent(root: Path, nonce: str) -> None:
     """Remove one exact local intent idempotently."""
-    (ref_intent_dir(root) / f"{nonce}.json").unlink(missing_ok=True)
+    directory = ref_intent_dir(root)
+    if directory.is_dir():
+        with _locked_intents(directory):
+            (directory / f"{nonce}.json").unlink(missing_ok=True)
 
 
 def sweep_stale_ref_intents(root: Path, *, now: datetime | None = None) -> list[str]:
@@ -264,7 +265,7 @@ def sweep_stale_ref_intents(root: Path, *, now: datetime | None = None) -> list[
     moment = now or datetime.now(UTC)
     swept = []
     for path in sorted(directory.glob("*.json")):
-        with _IntentLock(path.with_suffix(".lock")):
+        with _locked_intents(directory):
             intent = _read(path)
             if intent is None or (moment >= intent.expires_at and intent.phase == "issued"):
                 path.unlink(missing_ok=True)
@@ -306,16 +307,16 @@ def _set_phase(
 
 
 def _reclaim_expired(path: Path, intent: _RefIntent) -> dict[str, object]:
-    with _IntentLock(path.with_suffix(".lock")):
+    with _locked_intents(path.parent):
         current = _read(path)
-        if current is None or current.nonce != intent.nonce:
+        if current != intent:
             return _claim(present=True, gap="ref_intent_changed", intent=current)
         path.unlink(missing_ok=True)
     return _claim(present=True, gap="ref_intent_stale", intent=intent)
 
 
 def _remove_invalid(path: Path) -> None:
-    with _IntentLock(path.with_suffix(".lock")):
+    with _locked_intents(path.parent):
         if _read(path) is None:
             path.unlink(missing_ok=True)
 

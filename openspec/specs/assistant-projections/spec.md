@@ -82,22 +82,12 @@ context providers, or projections over repository truth.
 
 ### Requirement: Progressive disclosure for agent context
 
-ETHOS SHALL structure agent-facing documentation as a thin repository
-entrypoint over current machine facts. The entrypoint SHALL direct an agent to
-observe the repository, interpret the schema-versioned result, follow its
-singular `next_action` according to `continuation`, and expand only into the
-task-relevant rule, skill, design, OpenSpec, or evidence owner.
-
-The entrypoint SHALL NOT reproduce a fixed lifecycle, task ledger, authority
-order, or detailed operating procedure. OpenSpec remains the sole Change,
-design, specification, and task-progress carrier; Commitment remains a
-transient acceptance compilation; and skills remain optional procedural
-projections.
-
-ETHOS SHALL NOT retain a repository skill that owns or re-describes the native
-OpenSpec Change lifecycle. Public ETHOS commands remain independently
-addressable capabilities selected by the current result rather than a sequence
-owned by an agent projection.
+Agent context SHALL be a thin entrypoint over current machine facts: observe,
+interpret the schema-versioned result, follow singular next_action/continuation,
+and expand only into relevant rule, skill, design, OpenSpec or evidence owners.
+The entrypoint SHALL NOT duplicate a fixed lifecycle, task ledger, authority
+order or detailed procedure. Neither entrypoints nor skills grant mutation
+admission.
 
 #### Scenario: Agent loads minimal context first
 
@@ -123,6 +113,21 @@ owned by an agent projection.
 - **AND** avoids bulk-loading unrelated docs, archives, generated artifacts,
   evidence, or host projections
 
+#### Scenario: Tracked mutation uses current admission
+
+- **WHEN** an agent is ready to change tracked files
+- **THEN** it enters an owned Work Lane and obtains a passing current
+  `ethos lane prewrite` decision for the exact target root and paths
+- **AND** neither the entrypoint nor a skill grants write authority
+
+### Requirement: Agent projections preserve native Change ownership
+
+OpenSpec SHALL alone own Change intent, design, specs and progress. Commitment
+SHALL remain transient; skills SHALL remain optional projections. ETHOS SHALL
+NOT retain a skill that owns or redescribes the native Change lifecycle. Public
+ETHOS commands SHALL remain independent capabilities selected by current results,
+not a sequence owned by an agent projection.
+
 #### Scenario: Change lifecycle retains one owner
 
 - **WHEN** the repository exposes agent skills and public ETHOS commands
@@ -130,13 +135,6 @@ owned by an agent projection.
   validation, and archive
 - **AND** no ETHOS skill or current document reifies the public command catalog
   as a second Change lifecycle
-
-#### Scenario: Tracked mutation uses current admission
-
-- **WHEN** an agent is ready to change tracked files
-- **THEN** it enters an owned Work Lane and obtains a passing current
-  `ethos lane prewrite` decision for the exact target root and paths
-- **AND** neither the entrypoint nor a skill grants write authority
 
 #### Scenario: Official Change planning remains writable
 

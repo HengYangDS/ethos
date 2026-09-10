@@ -46,56 +46,55 @@ without ambiguity and SHALL provide one explicit authorized reset command.
 
 ### Requirement: Locked closure self-heals before activation
 
-ETHOS SHALL prepare each exact locked dependency closure once at its native
-owner boundary. `uv.lock` SHALL own dependency selection. For an exact source
-checkout, its root lock-current `.venv` SHALL supply the build backend, execute
-the locked uv module, and supply the selected installed dependency bytes; the
-already selected runtime SHALL only coordinate activation. One congruent,
-capability-admitted interpreter SHALL supply only the native Python image. The
-reported base executable SHALL be the first candidate, not an authority. A
-directly invoked admissible interpreter MAY own both external input roles for
-package-only activation. The copied, pruned, sealed, content-addressed
-generation becomes the ETHOS-owned runtime only after post-observation proves
-its manifest and native prefix identity.
+Each exact locked closure SHALL be prepared once by its native owner. uv.lock
+SHALL own dependency selection; the exact source root's lock-current .venv SHALL
+supply build backend, locked uv and dependency bytes. Selected runtime SHALL only
+coordinate activation. Before construction, check the complete exact lock,
+including build tools, and export hashed non-dev production requirements.
 
-Before constructing a source generation, runtime materialization SHALL check
-the target checkout environment against the complete exact lock, including
-build tooling, and export one hashed no-development production requirements
-closure. The dependency-supply owner SHALL require source and target Python
-observations to agree on ABI, version, implementation, and architecture;
-project only observed regular distribution files contained by the source
-prefix; reject aliases, symlinks, escaped paths, and hash drift; then strictly
-synchronize the target offline with required hashes and install the exact ETHOS
-wheel without dependencies. Runtime materialization and package acceptance
-SHALL consume this one owner.
+#### Scenario: Cache fill fails
 
-Runtime construction SHALL NOT install another Python, access the network, or
-treat uv-managed provenance or a persistent uv cache as a prerequisite. It
-SHALL preserve the platform-native standalone interpreter layout and compare
-observed Python paths by platform-native identity so the selected Python
-executable identifies the generated image as both `sys.prefix` and
-`sys.base_prefix`. The runtime's sole internal ETHOS execution authority SHALL
-be that authenticated Python executable invoking `-B -I -m ethos.cli`;
-generated console scripts are package projections and SHALL NOT define runtime
-identity, currentness, or internal ETHOS execution. Runtime materialization
-SHALL invoke the locked `uv` package as `<supply-python> -B -I -m uv`, leaving
-platform-native binary discovery to that package instead of deriving a sibling
-executable path. Only when the reported base lacks image capability MAY ETHOS
-use that command boundary to enumerate already-installed candidates with
-downloads, network access, cache writes, and project configuration disabled;
-ETHOS SHALL deterministically select by its own identity and image-capability
-checks.
+- **WHEN** a persistent uv cache is absent, read-only, or otherwise cannot be filled
+- **THEN** activation performs no cache-fill effect and uses only the target
+  checkout's lock-current environment
+- **AND** if that environment is missing, adds, or changes a required locked
+  build or production dependency, activation fails with the captured
+  locked-tool diagnostic before wheel or generation construction
+- **AND** selector, hook configuration, and SQLite state remain unchanged.
 
-The caller's toolchain provisioning boundary SHALL establish the target source
-root `.venv` and at least one installed, discoverable native-image candidate
-before activation. Hosted CI SHALL project these prerequisites through
-provider-native setup. The runtime resolver SHALL apply the same observation
-and admission contract in every environment; provider configuration SHALL NOT
-bypass or alter product semantics.
+#### Scenario: Offline preflight passes
 
-Source package construction SHALL consume the repository-prepared OpenSpec
-production closure selected by the exact `package-lock.json` without invoking
-npm, accessing the network, or depending on an ambient npm cache.
+- **WHEN** the target checkout environment passes the complete locked offline
+  check and hashed production requirements export
+- **THEN** runtime construction projects and strictly synchronizes that same
+  production closure offline
+- **AND** no cache path contributes to runtime correctness or identity.
+
+#### Scenario: An older runtime coordinates a newer source build
+
+- **GIVEN** the invoking selected runtime does not contain the target source
+  checkout's build backend or current locked dependency versions
+- **WHEN** activation selects that exact checkout as the runtime build source
+- **THEN** all build and dependency-supply commands execute through the target
+  checkout's verified root `.venv`
+- **AND** the invoking runtime contributes no target dependency or build bytes.
+
+#### Scenario: A selected package runtime supplies its successor
+
+- **WHEN** activation is invoked from the currently selected immutable package
+  runtime without an exact source checkout
+- **THEN** ETHOS reuses that validated production closure and exact
+  content-addressed wheel
+- **AND** successor construction requires no source checkout, dependency cache,
+  or network access.
+
+### Requirement: Native image supply is capability admitted
+
+A congruent capability-admitted interpreter SHALL supply only the native image.
+Observe the reported base first, not as authority. A directly invoked admissible
+interpreter MAY supply both external roles for package-only activation. Ownership
+passes to the copied, pruned, sealed, content-addressed runtime only after manifest
+and native-prefix post-observation succeeds.
 
 #### Scenario: A virtual environment selects a native image source
 
@@ -128,15 +127,14 @@ npm, accessing the network, or depending on an ambient npm cache.
 - **THEN** activation fails before runtime, selector, hook, or state mutation
 - **AND** no package-manager command downloads or installs a replacement Python.
 
-#### Scenario: Hosted conformance prepares image supply before activation
+### Requirement: Installed dependency bytes have one projection owner
 
-- **WHEN** a hosted host-conformance runner does not already expose an admitted
-  direct Python for the requested matrix identity
-- **THEN** its toolchain owner provisions that exact native image into a bounded
-  job-owned installation root before synchronizing the target environment
-- **AND** activation only discovers, observes, and admits the installed candidate
-- **AND** a provider image whose direct Python already passes the same admission
-  contract performs no redundant interpreter installation.
+Source and target Python SHALL agree on ABI, version, implementation and
+architecture. The supply owner SHALL project only observed regular distribution
+files inside the source prefix, rejecting aliases, symlinks, escapes and hash
+drift; strictly sync offline with required hashes; then install the exact ETHOS
+wheel without dependencies. Runtime materialization and package acceptance SHALL
+share this owner.
 
 #### Scenario: A locked artifact is absent from cache
 
@@ -149,16 +147,6 @@ npm, accessing the network, or depending on an ambient npm cache.
 - **AND** strictly prunes the target offline before installing the exact ETHOS
   wheel without dependencies.
 
-#### Scenario: Cache fill fails
-
-- **WHEN** a persistent uv cache is absent, read-only, or otherwise cannot be filled
-- **THEN** activation performs no cache-fill effect and uses only the target
-  checkout's lock-current environment
-- **AND** if that environment is missing, adds, or changes a required locked
-  build or production dependency, activation fails with the captured
-  locked-tool diagnostic before wheel or generation construction
-- **AND** selector, hook configuration, and SQLite state remain unchanged.
-
 #### Scenario: Dependency supply is invalid or incompatible
 
 - **WHEN** an observed dependency file is symlinked, outside the source prefix,
@@ -168,31 +156,13 @@ npm, accessing the network, or depending on an ambient npm cache.
 - **AND** the enclosing transaction publishes no runtime, selector, hook, state,
   or acceptance receipt.
 
-#### Scenario: Offline preflight passes
+### Requirement: Runtime image preserves native execution identity
 
-- **WHEN** the target checkout environment passes the complete locked offline
-  check and hashed production requirements export
-- **THEN** runtime construction projects and strictly synchronizes that same
-  production closure offline
-- **AND** no cache path contributes to runtime correctness or identity.
-
-#### Scenario: An older runtime coordinates a newer source build
-
-- **GIVEN** the invoking selected runtime does not contain the target source
-  checkout's build backend or current locked dependency versions
-- **WHEN** activation selects that exact checkout as the runtime build source
-- **THEN** all build and dependency-supply commands execute through the target
-  checkout's verified root `.venv`
-- **AND** the invoking runtime contributes no target dependency or build bytes.
-
-#### Scenario: A selected package runtime supplies its successor
-
-- **WHEN** activation is invoked from the currently selected immutable package
-  runtime without an exact source checkout
-- **THEN** ETHOS reuses that validated production closure and exact
-  content-addressed wheel
-- **AND** successor construction requires no source checkout, dependency cache,
-  or network access.
+Construction SHALL preserve standalone native layout and compare paths by native
+identity so the generated executable reports its image as sys.prefix and
+sys.base_prefix. Authenticated Python with -B -I -m ethos.cli SHALL be the sole
+internal ETHOS execution authority. Generated console scripts SHALL NOT define
+runtime identity, currentness or internal execution.
 
 #### Scenario: A Windows standalone interpreter is materialized
 
@@ -211,6 +181,45 @@ npm, accessing the network, or depending on an ambient npm cache.
 - **WHEN** the authenticated runtime Python cannot execute `ethos.cli`
 - **THEN** activation fails before selector mutation
 - **AND** evidence identifies the exact command, return code, stdout, and stderr.
+
+### Requirement: Runtime discovery uses locked offline native tooling
+
+Construction SHALL NOT install Python, access networks, require uv-managed
+provenance or persistent caches. Use <supply-python> -B -I -m uv, never a guessed
+sibling binary. Only if the base lacks image capability MAY this boundary list
+installed candidates, with downloads, network, cache writes and project config
+disabled. Selection SHALL be deterministic by identity and image capability.
+
+#### Scenario: An incapable base triggers bounded discovery
+
+- **WHEN** the reported base cannot supply a native image
+- **THEN** discovery invokes locked uv through supply Python and lists only installed candidates
+- **AND** no network, download, cache-write or project-configuration effect is enabled
+- **AND** the same identity and image-capability checks determine selection.
+
+### Requirement: Callers provision runtime supply before activation
+
+Caller provisioning SHALL establish the source root .venv and at least one
+installed discoverable native-image candidate before activation. Hosted CI SHALL
+use provider-native setup. Every environment SHALL use the same resolver
+observation/admission contract; provider configuration SHALL NOT bypass or alter
+product semantics.
+
+#### Scenario: Hosted conformance prepares image supply before activation
+
+- **WHEN** a hosted host-conformance runner does not already expose an admitted
+  direct Python for the requested matrix identity
+- **THEN** its toolchain owner provisions that exact native image into a bounded
+  job-owned installation root before synchronizing the target environment
+- **AND** activation only discovers, observes, and admits the installed candidate
+- **AND** a provider image whose direct Python already passes the same admission
+  contract performs no redundant interpreter installation.
+
+### Requirement: Source packages consume prepared OpenSpec supply
+
+Source packaging SHALL consume the prepared OpenSpec production closure selected
+by exact package-lock.json, without npm invocation, network access or dependence
+on ambient npm caches.
 
 #### Scenario: A prepared OpenSpec production closure is packaged
 

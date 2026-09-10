@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.gates.runner import LocalGateRunner
-from ethos.adapters.gates.runner import run_gate_waves
+from ethos.adapters.gates.runner import run_gate_graph
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
@@ -71,7 +71,7 @@ def run(session: nox.Session) -> None:
         )
         session.error("local_ci_preflight: " + ", ".join(preflight))
     LOG_ROOT.mkdir(parents=True, exist_ok=True)
-    results = run_gate_waves(
+    results = run_gate_graph(
         LocalGateRunner(), policy.nodes, policy.registry, root=ROOT, capacity=4, parallel=True
     )
     gaps = [

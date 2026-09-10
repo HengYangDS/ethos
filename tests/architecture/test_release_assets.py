@@ -449,7 +449,7 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
         policy = replace(policy, gaps=("invalid_policy",))
     monkeypatch.setattr(local_ci, "resolve_gate_policy", lambda *_a, **_k: policy)
     observed = []
-    base_run = local_ci.run_gate_waves
+    base_run = local_ci.run_gate_graph
 
     class Runner:
         def run(self, node, _gate, *, root):
@@ -490,7 +490,7 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
         )
 
     monkeypatch.setattr(local_ci, "LocalGateRunner", Runner)
-    monkeypatch.setattr(local_ci, "run_gate_waves", execute)
+    monkeypatch.setattr(local_ci, "run_gate_graph", execute)
     session = SimpleNamespace(error=pytest.fail, log=lambda _message: None)
     if case == "pass":
         local_ci.run(cast("nox.Session", session))

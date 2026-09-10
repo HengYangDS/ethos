@@ -43,6 +43,18 @@ def _receipt(*, payload=None, parse_error="", exit_code=0):
     }
 
 
+def _run_empty(_root, _base, args):
+    if args[:2] == ("config", "list"):
+        return _receipt(payload={})
+    if args[:1] == ("doctor",):
+        return _receipt(payload={"root": {"healthy": True}})
+    if args[:1] == ("list",):
+        return _receipt(payload={"changes": []})
+    if args[:1] == ("validate",):
+        return _receipt(payload={"summary": {"totals": {"failed": 0}}})
+    raise AssertionError(args)
+
+
 def test_governance_reports_not_applicable_without_profile(tmp_path):
     root = fixture.init_git_repo(tmp_path / "repo")
 
@@ -148,18 +160,7 @@ def test_governance_accepts_an_empty_official_change_list(monkeypatch, tmp_path)
         governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
     )
 
-    def run_empty(_root, _base, args):
-        if args[:2] == ("config", "list"):
-            return _receipt(payload={})
-        if args[:1] == ("doctor",):
-            return _receipt(payload={"root": {"healthy": True}})
-        if args[:1] == ("list",):
-            return _receipt(payload={"changes": []})
-        if args[:1] == ("validate",):
-            return _receipt(payload={"summary": {"totals": {"failed": 0}}})
-        raise AssertionError(args)
-
-    monkeypatch.setattr(cli, "run_json", run_empty)
+    monkeypatch.setattr(cli, "run_json", _run_empty)
 
     report = governance.openspec_governance_report(root)
 
@@ -184,18 +185,7 @@ def test_governance_observes_archive_effect_separately_from_generation_scope(mon
         governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
     )
 
-    def run_empty(_root, _base, args):
-        if args[:2] == ("config", "list"):
-            return _receipt(payload={})
-        if args[:1] == ("doctor",):
-            return _receipt(payload={"root": {"healthy": True}})
-        if args[:1] == ("list",):
-            return _receipt(payload={"changes": []})
-        if args[:1] == ("validate",):
-            return _receipt(payload={"summary": {"totals": {"failed": 0}}})
-        raise AssertionError(args)
-
-    monkeypatch.setattr(cli, "run_json", run_empty)
+    monkeypatch.setattr(cli, "run_json", _run_empty)
 
     def observe_archive(_root, **kwargs):
         assert kwargs["changed_paths"] == ()

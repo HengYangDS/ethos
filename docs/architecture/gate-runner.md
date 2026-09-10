@@ -8,33 +8,71 @@ relations:
 
 # Gate Runner
 
-ETHOS proof executes a validated TransitionPlan and records evidence; it is not a shell-script alias.
+Status: canonical execution contract; current verification results are separate
+HEAD-bound observations, not this document's state.
 
-`ethos prove --json --json` exposes the available gate registry. `ethos prove
---json` plans the graph and reports readiness only. A readiness result has
-`state=ready`, `data.executed=false`, and proof runs in `planned` state with no
-exit code. It is useful for fast local admission, but it is not promotion
-evidence.
+Purpose: explain selection, execution safety and the limits of local evidence.
 
-`ethos prove --execute --gate repository-audit --gate attestations --json` executes
-selected gates through the workspace runner and returns a digest-bound evidence set. An
-executed result can report `state=proven` only when every selected gate passes
-and each run records an exit code.
+The [gate declaration](../../system/gates.toml) owns check identity, dependency
+closure, execution identity and proof-set membership. Native configuration owns
+each tool's rules and supply. The policy compiler binds those materials; the
+shared runner executes the resulting graph. Local CI uses that same full
+closure rather than maintaining a second scheduler or list.
 
-Default execute gates are intentionally local and deterministic: repository
-audit, attestation validation, docs registry, and schema validation. Full verification adds
-tests, Ruff, and package build gates without changing the proof contract.
-`ethos prove --full --json` without `--execute` is a gap by design because full
-proof needs execution-backed evidence.
+## Readiness And Execution
 
-Each gate declares a profile and toolchain. Product gates use the `product`
-profile and the `ethos` toolchain. The current repository's test, lint, and
-build gates use the `product-toolchain` profile and `uv-python` toolchain so
-local proof evidence can name the current tools without making those tools
-product semantics.
+Run from the intended worktree with its locked environment provisioned and the
+invocation actor projected into the process:
 
-Status: see front matter.
+```sh
+ethos prove --json
+ethos prove --execute --gate repository-audit --expect-head "$(git rev-parse HEAD)" --json
+ethos prove --execute --full --expect-head "$(git rev-parse HEAD)" --json
+```
 
-Purpose: explain the repository truth represented by this ETHOS document.
+The first command observes readiness, not execution: planned checks remain
+unknown with no exit code. Full proof requires `--execute`. Executed proof
+requires the complete selected result set, successful execution and current
+source/policy bindings; process success alone cannot establish acceptance.
 
-See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+The default proof set selects offline source checks. Full proof and local CI
+also select declared carrier, security and package checks. Some require network
+access for provisioning or external freshness. Missing supply or an unavailable
+required observation does not pass. Hosted CI is a separate post-publication
+observation, not an in-flight pipeline waiting on itself. Read the declaration
+for current membership instead of copying gate lists here.
+
+## Dependency Safety
+
+The runner partitions the admitted DAG into bounded deterministic waves.
+File-writing gates run alone. A dependent gate executes only after every
+prerequisite has passed with exit code zero; otherwise it receives an unexecuted
+blocked result naming the unmet dependency. Independent diagnostics can
+continue. Dry-run projection does not execute effects or invent failed checks.
+Coverage therefore cannot fail and still launch dependent package delivery.
+
+Provider gates call their declared Python owner. Adapter gates invoke their
+declared command. Results retain identity, verdict, exit code, diagnostics,
+stdout and stderr; they do not infer success from missing evidence.
+
+## Local Fallback Evidence
+
+```sh
+uv run --frozen --offline python -m nox -s local_ci
+```
+
+The outer command selects the locked Python environment; it does not assert
+that every selected check is offline. Local fallback requires clean committed
+source. It binds HEAD, source overlay and policy, rejects missing, duplicate or
+mismatched execution results, and checks source stability before finalization.
+The existing fallback receipt is replaced with a non-passing running record
+before checks start, so interruption cannot leave an earlier success as this
+run's result. An incomplete record does not assert that a child is still alive.
+Final logs retain each check's output.
+
+This receipt is local diagnostic evidence, not a proof Attestation, hosted CI
+success, remote publication or installed-runtime acceptance. Those claims each
+need their own current evidence.
+
+See also: [Command Plane](../reference/command-plane.md) and
+[Quality Gate Governance](../../.agents/skills/ethos-quality-gate-governance/SKILL.md).

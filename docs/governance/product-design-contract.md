@@ -17,16 +17,26 @@ See also: [Kernel Model](../concepts/kernel-model.md), [Terminal Governance Prod
 
 ## Product
 
-ETHOS is a proof-carrying compiler and transaction protocol for repository
-change. It compiles an explicit commitment and fresh observations into a bounded
-transition, rechecks its preconditions at effect time, and emits attestations of
-what was observed, decided, and effected.
+ETHOS provides a reliable path for people and interchangeable Agent capabilities
+from understanding a problem to evolving a repository and evaluating its use.
+The product connects value and observation, research, interpretation and
+trade-offs, accepted intent, specification and acceptance, context and capability
+composition, collaboration and execution, verification and delivery, actual
+outcomes, feedback, learning and exit.
 
-Its product promise is not “more governance.” It is the shortest trustworthy
-path from change intent to repository effect: preserve intent, expose the one
-current blocker or next action, reuse native repository capabilities, and make
-every completed claim independently verifiable and recoverable after an agent,
-session, host, or forge is lost.
+A proof-carrying repository change compiler and transaction protocol forms its
+small trust kernel. It compiles accepted intent and fresh observations into a
+bounded transition, rechecks preconditions at effect time, and attests what was
+observed, decided and effected. Specialist Skills, generators, verifiers and
+observers supply replaceable capabilities through explicit input, output,
+identity, version, permission, cancellation and failure boundaries. The product
+provides a usable composed path; users need not assemble competing authorities.
+
+Its promise is preserved meaning, actionable uncertainty and recoverable results,
+not more governance. Repository formation, gradual adoption, customization,
+upgrade, Agent handoff and exit belong to that responsibility. Deployment and
+successful checks are intermediate claims; actual benefit requires observations
+bound to the deployed identity, environment, baseline and observation window.
 
 ETHOS is local-first and vendor-neutral. Git, forges, CI, OpenSpec, agent
 runtimes, and task systems remain native systems or adapters; none becomes an
@@ -276,14 +286,19 @@ Commitment are unchanged and whose additional parent is an explicitly observed
 accepted peer head. Admission binds the exact parents, tree, signature, actor,
 and ref CAS; no merge-specific compatibility carrier is created.
 
-Parallel Work Lanes support both collaboration and competition. Agents
-coordinate before overlapping the same semantic owner when cooperation avoids
-duplicate work; independent alternatives may compete when the expected evidence
-gain justifies the duplication. Candidate selection chooses one result or a
-proved synthesis, and the losing or absorbed lanes are retired. A fixed WIP
-count, queue, or race record is not part of the semantic kernel; capacity limits
-are current operational policy derived from ownership, conflict, risk, and proof
-cost.
+Parallel Work Lanes support cooperation, competition and exploration. Cooperation
+may integrate multiple compatible contributions or a proved synthesis;
+competition may accept one alternative or none. Exploration may end with only
+negative or inconclusive findings. No mode requires a winner. Declining
+integration does not authorize destroying useful conclusions or unique results:
+necessary results are accepted into their current owner or retained as exact,
+recoverable evidence before controlled lane retirement.
+
+Agents coordinate before overlapping a semantic owner and justify duplicated
+exploration by expected evidence gain. A fixed WIP count, queue or race record
+is not part of the kernel; capacity follows current ownership, conflict, risk
+and proof cost. Retention ends when its explicit obligation is discharged, not
+merely because a lane lost a competition or because preservation is convenient.
 
 ### Local Object Authority And Remote Projection
 
@@ -552,6 +567,24 @@ accessible, navigable, and restrained in accordance with `信、达、雅`; visu
 appeal never permits a second ontology or an unverified completion claim.
 
 ## Feedback Intent Preservation
+
+Intent formation has two distinct stages. Open interpretation proposes
+questionable candidate meanings, assumptions and trade-offs. Deterministic
+compilation consumes accepted meaning and current facts to produce acceptance,
+proof obligations and plans. The compiler does not certify natural-language
+understanding. Source availability, source-constraint accounting, accepted
+interpretation, sufficient checks, observed effects and achieved goals are
+separate claims; none substitutes for another.
+
+Every relevant constraint within the declared source scope is retained,
+explicitly excluded by an authorized decision or left unresolved. Positive and
+negative examples test candidate interpretations against original sources,
+including non-goals, exceptions, environmental assumptions and system guarantees.
+An interpretation that requires one winner contradicts a source allowing all
+candidates to be dropped, regardless of its own green tests. Accepted meaning
+remains in official OpenSpec; source maps and summaries are rebuildable views.
+A complete selected-file observation is not proof that all human constraints
+were discovered or correctly understood.
 
 Conversation and operational feedback are source material, not authority by
 volume or repetition. Recovery preserves each distinct semantic obligation,

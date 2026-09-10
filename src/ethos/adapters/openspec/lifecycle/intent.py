@@ -1,17 +1,22 @@
-"""Compile transient intent facts from official OpenSpec projections."""
+"""Preserve official intent sources and project syntax without certifying understanding."""
 
 from __future__ import annotations
 
-import re
+import hashlib
+from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-if TYPE_CHECKING:
-    from ethos.contracts.semantic import Commitment
+from markdown_it import MarkdownIt
 
-_REQUIREMENT = re.compile(r"^### Requirement: (.+)$", re.MULTILINE)
-_SCENARIO = re.compile(r"^#### Scenario: (.+)$", re.MULTILINE)
+from ethos.normalization.coercion import object_sequence
+from ethos.normalization.coercion import string_mapping
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from ethos.contracts.semantic import Commitment
 
 
 def compile_intent_context(
@@ -22,101 +27,97 @@ def compile_intent_context(
     status: dict[str, Any],
     apply: dict[str, Any],
 ) -> tuple[dict[str, object], tuple[str, ...]]:
-    """Project one selected Change's intent without persisting another owner."""
-    context_files = apply.get("contextFiles")
-    files = context_files if isinstance(context_files, dict) else {}
-    values = [path for paths in files.values() if isinstance(paths, list) for path in paths]
-    requirements = _requirements(root, values)
-    edge_cases = _scenarios(root, values)
-    artifacts = status.get("artifacts")
-    artifact_rows = (
-        [item for item in artifacts if isinstance(item, dict)]
-        if isinstance(artifacts, list)
-        else []
-    )
-    tasks = apply.get("tasks")
-    task_rows = (
-        [item for item in tasks if isinstance(item, dict)] if isinstance(tasks, list) else []
-    )
-    conflicts = sorted({item for item in requirements if requirements.count(item) > 1})
+    """Read selected sources once and return non-authorizing context plus exact gaps."""
+    sources, gaps = _sources(root, apply.get("contextFiles"))
+    view: dict[str, list[str]] = {
+        key: [] for key in ("requirements", "edge_cases", "negative_scope", "ambiguities")
+    }
+    for path, source in sources.items():
+        for key, value in _document_context(Path(path).parent.name, source["content"]):
+            view[key].append(value)
+    artifacts = [
+        item for item in object_sequence(status.get("artifacts")) if isinstance(item, dict)
+    ]
     return {
         "change": status.get("changeName", ""),
         "schema": status.get("schemaName", ""),
         "acceptance": list(commitment.acceptance),
-        "negative_scope": _negative_scope(root, values),
-        "ambiguities": _open_questions(root, values),
-        "conflicts": conflicts,
+        **view,
+        "sources": sources,
+        "source_state": "incomplete" if gaps else "complete",
+        "interpretation_state": "not_assessed",
+        "duplicate_requirements": sorted(
+            name for name, count in Counter(view["requirements"]).items() if count > 1
+        ),
         "project_context": apply.get("context", ""),
-        "project_rules": config.get("rules", {}) if isinstance(config.get("rules"), dict) else {},
+        "project_rules": string_mapping(config.get("rules")),
         "instruction": apply.get("instruction", ""),
-        "artifact_dependencies": {
-            str(item.get("id") or ""): list(item.get("requires") or ()) for item in artifact_rows
-        },
-        "completed_artifacts": [
-            str(item.get("id") or "")
-            for item in artifact_rows
-            if item.get("status") in {"done", "skipped"}
+        "artifacts": artifacts,
+        "affected_capabilities": sorted({item.split(":", 1)[0] for item in view["requirements"]}),
+        "open_tasks": [
+            item
+            for item in object_sequence(apply.get("tasks"))
+            if isinstance(item, dict) and not item.get("done")
         ],
-        "affected_capabilities": sorted({item.split(":", 1)[0] for item in requirements}),
-        "requirements": requirements,
-        "edge_cases": edge_cases,
-        "open_tasks": [item for item in task_rows if not item.get("done")],
-    }, ()
+    }, tuple(gaps)
 
 
-def _paths(root: Path, values: object) -> tuple[Path, ...]:
-    paths: list[Path] = []
-    for value in values if isinstance(values, list) else ():
-        path = Path(str(value)).resolve()
-        if path.is_relative_to(root.resolve()) and path.is_file():
-            paths.append(path)
-    return tuple(paths)
-
-
-def _requirements(root: Path, values: object) -> list[str]:
-    requirements: list[str] = []
-    for path in _paths(root, values):
-        capability = path.parent.name
-        requirements.extend(
-            f"{capability}:{name.strip()}"
-            for name in _REQUIREMENT.findall(path.read_text(encoding="utf-8"))
-        )
-    return requirements
-
-
-def _scenarios(root: Path, values: object) -> list[str]:
-    scenarios: list[str] = []
-    for path in _paths(root, values):
-        capability = path.parent.name
-        text = path.read_text(encoding="utf-8")
-        requirement = ""
-        for line in text.splitlines():
-            if match := _REQUIREMENT.fullmatch(line):
-                requirement = match.group(1).strip()
-            elif requirement and (match := _SCENARIO.fullmatch(line)):
-                scenarios.append(f"{capability}:{requirement}:{match.group(1).strip()}")
-    return scenarios
-
-
-def _section_items(root: Path, values: object, heading: str) -> list[str]:
-    items: list[str] = []
-    for path in _paths(root, values):
-        text = path.read_text(encoding="utf-8")
-        marker = f"## {heading}"
-        if marker not in text:
+def _sources(root: Path, declared: object) -> tuple[dict[str, dict[str, str]], list[str]]:
+    """Retain exact selected UTF-8 sources; unavailable declarations remain explicit."""
+    if not isinstance(declared, dict) or not declared:
+        return {}, ["openspec_context_sources_missing"]
+    sources: dict[str, dict[str, str]] = {}
+    gaps: list[str] = []
+    root = root.resolve()
+    for role, paths in sorted(declared.items()):
+        if (
+            not isinstance(paths, list)
+            or not paths
+            or any(not isinstance(p, str) or not p for p in paths)
+        ):
+            gaps.append(f"openspec_context_paths_invalid:{role}")
             continue
-        section = text.split(marker, 1)[1].split("\n## ", 1)[0]
-        items.extend(
-            line.removeprefix("- ").strip()
-            for line in section.splitlines()
-            if line.startswith("- ")
-        )
-    return items
+        for value in paths:
+            try:
+                path = (root / value).resolve()
+                if not path.is_relative_to(root):
+                    gaps.append(f"openspec_context_path_escape:{value}")
+                    continue
+                relative = path.relative_to(root).as_posix()
+                if relative in sources:
+                    continue
+                content = path.read_bytes()
+                sources[relative] = {
+                    "content": content.decode("utf-8"),
+                    "sha256": hashlib.sha256(content).hexdigest(),
+                }
+            except (OSError, RuntimeError, UnicodeError, ValueError) as error:
+                gaps.append(f"openspec_context_source_unavailable:{value}:{type(error).__name__}")
+    return dict(sorted(sources.items())), sorted(set(gaps))
 
 
-def _negative_scope(root: Path, values: object) -> list[str]:
-    return _section_items(root, values, "Out of Scope")
-
-
-def _open_questions(root: Path, values: object) -> list[str]:
-    return _section_items(root, values, "Open Questions")
+def _document_context(capability: str, content: str) -> Iterator[tuple[str, str]]:
+    """Project actual CommonMark headings and paragraphs, never fenced pseudo-structure."""
+    section, requirement, heading = "", "", ""
+    for token in MarkdownIt("commonmark").parse(content):
+        if token.type == "heading_open":
+            heading = token.tag
+        elif token.type == "heading_close":
+            heading = ""
+        elif token.type == "inline":
+            text = "\n".join(line.strip() for line in token.content.splitlines()).strip()
+            if heading in {"h1", "h2"}:
+                section = {"out of scope": "negative_scope", "open questions": "ambiguities"}.get(
+                    text.casefold(), ""
+                )
+                requirement = ""
+            elif heading == "h3":
+                requirement = (
+                    text.removeprefix("Requirement: ") if text.startswith("Requirement: ") else ""
+                )
+                if requirement:
+                    yield "requirements", f"{capability}:{requirement}"
+            elif heading == "h4" and requirement and text.startswith("Scenario: "):
+                yield "edge_cases", f"{capability}:{requirement}:{text.removeprefix('Scenario: ')}"
+            elif not heading and section and text:
+                yield section, text

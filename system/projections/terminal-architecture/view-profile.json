@@ -10,7 +10,13 @@
       "purpose",
       "faithfulness",
       "maturity"
-    ]
+    ],
+    "contract_invariant_source": {
+      "source_id": "product_contract",
+      "section": "Invariants",
+      "numbering": "selected source revision only",
+      "claim_boundary": "Structural source accounting; not independent semantic or rendered acceptance."
+    }
   },
   "aggregates": {
     "intent": {
@@ -1973,7 +1979,10 @@
     },
     "G02": {
       "view_id": "evidence",
-      "witness": "evidence"
+      "witness": "evidence",
+      "contract_invariants": [
+        6
+      ]
     },
     "G03": {
       "view_id": "evidence",
@@ -1985,11 +1994,17 @@
     },
     "G05": {
       "view_id": "effect",
-      "witness": "effect"
+      "witness": "effect",
+      "contract_invariants": [
+        2
+      ]
     },
     "G06": {
       "view_id": "effect",
-      "witness": "effect"
+      "witness": "effect",
+      "contract_invariants": [
+        3
+      ]
     },
     "G07": {
       "view_id": "authority",
@@ -2017,7 +2032,10 @@
     },
     "G13": {
       "view_id": "evidence",
-      "witness": "evidence"
+      "witness": "evidence",
+      "contract_invariants": [
+        4
+      ]
     },
     "G14": {
       "view_id": "recovery",
@@ -2025,15 +2043,21 @@
     },
     "G15": {
       "view_id": "lanes",
-      "witness": "lanes"
+      "witness": "lanes",
+      "contract_invariants": [
+        8
+      ]
     },
     "G16": {
       "view_id": "lanes",
       "witness": "lanes"
     },
     "G17": {
-      "view_id": "peers",
-      "witness": "peers"
+      "view_id": "norms",
+      "witness": "norms",
+      "contract_invariants": [
+        5
+      ]
     },
     "G18": {
       "view_id": "peers",
@@ -2106,6 +2130,63 @@
     "G36": {
       "view_id": "maturity",
       "witness": "maturity"
+    },
+    "G37": {
+      "view_id": "accepted",
+      "witness": "accepted",
+      "contract_invariants": [
+        10
+      ]
+    },
+    "G38": {
+      "view_id": "coordination",
+      "witness": "coordination",
+      "contract_invariants": [
+        11
+      ]
+    },
+    "G39": {
+      "view_id": "norms",
+      "witness": "norms",
+      "contract_invariants": [
+        1,
+        12
+      ]
+    },
+    "G40": {
+      "view_id": "intent",
+      "witness": "intent",
+      "contract_invariants": [
+        13
+      ]
+    },
+    "G41": {
+      "view_id": "capabilities",
+      "witness": "capabilities",
+      "contract_invariants": [
+        14
+      ]
+    },
+    "G42": {
+      "view_id": "evidence",
+      "witness": "evidence",
+      "contract_invariants": [
+        15
+      ]
+    },
+    "G43": {
+      "view_id": "evidence",
+      "witness": "evidence",
+      "contract_invariants": [
+        7
+      ]
+    },
+    "G44": {
+      "view_id": "publication",
+      "witness": "publication",
+      "contract_invariants": [
+        9
+      ]
     }
   },
   "forbidden_aggregations": [

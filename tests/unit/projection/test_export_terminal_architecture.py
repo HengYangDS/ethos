@@ -1,3 +1,5 @@
+"""Exercise immutable terminal projection inputs and semantic obligations."""
+
 from __future__ import annotations
 
 import hashlib
@@ -206,3 +208,177 @@ def test_projection_declaration_cannot_own_repository_effect_authority(tmp_path:
 
     with pytest.raises(ValueError, match="effect authority"):
         exporter.export_projection_input(root=root, revision="HEAD")
+
+
+def _revise_projection(root: Path, name: str, revise) -> None:
+    path = root / "system/projections/terminal-architecture" / name
+    value = json.loads(path.read_text())
+    revise(value)
+    _write_json(path, value)
+    _git(root, "add", ".")
+    _git(root, "commit", "--allow-empty", "-qm", "revise projection")
+
+
+def test_export_retains_source_attributes_and_graph_contracts(tmp_path: Path) -> None:
+    root, _ = _fixture_repository(tmp_path)
+
+    def revise(graph):
+        graph["nodes"]["intent"].update(
+            semantics="Accepted intent compiles transiently",
+            maturity="terminal",
+            required_visible=False,
+        )
+        graph["edges"][0].update(guard="fresh authorization", effect_capable=False)
+        graph["invariants"] = [{"id": "I1", "statement": "Views never authorize effects"}]
+        graph["meta"] = {"view": "target, not delivered capability"}
+
+    _revise_projection(root, "semantic-graph.json", revise)
+    result = _load_exporter().export_projection_input(root=root)
+    assert result["schema"] == "projection.input/v2"
+    assert result["semantics"]["nodes"]["intent"]["attributes"] == {
+        "semantics": "Accepted intent compiles transiently",
+        "maturity": "terminal",
+        "required_visible": False,
+    }
+    assert result["semantics"]["relations"][0]["attributes"]["guard"] == "fresh authorization"
+    assert result["semantics"]["contracts"]["invariants"][0]["id"] == "I1"
+    Draft202012Validator(json.loads(SCHEMA_PATH.read_text())).validate(result)
+
+
+@pytest.mark.parametrize("kind", ["node", "relation", "invariant"])
+@pytest.mark.parametrize("failure", ["omitted", "hidden", "missing-copy"])
+def test_required_assertion_rejects_nonvisible_disposition(
+    tmp_path: Path,
+    kind: str,
+    failure: str,
+) -> None:
+    root, _ = _fixture_repository(tmp_path)
+    identity = {"node": "effect", "relation": "intent-to-effect", "invariant": "I1"}[kind]
+
+    def graph_change(graph):
+        if kind == "invariant":
+            graph["invariants"] = [
+                {"id": identity, "statement": "Keep meaning", "required_visible": True}
+            ]
+        else:
+            item = graph["nodes"][identity] if kind == "node" else graph["edges"][0]
+            item["required_visible"] = True
+
+    def view_change(view):
+        if kind == "invariant":
+            view["invariant_projection"] = {}
+            projected = view["invariant_projection"]
+        else:
+            prefix = "node" if kind == "node" else "edge"
+            projected = view[f"{prefix}_projection"]
+            if failure != "omitted":
+                del view[f"omitted_{prefix}s"][identity]
+        if failure != "omitted":
+            projected[identity] = {"view_id": "effect", "witness": "meaning"}
+
+    _revise_projection(root, "semantic-graph.json", graph_change)
+    _revise_projection(root, "view-profile.json", view_change)
+    _revise_projection(
+        root,
+        "copy.json",
+        lambda copy: copy.update(
+            assertions={
+                "meaning": {
+                    "text": "Preserve meaning",
+                    "surface": "hover" if failure == "hidden" else "main-static",
+                }
+            }
+            if failure != "missing-copy"
+            else {}
+        ),
+    )
+    with pytest.raises(ValueError, match=r"required.*witness"):
+        _load_exporter().export_projection_input(root=root)
+
+
+def test_required_assertions_accept_readable_shared_aggregation(tmp_path: Path) -> None:
+    root, _ = _fixture_repository(tmp_path)
+    _revise_projection(
+        root,
+        "semantic-graph.json",
+        lambda graph: graph["nodes"]["intent"].update(required_visible=True),
+    )
+    _revise_projection(
+        root,
+        "view-profile.json",
+        lambda view: view["node_projection"]["intent"].update(witness="meaning"),
+    )
+    _revise_projection(
+        root,
+        "copy.json",
+        lambda copy: copy.update(
+            assertions={
+                "meaning": {"text": "Accepted intent bounds effects", "surface": "main-static"}
+            }
+        ),
+    )
+    result = _load_exporter().export_projection_input(root=root)
+    assert result["view"]["nodes"]["intent"]["project"]["witness"] == "meaning"
+
+
+def test_actual_repository_projection_exports_complete_target(tmp_path: Path) -> None:
+    """Exercise real selected bytes through the same immutable-tree exporter."""
+    root, _ = _fixture_repository(tmp_path)
+    declaration_path = "system/projections/terminal-architecture/declaration.json"
+    declaration = json.loads((REPOSITORY_ROOT / declaration_path).read_text())
+    selected = [
+        declaration_path,
+        *declaration["documents"].values(),
+        *[source["path"] for source in declaration["sources"]],
+    ]
+    for relative in selected:
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / relative).read_bytes())
+    _git(root, "add", ".")
+    _git(root, "commit", "-qm", "actual repository projection")
+    exported = _load_exporter().export_projection_input(root=root)
+    Draft202012Validator(json.loads(SCHEMA_PATH.read_text())).validate(exported)
+    assert (
+        exported["documents"]["copy"]["maturity_notice"]
+        == "Target architecture, not a claim of current implementation."
+    )
+    nodes = exported["semantics"]["nodes"]
+    for identity in (
+        "problem_observation",
+        "research",
+        "intent_alignment",
+        "repository_norms",
+        "capability_contract",
+        "collaboration_selection",
+        "use_outcome",
+        "feedback_learning",
+        "adoption_exit",
+        "skills",
+        "independent_verifier",
+        "brownfield_repo",
+        "greenfield_repo",
+    ):
+        assert nodes[identity]["attributes"]["required_visible"]
+    assert "transient" in nodes["commitment_n"]["attributes"]["semantics"].lower()
+    assert exported["authority"]["effect_authority"] is False
+
+
+def test_required_view_notice_cannot_disappear(tmp_path: Path) -> None:
+    root, _ = _fixture_repository(tmp_path)
+    _revise_projection(
+        root,
+        "view-profile.json",
+        lambda view: view.update(meta={"required_visible_copy": ["maturity"]}),
+    )
+    with pytest.raises(ValueError, match=r"required.*maturity.*witness"):
+        _load_exporter().export_projection_input(root=root)
+
+
+def test_duplicate_relation_identity_is_not_collapsed(tmp_path: Path) -> None:
+    root, _ = _fixture_repository(tmp_path)
+    _revise_projection(
+        root, "semantic-graph.json", lambda graph: graph["edges"].append(graph["edges"][0])
+    )
+    with pytest.raises(ValueError, match="duplicate relation"):
+        _load_exporter().export_projection_input(root=root)

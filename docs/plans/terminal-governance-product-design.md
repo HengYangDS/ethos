@@ -47,9 +47,71 @@ The terminal architecture declaration under
 assertion set and its absence reasons. It is not a second product ontology: the
 product contract remains semantic authority. The read-only exporter binds that
 declaration and every selected source to one exact Git commit and tree, emits a
-content-addressed `projection.input/v1`, and grants no repository-effect
+content-addressed `projection.input/v2`, and grants no repository-effect
 authority. Renderers and diagram tools consume the export; they never write
 back or become an authority root.
+
+### Terminal Architecture Projection Handoff
+
+The renderer owner is rebuilding the existing `ethos-terminal-architecture`
+and `ethos-terminal-architecture-archify` repositories. ETHOS owns only the
+shared source declaration, semantic selection, copy, view profile, quality
+contract and exact-tree exporter; neither renderer owns product meaning. Keep
+both implementations and prior deliveries. This feedback does not expand the
+preserved `python-reference-binding` work or authorize edits in either diagram
+repository.
+
+Live verification on September 11, 2026 (+08:00) supersedes the message's source
+coordinates. Accepted is `d2949938d2d954dd6cee21f49ba36e7c35a10975`, tree
+`1f4f4ddb8514bf737e7efa89bd1b549b1329ae4b`, selected runtime
+`88da46116affdf81d9da62b1a034946f246cf5a83604a4435e23aaf0aef936c2`.
+Export of that exact accepted revision exits 2 with
+`source digest mismatch: product_contract`; no valid export input digest exists.
+Seven of thirteen source bindings are stale: product contract, axioms, runner
+mutation, adoption, contracts, repository governance and command plane. The
+current graph has 104 nodes, 147 edges and 29 invariants. Renderer snapshot counts
+and the reported 57-of-59 small-text measurement remain external observations,
+not newly verified browser or raster results.
+
+The failure exposes two separate causes. Source meaning evolved without its
+complete semantic projection: graph metadata and visible copy still narrow the
+product to execution and transactions. Separately, the current architecture
+projection gate checks C4-to-Mermaid output, while exporter tests use synthetic
+repositories; neither establishes that the actual accepted terminal projection
+can export. Source digests correctly reject the drift and must not be relaxed.
+
+| Disposition | Bounded source repair and required evidence |
+| --- | --- |
+| Accept full product scope | Map problem/value observations and research, interpretation and tradeoffs, accepted intent/constraints/assumptions, compilation/capability requests, cooperation/competition/exploration, verification, candidate and accepted CAS, delivery, actual use and feedback to fresh intent. Repository formation and gradual adoption, native repository norms, Skills, independent verification, recovery/conservation/exit, self-governance and autonomous repository interoperability remain visible or intelligibly aggregated. Do not create a module per phrase. |
+| Preserve the small kernel | Keep authority, execution, evidence and actual outcomes distinct. Retain transient Commitment, durable Attestation, local object authority, independent peers and two exact integration boundaries. Cooperation may retain multiple contributions, competition may select none, and all-drop preserves useful experimental results. Same-ref CAS serialization is not whole-project serialization. A code semantic graph is derived observation, not this product's scope or authority. |
+| Correct projection selection | Disposition each selected source assertion, entity, relation, acceptance claim and retired field through the existing graph/view mapping. Delete superseded fields and update exact source digests only after meaning is reconciled. Do not revive durable Commitment, predecessor graphs or another ontology. Distinguish target capabilities from currently evidenced implementation. |
+| Correct human visibility | Required assertions must appear in the visible main view or an intelligible named aggregation. Invisible SVG edge carriers, metadata and hover may support traceability, but cannot satisfy required human-visible coverage. Counterexamples must remove visible meaning while retaining hidden IDs and still fail. |
+| Preserve copy constraints | Visible copy is English except the ETHOS brand mark 问道. No version numbers in diagram copy. Use an accurate product-category title after semantic review; do not center the composition on Git/OpenSpec or let a slogan narrow the product. No final title is approved by this handoff. |
+| Correct geometry evidence | Retain faithfulness before intelligibility before elegance. Measure actual glyph bounds through composed CTMs, including stroke/arrowhead paint envelopes at declared viewports. Require browser and raster observations, no overlap/overflow/dangling endpoints, readable effective type and compact layout without shrinking labels. Nominal CSS or source units alone cannot prove these claims. Keep one quality-value owner and verify its execution; no renderer-local override or prior PASS substitution. |
+| Repair actual gate coverage | Add an exact real-repository export/source-alignment check through the existing quality owner, while preserving exporter stale-source counterexamples. Test semantic removal, hidden-only witnesses, transformed small text and stroke/arrowhead envelope failures at their actual consuming boundaries. Export checks prove source selection, not browser geometry or realized user understanding. |
+
+After the current bounded semantic/quality work reaches its safe boundary, one
+source-projection Change updates the existing five projection files, exporter
+and tests without touching renderers. An integration handoff requires the exact accepted commit
+and tree, successful content-addressed `projection.input/v2` digest, per-source
+bindings and explicit retained/changed/rejected/unknown dispositions. Both
+renderers then consume that identical export and independently verify actual
+rendered artifacts. A separately labelled immutable candidate may unblock renderer
+development after export, schema and determinism checks; it is not accepted
+delivery. Do not refresh hashes alone or claim the two diagrams updated.
+
+The bounded `terminal-product-projection` Change preserves source attributes and
+graph contracts in the versioned export. Its current-source regression joins
+the existing projection test owner; required nodes, relations, invariants and
+view notices select explicit main-static copy witnesses. Renderer geometry is
+not prescribed by source coordinates. Obsolete text-count and character caps
+are removed from hard gates, while readable transformed glyphs and complete
+meaning remain mandatory. Interrupted reference-binding regressions are retained
+by exact hashes and resume after this priority export reaches its safe boundary.
+
+The bounded readback is `projection-feedback-source-readback.json` under the
+existing ignored evidence root. It records current source hashes and the export
+failure; it is not another task authority or a replacement architecture plan.
 
 ### Model Promotion
 
@@ -2185,6 +2247,49 @@ paths, P5 measured reuse and risk-based verification, P6 outcome feedback and
 P7 independent ecosystem conformance retain their existing order. P5 may move
 ahead where measured throughput blocks progress. Every stage reports actual
 acceptance and remaining evidence separately; plan confirmation is not delivery.
+
+##### Public Semantic Gate Evidence — Verified Increment
+
+The independent `ETHOS-semantic-public-gate-validation-2026-09-10.md` report has
+SHA256 `4dd573bb2dc9739904d0e180c0503836775afbebb063c4d90c3b613a6f0a93bc`;
+its `ETHOS-semantic-public-gate-evidence-2026-09-10.zip` has SHA256
+`d8cb157a7c8d8bff743adb48bb17f4961656216fad5e01f0688b529c35a9b48c`.
+Both files and all 35 manifest entries were verified. Raw CLI and provider
+results establish five false acceptance/rejection cases through real
+`prove --host --execute --gate repository-audit` at source `6baee9a0`.
+The unchanged three observation modules reproduce the supplied nine-case
+consumption results at current source `9026748a`. This evidence is distinct
+from the earlier unsigned-fixture experiment whose outer gate stayed blocked.
+
+| Disposition | Fact and implementation consequence |
+| --- | --- |
+| Accept public observation defect | Direct undeclared executable/environment consumers block; aliases and later assignment wrongly pass; harmless local shadow wrongly blocks. Fix the sole reference observer, not CLI/audit rules. |
+| Preserve evidence boundary | Clean/empty controls pass and syntax unknown propagates. These are untracked isolated host probes, not admitted candidates, signed Attestations or proof of land/publish bypass. |
+| Adjust candidate-tool expectations | LibCST 1.9.0 is available only in dev supply. Live probes show qualified aliases work but overwritten prior assignments remain referents and local-before-assignment may resolve a global. Metadata is not complete reaching-definition or effect analysis. |
+| Require bounded uncertainty | Known, possible and unsupported observations must retain property/source provenance. Avoid fabricated empty closure, indiscriminate global blocking and name-specific patches. |
+| Retain original full-chain scope | P1--P7, greenfield/brownfield, collaboration, all-drop, actual outcomes and ecosystem conformance remain unchanged. This is the first concrete observation-owner repair, not a reduced product goal. |
+
+Official `python-reference-binding` owns the next bounded repair and its tests.
+Its consumer regression suite now reproduces seven failures in 0.10 seconds:
+module/member/environment aliases, local shadow, program point, cross-scope and
+dynamic-unknown omission; eighteen existing/control cases pass. This is preserved
+RED evidence, not a repaired observer or passing repository proof.
+Original report/ZIP remain external research evidence; their temporary fixture
+is not a lane or authority. Retire it only after replay and conservation. Current
+receipt paths are `semantic-public-feedback-received.json` and
+`semantic-feedback-current-replay.json` under the existing ignored evidence root;
+they supplement this accepted disposition rather than form another task ledger.
+
+The preceding throughput batch has NOT reached accepted: implementation
+`8ab823ab0` passed 35 gates; official archive `9026748a` preserved all five carrier
+files, but its full proof blocked after 707.213 seconds. Nine tests failed:
+two isolated offline builds attempted uncached hatchling/trove-classifiers
+artifacts; seven immutable hook-contract child reads timed out at ten seconds.
+Coverage/build/install descendants were correctly left unexecuted. Fix these
+exact supply/observation boundaries before another full proof; do not prewarm
+caches or extend timeouts as a substitute for reproducible closure. Local
+accepted and both peer refs remain `d2949938`, with the older installed runtime.
+No semantic repair, latest runtime update or terminal closeout is claimed yet.
 
 ##### Recovered Tool Decisions And Current Capability Use
 

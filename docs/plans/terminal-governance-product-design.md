@@ -2663,6 +2663,42 @@ invalidate the exact object being accepted. The official Change task list
 therefore contains implementation and executable-verification work only; its
 completion never substitutes for current full proof, archive or hosted delivery.
 
+The next full proof at `a8f42d15d` failed seven of 2907 cases: four runtime
+hook-contract timeouts and three native-tool fixture process timeouts. The
+previous retirement case passed. All 76 affected installer and activation cases
+passed in a separate covered eight-worker run. No full proof has passed for
+this Change; no archive, accepted mutation, installation or publication occurred.
+
+A bounded execution probe found three timeouts in eighty newly written shell
+executables, versus none when those same scripts were passed to their existing
+shell interpreter (maximum below 8 ms). Samples were still in native loader
+startup. A trial native Python fixture passed 71 focused tests but also timed
+out in a subsequent independent probe; its two uncommitted source edits were
+withdrawn, not accepted. Twelve existing-interpreter probes stayed below 31 ms,
+whereas copied native interpreters took about one to two seconds, with one
+exceeding the two-second observation boundary. These are execution-boundary
+observations, not proof of a particular security daemon, system policy or product
+root cause. No safety feature, timeout or quality threshold was changed.
+
+GitHub accepted run 34535281344 subsequently failed. Its exact hosted report
+has SHA256 `23d1bf3b05aa89f939c444dc569162997ca0efd1dd16a16d97e98ecd082067e0`:
+a process-held retirement returned `native_process_observer_unavailable`, and
+the multi-peer publication test exceeded its 300-second bound. JUnit and coverage
+were present in artifact 10177905583. The runner's mutable checkout had already
+cleared its local report for the next job, so only the downloaded exact artifact
+supports this observation. This is separate from GitLab's absent `scc` supply.
+
+Next: instrument the smallest real execution/observation reproducer with complete
+failure receipts and native process state. Distinguish newly materialized binary
+startup, host observation uncertainty and test interference before changing a
+semantic owner. Do not repeat full proof merely to seek green, replace genuine
+native execution with mocked success, restart another run after an observation
+timeout, or retire work while its required liveness evidence is unavailable.
+The existing ignored `scc-ci-*` receipts retain both failed proofs, counterprobes
+and the withdrawn experiment's rationale. The source repair remains committed
+and independently testable; paused binding semantics and remaining lanes are
+not declared absorbed or retired.
+
 ## Convergence Rules
 
 1. **Promote before compatibility.** Replace a missing model boundary before

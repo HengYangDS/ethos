@@ -4,6 +4,7 @@ import ast
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.policy.layout.policy import module_name
 from ethos.repository.policy.layout.policy import package_python_files
 from ethos.repository.policy.layout.policy import semantic_python_files
 
@@ -55,22 +56,11 @@ def _module_names(
     policy: dict[str, Any],
     files: tuple[Path, ...] | None,
 ) -> set[str]:
-    modules: set[str] = set()
-    for path in package_python_files(root, policy, files=files):
-        module = _module_name(root, path)
-        if module:
-            modules.add(module)
-    return modules
-
-
-def _module_name(root: Path, path: Path) -> str:
-    rel = path.relative_to(root).with_suffix("")
-    parts = rel.parts
-    if "src" in parts:
-        parts = parts[parts.index("src") + 1 :]
-    if parts and parts[-1] == "__init__":
-        parts = parts[:-1]
-    return ".".join(parts)
+    return {
+        module
+        for path in package_python_files(root, policy, files=files)
+        if (module := module_name(root, path))
+    }
 
 
 def _package_root_imports(

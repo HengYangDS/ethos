@@ -8,7 +8,9 @@ import shutil
 import stat
 import subprocess
 import tomllib
+from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -17,6 +19,7 @@ import pytest
 import tools.ci.local_ci as local_ci
 import tools.ci.python_test_gate as python_test_gate
 import tools.ci.sessions as ci_sessions
+from ethos.adapters.gates.runner import ActionRunResult
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -425,38 +428,103 @@ def _test_gate(tmp_path: Path):
     )
 
 
-@pytest.mark.parametrize("floor_fails", [False, True])
-def test_local_ci_checks_coverage_before_delivery(tmp_path, monkeypatch, floor_fails):
+@pytest.mark.parametrize(
+    "case",
+    [
+        "pass",
+        "coverage",
+        "dirty",
+        "head-missing",
+        "policy",
+        "empty",
+        "missing",
+        "duplicate",
+        "command",
+        "no-exit",
+        "bad-exit",
+        "overlay",
+        "head",
+        "policy-drift",
+        "crash",
+    ],
+)
+def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch, case):
+    """A transport cannot mint HEAD success from an overlay or incomplete execution."""
     monkeypatch.setattr(local_ci, "EVIDENCE", tmp_path / "result.json")
-    monkeypatch.setattr(local_ci, "current_tracked_head", lambda _root: "a" * 40)
-    monkeypatch.setattr(local_ci, "_run_parallel_sessions", lambda _session: None)
+    monkeypatch.setattr(local_ci, "LOG_ROOT", tmp_path / "logs")
+    monkeypatch.setattr(
+        local_ci, "current_tracked_head", lambda _root: "" if case == "head-missing" else "a" * 40
+    )
+    monkeypatch.setattr(local_ci, "dirty_content_sha256", lambda _root: "before")
+    monkeypatch.setattr(
+        local_ci,
+        "dirty_provenance",
+        lambda _root: {"state": "dirty" if case == "dirty" else "clean"},
+        raising=False,
+    )
+    policy = local_ci.resolve_gate_policy(ROOT, full=True)
+    if case == "policy":
+        policy = replace(policy, gaps=("invalid_policy",))
+    monkeypatch.setattr(local_ci, "resolve_gate_policy", lambda *_a, **_k: policy)
     observed = []
+    base_run = local_ci.run_gate_waves
 
-    class Session:
-        @staticmethod
-        def run(*command: str, **_kwargs: object) -> None:
-            if "-s" in command:
-                name = command[command.index("-s") + 1]
-                observed.append(name)
-                if name == "coverage_floor" and floor_fails:
-                    raise RuntimeError(name)
+    class Runner:
+        def run(self, node, _gate, *, root):
+            assert root == ROOT
+            observed.append(node.id)
+            verdict = "block" if case == "coverage" and node.id == "coverage-floor" else "pass"
+            return ActionRunResult(node.id, node.command, verdict, int(verdict != "pass"))
 
-        @staticmethod
-        def log(*_args: object) -> None:
-            pass
+    def execute(*args, **kwargs):
+        if case == "crash":
+            message = "interrupted runner"
+            raise RuntimeError(message)
+        result = base_run(*args, **kwargs)
+        if case in {"overlay", "head", "policy-drift"}:
+            name, value = {
+                "overlay": ("dirty_content_sha256", "after"),
+                "head": ("current_tracked_head", "b" * 40),
+                "policy-drift": (
+                    "resolve_gate_policy",
+                    replace(policy, sources=(("ruff", (("ruff.toml", "changed"),)),)),
+                ),
+            }[case]
+            monkeypatch.setattr(local_ci, name, lambda *_a, **_k: value)
+        return (
+            ()
+            if case == "empty"
+            else result[:-1]
+            if case == "missing"
+            else (
+                (*result, result[0])
+                if case == "duplicate"
+                else (replace(result[0], command=("wrong",)), *result[1:])
+                if case == "command"
+                else (replace(result[0], exit_code=None if case == "no-exit" else 7), *result[1:])
+                if case in {"no-exit", "bad-exit"}
+                else result
+            )
+        )
 
-    if floor_fails:
-        with pytest.raises(RuntimeError, match="coverage_floor"):
-            local_ci.run(cast("nox.Session", Session()))
-        assert not local_ci.EVIDENCE.exists()
-        assert not set(observed) & set(local_ci.DELIVERY_SESSIONS)
+    monkeypatch.setattr(local_ci, "LocalGateRunner", Runner)
+    monkeypatch.setattr(local_ci, "run_gate_waves", execute)
+    session = SimpleNamespace(error=pytest.fail, log=lambda _message: None)
+    if case == "pass":
+        local_ci.run(cast("nox.Session", session))
+        assert observed.index("coverage-floor") < observed.index("build")
     else:
-        local_ci.run(cast("nox.Session", Session()))
-        assert local_ci.EVIDENCE.is_file()
-    assert observed.count("tests") == observed.count("coverage_floor") == 1
-    assert observed.index("coverage_floor") == observed.index("tests") + 1
-    commands = local_ci.owner_commands()
-    assert commands.count("uv run --frozen --offline python -m nox -s coverage_floor") == 1
+        with pytest.raises((pytest.fail.Exception, RuntimeError)):
+            local_ci.run(cast("nox.Session", session))
+    payload = json.loads(local_ci.EVIDENCE.read_text())
+    assert payload["verdict"] == ("pass" if case == "pass" else "block")
+    if case in {"dirty", "head-missing", "policy", "crash"}:
+        assert not observed
+    else:
+        assert observed.count("unit-architecture") == observed.count("coverage-floor") == 1
+    if case == "coverage":
+        assert not {"build", "local-install-smoke"}.intersection(observed)
+    assert len(observed) == len(set(observed))
 
 
 def test_python_cleanup_propagates_removal_failure(tmp_path, monkeypatch) -> None:

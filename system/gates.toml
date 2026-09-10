@@ -4,7 +4,7 @@ source_refs = ["system/gates.toml"]
 
 [proof_sets]
 default = ["repository-audit", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget"]
+full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "python-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -237,7 +237,7 @@ command = ["{python}", "-m", "nox", "-s", "build"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
-depends_on = ["unit-architecture", "ruff"]
+depends_on = ["coverage-floor", "ruff"]
 asset_classes = ["release-artifacts"]
 dimensions = ["reproducibility", "attestation"]
 execution_mode = "adapter"
@@ -434,4 +434,192 @@ trust_bearing = true
 tool_adapter = "deptry"
 writes_files = true
 network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "markdown-lint"
+kind = "lint"
+command = ["{python}", "-m", "nox", "-s", "markdown_lint"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["markdown-docs"]
+dimensions = ["markdown-format", "markdown-lint"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "markdown_lint"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "javascript-lint"
+kind = "lint"
+command = ["{python}", "-m", "nox", "-s", "javascript_lint"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["javascript-code"]
+dimensions = ["javascript-format"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "javascript_lint"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "svg-format"
+kind = "lint"
+command = ["{python}", "-m", "nox", "-s", "svg_lint"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["assets"]
+dimensions = ["svg-format"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "svg_lint"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "asset-validation"
+kind = "asset"
+command = ["{python}", "-m", "nox", "-s", "asset_validation"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["assets"]
+dimensions = ["asset-integrity"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "asset_validation"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "ci-projection"
+kind = "config"
+command = ["{python}", "-m", "nox", "-s", "ci_templates"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["config"]
+dimensions = ["provider-projection"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "ci_templates"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "format-selection"
+kind = "governance"
+command = ["{python}", "-m", "nox", "-s", "format_selection"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["config"]
+dimensions = ["carrier-ownership"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "format_selection"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "architecture-projection"
+kind = "architecture"
+command = ["{python}", "-m", "nox", "-s", "architecture_projection"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["config", "markdown-docs"]
+dimensions = ["architecture-projection"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "architecture_projection"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "prose"
+kind = "docs"
+command = ["{python}", "-m", "nox", "-s", "prose"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["markdown-docs"]
+dimensions = ["spelling"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "prose"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "python-vulnerabilities"
+kind = "security"
+command = ["{python}", "-m", "nox", "-s", "vulnerabilities"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["dependency-lock"]
+dimensions = ["vulnerability-freshness"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "vulnerabilities"
+writes_files = true
+network_policy = "required"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "release-sbom"
+kind = "package"
+command = ["{python}", "-m", "nox", "-s", "supply_chain"]
+depends_on = ["build"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["release-artifacts"]
+dimensions = ["sbom-generation"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "supply_chain"
+writes_files = true
+network_policy = "required"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "secrets"
+kind = "security"
+command = ["tools/ci/scripts/run-secrets-scan.sh"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "native"
+asset_classes = ["source"]
+dimensions = ["secrets"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "gitleaks"
+writes_files = true
+network_policy = "required"
 version_source = "locked-toolchain"

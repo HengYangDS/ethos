@@ -63,7 +63,7 @@ def empty_package_findings(
             continue
         if any(path.is_file() and path.suffix != ".py" for path in package.iterdir()):
             continue
-        module = _module_name(root, init)
+        module = module_name(root, init)
         if module in imported_modules:
             continue
         relative = package.relative_to(root).as_posix()
@@ -116,7 +116,8 @@ def _covered(relative: Path, configured_paths: list[str]) -> bool:
     )
 
 
-def _module_name(root: Path, path: Path) -> str:
+def module_name(root: Path, path: Path) -> str:
+    """Resolve a Python path to its concrete package or module identity."""
     relative = path.relative_to(root).with_suffix("")
     parts = relative.parts
     if "src" in parts:

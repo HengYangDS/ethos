@@ -17,7 +17,8 @@ provider projections.
 
 1. Read `AGENTS.md`, `rules/mutation.md`, `rules/evidence.md`,
    `docs/governance/product-design-contract.md`, and the relevant quality spec.
-2. Put reusable orchestration in Nox/Python and tool-native policy under
+2. Reuse the declared gate graph and shared executor; keep native checks in
+   Nox/Python and tool-native policy under
    `.config/checks/<concern>/` or the smallest stable native config owner.
 3. Keep `pyproject.toml` limited to package/workspace metadata unless a tool has
    no better native owner.
@@ -25,8 +26,9 @@ provider projections.
    expectations before tightening or adding a gate.
 5. Update `system/gates.toml`, native tool policy, CI, hooks, tests, and
    OpenSpec together; do not duplicate tool or command ownership.
-6. Run the repository audit so owner shape, coverage, docstrings, and type
-   policy drift are visible before claiming CI strength.
+6. Compare required coverage across product, tests, tools, carriers, packages,
+   runtime/resources and provider projections. Inject representative failures
+   through real owners; neither counters nor a clean audit prove effectiveness.
 7. Prove the exact gate path with focused scripts first, then run head-bound
    `ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json`.
 

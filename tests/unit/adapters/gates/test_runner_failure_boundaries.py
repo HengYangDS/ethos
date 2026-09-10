@@ -114,9 +114,10 @@ def test_proof_waves_isolate_writer_and_preserve_parallel_result_order(
         ("read-a", "read-b"),
     )
 
-    class Runner:
-        def run(self, node: PlanNode, _gate: Gate, *, root: Path) -> gate_runner.ActionRunResult:
+    class Runner(gate_runner.LocalGateRunner):
+        def run(self, node: PlanNode, gate: Gate, *, root: Path) -> gate_runner.ActionRunResult:
             assert root == tmp_path
+            assert gate.id == node.id
             return gate_runner.ActionRunResult(node.id, node.command, "pass", 0)
 
     results = gate_runner.run_gate_waves(
@@ -140,3 +141,60 @@ def test_provider_non_mapping_result_becomes_failed_result(
     )
     result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
     assert (result.verdict, result.diagnostics[0]["kind"]) == ("block", "gate_provider_error")
+
+
+@pytest.mark.parametrize(
+    ("prerequisite", "exit_code", "expected"),
+    [
+        ("pass", 0, ("pass", 0)),
+        ("block", 1, ("block", None)),
+        ("unknown", None, ("block", None)),
+        ("pass", None, ("block", None)),
+        ("pass", 7, ("block", None)),
+        ("planned", None, ("unknown", None)),
+    ],
+)
+def test_failed_dependency_never_executes_delivery(tmp_path, prerequisite, exit_code, expected):
+    """Only passed prerequisites admit their dependent effects."""
+    nodes = (
+        PlanNode(id="coverage", kind="check", command=("coverage",)),
+        PlanNode(id="delivery", kind="check", command=("delivery",), depends_on=("coverage",)),
+        PlanNode(id="diagnostic", kind="check", command=("diagnostic",)),
+    )
+    gates = {node.id: Gate(id=node.id, kind="test", command=node.command) for node in nodes}
+    executed = []
+
+    class Runner(gate_runner.LocalGateRunner):
+        def run(self, node, gate, *, root):
+            assert root == tmp_path
+            assert gate.id == node.id
+            executed.append(node.id)
+            verdict = prerequisite if node.id == "coverage" else "pass"
+            return gate_runner.ActionRunResult(
+                node.id, node.command, verdict, exit_code if node.id == "coverage" else 0
+            )
+
+    planned = prerequisite == "planned"
+    results = gate_runner.run_gate_waves(
+        gate_runner.DryRunRunner() if planned else Runner(),
+        nodes,
+        gates,
+        root=tmp_path,
+        capacity=2,
+        parallel=False,
+    )
+    assert executed == (
+        []
+        if planned
+        else ["coverage", "diagnostic", "delivery"]
+        if expected == ("pass", 0)
+        else ["coverage", "diagnostic"]
+    )
+    assert {result.action_id for result in results} == {node.id for node in nodes}
+    blocked = next(result for result in results if result.action_id == "delivery")
+    assert (blocked.verdict, blocked.exit_code) == expected
+    assert (
+        not blocked.diagnostics
+        if expected[0] != "block"
+        else (blocked.diagnostics[0]["required_gaps"] == ["gate_dependency_not_proven:coverage"])
+    )

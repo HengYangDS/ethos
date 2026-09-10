@@ -2160,6 +2160,23 @@ introduced. Subsequent work must measure useful computation avoided, time to
 first actionable failure, cold/warm proof latency, retry count and final cleanup,
 not infer full-cycle gains from one scheduler benchmark.
 
+The archived scheduling proof's package failures were reproduced separately:
+two version-identity tests use build isolation despite the installed locked
+Hatchling/trove-classifiers supply. The default offline route failed; selecting
+that existing locked interpreter with build isolation disabled passed both
+unchanged tests. Production delivery already selects this build environment.
+Use the same explicit environment for this acceptance attempt; repair the test
+entrypoint's default in its quality owner rather than requiring ambient cache
+warming or claiming the default fixed.
+
+The seven earlier hook-contract timeouts did not recur in a bounded eight-worker
+103-test replay. A separate injected timeout still escapes the binding reader as
+`TimeoutExpired`; its ordinary observed binding took 0.388 seconds. This proves
+an error-classification defect, not the cause of every scheduling delay. Preserve
+that counterexample for the hook observation owner, retain a bounded deadline and
+structured unavailable evidence, and measure before changing concurrency or
+adding a cache. Neither observation justifies replaying an unknown effect.
+
 ##### Executable Semantics Research — Accepted Increment
 
 The user confirmed the queued research plan associated with feedback

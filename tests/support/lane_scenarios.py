@@ -53,14 +53,6 @@ def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
     return git(repo, "rev-parse", "dev")
 
 
-def orphan_work_lane(tmp_path: Path) -> tuple[Path, Path]:
-    """Create an unleased Work Lane for exceptional-resolution tests."""
-    repo = init_git_repo(tmp_path / "repo")
-    lane = tmp_path / "repo-work-orphan"
-    git(repo, "worktree", "add", "-b", "work/orphan", lane.as_posix(), "dev")
-    return repo, lane
-
-
 def superseded_work_lane(
     tmp_path: Path,
     *,

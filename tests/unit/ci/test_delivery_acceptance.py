@@ -2,17 +2,33 @@ from __future__ import annotations
 
 import importlib
 import json
+import shlex
 import subprocess
 import tomllib
 from datetime import UTC
 from datetime import datetime
+from functools import partial
 from pathlib import Path
-from types import ModuleType
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 
+import tools.ci.local_ci as local_ci
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.release.identity import BuildIdentity
+from tools.ci.delivery import pipeline
+from tools.ci.delivery.acceptance import adopter as fixture
+from tools.ci.delivery.acceptance import effect
+from tools.ci.delivery.acceptance import invocation
+from tools.ci.delivery.acceptance import lane
+from tools.ci.delivery.acceptance import receipt
+from tools.ci.toolchain.environment import ProjectRuntime
+
+if TYPE_CHECKING:
+    import nox
 
 ROOT = Path(__file__).resolve().parents[3]
 _LIFECYCLE_STAGES = {
@@ -24,13 +40,6 @@ _LIFECYCLE_STAGES = {
     "retirement_recovery",
     "successor_activation",
 }
-
-
-def _acceptance_module(name: str) -> ModuleType:
-    try:
-        return importlib.import_module(f"tools.ci.delivery.acceptance.{name}")
-    except ModuleNotFoundError:
-        pytest.fail(f"package acceptance has no {name} owner")
 
 
 def test_package_lifecycle_has_one_execution_owner() -> None:
@@ -55,13 +64,13 @@ def test_package_lifecycle_has_one_execution_owner() -> None:
 def test_package_acceptance_evidence_requires_every_runtime_lifecycle_stage(
     tmp_path: Path,
 ) -> None:
-    receipt = _acceptance_module("receipt")
     wheel = tmp_path / "ethos.whl"
     wheel.write_bytes(b"wheel")
     lifecycle = {stage: {"state": "passed"} for stage in _LIFECYCLE_STAGES}
     generated_at = datetime(2026, 9, 3, 12, 0, tzinfo=UTC)
 
-    payload = receipt.package_acceptance_evidence(
+    compile_receipt = partial(
+        receipt.package_acceptance_evidence,
         root=tmp_path,
         head="a" * 40,
         wheel=wheel,
@@ -73,14 +82,15 @@ def test_package_acceptance_evidence_requires_every_runtime_lifecycle_stage(
         runtime_lifecycle=lifecycle,
         generated_at=generated_at,
     )
+    payload = compile_receipt()
 
     assert payload["head"] == "a" * 40
     assert payload["runtime_lifecycle"] == lifecycle
-    assert set(payload["runtime_lifecycle"]) == _LIFECYCLE_STAGES
     assert payload["generated_at"] == "2026-09-03T12:00:00+00:00"
     assert payload["hosted_ci_status_claimed"] is False
     assert payload["remote_publication_claimed"] is False
     assert payload["registry_publication_claimed"] is False
+    assert isinstance(payload["conformance"], dict)
     assert "sdk_commitment_digest" not in payload["conformance"]
     assert payload["wheels"] == [
         {
@@ -92,26 +102,14 @@ def test_package_acceptance_evidence_requires_every_runtime_lifecycle_stage(
     incomplete = dict(lifecycle)
     incomplete.pop("retirement_recovery")
     with pytest.raises(ValueError, match="package_runtime_lifecycle_incomplete"):
-        receipt.package_acceptance_evidence(
-            root=tmp_path,
-            head="a" * 40,
-            wheel=wheel,
-            origin="/runtime/site-packages/ethos/__init__.py",
-            version="ethos 0.2.0-alpha.3",
-            line_endings=["lf", "crlf"],
-            independent_host={"external_governance_available": False},
-            resources=[],
-            runtime_lifecycle=incomplete,
-            generated_at=generated_at,
-        )
+        compile_receipt(resources=[], runtime_lifecycle=incomplete)
 
 
 def test_install_smoke_invokes_one_acceptance_transaction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    pipeline = importlib.import_module("tools.ci.delivery.pipeline")
     events: list[object] = []
-    session = object()
+    session = cast("nox.Session", object())
     monkeypatch.setattr(
         pipeline.acceptance_effect,
         "run",
@@ -119,20 +117,21 @@ def test_install_smoke_invokes_one_acceptance_transaction(
     )
 
     pipeline.DeliveryPipeline(
-        runtime=object(),
+        runtime=ProjectRuntime.discover(ROOT),
         node_package_supply=ROOT / "node_modules",
     ).prove_install(session)
 
     assert events == [("accept", session)]
 
 
-def test_local_ci_does_not_repeat_package_supply_preparation() -> None:
-    local_ci = importlib.import_module("tools.ci.local_ci")
+def test_local_ci_uses_the_declared_full_quality_closure() -> None:
+    """Local verification cannot silently omit declared full-proof obligations."""
 
-    commands = local_ci.owner_commands()
-
-    assert not any("prepare_install_supply" in command for command in commands)
-    assert sum("-s install_smoke" in command for command in commands) == 1
+    expected = resolve_gate_policy(ROOT, full=True)
+    assert local_ci.owner_commands() == [
+        shlex.join(gate_execution_identity(expected.registry[node.id])) for node in expected.nodes
+    ]
+    assert expected.gate_ids.count("local-install-smoke") == 1
 
 
 def test_runtime_supply_projects_the_lock_current_environment_without_cache_authority(
@@ -193,7 +192,6 @@ def test_acceptance_failure_cleans_its_transaction_root_without_a_receipt(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    effect = _acceptance_module("effect")
     artifacts = tmp_path / "artifacts"
     work = tmp_path / "work"
     evidence = tmp_path / "evidence/smoke.json"
@@ -226,7 +224,7 @@ def test_acceptance_failure_cleans_its_transaction_root_without_a_receipt(
     session = SimpleNamespace(error=pytest.fail, log=pytest.fail)
 
     with pytest.raises(RuntimeError, match="expected supply failure"):
-        effect.run(session)
+        effect.run(cast("nox.Session", session))
 
     assert not work.exists()
     assert not evidence.exists()
@@ -236,7 +234,6 @@ def test_wheel_build_reuses_the_locked_project_environment(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    pipeline = importlib.import_module("tools.ci.delivery.pipeline")
     commands: list[tuple[str, ...]] = []
 
     class Session:
@@ -246,16 +243,13 @@ def test_wheel_build_reuses_the_locked_project_environment(
 
     monkeypatch.setattr(pipeline, "publish_built_wheel", lambda *_args: tmp_path / "ethos.whl")
     monkeypatch.chdir(tmp_path)
-    runtime = SimpleNamespace(
-        root=tmp_path,
-        python=Path("/locked/bin/python"),
-        script=lambda name: f"/locked/bin/{name}",
-    )
+    runtime = ProjectRuntime(tmp_path, Path("/locked/bin/python"), Path("/locked/bin"))
+    monkeypatch.setattr(ProjectRuntime, "script", lambda _self, name: f"/locked/bin/{name}")
 
     pipeline.DeliveryPipeline(
         runtime=runtime,
         node_package_supply=tmp_path / "node_modules",
-    ).build(Session())
+    ).build(cast("nox.Session", Session()))
 
     assert len(commands) == 1
     command = commands[0]
@@ -276,7 +270,6 @@ def test_wheel_build_reuses_the_locked_project_environment(
 def test_host_conformance_reuses_the_single_package_acceptance_effect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    pipeline = importlib.import_module("tools.ci.delivery.pipeline")
     events: list[object] = []
 
     class Session:
@@ -296,9 +289,9 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
     )
 
     pipeline.DeliveryPipeline(
-        runtime=SimpleNamespace(python=Path("/locked/python")),
+        runtime=ProjectRuntime(ROOT, Path("/locked/python"), Path("/locked")),
         node_package_supply=ROOT / "node_modules",
-    ).prove_host(Session())
+    ).prove_host(cast("nox.Session", Session()))
 
     assert events == [
         "build",
@@ -314,7 +307,6 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
 
 
 def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> None:
-    fixture = _acceptance_module("adopter")
     dirty = importlib.import_module("ethos.adapters.repo.dirty.change_provenance")
     global_config = tmp_path / "global.gitconfig"
     global_config.write_text("[core]\n\tautocrlf = true\n", encoding="utf-8")
@@ -340,25 +332,30 @@ def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> No
     assert dirty.dirty_provenance(adopter)["state"] == "clean"
 
 
-def test_lane_lifecycle_failure_preserves_the_command_result(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    lane = _acceptance_module("lane")
-    result = {
+def _blocked_command(command, gap, next_action):
+    return {
         "schema_version": 2,
-        "command": "lane start",
+        "command": command,
         "verdict": "block",
         "state": "blocked",
         "summary": {},
         "diagnostics": [],
-        "required_gaps": ["candidate_worktree_missing"],
-        "next_action": "ethos lane repair --root /repo --json",
+        "required_gaps": [gap],
+        "next_action": next_action,
         "user_decision_required": False,
         "data": {},
         "continuation": "blocked",
         "missing_facts_or_evidence": [],
     }
+
+
+def test_lane_lifecycle_failure_preserves_the_command_result(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    result = _blocked_command(
+        "lane start", "candidate_worktree_missing", "ethos lane repair --root /repo --json"
+    )
     monkeypatch.setattr(
         lane,
         "invoke",
@@ -381,21 +378,7 @@ def test_package_cli_invocation_preserves_result_and_stderr(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    invocation = _acceptance_module("invocation")
-    result = {
-        "schema_version": 2,
-        "command": "status",
-        "verdict": "block",
-        "state": "blocked",
-        "summary": {},
-        "diagnostics": [],
-        "required_gaps": ["locked_environment_not_provisioned"],
-        "next_action": "uv sync --frozen",
-        "user_decision_required": False,
-        "data": {},
-        "continuation": "blocked",
-        "missing_facts_or_evidence": [],
-    }
+    result = _blocked_command("status", "locked_environment_not_provisioned", "uv sync --frozen")
     monkeypatch.setattr(
         invocation,
         "run_command",
@@ -419,8 +402,6 @@ def test_package_cli_invocation_preserves_result_and_stderr(
 
 
 def test_lane_lifecycle_reuses_the_public_started_lane_for_recovery() -> None:
-    lane = _acceptance_module("lane")
-    fixture = _acceptance_module("adopter")
     prove_lifecycle = getattr(lane, "prove_lifecycle", None)
 
     assert callable(prove_lifecycle), "lane acceptance has no single public lifecycle owner"
@@ -431,7 +412,6 @@ def test_installed_sdk_check_observes_without_mutating_or_authoring_intent(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    effect = _acceptance_module("effect")
     smoke, adopter = tmp_path / "venv", tmp_path / "adopter"
     adopter.mkdir()
     executed: list[tuple[str, ...]] = []
@@ -467,7 +447,6 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    effect = _acceptance_module("effect")
     commands: list[tuple[str, ...]] = []
     head = "a" * 40
 
@@ -512,6 +491,7 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
 
     observation = effect.observe_independent_command_plane(tmp_path / "ethos", tmp_path)
 
+    assert isinstance(observation["commands"], list)
     assert "plan --changed" in observation["commands"]
     assert sum(command[1:3] == ("plan", "--changed") for command in commands) == 1
     assert not any(command[1] == "plan" and "--changed" not in command for command in commands[1:])
@@ -521,7 +501,6 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    effect = _acceptance_module("effect")
     accept = getattr(effect, "observe_runtime_lifecycle", None)
     assert callable(accept), "package acceptance has no single lifecycle effect"
 
@@ -560,16 +539,15 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
             events.append("prepare_acceptance_topology") or tmp_path / "candidate"
         ),
     )
-    monkeypatch.setattr(
-        effect.runtime_acceptance,
-        "activate_from_entrypoint",
-        lambda *_args, **_kwargs: events.append("hook_activation") or bootstrap_report,
-    )
-    monkeypatch.setattr(
-        effect.runtime_acceptance,
-        "activate_from_runtime",
-        lambda *_args, **_kwargs: events.append("successor_activation") or successor_report,
-    )
+    for method, stage, report in (
+        ("activate_from_entrypoint", "hook_activation", bootstrap_report),
+        ("activate_from_runtime", "successor_activation", successor_report),
+    ):
+        monkeypatch.setattr(
+            effect.runtime_acceptance,
+            method,
+            lambda *_args, stage=stage, report=report, **_kwargs: events.append(stage) or report,
+        )
 
     def require_manifest(report, *_args, **_kwargs):
         stage = "bootstrap_manifest" if report is bootstrap_report else "successor_manifest"
@@ -577,21 +555,16 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
         return bootstrap_python if report is bootstrap_report else runtime_python
 
     monkeypatch.setattr(effect.runtime_acceptance, "require_manifest", require_manifest)
-    monkeypatch.setattr(
-        effect.runtime_acceptance,
-        "require_production_dependencies",
-        lambda *_args, **_kwargs: events.append("development_dependencies") or {"state": "passed"},
-    )
-    monkeypatch.setattr(
-        effect.runtime_acceptance,
-        "require_version_identity",
-        lambda *_args, **_kwargs: events.append("immutable_identity") or {"state": "passed"},
-    )
-    monkeypatch.setattr(
-        effect.runtime_acceptance,
-        "prove_repair",
-        lambda *_args, **_kwargs: events.append("relocation_repair") or {"state": "passed"},
-    )
+    for method, stage in (
+        ("require_production_dependencies", "development_dependencies"),
+        ("require_version_identity", "immutable_identity"),
+        ("prove_repair", "relocation_repair"),
+    ):
+        monkeypatch.setattr(
+            effect.runtime_acceptance,
+            method,
+            lambda *_args, stage=stage, **_kwargs: events.append(stage) or {"state": "passed"},
+        )
     monkeypatch.setattr(
         effect.lane_acceptance,
         "prove_lifecycle",
@@ -636,7 +609,6 @@ def _run_successful_acceptance(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> SimpleNamespace:
-    effect = _acceptance_module("effect")
     artifacts = tmp_path / "artifacts"
     work = tmp_path / "work"
     evidence = tmp_path / "evidence/smoke.json"
@@ -670,12 +642,7 @@ def _run_successful_acceptance(
     )
     monkeypatch.setattr(effect, "current_tracked_head", lambda _root: "a" * 40)
     monkeypatch.setattr(effect, "wheel_build_identity", lambda _wheel: build)
-    commands: list[tuple[str, ...]] = []
-    monkeypatch.setattr(
-        effect,
-        "_run",
-        lambda *command, **_kwargs: commands.append(command) or "",
-    )
+    monkeypatch.setattr(effect, "_run", lambda *_command, **_kwargs: "")
     monkeypatch.setattr(
         effect,
         "prepare_locked_requirements",
@@ -699,27 +666,18 @@ def _run_successful_acceptance(
             supply_constraints=requirements,
         ),
     )
-    monkeypatch.setattr(
-        effect.adopter_fixture,
-        "materialize_adopter",
-        lambda *_args, **_kwargs: "d" * 40,
-    )
-    monkeypatch.setattr(
-        effect.adopter_fixture,
-        "line_ending_conformance",
-        lambda *_args, **_kwargs: ["lf", "crlf"],
-    )
-    monkeypatch.setattr(
-        effect,
-        "observe_installed_package",
-        lambda *_args, **_kwargs: ("/installed/ethos/__init__.py", "ethos 0.2.0-alpha.3"),
-    )
-    monkeypatch.setattr(
-        effect,
-        "observe_independent_command_plane",
-        lambda *_args, **_kwargs: {"external_governance_available": False},
-    )
-    monkeypatch.setattr(effect, "_verify_resources", lambda _wheel: ["ethos/data/gates.toml"])
+    for owner, method, value in (
+        (effect.adopter_fixture, "materialize_adopter", "d" * 40),
+        (effect.adopter_fixture, "line_ending_conformance", ["lf", "crlf"]),
+        (
+            effect,
+            "observe_installed_package",
+            ("/installed/ethos/__init__.py", "ethos 0.2.0-alpha.3"),
+        ),
+        (effect, "observe_independent_command_plane", {"external_governance_available": False}),
+        (effect, "_verify_resources", ["ethos/data/gates.toml"]),
+    ):
+        monkeypatch.setattr(owner, method, lambda *_args, value=value, **_kwargs: value)
     monkeypatch.setattr(
         effect,
         "observe_runtime_lifecycle",
@@ -739,11 +697,10 @@ def _run_successful_acceptance(
     monkeypatch.setattr(effect, "remove_generated_tree", remove_owned_work)
     session = SimpleNamespace(error=pytest.fail, log=logs.append)
 
-    effect.run(session)
+    effect.run(cast("nox.Session", session))
 
     return SimpleNamespace(
         cleanup_evidence_states=cleanup_evidence_states,
-        commands=commands,
         evidence=evidence,
         lifecycle=lifecycle,
         logs=logs,
@@ -755,7 +712,7 @@ def _run_successful_acceptance(
     )
 
 
-def test_acceptance_run_projects_one_offline_supply_into_the_lifecycle(
+def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -767,13 +724,6 @@ def test_acceptance_run_projects_one_offline_supply_into_the_lifecycle(
     assert result.observed["supply_wheel"] == result.wheel
     assert result.observed["environment"]["UV_OFFLINE"] == "1"
     assert "UV_CACHE_DIR" not in result.observed["environment"]
-
-
-def test_acceptance_run_cleans_owned_state_before_publishing_evidence(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    result = _run_successful_acceptance(monkeypatch, tmp_path)
 
     assert not result.sealed_payload.exists()
     assert not result.work.exists()

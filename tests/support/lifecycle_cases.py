@@ -2,18 +2,11 @@
 
 from __future__ import annotations
 
-import sqlite3
-from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from typing import TYPE_CHECKING
 
-from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos.contracts.coordination import LaneLease
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def assert_public_decision(
@@ -52,23 +45,3 @@ def strict_lease(
     }
     values.update(updates)
     return LaneLease.model_validate(values)
-
-
-def insert_lease_row(
-    database: Path,
-    lease: LaneLease,
-    *,
-    row_expires_at: str | None = None,
-) -> None:
-    with closing(sqlite3.connect(database)) as connection, connection:
-        connection.execute("begin immediate")
-        initialize_state_connection(connection)
-        connection.execute(
-            "insert into leases(lane_ref, holder_ref, generation, expires_at) values (?, ?, ?, ?)",
-            (
-                lease.lane_ref,
-                lease.holder_ref.serialize(),
-                lease.generation,
-                row_expires_at or lease.expires_at.isoformat(),
-            ),
-        )

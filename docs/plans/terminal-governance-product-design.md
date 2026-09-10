@@ -1805,6 +1805,147 @@ Correct scope declarations and consumers together, measure the affected baseline
 and close bounded owners without pausing already-safe lane retirement for an
 unlimited audit. The current Change does not redesign the whole quality system.
 
+#### Whole-System Quality Closure — 2026-09-10
+
+Quality is the chain from a product requirement and its risk, through one
+check owner and exact source/fixture scope, to a counterexample, enforced
+verdict, actionable repair and version-bound evidence. Counts of tools, rules,
+gates or passing tests are not a substitute for that chain. The scope includes
+product, tests, tools, declarations, documentation, official intent, schemas,
+packages, installed runtimes, native platforms, provider projections and the
+resources created while checking them. This table records observed gaps and
+required closure; it does not declare those properties delivered.
+
+| Quality responsibility | Existing owner and observed gap | Required completion evidence |
+| --- | --- | --- |
+| Intent and semantic preservation | Product contract, official quality spec and this plan; older tool findings were not consistently carried into execution | Every distinct obligation is accepted, superseded with reason, deferred with a trigger, or rejected; code/spec/docs/skills agree and no useful capability disappears during deletion |
+| Selection and execution | Gate declaration/compiler/runner versus private local-CI session lists; typing/budget and security/carrier checks differ between entrypoints | One declared graph and runner; equal requested planes have equal required closure; duplicate aggregate execution and private scheduling are removed |
+| Dependency and failure admission | Shared waves previously executed delivery after failed or unknown coverage | Independent RED cases for both outcomes, unexecuted dependent results with exact causes, no success receipt for an incomplete closure; preserve independent diagnostics |
+| Python correctness and documentation | Ruff and Ty remain sole native owners; `D` is absent and configured Ty `.` was narrowed to `src` | Native-rule changes reject representative faults across product/tests/tools; repair actual signatures and non-obvious contracts, retire overlapping custom docstring logic, preserve useful role distinctions without blanket exclusions |
+| Structure and maintainability | Module-layout, import-linter and source budgets; duplicate module identity parsing, empty test leaves, test-scope gaps and shallow/parallel owners remain | Resolve ownership using callers, dynamic registration, resources and independent change reasons; verify imports and public behavior after deleting incumbents, not file-count-driven moves |
+| Behavioral assurance | pytest, Hypothesis, combined coverage and selected mutation testing | At least 95 percent combined statement/branch coverage without exclusions or dilution, risk-selected boundary/state-machine/concurrency counterexamples and scoped mutation evidence, not copied implementation assertions |
+| Carrier and projection integrity | Native format/schema/link owners and generated-asset checks; full proof did not include every local-CI carrier check | One effective configuration per property, all maintained admitted carriers in scope, cross-plane references and generated projections checked, archived/generated quantities separately reported |
+| Dependency and security assurance | deptry, locked supplies, uv audit and Gitleaks; native owners exist but security checks are not in the proof registry | Inventory/source/lock/runtime agreement, dev-tool reachability, secrets and vulnerable/adverse dependency counterexamples; online freshness distinguished from offline correctness and tool provisioning |
+| Package and provenance | Build/install owners and Syft; SPDX version recognition alone is not complete conformance | Exact wheel/npm contents, reproducibility, install/upgrade/rollback/uninstall, standard SBOM conformance and license coverage, provenance, signatures and publication each proved separately |
+| Runtime and resource safety | Temporary/supply/runtime owners and native process observation | Normal/crash/SIGKILL convergence, live-root protection, read-only-tree deletion, shared supply, bounded 24/48-hour item/byte/inode/latency/indexing cost; no artificial TTL increase or manual broad cleanup |
+| Delivery and platform assurance | Native macOS/Linux/Windows matrix, Git/Forge publication and installed readback | Exact local object and independent remote refs/signatures, actual hosted jobs and assets, installed source/tree/digest; network failure, pending projection and real divergence remain distinct |
+| Gate effectiveness and economics | Existing quality owners, not a new quality platform | Each mandatory check detects its claimed real fault, fails closed on malformed/missing/stale evidence, preserves stderr/cwd/binary/actor, runs within bounded resources and has one repair path |
+
+The current `quality-assurance-owner-closure` Change repairs selection and
+prerequisite-result enforcement, not every row at once. Its source baseline is
+`3e1687cd`, with independent product/test ceilings of 40000 and coverage at least
+95 percent. Subsequent replacements remain globally required: native Ruff/Ty
+scope, metric correctness, semantic structure/docs/configuration, security and
+supply conformance, resource lifecycle and provider/adopter closure. Independent
+historical lane absorption is not postponed until the entire audit finishes.
+
+##### Recovered Tool Decisions And Current Capability Use
+
+Original July 22 quality reviews and the July 24 terminal synthesis have been
+recovered from the predecessor task `019f477e-7aaf-7fd0-837b-41606d7a8b5f` and its
+inherited copy in this task. They include more than code counters: security,
+packaging, licensing, schema compatibility, time control, memory analysis and
+proof publication. Old paths, thresholds, parallel-agent instructions and tool
+version claims are historical, not current policy. Their conflicting Vulture
+recommendations are resolved by retaining the useful diagnostic question, not
+installing a permanent scanner or a dynamic-entrypoint allowlist. The old
+request for a tool supply manifest is superseded by native version/lock owners
+and the sole gate declaration; it does not revive `system/tools.toml`.
+
+| Capability family | Prior candidates and disposition | Current use and next admissible step |
+| --- | --- | --- |
+| Size, complexity and change risk | scc for independent measurement; Radon/Xenon rejected as additional permanent policy owners | scc 4.1.0 scanned 478 Python files with complexity/cognitive/unique-line diagnostics. History mode fails on `extensions.worktreeConfig`; repair the tool boundary or use native Git history with exact scope, never alter repository format for the counter. ELOC retains its existing metric owner |
+| Code structure and semantic relationships | codebase-memory and Serena; Grimp/import-linter for import boundaries | Rebuilt existing `ethos-current` without a repository artifact: coverage metadata v3 is complete and generation-matched. LSP-backed call edges and clusters are usable; parse gaps, ignored paths, dynamic entrypoints and stale roots still require source verification. Graph results are derived observations, not deletion authority |
+| Clone and dead-code diagnosis | find-dup-defs was a pilot, not a proven winner; jscpd/slopo/Vulture/pyscn/redup considered on demand, not simultaneous gates | AST normalization and exact consumer checks found duplicate module parsing and unused fixtures. A maintained external clone tool is admitted only if a bounded sample adds real findings beyond this evidence; no stale whitelist or new control plane |
+| Safe transformation | ast-grep and LibCST on demand, not permanent policy; generic generator/framework rejected | Both are locally available. Select one for the actual structural rewrite, retain a reviewable diff and reference closure, then retire scratch transformations |
+| Native Python quality | Ruff, Ty, import-linter/Grimp, deptry retained; additional Pylint/Flake8/Black/isort/type-checker policy stacks rejected | Differential Ruff run reports 1636 `D` findings; `ALL` also reports signature, security and structural questions. Do not enable formatter-conflicting rules or convert meaningful asserts/subprocess calls into noise. Review rules by fault and semantic role before accepting the stricter native policy |
+| Behavioral and temporal assurance | Hypothesis and scoped mutmut; pytest-deadfixtures diagnostic; time-machine/freezegun versus explicit clock injection | Existing Hypothesis/mutmut are installed. Preserve behavior/state-machine tests and deterministic time boundaries; choose clock/tool support only for an actual uncovered case, not global monkeypatches |
+| Runtime and performance diagnosis | Memray/Scalene deferred; tracemalloc and native process/resource observation available | Activate on a retained leak/latency reproduction. Profile the relevant process boundary, account for profiler cost, and prove normal and crash teardown rather than adding permanent profilers to all gates |
+| Source and dependency security | Gitleaks and uv audit retained; bounded Semgrep/zizmor pilots; GuardDog/Packj on new-package risk; CodeQL conditional | Verify current native configuration, exact locks/rules/database identity and proof membership first. Do not revive Sonar/Trivy omnibus or multiple overlapping vulnerability/secret inventories |
+| Package, SBOM and licenses | validate-pyproject, check-wheel-contents, Twine, REUSE, Syft, SPDX tools-python; Grant only after standard SBOM; Grype/sbomqs conditional | Existing packaging/Syft output is only bounded evidence. Trial a checker against a real malformed artifact, standard violation or license gap; no aggregate quality score or second dependency inventory |
+| Public compatibility and provider semantics | Griffe, schema diff and old-instance replay; official GitLab CI Lint; registry-native provenance and cosign only for external blobs | Compare only declared supported public contracts; old Draft-7-only schema tooling is not proof for Draft 2020-12. Keep native provider parsing, execution, signing, uploading and readback separate |
+| General semantic graphs | The upstream semantica-agi/semantica describes context and knowledge graphs; its applicability to ETHOS and the originally intended project remain unverified | No installation or framework import is justified yet. Compare a bounded semantic-preservation question against the repaired code graph and original-source review; require measurable additional value without a new ETHOS authority |
+
+The Semantica candidate description was checked against its upstream
+semantica-agi/semantica README and docs.getsemantica.ai on September 10.
+That establishes the candidate's stated purpose, not tested correctness,
+code-reference recall or ETHOS admission; no installation was performed.
+
+The graph coverage defect was reproduced through both MCP and native CLI. A
+native rebuild of the same cache repaired missing metadata; code-reference
+queries were then checked against known symbols. It did not fix every historical
+index, establish complete graph recall, or authorize deleting zero-inbound nodes.
+The episodic-memory tool separately failed because its native SQLite binding
+was absent; exact original JSONL reads recovered the selected research, but this
+is not proof that all historical feedback has been exhaustively restored.
+
+The first execution regression is now demonstrated: `block` and `unknown`
+prerequisites previously ran delivery. Shared-runner replacement passes 27
+focused cases; duplicate module-name parsing and three unused fixture builders
+were removed, leaving measured product/test ELOC 39998/39962 before local-CI
+replacement. These are uncommitted focused results, not accepted or global
+quality closure. Exact receipts stay in the existing ignored working-evidence
+root, with this plan retaining the semantic decisions and remaining obligations.
+
+The private local-CI selection lists and thread scheduler have now been removed.
+It uses the shared full closure; missing carrier/security/package checks were
+registered without new implementations. The default closure is offline; full
+and local CI declare their wider network-dependent evidence honestly. Failed
+prerequisites cannot launch delivery, and changing source bytes while HEAD stays
+fixed invalidates the receipt. The affected suite passed 147 tests; eight newly
+registered native carrier checks actually executed successfully. Changed-source
+Ruff and typing pass. These remain uncommitted implementation evidence; full
+proof, archive and installed delivery for this Change are still unproved.
+
+At accepted `3e1687cd`, GitLab pipelines 6379/6380 and GitHub main 34431917860
+passed. GitHub dev 34431917891 failed only at the concurrent identical ref-intent
+writer test: 2804 passed, one failed, one skipped; `ref_intent_lock_timeout`
+occurred with eight threads and 32 writes under a one-second lock timeout.
+Coverage failure is secondary to that failed test. Investigate critical-section
+work and deterministic concurrency, not a blanket retry, longer TTL or weaker
+assertion. This independent incident remains urgent next-owner work, not a
+claim that socket repair failed or a reason to mix ref-intent changes into
+quality selection.
+
+Receipt review reproduced additional false-green boundaries: stable dirty
+source could be labeled as HEAD evidence; a passing label with no successful
+exit code admitted dependents; preflight/interruption could leave no current
+receipt. The transport now requires clean source, validates execution identity
+and completeness, and begins with a non-passing record. Dry-run dependency
+projection stays unknown. These are focused implementation results, not accepted
+delivery. Repeated package-fixture setup was consolidated without removing its
+lifecycle, supply, cleanup or diagnostic assertions. Current resource-heavy,
+hosted and installed acceptance remain separate obligations.
+
+The September 10 freeze checks passed 135 affected cases, the nine selected
+static owners, full Ruff lint/format over 475 Python files, touched-source Ty,
+official strict Change validation and native Markdown/prose checks. The actual
+local-CI command rejected this dirty worktree before executing any gate and
+retained its precise failure receipt. Product/test ELOC is 39999/40000; budgets
+were not changed. Gitleaks scanned the tracked mirror with no finding. Syft ran
+successfully against the existing accepted wheel at 3e1687cd; this verifies the
+owner invocation, not packaging of the uncommitted Change, SPDX conformance,
+provenance or publication. Exact-current full proof and delivery remain open.
+
+##### Execution Order And Exit Conditions
+
+1. Close this Change's one execution graph: preserve every effective check,
+   declare its evidence plane, remove private local scheduling, and prove
+   prerequisite failures, completeness, unique execution and exact source drift.
+2. Replace false-green native scopes and overlapping policy owners: Ruff `D`
+   and justified stricter rules, actual Ty test/tool scope, correct source metrics
+   and thresholds. Preserve source/test ceilings and coverage; remove superseded
+   bespoke collectors and shadow configuration.
+3. Use measured hotspots, clone evidence, call/import graphs and real fault
+   cases for semantic consolidation. Absorb remaining historical lane semantics
+   easiest first; retire exact reviewed roots and their unused projections.
+4. Close security/package/supply and normal/crash resource obligations at their
+   unique owners; reproduce findings across the supported native platform and
+   package-only lifecycle boundaries.
+5. Finish documentation/decision/configuration/projection agreement and current
+   local/remote/installed/adopter evidence. No row is complete merely because
+   the present full-proof set passes, a graph is populated, or a tool is installed.
+
 #### ELOC Calibration At `bf825e26`
 
 Read-only measurement using the current owner found the following distribution.

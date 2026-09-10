@@ -13,7 +13,9 @@ from typing import cast
 
 from ethos.adapters.repo.git import current_head
 from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import gate_execution_identity
 
 if TYPE_CHECKING:
@@ -41,10 +43,6 @@ def classify_action_result(
 ) -> tuple[Verdict, tuple[dict[str, Any], ...]]:
     if exit_code != 0:
         return "block", ()
-    return _ethos_result_verdict(stdout)
-
-
-def _ethos_result_verdict(stdout: str) -> tuple[Verdict, tuple[dict[str, Any], ...]]:
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:
@@ -61,8 +59,8 @@ def _ethos_result_verdict(stdout: str) -> tuple[Verdict, tuple[dict[str, Any], .
                 "required_gaps": ["ethos_result_verdict_missing_or_invalid"],
             },
         )
-    required_gaps = _strings(payload.get("required_gaps"))
-    warnings = _strings(payload.get("warnings"))
+    required_gaps = string_sequence(payload.get("required_gaps"), drop_empty=True)
+    warnings = string_sequence(payload.get("warnings"), drop_empty=True)
     diagnostic_gaps = _diagnostic_gaps(payload.get("diagnostics"), "ethos_result")
     gaps = tuple(dict.fromkeys((*required_gaps, *diagnostic_gaps)))
     verdict = report_verdict(payload)
@@ -186,14 +184,32 @@ def run_gate_waves(
 ) -> tuple[ActionRunResult, ...]:
     """Execute safe proof waves while preserving canonical result order."""
     results: list[ActionRunResult] = []
+    passed: set[str] = set()
+
+    def run(node: PlanNode) -> ActionRunResult:
+        gaps = [f"gate_dependency_not_proven:{key}" for key in node.depends_on if key not in passed]
+        if gaps and not isinstance(runner, DryRunRunner):
+            return ActionRunResult(
+                node.id,
+                node.command,
+                "block",
+                None,
+                diagnostics=({"kind": "gate_dependency", "required_gaps": gaps},),
+            )
+        return runner.run(node, gates[node.id], root=root)
+
     for wave in proof_waves(nodes, gates, capacity=capacity):
         if parallel and len(wave) > 1:
             with ThreadPoolExecutor(max_workers=len(wave)) as executor:
-                results.extend(
-                    executor.map(lambda node: runner.run(node, gates[node.id], root=root), wave)
-                )
+                wave_results = tuple(executor.map(run, wave))
         else:
-            results.extend(runner.run(node, gates[node.id], root=root) for node in wave)
+            wave_results = tuple(map(run, wave))
+        results.extend(wave_results)
+        passed.update(
+            result.action_id
+            for result in wave_results
+            if result.verdict == "pass" and result.exit_code == 0
+        )
     return tuple(results)
 
 
@@ -223,8 +239,8 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
             )
             continue
         reports.append({"provider": reference, "report": dict(report)})
-        gaps = _strings(report.get("required_gaps"))
-        warnings = _strings(report.get("warnings"))
+        gaps = string_sequence(report.get("required_gaps"), drop_empty=True)
+        warnings = string_sequence(report.get("warnings"), drop_empty=True)
         warning_gaps = tuple(
             f"gate_provider_warning:{gate.id}:{reference}:{warning}" for warning in warnings
         )
@@ -252,12 +268,7 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
                     "required_gaps": list(provider_gaps),
                 }
             )
-    if len(reports) != len(gate.providers) or "block" in verdicts:
-        verdict: Verdict = "block"
-    elif "unknown" in verdicts:
-        verdict = "unknown"
-    else:
-        verdict = "pass"
+    verdict = reduce_verdicts(*verdicts) if len(reports) == len(gate.providers) else "block"
     payload = {"verdict": verdict, "gate": gate.id, "providers": reports}
     return ActionRunResult(
         action_id=node.id,
@@ -267,12 +278,6 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
         stdout=json.dumps(payload, sort_keys=True, separators=(",", ":")),
         diagnostics=tuple(diagnostics),
     )
-
-
-def _strings(value: object) -> tuple[str, ...]:
-    if not isinstance(value, (list, tuple)):
-        return ()
-    return tuple(str(item) for item in value if str(item))
 
 
 def _diagnostic_gaps(value: object, prefix: str) -> tuple[str, ...]:

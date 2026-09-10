@@ -9,7 +9,6 @@
 - [x] 2.2 Prepare the exact executable through the shared hosted entry and retain failures.
 - [x] 2.3 Pass focused regressions, actual budget execution and affected static checks.
 
-## 3. Accept And Observe
-
-- [ ] 3.1 Complete exact proof, official archive and accepted closeout.
-- [ ] 3.2 Publish the selected object and verify hosted tests and their reports.
+Exact proof, archive, accepted delivery and hosted results are external lifecycle
+preconditions recorded in the canonical terminal plan, not source checkboxes
+whose update would invalidate the object just proven.

@@ -2644,6 +2644,25 @@ publication and new hosted JUnit/coverage remain required. The paused six-file
 urgent delivery failure. Historical lane absorption remains high priority; no
 historical lane was retired by this tool-supply repair.
 
+At implementation `37a1d52ea`, all 29 non-dependent source checks passed, but
+the full test gate returned one failure among 2907 cases: the final retirement
+of a detached, previously process-held fixture was blocked after its holder
+exited. The shortened pytest dictionary hid the exact gap; its root cause is
+not established. Coverage measured 95.2211%, but dependent acceptance gates
+correctly did not run. One isolated case, twelve concurrent repetitions, the
+ten live-reference scenarios, eighty native-observer samples and all 281
+retirement tests under coverage passed without source changes. These narrow
+results do not replace the failed full proof or prove a permanent repair.
+Retain both observations; next exact proof must preserve complete assertion
+and local-state diagnostics if the failure recurs. Do not weaken retirement
+safety, extend timeouts or add implicit retries to obtain green.
+
+Lifecycle evidence remains an external acceptance requirement in this plan.
+It is not a task checkbox to change after proof: modifying that source would
+invalidate the exact object being accepted. The official Change task list
+therefore contains implementation and executable-verification work only; its
+completion never substitutes for current full proof, archive or hosted delivery.
+
 ## Convergence Rules
 
 1. **Promote before compatibility.** Replace a missing model boundary before

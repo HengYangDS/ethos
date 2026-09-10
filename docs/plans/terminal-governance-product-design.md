@@ -1831,13 +1831,66 @@ required closure; it does not declare those properties delivered.
 | Delivery and platform assurance | Native macOS/Linux/Windows matrix, Git/Forge publication and installed readback | Exact local object and independent remote refs/signatures, actual hosted jobs and assets, installed source/tree/digest; network failure, pending projection and real divergence remain distinct |
 | Gate effectiveness and economics | Existing quality owners, not a new quality platform | Each mandatory check detects its claimed real fault, fails closed on malformed/missing/stale evidence, preserves stderr/cwd/binary/actor, runs within bounded resources and has one repair path |
 
-The current `quality-assurance-owner-closure` Change repairs selection and
-prerequisite-result enforcement, not every row at once. Its source baseline is
-`3e1687cd`, with independent product/test ceilings of 40000 and coverage at least
-95 percent. Subsequent replacements remain globally required: native Ruff/Ty
+The `quality-assurance-owner-closure` Change was accepted at `c9aad4a80` after
+both source and archived-source full proofs passed all 35 selected gates.
+Installed-runtime inventory and both independent remote dev/main refs were
+read back at that object; hosted CI completion remained unproved. This repairs
+selection and prerequisite-result enforcement, not every row at once. Independent
+product/test ceilings remain 40000 and combined coverage at least 95 percent.
+Subsequent replacements remain globally required: native Ruff/Ty
 scope, metric correctness, semantic structure/docs/configuration, security and
 supply conformance, resource lifecycle and provider/adopter closure. Independent
 historical lane absorption is not postponed until the entire audit finishes.
+
+##### Research Intake And Quality Effectiveness
+
+The user-authorized September 10 research input is
+`ETHOS-research-2026-09-10.md`, verified SHA-256
+`3a68c70f3b545c1535a8581a0b5dbd2fdc1e07191a51c5e5e00d0d8196f08c3c`.
+Its `3e1687cd` observations are historical, not current accepted coordinates.
+External source inspection is evidence of the inspected implementation, not a
+common-workload result, independent identity guarantee or comparative ranking.
+Existing product meaning and the current public runtime remain authoritative.
+
+| Obligation and disposition | Existing owner and bounded next verification |
+| --- | --- |
+| Accept reliable human/Agent continuation; correct the passive reader loop | The current `status-observation-completion` Change removes the workspace fallback and reuses exact closeout derivation. Real idle, foreign-lane and pending-candidate cases must distinguish done, detail expansion and an actual next operation; blocking causes remain visible. Reader done is not global goal completion. |
+| Accept candidate/verification-attempt separation and bounded reuse from COMET/SpecD | Existing proof bindings and Fact providers must invalidate reused observations on relevant source, policy, environment, toolchain or external-fact changes. Keep a valid candidate when only verifier availability changes; distinguish Lease expiry, owner liveness and child liveness. Strong evidence belongs at the actual trust boundary, not in duplicate snapshots or trajectories. |
+| Accept trusted-prestate policy continuity from RepoKernel/gittuf; strength remains unproved | The policy/compiler and independent-verification owner must reject candidate self-downgrade under trusted prior policy. Identity, permission, quality and freshness are independent conjunctions. The currently disabled profile path is not evidence of default independent enforcement. Exercise control-policy replacement, rollback and absent verifier; ordinary changes need not acquire a universal heavyweight verifier. |
+| Accept official OpenSpec archive-fidelity replay before upgrade | Official release/API observations found 1.13.0, published September 10 at 05:10 +0800. Replay repeated delta sections, CommonMark list markers, fenced blank lines, wrapped scenarios, skip_specs and archived proof identity through the official CLI. Then update existing supply/lock/package/runtime owners together. Do not implement a second Markdown parser. |
+| Accept stable capability seams and source checks, not another framework lifecycle | Fact/Context providers and existing Skills may supply domain capability. Spec Kit extension and resume checks are candidates for bounded adaptation. Keep one merge/archive/publish effect owner, no persistent graph or framework state beside the repository authority. |
+| Accept standard interoperability only when a consumer needs it | Materials, products, identity and provenance from in-toto/DSSE/SLSA inform existing evidence boundaries. A standard adapter needs a demonstrated cross-system consumer; Source Track and build provenance must not become a second policy authority. Signatures or HMACs alone prove neither independent execution nor current permission. |
+| Require greenfield and brownfield vertical conformance, not bootstrap claims | Exercise formation/adoption, first accepted change, Agent handoff, cooperation/competition/drop, interruption, partial publication and exit. Reuse domain Skills/templates; preserve brownfield layout and do not retroactively certify its history. Two-file bootstrap, compensating exceptions, Git ref CAS and cross-Forge effects have distinct guarantees; uncertain results remain unknown. |
+| Preserve exact foreign/dirty-lane ownership and useful results | Three historical lanes still require semantic absorption and exact retirement. Verify relationships, receive authorized handoff, conserve unique content and prove recoverability before deletion; visibility is not ownership. Do not revive obsolete persistent Commitment or full-semantic Lease carriers. |
+
+Quality effectiveness is a four-part obligation: the required property has an
+executable rule; the rule covers every meaningful maintained carrier; an
+independently chosen wrong mechanism causes a distinguishable failing
+observation; and all relevant entrypoints enforce that result. A successful
+check only establishes its observed scope. Broad green, task checkboxes, source
+size and installed-tool counts cannot substitute for these obligations.
+Measure false admission, false blockage, repeated side effects, result
+conservation, manual continuation cost, latency/resources and maintenance
+touchpoints using the same workloads before claiming improvement.
+
+The module-docstring audit at `c9aad4a80` found 40 of 259 product modules,
+124 of 184 test modules and 6 of 29 tool modules without a module docstring.
+These 472 tracked files exclude other Python locations and generated code.
+Ruff's Google convention is configured but `D` is unselected; the bespoke
+presence check only covers package boundaries and CLI functions under product
+source. Its passing result is not full module coverage. The next native-quality
+replacement must enforce meaningful module responsibility/boundary documentation
+across maintained Python, retain necessary public API contracts, and retire
+overlapping collectors. Empty namespace shells require necessity review, not
+filler documentation. Counterexamples must include missing ordinary module,
+package, test and tool documentation plus ineffective rule/scope selection;
+do not hide omissions in exclusions or mechanically generated prose.
+
+Execution remains bounded: close the current reader/entry atom, then prioritize
+native quality effectiveness and official supply fidelity alongside easiest-first
+historical lane retirement. Trusted-policy counterexamples precede any claim of
+default independent protection. Full adoption workloads close the broader product
+mission; they are not silently added to this reader Change.
 
 ##### Recovered Tool Decisions And Current Capability Use
 

@@ -29,6 +29,7 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.domain.land.closeout import closeout_command_from_status
 from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
@@ -160,7 +161,7 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
         required_gaps=gaps,
     )
     stage_gates = cast("dict[str, object]", report.get("stage_gates") or {})
-    action = str(stage_gates.get("next_action") or "")
+    action = closeout_command_from_status(repo, report) or str(stage_gates.get("next_action") or "")
     user_decision_required = bool(stage_gates.get("user_decision_required", False))
     summary = {
         "branch": report["branch"],

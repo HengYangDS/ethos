@@ -46,3 +46,27 @@ stale meaning and renderer-specific layout. Candidate coordinates can be deliver
 before repository acceptance but must be labelled accordingly. Interrupted Python
 reference-binding work remains hash-preserved outside tracked intent until this
 bounded priority work reaches its safe boundary.
+
+## Incremental Source Review
+
+The non-authorizing review at renderer source commit
+`148fb4f598138df5d8f500a614b67cf933bffa68`, in
+`docs/terminal-semantic-review.md`, examines ETHOS accepted `d2949938...`, not
+this Change's candidate `2b546eb29...`. Its product digest mismatch was reproduced
+against that accepted object. Renderer commits `aa76425...` and `1046f099...`
+exist; their parity and raster claims were not independently re-executed here.
+
+| Input | Disposition and current boundary |
+| --- | --- |
+| Accepted graph narrows the product and has stale bindings | Confirmed for the reviewed accepted revision. This Change's candidate already repairs full product scope and exact bindings; do not duplicate that implementation. |
+| Interpretation, compilation, capabilities, formation/adoption, selection, proof planes, publication and benefit are distinct | Retained in the candidate's typed nodes, relations and explicit static copy. The source-derived claims remain target obligations, not delivered behavior. |
+| Runtime migration/rollback, review versus release, resource lifecycle and recovered-obligation dispositions need detail | Accepted as omissions in the first candidate. Strengthen the existing nodes and copy; map each of the contract's fifteen numbered Invariants through the existing view mapping. No new product type or persisted workflow is required. |
+| Progressive disclosure should avoid equal-sized detail everywhere | Adjusted: renderer layout is free and supplementary detail is useful, but required meaning still needs a readable static witness. A hidden detail panel cannot replace it. |
+| Equal SVG paths, recognized text and mapping counts prove completeness | Rejected as an inference, consistent with the review's own limits. Phrase-retention and source-accounting regressions only detect deletion/drift; they are not independent understanding, semantic sufficiency, visual or aesthetic acceptance. |
+| Create an independent bounded projection Change | Already satisfied by this active `terminal-product-projection` Change, separate from preserved Python observation work. Adding another Change would duplicate its owner. |
+
+Current, terminal and optional source attributes survive export. Expanded ideal
+runtime and accepted-role nodes are marked terminal rather than silently claiming
+implementation. The mapping uses the selected product contract's numbering, not
+a second normative rule set. Rendering must preserve each relation's endpoints,
+type, condition and non-authorizing plane even when a visible aggregate is used.

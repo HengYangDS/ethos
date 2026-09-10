@@ -6,7 +6,7 @@
     "title": "ETHOS complete product architecture",
     "thesis": "Preserve meaning, bound action, verify results, learn from actual use and make work continuable across people, Agents and platforms.",
     "product_definition": "A reliable, composed path for people and interchangeable Agent capabilities from understanding problems to evolving repositories and evaluating their use.",
-    "product_position": "Complete repository evolution product around a small trust kernel and replaceable domain capabilities.",
+    "product_position": "Complete repository evolution product around a small trust kernel and replaceable domain capabilities; source-supported, terminal and optional distinctions are retained per node.",
     "authority_owner": "docs/governance/product-design-contract.md",
     "derived_constraints": [
       "system/axioms.md",
@@ -249,7 +249,7 @@
         "product_contract",
         "transition_plan"
       ],
-      "semantics": "Exact verifier-bound statements selected by the current TransitionPlan only when their predicates, bindings, and validity change admission."
+      "semantics": "Historical evidence remains predicate-, binding-, validity- and verifier-specific. Current selection grants no inherited authority; any later effect needs fresh admission."
     },
     "compile_plan": {
       "kind": "transient_ir",
@@ -347,7 +347,7 @@
         "product_contract",
         "skills"
       ],
-      "semantics": "OpenSpec, Git, tests, docs, CI and provider tools retain their own semantics."
+      "semantics": "People and interchangeable Agents compose Skills, generators, verifiers and native tools. Evaluate official and mature capabilities before custom machinery. Contracts bind I/O, identity/version, permission, cancellation and failure. Pure semantics stay separate from bounded effects; capabilities grant no authority."
     },
     "actor": {
       "kind": "execution",
@@ -432,11 +432,12 @@
     },
     "git_common_activation": {
       "kind": "coordination",
-      "maturity": "current",
+      "maturity": "terminal",
       "label": "Single Git-common activation",
       "layer": "substrate",
       "required_visible": true,
       "evidence": [
+        "product_contract",
         "local_state",
         "repository_governance",
         "command_plane"
@@ -448,7 +449,7 @@
         "gc.packRefs"
       ],
       "worktree_local_owner_allowed": false,
-      "semantics": "Repository-common configuration selects one effective hook/runtime activation for the Git common directory; linked worktrees inherit it and cannot become parallel activation owners."
+      "semantics": "One Git-common activation, no per-worktree authority. Preview adoption; use the locked toolchain for immutable runtime activation, state migration, hook rebinding and rollback. Preserve exact prior state on failure; retire superseded generations only after consumers are discharged."
     },
     "runtime_generation_retirement": {
       "kind": "coordination",
@@ -495,11 +496,12 @@
     },
     "candidate_bundle": {
       "kind": "repository_state",
-      "maturity": "current",
+      "maturity": "terminal",
       "label": "Proven lane candidate",
       "layer": "candidate_worlds",
       "required_visible": true,
       "evidence": [
+        "product_contract",
         "runner_mutation"
       ],
       "semantics": "One exact proven candidate object may contain one contribution or multiple compatible contributions and their synthesis; combination proof is required before candidate-ref CAS."
@@ -706,14 +708,16 @@
     },
     "accepted_next": {
       "kind": "repository_state",
-      "maturity": "current",
+      "maturity": "terminal",
       "label": "Next accepted state",
       "layer": "version_lineage",
       "required_visible": true,
       "evidence": [
+        "product_contract",
         "runner_mutation"
       ],
-      "reality_boundary": "ethos_repo"
+      "reality_boundary": "ethos_repo",
+      "semantics": "Distinct roles: work authors; candidate integrates; proposal reviews; dev accepts; main releases. Candidate proof and expected accepted state bind a separate CAS. Developer MR/PR or authorized maintainer closeout selects the same object. Retire proposal after dev acceptance and review closure, not main release."
     },
     "outcome_unknown": {
       "kind": "recovery",
@@ -749,7 +753,7 @@
         "product_contract",
         "runner_mutation"
       ],
-      "semantics": "Reachable Git state and durable Attestations from which the same operation can freshly observe, recompile, and resume without inherited permission."
+      "semantics": "BLOCK prevents a future effect; UNKNOWN may describe an already attempted effect. Preserve reachable Git and necessary Attestations through actor or host loss. Re-observe uncertain outcomes, recompile and reauthorize before continuation; never replay blindly."
     },
     "model_gap": {
       "kind": "recovery",
@@ -823,7 +827,7 @@
         "adoption"
       ],
       "reality_boundary": "brownfield_repo",
-      "semantics": "Inventory and incrementally adopt an existing repository, preserving domain layout and customization. Surface conflicts, do not retroactively approve old history, and support upgrade and exit."
+      "semantics": "Brownfield: inventory inherited state, preserve domain layout and customization, expose conflicts and bind gradually. Adoption is previewable and idempotent, reversible before first governed effect; upgrade without retroactive approval of history."
     },
     "brownfield_cas": {
       "kind": "effect_aperture",
@@ -850,7 +854,7 @@
         "adoption"
       ],
       "reality_boundary": "greenfield_repo",
-      "semantics": "Form a new repository from minimal native scaffold and Skills; retain customization and upgrade provenance from first generation, then use the same local trust kernel."
+      "semantics": "Greenfield: inspect the founding state and expected absence, then preview a minimal native scaffold through Skills. Preserve customization and upgrade provenance from first generation; first acceptance uses the same local protocol."
     },
     "greenfield_cas": {
       "kind": "effect_aperture",
@@ -1521,7 +1525,7 @@
       "evidence": [
         "product_contract"
       ],
-      "semantics": "Propose questionable meanings; settle trade-offs, non-goals, exceptions, assumptions and guarantees against positive and negative source examples. Account for every scoped constraint as retained, authorized exclusion or unresolved; never silently discard one."
+      "semantics": "Challenge interpretations with source examples. Settle scope, exceptions, assumptions and guarantees; discovery is not complete understanding. Recovered obligations are accepted, superseded, pending verification or rejected. Only accepted meaning enters official OpenSpec; compilation does not certify understanding."
     },
     "repository_norms": {
       "kind": "conformance",
@@ -1532,7 +1536,7 @@
       "evidence": [
         "product_contract"
       ],
-      "semantics": "Agentic-native semantic ownership, coherent source/docs/rules/Skills and executable quality contracts apply in new and existing repositories without cloning their domain layout."
+      "semantics": "Agentic-native source, tests, specs, docs, rules and Skills follow one semantic owner per obligation and executable quality. Each module, config, document and temporary resource needs a current consumer and bounded lifecycle. Profiles retain native domain, layout, provider and observation freedom; governed mutation uses verified OpenSpec."
     },
     "capability_contract": {
       "kind": "conformance",
@@ -4361,7 +4365,7 @@
     },
     {
       "id": "G17",
-      "statement": "Brownfield, Greenfield, self-governance, and autonomous adopter peers keep local authority and judgment; publication remotes remain distinct projection targets.",
+      "statement": "Profiles retain native domain, layout, provider and observation freedom. Complete mutation adoption uses a verified OpenSpec carrier without shaping kernel semantics; each adopter keeps local authority and judgment.",
       "required_visible": true,
       "source_ids": [
         "product_contract"
@@ -4506,6 +4510,70 @@
     {
       "id": "G36",
       "statement": "Target capability scope is not a claim of current implementation or deployed behavior.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G37",
+      "statement": "Authoring, candidate integration, proposal review, accepted dev and release main are distinct roles. Proposal retirement follows dev acceptance and review closure, not main promotion.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G38",
+      "statement": "Runtime activation, state migration, hook rebinding and rollback form one immutable transaction through the locked repository toolchain.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G39",
+      "statement": "Every durable obligation has one narrow semantic owner. Documentation, evidence, configuration, temporary resources and physical modules require current consumers and a provable lifecycle.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G40",
+      "statement": "Recovered obligations are accepted, superseded, pending verification or rejected; only accepted meaning enters a current owner.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G41",
+      "statement": "Evaluate official and mature capabilities before custom machinery; declarative pure semantics remain separate from bounded effects.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G42",
+      "statement": "Compatibility residue, feedback ledgers and memory-backed product truth do not survive terminal convergence.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G43",
+      "statement": "Change relations and experiments remain derived capabilities over native intent and exact evidence, not new state stores.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G44",
+      "statement": "Local Git owns publication objects; each independent remote receives the selected OIDs or reports absent, unavailable, pending or divergent separately.",
       "required_visible": true,
       "source_ids": [
         "product_contract"

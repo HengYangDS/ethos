@@ -35,26 +35,6 @@
     ["status", "--change"], ["instructions", "apply"],
     ["instructions", "archive"], ["validate", "--all"], ["show", "active"]
   ],
-  "view": {
-    "status": {
-      "changeName": "$NAME", "schemaName": "spec-driven",
-      "changeRoot": "$ROOT/openspec/changes/$NAME", "isComplete": true,
-      "artifactPaths": {"specs": {"existingOutputPaths": []}},
-      "artifacts": [
-        {"id": "proposal", "status": "done", "requires": []},
-        {"id": "specs", "status": "done", "requires": []},
-        {"id": "design", "status": "done", "requires": []},
-        {"id": "tasks", "status": "done", "requires": []}
-      ],
-      "root": {"path": "$ROOT", "source": "nearest"}
-    },
-    "apply": {
-      "changeName": "$NAME", "state": "$STATE",
-      "progress": {"total": 1, "complete": "$DONE", "remaining": "$REMAINING"},
-      "tasks": [{"id": "1", "description": "Task 1", "done": "$BOOL"}],
-      "instruction": "Continue.", "root": {"path": "$ROOT", "source": "nearest"}
-    }
-  },
   "receipt": {
     "command": [], "exit_code": 0, "stdout": "", "stderr": "",
     "json": {}, "parse_error": ""
@@ -64,6 +44,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -96,21 +77,14 @@ def _repo(tmp_path, material="openspec/**"):
     return repo
 
 
-def _views(repo, name, state="ready"):
-    done = state == "complete"
-    values = {
-        "$ROOT": str(repo),
-        "$NAME": name,
-        '"$STATE"': json.dumps("all_done" if done else "ready"),
-        '"$DONE"': str(int(done)),
-        '"$REMAINING"': str(int(not done)),
-        '"$BOOL"': str(done).lower(),
-    }
-    encoded = json.dumps(MATRIX["view"])
-    for old, new in values.items():
-        encoded = encoded.replace(old, new)
-    view = json.loads(encoded)
-    return view["status"], view["apply"]
+def _views(repo, name):
+    """Read native artifact and task observations instead of fabricating their schema."""
+    command = cli.openspec_base_command()
+    assert command is not None
+    return (
+        cli.run_json(repo, command, ("status", "--change", name, "--json"))["json"],
+        cli.run_json(repo, command, ("instructions", "apply", "--change", name, "--json"))["json"],
+    )
 
 
 def _write(path, content):
@@ -164,21 +138,84 @@ def test_package_projection_claim_matrices():
         assert life.selected_change(rows, selected) == expected, claim
 
 
-def test_package_intent_claim_matrix(tmp_path):
+@pytest.mark.parametrize("marker", ["-", "*", "+", "1.", ""])
+def test_intent_context_preserves_native_source_and_interpretation_boundary(
+    tmp_path, marker, monkeypatch
+):
+    """Native formatting cannot erase the user's zero-winner constraint."""
     spec = tmp_path / "openspec/changes/example/specs/contracts/spec.md"
-    _write(spec, "## ADDED Requirements\n\n### Requirement: Portable result\n")
+    content = (
+        "## ADDED Requirements\n\n### Requirement: Portable result\n\n"
+        "The system SHALL permit zero winners.\n\n#### Scenario: All drop\n\n"
+        "- **WHEN** no candidate is suitable\n- **THEN** preserve useful results\n\n"
+        "```md\n## Open Questions\n- Not a real question\n```\n\n"
+        f"## Out of Scope\n\n{marker} Require one winner,\n"
+        "   even after testing.\n\n"
+        f"## Open Questions\n\n{marker} Who decides value?\n\n"
+        "## Next section\n\nNot an unresolved question.\n"
+    )
+    _write(spec, content)
+    reads, read = [], Path.read_bytes
+
+    def observe(path):
+        reads.append(path)
+        return read(path)
+
+    monkeypatch.setattr(Path, "read_bytes", observe)
+    arguments = {
+        "commitment": commitment_fixture(id="change:example", acceptance=("Require one winner",)),
+        "config": {},
+        "status": {"changeName": "example", "schemaName": "spec-driven", "artifacts": []},
+        "apply": {"contextFiles": {"specs": [str(spec), str(spec)]}, "tasks": []},
+    }
+    context, gaps = compile_intent_context(tmp_path, **arguments)
+    assert (gaps, context["negative_scope"], context["ambiguities"]) == (
+        (),
+        ["Require one winner,\neven after testing."],
+        ["Who decides value?"],
+    )
+    assert context["requirements"] == ["contracts:Portable result"]
+    assert context["edge_cases"] == ["contracts:Portable result:All drop"]
+    assert context["interpretation_state"] == "not_assessed"
+    assert context["duplicate_requirements"] == []
+    assert "conflicts" not in context
+    assert context["sources"] == {
+        spec.relative_to(tmp_path).as_posix(): {
+            "content": content,
+            "sha256": hashlib.sha256(content.encode()).hexdigest(),
+        }
+    }
+    assert reads == [spec]
+    assert context == compile_intent_context(tmp_path, **arguments)[0]
+    json.dumps(context)
+
+
+@pytest.mark.parametrize(
+    "fault", ["missing", "escape", "invalid", "undecodable", "absent", "empty", "nonstring"]
+)
+def test_intent_context_never_silently_drops_unavailable_sources(tmp_path, fault):
+    """Incomplete source observations cannot claim a complete context."""
+    source = tmp_path / "intent.md"
+    source.write_bytes(b"\xff" if fault == "undecodable" else b"User constraint.\n")
+    values = {
+        "missing": [str(tmp_path / "missing.md")],
+        "escape": [str(tmp_path.parent / "outside.md")],
+        "invalid": "not-a-path-list",
+        "undecodable": [str(source)],
+        "absent": [],
+        "empty": [],
+        "nonstring": [None],
+    }
     context, gaps = compile_intent_context(
         tmp_path,
-        commitment=commitment_fixture(id="change:example", acceptance=("acceptance:fixture",)),
+        commitment=commitment_fixture(id="change:example"),
         config={},
-        status={"changeName": "example", "schemaName": "spec-driven", "artifacts": []},
-        apply={"contextFiles": {"behavior-contracts": [str(spec)]}, "tasks": []},
+        status={},
+        apply={} if fault == "absent" else {"contextFiles": {"proposal": values[fault]}},
     )
-    assert gaps == ()
-    assert context["requirements"] == ["contracts:Portable result"]
-    assert "requirement_edges" not in context
-    assert "assumptions" not in context
-    json.dumps(context)
+    assert gaps
+    assert all(gap.startswith("openspec_context_") for gap in gaps)
+    assert context["source_state"] == "incomplete"
 
 
 def test_adopter_config_claim_matrix(tmp_path):
@@ -219,17 +256,19 @@ def test_adopter_completed_scope_claim_matrix(tmp_path):
     fixture.write_active_commitment(
         repo, change_id="completed-change", scope=("docs/governance/**",)
     )
-    status, apply = _views(repo, "completed-change", "complete")
+    tasks = repo / "openspec/changes/completed-change/tasks.md"
+    tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
+    status, apply = _views(repo, "completed-change")
     changes = {"changes": [_change("completed-change", 1, status="complete")]}
-    request = {
-        "lifecycle": True,
-        "changed_paths": ("docs/governance/new-policy.md",),
-        "require_workspace": False,
-    }
     reports = [
         life.lifecycle_report(
             repo,
-            request=life.OpenSpecRequest(change=selected, **request),
+            request=life.OpenSpecRequest(
+                change=selected,
+                lifecycle=True,
+                changed_paths=("docs/governance/new-policy.md",),
+                require_workspace=False,
+            ),
             list_payload=changes,
             status_payload=status,
             apply_payload=apply,
@@ -249,61 +288,27 @@ def test_adopter_completed_scope_claim_matrix(tmp_path):
 
 
 def test_adopter_lifecycle_claim_matrix(monkeypatch, tmp_path):
+    """Exercise official projection instead of a second hand-written protocol."""
     repo, commands = _repo(tmp_path), []
+    fixture.git(repo, "checkout", "-b", "work/intent")
     fixture.write_active_commitment(repo, change_id="active")
-    status, apply = _views(repo, "active")
-    root = {"path": str(repo), "source": "nearest"}
-    payloads = [
-        {},
-        {"root": {"healthy": True}},
-        {"changes": [_change("active")]},
-        status,
-        apply,
-        {"changeName": "active", "root": root},
-        {"items": [], "summary": {}},
-        {
-            "id": "active",
-            "deltas": [
-                {
-                    "spec": "contracts",
-                    "requirements": [
-                        {
-                            "text": "The active change remains governed.",
-                            "scenarios": [
-                                {"rawText": "- **WHEN** it is selected\n- **THEN** it compiles"}
-                            ],
-                        }
-                    ],
-                }
-            ],
-        },
-    ]
-    command_payloads = dict(
-        zip((" ".join(row) for row in MATRIX["commands"]), payloads, strict=True)
-    )
+    run = cli.run_json
 
-    def run_json(_root, base, args):
+    def observed(root, base, args):
         commands.append(args)
-        return MATRIX["receipt"] | {
-            "command": [*base, *args],
-            "json": command_payloads[" ".join(args[:2])],
-        }
+        return run(root, base, args)
 
-    monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(cli, "run_json", run_json)
+    monkeypatch.setattr(cli, "run_json", observed)
     report = openspec_governance_report(repo, lifecycle=True)
-    assert (report["required_gaps"], "archive_preflight" in report["lifecycle"]["changes"][0]) == (
-        [],
-        False,
-    )
+    assert report["required_gaps"] == []
+    assert "archive_preflight" not in report["lifecycle"]["changes"][0]
     assert [item[:2] for item in commands] == [tuple(item) for item in MATRIX["commands"]]
-    payload = {"changes": [_change("ready", 1, status="complete")]}
-    monkeypatch.setattr(
-        cli, "run_json", lambda *_a: MATRIX["receipt"] | {"command": ["openspec"], "json": payload}
-    )
+    assert report["intent_context"]["source_state"] == "complete"
+    tasks = repo / "openspec/changes/active/tasks.md"
+    tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
     report = completed_active_changes_report(repo)
     assert (report["verdict"], report["completed_changes"], report["required_gaps"]) == (
         "block",
-        ["ready"],
-        ["openspec_completed_change_unarchived:ready"],
+        ["active"],
+        ["openspec_completed_change_unarchived:active"],
     )

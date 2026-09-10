@@ -77,12 +77,6 @@ def openspec_governance_report(
         )
     request = OpenSpecRequest(change, lifecycle, changed_paths, require_workspace)
     base_command = openspec_cli.openspec_base_command()
-    if base_command is None:
-        return _openspec_governance_report(
-            root,
-            request=request,
-            base_command=None,
-        )
     return _openspec_governance_report(
         root,
         request=request,

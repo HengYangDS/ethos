@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 import ethos.adapters.openspec.cli as cli
 import ethos.adapters.openspec.governance as governance
 import tests.support.governed_repository as fixture
@@ -207,82 +209,31 @@ def test_governance_observes_archive_effect_separately_from_generation_scope(mon
     assert report["lifecycle"]["scope_binding"] == archive_scope
 
 
-def test_governance_keeps_completed_unarchived_change_as_current_intent(monkeypatch, tmp_path):
+@pytest.mark.parametrize("missing_source", [False, True])
+def test_governance_keeps_completed_unarchived_change_as_current_intent(
+    monkeypatch, tmp_path, missing_source
+):
+    """Current completed intent needs every document selected by the official reader."""
     root = _repo(tmp_path)
-    monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
-    )
-    status = {
-        "changeName": "complete",
-        "schemaName": "spec-driven",
-        "changeRoot": str(root / "openspec/changes/complete"),
-        "isComplete": True,
-        "artifactPaths": {"specs": {"existingOutputPaths": []}},
-        "artifacts": [{"id": "tasks", "status": "done", "requires": []}],
-        "root": {"path": str(root), "source": "nearest"},
-    }
-    apply = {
-        "changeName": "complete",
-        "state": "all_done",
-        "progress": {"total": 1, "complete": 1, "remaining": 0},
-        "tasks": [{"id": "1", "description": "done", "done": True}],
-        "instruction": "Archive the completed change.",
-        "root": {"path": str(root), "source": "nearest"},
-    }
-    show = {
-        "id": "complete",
-        "deltas": [
-            {
-                "spec": "contracts",
-                "operation": "ADDED",
-                "requirements": [
-                    {
-                        "text": "The completed change remains current until archive.",
-                        "scenarios": [
-                            {
-                                "rawText": "- **WHEN** closeout starts\n"
-                                "- **THEN** its acceptance remains available"
-                            }
-                        ],
-                    }
-                ],
-            }
-        ],
-    }
-    payloads = {
-        ("config", "list"): {},
-        ("doctor",): {"root": {"healthy": True}},
-        ("list",): {
-            "changes": [
-                {
-                    "name": "complete",
-                    "completedTasks": 1,
-                    "totalTasks": 1,
-                    "status": "complete",
-                }
-            ]
-        },
-        ("status", "--change"): status,
-        ("instructions", "apply"): apply,
-        ("instructions", "archive"): {
-            "changeName": "complete",
-            "root": {"path": str(root), "source": "nearest"},
-        },
-        ("validate",): {"items": [], "summary": {}},
-        ("show",): show,
-    }
+    fixture.git(root, "checkout", "-b", "work/complete")
+    fixture.write_active_commitment(root, change_id="complete")
+    tasks = root / "openspec/changes/complete/tasks.md"
+    tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
+    original = cli.run_json
 
-    def run_completed(_root, _base, args):
-        key = args[:2] if args[:2] in payloads else args[:1]
-        return _receipt(payload=payloads[key])
+    def observe(repo, command, args):
+        result = original(repo, command, args)
+        if missing_source and args[:2] == ("instructions", "apply"):
+            result["json"]["contextFiles"]["proposal"] = [str(root / "missing-proposal.md")]
+        return result
 
-    monkeypatch.setattr(cli, "run_json", run_completed)
-
+    monkeypatch.setattr(cli, "run_json", observe)
     report = governance.openspec_governance_report(root, lifecycle=True)
-
-    assert report["verdict"] == "pass"
-    assert report["required_gaps"] == []
+    assert report["verdict"] == ("block" if missing_source else "pass")
+    assert bool(report["required_gaps"]) is missing_source
+    assert report["intent_context"]["source_state"] == (
+        "incomplete" if missing_source else "complete"
+    )
     assert report["change"] == "complete"
     assert report["commitment"]["id"] == "change:complete"
     assert report["lifecycle"]["changes"][0]["progress"]["remaining"] == 0

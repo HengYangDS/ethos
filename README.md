@@ -15,9 +15,13 @@ See the [Brand Kit](docs/reference/brand-kit.md) for repository-owned public ide
 Design status: projection. The canonical semantic owner is the
 [Product Design Contract](docs/governance/product-design-contract.md#semantic-kernel).
 
-It gives a Git repository a safe operating loop for human-agent change: inspect
-where you are, plan the required proof, run that proof, land through a controlled
-review path, and publish only when local and hosted evidence are separated.
+ETHOS aims to provide the complete human-Agent path from problem and research
+through aligned intent, specification, capability composition and execution to
+verified delivery, actual-use feedback, learning and exit. Its small trust kernel
+compiles accepted meaning and fresh facts into controlled repository effects.
+The [terminal plan](docs/plans/terminal-governance-product-design.md) separates
+implemented capabilities from remaining full-path conformance; the kernel alone
+does not prove that the complete product promise has been delivered.
 
 ETHOS does not take over your domain model, CI provider, assistant host, or issue
 tracker. Those systems stay native carriers, adapters, or projections. Current

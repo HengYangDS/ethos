@@ -17,11 +17,19 @@ Work Lanes, OpenSpec consumption, or adoption profiles.
    `continuation`, and `user_decision_required`; follow that result rather than
    a remembered sequence. A passing `done` result ends that observation; do not
    rerun its reader or invent a task. It does not claim unrelated work complete.
-3. Load only the rule, OpenSpec Change, design document, or focused gate needed
-   for the current action.
-4. Before tracked mutation, obtain a passing `ethos lane prewrite` decision for
+3. Load the selected official sources, not only their summaries. Before claiming
+   intent alignment, account for each relevant source constraint as retained,
+   explicitly excluded by an authorized decision, or unresolved. Challenge the
+   proposed interpretation with positive and negative examples from the original
+   source. Parsing, source coverage and green self-authored tests do not certify
+   understanding. Keep accepted meaning in official OpenSpec.
+4. Distinguish cooperation, competition and exploration: multiple compatible
+   contributions or zero competing winners are valid when the source permits
+   them. Reject an added mandatory-winner condition. Drop means no integration,
+   not destruction; preserve useful results before exact controlled retirement.
+5. Before tracked mutation, obtain a passing `ethos lane prewrite` decision for
    the exact target root and paths.
-5. Keep source, tests, schemas, docs, official OpenSpec, Attestations, and fresh
+6. Keep source, tests, schemas, docs, official OpenSpec, Attestations, and fresh
    command observations above skill projections. Commitment is transient
    compilation, not another truth store.
 

@@ -1854,7 +1854,7 @@ Existing product meaning and the current public runtime remain authoritative.
 
 | Obligation and disposition | Existing owner and bounded next verification |
 | --- | --- |
-| Accept reliable human/Agent continuation; correct the passive reader loop | The current `status-observation-completion` Change removes the workspace fallback and reuses exact closeout derivation. Real idle, foreign-lane and pending-candidate cases must distinguish done, detail expansion and an actual next operation; blocking causes remain visible. Reader done is not global goal completion. |
+| Accept reliable human/Agent continuation; correct the passive reader loop | Accepted `6baee9a0` removes the workspace fallback and reuses exact closeout derivation; both exact prearchive and archived full proofs passed 35 gates, and installed detailed status ends with `done`. Real idle, foreign-lane and pending-candidate cases must distinguish done, detail expansion and an actual next operation; blocking causes remain visible. Reader done is not global goal completion. |
 | Accept candidate/verification-attempt separation and bounded reuse from COMET/SpecD | Existing proof bindings and Fact providers must invalidate reused observations on relevant source, policy, environment, toolchain or external-fact changes. Keep a valid candidate when only verifier availability changes; distinguish Lease expiry, owner liveness and child liveness. Strong evidence belongs at the actual trust boundary, not in duplicate snapshots or trajectories. |
 | Accept trusted-prestate policy continuity from RepoKernel/gittuf; strength remains unproved | The policy/compiler and independent-verification owner must reject candidate self-downgrade under trusted prior policy. Identity, permission, quality and freshness are independent conjunctions. The currently disabled profile path is not evidence of default independent enforcement. Exercise control-policy replacement, rollback and absent verifier; ordinary changes need not acquire a universal heavyweight verifier. |
 | Accept official OpenSpec archive-fidelity replay before upgrade | Official release/API observations found 1.13.0, published September 10 at 05:10 +0800. Replay repeated delta sections, CommonMark list markers, fenced blank lines, wrapped scenarios, skip_specs and archived proof identity through the official CLI. Then update existing supply/lock/package/runtime owners together. Do not implement a second Markdown parser. |
@@ -1862,6 +1862,53 @@ Existing product meaning and the current public runtime remain authoritative.
 | Accept standard interoperability only when a consumer needs it | Materials, products, identity and provenance from in-toto/DSSE/SLSA inform existing evidence boundaries. A standard adapter needs a demonstrated cross-system consumer; Source Track and build provenance must not become a second policy authority. Signatures or HMACs alone prove neither independent execution nor current permission. |
 | Require greenfield and brownfield vertical conformance, not bootstrap claims | Exercise formation/adoption, first accepted change, Agent handoff, cooperation/competition/drop, interruption, partial publication and exit. Reuse domain Skills/templates; preserve brownfield layout and do not retroactively certify its history. Two-file bootstrap, compensating exceptions, Git ref CAS and cross-Forge effects have distinct guarantees; uncertain results remain unknown. |
 | Preserve exact foreign/dirty-lane ownership and useful results | Three historical lanes still require semantic absorption and exact retirement. Verify relationships, receive authorized handoff, conserve unique content and prove recoverability before deletion; visibility is not ownership. Do not revive obsolete persistent Commitment or full-semantic Lease carriers. |
+
+The cross-domain supplement `ETHOS-cross-domain-research-2026-09-10.md` was
+read in full and verified as SHA-256
+`3142f47dabecbacf6d25009d1f21843b5448e7d7870eda27aeda5239f2422e3e`.
+Its third-party claims are fixed-source research, not executed common workloads.
+It corrects the product scope: the small trust kernel serves the complete path
+from problem/value and research through interpretation, accepted intent,
+capabilities, execution and delivery to actual use, learning and exit.
+The product contract owns that meaning; this existing plan owns the sequence.
+
+| Stage and disposition | Existing owner, concrete obligation and exit evidence |
+| --- | --- |
+| P0 accepted; hosted observation remains separate | `status-observation-completion` reached accepted `6baee9a0`, exact immutable runtime and both peer `dev/main` refs. The installed runtime's 9681-entry inventory matched. New hosted jobs were queued, not proven green. Do not reimplement the accepted quality executor or reader fix. |
+| P1 intent fidelity, now active | `intent-source-fidelity` replaces the lossy context extractor, preserves exact sources and identifies structural interpretation as unassessed. An official-valid `*` list previously erased non-goals/questions; a fenced pseudo-heading polluted them. Source-preservation tests are the first boundary, not completion of the all-drop trace. FRET/KAOS examples and BAML omission counterexamples inform source accounting without introducing a second intent store. |
+| P2 acceptance and capability compilation | Existing OpenSpec compiler, Facts, Plan and capability seams must bind source scope, accepted meanings, assumptions and distinguishing proof obligations. Same normalized inputs produce the same result. Verify removal/negative requirements, exceptions, skip_specs and unresolved conflicts; a source hash or valid structure is not sufficient behavioral proof. |
+| P3 collaboration and effects | Existing effect adapters retain exact generation/authorization fences, fresh UOW reads and retry boundaries. Separate attempt, effect, durable result and ACK; use real kill, lost ACK and concurrent-change traces. Replaying history never grants current permission. Quint-style minimal traces and Temporal/Restate/DBOS/AWS boundary cases are methods, not a new runtime. |
+| P4 formation and progressive adoption | Existing adoption and specialist scaffold capabilities must complete real greenfield and brownfield paths, preserving domain layout and customization. Template evolution compares old template, customization and new template; generators propose candidates and conflicts remain visible. Verify upgrade, withdrawal, handoff and uninstall without retrospectively certifying old history. |
+| P5 measured evidence reuse | Existing proof and observation owners separate candidate iteration, execution and verifier judgment. Cold, warm and cache-cleared verdicts must agree; all relevant inputs invalidate reuse and actual computation must fall. COMET/Inspect rescoring and Bazel/Pants/DICE/Nix input-closure ideas apply only after measurement; advance this stage when throughput blocks progress. Hard constraints cannot be offset by DSPy/GEPA-style scores. |
+| P6 actual-use feedback | One required outcome observer binds deployed identity, baseline, fixed window and environment. Distinguish unavailable observation from unmet goal. A counterexample can invalidate current applicability without changing historical evidence, and motivates a source-grounded Change without granting mutation authority or lowering standards. Argo/Keptn/assurance methods remain thin integrations. |
+| P7 replaceable ecosystem | Capability input/output, permission, identity, version and failure contracts constrain P1 onward. Freeze public SDK/CLI/Skills/thin adapters only after independent implementations pass a common workload. Reuse existing registration/distribution; no empty marketplace, persistent graph or claimed cross-repository transaction without an actual shared atomic boundary. |
+
+The common acceptance trace starts from the user's explicit allowance for zero
+winners and preservation of useful results. Reject mandatory-winner, drop-means-
+worthless and nonintegration-means-destruction interpretations. Then exercise
+multi-contribution cooperation, one/zero-winner competition, negative findings,
+stale-proof refusal, interrupted recovery and controlled retirement. Invalidate
+an environmental assumption without rewriting history; a replacement Agent must
+continue from repository sources without asking the user to repeat all history.
+This full trace and independent capability substitution remain unproved.
+
+For the declared workload scope, require every relevant source constraint to
+have an explicit disposition, all critical counterexamples to distinguish wrong
+behavior, reachable legal success and no duplicated destructive effects or lost
+results in tested fault windows. Unknown never becomes green. Measure false
+admission/blockage, repeated questions, handoff/recovery time, resources and
+maintenance touchpoints; source maps, graphs and tables are projections rather
+than additional authority. Global quality scope, latest stable supply and
+historical lane absorption remain obligations alongside this sequence.
+
+An unrestricted Ty read at accepted `6baee9a0` reported 487 diagnostics; the
+current intent-source overlay reported 484 before further fixture replacement.
+The current type gate only selects package `src`, so a passing gate is not
+whole-repository typing evidence. Product source and the changed test files
+pass their targeted checks. Native quality closure must extend meaningful test
+and tool scope and retire duplicate fixtures rather than suppress these findings
+or claim they were introduced by the current Change. Exact logs remain in the
+existing owner-scoped evidence directory.
 
 Quality effectiveness is a four-part obligation: the required property has an
 executable rule; the rule covers every meaningful maintained carrier; an
@@ -1894,9 +1941,9 @@ require necessity review, not filler documentation. Counterexamples must include
 package, test and tool documentation plus ineffective rule/scope selection;
 do not hide omissions in exclusions or mechanically generated prose.
 
-Execution remains bounded: close the current reader/entry atom, then prioritize
-native quality effectiveness and official supply fidelity alongside easiest-first
-historical lane retirement. Trusted-policy counterexamples precede any claim of
+Execution remains bounded: P0 is accepted; advance P1 intent fidelity without
+indefinitely deferring semantics behind native quality work. Quality effectiveness,
+official supply fidelity and easiest-first historical lane retirement remain required. Trusted-policy counterexamples precede any claim of
 default independent protection. Full adoption workloads close the broader product
 mission; they are not silently added to this reader Change.
 

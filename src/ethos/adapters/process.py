@@ -99,9 +99,8 @@ def _file_identities(payload: bytes) -> frozenset[tuple[int, int]]:
     identities: set[tuple[int, int]] = set()
     process_seen = False
     for frame in payload[:-2].split(b"\0\n"):
-        pairs = [(item[:1], item[1:]) for item in frame.split(b"\0")]
-        fields = dict(pairs)
-        if len(fields) != len(pairs):
+        fields = {item[:1]: item[1:] for item in frame.split(b"\0")}
+        if len(fields) != frame.count(b"\0") + 1:
             _file_observation_failure("file_observation_duplicate_field")
         if b"p" in fields:
             if set(fields) != {b"p"} or not fields[b"p"].isdigit():
@@ -123,11 +122,12 @@ def _file_identities(payload: bytes) -> frozenset[tuple[int, int]]:
         fields.pop(b"n", None)
         if (
             not process_seen
-            or set(fields) not in ({b"f", b"t"}, {b"f", b"t", b"D", b"i"})
+            or set(fields) not in ({b"f", b"t"}, {b"f", b"t", b"D", b"i"}, {b"f", b"t", b"i"})
             or not all(fields.values())
             or fields.get(b"f", b"NOFD") == b"NOFD"
             or fields.get(b"t", b"unknown") == b"unknown"
             or (b"i" in fields and not fields[b"i"].isdigit())
+            or (b"i" in fields and b"D" not in fields and fields[b"t"] != b"unix")
             or (fields[b"t"] in {b"REG", b"DIR"} and b"i" not in fields)
         ):
             _file_observation_failure(f"file_observation_unreadable:{frame[:256]!r}")

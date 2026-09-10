@@ -26,6 +26,14 @@ if TYPE_CHECKING:
         "orphan-gone",
         "non-darwin-gone",
         "named-live-file",
+        "unix-inode",
+        "unix-empty-inode",
+        "unix-negative-inode",
+        "unix-duplicate-inode",
+        "unix-orphan",
+        "regular-inode-only",
+        "directory-inode-only",
+        "unknown-inode-only",
         "empty",
         "truncated",
         "duplicate",
@@ -60,7 +68,16 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
     monkeypatch.setattr(sys, "platform", "linux" if fault == "non-darwin-gone" else "darwin")
     payload = b"p12\0\nfcwd\0tDIR\0D0x10\0i31\0\nf3\0tREG\0D0x20\0i31\0\nf4\0tIPv4\0\n"
     absent = b"f5\0nsocket: FD unavailable\0\n"
+    unix = b"f6\0tunix\0i50690625\0ntype=STREAM\0\n"
     payload = {
+        "unix-inode": payload + unix,
+        "unix-empty-inode": payload + unix.replace(b"i50690625", b"i"),
+        "unix-negative-inode": payload + unix.replace(b"i50690625", b"i-1"),
+        "unix-duplicate-inode": payload + unix.replace(b"i50690625", b"i1\0i2"),
+        "unix-orphan": unix + payload,
+        "regular-inode-only": payload + unix.replace(b"tunix", b"tREG"),
+        "directory-inode-only": payload + unix.replace(b"tunix", b"tDIR"),
+        "unknown-inode-only": payload + unix.replace(b"tunix", b"tunknown"),
         "fd-gone": payload + absent,
         "process-gone": payload + b"f5\0nvnode: process unavailable\0\n",
         "permission": payload + b"f5\0nsocket: Operation not permitted\0\n",
@@ -99,7 +116,7 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         )
 
     monkeypatch.setattr(process_adapter, "run_command", capture)
-    if fault in {"valid", "fd-gone", "process-gone", "named-live-file"}:
+    if fault in {"valid", "fd-gone", "process-gone", "named-live-file", "unix-inode"}:
         assert process_adapter.process_file_identities(tmp_path) == frozenset({(16, 31), (32, 31)})
     else:
         with pytest.raises(process_adapter.ProcessExecutionError) as error:

@@ -369,9 +369,10 @@ outcome is unknown, or a declared resource budget is exceeded. New feedback is
 mapped to the existing contract and current batch; it reopens source recovery
 only when it demonstrates a missing or contradictory terminal invariant.
 
-The bounded `reviewed-content-retirement` implementation is archived and accepted
-at `c051743a`; the next bounded Change is `detached-reviewed-retirement` in the
-same owned `work/20260907-missing-lease-reconciliation` lane. The earlier disconnected
+The bounded `reviewed-content-retirement` and `detached-reviewed-retirement`
+implementations are archived and accepted at `95b6153b`. The active bounded
+Change is `native-observer-socket-identity` in the same owned
+`work/20260907-missing-lease-reconciliation` lane. The earlier disconnected
 POSIX snapshot prototype remains withdrawn; its implementation is not restored.
 The official Change instead binds reviewed dirty content, index and ignored
 resources to the existing abandonment operation, with exact authority rechecks
@@ -685,17 +686,17 @@ the actual `EthosResult` type now owns those annotations. Failure receipts under
 the unchanged product; only hook fixture annotations changed afterward and that
 module was rerun. No full proof or historical lane removal occurred in this batch.
 
-Current closeout boundaries at accepted `c051743a` (September 9 UTC):
+Current closeout boundaries at accepted `95b6153b` (September 10):
 
 | Boundary | Verified evidence | Remaining obligation |
 | --- | --- | --- |
-| Repository proof | Archive-HEAD proof `2744f82f` passes all 24 gates, 2756 tests with one skip and 95.16274333163605 percent combined coverage. The earlier `bafb51cb` proof remains failed; corrected `b2e7e284` and archive HEAD have independent passes | New detached changes require their own frozen proof; do not rerun the unchanged accepted proof |
-| Archive and acceptance | `reviewed-content-retirement` is officially archived. Local dev, main, candidate/dev and authoring HEAD equal `c051743a`, tree `7b816511`; authoring now carries the next uncommitted Change | Do not repeat archive, land or closeout for this accepted object |
-| Package/runtime | Current immutable `4bed97e3` binds Alpha.5 source `c051743a`, tree `7b816511`, four hooks and OpenSpec 1.12.0. All 9681 manifest entries and wheel `8e3acd21` were verified; previous current `499f13ce` is removed | Five older retained runtime generations still need reference-safe adjudication; installed currentness is not all-residue closure |
-| Peer projections | Public receipt `a401b296` published the selected object. Independent GitHub/GitLab dev/main readbacks all equal `c051743a`; both providers verify its signature | No publication replay; hosted results below are distinct from object parity |
-| Hosted verification | GitHub dev run `34367600375` passes quality, nine native conformance jobs, source verification and package artifacts. Main run `34367600428` fails only external links; its nine native jobs pass. GitLab dev `6358` fails verification; main `6359` fails external links | GitHub/GitLab network observations are not product-link deletion evidence. Linux native observation requires the prerequisite and visibility repair below before a fresh hosted proof |
-| Physical retirement | Public accepted receipts `bb4c385a`, `94562cc8`, `aff5e7d3` retire source-policy, OpenSpec supply and public-boundaries roots, registrations, refs and Leases. Their postchecks preserve unrelated refs and external Python targets | Four historical worktrees remain. 38482 removed entries and 1051025594 logical regular-file bytes are not a claim of reclaimed APFS allocation |
-| Current quality | Accepted product/test ELOC is 39998/39969. Detached implementation is 40000/39987 without threshold or exclusion changes; the initial affected set passes 304, the final operation/abandonment set passes 190, and the subsequent exact-effect/recovery increment passes 18 | Close the native Linux prerequisite, freeze and prove the complete Change, then archive/accept, read back runtime and dispose of the exact historical resource |
+| Repository proof | Source `5855feab` proof `b500cb51` and archive `95b6153b` proof `9562b7c8` independently pass 24 gates, 2797 tests with one skip and 95.19114137027037 percent combined coverage | Socket-parser changes need a new frozen proof; old failures remain failures |
+| Archive and acceptance | `detached-reviewed-retirement` is officially archived under `2026-09-09-detached-reviewed-retirement`. Public candidate/accepted CAS aligned local dev, main, candidate/dev and authoring HEAD at `95b6153b`, tree `ed39ecf3` | Do not replay archive, land or accepted closeout for this object |
+| Package/runtime | Immutable `2e4c7bc8` binds Alpha.5 source `95b6153b`, tree `ed39ecf3`, four hooks and OpenSpec 1.12.0. All 9681 typed inventory entries and wheel `03594114` match; installed status passes. Previous current `4bed97e3` is absent | Older retained generations still need reference-safe adjudication |
+| Peer projections | Public request `91421f5f` published dev/main to both peers. Independent GitHub/GitLab readbacks equal `95b6153b`, with both signatures Verified | Publication is complete; hosted verification below is not |
+| Hosted verification | GitHub dev `34416980247` passes quality, nine native jobs and source verification, but package checkout fails with HTTP2 framing errors. Main `34416980407` attempt 2 fails external links. GitLab `6370`/`6371` fail verification; job `36487` records 56 failures, 2741 passes and one skip | Fix the native socket parser through the real execution chain; investigate network failures separately without dropping links or blanket reruns |
+| Physical retirement | Accepted receipts `bb4c385a`, `94562cc8`, `aff5e7d3`, `67f6f76f` retire four historical worktrees. The last removal preserves all refs, Lease rows, sibling worktrees and external Python | Three historical worktrees remain. The cumulative 53015 entries and 1534544492 logical regular-file bytes are not a claim of reclaimed APFS allocation |
+| Current quality | Accepted product/test ELOC is 40000/39963. The socket fix retains product 40000 and tests 39980; parser tests pass 40 and the native uv/Nox focused execution passes 150 | Freeze, prove, archive/reprove, accept, activate, publish and observe hosted results for the socket fix |
 
 CI root-cause evidence is recorded in the existing retirement delivery receipts.
 The complete GitHub job log contains the provider's nested stdout, although
@@ -753,8 +754,37 @@ The native npm installation also reports two high-severity vulnerabilities;
 their exact dependency paths and remediation remain to be assessed under the
 existing supply-chain obligation. No automatic dependency upgrade, warning
 suppression or blanket retry is justified. Current product/test ELOC is
-40000/39963, with unchanged independent 40000 limits. Frozen full proof,
-archive/accepted runtime, hosted readback and historical disposal remain pending.
+40000/39963 at accepted `95b6153b`, with unchanged independent 40000 limits.
+Source proof, archive proof, accepted runtime, publication and failure-matrix
+disposal subsequently completed as recorded above; hosted CI is still failed.
+
+The full GitLab invocation exposed a separate parser assumption not exercised
+by direct-interpreter validation. `ci-job-chain-observer` reproduces the first
+failure in under a minute: direct Python succeeds, while `uv` and nested
+`uv`/Nox emit an identified Unix socket inode without a filesystem device.
+All observed processes remain UID 65534; `lsof` exits zero without stderr. The
+existing parser rejects the exact frame as `file_observation_unreadable`.
+Changing identity or filtering unknown processes would address the wrong cause.
+
+The active socket Change admits that typed socket record without inventing a
+filesystem identity. Complete REG/DIR identity, malformed fields, duplicate
+fields, inaccessible state and transport failures still reject. The existing
+matrix first records one failure and 33 passes, then 40 passes. The first fix
+exceeded the product ceiling by five lines; consolidating duplicate-field
+construction and the existing field validation restores 40000 product ELOC
+without reducing tests or changing limits. `socket-chain-green` verifies 150
+selected tests through the real uv/Nox/pytest chain, including prior failed
+retirement cases, with the container removed. Its partial coverage is not used
+for acceptance; new exact-HEAD full proof remains required.
+
+Verification errors remain distinct from product defects: the first runtime
+readback incorrectly compared plain file hashes with typed mode/content hashes.
+`detached-runtime-verified` independently checks the actual inventory encoding,
+all entries and the wheel. No runtime mutation followed the false mismatch.
+Likewise, a URL supplied directly to Lychee caused a page crawl, not a check of
+that link; the original repository file and policy were then used for the
+bounded recovery check. A failed-job retry after that check still failed later;
+it does not justify repeated retries or relaxing link policy.
 
 AIGW also reports an independently proved signed proposal snapshot accepted by
 the installed pre-push hook, while public `publish` requires a candidate source
@@ -780,20 +810,20 @@ absorption:
 | `codex-contracts-land-test-refactor` | The shorter lifecycle topic has retired and its commits remain reachable here. Review the remaining exact-CAS, proof selection, cross-worker immutable supply reuse, worker long-tail scheduling, and cheap non-archive fixture obligations; obsolete Commitment/rebind code must not return. |
 | `20260810-public-test-boundaries` | Rewritten and replaced test obligations have current-owner correspondence below; accepted public receipt `aff5e7d3` now proves physical retirement. Preserve the existing ref-intent regressions, not the obsolete Commitment fixture. |
 | `20260810-coverage-source-policy-matrices` | All fifteen added definitions are adjudicated and accepted; public receipt `bb4c385a` now proves physical retirement. |
-| `20260810-coverage-public-failure-matrix` | Nine original source hashes and the exact dirty set still match. Four-field CAS, actor/readmission, public failure recovery and stopped-writer/content review discharge the remaining coordination semantics; old persistent content/offer Lease binding is superseded, not copied. The public path still rejects this detached resource. `detached-reviewed-retirement` adds exact path selection and resource-derived effects; source remains intact until acceptance and complete resource review. |
+| `20260810-coverage-public-failure-matrix` | Nine original hashes, dirty deltas and all 14533 native inventory entries were reviewed; no content remained unclassified. Accepted public receipt `67f6f76f` removes the detached worktree and administration only. Postchecks prove root/registration absence and unchanged refs, Lease rows, sibling worktrees and external Python. Four-field CAS, actor readmission, public recovery and cooperative quiescence preserve useful semantics; persistent Lease content/offer binding is superseded. |
 | `20260811-repository-transition-model` | Fresh CAS/Attestation, local-or-multiple-peer topology and minimal-entity intent remain valid; persistent Commitment roots and historical scope/Lease bindings are superseded. The 341 dirty items are not yet semantically adjudicated. |
 | Unlinked `codex/openspec-19-archive-owner` ref | Retired through the accepted public owner; Attestation `067dd0dabfb6b6b6a5e6603c14ea84df11a026da6e8b0a0c7e0f72226b6a92bc`. Its absence does not retire the distinct dirty linked OpenSpec lane. |
 | `20260908-accepted-carrier-signature-repair` | Handoff is received; seven unique commits and eighteen paths remain unaccepted. Absorb necessary signature and transaction invariants, not the command-private repair implementation by default; failed historical proof is not current acceptance. |
 
 Execute from these obligations rather than the historical lane names:
 
-1. Preserve accepted `c051743a` proof, runtime, publication and the three completed
-   physical retirements. Track its actual hosted failures separately; do not
-   rerun already successful object effects or infer all-provider GREEN.
-2. Finish exact detached selection through the existing reviewed-content owner,
-   satisfy native Linux observation prerequisites without weakening admission,
-   then prove and accept it before disposing of the historical failure matrix.
-   No temporary topic ref, revived Lease, source backup or new authoring lane.
+1. Preserve accepted `95b6153b` proof, runtime, publication and four completed
+   physical retirements. Do not replay successful object effects or infer hosted
+   GREEN from local proof.
+2. Close the native socket-identity Change through the existing process parser,
+   prove the real Linux invocation, freeze and complete exact source/archive
+   proof, accepted runtime, publication and hosted readback. Network failures
+   remain separate evidence, not parser defects or grounds for silent retries.
 3. Absorb the remaining finite sources in smallest independently provable
    semantic increments: contracts and public failure/race obligations first;
    signature-repair invariants through the current transaction owner; the large
@@ -934,9 +964,10 @@ the same necessity test.
 Root evidence disposition is locally delivered; native docstring quality and
 configuration placement remain subsequent coherent owner replacements. Accepted
 reviewed-content retirement closes the withdrawn prototype's public disposal
-obligation without restoring its preservation design; detached selection and
-native Linux visibility remain unaccepted. These
-obligations reuse this lane and route; no second ledger is introduced.
+obligation without restoring its preservation design. Detached selection is
+accepted and the failure-matrix worktree is retired; the newly reproduced Linux
+socket parsing defect remains active. These obligations reuse this lane and
+route; no second ledger is introduced.
 
 For each replacement, first reproduce the missing or contradictory property,
 then select one existing/native owner, migrate necessary meaning, delete the

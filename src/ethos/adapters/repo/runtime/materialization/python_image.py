@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import NoReturn
 
 from ethos.adapters.repo.runtime.filesystem import make_owned_tree_writable
+from ethos.adapters.repo.runtime.filesystem import runtime_python
+from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
@@ -19,8 +21,6 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 from ethos.adapters.repo.runtime.materialization.python_environment import python_path_within
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
-from ethos.adapters.repo.runtime.selection import runtime_python
-from ethos.adapters.repo.runtime.selection import runtime_scripts
 
 
 def _fail(reason: str, cause: Exception | None = None) -> NoReturn:

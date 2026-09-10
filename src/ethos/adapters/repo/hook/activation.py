@@ -22,10 +22,10 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
-from ethos.adapters.repo.hook.binding import HookRuntimeBinding
 from ethos.adapters.repo.hook.binding import hook_generation_digest
 from ethos.adapters.repo.hook.binding import hook_launcher
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.observation import HookRuntimeBinding
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection

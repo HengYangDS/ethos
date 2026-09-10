@@ -21,7 +21,7 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.bindings import lease_generation

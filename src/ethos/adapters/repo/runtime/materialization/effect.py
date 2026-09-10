@@ -15,6 +15,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.filesystem import make_owned_tree_writable
 from ethos.adapters.repo.runtime.filesystem import require_exclusive_inodes
 from ethos.adapters.repo.runtime.filesystem import require_no_junctions
+from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -40,7 +41,6 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.materialization.python_image import materialize_python_image
 from ethos.adapters.repo.runtime.selection import current_runtime
-from ethos.adapters.repo.runtime.selection import runtime_python
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 

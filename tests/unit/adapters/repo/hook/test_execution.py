@@ -14,7 +14,7 @@ import pytest
 import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.hook_runtime as runtime
 import ethos.adapters.repo.runtime.binding as runtime_binding_module
-import ethos.adapters.repo.runtime.selection as runtime_selection
+import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook_runtime import execute_hook
@@ -63,7 +63,7 @@ def test_hook_launcher_enters_the_selected_runtime_without_ambient_path(tmp_path
 def test_windows_hook_launcher_uses_the_standalone_runtime_python(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(runtime_selection, "os", SimpleNamespace(name="nt"))
+    monkeypatch.setattr(runtime_filesystem, "os", SimpleNamespace(name="nt"))
 
     text = hook_launcher("pre-commit")
 

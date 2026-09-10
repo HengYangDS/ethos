@@ -15,7 +15,7 @@ from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease

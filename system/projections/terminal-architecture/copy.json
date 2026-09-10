@@ -17,7 +17,7 @@
     },
     "intent": {
       "label": "Understand and accept",
-      "text": "Challenge interpretations with positive and negative examples. Settle trade-offs, non-goals, exceptions, assumptions and guarantees; account for each scoped constraint. Official OpenSpec alone holds accepted intent.",
+      "text": "Challenge interpretations with source examples. Settle scope, exceptions, assumptions and guarantees; discovery is not complete understanding. Recovered obligations are accepted, superseded, pending verification or rejected. Only accepted meaning enters official OpenSpec; compilation does not certify understanding.",
       "surface": "main-static"
     },
     "compile": {
@@ -32,7 +32,7 @@
     },
     "capabilities": {
       "label": "Replaceable capabilities",
-      "text": "People and interchangeable Agents use Skills, native tools, generators and observers. Contracts bind inputs, outputs, identity, version, permission, cancellation and failure; no second lifecycle.",
+      "text": "People and interchangeable Agents compose Skills, generators, verifiers and native tools. Evaluate official and mature capabilities before custom machinery. Contracts bind I/O, identity/version, permission, cancellation and failure. Pure semantics stay separate from bounded effects; capabilities grant no authority.",
       "surface": "main-static"
     },
     "lanes": {
@@ -42,7 +42,7 @@
     },
     "coordination": {
       "label": "Shared runtime, not shared truth",
-      "text": "Git-common state owns one runtime activation and current coordination. Consumer-proved retirement removes superseded generations; reports and generated views cannot own source meaning.",
+      "text": "One Git-common activation, no per-worktree authority. Preview adoption; use the locked toolchain for immutable runtime activation, state migration, hook rebinding and rollback. Preserve exact prior state on failure; retire superseded generations only after consumers are discharged.",
       "surface": "main-static"
     },
     "selection": {
@@ -52,7 +52,7 @@
     },
     "verification": {
       "label": "Falsifiable, scoped evidence",
-      "text": "Verify exact candidates and their combination. Independent verification is required by risk/policy, not universal. Local, independent and hosted claims stay distinct; composite claims need a responsible verifier and explicit rule.",
+      "text": "Prove exact candidates and combinations with falsifiable checks. Independent verification is optional unless risk or policy requires its separate trust domain. Local, independent and hosted claims stay distinct; a composite needs a responsible verifier and explicit rule. Evidence does not authorize effects.",
       "surface": "main-static"
     },
     "candidate": {
@@ -62,7 +62,7 @@
     },
     "accepted": {
       "label": "Accepted closeout",
-      "text": "Exact candidate and declared proofs enter a separate accepted-ref CAS. Same-ref effects serialize, not the whole project. Developer review or authorized maintainer closeout selects the same object.",
+      "text": "Distinct roles: work authors; candidate integrates; proposal reviews; dev accepts; main releases. Candidate proof and expected accepted state bind a separate CAS. Developer MR/PR or authorized maintainer closeout selects the same object. Retire proposal after dev acceptance and review closure, not main release.",
       "surface": "main-static"
     },
     "effect": {
@@ -72,12 +72,12 @@
     },
     "evidence": {
       "label": "Results survive actors",
-      "text": "Attestation is the only durable semantic result; Commitment, Facts and Plan are transient. Preserve predicate, bindings, validity and verifier. A prior result is evidence, never current authority.",
+      "text": "Attestation is the sole durable semantic result, scoped by predicate, bindings, validity and verifier, never permission. Commitment, Facts and Plan are transient. Change relations and experiments are derived: no persistent workflow graph, compatibility residue, feedback ledger or memory-backed truth.",
       "surface": "main-static"
     },
     "recovery": {
       "label": "Recover before repeating",
-      "text": "Actor, session, host or tool loss preserves reachable Git and necessary Attestations. Observe uncertain outcomes, recompile and reauthorize; do not replay a possibly completed effect.",
+      "text": "BLOCK prevents a future effect; UNKNOWN may describe an already attempted effect. Preserve reachable Git and necessary Attestations through actor or host loss. Re-observe uncertain outcomes, recompile and reauthorize before continuation; never replay blindly.",
       "surface": "main-static"
     },
     "model": {
@@ -92,17 +92,17 @@
     },
     "norms": {
       "label": "Agentic-native repositories",
-      "text": "Coherent source, specifications, docs, rules and Skills follow semantic ownership and executable quality. Native carriers remain native; shared norms do not clone domain layouts.",
+      "text": "Agentic-native source, tests, specs, docs, rules and Skills follow one semantic owner per obligation and executable quality. Each module, config, document and temporary resource needs a current consumer and bounded lifecycle. Profiles retain native domain, layout, provider and observation freedom; governed mutation uses verified OpenSpec.",
       "surface": "main-static"
     },
     "greenfield": {
       "label": "Greenfield formation",
-      "text": "Start with minimal native scaffolds and Skills; preserve customization and upgrade provenance from first generation. First accepted change uses the same local kernel.",
+      "text": "Greenfield: inspect the founding state and expected absence, then preview a minimal native scaffold through Skills. Preserve customization and upgrade provenance from first generation; first acceptance uses the same local protocol.",
       "surface": "main-static"
     },
     "brownfield": {
       "label": "Brownfield adoption",
-      "text": "Inventory, preserve, reveal conflicts and bind gradually. Keep domain layout and customization; upgrade without retroactive approval of old history.",
+      "text": "Brownfield: inventory inherited state, preserve domain layout and customization, expose conflicts and bind gradually. Adoption is previewable and idempotent, reversible before first governed effect; upgrade without retroactive approval of history.",
       "surface": "main-static"
     },
     "self": {

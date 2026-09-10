@@ -382,3 +382,43 @@ def test_duplicate_relation_identity_is_not_collapsed(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="duplicate relation"):
         _load_exporter().export_projection_input(root=root)
+
+
+def test_actual_view_accounts_for_each_contract_invariant() -> None:
+    """Mapping completeness is a structural floor, not proof of understanding."""
+    directory = REPOSITORY_ROOT / "system/projections/terminal-architecture"
+    view = json.loads((directory / "view-profile.json").read_text())
+    copy = json.loads((directory / "copy.json").read_text())
+    mapped = {
+        number
+        for projection in view["invariant_projection"].values()
+        for number in projection.get("contract_invariants", [])
+    }
+    assert mapped == set(range(1, 16))
+    for projection in view["invariant_projection"].values():
+        if projection.get("contract_invariants"):
+            witness = copy["assertions"][projection["witness"]]
+            assert witness["surface"] == "main-static"
+            assert witness["text"].strip()
+
+
+@pytest.mark.parametrize(
+    ("identity", "obligations"),
+    [
+        ("coordination", ("migration", "rollback", "locked toolchain")),
+        ("accepted", ("proposal", "dev", "main", "release")),
+        ("intent", ("superseded", "pending verification", "rejected")),
+        ("norms", ("one semantic owner", "consumer", "lifecycle")),
+        ("capabilities", ("mature", "pure", "effects")),
+        ("evidence", ("derived", "no persistent", "ledger")),
+    ],
+)
+def test_reviewed_invariant_distinctions_remain_in_static_copy(
+    identity: str, obligations: tuple[str, ...]
+) -> None:
+    """Guard reviewed phrases against deletion, without claiming semantic proof."""
+    copy = json.loads(
+        (REPOSITORY_ROOT / "system/projections/terminal-architecture/copy.json").read_text()
+    )
+    text = copy["assertions"][identity]["text"].lower()
+    assert all(obligation in text for obligation in obligations)

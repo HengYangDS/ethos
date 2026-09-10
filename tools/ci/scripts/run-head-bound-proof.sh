@@ -14,21 +14,28 @@ receipt="${out}/executed-proof.json"
 stderr="${out}/executed-proof.stderr.log"
 reports="${ETHOS_TEST_EVIDENCE_DIR:-build/evidence/quality/tests}"
 mkdir -p "${out}"
-rm -f "${receipt}" "${stderr}"
+rm -f "${receipt}" "${stderr}" "${out}/hosted-verification.json" "${out}/hosted-verification.json.tmp"
 rm -f -- "${reports}/pytest"/junit*.xml "${reports}/coverage/coverage.xml" "${reports}/coverage/head.txt"
 set +e
-uv run --frozen --offline ethos prove --host --execute --expect-head "${head}" --json >"${receipt}" 2>"${stderr}"
-proof_status=$?
-python3 - "${receipt}" "${head}" "$(git rev-parse HEAD)" "${proof_status}" <<'PY'
+supply_directory="$("${dir}/install-scc.sh" 2>"${stderr}")"
+supply_status=$?
+proof_status=${supply_status}
+if [[ ${supply_status} -eq 0 ]]; then
+	PATH="${supply_directory}:${PATH}" uv run --frozen --offline ethos prove --host --execute --expect-head "${head}" --json >"${receipt}" 2>>"${stderr}"
+	proof_status=$?
+fi
+python3 - "${receipt}" "${head}" "$(git rev-parse HEAD)" "${proof_status}" "${supply_status}" <<'PY'
 import hashlib, json, os, sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-path, expected, observed, exit_code = Path(sys.argv[1]), *sys.argv[2:]
+path, expected, observed, exit_code, supply_exit = Path(sys.argv[1]), *sys.argv[2:]
 report = {"kind": "ethos_hosted_verification_receipt", "verdict": "block",
           "satisfies_repository_proof": False, "expected_head": expected,
           "head": observed, "head_matches_expected": observed == expected,
-          "process_exit_code": int(exit_code), "required_gaps": []}
+          "process_exit_code": int(exit_code), "supply_exit_code": int(supply_exit), "required_gaps": []}
 try:
+    if supply_exit != "0":
+        raise ValueError("hosted_tool_supply_failed")
     raw = path.read_bytes()
     proof = json.loads(raw)
     data, summary = proof["data"], proof["summary"]
@@ -47,7 +54,8 @@ try:
     report.update(verdict="pass" if valid else "block", gate_count=len(checks),
                   required_gaps=proof["required_gaps"], report_sha256=hashlib.sha256(raw).hexdigest())
 except (OSError, ValueError, KeyError, TypeError) as error:
-    report["required_gaps"] = [f"invalid_hosted_observation:{error}"]
+    report["required_gaps"] = (["hosted_tool_supply_failed"] if supply_exit != "0"
+                               else [f"invalid_hosted_observation:{error}"])
 if report["verdict"] != "pass" and not report["required_gaps"]:
     report["required_gaps"] = ["hosted_observation_binding_invalid"]
 if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
@@ -81,7 +89,12 @@ if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
             stream.write("\n\n".join(lines) + "\n")
     except OSError as error:
         print(f"test_summary_unavailable:{error}", file=sys.stderr)
-print(json.dumps(report, sort_keys=True))
+rendered = json.dumps(report, sort_keys=True)
+receipt = path.with_name("hosted-verification.json")
+pending = receipt.with_suffix(".json.tmp")
+pending.write_text(rendered + "\n", encoding="utf-8")
+pending.replace(receipt)
+print(rendered)
 verdict = report["verdict"]
 raise SystemExit(verdict != "pass")
 PY

@@ -266,21 +266,24 @@ replay runtime, shadow model, or debt contract.
 
 ### Requirement: Attestation v2 payload and relations are open and composable
 
-Attestation v2 SHALL bind an open predicate, `{kind, body}` payload, canonical
-relations, evidence, validity, closed verdict, exact digests, and
-`mints_authority=false`. Relations SHALL sort by kind, target kind, target id,
-and canonical attributes and SHALL reject duplicate values and duplicate
-relation identity keys. Every field SHALL be explicit; nullable digest and
-validity bindings SHALL project as `null`; advisories and evidence refs SHALL be
-sorted unique strings. Payload bodies and relation attributes SHALL obey the
-closed canonical JSON value grammar. At least one evidence reference, exact
-digest binding, or relation SHALL be present.
+Attestation v2 SHALL explicitly bind open predicate, {kind, body} payload,
+canonical relations, evidence, validity, closed verdict, exact digests and
+mints_authority=false. Nullable digest/validity fields SHALL project as null;
+advisories and evidence refs SHALL be sorted unique strings. Bodies and relation
+attributes SHALL obey canonical JSON's closed value grammar. At least one
+evidence reference, exact digest or relation SHALL be present.
 
 #### Scenario: Identical text occurs twice
 
 - **WHEN** it appears at distinct source occurrence coordinates
 - **THEN** two Attestations retain distinct identities
 - **AND** text digest alone is not occurrence identity
+
+### Requirement: Attestation relation identity is canonical
+
+Relations SHALL sort by kind, target kind, target ID and canonical attributes.
+Duplicate values and duplicate relation identity keys SHALL fail. Unknown
+relations SHALL retain canonical values without acquiring evaluator semantics.
 
 #### Scenario: Known and future relations coexist
 

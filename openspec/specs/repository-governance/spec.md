@@ -290,13 +290,11 @@ local provenance or signature authority.
 
 ### Requirement: Commit And Hosted Verification Policy
 
-ETHOS SHALL compile repository commit policy from the optional tracked
-`.ethos/workspace.toml [commit_policy]` table through one repository-policy
-owner. Repository audit, lifecycle mutation, and Git execution SHALL consume
-that compiled value. The tracked table SHALL contain only subject syntax,
-signature requirement, and signing format. Local author and committer identity,
-object signature trust, transport authentication, and forge-side verification
-remain separate observations and SHALL NOT imply one another.
+One owner SHALL compile optional `.ethos/workspace.toml [commit_policy]` into
+policy consumed by audit, lifecycle mutation and Git execution. The table SHALL
+contain only subject syntax, signature requirement and signing format. Author
+and committer identity, object-signature trust, transport authentication and
+forge verification SHALL remain separate observations; none implies another.
 
 #### Scenario: Current commit policy is audited
 
@@ -1075,13 +1073,12 @@ precedence, failover, or replacement. Hosted CI accepts only `dev`, `main`, and
 
 ### Requirement: Declared publication peer topology
 
-The repository SHALL declare zero or more publication peers explicitly. Each
-peer SHALL have a unique peer ID and Git remote plus a provider label used only
-to select a transport or observation adapter. Provider labels MAY repeat and
-SHALL NOT create a primary peer, product identity, object producer, signing
-authority, or dependency between peers. The locally existing Git object SHALL
-be the sole publication source. Every peer SHALL be optional and independently
-observed, updated, verified, retried, and attested.
+The repository SHALL explicitly declare zero or more peers with unique IDs and
+Git remotes. Repeatable provider labels SHALL select only transport/observation
+adapters, never a primary, product identity, object producer, signing authority
+or inter-peer dependency. Existing local Git objects SHALL be the sole source.
+Each optional peer SHALL be independently observed, updated, verified, retried
+and attested.
 
 #### Scenario: local-only publication remains valid
 
@@ -1137,20 +1134,12 @@ observed, updated, verified, retried, and attested.
 
 ### Requirement: Strict remote publication admission
 
-Publication admission SHALL resolve the complete target ref through one
-provider-neutral contract:
-
-```text
-ref kind -> lifecycle role -> local source object -> allowed effect
-```
-
-The admitted kinds SHALL be accepted branch, release branch, proposal branch,
-and annotated release tag. Candidate and Work Lane branches SHALL remain local
-only. An annotated release tag matching the declared release-tag policy SHALL
-have release-publication role and SHALL NOT be classified as branch role
-`other`. Unknown refs, lightweight release tags, undeclared remotes, ambiguous
-topology, untrusted local signatures, and refs outside the positive role set
-SHALL fail closed before a writable remote effect.
+One provider-neutral resolver SHALL map full ref to kind, lifecycle role, local
+object and allowed effect. Only accepted, release and proposal branches or
+policy-matching annotated release tags are publishable; tags have release-
+publication role, not `other`. Candidate/work refs stay local. Unknown refs,
+lightweight tags, undeclared remotes, ambiguous topology, untrusted signatures
+and non-admitted roles SHALL fail before remote writes.
 
 #### Scenario: accepted and release branches are publishable
 
@@ -2666,27 +2655,11 @@ declaration-owned plan.
 
 ### Requirement: Linked Work Lane retirement has one exact effect
 
-ETHOS SHALL route landed and superseded linked Work Lane retirement through one
-strict request and semantic owner. It SHALL bind the actor, retirement mode,
-target lane ref and HEAD, linked checkout path and cleanliness, and accepted ref
-and HEAD as exact operation facts. When the operation consumes a Lease, it SHALL
-bind only the Lease's lane ref, holder ref, generation, and expiry under the
-SQLite transaction; Git coordinates SHALL remain independently observed facts.
-It SHALL remove only the selected clean checkout and compare-and-delete only the
-exact lane ref in a Git transaction that also verifies the accepted ref.
-
-Landed retirement of a lane already contained in accepted truth SHALL be a
-Commitment-free deletion-only repository effect and SHALL accept an exact valid,
-expired, or missing Lease observation under the corresponding effect-time
-recheck. Superseded retirement SHALL retain its selected proof, transient
-Commitment, absorption authority, and valid Lease requirements. If a prior
-failed superseded retirement preserved the exact Work Lane ref and valid Lease
-but left its worktree absent, it MAY use the one existing partial-recovery path.
-That path SHALL revalidate the ref, HEAD, tree, selected proof and Commitment,
-four-field Lease generation, actor, path absence, worktree registration, and
-absorption authority before recreating the exact branch-bound worktree. A
-blocked later effect SHALL preserve the recovered worktree or report its exact
-compensation failure.
+Landed and superseded retirement SHALL share one strict request and owner,
+binding actor, mode, lane ref/HEAD, clean linked path and accepted ref/HEAD.
+Consumed Leases SHALL bind only lane ref, holder, generation and expiry under
+SQLite transaction; Git facts remain independent. Remove only the selected clean
+checkout and compare-delete its exact ref in a transaction verifying accepted.
 
 #### Scenario: Exact Lease observation changed after planning
 
@@ -2717,6 +2690,14 @@ compensation failure.
 - **THEN** ETHOS re-observes the ref, worktree, and Lease postconditions
 - **AND** it reports the exact non-terminal state without claiming retirement.
 
+### Requirement: Retirement modes preserve distinct authority
+
+Landed retirement of accepted content SHALL be Commitment-free and deletion-only,
+accepting exact valid, expired or absent Lease observations with effect-time
+rechecks. Superseded retirement SHALL retain selected proof, transient Commitment,
+absorption authority and valid Lease. Neither mode SHALL silently consume the
+other's authority.
+
 #### Scenario: Landed and superseded commands share one owner
 
 - **WHEN** a caller invokes ordinary landed or superseded linked retirement
@@ -2727,6 +2708,14 @@ compensation failure.
   weaken to deletion-only admission
 - **AND** no wrapper, re-export, compatibility summary, or parallel Python
   effect remains.
+
+### Requirement: Partial superseded retirement restores exact coordinates
+
+When failed superseded retirement leaves an exact ref and valid Lease but no
+worktree, its existing recovery MAY recreate the exact branch-bound path. Before
+creation, revalidate ref/HEAD/tree, proof/Commitment, four-field Lease, actor,
+absence/registration and absorption authority. A later block SHALL preserve the
+recovered worktree or report exact compensation failure.
 
 #### Scenario: Exact partial superseded retirement recovers and retires
 
@@ -2758,14 +2747,12 @@ compensation failure.
 
 ### Requirement: Lease generation identity is complete across boundaries
 
-ETHOS SHALL represent one exact Lease generation with exactly its lane ref,
-holder ref, positive generation, and expiry across workspace status, handoff
-packages, retirement attempts, receipts, and mutation effects. It SHALL reject
-incomplete or stale Lease bindings and SHALL NOT persist a parallel identifier,
-fingerprint, Git coordinate, Commitment identity, workflow field, or effect
-outcome in the Lease. Git HEAD and tree, package identity, and effect evidence
-SHALL remain independently bound by their native facts, content identities, and
-Attestations.
+Every status, handoff, retirement, receipt and effect SHALL bind a Lease by
+exactly lane ref, holder ref, positive generation and expiry. Incomplete or stale
+bindings SHALL fail. Lease SHALL NOT store another ID/fingerprint, Git coordinate,
+Commitment, workflow field or outcome. Git HEAD/tree, package identity and effect
+evidence SHALL remain independently bound by native facts, content identities
+and Attestations.
 
 #### Scenario: A boundary omits or changes a Lease fact
 
@@ -3137,13 +3124,12 @@ rewriting any product object.
 
 ### Requirement: Publication semantics have one owner per layer
 
-The peer collection SHALL be the sole topology owner. One typed full-ref target
-resolver SHALL own ref kind and lifecycle role. One `TransitionPlan` compiler
-SHALL bind local object facts, selected proof Attestation, exact peer targets,
-and effects. One Git executor SHALL own live remote observation, exact CAS,
-post-write verification, and partial-effect Attestation. Public CLI and Git
-hooks SHALL consume these owners and SHALL NOT recreate branch parsing, proof
-selection, peer reconciliation, or object identity policy.
+The peer collection SHALL alone own topology; one typed full-ref resolver SHALL
+own kind/role; one TransitionPlan compiler SHALL bind local objects, proof
+Attestation, exact targets and effects; one Git executor SHALL own live remote
+observation, exact CAS, readback and partial-effect Attestation. CLI and hooks
+SHALL consume these owners, not recreate branch parsing, proof selection, peer
+reconciliation or object-identity policy.
 
 #### Scenario: public command and hook inspect one target
 
@@ -3171,27 +3157,11 @@ selection, peer reconciliation, or object identity policy.
 
 ### Requirement: Continuous intent preserves bounded Changes
 
-ETHOS SHALL preserve every distinct semantic obligation within a declared
-source boundary without turning conversations, agent summaries, temporary
-files, or generated classifications into repository authority. A recovery SHALL
-classify each obligation as accepted, superseded, pending verification, or
-rejected. Every accepted obligation SHALL map to exactly one current semantic
-owner, acceptance boundary, and proof path; every other disposition SHALL retain
-its reason in the governing official Change.
-
-Direct human guidance is design input. A later explicit instruction supersedes
-an earlier instruction only on the same subject. Delegated feedback SHALL be
-separated into observed fact, inference, and proposed remedy; an observation may
-remain valid when its proposed model is rejected. Repository state and history
-prove implementation facts, not human intent.
-
-New input SHALL NOT expand an active Change implicitly. Topology convergence
-SHALL NOT create or preserve a second carrier for current product meaning,
-unfinished convergence order, Change lineage, predecessor/successor meaning,
-hypothesis, experiment, requirement coverage, or scope/granularity semantics.
-Temporary recovery material SHALL be retired after its accepted meaning and
-necessary rationale have entered their unique owners and coverage has been
-verified.
+Recovery SHALL preserve each distinct obligation within its source boundary and
+classify it as accepted, superseded, pending verification or rejected. Accepted
+items SHALL map to one current owner, acceptance boundary and proof path; other
+outcomes SHALL retain reasons in the governing Change. Conversations, summaries,
+temporary files and generated classifications SHALL NOT become authority.
 
 #### Scenario: Current and predecessor tasks are recovered
 
@@ -3201,14 +3171,6 @@ verified.
   against the same current product model
 - **AND** neither task transcript nor an agent-generated summary SHALL become a
   current repository truth store
-
-#### Scenario: Delegated feedback mixes evidence and remedy
-
-- **WHEN** an adopter or another agent reports an exact observation together
-  with an inferred cause or proposed design
-- **THEN** the observation, inference, and remedy SHALL be evaluated separately
-- **AND** accepting the observation SHALL NOT automatically admit the proposed
-  entity, state, or compatibility mechanism
 
 #### Scenario: Several agents provide concurrent feedback
 
@@ -3228,6 +3190,36 @@ verified.
   Record
 - **AND** the official recovery Change SHALL record the migration and its proof
   without becoming the active product model after archive
+
+#### Scenario: Recovery encounters an unresolved contradiction
+
+- **WHEN** two current obligations cannot be reconciled without changing the
+  product model or the available evidence cannot establish the governing fact
+- **THEN** the item SHALL remain pending verification or SHALL raise a model gap
+- **AND** no guessed resolution SHALL authorize implementation or deletion
+
+### Requirement: Feedback interpretation preserves source authority
+
+Direct human guidance SHALL remain design input. Later explicit guidance
+supersedes earlier guidance only on the same subject. Delegated fact, inference
+and remedy SHALL be evaluated separately; rejecting a model does not invalidate
+its observation. Repository history SHALL prove implementation, not human intent.
+
+#### Scenario: Delegated feedback mixes evidence and remedy
+
+- **WHEN** an adopter or another agent reports an exact observation together
+  with an inferred cause or proposed design
+- **THEN** the observation, inference, and remedy SHALL be evaluated separately
+- **AND** accepting the observation SHALL NOT automatically admit the proposed
+  entity, state, or compatibility mechanism
+
+### Requirement: Recovery material does not become another lifecycle
+
+New input SHALL NOT implicitly expand an active Change. Convergence SHALL NOT
+create a second carrier for product meaning, order, lineage, predecessors,
+successors, hypotheses, experiments, coverage or scope/granularity. Temporary
+material SHALL retire after accepted meaning and necessary rationale reach their
+unique owners and coverage is verified.
 
 #### Scenario: Recovery input is temporary
 
@@ -3254,13 +3246,6 @@ verified.
 - **AND** it SHALL NOT create a mutable Change DAG, hypothesis registry,
   experiment ledger, successor back-link, or replacement carrier when that view
   is absent
-
-#### Scenario: Recovery encounters an unresolved contradiction
-
-- **WHEN** two current obligations cannot be reconciled without changing the
-  product model or the available evidence cannot establish the governing fact
-- **THEN** the item SHALL remain pending verification or SHALL raise a model gap
-- **AND** no guessed resolution SHALL authorize implementation or deletion
 
 ### Requirement: Deployed adopter readers remain bounded
 
@@ -3359,13 +3344,12 @@ identity, and provider presentation SHALL remain separate observations.
 
 ### Requirement: Lifecycle effect finalization authorizes exact transition paths
 
-ETHOS SHALL use one verified OpenSpec lifecycle-effect authority for official
-archive, canonical-spec projection, and post-archive closeout.
-The authority SHALL bind repository identity, the transient Commitment digest,
-previous and resulting Git facts, exact changed paths, official OpenSpec result,
-and terminal effect Attestation. Status, plan, prove, land, prewrite, and hooks
-SHALL consume that same authority. A durable partial effect SHALL recover through
-the same public operation by exact CAS.
+One verified OpenSpec lifecycle-effect authority SHALL cover archive, canonical
+spec projection and post-archive closeout. It SHALL bind repository identity,
+transient Commitment digest, prior/resulting Git facts, exact paths, official
+result and terminal effect Attestation. Status/plan/prove/land/prewrite/hooks
+SHALL consume it unchanged. Durable partial effects SHALL recover through the
+same public operation and exact CAS.
 
 #### Scenario: Exact archive transition is congruent across readers
 
@@ -3487,14 +3471,12 @@ An ETHOS Python gate SHALL distinguish owned from caller-supplied temporary path
 
 ### Requirement: Official spec-free Changes compile acceptance
 
-ETHOS SHALL compile deterministic non-empty acceptance for an official OpenSpec
-Change that explicitly declares `skip_specs: true`, contains no requirement
-deltas, and has a complete planning artifact graph. The acceptance SHALL use
-only official OpenSpec projection facts, SHALL preserve the semantic content of
-metadata, proposal, design, and task descriptions, and SHALL exclude task
-checkbox progress. ETHOS SHALL NOT require completed implementation tasks, fake
-requirements, `commitment.toml`, or another tracked intent carrier before
-bounded implementation writes can be admitted.
+A complete official planning graph with explicit `skip_specs: true` and no deltas
+SHALL compile deterministic, non-empty acceptance from official projections only.
+Metadata, proposal, design and task meaning SHALL survive; checkbox progress
+SHALL not affect acceptance. Bounded implementation admission SHALL require
+neither completed tasks, fake requirements, `commitment.toml` nor another tracked
+intent carrier.
 
 #### Scenario: Planned spec-free Change is selected before implementation
 
@@ -3742,15 +3724,11 @@ consumption.
 
 ### Requirement: Destructive Work Lane retirement is a resumable observed transition
 
-ETHOS SHALL execute authorized destructive Work Lane retirement as one
-receipt-bound transition over the exact worktree, branch ref, and Lease
-carriers. Before the first effect it MUST persist the immutable request and
-verify a surviving repository control root, the Git executable, every process
-working directory, the target ref and HEAD, worktree cleanliness, Lease state,
-and caller authority. After every attempted effect it MUST re-observe native
-carrier state and derive `completed_effects` and `remaining_effects` from those
-facts rather than from process-local flags. Lease revocation MUST occur only
-after the worktree and ref are absent.
+Authorized retirement SHALL be one receipt-bound transition over exact worktree,
+ref and Lease. Before effects, persist the immutable request and verify surviving
+control root, Git binary, every process cwd, ref/HEAD, cleanliness, Lease and actor
+authority. After each attempt, native observations SHALL determine completed and
+remaining effects, not process flags. Revoke Lease only after worktree/ref absence.
 
 #### Scenario: Execution coordinates fail before destruction
 
@@ -3907,13 +3885,11 @@ list or provider-specific policy parser.
 
 ### Requirement: Absorbed local resource retirement is independent of authoring role
 
-ETHOS SHALL admit deletion-only retirement of an explicitly selected local topic
-ref whose exact HEAD is equal to or an ancestor of current accepted truth,
-without requiring the ref to use the Work Lane authoring prefix. Accepted,
-release, and candidate resources SHALL remain outside this retirement path.
-The existing retirement protocol SHALL retain actor, Lease, cleanliness,
-exact-CAS, post-observation, and recovery obligations. This capability SHALL NOT
-grant source-write authority or retire remote review projections.
+ETHOS SHALL admit deletion-only retirement of an explicit local topic ref whose
+exact HEAD equals or precedes accepted truth, regardless of authoring prefix.
+Accepted, release and candidate resources remain excluded. Existing actor,
+Lease, cleanliness, exact-CAS, readback and recovery obligations SHALL hold.
+This path SHALL grant neither source-write authority nor remote-review cleanup.
 
 #### Scenario: An absorbed unlinked topic ref predates current policy
 
@@ -3942,13 +3918,12 @@ grant source-write authority or retire remote review projections.
 
 ### Requirement: Missing Work Lane coordination is reacquired without content mutation
 
-ETHOS SHALL expose one public missing-Lease reacquisition through its existing
-Lease lifecycle. It SHALL derive the exact linked Work Lane, current actor,
-HEAD, index, working-content digest, and missing Lease from fresh observations.
-Apply SHALL require explicit authorization and those exact coordinates, use
-the existing four-field Lease transaction, preserve all Git and working content,
-and record or recover the corresponding native effect Attestation. It SHALL
-NOT treat the resulting Lease as OpenSpec intent, proof, or write admission.
+The public Lease lifecycle SHALL reacquire missing coordination from fresh exact
+linked-lane, actor, HEAD, index, working-content digest and absence facts. Apply
+SHALL require explicit authorization and matching coordinates, use the four-field
+Lease transaction, preserve all Git/content and record or recover its native
+effect Attestation. The resulting Lease SHALL NOT imply intent, proof or write
+admission.
 
 #### Scenario: Dirty linked Work Lane has lost its Lease
 
@@ -4043,24 +4018,10 @@ Git SHALL preserve removed committed records for historical retrieval.
 
 ### Requirement: Reviewed content retirement binds the exact destructive preimage
 
-ETHOS SHALL allow an explicitly reviewed historical topic to retire through its
-existing receipt-bound abandonment and recovery capability. The selected
-content, index, root identity, ref, accepted object, actor and Lease coordinates
-SHALL remain exact effect inputs. Ignored status SHALL NOT imply disposal
-permission, and the receipt SHALL NOT claim semantic acceptance from hashes.
-
-Destructive application SHALL operate after all actual writers have stopped
-and participants honor lane coordination through disposal. The operator SHALL
-verify that handoff before reviewing content. Lease transfer and an empty
-process scan SHALL NOT be treated as stopping writers or excluding arbitrary
-uncooperative same-UID writes. Unknown liveness SHALL block application.
-
-#### Scenario: Actual writer is stopped before reviewed retirement
-- **WHEN** a writer still consumes the selected worktree
-- **THEN** retirement rejects application and preserves its content and refs
-- **AND** after the writer exits, the operator reviews the final exact content
-  under current coordination before applying retirement
-- **AND** successful application and recovery remove only the reviewed resources.
+ETHOS SHALL allow explicitly reviewed historical topics to retire through
+existing receipt-bound abandonment/recovery. Selected content, index, root identity, ref, accepted object,
+actor and Lease SHALL remain exact inputs. Ignored status SHALL NOT imply disposal
+permission, and hashes SHALL NOT claim semantic acceptance.
 
 #### Scenario: Reviewed absorbed lane has residual content
 - **WHEN** an operator derives and reviews an exact receipt for a non-protected
@@ -4130,6 +4091,21 @@ uncooperative same-UID writes. Unknown liveness SHALL block application.
 - **AND** coordination-file count does not grow with transaction history
 - **AND** unavailable native locking prevents mutation rather than silently
   substituting an existence-marker protocol.
+
+### Requirement: Reviewed retirement requires actual writer quiescence
+
+All actual writers SHALL stop before content review; participants SHALL honor
+lane coordination through disposal. The operator SHALL verify that handoff.
+Lease transfer or an empty process scan SHALL NOT imply stopped writers or
+exclude arbitrary uncooperative same-UID writes. Unknown liveness SHALL block
+destructive application.
+
+#### Scenario: Actual writer is stopped before reviewed retirement
+- **WHEN** a writer still consumes the selected worktree
+- **THEN** retirement rejects application and preserves its content and refs
+- **AND** after the writer exits, the operator reviews the final exact content
+  under current coordination before applying retirement
+- **AND** successful application and recovery remove only the reviewed resources.
 
 ### Requirement: Reviewed retirement derives only existing native resources
 

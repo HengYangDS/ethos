@@ -315,14 +315,12 @@ object before a ref, Lease, or worktree effect.
 
 ### Requirement: Publish is the sole remote Git object projection command
 
-`ethos publish` SHALL be the sole public command that compiles, persists, and
-applies remote Git object effects. It SHALL select typed targets from the
-repository's positive ref topology, bind the exact local object and proof
-Attestation, persist one content-addressed request, recheck every target before
-the first effect, execute peer-local exact CAS, and emit one machine-readable
-partial or complete Attestation. Tag publication and protected-branch
-publication SHALL be modes of this command rather than separate commands or
-hook exceptions.
+`ethos publish` SHALL alone compile, persist and apply remote Git object effects.
+It SHALL select typed targets from positive repository topology; bind exact local
+objects and proof Attestations; persist one content-addressed request; recheck
+all targets before effects; apply peer-local exact CAS; and attest partial or
+complete results in machine-readable form. Tags and protected branches SHALL be
+modes of this command, not separate commands or hook exceptions.
 
 #### Scenario: dry-run creates one immutable request
 
@@ -449,16 +447,12 @@ revoke, or replace current authority.
 
 ### Requirement: Current repository decisions have one resolution owner
 
-ETHOS SHALL resolve current role, actor, Lease, fresh Git facts, selected
-official OpenSpec intent, first exact gap, and recovery action once for each
-operation. Status, plan, prewrite, hook, prove, and OpenSpec archive surfaces
-SHALL consume that typed resolution without reclassifying its authority, gap,
-next action, or Commitment. A non-passing resolution SHALL terminate the
-consumer before operation-specific planning or execution. A passing resolution
-SHALL be the sole input authority for deterministic plan compilation. Effect
-adapters MAY re-observe exact preconditions at CAS or Attestation issuance time
-and SHALL observe the post-effect state, but they SHALL NOT reselect the
-operation's intent.
+ETHOS SHALL resolve role, actor, Lease, fresh Git facts, official intent, first
+gap and recovery once per operation. Status/plan/prewrite/hooks/prove/archive
+SHALL consume that typed authority, gap, next action and Commitment unchanged.
+Non-pass SHALL stop downstream work; pass alone authorizes plan compilation.
+Effects MAY recheck exact CAS or issuance preconditions, SHALL observe results,
+and SHALL NOT reselect intent.
 
 #### Scenario: One missing fact is observed by several surfaces
 
@@ -603,14 +597,12 @@ gaps when the expected full-ref transition plan is unavailable.
 
 ### Requirement: Git trust anchors use native host protection
 
-ETHOS SHALL admit a repository-external Git trust anchor only when the host's
-native authorization model proves that the anchor and its parent cannot be
-modified by an untrusted identity. ETHOS-created anchors SHALL establish the
-same protection that observation requires. When native establishment fails,
-ETHOS SHALL preserve the bounded host-process reason needed to diagnose the
-failed authority operation. A Windows PowerShell child SHALL resolve its native
-security module independently of an incompatible module path inherited from a
-different parent PowerShell edition.
+ETHOS SHALL admit external Git trust anchors only when native host authorization
+protects the anchor and parent from untrusted modification. Created anchors
+SHALL meet the same contract. Failed establishment SHALL retain the bounded host
+process reason. Windows PowerShell children SHALL resolve native security
+modules independently of incompatible module paths inherited from another
+PowerShell edition.
 
 #### Scenario: POSIX anchor is owner-protected
 

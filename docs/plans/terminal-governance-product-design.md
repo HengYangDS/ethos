@@ -2056,6 +2056,48 @@ compatibility must therefore be tested; modern syntax is not automatically a
 behavior-neutral rewrite. Measure deleted duplication, distinguishing failures,
 actual latency and recovery cost rather than counting frameworks or rules.
 
+##### Full-Cycle Throughput — Current Bounded Execution
+
+The `verification-feedback` batch reached local accepted `d2949938d2d954dd6cee21f49ba36e7c35a10975`.
+Implementation and archive proofs passed all 35 gates in 766.326 and 730.024
+seconds. Runtime `88da46116affdf81d9da62b1a034946f246cf5a83604a4435e23aaf0aef936c2`
+binds the accepted source and tree. Public receipt-bound publication completed;
+independent remote reads found both GitHub and GitLab `dev/main` at that same
+object. Hosted job completion and report visibility remain separate observations.
+
+Optimize the complete interval from input clarification to accepted, installed,
+published and cleaned-up result. First-failure latency and successful closeout
+latency are separate measurements; lower CPU or fewer tests is not the objective.
+The current bottleneck inventory is bounded by existing receipts and owners:
+
+| Boundary | Observed cause or unverified hypothesis | Action and evidence boundary |
+| --- | --- | --- |
+| Agent orchestration | Repeated state reads, omitted invocation environment and broad preflight dependency expansion caused avoidable retries. | Reuse unchanged facts, bind cwd/actor/supply once per operation, inspect selected dependency closure and preserve a durable running receipt. Never replay an unknown mutation. |
+| Proof scheduling | The shared runner imposed whole-wave barriers; the test gate lacked inexpensive source prerequisites. Six regressions reproduced these defects. | `proof-readiness-scheduling` replaces waves with one ready-node executor and declares cheap prerequisites in the existing registry. Independent diagnostics remain useful; failed dependents never execute. |
+| Test setup | Current JUnit reports several lifecycle cases taking 59--84 seconds each. The exact setup/body/teardown share is not measured. | Instrument the existing fixture owner once, remove repeated setup at the asserted boundary, retain one real lifecycle conformance path and share immutable supply only. Absorb valid historical-lane fixture work instead of reimplementing it. |
+| Evidence reuse | The implementation and archive each required a full run; current gate-source digests do not describe complete action inputs. | Separate execution validity, current acceptance and fresh effect authorization. Reuse only after complete source/rule/toolchain/environment/external inputs and cold/warm/cache-cleared equality are proved. |
+| Runtime/package supply | Construction and verification may repeatedly inspect identical immutable bytes; full cost attribution is still unmeasured. | Measure existing owner invocations and materialization, then remove redundant work without reusing stale trust or weakening closure verification. |
+| Publication | A generic readiness hint suggested another local CI despite a valid selected publication proof. | Exact public target selection and live probes published without another suite. Fix that misleading projection separately; do not add a second publication path. |
+| Diagnostics/spec clarity | Official strict validation returned success with 25 INFO length issues across ten specifications. | Preserve original obligations and scenarios while clarifying semantic boundaries; inspect native issues, not only exit status. The current Change has explicit user-authorized scope for this correction. |
+| Work in progress | Three historical lanes still retain unadjudicated work. | Absorb easiest valid semantics, prove exact retained results, then retire resources. More lanes and indefinite preservation increase recovery and review cost. |
+
+The ready-node fix passed 147 focused/public-transport and contract tests. A
+three-gate controlled comparison retained outcomes and capacity while reducing
+elapsed time from 0.387 to 0.208 seconds; this is not a full-suite speedup claim.
+Native spec validation now reports zero issues across eleven canonical specs
+and the active Change. All 775 original scenarios in the ten edited specs remain
+byte-preserved once; one bounded-discovery scenario was added. A native-validator
+regression rejects future canonical findings rather than rebuilding Markdown
+semantics or treating exit zero as issue-free. Full current proof remains pending.
+
+The current batch uses the already authorized 45000 ELOC limits independently
+for product and tests. At 39999/39999, mechanical trimming for each regression
+would trade evidence and delivery efficiency for a number. Coverage remains at
+least 95 percent; no exclusions, test removal or complexity suppression are
+introduced. Subsequent work must measure useful computation avoided, time to
+first actionable failure, cold/warm proof latency, retry count and final cleanup,
+not infer full-cycle gains from one scheduler benchmark.
+
 ##### Executable Semantics Research — Accepted Increment
 
 The user confirmed the queued research plan associated with feedback

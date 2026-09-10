@@ -398,14 +398,12 @@ release SHALL remain independently identified evidence planes.
 
 ### Requirement: Fresh Offline Installation
 
-The full release proof SHALL build deterministic Python artifacts and execute
-the complete package-only repository lifecycle through one `local-install-smoke`
-owner. Installed command help, version, module origin, package and runtime
-identity, hook activation, lifecycle continuations, and artifact digests SHALL
-bind to the same stable HEAD. The complete Python test surface SHALL verify gate
-declarations, orchestration, and pure contracts without installing another
-wheel, materializing another runtime, or executing a second repository
-lifecycle.
+Full release proof SHALL build deterministic Python artifacts and exercise the
+complete package-only lifecycle through one `local-install-smoke` owner. Help,
+version, module origin, package/runtime identity, hooks, continuations and
+artifact digests SHALL bind the same stable HEAD. Python tests SHALL verify gate
+declarations, orchestration and pure contracts without another wheel install,
+runtime materialization or repository lifecycle execution.
 
 #### Scenario: Offline installation succeeds
 

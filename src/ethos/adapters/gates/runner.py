@@ -1,3 +1,5 @@
+"""Dependency-ready execution with bounded readers and exclusive writers."""
+
 from __future__ import annotations
 
 import importlib
@@ -5,13 +7,17 @@ import inspect
 import json
 import subprocess
 from collections.abc import Mapping
+from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import wait
 from dataclasses import dataclass
+from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
 from ethos.adapters.repo.git import current_head
+from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -148,32 +154,7 @@ class LocalGateRunner:
         )
 
 
-def proof_waves(
-    nodes: tuple[PlanNode, ...], gates: Mapping[str, Gate], *, capacity: int
-) -> tuple[tuple[PlanNode, ...], ...]:
-    """Partition one admitted DAG into deterministic safe execution waves."""
-    if capacity < 1:
-        message = "proof_node_capacity_invalid"
-        raise ValueError(message)
-    remaining = list(nodes)
-    completed: set[str] = set()
-    waves: list[tuple[PlanNode, ...]] = []
-    while remaining:
-        ready = [node for node in remaining if set(node.depends_on) <= completed]
-        if not ready:
-            message = "proof_plan_dependencies_unresolved"
-            raise ValueError(message)
-        write_ready = next((node for node in ready if gates[node.id].writes_files), None)
-        read_only = [node for node in ready if not gates[node.id].writes_files]
-        wave = (write_ready,) if write_ready is not None else tuple(read_only[:capacity])
-        waves.append(wave)
-        completed.update(node.id for node in wave)
-        selected = {node.id for node in wave}
-        remaining = [node for node in remaining if node.id not in selected]
-    return tuple(waves)
-
-
-def run_gate_waves(
+def run_gate_graph(
     runner: DryRunRunner | LocalGateRunner,
     nodes: tuple[PlanNode, ...],
     gates: Mapping[str, Gate],
@@ -182,35 +163,71 @@ def run_gate_waves(
     capacity: int,
     parallel: bool,
 ) -> tuple[ActionRunResult, ...]:
-    """Execute safe proof waves while preserving canonical result order."""
-    results: list[ActionRunResult] = []
-    passed: set[str] = set()
+    """Run ready checks once, isolate writers and return canonical plan order."""
+    if capacity < 1:
+        message = "proof_node_capacity_invalid"
+        raise ValueError(message)
+    TransitionPlan.closure(nodes)
+    writers = {node.id for node in nodes if gates[node.id].writes_files}
+    graph = TopologicalSorter({node.id: node.depends_on for node in nodes})
+    graph.prepare()
+    ready: set[str] = set()
+    results: dict[str, ActionRunResult] = {}
+    running = {}
+    limit = capacity if parallel else 1
 
-    def run(node: PlanNode) -> ActionRunResult:
-        gaps = [f"gate_dependency_not_proven:{key}" for key in node.depends_on if key not in passed]
-        if gaps and not isinstance(runner, DryRunRunner):
-            return ActionRunResult(
-                node.id,
-                node.command,
-                "block",
-                None,
-                diagnostics=({"kind": "gate_dependency", "required_gaps": gaps},),
-            )
-        return runner.run(node, gates[node.id], root=root)
+    with ThreadPoolExecutor(max_workers=limit) as executor:
+        while graph.is_active():
+            ready.update(graph.get_ready())
+            write_ready = next((node for node in nodes if node.id in ready & writers), None)
+            if write_ready is not None:
+                selected = () if running else (write_ready,)
+            else:
+                selected = tuple(node for node in nodes if node.id in ready)[: limit - len(running)]
+            for node in selected:
+                ready.remove(node.id)
+                if not parallel or node.id in writers or isinstance(runner, DryRunRunner):
+                    results[node.id] = _run_ready_gate(runner, node, gates[node.id], results, root)
+                    graph.done(node.id)
+                else:
+                    running[
+                        executor.submit(
+                            _run_ready_gate, runner, node, gates[node.id], results, root
+                        )
+                    ] = node.id
+            if selected:
+                continue
+            if running:
+                completed, _pending = wait(running, return_when=FIRST_COMPLETED)
+                for future in completed:
+                    node_id = running.pop(future)
+                    results[node_id] = future.result()
+                    graph.done(node_id)
+    return tuple(results[node.id] for node in nodes)
 
-    for wave in proof_waves(nodes, gates, capacity=capacity):
-        if parallel and len(wave) > 1:
-            with ThreadPoolExecutor(max_workers=len(wave)) as executor:
-                wave_results = tuple(executor.map(run, wave))
-        else:
-            wave_results = tuple(map(run, wave))
-        results.extend(wave_results)
-        passed.update(
-            result.action_id
-            for result in wave_results
-            if result.verdict == "pass" and result.exit_code == 0
+
+def _run_ready_gate(
+    runner: DryRunRunner | LocalGateRunner,
+    node: PlanNode,
+    gate: Gate,
+    results: Mapping[str, ActionRunResult],
+    root: Path,
+) -> ActionRunResult:
+    """Execute only when every settled prerequisite carries successful evidence."""
+    gaps = [
+        f"gate_dependency_not_proven:{key}"
+        for key in node.depends_on
+        if results[key].verdict != "pass" or results[key].exit_code != 0
+    ]
+    if gaps and not isinstance(runner, DryRunRunner):
+        return ActionRunResult(
+            node.id,
+            node.command,
+            "block",
+            None,
+            diagnostics=({"kind": "gate_dependency", "required_gaps": gaps},),
         )
-    return tuple(results)
+    return runner.run(node, gate, root=root)
 
 
 def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:

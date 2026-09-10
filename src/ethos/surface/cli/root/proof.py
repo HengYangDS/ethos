@@ -17,7 +17,7 @@ from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
-from ethos.adapters.gates.runner import run_gate_waves
+from ethos.adapters.gates.runner import run_gate_graph
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
@@ -101,7 +101,7 @@ def _host_gate_observation(
     checks: list[dict[str, object]] = []
     if not required_gaps:
         policy = resolve_gate_policy(repo, tree_ref=current_head, gate_ids=gate_ids, full=full)
-        results = run_gate_waves(
+        results = run_gate_graph(
             LocalGateRunner(),
             policy.nodes,
             policy.registry,
@@ -214,7 +214,7 @@ def run_plan_checks(
     ).registry
     runner = LocalGateRunner() if execute else DryRunRunner()
     node_capacity = capacity or max(1, os.cpu_count() or 1)
-    results = run_gate_waves(
+    results = run_gate_graph(
         runner, plan.nodes, gates_by_id, root=repo, capacity=node_capacity, parallel=execute
     )
     checks: list[dict[str, object]] = []

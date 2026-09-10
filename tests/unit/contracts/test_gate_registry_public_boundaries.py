@@ -1,3 +1,5 @@
+"""Public declaration validation and source-readiness dependencies."""
+
 from __future__ import annotations
 
 import tomllib
@@ -105,3 +107,12 @@ def test_gate_registry_missing_or_malformed_source_fails_closed(tmp_path: Path) 
     malformed.write_text("gates = [\n", encoding="utf-8")
     with pytest.raises(tomllib.TOMLDecodeError):
         load_gate_registry_declaration(malformed)
+
+
+@pytest.mark.parametrize(
+    "prerequisite", ["ruff", "schemas", "config-quality", "python-types", "source-budget"]
+)
+def test_heavy_tests_require_inexpensive_source_readiness(prerequisite: str) -> None:
+    """Known cheap failures must be found before launching the expensive test suite."""
+    registry = load_gate_registry_declaration().registry()
+    assert prerequisite in registry["unit-architecture"].depends_on

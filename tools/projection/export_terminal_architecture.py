@@ -164,6 +164,9 @@ def _nodes(
             "provenance": _provenance(
                 node.get("evidence"), known_sources, label=f"node {identity}"
             ),
+            "attributes": {
+                key: item for key, item in node.items() if key not in {"label", "kind", "evidence"}
+            },
         }
         owners[identity] = _disposition(
             identity, projected.get(identity), omitted.get(identity), kind="node"
@@ -187,6 +190,8 @@ def _relations(
     for value in graph_edges:
         edge = _required_mapping(value, "semantic relation")
         identity = _required_text(edge.get("id"), "semantic relation identity")
+        if identity in owners:
+            _fail(f"duplicate relation identity: {identity}")
         from_identity = _required_text(edge.get("from"), f"relation {identity} source")
         to_identity = _required_text(edge.get("to"), f"relation {identity} target")
         if from_identity not in node_ids or to_identity not in node_ids:
@@ -200,12 +205,62 @@ def _relations(
                 "provenance": _provenance(
                     edge.get("source_ids"), known_sources, label=f"relation {identity}"
                 ),
+                "attributes": {
+                    key: item
+                    for key, item in edge.items()
+                    if key not in {"id", "from", "to", "kind", "source_ids"}
+                },
             }
         )
         owners[identity] = _disposition(
             identity, projected.get(identity), omitted.get(identity), kind="relation"
         )
     return relations, owners
+
+
+def _validate_required_witnesses(
+    graph: dict[str, Any], profile: dict[str, Any], copy: dict[str, Any]
+) -> None:
+    """Validate declared static obligations, not renderer visibility or meaning."""
+    assertions = _required_mapping(copy.get("assertions", {}), "copy assertions")
+    for identity in profile.get("meta", {}).get("required_visible_copy", []):
+        _static_witness(assertions, identity, f"view {identity}")
+    groups = (
+        ("node", graph["nodes"].items(), "node_projection", "omitted_nodes"),
+        (
+            "relation",
+            ((item["id"], item) for item in graph["edges"]),
+            "edge_projection",
+            "omitted_edges",
+        ),
+        (
+            "invariant",
+            ((item["id"], item) for item in graph.get("invariants", [])),
+            "invariant_projection",
+            "omitted_invariants",
+        ),
+    )
+    for kind, items, projected_key, omitted_key in groups:
+        projected = _required_mapping(profile.get(projected_key, {}), projected_key)
+        omitted = _required_mapping(profile.get(omitted_key, {}), omitted_key)
+        for identity, item in items:
+            if not item.get("required_visible", False):
+                continue
+            projection = projected.get(identity, {})
+            if identity in omitted or not isinstance(projection, dict):
+                _fail(f"required {kind} {identity} needs a main-static copy witness")
+            _static_witness(assertions, projection.get("witness"), f"{kind} {identity}")
+
+
+def _static_witness(assertions: dict[str, Any], identity: object, label: str) -> None:
+    witness = assertions.get(identity) if isinstance(identity, str) else None
+    if (
+        not isinstance(witness, dict)
+        or witness.get("surface") != "main-static"
+        or not isinstance(witness.get("text"), str)
+        or not witness["text"].strip()
+    ):
+        _fail(f"required {label} needs a main-static copy witness")
 
 
 def _projection_input(
@@ -224,10 +279,11 @@ def _projection_input(
     if authority.get("effect_authority") is not False:
         _fail("projection declaration cannot own repository effect authority")
     known_sources = {item["id"] for item in bindings}
+    _validate_required_witnesses(semantic_graph, view_profile, copy)
     nodes, node_owners = _nodes(semantic_graph, view_profile, known_sources)
     relations, relation_owners = _relations(semantic_graph, view_profile, known_sources, set(nodes))
     return {
-        "schema": "projection.input/v1",
+        "schema": "projection.input/v2",
         "title": _required_text(declaration.get("title"), "projection title"),
         "authority": {
             "semantic_owner": _required_text(
@@ -248,7 +304,15 @@ def _projection_input(
             "view_profile": view_profile,
             "quality_contract": quality_contract,
         },
-        "semantics": {"nodes": nodes, "relations": relations},
+        "semantics": {
+            "nodes": nodes,
+            "relations": relations,
+            "contracts": {
+                key: item
+                for key, item in semantic_graph.items()
+                if key not in {"schema", "sources", "nodes", "edges"}
+            },
+        },
         "view": {"nodes": node_owners, "relations": relation_owners},
     }
 

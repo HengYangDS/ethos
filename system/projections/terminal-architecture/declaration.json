@@ -1,10 +1,10 @@
 {
   "schema": "ethos.projection-declaration/v1",
   "id": "ethos-terminal-architecture",
-  "title": "CONTINUABLE REPOSITORY REALITY",
+  "title": "RELIABLE REPOSITORY EVOLUTION",
   "authority": {
     "semantic_owner": "docs/governance/product-design-contract.md",
-    "scope": "lossless terminal-architecture assertion selection and source binding only",
+    "scope": "complete terminal product meaning, source binding and static-view obligations; not implementation or rendered acceptance",
     "effect_authority": false
   },
   "sources": [

@@ -15,7 +15,7 @@
   ],
   "properties": {
     "schema": {
-      "const": "projection.input/v1"
+      "const": "projection.input/v2"
     },
     "title": {
       "type": "string",
@@ -118,7 +118,8 @@
       "type": "object",
       "required": [
         "nodes",
-        "relations"
+        "relations",
+        "contracts"
       ],
       "properties": {
         "nodes": {
@@ -132,6 +133,10 @@
           "items": {
             "$ref": "#/$defs/relation"
           }
+        },
+        "contracts": {
+          "type": "object",
+          "description": "Exact graph-level metadata, vocabulary, invariants and effect contracts."
         }
       },
       "additionalProperties": false
@@ -230,7 +235,8 @@
       "required": [
         "label",
         "kind",
-        "provenance"
+        "provenance",
+        "attributes"
       ],
       "properties": {
         "label": {
@@ -248,6 +254,10 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "attributes": {
+          "type": "object",
+          "description": "Exact source semantic attributes, excluding normalized identity and provenance."
         }
       },
       "additionalProperties": false
@@ -259,7 +269,8 @@
         "from",
         "to",
         "kind",
-        "provenance"
+        "provenance",
+        "attributes"
       ],
       "properties": {
         "id": {
@@ -285,6 +296,10 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "attributes": {
+          "type": "object",
+          "description": "Exact source semantic attributes, excluding normalized identity and provenance."
         }
       },
       "additionalProperties": false

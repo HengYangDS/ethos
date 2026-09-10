@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.selection as runtime_selection
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.git import git_common_dir
@@ -29,9 +30,9 @@ def test_windows_standalone_runtime_preserves_native_python_layout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     interpreter_home = tmp_path / "python"
-    monkeypatch.setattr(runtime_selection, "os", SimpleNamespace(name="nt"))
+    monkeypatch.setattr(runtime_filesystem, "os", SimpleNamespace(name="nt"))
 
-    assert runtime_selection.runtime_python(interpreter_home) == interpreter_home / "python.exe"
+    assert runtime_filesystem.runtime_python(interpreter_home) == interpreter_home / "python.exe"
 
 
 def test_activation_authenticates_the_package_under_lock_and_renders_exact_command(

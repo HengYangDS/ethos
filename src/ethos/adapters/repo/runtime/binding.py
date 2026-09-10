@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import ethos
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_gate_registry
 

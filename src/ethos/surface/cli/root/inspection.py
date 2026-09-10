@@ -6,8 +6,8 @@ from typing import cast
 
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
-from ethos.adapters.repo.hook.binding import commit_policy_enforcement
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.observation import commit_policy_enforcement
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts

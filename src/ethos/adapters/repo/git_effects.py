@@ -23,7 +23,7 @@ from ethos.adapters.repo.git_effect_admission import require_lease_generation
 from ethos.adapters.repo.git_effect_admission import require_plan_prestate
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan

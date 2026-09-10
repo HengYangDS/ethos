@@ -264,6 +264,13 @@ ethos:verify:
     when: always
     paths:
       - build/evidence/quality/proof/
+      - build/evidence/quality/tests/pytest/junit*.xml
+      - build/evidence/quality/tests/coverage/coverage.xml
+    reports:
+      junit: build/evidence/quality/tests/pytest/junit*.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: build/evidence/quality/tests/coverage/coverage.xml
 
 ethos:npm:
   stage: verify

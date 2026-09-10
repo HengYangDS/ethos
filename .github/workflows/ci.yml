@@ -182,6 +182,8 @@ jobs:
           name: ethos-proof-receipt
           path: |
             build/evidence/quality/proof/
+            build/evidence/quality/tests/pytest/junit*.xml
+            build/evidence/quality/tests/coverage/coverage.xml
           if-no-files-found: error
 
   package:

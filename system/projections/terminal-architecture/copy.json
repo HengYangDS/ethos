@@ -1,129 +1,149 @@
 {
-  "schema": "ethos.terminal-copy/v1",
+  "schema": "ethos.terminal-copy/v2",
   "language": "English with one bounded Chinese brand mark",
   "allowed_han_sequences": [
     "问道"
   ],
   "brand": "ETHOS · 问道",
-  "title": "CONTINUABLE REPOSITORY REALITY",
-  "subtitle": "Bind intent. Explore in parallel. Prove before judgment. Apply exact effects. Preserve what makes change continuable.",
-  "law": "CAPABILITY SERVES · AUTHORITY BOUNDS · EVIDENCE GROUNDS · REALITY ENDURES",
-  "terminal_law": "LOCAL AUTHORITY · LOCAL JUDGMENT · LOCAL EFFECT",
-  "thesis": "ETHOS is the Git-native proof-carrying compiler and transaction protocol that preserves intent, narrows change, admits one exact effect, and leaves enough evidence for independent verification, recovery, and succession.",
-  "sections": {
-    "mechanism": "BOUNDED CHANGE",
-    "ecology": "ONE KERNEL · LOCAL REPOSITORY REALITIES"
-  },
-  "labels": {
-    "brand": "ETHOS · 问道",
-    "axis": "ACCEPTED ROOT LINEAGE",
-    "before": "ACCEPTED ROOT n",
-    "future": "OPEN FUTURE",
-    "grounds": "DURABLE GROUNDS",
-    "authority_gap": "AUTHORITY ENDS",
-    "lanes": "ISOLATED CANDIDATE LANES",
-    "lane_detail": "worktree · Lease · fresh facts · prewrite",
-    "effect": "ONE EXACT EFFECT",
-    "projections": "CLI · SDK · MCP/A2A · IDE · CI",
-    "entry": "ENTRY CONDITIONS",
-    "ecology_law": "authority, judgment, and accepted truth stay local",
-    "publication": "PUBLICATION IS A PROJECTION, NOT ADOPTION",
-    "candidate_axis": "CANDIDATE TRAIN · SERIAL EFFECTS OVER PARALLEL WORK",
-    "refresh": "RETAINED LANE · STALE BASE · REFRESH · RE-PROVE"
-  },
-  "nodes": {
-    "authority": [
-      "BOUNDED AUTHORITY",
-      "subject · scope · validity"
-    ],
-    "commitment": [
-      "COMPILED INTENT",
-      "change identity · acceptance"
-    ],
-    "action-joint": [
-      "COMPILE",
-      "fresh facts · deterministic plan"
-    ],
-    "agency": [
-      "REPLACEABLE CAPABILITY",
-      "agent · Skills · tools"
-    ],
-    "recovery": [
-      "RECOVER",
-      "loss / unknown outcome · re-observe · recompile"
-    ],
-    "worlds": [
-      "WORK LANE FIELD",
-      "COOPERATE · disjoint / ordered",
-      "PROVE · COMPARE / DEPEND / CONFLICT",
-      "ADMIT · CONTINUE · HOLD · RETIRE AFTER PROOF"
-    ],
-    "proof": [
-      "PROOF FIELD",
-      "claims · scope · verifier"
-    ],
-    "effect-joint": [
-      "CLOSEOUT",
-      "proved candidate · expected root",
-      "PASS only · else no accepted-root advance"
-    ],
-    "cas": [
-      "ACCEPTED-ROOT CAS",
-      "linearizes the accepted root only"
-    ],
-    "accepted-state": [
-      "ACCEPTED ROOT n",
-      "current accepted repository state"
-    ],
-    "accepted-next": [
-      "ACCEPTED ROOT n+1",
-      "post-observed · accepted"
-    ],
-    "attestation": [
-      "ATTESTATION",
-      "evidence-bound · durable"
-    ],
-    "brownfield": [
-      "BROWNFIELD",
-      "inherit history · preserve unrelated truth"
-    ],
-    "greenfield": [
-      "GREENFIELD",
-      "founding intent · minimal native scaffold"
-    ],
-    "self": [
-      "SELF-GOVERNANCE",
-      "model gap · promote the model · same aperture"
-    ],
-    "adopter-peer": [
-      "AUTONOMOUS ADOPTER",
-      "local authority · judgment · reality"
-    ],
-    "publication-remote": [
-      "PUBLICATION REMOTE",
-      "selected ref · remote CAS · no truth transfer"
-    ],
-    "conformance": [
-      "SEMANTIC KERNEL · CURRENT BINDING",
-      "OpenSpec + Git · alternatives must re-prove every invariant"
-    ],
-    "candidate-state": [
-      "CANDIDATE n",
-      "shared exact base"
-    ],
-    "candidate-gate": [
-      "ADMIT ONE",
-      "authorized proof · fresh HEAD",
-      "PASS only · else no candidate advance"
-    ],
-    "candidate-cas": [
-      "CANDIDATE CAS",
-      "linearizes one candidate ref only"
-    ],
-    "candidate-state-next": [
-      "CANDIDATE n+1",
-      "post-observed"
-    ]
-  },
-  "carriers": ""
+  "title": "RELIABLE REPOSITORY EVOLUTION",
+  "subtitle": "Understand intent. Compose capabilities. Evolve repositories. Verify real outcomes.",
+  "maturity_notice": "Target architecture, not a claim of current implementation.",
+  "thesis": "A reliable, composed path for people and interchangeable Agent capabilities from understanding problems to evolving repositories and evaluating their use.",
+  "assertions": {
+    "purpose": {
+      "label": "Complete product",
+      "text": "From problem and research to accepted intent, repository evolution, real benefit and learning. A complete composed path; a small trust kernel.",
+      "surface": "main-static"
+    },
+    "intent": {
+      "label": "Understand and accept",
+      "text": "Challenge interpretations with positive and negative examples. Settle trade-offs, non-goals, exceptions, assumptions and guarantees; account for each scoped constraint. Official OpenSpec alone holds accepted intent.",
+      "surface": "main-static"
+    },
+    "compile": {
+      "label": "Compile, do not reinterpret",
+      "text": "Accepted intent compiles to transient Commitment; fresh Facts and applicable prior Attestations produce a bounded TransitionPlan and proof obligations. Valid no-spec changes and archive retain proof identity.",
+      "surface": "main-static"
+    },
+    "authority": {
+      "label": "Authority bounds action",
+      "text": "Subject, current policy, intent, facts and plan are conjunctive. Only PASS admits action. BLOCK or UNKNOWN does not execute; capability, evidence and coordination grant no permission.",
+      "surface": "main-static"
+    },
+    "capabilities": {
+      "label": "Replaceable capabilities",
+      "text": "People and interchangeable Agents use Skills, native tools, generators and observers. Contracts bind inputs, outputs, identity, version, permission, cancellation and failure; no second lifecycle.",
+      "surface": "main-static"
+    },
+    "lanes": {
+      "label": "Parallel owned work",
+      "text": "Worktrees prepare and prove independently from exact bases. Fresh prewrite binds actor, lane and current facts; a four-field Lease coordinates, never stores intent or permission.",
+      "surface": "main-static"
+    },
+    "coordination": {
+      "label": "Shared runtime, not shared truth",
+      "text": "Git-common state owns one runtime activation and current coordination. Consumer-proved retirement removes superseded generations; reports and generated views cannot own source meaning.",
+      "surface": "main-static"
+    },
+    "selection": {
+      "label": "Cooperate · compete · explore",
+      "text": "Cooperation: multiple compatible contributions or synthesis. Competition: zero or one. Exploration: knowledge, including negative results. All-drop is valid; preserve value before retirement.",
+      "surface": "main-static"
+    },
+    "verification": {
+      "label": "Falsifiable, scoped evidence",
+      "text": "Verify exact candidates and their combination. Independent verification is required by risk/policy, not universal. Local, independent and hosted claims stay distinct; composite claims need a responsible verifier and explicit rule.",
+      "surface": "main-static"
+    },
+    "candidate": {
+      "label": "Candidate integration",
+      "text": "Combine compatible contributions, prove the selected object, then recheck and CAS the candidate ref. Record the effect; changed bases invalidate stale attempts and require fresh combination checks.",
+      "surface": "main-static"
+    },
+    "accepted": {
+      "label": "Accepted closeout",
+      "text": "Exact candidate and declared proofs enter a separate accepted-ref CAS. Same-ref effects serialize, not the whole project. Developer review or authorized maintainer closeout selects the same object.",
+      "surface": "main-static"
+    },
+    "effect": {
+      "label": "Every effect has a boundary",
+      "text": "Bind exact pre-state, evaluate, PASS, recheck, apply once, post-observe, attest. One linearization point per admitted resource; no global or cross-provider CAS. UNKNOWN is observed, never blindly replayed.",
+      "surface": "main-static"
+    },
+    "evidence": {
+      "label": "Results survive actors",
+      "text": "Attestation is the only durable semantic result; Commitment, Facts and Plan are transient. Preserve predicate, bindings, validity and verifier. A prior result is evidence, never current authority.",
+      "surface": "main-static"
+    },
+    "recovery": {
+      "label": "Recover before repeating",
+      "text": "Actor, session, host or tool loss preserves reachable Git and necessary Attestations. Observe uncertain outcomes, recompile and reauthorize; do not replay a possibly completed effect.",
+      "surface": "main-static"
+    },
+    "model": {
+      "label": "Resolve model gaps",
+      "text": "Contradiction or missing meaning blocks the affected effect. Preserve the counterexample, promote the smallest model boundary and recompile; no exception route around authority.",
+      "surface": "main-static"
+    },
+    "projection": {
+      "label": "One meaning, many interfaces",
+      "text": "CLI/JSON, SDK, CI/Forge and optional MCP/A2A project the same verdict and gaps. Code graphs and dashboards are rebuildable observations, not intent or authority.",
+      "surface": "main-static"
+    },
+    "norms": {
+      "label": "Agentic-native repositories",
+      "text": "Coherent source, specifications, docs, rules and Skills follow semantic ownership and executable quality. Native carriers remain native; shared norms do not clone domain layouts.",
+      "surface": "main-static"
+    },
+    "greenfield": {
+      "label": "Greenfield formation",
+      "text": "Start with minimal native scaffolds and Skills; preserve customization and upgrade provenance from first generation. First accepted change uses the same local kernel.",
+      "surface": "main-static"
+    },
+    "brownfield": {
+      "label": "Brownfield adoption",
+      "text": "Inventory, preserve, reveal conflicts and bind gradually. Keep domain layout and customization; upgrade without retroactive approval of old history.",
+      "surface": "main-static"
+    },
+    "self": {
+      "label": "Self-governance",
+      "text": "ETHOS obeys the same local authority, proof and effect rules as adopters; its source, durable results and rebuildable projections remain distinct.",
+      "surface": "main-static"
+    },
+    "peers": {
+      "label": "Autonomous interoperability",
+      "text": "Each repository retains local authority and judgment. Exchange scoped claims, artifacts and conformance, never permission. Small capability contracts grow an interchangeable ecosystem.",
+      "surface": "main-static"
+    },
+    "publication": {
+      "label": "Deliver selected objects",
+      "text": "Local Git is the publication source. Zero, one or many independent remotes receive the same selected OIDs. Recheck each target; distinguish pending, divergent and unknown outcomes without global atomicity.",
+      "surface": "main-static"
+    },
+    "outcomes": {
+      "label": "Measure actual benefit",
+      "text": "Delivery is not benefit. Observe deployed identity, environment, baseline and time window. Counterexamples can invalidate current applicability without rewriting historical evidence.",
+      "surface": "main-static"
+    },
+    "feedback": {
+      "label": "Learn and evolve",
+      "text": "Use outcomes and retained experiments to challenge goals, intent, implementation or assumptions. Return to research and accepted intent; observations cannot silently change standards or authority.",
+      "surface": "main-static"
+    },
+    "exit": {
+      "label": "Handoff, preserve, exit",
+      "text": "A new Agent continues from exact results with fresh authority. Stop writers, account for unique work, preserve useful findings, retire exact owned resources and remove discharged runtime projections.",
+      "surface": "main-static"
+    },
+    "faithfulness": {
+      "label": "Faithful static view",
+      "text": "Required assertions and typed relations must be readable here or in meaningful visible aggregates. Hidden witnesses and hover cannot substitute. Geometry and legibility require actual rendered evidence.",
+      "surface": "main-static"
+    },
+    "maturity": {
+      "label": "Target architecture",
+      "text": "Target architecture, not a claim of current implementation.",
+      "surface": "main-static"
+    }
+  }
 }

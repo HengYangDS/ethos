@@ -1,12 +1,12 @@
 {
   "schema": "ethos.terminal-semantic-graph/v2",
-  "status": "normative terminal-design ontology; implementation maturity remains explicit per entity",
+  "status": "canonical terminal design projection; not implementation evidence",
   "meta": {
     "id": "ethos-terminal-ontology",
-    "title": "ETHOS continuable-reality ontology",
-    "thesis": "Keep the conditions by which shared software reality can be understood, challenged, changed, and continued independent of any transient actor, session, tool, or platform.",
-    "product_definition": "repository-native proof-carrying compiler and exact-CAS transaction protocol for repository change",
-    "product_position": "minimal constitutional narrow waist for autonomous, agentic-native repositories",
+    "title": "ETHOS complete product architecture",
+    "thesis": "Preserve meaning, bound action, verify results, learn from actual use and make work continuable across people, Agents and platforms.",
+    "product_definition": "A reliable, composed path for people and interchangeable Agent capabilities from understanding problems to evolving repositories and evaluating their use.",
+    "product_position": "Complete repository evolution product around a small trust kernel and replaceable domain capabilities.",
     "authority_owner": "docs/governance/product-design-contract.md",
     "derived_constraints": [
       "system/axioms.md",
@@ -14,20 +14,20 @@
       "docs/architecture/runner-and-mutation.md"
     ],
     "exclusions": [
-      "SDD carrier",
-      "agent orchestrator",
-      "skill platform",
-      "CI or forge replacement",
-      "central truth store",
-      "generic VCS implementation"
+      "second intent authority",
+      "central repository truth store",
+      "replacement for native tools",
+      "persistent task or experiment graph",
+      "renderer-owned product semantics"
     ],
     "method": "capability may compound; authority, evidence, and accepted reality remain distinct",
-    "primary_reality_boundary": "ethos_repo"
+    "primary_reality_boundary": "ethos_repo",
+    "maturity_notice": "Target architecture, not a claim of current implementation."
   },
   "vocabulary": {
     "maturity": {
       "canonical": "stated by the current canonical product contract",
-      "current": "directly supported by current repository docs, schemas, or code at the bound HEAD",
+      "current": "Source-supported at the selected revision; not independent execution or deployment evidence.",
       "terminal": "desired terminal design; not necessarily delivered",
       "optional": "separately selected adapter or trust domain"
     },
@@ -129,12 +129,12 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "28cfb33c9ba2aeff5fb28746977753166b76d725adee28dab8202286f93d9968"
+      "sha256": "7a1d4185387a18041828c46431aa1be249b4dc0af2f52c463db71c1335b04ab1"
     },
     "axioms": {
       "path": "system/axioms.md",
       "authority": "derived machine-adjacent constraints only",
-      "sha256": "c7986fc2592ebf99e6e10ede039a969fa3e6decd1c4d335558839e783cdb8e77"
+      "sha256": "d315efe90ccf65bc49d27c1592f1087ff150c1c33ddc33aca3a25415af73733c"
     },
     "transition_plan": {
       "path": "docs/architecture/transition-plan.md",
@@ -144,7 +144,7 @@
     "runner_mutation": {
       "path": "docs/architecture/runner-and-mutation.md",
       "authority": "current runner, Work Lane, closeout, verifier and peer mutation boundaries",
-      "sha256": "294c90d416dbe8cdbd10454a841e96d502f81d108b1365e25551b6ce011c5fcb"
+      "sha256": "a4ff2c40c0d038fac273dd95990d4da624c1474f3c622171ab640d684f2bd944"
     },
     "local_state": {
       "path": "docs/architecture/local-state.md",
@@ -154,7 +154,7 @@
     "adoption": {
       "path": "docs/architecture/adoption-profiles.md",
       "authority": "current adopter binding",
-      "sha256": "a3337ad92c3c9033c750d478f3c380ebe38b35024920cf94892e18a364f43c58"
+      "sha256": "5c81a41e505bbc55fe285421746a4581bcc2de959c4eacfcc71a2b4ec3800f2d"
     },
     "projections": {
       "path": "docs/architecture/agent-projections.md",
@@ -174,17 +174,17 @@
     "contracts": {
       "path": "openspec/specs/contracts/spec.md",
       "authority": "current Commitment and Attestation contracts",
-      "sha256": "9ed308579d3f85facee14b5c91b8a1c265bec035372a7f56734679b73c375c3b"
+      "sha256": "bd873fd63a9b09632e1ff14bcb2fc6d637abe4b196c5da37455c0cec73c97ef1"
     },
     "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
       "authority": "current repository lifecycle, proof, publication, and cleanup semantics",
-      "sha256": "6d3fcd2e948a0d9187b25a416a90f0dcf4500de658cc851ba00152a8d424bcef"
+      "sha256": "e2188e8e4011ba50cd0fd1d7d038244748580d9e14178c1e3de9ea10731a0471"
     },
     "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",
       "authority": "current public command and result semantics",
-      "sha256": "5a16caedd8130c9a68f794f47eb1b47dbeb388c730ba35fb667a101a98c5a42c"
+      "sha256": "fccfede6691875eaf6d4153ec3d3c88ba1a18960173a14db566c3ef3ff0ff337"
     },
     "learning_relations": {
       "path": "docs/governance/evolution-campaign.md",
@@ -332,9 +332,10 @@
       "layer": "capability_field",
       "required_visible": true,
       "evidence": [
+        "product_contract",
         "skills"
       ],
-      "semantics": "Route actors to owner-native procedures and gates; own no plan, authority, progress or lifecycle state."
+      "semantics": "Replaceable domain capabilities make the full research-to-outcome path usable. Skills may route native tools and procedures but never own acceptance, authority, progress or lifecycle state."
     },
     "owner_native_tools": {
       "kind": "capability",
@@ -501,12 +502,12 @@
       "evidence": [
         "runner_mutation"
       ],
-      "semantics": "One proved lane HEAD with its transient plan and exact evidence, eligible for one freshly rechecked candidate-ref CAS attempt."
+      "semantics": "One exact proven candidate object may contain one contribution or multiple compatible contributions and their synthesis; combination proof is required before candidate-ref CAS."
     },
     "candidate_state": {
       "kind": "repository_state",
       "maturity": "current",
-      "label": "Candidate train state n",
+      "label": "Candidate integration state",
       "layer": "version_lineage",
       "required_visible": true,
       "evidence": [
@@ -695,7 +696,7 @@
     "accepted_n": {
       "kind": "repository_state",
       "maturity": "current",
-      "label": "Accepted state n",
+      "label": "Accepted state",
       "layer": "version_lineage",
       "required_visible": true,
       "evidence": [
@@ -706,7 +707,7 @@
     "accepted_next": {
       "kind": "repository_state",
       "maturity": "current",
-      "label": "Accepted state n+1",
+      "label": "Next accepted state",
       "layer": "version_lineage",
       "required_visible": true,
       "evidence": [
@@ -729,7 +730,7 @@
       "kind": "durable_root",
       "root_concept": "Attestation",
       "maturity": "canonical",
-      "label": "Scoped attestation n",
+      "label": "Scoped Attestation",
       "layer": "semantic_lineage",
       "required_visible": true,
       "evidence": [
@@ -818,10 +819,11 @@
       "layer": "repository_constellation",
       "required_visible": true,
       "evidence": [
+        "product_contract",
         "adoption"
       ],
       "reality_boundary": "brownfield_repo",
-      "semantics": "Inventory, preserve, expose conflicts, review binding, then use the same kernel without cloning repository semantics."
+      "semantics": "Inventory and incrementally adopt an existing repository, preserving domain layout and customization. Surface conflicts, do not retroactively approve old history, and support upgrade and exit."
     },
     "brownfield_cas": {
       "kind": "effect_aperture",
@@ -844,10 +846,11 @@
       "layer": "repository_constellation",
       "required_visible": true,
       "evidence": [
+        "product_contract",
         "adoption"
       ],
       "reality_boundary": "greenfield_repo",
-      "semantics": "Declaration-first binding, minimal owner-native scaffold, and first official OpenSpec Change; not a monolithic ETHOS template."
+      "semantics": "Form a new repository from minimal native scaffold and Skills; retain customization and upgrade provenance from first generation, then use the same local trust kernel."
     },
     "greenfield_cas": {
       "kind": "effect_aperture",
@@ -878,15 +881,13 @@
     "openspec_carrier": {
       "kind": "carrier",
       "maturity": "current",
-      "label": "OpenSpec intent carrier",
+      "label": "Accepted intent",
       "layer": "carrier",
-      "required_visible": false,
+      "required_visible": true,
       "evidence": [
-        "product_contract",
-        "adoption",
-        "skills"
+        "product_contract"
       ],
-      "semantics": "Current verified Change/design/spec/task/archive carrier for mutation-capable use; shapes no kernel ontology."
+      "semantics": "Official OpenSpec is the sole tracked accepted intent, specifications, design, tasks and archive. Valid no-spec Changes compile positive acceptance; archive preserves proof identity. Reopen as fresh intent, not a rewritten history."
     },
     "git_substrate": {
       "kind": "carrier",
@@ -1430,7 +1431,7 @@
     "candidate_next": {
       "kind": "repository_state",
       "maturity": "current",
-      "label": "Candidate train state n+1",
+      "label": "Integrated candidate",
       "layer": "version_lineage",
       "required_visible": true,
       "evidence": [
@@ -1484,10 +1485,109 @@
       "layer": "candidate_worlds",
       "required_visible": true,
       "evidence": [
-        "runner_mutation",
-        "learning_relations"
+        "product_contract",
+        "runner_mutation"
       ],
-      "semantics": "A landed or superseded Lane may be retired only by its explicit exact-HEAD lifecycle transaction; non-selection alone never deletes it."
+      "semantics": "Before controlled retirement, reconcile all unique work and useful positive, negative or inconclusive results into current owners or exact recoverable evidence. Declining integration never authorizes destruction; discharged retention obligations end."
+    },
+    "problem_observation": {
+      "kind": "observation",
+      "label": "Problem and value",
+      "layer": "product_discovery",
+      "maturity": "terminal",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Observe the problem, expected value and current environment; source availability is not accepted understanding."
+    },
+    "research": {
+      "kind": "capability",
+      "label": "Research",
+      "layer": "product_discovery",
+      "maturity": "terminal",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Replaceable research capabilities gather bounded evidence and challenge assumptions before an interpretation is accepted."
+    },
+    "intent_alignment": {
+      "kind": "capability",
+      "label": "Interpret and align",
+      "layer": "intent_formation",
+      "maturity": "terminal",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Propose questionable meanings; settle trade-offs, non-goals, exceptions, assumptions and guarantees against positive and negative source examples. Account for every scoped constraint as retained, authorized exclusion or unresolved; never silently discard one."
+    },
+    "repository_norms": {
+      "kind": "conformance",
+      "label": "Repository norms",
+      "layer": "formation",
+      "maturity": "terminal",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Agentic-native semantic ownership, coherent source/docs/rules/Skills and executable quality contracts apply in new and existing repositories without cloning their domain layout."
+    },
+    "capability_contract": {
+      "kind": "conformance",
+      "label": "Capability contracts",
+      "layer": "capability_field",
+      "maturity": "terminal",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Interchangeable Skills, generators, verifiers and observers declare input, output, identity, version, permission, cancellation and failure. Conformance enables an ecosystem without a second lifecycle."
+    },
+    "collaboration_selection": {
+      "kind": "selection",
+      "label": "Cooperate, compete, explore",
+      "layer": "candidate_worlds",
+      "maturity": "terminal",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Cooperation admits multiple compatible contributions or a verified synthesis; competition admits zero or one; exploration can retain negative or inconclusive knowledge. All-drop means no integration, not destruction. Revalidate the combination whenever the CAS baseline changes."
+    },
+    "use_outcome": {
+      "kind": "observation",
+      "label": "Actual use and benefit",
+      "layer": "outcomes",
+      "maturity": "terminal",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Observe benefit against deployed identity, environment, baseline and observation window. Delivery, passing checks, sufficient proof and achieved goals are distinct claims; an environment counterexample can invalidate applicability without changing history."
+    },
+    "feedback_learning": {
+      "kind": "capability",
+      "label": "Feedback and learning",
+      "layer": "outcomes",
+      "maturity": "terminal",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Actual-use observations and retained experimental knowledge challenge goals, intent, implementation or assumptions and propose fresh intent; they do not grant authority or silently rewrite acceptance."
+    },
+    "adoption_exit": {
+      "kind": "recovery",
+      "label": "Handoff and exit",
+      "layer": "recovery",
+      "maturity": "terminal",
+      "required_visible": true,
+      "evidence": [
+        "product_contract"
+      ],
+      "semantics": "Transfer owned work with exact recoverable results and fresh authority, retire only after value is accounted for, and remove owned installation/runtime projections when exiting without losing repository history."
     }
   },
   "edges": [
@@ -3856,124 +3956,560 @@
       "flow_class": "control",
       "effect_capable": false,
       "guard": "fresh_reentry"
+    },
+    {
+      "id": "problem-informs-research",
+      "from": "problem_observation",
+      "to": "research",
+      "kind": "binds",
+      "semantics": "Problems, value and reality define the research question.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "research-informs-alignment",
+      "from": "research",
+      "to": "intent_alignment",
+      "kind": "returns",
+      "semantics": "Research supplies challengeable evidence, not accepted intent.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "alignment-proposes-accepted-intent",
+      "from": "intent_alignment",
+      "to": "openspec_carrier",
+      "kind": "derives",
+      "semantics": "Authorized acceptance records the interpreted meaning in the official intent carrier.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "norms-constrain-formation",
+      "from": "repository_norms",
+      "to": "greenfield_repo",
+      "kind": "conforms",
+      "semantics": "New repositories use shared norms with native domain scaffolds.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "norms-constrain-adoption",
+      "from": "repository_norms",
+      "to": "brownfield_repo",
+      "kind": "conforms",
+      "semantics": "Existing repositories adopt norms gradually without layout cloning.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "contracts-constrain-skills",
+      "from": "capability_contract",
+      "to": "skills",
+      "kind": "narrows",
+      "semantics": "Capabilities conform to explicit identity, permissions, inputs and failure behavior.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "contracts-constrain-verification",
+      "from": "capability_contract",
+      "to": "independent_verifier",
+      "kind": "narrows",
+      "semantics": "Independent verification preserves its trust domain and claim scope.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "lanes-offer-results",
+      "from": "work_lane",
+      "to": "collaboration_selection",
+      "kind": "returns",
+      "semantics": "Parallel owned work can cooperate, compete or explore.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "selection-binds-combination",
+      "from": "collaboration_selection",
+      "to": "candidate_bundle",
+      "kind": "selects",
+      "semantics": "Zero, one or multiple contributions follow accepted intent; the selected combination must be proved.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "selection-preserves-knowledge",
+      "from": "collaboration_selection",
+      "to": "durable_evidence",
+      "kind": "preserves",
+      "semantics": "All-drop preserves useful observations and unique results; selection is not destruction.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "accepted-identifies-use",
+      "from": "accepted_next",
+      "to": "use_outcome",
+      "kind": "binds",
+      "semantics": "Actual benefit is measured against deployed identity, baseline, environment and window, not inferred from acceptance.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "use-informs-feedback",
+      "from": "use_outcome",
+      "to": "feedback_learning",
+      "kind": "returns",
+      "semantics": "Real-use evidence can refute applicability while preserving historical results.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "evidence-informs-learning",
+      "from": "durable_evidence",
+      "to": "feedback_learning",
+      "kind": "returns",
+      "semantics": "Positive, negative and inconclusive evidence can inform later changes.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "feedback-revisits-problem",
+      "from": "feedback_learning",
+      "to": "problem_observation",
+      "kind": "derives",
+      "semantics": "Feedback proposes new investigation rather than changing authority or history.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "feedback-proposes-intent",
+      "from": "feedback_learning",
+      "to": "intent_alignment",
+      "kind": "derives",
+      "semantics": "Learning re-enters interpretation and explicit acceptance.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "evidence-supports-handoff-exit",
+      "from": "recovery_anchor",
+      "to": "adoption_exit",
+      "kind": "preserves",
+      "semantics": "Exact recoverable results enable Agent handoff and safe exit under fresh authority.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
+    },
+    {
+      "id": "exit-controls-retirement",
+      "from": "adoption_exit",
+      "to": "lane_retirement",
+      "kind": "binds",
+      "semantics": "Only accounted-for results and coordinated quiescence admit controlled retirement.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ],
+      "maturity": "terminal",
+      "plane": "product",
+      "flow_class": "evidence",
+      "effect_capable": false,
+      "guard": "none"
     }
   ],
   "invariants": [
     {
       "id": "G01",
-      "statement": "Every edge has a valid typed endpoint and unique identity."
+      "statement": "Every edge has a valid typed endpoint and unique identity.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G02",
-      "statement": "Attestation is the only durable semantic result; Commitment, Facts, and TransitionPlan are transient exact-input values."
+      "statement": "Attestation is the only durable semantic result; Commitment, Facts, and TransitionPlan are transient exact-input values.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G03",
-      "statement": "Every current claim carries current evidence references bound to the basis HEAD."
+      "statement": "Every current claim carries current evidence references bound to the basis HEAD.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G04",
-      "statement": "PASS, BLOCK and UNKNOWN are explicit at action admission; only PASS reaches execution."
+      "statement": "PASS, BLOCK and UNKNOWN are explicit at action admission; only PASS reaches execution.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G05",
-      "statement": "Shared effect occurs only after evidence return, effect evaluation, PASS and fresh effect-time recheck."
+      "statement": "Shared effect occurs only after evidence return, effect evaluation, PASS and fresh effect-time recheck.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G06",
-      "statement": "BLOCK, UNKNOWN, contradiction, model gap, recovery and outcome-unknown have no effect bypass."
+      "statement": "BLOCK, UNKNOWN, contradiction, model gap, recovery and outcome-unknown have no effect bypass.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G07",
-      "statement": "Capability, execution, proof, coordination, projection, carrier and conformance nodes cannot authorize effects."
+      "statement": "Capability, execution, proof, coordination, projection, carrier and conformance nodes cannot authorize effects.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G08",
-      "statement": "Every effect aperture has a complete local pre-state, recheck, conditional effect, post-observation and Attestation chain."
+      "statement": "Every effect aperture has a complete local pre-state, recheck, conditional effect, post-observation and Attestation chain.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G09",
-      "statement": "Each governed reality boundary has exactly one local effect aperture; there is no global CAS."
+      "statement": "Each independently admitted resource effect has one local linearization point; candidate and accepted refs are distinct, and no cross-repository global CAS is implied.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G10",
-      "statement": "Independent verifier has no effect path; its only product is an exact scoped claim."
+      "statement": "Independent verifier has no effect path; its only product is an exact scoped claim.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G11",
-      "statement": "Proof planes neither imply nor replace one another; composite claims require an explicit responsible verifier and rule."
+      "statement": "Proof planes neither imply nor replace one another; composite claims require an explicit responsible verifier and rule.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G12",
-      "statement": "Recovery and outcome-unknown re-enter through fresh observation and recompilation before any effect."
+      "statement": "Recovery and outcome-unknown re-enter through fresh observation and recompilation before any effect.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G13",
-      "statement": "An Attestation never grants current authority; every later operation re-observes facts and recompiles its own plan."
+      "statement": "An Attestation never grants current authority; every later operation re-observes facts and recompiles its own plan.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G14",
-      "statement": "Actor, session, host, tool, or platform loss does not break reachable Git history or durable Attestation evidence."
+      "statement": "Actor, session, host, tool, or platform loss does not break reachable Git history or durable Attestation evidence.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G15",
-      "statement": "Each Work Lane is coordinated only by its four-field Lease; Git and official OpenSpec facts are observed afresh."
+      "statement": "Each Work Lane is coordinated only by its four-field Lease; Git and official OpenSpec facts are observed afresh.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G16",
-      "statement": "Worktree, Lease and git-common runtime coordinate candidate preparation and own no truth or authority."
+      "statement": "Worktree, Lease and git-common runtime coordinate candidate preparation and own no truth or authority.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G17",
-      "statement": "Brownfield, Greenfield, self-governance, and autonomous adopter peers keep local authority and judgment; publication remotes remain distinct projection targets."
+      "statement": "Brownfield, Greenfield, self-governance, and autonomous adopter peers keep local authority and judgment; publication remotes remain distinct projection targets.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G18",
-      "statement": "Cross-repository exchange is limited to scoped claims, artifacts and conformance; authority is never exchanged."
+      "statement": "Cross-repository exchange is limited to scoped claims, artifacts and conformance; authority is never exchanged.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G19",
-      "statement": "Projections are outward-only and may not reverse-own their source or hide required gaps."
+      "statement": "Projections are outward-only and may not reverse-own their source or hide required gaps.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G20",
-      "statement": "OpenSpec and Git realize the selected terminal design but are carriers, not ETHOS semantic roots."
+      "statement": "OpenSpec and Git realize the selected terminal design but are carriers, not ETHOS semantic roots.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G22",
-      "statement": "The effect gate, PASS verdict, fresh recheck, and admitted runner each dominate the primary effect aperture in the control/effect subgraph."
+      "statement": "The effect gate, PASS verdict, fresh recheck, and admitted runner each dominate the primary effect aperture in the control/effect subgraph.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G23",
-      "statement": "Each local aperture has a closed effect-capable ingress set containing only its contract-bound admitted runner edge."
+      "statement": "Each local aperture has a closed effect-capable ingress set containing only its contract-bound admitted runner edge.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G24",
-      "statement": "Action and effect gates are conjunctive over their declared inputs and exact scoped-claim selector; removing a required input blocks admission."
+      "statement": "Action and effect gates are conjunctive over their declared inputs and exact scoped-claim selector; removing a required input blocks admission.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G25",
-      "statement": "Every autonomous repository and publication target has one complete boundary-local effect contract and one unique linearization point; no contract crosses a boundary."
+      "statement": "Every autonomous repository and publication target has one complete boundary-local effect contract and one unique linearization point; no contract crosses a boundary.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G26",
-      "statement": "Brownfield, Greenfield, self-governance, autonomous peer, and publication remote retain distinct origin, authority, judgment, and effect semantics."
+      "statement": "Brownfield, Greenfield, self-governance, autonomous peer, and publication remote retain distinct origin, authority, judgment, and effect semantics.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G27",
-      "statement": "Reachable Git history and durable Attestations outlive actor, session, host, tool, and platform loss without transferring authority."
+      "statement": "Reachable Git history and durable Attestations outlive actor, session, host, tool, and platform loss without transferring authority.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G28",
-      "statement": "Concurrent Work Lanes preserve their own Lease, fresh Git and OpenSpec facts, transient plan, and exact proof without a predicted-scope ledger."
+      "statement": "Concurrent Work Lanes preserve their own Lease, fresh Git and OpenSpec facts, transient plan, and exact proof without a predicted-scope ledger.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G29",
-      "statement": "Concurrent Work Lanes prepare and prove independently, but candidate-ref integration and accepted-root closeout are distinct exact-CAS linearization boundaries; after candidate advancement, any stale remaining Lane refreshes and re-proves before a later attempt."
+      "statement": "Concurrent Work Lanes prepare and prove independently, but candidate-ref integration and accepted-root closeout are distinct exact-CAS linearization boundaries; after candidate advancement, any stale remaining Lane refreshes and re-proves before a later attempt.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     },
     {
       "id": "G30",
-      "statement": "Concurrent Work Lanes prepare independently; candidate integration selects one exact proved object per CAS, while refresh, hold, and retirement follow current facts rather than a persisted lane-mode state."
+      "statement": "Work Lanes prepare in parallel. Each CAS accepts one exact object that may synthesize multiple contributions; zero selection is valid and valuable results survive retirement.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G31",
+      "statement": "Open interpretation is challengeable; deterministic compilation consumes accepted meaning, never certifies understanding.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G32",
+      "statement": "Cooperation may integrate multiple contributions, competition zero or one, exploration knowledge only; all-drop preserves useful results.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G33",
+      "statement": "The product covers research, intent, formation/adoption, capabilities, verification, delivery, use, learning, handoff and exit; the trust kernel is only its non-delegable core.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G34",
+      "statement": "Delivered identity and passing checks do not prove actual benefit; outcome observations bind environment, baseline and window.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G35",
+      "statement": "Required meaning is readable in the static main view or a meaningful aggregate; hidden SVG metadata and hover cannot satisfy coverage.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
+    },
+    {
+      "id": "G36",
+      "statement": "Target capability scope is not a claim of current implementation or deployed behavior.",
+      "required_visible": true,
+      "source_ids": [
+        "product_contract"
+      ]
     }
   ],
   "gates": {

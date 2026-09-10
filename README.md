@@ -35,10 +35,10 @@ shape while ETHOS applies one evidence-bound transition loop.
 
 The same commands answer the same transition questions in every governed
 repository: where am I, what may mutate, which proof is required, can this land,
-and what publication boundary remains. Commitment and Attestation are the only
-durable semantic roots; Facts and TransitionPlan are fresh, context-bound, and
-transient. Profiles tune checks and proof depth, while adapters project local
-providers without becoming truth stores.
+and what publication boundary remains. Official OpenSpec owns tracked intent;
+Commitment compiles its acceptance transiently. Attestation preserves semantic
+results, while Facts and TransitionPlan are fresh, context-bound inputs. Profiles
+tune checks and proof depth; adapters project providers without becoming truth stores.
 
 ## First Hour
 
@@ -53,9 +53,15 @@ ethos status
 authority, gaps, coordination, and the next action. It does not mint repository
 truth.
 
-Start read-only with `ethos adopt --json`. Review the exact one-file binding
-plan, apply only when conflicts are empty and rollback is clear, then re-observe
-and follow the resulting continuation.
+For an unadopted repository, start read-only with `ethos adopt --json`. Review
+the proposed `.ethos/profile.toml` and official `openspec/config.yaml` bindings.
+Apply only when conflicts are empty and the recovery boundary is understood,
+then re-observe and follow the resulting continuation. This bootstrap is not a
+complete domain scaffold or a crash-atomic multi-file migration.
+
+A completed reader may return `continuation=done` with no next action. This ends
+the requested observation, not the repository project or unrelated work. Foreign
+lanes remain visible; seeing them neither grants ownership nor requires a new task.
 
 Tracked `.ethos/` files declare repository bindings only. Mutable coordination,
 runtime state, and content-addressed local evidence live exclusively under the

@@ -15,7 +15,8 @@ Work Lanes, OpenSpec consumption, or adoption profiles.
 1. Read `AGENTS.md`, then run `ethos status --json` in the target worktree.
 2. Read the result's `verdict`, `required_gaps`, singular `next_action`,
    `continuation`, and `user_decision_required`; follow that result rather than
-   a remembered sequence.
+   a remembered sequence. A passing `done` result ends that observation; do not
+   rerun its reader or invent a task. It does not claim unrelated work complete.
 3. Load only the rule, OpenSpec Change, design document, or focused gate needed
    for the current action.
 4. Before tracked mutation, obtain a passing `ethos lane prewrite` decision for

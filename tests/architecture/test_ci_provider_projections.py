@@ -1,3 +1,5 @@
+"""Hosted projections retain native policy and evidence transport boundaries."""
+
 from __future__ import annotations
 
 import re
@@ -26,6 +28,25 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
 def test_dual_forge_projections_equal_their_declared_templates() -> None:
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == 0
+    github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
+    uploads = [
+        step
+        for step in github["jobs"]["verify"]["steps"]
+        if "with" in step and "path" in step["with"]
+    ]
+    assert any(
+        "build/evidence/quality/tests/pytest/junit*.xml" in step["with"]["path"]
+        and step.get("if") == "always()"
+        for step in uploads
+    )
+    artifacts = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text())["ethos:verify"]["artifacts"]
+    assert artifacts["when"] == "always"
+    assert "build/evidence/quality/tests/pytest/junit*.xml" in artifacts["paths"]
+    assert artifacts["reports"]["junit"] == "build/evidence/quality/tests/pytest/junit*.xml"
+    assert artifacts["reports"]["coverage_report"] == {
+        "coverage_format": "cobertura",
+        "path": "build/evidence/quality/tests/coverage/coverage.xml",
+    }
 
 
 def test_provider_commands_use_locked_offline_registry_sessions() -> None:

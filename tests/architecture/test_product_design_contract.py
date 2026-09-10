@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from ethos.adapters.openspec.cli import openspec_base_command
+from ethos.adapters.openspec.cli import run_json
 from ethos.contracts.semantic import Commitment
 from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.design.integrity import design_integrity_report
@@ -233,3 +235,18 @@ def test_canonical_lane_retirement_and_lease_requirements_match_the_minimal_mode
         "lease epoch as a string or boolean",
     ):
         assert retired_phrase not in specification
+
+
+def test_canonical_specs_have_no_native_validation_issues() -> None:
+    """Native success alone must not hide unresolved specification findings."""
+    command = openspec_base_command()
+    assert command is not None, "repository-locked OpenSpec must be provisioned"
+    result = run_json(ROOT, command, ("validate", "--specs", "--strict", "--json"))
+    assert result["exit_code"] == 0, result
+    assert not result["parse_error"], result
+    items = result["json"].get("items")
+    assert isinstance(items, list)
+    assert items, "canonical specification observation must not be empty"
+    assert all(item.get("valid") is True for item in items), items
+    findings = [(item["id"], issue) for item in items for issue in item["issues"]]
+    assert findings == [], findings

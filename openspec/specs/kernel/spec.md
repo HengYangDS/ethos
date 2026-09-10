@@ -172,16 +172,11 @@ be absent.
 
 ### Requirement: Semantic identity is schema-versioned and runtime-independent
 
-A supported semantic carrier SHALL be interpreted by exactly one immutable
-schema-version protocol. Identity-bearing defaults, normalization, canonical
-projection, and digest domain SHALL NOT vary between source, wheel, package-only
-runtime, host, or process. Semantic collection input order SHALL NOT determine
-validity or identity; the contract owner SHALL validate members and normalize
-them before identity projection. Every JSON value used to derive semantic
-identity, an authority-bearing signature payload, or an admission digest SHALL
-use the same kernel-owned closed canonical byte projection. Exact raw-content,
-Git-object, native-program, and presentation bytes SHALL remain under their
-native owners and SHALL NOT redefine semantic JSON identity.
+Each supported carrier SHALL use one immutable schema-version protocol.
+Identity-bearing defaults, normalization, canonical projection and digest domain
+SHALL agree across source, wheels, package runtimes, hosts and processes. Owners
+SHALL validate collection members before normalization; input order SHALL NOT
+determine validity or identity.
 
 #### Scenario: The same v2 carrier is interpreted in several runtimes
 
@@ -208,6 +203,14 @@ native owners and SHALL NOT redefine semantic JSON identity.
   semantic conflict
 - **THEN** ETHOS rejects the carrier before deriving authority
 - **AND** sorting never hides or resolves the conflict
+
+### Requirement: Semantic JSON identity respects native byte boundaries
+
+Semantic identity, authority-bearing signature payloads and admission digests
+SHALL use one kernel-owned closed canonical JSON byte projection. Raw-content,
+Git-object, native-program and presentation bytes SHALL remain under native
+owners and SHALL NOT redefine semantic JSON identity. Content-addressed storage
+may require exact canonical bytes without restricting ordinary typed input order.
 
 #### Scenario: Semantic JSON identity crosses entry paths
 

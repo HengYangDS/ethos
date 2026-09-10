@@ -109,14 +109,11 @@ requirements.
 
 ### Requirement: Host conformance controls repository-local Git semantics
 
-ETHOS SHALL make portable host-conformance assertions independent of ambient
-Git configuration, repository ownership, and text-conversion defaults by
-declaring the exact repository-local semantics required by each fixture and by
-the ETHOS source repository itself. Indexed Git configuration passed through the
-process environment SHALL contain a complete key/value pair for every declared
-entry on every supported host. The shared Git execution boundary SHALL preserve
-only that explicit overlay while continuing to hide ambient global and system
-configuration.
+Host-conformance fixtures and ETHOS source SHALL declare exact local Git
+semantics independent of ambient configuration, repository ownership and text
+conversion. Every indexed process-environment entry SHALL have its key/value
+pair on every supported host. The shared Git boundary SHALL preserve only this
+explicit overlay and hide global and system configuration.
 
 #### Scenario: Clean ETHOS checkout has one source tree
 

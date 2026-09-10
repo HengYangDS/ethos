@@ -93,7 +93,7 @@ def test_host_default_selection_preserves_the_declared_gate_floor(
         )
         return tuple(ActionRunResult(node.id, node.command, "pass", 0) for node in selected)
 
-    monkeypatch.setattr(proof_command, "run_gate_waves", run)
+    monkeypatch.setattr(proof_command, "run_gate_graph", run)
     completed = run_ethos_raw(
         "prove",
         "--host",

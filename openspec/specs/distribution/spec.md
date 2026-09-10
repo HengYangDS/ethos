@@ -151,16 +151,12 @@ SHALL leave the locator untouched.
 
 ### Requirement: Source runtime uses the locked closure
 
-ETHOS SHALL treat `uv.lock` as the dependency-resolution authority, the exact
-target source checkout's root lock-current `.venv` as build and dependency-byte
-supply, the Git-common immutable runtime as the minimal production projection,
-and uv cache state as disposable. Before using that environment for a
-non-isolated source build, ETHOS SHALL verify its complete locked build closure.
-It SHALL export only the no-development production closure, prune a copied
-runtime to that hash-bound closure, install the exact source-built ETHOS wheel,
-and preserve the installed distribution's unique public console-script
-entrypoints in the resulting image. Validation failure SHALL precede runtime
-selection or hook activation.
+`uv.lock` SHALL own resolution; the exact source root's lock-current `.venv`
+SHALL supply builds and dependency bytes; Git-common runtime SHALL be the minimal
+production projection; uv caches SHALL be disposable. Before non-isolated builds,
+ETHOS SHALL verify the full locked build closure, export hashed non-dev supply,
+prune the runtime to it, install the exact ETHOS wheel and retain unique public
+console scripts. Failure SHALL precede selector or hook activation.
 
 #### Scenario: Empty cache with a lock-current source environment
 
@@ -219,14 +215,12 @@ selection or hook activation.
 
 ### Requirement: Package-only hook runtime carries accepted source identity
 
-Every non-editable ETHOS wheel used to materialize a Git-hook runtime SHALL carry
-one immutable build identity containing the exact ETHOS source commit and source
-tree. A clean checkout of that commit SHALL compile the same source tree on every
-supported host under repository-owned Git content semantics. An installed wheel
-outside a selected runtime SHALL resolve its originating local wheel from its
-PEP 610 `file:` URL using native path semantics before validating the packaged
-identity. The runtime manifest SHALL bind that identity together with its wheel,
-Python ABI, operating system, CPU architecture, executable, and entrypoint bytes.
+Non-editable hook-runtime wheels SHALL carry immutable source commit/tree
+identity. Clean checkouts SHALL yield that tree on every supported host under
+repository Git content semantics. Outside a selected runtime, installed wheels
+SHALL resolve their source wheel from the PEP 610 `file:` URL with native path
+semantics before identity validation. Runtime manifests SHALL bind that identity,
+wheel, Python ABI, OS, CPU architecture, executable and entrypoint bytes.
 
 #### Scenario: wheel is built from an ETHOS checkout
 

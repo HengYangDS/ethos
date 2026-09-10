@@ -44,12 +44,17 @@ for current membership instead of copying gate lists here.
 
 ## Dependency Safety
 
-The runner partitions the admitted DAG into bounded deterministic waves.
-File-writing gates run alone. A dependent gate executes only after every
+The runner executes the admitted DAG through one bounded ready-node executor.
+A completed prerequisite releases its dependents without waiting for unrelated
+readers. Ready file-writing gates drain active readers and run alone. Results
+retain canonical plan order rather than completion order. Invalid graphs fail
+before execution. A dependent gate executes only after every
 prerequisite has passed with exit code zero; otherwise it receives an unexecuted
 blocked result naming the unmet dependency. Independent diagnostics can
 continue. Dry-run projection does not execute effects or invent failed checks.
-Coverage therefore cannot fail and still launch dependent package delivery.
+The declared inexpensive source checks precede heavy tests. Coverage therefore
+cannot fail and still launch dependent package delivery. These prerequisites
+belong to the gate declaration, not a second phase registry.
 
 Provider gates call their declared Python owner. Adapter gates invoke their
 declared command. Results retain identity, verdict, exit code, diagnostics,

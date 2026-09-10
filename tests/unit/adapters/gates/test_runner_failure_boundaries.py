@@ -1,3 +1,5 @@
+"""Gate failure, declaration and dependency execution boundaries."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -86,46 +88,63 @@ def test_command_runner_rejects_invalid_or_adverse_ethos_envelopes(
     assert not gap or gap in diagnostics[0]["required_gaps"]
 
 
-def test_proof_waves_refuse_invalid_capacity_and_unresolved_dependencies() -> None:
+@pytest.mark.parametrize(
+    ("case", "message"),
+    [
+        ("capacity", "proof_node_capacity_invalid"),
+        ("missing", "missing_dependency"),
+        ("cycle", "cycle_detected"),
+        ("duplicate", "duplicate_node_id"),
+    ],
+)
+def test_gate_graph_rejects_invalid_plan_before_execution(tmp_path, case, message):
     gate = Gate(id="gate", kind="test", command=("check",))
-    node = PlanNode(id="gate", kind="check", command=("check",), depends_on=("missing",))
-    with pytest.raises(ValueError, match="proof_node_capacity_invalid"):
-        gate_runner.proof_waves((node,), {"gate": gate}, capacity=0)
-    with pytest.raises(ValueError, match="proof_plan_dependencies_unresolved"):
-        gate_runner.proof_waves((node,), {"gate": gate}, capacity=1)
-
-
-def test_proof_waves_isolate_writer_and_preserve_parallel_result_order(
-    tmp_path: Path,
-) -> None:
-    nodes = (
-        PlanNode(id="read-a", kind="check", command=("read-a",)),
-        PlanNode(id="writer", kind="check", command=("writer",)),
-        PlanNode(id="read-b", kind="check", command=("read-b",)),
-    )
-    gates = {
-        "read-a": Gate(id="read-a", kind="test", command=("read-a",)),
-        "writer": Gate(id="writer", kind="test", command=("writer",), writes_files=True),
-        "read-b": Gate(id="read-b", kind="test", command=("read-b",)),
-    }
-    waves = gate_runner.proof_waves(nodes, gates, capacity=2)
-    assert tuple(tuple(node.id for node in wave) for wave in waves) == (
-        ("writer",),
-        ("read-a", "read-b"),
-    )
+    dependencies = ("missing",) if case == "missing" else ("gate",) if case == "cycle" else ()
+    node = PlanNode(id="gate", kind="check", command=gate.command, depends_on=dependencies)
+    nodes = (node, node) if case == "duplicate" else (node,)
 
     class Runner(gate_runner.LocalGateRunner):
-        def run(self, node: PlanNode, gate: Gate, *, root: Path) -> gate_runner.ActionRunResult:
+        def run(self, *_args, **_kwargs):
+            pytest.fail("an invalid plan executed a check")
+
+    with pytest.raises(ValueError, match=message):
+        gate_runner.run_gate_graph(
+            Runner(),
+            nodes,
+            {"gate": gate},
+            root=tmp_path,
+            capacity=0 if case == "capacity" else 1,
+            parallel=True,
+        )
+
+
+def test_gate_graph_prioritizes_exclusive_writer_and_returns_input_order(tmp_path: Path) -> None:
+    nodes = tuple(
+        PlanNode(id=name, kind="check", command=(name,)) for name in ("read-a", "writer", "read-b")
+    )
+    gates = {
+        node.id: Gate(
+            id=node.id, kind="test", command=node.command, writes_files=node.id == "writer"
+        )
+        for node in nodes
+    }
+    observed = []
+
+    class Runner(gate_runner.LocalGateRunner):
+        def run(self, node, gate, *, root):
             assert root == tmp_path
             assert gate.id == node.id
+            observed.append(node.id)
             return gate_runner.ActionRunResult(node.id, node.command, "pass", 0)
 
-    results = gate_runner.run_gate_waves(
+    results = gate_runner.run_gate_graph(
         Runner(), nodes, gates, root=tmp_path, capacity=2, parallel=True
     )
-    assert tuple(result.action_id for result in results) == ("writer", "read-a", "read-b")
-    assert gate_runner.DryRunRunner().run(nodes[0], gates["read-a"], root=tmp_path).verdict == (
-        "unknown"
+    assert observed[0] == "writer"
+    assert tuple(result.action_id for result in results) == tuple(node.id for node in nodes)
+    assert (
+        gate_runner.DryRunRunner().run(nodes[0], gates["read-a"], root=tmp_path).verdict
+        == "unknown"
     )
 
 
@@ -175,7 +194,7 @@ def test_failed_dependency_never_executes_delivery(tmp_path, prerequisite, exit_
             )
 
     planned = prerequisite == "planned"
-    results = gate_runner.run_gate_waves(
+    results = gate_runner.run_gate_graph(
         gate_runner.DryRunRunner() if planned else Runner(),
         nodes,
         gates,
@@ -186,7 +205,7 @@ def test_failed_dependency_never_executes_delivery(tmp_path, prerequisite, exit_
     assert executed == (
         []
         if planned
-        else ["coverage", "diagnostic", "delivery"]
+        else ["coverage", "delivery", "diagnostic"]
         if expected == ("pass", 0)
         else ["coverage", "diagnostic"]
     )

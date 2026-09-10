@@ -2177,6 +2177,25 @@ that counterexample for the hook observation owner, retain a bounded deadline an
 structured unavailable evidence, and measure before changing concurrency or
 adding a cache. Neither observation justifies replaying an unknown effect.
 
+The projection implementation then passed all 35 gates at `fa0289ccf`, but its
+public archive's exact `ce67002a` proof reproduced eleven hook-query timeouts.
+The next bounded `runtime-readiness-closure` Change separates the pure package
+launcher contract from installed-runtime observation, moves executable layout
+to the existing filesystem owner and retains the original query protocol.
+Timeout remains bounded and non-arming, exposes exact process evidence and
+requests observation rather than reinstall. No cache, implicit retry, deadline
+increase or compatibility facade is introduced.
+
+Focused evidence now covers 341 hook/runtime/package cases, empty-cache builds
+without ambient isolation overrides, and the public type/budget/docstring and
+module/import boundary gates. One cold import measurement fell from 272621 to
+32334 microseconds and from 327 to 77 imported rows; this is not a whole-proof
+performance claim. A broader exploratory type invocation over test fixtures
+also reports intentional malformed-input and untyped fixture values outside
+the declared source-only typing gate; those are not claimed clean and remain
+part of the quality-system coverage review. Exact repository proof and normal
+archive/acceptance remain required for this new source snapshot.
+
 ##### Executable Semantics Research — Accepted Increment
 
 The user confirmed the queued research plan associated with feedback

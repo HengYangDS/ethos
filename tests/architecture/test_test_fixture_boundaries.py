@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from tests.support.governed_repository import start_adopted_work_lane

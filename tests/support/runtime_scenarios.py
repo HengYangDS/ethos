@@ -18,7 +18,7 @@ import ethos.adapters.repo.runtime.materialization.effect as runtime_materializa
 import ethos.adapters.repo.runtime.transition as identity_transition
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.activation import materialize_hook_launchers
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -36,7 +36,7 @@ from ethos.repository.release.identity import build_identity
 if TYPE_CHECKING:
     import pytest
 
-    from ethos.adapters.repo.hook.binding import HookRuntimeBinding
+    from ethos.adapters.repo.hook.observation import HookRuntimeBinding
     from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]

@@ -46,3 +46,17 @@ def make_owned_tree_writable(root: Path) -> None:
             if not path.is_symlink():
                 path.chmod(stat.S_IMODE(path.stat().st_mode) | stat.S_IRWXU)
     root.chmod(stat.S_IMODE(root.stat().st_mode) | stat.S_IRWXU)
+
+
+def runtime_python(interpreter_home: Path) -> Path:
+    """Return the executable inside one owned interpreter home."""
+    return (
+        interpreter_home / "python.exe"
+        if os.name == "nt"
+        else runtime_scripts(interpreter_home) / "python"
+    )
+
+
+def runtime_scripts(interpreter_home: Path) -> Path:
+    """Return the console-script directory inside one owned interpreter home."""
+    return interpreter_home / ("Scripts" if os.name == "nt" else "bin")

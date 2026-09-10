@@ -11,9 +11,11 @@ from typing import Literal
 import pytest
 
 import ethos.adapters.repo.hook.activation as hook_activation
-import ethos.adapters.repo.hook.binding as hook_binding
+import ethos.adapters.repo.hook.binding as hook_contract
+import ethos.adapters.repo.hook.observation as hook_binding
+import ethos.adapters.repo.runtime.authority as runtime_authority
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import runtime_command
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.runtime_scenarios import git_process
@@ -139,7 +141,7 @@ def test_stale_runtime_unarms_both_policy_transports(
 ) -> None:
     repo, _generation = _fixture(tmp_path, policy=_POLICY)
     monkeypatch.setattr(
-        hook_binding,
+        runtime_authority,
         "expected_runtime_build",
         lambda _repo: (runtime_build("c" * 40, "d" * 40), tmp_path / "accepted"),
     )
@@ -245,9 +247,9 @@ def test_binding_primitives_and_unavailable_source_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with pytest.raises(ValueError, match="hook_name_invalid"):
-        hook_binding.hook_launcher("post")
+        hook_contract.hook_launcher("post")
     with pytest.raises(ValueError, match="hook_launcher_projection_invalid"):
-        hook_binding.hook_generation_digest({"pre-commit": "only"})
+        hook_contract.hook_generation_digest({"pre-commit": "only"})
 
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -257,12 +259,12 @@ def test_binding_primitives_and_unavailable_source_fail_closed(
     subprocess.run(("git", "config", "core.hooksPath", generation.as_posix()), cwd=repo, check=True)
     monkeypatch.setattr(hook_binding, "_selected_runtime", lambda *_args: (None, "runtime_current"))
     monkeypatch.setattr(
-        hook_binding,
+        runtime_authority,
         "expected_runtime_build",
         lambda _repo: (_ for _ in ()).throw(ValueError("missing")),
     )
     monkeypatch.setattr(
-        hook_binding,
+        runtime_authority,
         "expected_runtime_source",
         lambda _repo: (_ for _ in ()).throw(ValueError("missing")),
     )
@@ -271,3 +273,68 @@ def test_binding_primitives_and_unavailable_source_fail_closed(
         "write_admission_not_armed:runtime_expected_source_unavailable"
         in (hook_runtime_binding(repo)["required_gaps"])
     )
+
+
+def test_pure_hook_query_does_not_initialize_runtime_or_policy() -> None:
+    program = """
+import json, sys
+from ethos.adapters.repo.hook.binding import HOOK_NAMES, hook_generation_digest, hook_launcher
+launchers = {name: hook_launcher(name) for name in HOOK_NAMES}
+print(json.dumps({"digest": hook_generation_digest(launchers), "modules": sorted(sys.modules)}))
+"""
+    result = subprocess.run(
+        (sys.executable, "-B", "-I", "-c", program),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+    observed = json.loads(result.stdout)
+    expected = hook_contract.hook_generation_digest(
+        {name: hook_contract.hook_launcher(name) for name in hook_contract.HOOK_NAMES}
+    )
+    assert observed["digest"] == expected
+    assert not {
+        "ethos.adapters.repo.runtime.authority",
+        "ethos.adapters.repo.runtime.selection",
+        "ethos.repository.profile",
+        "pydantic",
+        "filelock",
+    }.intersection(observed["modules"])
+
+
+def test_hook_query_timeout_is_nonarming_observation_with_exact_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, _ = _fixture(tmp_path)
+    before = hook_runtime_binding(repo)
+    calls = []
+
+    def expire(root, command, **kwargs):
+        calls.append((root, command, kwargs["timeout"]))
+        raise subprocess.TimeoutExpired(
+            command, kwargs["timeout"], output=b"partial", stderr=b"deadline"
+        )
+
+    with monkeypatch.context() as patch:
+        patch.setattr(hook_binding, "run_command", expire)
+        observed = hook_runtime_binding(repo)
+    assert len(calls) == 1
+    assert observed["current"] is False
+    assert observed["state"] == "unknown"
+    assert "write_admission_not_armed:runtime_hook_contract_timeout" in observed["required_gaps"]
+    assert observed["contract_observation"] == {
+        "state": "unknown",
+        "reason": "runtime_hook_contract_timeout",
+        "command": list(calls[0][1]),
+        "binary": calls[0][1][0],
+        "cwd": calls[0][0].as_posix(),
+        "timeout_seconds": 10,
+        "stdout": "partial",
+        "stderr": "deadline",
+        "effect_attempted": False,
+    }
+    assert "status" in observed["next_action"]
+    assert "hook install" not in observed["next_action"]
+    assert hook_runtime_binding(repo) == before

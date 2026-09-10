@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import platform
 import shlex
 import uuid
@@ -16,6 +15,7 @@ from typing import NamedTuple
 from filelock import FileLock
 
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
@@ -240,20 +240,6 @@ def require_selected_runtime(
         *identity.environment,
         identity.build,
     )
-
-
-def runtime_python(interpreter_home: Path) -> Path:
-    """Return the executable inside one owned interpreter home."""
-    return (
-        interpreter_home / "python.exe"
-        if os.name == "nt"
-        else runtime_scripts(interpreter_home) / "python"
-    )
-
-
-def runtime_scripts(interpreter_home: Path) -> Path:
-    """Return the console-script directory inside one owned interpreter home."""
-    return interpreter_home / ("Scripts" if os.name == "nt" else "bin")
 
 
 def _selector_bytes(selector: Path) -> bytes | None:

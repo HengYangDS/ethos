@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.repo.hook.binding as hook_binding
+import ethos.adapters.repo.hook.observation as hook_binding
+import ethos.adapters.repo.runtime.authority as runtime_authority
 from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
 
 if TYPE_CHECKING:
@@ -67,13 +68,13 @@ def test_binding_uses_exact_legacy_source_only_as_migration_evidence(
     monkeypatch.setattr(hook_binding, "git_common_dir", lambda _repo: common.as_posix())
     monkeypatch.setattr(hook_binding, "_configured_hooks_path", lambda _repo: generation)
     monkeypatch.setattr(hook_binding, "_launcher_gap", lambda *_args, **_kwargs: "")
-    monkeypatch.setattr(hook_binding, "accepted_version_migration_pending", lambda _repo: True)
+    monkeypatch.setattr(runtime_authority, "accepted_version_migration_pending", lambda _repo: True)
     monkeypatch.setattr(
-        hook_binding,
+        runtime_authority,
         "expected_runtime_build",
         lambda _repo: (_ for _ in ()).throw(ValueError("accepted VERSION unavailable")),
     )
-    monkeypatch.setattr(hook_binding, "expected_runtime_source", lambda _repo: expected[0])
+    monkeypatch.setattr(runtime_authority, "expected_runtime_source", lambda _repo: expected[0])
 
     observed = hook_binding.hook_runtime_binding(repo)
 

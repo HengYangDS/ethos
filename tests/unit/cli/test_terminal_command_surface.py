@@ -5,26 +5,30 @@ from __future__ import annotations
 import json
 from datetime import UTC
 from datetime import datetime
+from typing import cast
 from typing import get_type_hints
 
 import pytest
 
 from ethos.adapters.repo.attestation_set import record_attestations
-from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 from ethos.surface.cli.lane.lease import TakeoverOptions
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.literal_cases import literal_case
+from tests.support.semantic import attestation_fixture
 
-PUBLIC_ROOT_COMMANDS = literal_case(
-    "cli.test_terminal_command_surface:assign:PUBLIC_ROOT_COMMANDS:0"
+PUBLIC_ROOT_COMMANDS = cast(
+    "tuple[str, ...]",
+    literal_case("cli.test_terminal_command_surface:assign:PUBLIC_ROOT_COMMANDS:0"),
 )
-RETIRED_ROOT_COMMANDS = literal_case(
-    "cli.test_terminal_command_surface:assign:RETIRED_ROOT_COMMANDS:1"
+RETIRED_ROOT_COMMANDS = cast(
+    "tuple[str, ...]",
+    literal_case("cli.test_terminal_command_surface:assign:RETIRED_ROOT_COMMANDS:1"),
 )
 
 
@@ -64,28 +68,35 @@ def test_takeover_runtime_annotations_are_fully_resolvable() -> None:
     assert annotations["authorization"]
 
 
-def test_lane_status_projects_coordination_facts_without_shared_inbox(tmp_path) -> None:
-    fixture = start_adopted_work_lane(
-        tmp_path / "coordination-status",
-        name="coordination-status",
-        holder_ref="agent:test:case:owner",
-    )
-
-    payload = run_ethos(
-        "lane",
-        "status",
-        "--root",
-        fixture.repository.as_posix(),
-        "--json",
-        cwd=fixture.repository,
-    )
-
-    assert "shared_inbox" not in payload["data"]
-    assert (payload["verdict"], payload["state"]) == ("pass", "ready")
-    assert payload["data"]["foreign_work_lanes"]
-    assert "foreign_work_lane_present" in payload["data"]["coordination_gaps"]
-    assert "unbound_work_lane_refs" in payload["data"]
-    assert all("workspace_status_schema" not in gap for gap in payload["required_gaps"])
+@pytest.mark.parametrize("condition", ["idle", "foreign", "candidate"])
+def test_readers_end_observation_or_select_a_real_boundary(tmp_path, condition) -> None:
+    """Changing the reader fallback to self-observation must fail this public test."""
+    if condition == "foreign":
+        repo, candidate, _worktree = start_adopted_work_lane(tmp_path)
+    else:
+        repo, candidate = start_adopted_candidate(tmp_path)
+    if condition == "candidate":
+        commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
+    compact = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
+    detail = run_ethos("lane", "status", "--root", repo.as_posix(), "--json", cwd=repo)
+    if condition == "candidate":
+        assert compact["next_action"].startswith("ethos land --closeout --apply --authorize ")
+        assert detail["next_action"] == compact["next_action"]
+        assert detail["continuation"] == "continue"
+    else:
+        assert compact["next_action"] == (
+            "ethos lane status --json" if condition == "foreign" else ""
+        )
+        assert compact["continuation"] == ("continue" if condition == "foreign" else "done")
+        assert (detail["verdict"], detail["next_action"], detail["continuation"]) == (
+            "pass",
+            "",
+            "done",
+        )
+    assert "shared_inbox" not in detail["data"]
+    assert bool(detail["data"]["foreign_work_lanes"]) == (condition == "foreign")
+    assert "unbound_work_lane_refs" in detail["data"]
+    assert all("workspace_status_schema" not in gap for gap in detail["required_gaps"])
 
 
 def test_retired_inbox_attestations_cannot_select_coordination_state(tmp_path) -> None:
@@ -103,33 +114,14 @@ def test_retired_inbox_attestations_cannot_select_coordination_state(tmp_path) -
     )
     before = run_ethos(*arguments, cwd=fixture.repository)
     retired = tuple(
-        Attestation.issue(
-            {
-                "schema_version": 2,
-                "predicate": predicate,
-                "verifier": "agent:test:retired-inbox",
-                "subject": "coordination:foreign-work-lane",
-                "issued_at": datetime(2026, 8, 15, tzinfo=UTC),
-                "valid_from": None,
-                "valid_until": None,
-                "verdict": "pass",
-                "payload": {
-                    "kind": "input:retired-inbox-state",
-                    "body": {
-                        "actor": "agent:test:retired-inbox",
-                        "item_digest": "f" * 64,
-                    },
-                },
-                "relations": (),
-                "advisories": (),
-                "evidence_refs": (f"retired:{predicate}",),
-                "commitment_digest": None,
-                "facts_digest": None,
-                "plan_digest": None,
-                "policy_digest": None,
-                "effect_digest": None,
-                "mints_authority": False,
-            }
+        attestation_fixture(
+            predicate=predicate,
+            verifier="agent:test:retired-inbox",
+            subject="coordination:foreign-work-lane",
+            issued_at=datetime(2026, 8, 15, tzinfo=UTC),
+            payload_kind="input:retired-inbox-state",
+            payload_body={"actor": "agent:test:retired-inbox", "item_digest": "f" * 64},
+            evidence_refs=(f"retired:{predicate}",),
         )
         for predicate in ("inbox:acknowledged", "inbox:consumed")
     )
@@ -161,8 +153,11 @@ def test_retired_root_commands_are_not_registered(command: str) -> None:
 
 @pytest.mark.parametrize(
     ("arguments", "native_error"),
-    literal_case(
-        "cli.test_terminal_command_surface:parametrize:test_retired_claim_lane_surface_is_rejected_by_cyclopts:2"
+    cast(
+        "list[tuple[tuple[str, ...], str]]",
+        literal_case(
+            "cli.test_terminal_command_surface:parametrize:test_retired_claim_lane_surface_is_rejected_by_cyclopts:2"
+        ),
     ),
 )
 def test_retired_claim_lane_surface_is_rejected_by_cyclopts(

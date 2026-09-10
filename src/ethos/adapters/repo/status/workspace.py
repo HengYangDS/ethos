@@ -1,3 +1,5 @@
+"""Project current topology, coordination and available transition boundaries."""
+
 from __future__ import annotations
 
 import os
@@ -279,15 +281,14 @@ def _stage_gates(
     landing_gaps = tuple(map(str, cast("list[object]", landing_readiness.get("required_gaps", []))))
     stale = "candidate_base_stale" in landing_gaps
     integration = bool(closeout_support.get("supported")) and not stale
-    followup = (
+    next_action = (
         str(landing_readiness.get("next_action") or "ethos lane refresh-base --json")
         if stale
         else "ethos land --json"
         if integration
+        else "ethos lane prewrite <path>"
+        if authoring
         else ""
-    )
-    next_action = followup or (
-        "ethos lane prewrite <path>" if authoring else "ethos lane status --json"
     )
     if not authoring:
         blocked, owner = "authoring", branch if is_work_lane else ""

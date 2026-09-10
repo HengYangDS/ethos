@@ -117,6 +117,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
             if resolution is not None and resolution.next_action
             else stage_action
         )
+        or ("ethos lane status --json" if foreign or unbound else "")
     )
     user_decision_required = (
         False

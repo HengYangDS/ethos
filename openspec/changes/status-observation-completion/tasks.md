@@ -11,4 +11,4 @@
 ## 3. Verify and deliver
 
 - [x] 3.1 Pass focused behavioral, schema, documentation, type and budget checks.
-- [ ] 3.2 Freeze and prove the exact source for public archive and acceptance.
+- [x] 3.2 Freeze and prove the exact source for public archive and acceptance.

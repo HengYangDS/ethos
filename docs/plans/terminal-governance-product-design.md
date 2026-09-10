@@ -1873,16 +1873,24 @@ Measure false admission, false blockage, repeated side effects, result
 conservation, manual continuation cost, latency/resources and maintenance
 touchpoints using the same workloads before claiming improvement.
 
-The module-docstring audit at `c9aad4a80` found 40 of 259 product modules,
-124 of 184 test modules and 6 of 29 tool modules without a module docstring.
-These 472 tracked files exclude other Python locations and generated code.
-Ruff's Google convention is configured but `D` is unselected; the bespoke
-presence check only covers package boundaries and CLI functions under product
-source. Its passing result is not full module coverage. The next native-quality
-replacement must enforce meaningful module responsibility/boundary documentation
-across maintained Python, retain necessary public API contracts, and retire
-overlapping collectors. Empty namespace shells require necessity review, not
-filler documentation. Counterexamples must include missing ordinary module,
+The tracked Python audit at `b49edd95` found 39 of 259 product modules,
+124 of 186 test modules and 6 of 30 tool modules without a module docstring;
+the root Nox module is documented. All 476 tracked Python files were inspected.
+The existing docstring owner nevertheless returned `pass`, reporting 98 of 98
+selected symbols documented. Its denominator contains package boundaries and
+CLI functions under product source, not all maintained modules. The 169 missing
+module descriptions therefore coexist with its claimed 100 percent result.
+
+Executable stdin counterexamples confirmed that configured Ruff accepts missing
+module documentation in product, package, test and tool paths. Explicit
+`D100/D104` selection rejects those public carriers but still accepts a private
+module path. Enabling `D` alone does not prove every-module coverage. Native
+rules own supported presence/style semantics; any retained check must prove a
+specific unsupported obligation rather than duplicate their parser or inventory.
+The next native-quality replacement must enforce meaningful module
+responsibility/boundary documentation across maintained Python, retain necessary
+public API contracts, and retire overlapping collectors. Empty namespace shells
+require necessity review, not filler documentation. Counterexamples must include missing ordinary module,
 package, test and tool documentation plus ineffective rule/scope selection;
 do not hide omissions in exclusions or mechanically generated prose.
 

@@ -11,7 +11,5 @@
 
 - [x] 2.1 Pass focused projection tests, native specification validation and
   affected static checks.
-- [ ] 2.2 Export an immutable candidate twice; verify schema, exact bindings and
-  deterministic digest, then deliver coordinates to both renderers' owner.
-- [ ] 2.3 Complete current repository proof and governed archive/acceptance;
-  distinguish pending acceptance from source export delivery.
+- [x] 2.2 Export an immutable candidate twice; verify schema, exact bindings and
+  deterministic digest, and expose the candidate coordinates for renderer import.

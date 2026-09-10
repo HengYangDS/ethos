@@ -70,3 +70,13 @@ runtime and accepted-role nodes are marked terminal rather than silently claimin
 implementation. The mapping uses the selected product contract's numbering, not
 a second normative rule set. Rendering must preserve each relation's endpoints,
 type, condition and non-authorizing plane even when a visible aggregate is used.
+
+## Post-Source Acceptance Boundary
+
+Exact full proof, governed archive and re-proof, candidate/accepted integration,
+installed runtime and required publication readback remain mandatory before
+accepted delivery. They are lifecycle effects, not checkboxes whose mutation
+would invalidate the exact source snapshot they prove. Renderer import may use
+the explicitly labelled candidate; a cross-thread send without acknowledgement
+remains unconfirmed. Browser/raster and aesthetic acceptance belong to renderer
+verification and are not implied by source export or matching paths.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -36,6 +37,17 @@ def _report_source(repo: Path, reports: str) -> str:
             }.items()
         )
     )
+
+
+def _hosted_scripts(repo: Path, supply_script: str) -> Path:
+    """Keep a real wrapper with one isolated external-tool preparation boundary."""
+    scripts = repo / "tools/ci/scripts"
+    scripts.mkdir(parents=True)
+    shutil.copy2(ROOT / "tools/ci/scripts/run-head-bound-proof.sh", scripts)
+    installer = scripts / "install-scc.sh"
+    installer.write_text("#!/bin/sh\n" + supply_script)
+    installer.chmod(0o755)
+    return scripts
 
 
 @pytest.mark.parametrize(
@@ -111,9 +123,10 @@ def test_hosted_receipt_requires_exact_executed_observation(
     )
     binary.chmod(0o755)
     (binary.parent / "python3").symlink_to(sys.executable)
+    scripts = _hosted_scripts(repo, f"printf '%s\\n' '{binary.parent}'\n")
     summary_file = tmp_path / "summary.md"
     completed = subprocess.run(
-        ["bash", str(ROOT / "tools/ci/scripts/run-head-bound-proof.sh"), expected],
+        ["bash", str(scripts / "run-head-bound-proof.sh"), expected],
         cwd=repo,
         env=os.environ
         | {
@@ -148,3 +161,43 @@ def test_hosted_receipt_requires_exact_executed_observation(
         else "Tests: unavailable"
     ) in summary
     assert ("Coverage: 95.50%" if reports == "valid" else "Coverage: unavailable") in summary
+
+
+def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(tmp_path: Path) -> None:
+    """A failed prerequisite must not leave prior passing output or invoke proof."""
+    repo = init_git_repo(tmp_path / "repo")
+    scripts = _hosted_scripts(repo, "echo scc_archive_checksum_mismatch >&2\nexit 23\n")
+    evidence = repo / "build/evidence/quality"
+    proof = evidence / "proof/executed-proof.json"
+    old_test = evidence / "tests/pytest/junit.xml"
+    for path in (proof, old_test):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("stale passing output")
+    bins = tmp_path / "bin"
+    bins.mkdir()
+    (bins / "python3").symlink_to(sys.executable)
+    invoked = tmp_path / "proof-invoked"
+    uv = bins / "uv"
+    uv.write_text(f"#!/bin/sh\ntouch '{invoked}'\nexit 99\n")
+    uv.chmod(0o755)
+    result = subprocess.run(
+        ["bash", str(scripts / "run-head-bound-proof.sh")],
+        cwd=repo,
+        env=os.environ
+        | {"PATH": f"{bins}{os.pathsep}{os.environ['PATH']}", "ETHOS_RUNTIME_BOOTSTRAPPED": "1"},
+        text=True,
+        capture_output=True,
+        timeout=15,
+        check=False,
+    )
+    assert result.returncode == 23, result.stdout + result.stderr
+    assert "scc_archive_checksum_mismatch" in result.stderr
+    assert not invoked.exists()
+    assert not old_test.exists()
+    assert not proof.exists() or "stale passing output" not in proof.read_text()
+    receipt = json.loads(result.stdout)
+    assert receipt["verdict"] == "block"
+    retained = json.loads((evidence / "proof/hosted-verification.json").read_text())
+    assert retained == receipt
+    assert retained["required_gaps"] == ["hosted_tool_supply_failed"]
+    assert retained["supply_exit_code"] == 23

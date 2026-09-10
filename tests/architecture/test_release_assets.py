@@ -96,6 +96,7 @@ def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
         assert all(version not in installer for version in versions)
 
     assert declared_policies == {
+        ".config/checks/format/selection.toml",
         ".config/checks/github/actionlint.toml",
         ".config/checks/lychee/supply.toml",
         ".config/checks/node/runtime.toml",

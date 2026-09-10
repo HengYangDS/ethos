@@ -10,6 +10,15 @@ aggregates = { python_total = ["python_product", "python_tests", "python_tools",
 immutable_record_roots = ["openspec/changes/archive/"]
 line_width = 100
 
+[budget_tool_supply]
+version = "4.1.0"
+release_owner = "boyter/scc"
+[budget_tool_supply.archive_sha256]
+Darwin_arm64 = "7201c7aa4aace058d43308462cba72adb18f6094c08c0741727455976d0a0747"
+Darwin_x86_64 = "7f705031228add7e55edded409179a60de6b538d41f153ba2922dee95adda50d"
+Linux_arm64 = "6e0d2a1f8d3540ba7df185477dec40bb7340f1b214bfd303147de5cad2bd7b8b"
+Linux_x86_64 = "c7328436d3027f4357d3d7853f7dc3ac2bbcb4ca08f1adad91a27c593884079b"
+
 [[format]]
 extensions = [".lock", ".json", ".yaml", ".yml"]
 carrier = "Dependency resolution evidence"

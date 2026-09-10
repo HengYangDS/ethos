@@ -61,8 +61,8 @@ both implementations and prior deliveries. This feedback does not expand the
 preserved `python-reference-binding` work or authorize edits in either diagram
 repository.
 
-Live verification on September 11, 2026 (+08:00) supersedes the message's source
-coordinates. Accepted is `d2949938d2d954dd6cee21f49ba36e7c35a10975`, tree
+Historical verification on September 11, 2026 (+08:00) selected
+`d2949938d2d954dd6cee21f49ba36e7c35a10975`, tree
 `1f4f4ddb8514bf737e7efa89bd1b549b1329ae4b`, selected runtime
 `88da46116affdf81d9da62b1a034946f246cf5a83604a4435e23aaf0aef936c2`.
 Export of that exact accepted revision exits 2 with
@@ -109,9 +109,16 @@ are removed from hard gates, while readable transformed glyphs and complete
 meaning remain mandatory. Interrupted reference-binding regressions are retained
 by exact hashes and resume after this priority export reaches its safe boundary.
 
-The bounded readback is `projection-feedback-source-readback.json` under the
-existing ignored evidence root. It records current source hashes and the export
-failure; it is not another task authority or a replacement architecture plan.
+The historical readback is `projection-feedback-source-readback.json` under the
+existing ignored evidence root. The accepted successor `10d328944` supersedes
+that export blocker: its exact committed exporter produces deterministic v2,
+with thirteen source and four document bindings matching. The current readback
+is `terminal-source-admission-current-review.json` in the same evidence root.
+Both renderer owners independently confirmed isolated import; their live
+snapshots and visual acceptance remain unfinished. V1 retained richer meaning
+in its referenced graph; v2 materializes those same attributes and contracts,
+not a second ontology. Export equality proves source derivation, not identity
+trust, semantic sufficiency, actual visibility or implementation maturity.
 
 ### Model Promotion
 
@@ -2603,6 +2610,39 @@ failures are recorded in the current closeout table above. Detached retirement,
 four historical sources and global obligations remain open; none inherits
 another source snapshot's proof. New feedback changes this route only when it supplies a missing
 invariant, a disproved assumption or changed facts.
+
+### Hosted Budget Supply Closure — 2026-09-11 (+08:00)
+
+At accepted `10d328944`, GitLab job 36899 failed with
+`source_budget_scc_unavailable:scc`; tests, coverage and generated-artifact
+checks were correctly blocked dependents, not executed failures. Missing JUnit
+was consequently expected. The full proof on a maintainer host had inherited
+an executable absent from the hosted toolchain. Re-running unchanged CI cannot
+repair that missing supply.
+
+The bounded `hosted-budget-tool-supply` Change binds official native archives
+in the existing budget configuration. The shared hosted verification owner
+prepares and verifies a repository-local executable before gates, rechecks cached
+archives rather than trusting mutable binaries, and retains a non-passing
+receipt and diagnostics on supply failure. No thresholds, gate dependencies,
+Forge-specific rules, system installations or budget parsers are added.
+
+The first installer/shared-entry regressions demonstrated seven failures and
+thirty passes; the repair passed 84 affected cases. A further regression proved
+that a supply error printed to the terminal was not durably retained; the shared
+receipt now persists that exact failed attempt. Real Darwin ARM64 and isolated
+Linux x86_64/ARM64 native binaries passed their version and measurement probes.
+The Linux x86_64 run was emulated; the initial ARM64 probe encountered an image's
+unconfigured Python shim, then passed with its explicit installed interpreter.
+Neither probe is a hosted job or a full platform proof. Temporary containers were
+removed and mounted repository inputs remained read-only.
+
+The shared-entry receipt regression and affected source-audit/schema/budget/
+module/docstring owners pass. Exact full proof, archive, accepted activation,
+publication and new hosted JUnit/coverage remain required. The paused six-file
+`python-reference-binding` batch remains hash-verified and resumes after this
+urgent delivery failure. Historical lane absorption remains high priority; no
+historical lane was retired by this tool-supply repair.
 
 ## Convergence Rules
 

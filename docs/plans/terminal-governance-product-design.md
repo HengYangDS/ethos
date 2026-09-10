@@ -1768,6 +1768,17 @@ Do not replay that completed delivery sequence.
 
 The September 8 budget decision sets independent 40000-ELOC product/test
 ceilings; the project total is observational, not a 90000-ELOC blocker.
+The latest user guidance authorizes independent ceilings of up to 45000 ELOC
+for product and tests when a bounded semantic-consolidation review finds that
+further reduction would sacrifice necessary behavior, test evidence, clarity
+or delivery efficiency. This is conditional headroom, not a growth target or
+permission to disguise source, remove obligations or compress formatting.
+No proof of a theoretical minimum is required. The current measured overlay
+has 39999 product and 39999 test ELOC, so the executable ceilings remain 40000
+for now. When this condition is met, update the sole numeric policy owner and
+its checked projections before acceptance; do not repeatedly seek the same
+authorization or continue mechanical line trimming. Coverage remains at least
+95 percent, and the two source budgets cannot compensate for each other.
 Generated Mermaid output is excluded from maintained source while its C4 input
 remains counted. These measurement rules do not prove quality effectiveness.
 The cwd-sensitive historical gate-registry problem remains deferred, not a
@@ -1947,6 +1958,192 @@ official supply fidelity and easiest-first historical lane retirement remain req
 default independent protection. Full adoption workloads close the broader product
 mission; they are not silently added to this reader Change.
 
+##### Hook And Extension Boundaries
+
+The September 10 user feedback connects hook reach, plugin composition,
+observability, verification latency and excessive handwritten mechanisms. Treat
+these as one boundary-design review, not permission to add independent policy,
+workflow, intent or event stores. The following directions are proposed;
+implemented conformance and workload measurements decide their adoption.
+
+| Boundary | Intended responsibility and positive admission | Excluded inference and verification |
+| --- | --- | --- |
+| Host tool dispatch | When the host supports it, pass structured tool intent, actor, exact root and patch or ref scope to the existing admission owner before a managed mutation. | A shell command string is not a complete effect description. Nested scripts, aliases, child processes and direct filesystem writes require execution-boundary controls; a hook is not a sandbox. Recheck current facts at the effect. |
+| Native Git events | Keep commit message, commit and push admission at their native events; use reference transactions for exact ref changes. Post-checkout, post-merge and post-rewrite may invalidate affected derived observations and report continuity gaps. | Post-event failure does not undo the completed mutation. Git has no universal before/after command hook. Status may refresh the index, so post-index-change cannot establish a semantic content change. Background observation should avoid optional index writes. |
+| Official OpenSpec operations | Reuse the official command for generation, validation and archive. At a managed write boundary, compile the exact accepted artifacts, execute once and read back actual outputs and identity. | Installed OpenSpec internal Commander hooks are not demonstrated public plugin hooks. Do not monkeypatch its internals, fork its Markdown parser or claim every raw invocation is intercepted. |
+| Evidence and performance | Guards perform bounded relevant checks; observers report timing, outcome and exact evidence references. Changed input identity invalidates only evidence whose full dependency closure changed. | Trace events do not mint Attestations or grant authority. Lost hook notifications require fresh reconciliation, not stale-cache trust. Check duration and output limits; never run full proof on every read or small edit. |
+| Continuation and retirement | Session or task boundaries can report unresolved effects, useful unintegrated work, running children and exact next actions through supported host events. Cleanup owns only exact admitted resources. | Session end does not prove an owner exited. Missing or failed callbacks cannot authorize deleting a lane, releasing a live Lease, replaying a mutation or silently claiming completion. |
+| Extension composition | Versioned typed inputs and outputs, declared permissions and trust provenance feed one deterministic admission result. Independent observers may run in parallel; side effects have one owner. | Do not depend on hook registration order or assume one denying hook prevents another hook from starting. Pure guards cannot perform mutation while awaiting aggregate approval. Optional telemetry failure and unavailable mandatory admission have different outcomes. |
+
+Use event-driven invalidation, demand-driven recomputation and fresh effect-time
+admission together. A hook notification is a hint to invalidate an affected
+projection, not a completeness guarantee or permission to reuse stale evidence.
+At first observation after missed events, reconcile authoritative inputs.
+Context hooks may select relevant accepted intent, assumptions and capabilities;
+they do not accept interpretations or activate unrelated skills. Expensive
+checks are deduplicated by complete input identity and run outside the tool's
+synchronous critical path; mutation admission remains fresh.
+
+The installed Git 2.55.0 documentation and a successful `git hook list
+--show-scope pre-commit` probe expose native config-based hook composition.
+Evaluate that substrate before writing another hook dispatcher, with explicit
+supported-version and trust/config-precedence checks. Trace2 is the native
+observation candidate for status and other Git command timings: a bounded
+`git --no-optional-locks status --porcelain=v1` probe emitted command, timing and
+exit events without changing hook configuration. This single probe establishes
+availability, not performance overhead, full interception or secure auditing.
+No native pre-status event is inferred and no new hook is installed.
+
+Hook capability discovery must report supported, configured, trusted and armed
+separately. Require measured latency, bounded recursion, output redaction,
+collision handling, loss recovery and uninstall behavior. Test stale coordinates,
+wrong roots, nested mutation, concurrent handlers, duplicate delivery, timeouts,
+crashes and valid non-blocked paths. The current installed four Git hooks do not
+prove host-wide tool interception. Host documentation is not evidence that this
+Desktop session has a particular event enabled.
+
+Research anchors: Git's official githooks and git-status manuals define the
+native event and optional-index-write boundaries; OpenAI's official Hooks guide
+states that matching handlers may run concurrently and non-managed definitions
+require trust review. Their behavior constrains thin adapters, not repository
+meaning. No new hook has been installed by this review.
+
+##### Unified Mechanism Review And Verification Throughput
+
+The next architecture decisions must separate constraint compilation, pure
+policy decisions, legal state transitions, effect execution and evidence
+reuse. A framework is useful only when it replaces an existing mechanism and
+preserves these boundaries. CUE may compose and validate configuration; CEL may
+evaluate pure guards; a state-machine library may describe legal transitions.
+None alone supplies fresh authorization, Git or SQLite CAS, crash recovery or
+complete semantic intent. Keep Git facts and bounded Lease coordination rather
+than introduce another persisted workflow truth.
+
+Observed at source `9a774f98`: CEL is already installed and used by artifact
+path policy. Its facts, policy and rule variables are dynamically typed. A
+misspelled field and a non-boolean expression passed expression compilation in
+small probes but failed evaluation. Evaluate stronger declaration typing and
+bounded cost before expanding its authority; runtime rejection is not compile-
+time validation. CUE is declared optional and was not found on the effective
+PATH. Its adoption must replace demonstrated configuration/schema repetition,
+not add a second manually synchronized model. These are bounded observations,
+not a whole-repository framework audit.
+
+The gate runner currently executes barrier-separated waves; the test owner
+uses module-scoped scheduling. Recent local full proofs took about 17--19
+minutes; the latest archived run took 1158.07 seconds, with 930.563 seconds of
+testing and 887.485 seconds in one module. GitHub main source verification for
+`6baee9a0` completed successfully in about 75 minutes. Both hosted templates
+uploaded proof but omitted test-owned JUnit and coverage artifacts. These
+observations justify advancing measured throughput work without reducing proof
+obligations. They do not establish a measured speedup or complete root cause.
+
+Immediate `verification-feedback` scope is native work stealing and visible
+source-bound reports, with failure-preserving transport. Next evaluate ready-
+node scheduling against real resource conflicts, reduce heavyweight fixture
+setup at the semantic boundary, and derive reusable execution identities from
+all relevant source, policy, environment, toolchain and external inputs. Cached
+execution evidence may support a newly evaluated proof only when its complete
+inputs and trust remain applicable; final authorization is always fresh.
+Archive and ref-only changes must not force unrelated computation once this
+identity model is proved. Cold, warm and cache-cleared verdicts must agree.
+
+Python remains `>=3.12`. PEP 695 generics and stronger typed capability seams
+are candidates for reducing ambiguity, not syntax-count goals. A live probe
+showed that replacing an Annotated alias with a named `type` alias preserved
+its value dump but changed Pydantic's JSON Schema shape. Schema and digest
+compatibility must therefore be tested; modern syntax is not automatically a
+behavior-neutral rewrite. Measure deleted duplication, distinguishing failures,
+actual latency and recovery cost rather than counting frameworks or rules.
+
+##### Executable Semantics Research — Accepted Increment
+
+The user confirmed the queued research plan associated with feedback
+`01a08b4f-5ef5-7820-bc1b-f12fac269744`. The existing report
+`ETHOS-semantics-design-research-2026-09-10.md` was hash-verified as
+`933491d6b128a02e1e271dafbb32366297e2b3814be10665c61dab98393d3eb7`.
+Its external-source and mathematical claims remain research with the stated
+limits, not implemented capabilities or a second product contract.
+
+Current evidence supersedes the report's coordinates: local accepted source is
+`9a774f9852d117909942d89218ed66b32687aa89`, with matching installed runtime
+`5e22f8da2362cb2ee477762facfd41c10862ce508bf87065c840dc935fe154c2`.
+The idle lane-status loop is already fixed. The active `verification-feedback`
+Change remains bounded to scheduling and hosted report visibility. Its current
+86 affected tests pass; full proof, timing comparison and remote visibility are
+not yet demonstrated for that overlay. Do not restart completed work or label
+queued semantic changes fixed.
+
+| Disposition | Existing owner, evidence and reason |
+| --- | --- |
+| Accept binding and program-point defects | `repository/policy/references/python_syntax.py` and `observation.py` own the observation, with `closure.py` consuming it. A source-bound public `prove --host --execute --gate repository-audit` run reproduced module/member alias omission, local shadow false detection, and cross-scope/program-point environment misattribution. Repair the unique owner, not callers with spelling lists. |
+| Adjust the claimed impact | In both alias cases the public result's semantic-closure component said pass/evaluated with no unknowns; direct control and local shadow both reported an executable orphan. Other audit obligations kept the outer result blocked. This proves incorrect public subjudgment, not a complete governor bypass or actual external command execution. |
+| Evaluate LibCST, do not preselect it | Qualified names and scope metadata are a candidate replacement for binding heuristics. Require executable tests for supported syntax, conditional bindings, reassignment, reflection, cold/hot cost and immutable package closure. Name candidates do not establish values, callee effects or complete data flow. No dependency was added. |
+| Accept property-scoped uncertainty | Distinguish syntax availability, resolved identity, possible values/effects and unsupported analysis. An empty extracted set is not a proved absence. Carry unknown provenance through the relevant obligation; do not freeze unrelated operations or turn uncertain discovery into permission. |
+| Accept minimal model promotion when necessary | Existing OpenSpec, transient Commitment/Facts/TransitionPlan and persistent Attestation remain the owners. Add only distinctions required by falsifiable cases and migrate all consumers; no persistent semantic task graph, competing intent database or second lifecycle. |
+| Accept resource and composition reasoning | Shared refs, SQLite, caches, processes and external resources determine interference, not different worktree paths. Validate the actual selected contribution set under a fresh baseline; pairwise success does not prove joint consistency. Lease remains coordination, not a semantic database. |
+| Accept preservation and refinement obligations | Deleting an owner must preserve or migrate useful consumers and evidence. Specify which meaning survives carrier/adapter transformations and which approximation remains. Hash equality, graph edges, vector similarity and schema validity cannot substitute for behavioral acceptance. |
+| Accept safety and progress together | The reference model must expose legal success, interruption, retry, unknown results and declared environment/fairness assumptions. Counterexamples must cover both unsafe admission and permanent false blocking. Use finite models and trace conformance where relevant. |
+| Decline wholesale platform adoption | DPO, MLIR effects, abstract interpretation, Institutions, e-graphs and temporal models provide design/test methods. No current case justifies deploying the listed graph, ontology, compiler or proof-assistant stacks as a new product platform. |
+| Accept the full product chain | Research, interpretation, accepted intent, capability composition, execution, delivery, actual outcomes and exit remain required. Code semantics supports this chain; it does not replace greenfield/brownfield adoption, Skills, exploration, handoff or learning. |
+
+The bounded scheduling comparison ran the same nine land-readiness cases with
+8 workers and unchanged measured inputs. Scope scheduling took 238.722 seconds;
+work stealing took 82.504 seconds. Test identities, outcomes, per-line execution
+and branch observations matched. The elapsed ratio was 0.3456 for this selected
+workload only; one sequential comparison is not a whole-suite or independently
+controlled benchmark. Both runs kept isolated coverage, not current proof data.
+The comparison receipt is `verification-feedback-scheduling/comparison.json`.
+
+The exact public reproduction is retained in the existing ignored evidence
+location as `semantic-public-gate-reproduction.json`, alongside
+`verification-feedback-affected.log`. It contains six immutable-runtime CLI
+invocations against isolated source snapshots, input hashes, outer and inner
+verdicts and cleanup confirmation. Sample programs were parsed, never executed;
+all temporary repositories were removed. The outer audit's unrelated failures
+remain recorded rather than suppressed to manufacture a bypass.
+
+After the current bounded Change closes, the next reference-observation Change
+must start from these public counterexamples. Name-preserving import rewrites
+must preserve the declared observation, while same spelling with different
+binding must not inherit effects. Program-point and conditional-value tests
+must distinguish known values, possible values and unsupported behavior.
+Declare observational equivalence explicitly: traceback names, reflection and
+exports are not assumed unobservable. Delete replaced heuristic paths, test
+consumer/public propagation and require the current proof before acceptance.
+
+The full-chain acceptance case remains required across the existing P1--P7
+sequence; it is not added to the small report-transport implementation:
+
+1. Read the original permission to cooperate, compete, explore and drop all.
+   Reject the stronger interpretation that a winner is mandatory. Accepted
+   meaning and non-goals are persisted only in official OpenSpec.
+2. Compile explicit subjects, assumptions, acceptance conditions, capability
+   requirements and proof obligations; unresolved meaning is not silently lost.
+3. Execute cooperative multi-contribution, explicitly single-winner zero/one
+   selection and exploration with valuable negative results across worktrees.
+4. Validate the selected combination, including a case where each pair of
+   constraints is satisfiable but the whole set is not. Observe shared-resource
+   conflicts and reevaluate on every target-baseline or policy change.
+5. Apply the exact CAS once; inject stale coordinates, process kill and lost
+   acknowledgement. Distinguish failure from unknown outcome and recover from
+   actual state without duplicate destructive effects.
+6. Retain useful code, reasoning and experiment outcomes before controlled
+   retirement. All-drop is a valid no-integration result, not data destruction.
+7. Switch Agent using accepted intent, current facts and result evidence;
+   continue without requiring the user to restate the full history.
+8. Repeat one complete greenfield and one brownfield adoption, retaining domain
+   customization. Bind real-use observations to deployed identity, baseline,
+   environment and observation window; feed counterexamples back to the source
+   goal or assumption without rewriting historical evidence.
+
+P0 closes facts/feedback/current quality first; P1 intent semantics and extension
+contracts, P2 executable compilation, P3 collaboration/recovery, P4 both adopter
+paths, P5 measured reuse and risk-based verification, P6 outcome feedback and
+P7 independent ecosystem conformance retain their existing order. P5 may move
+ahead where measured throughput blocks progress. Every stage reports actual
+acceptance and remaining evidence separately; plan confirmation is not delivery.
+
 ##### Recovered Tool Decisions And Current Capability Use
 
 Original July 22 quality reviews and the July 24 terminal synthesis have been
@@ -2082,8 +2279,8 @@ size report accepts coerced numbers, silently defaults zero and ignores a rules
 parse error. These probes do not prove that other full-proof gates also accept
 malformed policy. Enforce positive integer hundred-unit thresholds, distinguish
 absent policy from invalid policy, and use one exact source inventory and metric
-with the aggregate budget owner. Product/test ceilings remain independently
-40000; the project total remains observational. External links in the preceding
+with the aggregate budget owner. Product/test ceilings follow the conditional
+40000-to-45000 authorization above; the project total remains observational. External links in the preceding
 chat answer were not retrieved in that turn and are not threshold evidence.
 
 Execute this bounded quality successor after the current retirement boundary;

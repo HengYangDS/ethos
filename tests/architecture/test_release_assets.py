@@ -1,3 +1,5 @@
+"""Release and quality execution preserve declared inputs and proof boundaries."""
+
 from __future__ import annotations
 
 import ast
@@ -295,22 +297,17 @@ def test_python_test_sessions_receive_the_frozen_node_package_supply(
     session = cast("nox.Session", object())
     observed: list[tuple[str, object]] = []
 
-    class Gate:
-        @classmethod
-        def from_environment(cls, *, node_package_supply: Path):
-            observed.append(("supply", node_package_supply))
-            return cls()
+    gate = SimpleNamespace(
+        run_tests=lambda actual: observed.append(("tests", actual)),
+        enforce_floor=lambda actual: observed.append(("coverage", actual)),
+    )
 
-        @staticmethod
-        def run_tests(actual_session: object) -> None:
-            observed.append(("tests", actual_session))
-
-        @staticmethod
-        def enforce_floor(actual_session: object) -> None:
-            observed.append(("coverage", actual_session))
+    def construct(*, node_package_supply):
+        observed.append(("supply", node_package_supply))
+        return gate
 
     monkeypatch.setattr(ci_sessions, "NODE_PACKAGE_SUPPLY", supply)
-    monkeypatch.setattr(ci_sessions, "PythonTestGate", Gate)
+    monkeypatch.setattr(ci_sessions, "PythonTestGate", SimpleNamespace(from_environment=construct))
 
     ci_sessions.tests(session)
     ci_sessions.coverage_floor(session)
@@ -350,38 +347,23 @@ def test_coverage_floor_rejects_below_required_measurement(
     environment = {
         key: value for key, value in os.environ.items() if not key.startswith("COVERAGE")
     }
-    subprocess.run(
-        [
-            str(python_test_gate.PYTHON),
-            "-m",
-            "coverage",
-            "run",
-            f"--rcfile={python_test_gate.COVERAGE_CONFIG}",
-            f"--data-file={gate.data}",
-            f"--source={tmp_path}",
-            str(subject),
-        ],
-        cwd=tmp_path,
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    subprocess.run(
-        [
-            str(python_test_gate.PYTHON),
-            "-m",
-            "coverage",
-            "combine",
-            f"--rcfile={python_test_gate.COVERAGE_CONFIG}",
-            f"--data-file={gate.data}",
-        ],
-        cwd=tmp_path,
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    for action, args in (("run", (f"--source={tmp_path}", str(subject))), ("combine", ())):
+        subprocess.run(
+            [
+                str(python_test_gate.PYTHON),
+                "-m",
+                "coverage",
+                action,
+                f"--rcfile={python_test_gate.COVERAGE_CONFIG}",
+                f"--data-file={gate.data}",
+                *args,
+            ],
+            cwd=tmp_path,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
     gate.head_file.write_text(gate.s.head + "\n", encoding="utf-8")
     before = gate.data.read_bytes()
     monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)
@@ -611,7 +593,10 @@ def test_container_bootstrap_refuses_non_entrypoint_invocation(tmp_path, argumen
     assert tuple(tmp_path.iterdir()) == before
 
 
-def test_test_environment_freezes_locked_supply_as_absolute_paths(tmp_path, monkeypatch) -> None:
+@pytest.mark.parametrize("workers", [None, 1, 8])
+def test_test_environment_freezes_locked_supply_as_absolute_paths(
+    tmp_path, monkeypatch, workers
+) -> None:
     root = tmp_path / "repo"
     supply = _write_empty_node_package_supply(root)
     monkeypatch.setattr(python_test_gate, "ROOT", root)
@@ -620,21 +605,28 @@ def test_test_environment_freezes_locked_supply_as_absolute_paths(tmp_path, monk
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
 
     gate = python_test_gate.PythonTestGate.from_environment(node_package_supply=supply)
+    gate = python_test_gate.PythonTestGate(replace(gate.s, workers=workers))
     monkeypatch.setenv("UV_CACHE_DIR", "another-cache")
     monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(tmp_path / "other-supply"))
     for method in ("_prepare", "_cleanup", "_stable_head"):
         monkeypatch.setattr(gate, method, lambda: None)
     observed: dict[str, str | None] = {}
+    commands = []
 
     class Session:
         @staticmethod
         def run(*_command: str, **kwargs: object) -> None:
             observed.update(cast("dict[str, str | None]", kwargs["env"]))
+            commands.append(_command)
 
     gate.run_tests(cast("nox.Session", Session()))
 
     assert observed["UV_CACHE_DIR"] == str(root / "build/runtime/tool-cache/uv")
     assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == str(supply)
+
+    assert "--dist=worksteal" in commands[0]
+    assert ("-n" in commands[0]) is (workers == 8)
+    assert set(python_test_gate.TARGETS) <= set(commands[0])
 
 
 def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monkeypatch) -> None:
@@ -650,22 +642,13 @@ def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monk
             observed.update(paths=paths, node=node, package_supply=package_supply)
             return ()
 
-    class Session:
-        posargs: tuple[str, ...] = ()
-
-        @staticmethod
-        def run(*_command: str, **_kwargs: object) -> None:
-            return None
-
-        @staticmethod
-        def error(message: str) -> None:
-            raise AssertionError(message)
+    session = SimpleNamespace(posargs=(), run=lambda *_args, **_kwargs: None, error=pytest.fail)
 
     monkeypatch.setattr(ci_sessions, "NODE", node)
     monkeypatch.setattr(ci_sessions, "NODE_PACKAGE_SUPPLY", supply, raising=False)
     monkeypatch.setattr(ci_sessions, "import_module", lambda _name: ConfigQuality)
 
-    ci_sessions.config_quality(cast("nox.Session", Session()))
+    ci_sessions.config_quality(cast("nox.Session", session))
 
     assert observed == {"paths": (), "node": node, "package_supply": supply}
 

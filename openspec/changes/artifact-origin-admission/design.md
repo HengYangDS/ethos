@@ -150,3 +150,14 @@ the CLI selects and renders. Remove the parallel argument bundle, discarded
 fallback construction and dead proposal-target inference. Verify unchanged
 local/single/multiple-peer responses, signed tag/branch identity, proof drift,
 missing observations and receipt recovery before accepting the ownership move.
+
+Test locations follow the observed production responsibilities: publication
+readiness and peer availability are distinct from remote effects; reviewed
+retirement inventory is distinct from destructive execution and recovery.
+Move each complete case and its private setup once, sharing the divergent-lane
+fixture through native directory conftest and the request helper through the
+existing lane-scenario owner. Preserve test names, parameter combinations,
+assertions and fault injection. Compare collected identities and normalized
+bodies, then execute the complete affected workload; structural equality alone
+does not prove behavioral preservation. No per-file budget exception, fixture
+copy or case deletion is part of this organization change.

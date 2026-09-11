@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.lane_retirement.abandonment as abandonment
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from tests.support.governed_repository import adopt_and_commit
@@ -100,3 +101,23 @@ def assert_no_ui_projection(value: object) -> None:
     elif isinstance(value, list):
         for child in value:
             assert_no_ui_projection(child)
+
+
+def derive_abandonment(
+    repo: Path,
+    *,
+    review_content: bool = False,
+    branch: str = "work/abandon",
+    path: Path | None = None,
+    reason_code: str = "superseded-experiment",
+    reason: str = "discard divergent experiment",
+):
+    """Derive the same explicit abandonment request across content and recovery tests."""
+    return abandonment.derive_lane_abandonment(
+        root=repo,
+        branch="" if path else branch,
+        path=str(path) if path else "",
+        reason_code=reason_code,
+        reason=reason,
+        review_content=review_content,
+    )

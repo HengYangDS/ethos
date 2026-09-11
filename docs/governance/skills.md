@@ -1,5 +1,5 @@
 ---
-subject: ethos:playbooks-skills
+subject: ethos:skills
 role: policy
 state: canonical
 relations:
@@ -37,7 +37,7 @@ method packs are optional; they own no plan, task, progress, or lifecycle state.
 The portfolio owner is responsible for structural validation:
 
 ```bash
-ethos prove --gate playbooks-v2 --json
+ethos prove --gate skills --json
 ethos plan --changed --json
 ```
 

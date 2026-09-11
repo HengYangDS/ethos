@@ -117,24 +117,33 @@ the replaced internal mechanism. This follows John Ousterhout's
 of interface complexity and implementation depth, not a universal method-length
 threshold.
 
-### Modules
+### Visibility and ownership
 
-- **Public module**: name without a leading underscore. It may be imported across
-  package boundaries and is part of the package's contract.
-- **Private module**: name with a leading underscore (`_parser.py`, `_encoding.py`).
-  It is an implementation detail of its own package and MUST NOT be imported across
-  package boundaries.
+Visibility is relative to an owner, not a naming trick. A module without a leading
+underscore is available to its declared consumers; that alone is not a stable
+external SDK promise. Public operations express complete capabilities with real
+consumers, while internal sequencing and representation stay with their owner.
+Do not make every helper public merely to satisfy an import check.
 
-### Functions and classes
+A private module belongs to its immediate semantic package. Direct sibling
+modules may use it; another public subpackage is a distinct owner. A private
+package's own subtree may use its internals. Names are compared by components,
+so a similarly prefixed package is not the same owner. A private function, class
+or constant belongs to its defining module. Protocol dunders such as `__version__`
+are distinct from private names such as `_helper` or `__helper`.
 
-- **Public function/class**: name without a leading underscore. It is callable by
-  other modules. Public definitions carry a docstring (the ruff `D` gate enforces
-  this).
-- **Private function/class**: name with a leading underscore (`_helper`). It is an
-  implementation detail of its own module. Other modules MUST NOT call it; if a
-  private helper is needed elsewhere, promote it (rename without underscore) or move
-  it to the right layer — do not reach into another module's privates. (The ruff
-  `SLF` gate flags cross-module private access.)
+The existing module-layout owner checks both Import and ImportFrom targets,
+aliases and resolved relative imports across product, tests, tools and skill code.
+Ruff SLF checks private member access; it does not establish private-module import
+safety. Native TID bans all relative spelling. Dynamic reflection and arbitrary
+runtime export behavior are not proved by these static checks. Private access
+needed by another owner requires semantic relocation or a justified public
+capability, not a blanket rename or re-export facade.
+
+Public documentation obligations belong to the declared docstring gate. Its
+current implementation-selected coverage is not evidence that every code file
+and public definition is documented; global missing-file and rule-coverage
+obligations remain tracked in the sole terminal plan until enforced and verified.
 
 ### Import discipline
 
@@ -157,21 +166,22 @@ threshold.
 These are the enumerated, enforced import rules. A dependency edge is a claim about
 architecture; these rules make the claim honest and checkable.
 
-1. **Direction (import-linter, enforced):** the pure kernel never imports the
-   product. `ethos` and `ethos_contracts` are pure leaves — they import NO
-   other ethos package. Every other package may import only DOWNWARD
-   (surface → domain → adapters → repository/quality/assistants → contracts).
-   The wrong direction is a hard CI failure. Contracts in
-   `.config/checks/import-linter/contracts.ini`.
+1. **Dependency direction:** the declared import-linter contract enforces
+   surface → domain → adapters → repository. The pure contract kernel must not
+   depend on application orchestration. Current layer enforcement does not yet
+   cover every package or prove the absence of all dependency cycles; the
+   terminal plan retains that global closure obligation. Do not invent retired
+   package names or describe an unchecked layer as already enforced.
 2. **Absolute only (ruff TID):** no relative imports (`from .x import y`). Every
    import names its full package path, so grep and move are reliable.
 3. **One symbol per line (ruff isort force-single-line):** `from m import a` then
    `from m import b`, never `from m import a, b`. Line-addressable import churn.
 4. **Concrete submodule, not root facade:** import from the module that DEFINES the
    symbol, never a package-root re-export. Package roots export nothing.
-5. **No cross-package private import:** never import another package's `_private`
-   module or `_helper` (ruff SLF flags private access). Depend on public surface;
-   if you need a private, it is mis-placed — promote or relocate it.
+5. **Private ownership:** module-layout resolves module and symbol imports at
+   their actual ownership boundaries, including alias and relative forms. Ruff
+   SLF separately checks private member access. Depend on the owner's public
+   capability rather than reaching through its internal implementation.
 6. **Deferred/typing imports:** type-only imports belong under `if TYPE_CHECKING:`
    (ruff TC). Runtime-evaluated framework annotations are declared once in Ruff's
    native configuration rather than suppressed at individual imports.

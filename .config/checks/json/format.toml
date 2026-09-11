@@ -1,4 +1,3 @@
-schema = "ethos-json-format-v1"
 owner = "ethos-quality-gate-governance"
 formatter = "python-stdlib-json"
 default_mode = "pretty"

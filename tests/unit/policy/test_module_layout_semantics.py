@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import subprocess
 
+import pytest
+
 import ethos.repository.policy.layout.imports as layout_imports
 from ethos.adapters.gates.tool import module_layout_gate_report
 from ethos.repository.policy.layout.facades import module_facade_findings
@@ -228,13 +230,56 @@ def test_import_policy_finds_package_root_and_private_imports(tmp_path, monkeypa
             "from pkg import child as _hidden\n"
             "from pkg import child, missing\n"
             "from pkg.child import *\n"
-            "from pkg.child import __dunder, _private, public\n"
+            "from pkg.child import __dunder__, _private, public\n"
         ),
     }
     paths = tuple(_write(tmp_path, path, source) for path, source in sources.items())
     monkeypatch.setattr(layout_imports, "package_python_files", lambda *_a, **_k: paths)
     monkeypatch.setattr(layout_imports, "semantic_python_files", lambda *_a, **_k: paths)
     roots = layout_imports.package_root_submodule_import_findings(tmp_path, {}, paths)
-    private = layout_imports.private_from_import_findings(tmp_path, {}, paths)
+    private = layout_imports.private_import_findings(tmp_path, {}, paths)
     assert [item["module"] for item in roots] == ["pkg.child"]
     assert [item["name"] for item in private] == ["_private"]
+
+
+@pytest.mark.parametrize(
+    ("consumer", "statement", "blocked"),
+    [
+        ("src/ethos/other/use.py", "from ethos.owner._engine import run", True),
+        ("src/ethos/other/use.py", "import ethos.owner._engine as engine", True),
+        ("src/ethos/other/use.py", "from ethos.owner import _engine as engine", True),
+        ("src/ethos/other/use.py", "from ..owner._engine import run", True),
+        ("tests/test_use.py", "from ethos.owner._engine import run", True),
+        ("tools/check.py", "import ethos.owner._engine", True),
+        ("src/ethos/owner_extra/use.py", "from ethos.owner._engine import run", True),
+        ("src/ethos/owner/child/use.py", "from ethos.owner._engine import run", True),
+        ("src/ethos/owner/use.py", "from ethos.owner._engine import run", False),
+        ("src/ethos/owner/use.py", "import ethos.owner._engine as engine", False),
+        ("src/ethos/owner/use.py", "from ._engine import run", False),
+        ("src/ethos/other/use.py", "from ethos.owner.api import run", False),
+        ("src/ethos/other/use.py", "from ethos.owner._internal.api import run", True),
+        ("src/ethos/owner/_internal/use.py", "from ethos.owner._internal.api import run", False),
+        (
+            "src/ethos/owner/_internal/deep/use.py",
+            "from ethos.owner._internal.api import run",
+            False,
+        ),
+        ("src/ethos/other/use.py", "from ethos.owner.api import _hidden as hidden", True),
+        ("src/ethos/other/use.py", "from ..owner.api import _hidden", True),
+        ("src/ethos/other/use.py", "from ethos.owner.api import __hidden", True),
+        ("src/ethos/other/use.py", "from ethos.owner.api import __version__", False),
+    ],
+)
+def test_public_layout_gate_enforces_private_ownership(tmp_path, consumer, statement, blocked):
+    """Import spelling cannot cross ownership, while internal cooperation stays legal."""
+    _write(tmp_path, "src/ethos/owner/_engine.py", "def run():\n    return 1\n")
+    _write(tmp_path, "src/ethos/owner/api.py", "def run():\n    return 1\n")
+    _write(tmp_path, "src/ethos/owner/_internal/api.py", "def run():\n    return 1\n")
+    _write(tmp_path, consumer, statement + "\nprint('consumer')\n")
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+
+    report = module_layout_gate_report(tmp_path)
+
+    gaps = report["required_gaps"]
+    assert any("private" in gap for gap in gaps) is blocked, report
+    assert report["verdict"] == ("block" if blocked else "pass"), report

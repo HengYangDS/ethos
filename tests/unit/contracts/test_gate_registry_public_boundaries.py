@@ -100,8 +100,8 @@ def test_gate_registry_malformed_references_fail_closed(
 
 def test_gate_registry_missing_or_malformed_source_fails_closed(tmp_path: Path) -> None:
     missing = tmp_path / "missing.toml"
-    fallback = load_gate_registry_declaration(missing)
-    assert fallback.id == "gate-registry"
+    with pytest.raises(FileNotFoundError):
+        load_gate_registry_declaration(missing)
 
     malformed = tmp_path / "gates.toml"
     malformed.write_text("gates = [\n", encoding="utf-8")
@@ -134,3 +134,44 @@ def test_native_nox_gates_share_the_bound_interpreter() -> None:
     assert nox_gates
     for gate in nox_gates:
         assert gate.command[:3] == (python, "-m", "nox"), gate.id
+
+
+@pytest.mark.parametrize("version", ["0", "2", "999", "true", "1.0", '"1"'])
+def test_native_gate_loader_rejects_unsupported_format(tmp_path: Path, version: str) -> None:
+    """Independent native declarations reject formats before deriving a gate graph."""
+    source = tmp_path / "gates.toml"
+    source.write_text(
+        'schema_version = 1\nid = "independent"\n'
+        '[proof_sets]\ndefault = ["check"]\nfull = ["check"]\n'
+        '[[gates]]\nid = "check"\nkind = "test"\ncommand = ["check"]\n',
+        encoding="utf-8",
+    )
+    supported = load_gate_registry_declaration(source)
+    assert supported.id == "independent"
+    assert tuple(supported.registry()) == ("check",)
+    source.write_text(
+        source.read_text(encoding="utf-8").replace(
+            "schema_version = 1", f"schema_version = {version}"
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValidationError):
+        load_gate_registry_declaration(source)
+
+
+def test_skill_gate_identity_names_its_responsibility() -> None:
+    """Gate selection and provider ownership do not expose development generations."""
+    registry = load_gate_registry_declaration().registry()
+    assert registry["skills"].providers == (
+        "ethos.assistants.skills.portfolio:skill_portfolio_report",
+    )
+
+
+def test_default_gate_declaration_ignores_caller_checkout(tmp_path: Path, monkeypatch) -> None:
+    """Default interpretation belongs to the loaded source/package, never ambient CWD."""
+    expected = load_gate_registry_declaration()
+    candidate = tmp_path / "system" / "gates.toml"
+    candidate.parent.mkdir()
+    candidate.write_text('schema_version = 999\nid = "ambient"\n', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    assert load_gate_registry_declaration() == expected

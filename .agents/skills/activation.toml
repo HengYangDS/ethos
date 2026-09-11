@@ -38,7 +38,7 @@ path_globs = [
   "schemas/**",
 ]
 intent_tokens = ["ethos", "governance", "proof", "adoption", "skills"]
-pre_reads = ["AGENTS.md", "docs/governance/playbooks-and-skills.md"]
+pre_reads = ["AGENTS.md", "docs/governance/skills.md"]
 during_rules = [
   "treat skills as projections over repository truth",
   "use ETHOS command JSON as machine evidence",
@@ -67,7 +67,7 @@ subjects = [
 path_globs = [
   ".agents/skills/**",
   "rules/skills.md",
-  "docs/governance/playbooks-and-skills.md",
+  "docs/governance/skills.md",
   "system/schemas/kernel/skill-*.schema.json",
   "src/ethos/assistants/**",
   "src/ethos/contracts/skill/activation.py",
@@ -86,14 +86,14 @@ intent_tokens = [
 pre_reads = [
   "AGENTS.md",
   "rules/skills.md",
-  "docs/governance/playbooks-and-skills.md",
+  "docs/governance/skills.md",
 ]
 during_rules = [
   "add a skill only for repeated repository-specific procedure",
   "keep SKILL.md narrow and put executable checks in scripts",
 ]
 post_checks = [
-  "ethos prove --gate playbooks-v2 --json",
+  "ethos prove --gate skills --json",
   "ethos plan --changed --json",
 ]
 requires = ["ethos-repository-governance"]

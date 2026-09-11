@@ -46,12 +46,12 @@ forge coordinates by release and provider projection configuration. Prewrite
 compiles that positive closure from the baseline tree and compares it with the
 patch postimage; a patch cannot declare and consume a new reference in one step.
 
-Skills V2 adds three provider-neutral schemas:
+The skill contract has three provider-neutral schemas:
 
 - `skill-activation.schema.json` validates activation registry input such as
   subjects, path globs, operation metadata, lifecycle, package manifest paths,
-  proof obligations, commands, and boundary fields.
-- `skill-registry.schema.json` validates the normalized Skills V2 registry,
+  proof obligations and boundary fields.
+- `skill-registry.schema.json` validates the normalized skill registry,
   including its current and retired projection records.
 - `skill-package-manifest.schema.json` validates package manifests for
   loadable `SKILL.md` packages, included files, digest algorithm, expected
@@ -81,7 +81,7 @@ instances.
 Schema validation is product governance. A command that returns JSON without a
 tracked schema is not mature enough for automation.
 `ethos prove --gate schemas --json` validates both schemas and representative
-instances for docs registry, gate registry, workspace status, and Skills V2
+instances for docs registry, gate registry, workspace status, and skill
 contracts. Product-root runs also validate the live
 `.agents/skills/activation.toml`, the normalized live skill registry, and every
-live `.agents/skills/*/package.toml` against the Skills V2 schemas.
+live `.agents/skills/*/package.toml` against the skill schemas.

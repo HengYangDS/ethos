@@ -32,7 +32,7 @@
     },
     "capabilities": {
       "label": "Replaceable capabilities",
-      "text": "People and interchangeable Agents compose Skills, generators, verifiers and native tools. Evaluate official and mature capabilities before custom machinery. Contracts bind I/O, identity/version, permission, cancellation and failure. Pure semantics stay separate from bounded effects; capabilities grant no authority.",
+      "text": "People and interchangeable Agents compose Skills, generators, verifiers and native tools. Prefer official and mature capabilities over custom machinery. Names express responsibility; versions distinguish real interpretation boundaries. Contracts bind I/O, identity, permission, cancellation and failure; they grant no authority.",
       "surface": "main-static"
     },
     "lanes": {

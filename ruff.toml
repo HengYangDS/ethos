@@ -73,3 +73,6 @@ convention = "google"
 
 [lint.flake8-type-checking]
 runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"

@@ -83,6 +83,14 @@ A required external compatibility contract has an explicit owner and tested
 exit condition. These principles apply across the product; individual Changes
 provide independently reviewable and provable increments of that evolution.
 
+Names identify semantic responsibilities, not development generations. Version
+metadata exists only at an independently interpreted compatibility, migration or
+evidence boundary, where its owner defines supported meaning and rejects unknown
+interpretations. Source commits and digests identify content changes; they do not
+justify a second manual revision counter. Package-local implementation details
+share their package identity. Historical evidence and native external protocols
+retain the identities under which they were created.
+
 ## Semantic Kernel
 
 The semantic values are:

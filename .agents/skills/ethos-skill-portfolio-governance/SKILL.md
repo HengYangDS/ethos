@@ -13,9 +13,9 @@ manifests, projection drift controls, or the skill creation process.
 ## Workflow
 
 1. Read `AGENTS.md`, `rules/skills.md`, and
-   `docs/governance/playbooks-and-skills.md` before changing skill semantics.
+   `docs/governance/skills.md` before changing skill semantics.
 2. Keep each skill narrow: trigger, workflow, evidence, and trust boundary.
-   Route executable checks through `playbooks-v2`; put longer criteria in references.
+   Route executable checks through `skills`; put longer criteria in references.
 3. Update `SKILL.md`, `package.toml`, and `activation.toml` together so the
    route, package digest, and command metadata remain aligned.
 4. Require one owner for each subject-operation route. Retire an obsolete route
@@ -33,7 +33,7 @@ manifests, projection drift controls, or the skill creation process.
 ## Evidence
 
 ```bash
-uv run ethos prove --gate playbooks-v2 --json
+uv run ethos prove --gate skills --json
 uv run ethos plan --changed --json
 ```
 

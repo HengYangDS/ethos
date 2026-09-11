@@ -52,24 +52,6 @@ adopter terminology.
 - **THEN** adopter-specific terms remain in the fixture or evidence
 - **AND** product runtime packages remain provider-neutral
 
-### Requirement: Skills V2 Conformance Fixtures
-
-ETHOS SHALL keep Skills V2 conformance, migration replay, and parity fixtures
-outside runtime semantic packages.
-
-#### Scenario: placeholder skill is rejected
-
-- **WHEN** Skills V2 conformance tests run against a minimal placeholder
-  `SKILL.md`
-- **THEN** the fixture reports required quality gaps
-
-#### Scenario: adopter migration replay remains readable
-
-- **WHEN** Skills V2 migration replay tests run against ETHOS v1, a reference-adopter v1, and
-  external style activation records
-- **THEN** each input normalizes into the provider-neutral IR without losing
-  historical fixture fields
-
 ### Requirement: Hosted provider observations remain evidence-class scoped
 
 ETHOS SHALL capture hosted provider observation envelopes without treating local
@@ -173,3 +155,20 @@ the host's hook/runtime projection as proof of source correctness.
 - **THEN** status reports its selected hook/runtime currentness
 - **AND** repository source audit neither hides nor assumes that separate local
   mutation-readiness fact.
+
+### Requirement: Skill Conformance Fixtures
+
+ETHOS SHALL keep skill conformance and parity fixtures outside runtime semantic
+packages. Supported input SHALL preserve its declared meaning; unsupported input
+SHALL fail explicitly instead of retaining obsolete compatibility behavior.
+
+#### Scenario: placeholder skill is rejected
+
+- **WHEN** conformance checks evaluate a minimal placeholder skill
+- **THEN** required package-quality gaps remain observable
+
+#### Scenario: Unsupported activation is not normalized into success
+
+- **WHEN** a fixture supplies an unsupported activation version or retired fields
+- **THEN** current validation rejects the original input
+- **AND** raw fixture evidence is not rewritten or promoted to current authority

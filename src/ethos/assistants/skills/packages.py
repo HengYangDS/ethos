@@ -1,3 +1,5 @@
+"""Validate immutable skill package contents and their interpreter-owned schema."""
+
 from __future__ import annotations
 
 import hashlib
@@ -11,11 +13,11 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
-from ethos._resources import resolve_declaration_path
 from ethos.assistants.skills.capabilities import capability_records
 from ethos.assistants.skills.capabilities import contained_package_path
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_list
+from ethos.repository.policy.schema import load_schema
 
 FRONTMATTER_PART_COUNT = 3
 SKILL_DESCRIPTION_WORD_LIMIT = 60
@@ -23,7 +25,6 @@ PROGRESSIVE_DISCLOSURE_LINE_THRESHOLD = 90
 DEFAULT_REQUIRED_SECTIONS = ("When to Use", "Workflow", "Evidence", "Trust Boundary")
 _SKILL_SOFT_LINE_LIMIT = 160
 _SKILL_WORKFLOW_STEP_LIMIT = 8
-_MANIFEST_SCHEMA_PATH = Path("system/schemas/kernel/skill-package-manifest.schema.json")
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,7 +66,7 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
     if early_result is not None:
         return _manifest_result(early_result)
     package_dir = absolute_manifest.parent
-    gaps = _schema_validation_gaps(root, skill_id, manifest)
+    gaps = _schema_validation_gaps(skill_id, manifest)
     if gaps:
         return _manifest_result(
             SkillPackageResult(
@@ -231,16 +232,9 @@ def _manifest_result(result: SkillPackageResult) -> dict[str, Any]:
     }
 
 
-def _schema_validation_gaps(root: Path, skill_id: str, manifest: dict[str, Any]) -> list[str]:
+def _schema_validation_gaps(skill_id: str, manifest: dict[str, Any]) -> list[str]:
     try:
-        schema_path = root / _MANIFEST_SCHEMA_PATH
-        if not schema_path.is_file():
-            schema_path = resolve_declaration_path(
-                None,
-                canonical=_MANIFEST_SCHEMA_PATH,
-                module_file=__file__,
-            )
-        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        schema = load_schema("skill-package-manifest.schema.json")
         errors = Draft202012Validator(schema).iter_errors(manifest)
     except (OSError, json.JSONDecodeError, SchemaError):
         return [f"skill_package_manifest_schema_invalid:{skill_id}"]

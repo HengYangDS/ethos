@@ -233,7 +233,7 @@ def commit_payload(root: Path, revision: str) -> bytes:
         return b""
     unsigned: list[bytes] = []
     skipping_signature = False
-    for line in header.splitlines():
+    for line in header.split(b"\n"):
         if line.startswith(_SIGNATURE_HEADERS):
             skipping_signature = True
             continue
@@ -259,7 +259,7 @@ def _commit_object(root: Path, revision: str) -> bytes:
 
 def _commit_signature_format(raw: bytes) -> str | None:
     header = raw.partition(b"\n\n")[0]
-    for line in header.splitlines():
+    for line in header.split(b"\n"):
         if not line.startswith(_SIGNATURE_HEADERS):
             continue
         armor = line.split(b" ", 1)[1]

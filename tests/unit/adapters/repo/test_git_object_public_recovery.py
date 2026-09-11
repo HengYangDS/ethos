@@ -1,3 +1,5 @@
+"""Exercise native Git object identity, trust and bounded recovery failures."""
+
 from __future__ import annotations
 
 import hashlib
@@ -59,6 +61,56 @@ def test_commit_payload_missing_separator_fails_closed(
     )
 
     assert identity.commit_payload(tmp_path, "revision") == b""
+
+
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+@pytest.mark.parametrize(
+    "header",
+    [
+        b"encoding UTF-8",
+        b"encoding UTF-8\r",
+        b"x-extra before\rafter",
+        b"x-extra preserved\n continuation\r",
+        b"x-extra before\rgpgsig -----BEGIN SSH SIGNATURE-----",
+    ],
+)
+def test_signature_equivalence_preserves_every_non_signature_byte(
+    tmp_path: Path, object_format: str, header: bytes
+) -> None:
+    repo = init_git_repo(tmp_path / "repo", object_format=object_format)
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+    prefix = (
+        f"tree {tree}\nauthor Test <test@example.invalid> 100 +0000\n"
+        "committer Test <test@example.invalid> 100 +0000\n"
+    ).encode()
+    message = b"fix: exact bytes\r\nunchanged\n"
+    raw = prefix + header + b"\n\n" + message
+    signature = b"gpgsig synthetic\n continuation\ngpgsig-sha256 synthetic\n continuation"
+
+    def store(payload: bytes) -> str:
+        completed = identity.run_git(
+            repo,
+            "hash-object",
+            "-w",
+            "-t",
+            "commit",
+            "--stdin",
+            stdin=payload,
+            text=False,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+        return completed.stdout.decode().strip()
+
+    old = store(raw)
+    signed = store(prefix + signature + b"\n" + header + b"\n\n" + message)
+    changed = store(prefix + header + b"\r\n\n" + message)
+
+    assert identity.commit_payload(repo, old) == raw
+    assert identity.commit_payload(repo, signed) == raw
+    assert identity.equivalent_commit_identity(repo, old, signed)
+    assert not identity.equivalent_commit_identity(repo, old, changed)
+    assert identity.observe_commit(repo, old)["signature"] == {"present": False, "format": ""}
 
 
 @pytest.mark.parametrize(

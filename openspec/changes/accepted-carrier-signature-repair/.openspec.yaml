@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-09-12
+goal: Preserve exact commit payload and publicly repair one unsigned accepted
+  tip through existing effect owners; absorb the transferred source lane without
+  parallel state.

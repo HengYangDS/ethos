@@ -320,10 +320,10 @@ version_source = "adopter-toolchain"
 [[gates]]
 id = "config-quality"
 kind = "config"
-command = ["uv", "run", "--frozen", "--offline", "python", "-m", "nox", "-s", "config_quality"]
+command = ["{python}", "-m", "nox", "-s", "config_quality"]
 policy = "required"
-profile = "product"
-toolchain = "quality-adapter"
+profile = "product-toolchain"
+toolchain = "uv-python"
 asset_classes = ["toml-config", "json-contracts", "yaml-config"]
 dimensions = ["format", "lint", "syntax", "projection-boundary"]
 execution_mode = "adapter"
@@ -332,7 +332,7 @@ trust_bearing = true
 tool_adapter = "repository-config-toolchain"
 writes_files = false
 network_policy = "offline"
-version_source = "adopter-toolchain"
+version_source = "locked-toolchain"
 
 [[gates]]
 id = "github-workflow-syntax"

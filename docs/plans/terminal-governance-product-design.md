@@ -94,6 +94,20 @@ Future mutation batches must finish and inspect preflight before dispatching
 dependent writes; a shared tool call must not cross that decision boundary.
 Actual proof/archive/acceptance/install effects are not task completion gates.
 
+Normal signed source commits reached `501a82e24140e6e5f885ffeb075b89118d2ec059`.
+The first full proof stopped after 18.96 seconds: `config-quality` attempted
+nested editable-package bootstrap through `uv run --offline` and failed for
+uncached `tomlkit==0.15.1`. The seven dependent gaps were not executed tests.
+Its complete diagnostics remain in the common-dir artifact
+`53af44d0177e2d34d274b6a27e3a0b3ae81eab4fa9df9e3f39ede38b2075870c`.
+The other 27 gates passed. A direct repeat passed but did not explain the cache
+interleaving, so it is not evidence of a repaired root cause. The configuration
+gate now uses the existing bound `{python} -m nox` execution path, like the other
+native Nox gates. A declaration-level RED case protects against nested bootstrap;
+the precise original cache/concurrency trigger remains unproved. Do not solve
+that boundary by adding cache exceptions, relaxing offline checks or rerunning
+the full graph until the corrected gate has passed independently.
+
 Next: freeze and normally sign the successor source under predecessor hooks,
 then obtain exact full proof and
 complete the official accepted/runtime lifecycle before giving an adopter

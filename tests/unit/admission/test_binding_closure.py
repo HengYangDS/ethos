@@ -208,6 +208,17 @@ def test_native_owner_closure_uses_only_selected_existing_authorities() -> None:
     assert owned["value"] == {"ETHOS_ACTOR"}
 
 
+def test_gate_interpreter_binding_preserves_declared_module_ownership() -> None:
+    files = {
+        "system/gates.toml": (
+            '[[gates]]\nid="configuration"\nkind="config"\n'
+            'command=["{python}","-m","nox","-s","config_quality"]\n'
+        ),
+    }
+    owned = native_owned_references_from_files(files)
+    assert {"python", "nox"} <= owned["executable"]
+
+
 def test_native_owner_closure_does_not_promote_observed_consumers(tmp_path: Path) -> None:
     _minimal_product(
         tmp_path,

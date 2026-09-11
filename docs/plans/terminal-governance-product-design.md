@@ -3002,6 +3002,40 @@ new runtime, archive or hosted success is claimed. The AIGW authored/generated
 classification defect is confirmed against that accepted runtime and remains
 open; rebinding the same package cannot resolve it.
 
+The next frozen proof at `132d4ad27` finished after 1396.84 seconds with 34 of 35
+gates passing. Its 2914 cases contained 2913 passes, one skip and no failures;
+combined statement/branch coverage was 95.2115%. Build, installed-package smoke
+and generated-artifact checks passed. Owned pytest scratch was removed. The sole
+failure was activation's 501 ELOC against its unchanged 500 limit. Original
+intermittent failures did not recur; this does not prove their cause repaired.
+Exact proof, JUnit, coverage and gate disposition are retained as
+`proof-132d4ad27-*` receipts under the existing ignored evidence root.
+
+The failed size check should have preceded heavy work. Aggregate source budget
+already had that registry dependency, but per-file size did not. Both failed and
+unknown size results now exercise the real registry through public proof and
+block test, coverage and delivery execution. The two added cases failed before
+the edge was added. The repaired graph and activation suite passed 122 cases in
+63.11 seconds; public python-size, source-budget, python-types, config-quality
+and schemas observations passed. Activation is 498 ELOC after removing redundant
+intermediate values, casts and a duplicate set update; no threshold, test or
+semantic boundary was relaxed. Run all cheap affected checks before the next
+freeze, then obtain new exact proof rather than re-labeling the prior failure.
+
+A serial no-sampler probe separately located current fresh-copy latency before
+the first Python instruction: roughly 0.50–0.80 seconds total versus 0.05 for
+the same warmed copy or existing interpreter, with identical hook output.
+It did not reproduce the historical ten-second timeout or identify an OS
+service cause. Do not disable host controls or treat sampling-induced loader
+notifications as an unsampled causal proof.
+
+The bounded artifact-removal probe also found that the current patch observer
+accepts deletion with a surviving native consumer because it only reads changed
+postimages. Deletion plus consumer update also passes. This is adapter evidence,
+not an admitted public deletion or publication bypass. The existing ownership
+repair must retain deletion effects and inspect relevant surviving consumers;
+removing suffix inference alone would leave that acceptance distinction missing.
+
 ## Convergence Rules
 
 1. **Promote before compatibility.** Replace a missing model boundary before

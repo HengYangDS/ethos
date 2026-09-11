@@ -90,3 +90,22 @@ effects or reinstall on timeout alone.
 - **THEN** the existing transaction restores prior selector, configuration and state
 - **AND** public JSON retains exact query evidence and requests status, not reinstall
 - **AND** no implicit query retry or effect replay occurs
+
+### Requirement: Inexpensive source failures precede heavy verification
+
+The sole gate registry SHALL declare lint, schema, configuration, type, per-file
+size and aggregate source-budget readiness before the heavy test gate. Public
+proof and local CI SHALL consume that same dependency closure without a parallel
+phase registry.
+
+#### Scenario: A cheap source-readiness check fails
+
+- **WHEN** a declared prerequisite of the test gate is failed or unknown
+- **THEN** test execution, coverage consumption and dependent package delivery do not run
+- **AND** the result names the failed prerequisite instead of fabricating test failures
+
+#### Scenario: All source-readiness checks pass
+
+- **WHEN** the requested graph is valid and its readiness prerequisites pass
+- **THEN** all selected tests and existing coverage and delivery obligations remain required
+- **AND** dry-run still projects unknown rather than claiming executed success

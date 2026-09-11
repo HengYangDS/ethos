@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-import ethos.adapters.mutation.accepted as accepted
+import ethos.adapters.mutation.accepted.promotion as accepted
 import ethos.adapters.mutation.remediation.guidance as remediation
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation

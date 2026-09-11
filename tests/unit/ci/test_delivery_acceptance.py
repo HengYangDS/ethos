@@ -4,6 +4,7 @@ import importlib
 import json
 import shlex
 import subprocess
+import sys
 import tomllib
 from datetime import UTC
 from datetime import datetime
@@ -39,6 +40,7 @@ _LIFECYCLE_STAGES = {
     "relocation_repair",
     "retirement_recovery",
     "successor_activation",
+    "signature_repair",
 }
 
 
@@ -332,6 +334,33 @@ def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> No
     assert dirty.dirty_provenance(adopter)["state"] == "clean"
 
 
+def test_signature_acceptance_exercises_the_real_isolated_command_boundary(tmp_path):
+    def run(*command: str, cwd: Path | None = None) -> str:
+        completed = subprocess.run(
+            command,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=20,
+        )
+        return completed.stdout.strip()
+
+    adopter = tmp_path / "adopter"
+    fixture.materialize_adopter(
+        adopter,
+        openspec_config=ROOT / "openspec/config.yaml",
+        run=run,
+    )
+    fixture.prepare_acceptance_topology(adopter, run=run)
+    observed = lane.prove_signature_repair(Path(sys.executable), adopter, environment={})
+    assert observed["state"] == "passed"
+    assert observed["head"] != observed["previous_head"]
+    assert observed["candidate_unchanged"] is True
+    assert observed["remote_unchanged"] is True
+    assert observed["reproof_executed"] is False
+
+
 def _blocked_command(command, gap, next_action):
     return {
         "schema_version": 2,
@@ -576,6 +605,12 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
             }
         ),
     )
+    monkeypatch.setattr(
+        effect.lane_acceptance,
+        "prove_signature_repair",
+        lambda *_args, **_kwargs: events.append("signature_repair") or {"state": "passed"},
+        raising=False,
+    )
 
     lifecycle = accept(
         installed_ethos=tmp_path / "wheel-environment/bin/ethos",
@@ -597,6 +632,7 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
         "development_dependencies",
         "immutable_identity",
         "relocation_repair",
+        "signature_repair",
         "lane_lifecycle",
     ]
     assert set(lifecycle) == _LIFECYCLE_STAGES

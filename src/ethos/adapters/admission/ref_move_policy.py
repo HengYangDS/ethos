@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
+from typing import Literal
+from typing import cast
 
 from ethos.adapters.admission.ref_intent import claim_ref_intent
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.commit.signature import validate_signature_result
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
@@ -15,11 +20,94 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import git_effect_from_plan
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 _ZERO_OIDS = {"0" * 40, "0" * 64}
+
+
+def signature_repair_ref_report(
+    root: Path, ref_name: str, old: str, new: str, *, phase: str = "prepared"
+) -> dict[str, object] | None:
+    """Admit only a recorded exact signature-repair effect, including compensation."""
+    intent = claim_ref_intent(
+        root=root,
+        ref_name=ref_name,
+        update=GitRefUpdate(expected=old, desired=new),
+        operation="commit.identity-replace",
+        phase=cast("Literal['prepared', 'committed', 'aborted']", phase),
+    )
+    if intent.get("operation") != "commit.identity-replace":
+        return None
+    gaps = [str(intent["gap"])] if intent.get("gap") else []
+    if not gaps:
+        try:
+            gaps.extend(_signature_repair_evidence_gaps(root, ref_name, old, new, intent))
+        except (KeyError, TypeError, ValueError) as error:
+            gaps.append(str(error))
+    return {
+        "verdict": "block" if gaps else "pass",
+        "state": "blocked" if gaps else "admitted",
+        "hook": "reference-transaction",
+        "ref": ref_name,
+        "phase": phase,
+        "decision": {"action": "block" if gaps else "allow", "reason": "signature_repair_effect"},
+        "required_gaps": gaps,
+    }
+
+
+def _signature_repair_evidence_gaps(
+    root: Path, ref_name: str, old: str, new: str, intent: dict[str, object]
+) -> list[str]:
+    _, attestations = read_attestation_set(root)
+    selected = [
+        item
+        for item in attestations
+        if item.predicate == "effect:commit-signature" and item.plan_digest == intent["plan_digest"]
+    ]
+    if len(selected) != 1:
+        message = "signature_repair_effect_evidence_missing"
+        raise ValueError(message)
+    result = selected[0]
+    plan = validate_signature_result(root, result, os.environ.get("ETHOS_ACTOR", "").strip())
+    update = git_effect_from_plan(plan).updates.get(ref_name)
+    if update is None or (old, new) not in {
+        (update.expected, update.desired),
+        (update.desired, update.expected),
+    }:
+        message = "signature_repair_effect_binding_invalid"
+        raise ValueError(message)
+    return []
+
+
+def ref_transition_operation(
+    repo: Path, policy: BranchRolePolicy, ref_name: str, old_value: str, new_value: str
+) -> str:
+    """Select the semantic operation from declared roles and exact ref movement."""
+    branch = ref_name.removeprefix("refs/heads/")
+    mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
+    return (
+        "release.mirror"
+        if mirror
+        else "candidate.accept"
+        if branch == policy.accepted_branch
+        else "candidate.bootstrap"
+        if branch == policy.candidate_branch and old_value in _ZERO_OIDS
+        else "candidate.refresh"
+        if branch == policy.candidate_branch
+        and is_ancestor(repo, new_value, policy.accepted_branch)
+        else "candidate.integrate"
+        if branch == policy.candidate_branch
+        else "lane.retire"
+        if ref_name.startswith("refs/heads/")
+        and policy.is_topic_branch(branch)
+        and new_value in _ZERO_OIDS
+        else "lane.import"
+        if branch.startswith(policy.work_branch_prefix) and old_value in _ZERO_OIDS
+        else ""
+    )
 
 
 def accepted_advance_gaps(

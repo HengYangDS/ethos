@@ -5,14 +5,22 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.admission import commit_subject_gap
+from ethos.adapters.repo.git import committed_file_text
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import commit_payload
+from ethos.adapters.repo.git_object import observe_commit
+from ethos.repository.policy.commit import commit_policy_from_text
 from ethos.repository.policy.commit import load_commit_policy
 
 if TYPE_CHECKING:
@@ -129,3 +137,112 @@ def create_git_commit(
         completed.stdout,
         gaps[0],
     )
+
+
+def create_signed_replacement(root: Path, revision: str) -> str:
+    """Create a trusted signature-only object without moving any repository ref."""
+    source = observe_commit(root, revision)
+    signature = source.get("signature")
+    if source["verdict"] != "pass" or not isinstance(signature, dict) or signature["present"]:
+        error = "signature_repair_source_not_unsigned"
+        raise ValueError(error)
+    policy = commit_policy_from_text(committed_file_text(root, revision, ".ethos/workspace.toml"))
+    if policy is None or not policy.signing_required:
+        error = "signature_repair_policy_required"
+        raise ValueError(error)
+    if gap := commit_subject_gap(policy, str(source["subject"]), revision=revision):
+        raise ValueError(gap)
+    payload = commit_payload(root, revision)
+    header, separator, message = payload.partition(b"\n\n")
+    if not separator:
+        error = "signature_repair_payload_unavailable"
+        raise ValueError(error)
+    armor = _sign_payload(root, payload)
+    signature_header = b"gpgsig-sha256" if len(str(source["object_oid"])) == 64 else b"gpgsig"
+    signed = (
+        header
+        + b"\n"
+        + signature_header
+        + b" "
+        + armor.replace(b"\n", b"\n ")
+        + separator
+        + message
+    )
+    created = run_git(
+        root, "hash-object", "-w", "-t", "commit", "--stdin", stdin=signed, text=False, check=False
+    )
+    if created.returncode:
+        error = "signature_repair_object_failed:" + created.stderr.decode(errors="replace")
+        raise ValueError(error)
+    replacement = created.stdout.decode("ascii").strip()
+    validation_verdict = "block"
+    try:
+        gaps = (
+            cast(
+                "list[str]",
+                commit_policy_report(root, policy, replacement, verify_trust=True)["required_gaps"],
+            )
+            if commit_payload(root, replacement) == payload
+            else ["signature_repair_payload_changed"]
+        )
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        gaps = [str(error)]
+        validation_verdict = "unknown"
+    if gaps:
+        raise ProcessExecutionError(
+            gaps[0],
+            reason="signature_repair_object_validation_failed",
+            cwd=str(root),
+            cause=gaps[0],
+            observation={
+                "replacement": replacement,
+                "refs_changed": False,
+                "validation_verdict": validation_verdict,
+            },
+        )
+    return replacement
+
+
+def _sign_payload(root: Path, payload: bytes) -> bytes:
+    """Use Git's configured OpenSSH signing protocol on exact payload bytes."""
+    environment = commit_environment(root, None)
+    configuration = {
+        environment[f"GIT_CONFIG_KEY_{i}"]: environment[f"GIT_CONFIG_VALUE_{i}"]
+        for i in range(int(environment["GIT_CONFIG_COUNT"]))
+    }
+    program = configuration.get("gpg.ssh.program") or shutil.which("ssh-keygen")
+    if not program:
+        error = "git_effect_signing_program_invalid"
+        raise ValueError(error)
+    with tempfile.TemporaryDirectory(prefix="ethos-signature-", dir=git_common_dir(root)) as tmp:
+        directory = Path(tmp)
+        key = configuration["user.signingkey"]
+        inline = key.startswith("key::")
+        if inline:
+            public = directory / "signer.pub"
+            public.write_text(key.removeprefix("key::"), encoding="utf-8")
+            key = public.as_posix()
+        material = directory / "payload"
+        material.write_bytes(payload)
+        result = run_command(
+            root,
+            (
+                program,
+                "-Y",
+                "sign",
+                "-n",
+                "git",
+                "-f",
+                key,
+                *(("-U",) if inline else ()),
+                str(material),
+            ),
+            text=False,
+            timeout=30,
+            env={"GIT_TERMINAL_PROMPT": "0", "SSH_ASKPASS_REQUIRE": "never"},
+            remove_env_prefixes=("GIT_",),
+        )
+        if result.returncode:
+            error = "signature_repair_signing_failed:" + result.stderr.decode(errors="replace")
+            raise ValueError(error)
+        return material.with_suffix(".sig").read_bytes().replace(b"\r\n", b"\n").rstrip(b"\n")

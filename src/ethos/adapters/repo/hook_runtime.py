@@ -15,6 +15,7 @@ from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
+from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.commit.admission import commit_message_report
@@ -233,6 +234,9 @@ def _reference_transition_report(
 ) -> dict[str, object]:
     if phase in {"committed", "aborted"}:
         return _passed("reference-transaction", f"{phase}_observed")
+    repair = signature_repair_ref_report(root, ref_name, old_value, new_value, phase=phase)
+    if repair is not None:
+        return repair
     branch = ref_name.removeprefix("refs/heads/")
     try:
         policy = resolve_ref_move_policy(root, ref_name, old_value, new_value)

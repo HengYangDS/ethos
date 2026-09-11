@@ -11,7 +11,9 @@ from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
 from ethos.adapters.admission.ref_move_policy import prepared_ref_intent_gaps
+from ethos.adapters.admission.ref_move_policy import ref_transition_operation
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
+from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_admission_report
@@ -329,7 +331,7 @@ def ref_move_admission_report(
     new_value: str,
     phase: str = "prepared",
 ) -> dict[str, object]:
-    """Admit a local ref move only through the protected candidate train."""
+    """Admit one exact local ref transition through its declared lifecycle owner."""
     repo = root.resolve()
     try:
         policy = resolve_ref_move_policy(repo, ref_name, old_value, new_value)
@@ -353,27 +355,11 @@ def ref_move_admission_report(
     base.update(decision={"action": "allow", "reason": "ref_move_admitted"}, required_gaps=[])
     if new_value == old_value:
         return base
+    repair = signature_repair_ref_report(repo, ref_name, old_value, new_value, phase=phase)
+    if repair is not None:
+        return repair
     mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
-    operation = (
-        "release.mirror"
-        if mirror
-        else "candidate.accept"
-        if branch == policy.accepted_branch
-        else "candidate.bootstrap"
-        if branch == policy.candidate_branch and old_value in _ZERO_OIDS
-        else "candidate.refresh"
-        if branch == policy.candidate_branch
-        and is_ancestor(repo, new_value, policy.accepted_branch)
-        else "candidate.integrate"
-        if branch == policy.candidate_branch
-        else "lane.retire"
-        if ref_name.startswith("refs/heads/")
-        and policy.is_topic_branch(branch)
-        and new_value in _ZERO_OIDS
-        else "lane.import"
-        if branch.startswith(policy.work_branch_prefix) and old_value in _ZERO_OIDS
-        else ""
-    )
+    operation = ref_transition_operation(repo, policy, ref_name, old_value, new_value)
     if phase in {"committed", "aborted"} and operation:
         intent = claim_ref_intent(
             root=repo,
@@ -382,8 +368,10 @@ def ref_move_admission_report(
             operation=operation,
             phase=phase,
         )
-        if gap := str(intent["gap"] or ""):
-            return _verdict(
+        gap = str(intent["gap"] or "")
+        base["decision"] = {"action": "allow", "reason": f"ref_intent_{phase}"}
+        return (
+            _verdict(
                 base,
                 "block",
                 "repair_required" if phase == "committed" else "blocked",
@@ -391,8 +379,9 @@ def ref_move_admission_report(
                 f"ref_intent_{phase}_failed",
                 [gap],
             )
-        base["decision"] = {"action": "allow", "reason": f"ref_intent_{phase}"}
-        return base
+            if gap
+            else base
+        )
     if mirror or branch == policy.accepted_branch:
         gaps = [
             *accepted_advance_gaps(repo, policy, old_value=old_value, new_value=new_value),
@@ -444,7 +433,7 @@ def ref_move_admission_report(
         )
         reason = "retirement_ref_move_not_admitted"
     else:
-        return base
+        gaps, reason = [], "ref_move_admitted"
     return _verdict(base, "block", "blocked", "block", reason, gaps) if gaps else base
 
 

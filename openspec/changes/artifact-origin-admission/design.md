@@ -140,3 +140,13 @@ generation, not construct a second Python/environment description for a build
 path that must never run. Remove that unused setup; retain rejection of any
 wheel rebuild and compare selected identity, file inventory and reported gaps
 before and after repetition. No activation or cleanup scenario is removed.
+
+Publication's no-push readiness use case and shared local admission observation
+belong to the existing publication domain owner, not CLI transport. Both CLI
+paths consume one transient typed context with source, policy and observation
+coordinates. It is neither a persistent entity nor a reusable authorization.
+The remote publication adapter retains exact effects, retries and receipts;
+the CLI selects and renders. Remove the parallel argument bundle, discarded
+fallback construction and dead proposal-target inference. Verify unchanged
+local/single/multiple-peer responses, signed tag/branch identity, proof drift,
+missing observations and receipt recovery before accepting the ownership move.

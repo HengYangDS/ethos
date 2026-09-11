@@ -358,7 +358,9 @@ def test_signature_acceptance_exercises_the_real_isolated_command_boundary(tmp_p
     assert observed["head"] != observed["previous_head"]
     assert observed["candidate_unchanged"] is True
     assert observed["remote_unchanged"] is True
-    assert observed["reproof_executed"] is False
+    assert observed["reproof_executed"] is True
+    assert observed["proof_subject"] == f"git:commit:{observed['head']}"
+    assert observed["publication_readiness"] == "local_publish_ready"
 
 
 def _blocked_command(command, gap, next_action):

@@ -20,11 +20,15 @@ from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit.signature import signature_plan
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.git_object import verify_commit_trust
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -91,6 +95,9 @@ def test_repair_has_readonly_readiness_and_exact_selected_effects(tmp_path, monk
     before = git(repo, "show-ref"), read_attestation_set(repo), (repo / ".git/index").read_bytes()
     ready = repair.repair_signature(root=repo, expect_head=old)
     assert (ready["verdict"], ready["state"]) == ("pass", "ready_to_repair")
+    coordinates = ready["coordinates"]
+    assert isinstance(coordinates, dict)
+    assert coordinates["common_dir"] == str(git_common_dir(repo))
     assert (
         git(repo, "show-ref"),
         read_attestation_set(repo),
@@ -296,8 +303,34 @@ def test_signature_plan_is_stable_after_canonical_record_roundtrip(tmp_path):
     assert original.model_dump(mode="json") == recovered.model_dump(mode="json")
 
 
+def test_repair_rejects_relocated_git_common_directory_before_recovery(tmp_path, monkeypatch):
+    repo, old, candidate = _repository(tmp_path)
+    git(repo, "worktree", "remove", str(candidate))
+    git(repo, "branch", "-D", "candidate/dev")
+    records = _interrupted_signature(repo, old, monkeypatch)
+    moved = tmp_path / "relocated-git"
+    git(repo, "init", "--separate-git-dir", str(moved), str(repo))
+    assert read_attestation_set(repo)[1] == records
+    before = git(repo, "show-ref")
+    result = repair.repair_signature(root=repo, expect_head=old, apply=True, authorized=True)
+    assert result["verdict"] == "block", result
+    assert result["required_gaps"] == ["signature_repair_coordinates_mismatch"]
+    assert git(repo, "show-ref") == before
+
+
 @pytest.mark.parametrize("boundary", ["public", "hook"])
-@pytest.mark.parametrize("field", ["repository", "policy_sha256", "payload_sha256", "plan"])
+@pytest.mark.parametrize(
+    "field",
+    [
+        "repository",
+        "policy_sha256",
+        "payload_sha256",
+        "plan",
+        "plan_actor",
+        "plan_subject",
+        "plan_repository",
+    ],
+)
 def test_repair_rejects_reissued_evidence_at_both_effect_boundaries(
     tmp_path, monkeypatch, boundary, field
 ):
@@ -307,7 +340,30 @@ def test_repair_rejects_reissued_evidence_at_both_effect_boundaries(
     for item in records:
         value = item.model_dump(mode="json", exclude={"id"})
         body = value["payload"]["body"]
-        if field == "plan":
+        if field.startswith("plan_"):
+            if item.predicate == "effect:commit-signature":
+                plan = body["plan"]
+                policy, facts = plan["policy"], plan["facts"]
+                if field == "plan_repository":
+                    facts["repository"] = "repository:unrelated"
+                else:
+                    policy[field.removeprefix("plan_")] = "unrelated"
+                reissued = compile_git_effect_plan(
+                    None,
+                    Facts.model_validate(
+                        facts
+                        | {
+                            "observed_at": datetime.now(UTC),
+                            "source_refs": tuple(facts["source_refs"]),
+                        }
+                    ),
+                    prior_attestations=plan["prior_attestations"],
+                    policy=policy,
+                    effect=GitEffect.model_validate(plan["effect"]),
+                )
+                body.update(plan=reissued.model_dump(mode="json"), plan_digest=reissued.digest)
+                value["plan_digest"] = reissued.digest
+        elif field == "plan":
             if item.predicate == "effect:commit-signature":
                 body["plan"]["facts"]["head"] = "0" * 40
         else:

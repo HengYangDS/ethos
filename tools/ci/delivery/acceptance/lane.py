@@ -267,6 +267,25 @@ def prove_signature_repair(
     ]:
         message = "package_signature_reproof_continuation_invalid"
         raise RuntimeError(message)
+    code, proof, diagnostic = invoke(repo, (*prefix, *next_action[1:]), environment=env)
+    proof_data = proof.get("data")
+    attestation = proof_data.get("attestation") if isinstance(proof_data, dict) else None
+    if (
+        code
+        or proof.get("state") != "proven"
+        or not isinstance(attestation, dict)
+        or (attestation.get("subject") != f"git:commit:{new}")
+    ):
+        message = f"package_signature_reproof_failed:{diagnostic}"
+        raise RuntimeError(message)
+    code, publication, diagnostic = invoke(
+        repo,
+        (*prefix, "publish", "--root", str(repo), "--expect-head", new, "--json"),
+        environment=env,
+    )
+    if code or publication.get("state") != "local_publish_ready":
+        message = f"package_signature_publication_readiness_failed:{diagnostic}"
+        raise RuntimeError(message)
     code, repeated, diagnostic = invoke(repo, (*command, "--apply", "--authorize"), environment=env)
     if (
         code
@@ -286,5 +305,8 @@ def prove_signature_repair(
         "candidate_unchanged": True,
         "remote_unchanged": True,
         "reproof_command": next_action,
-        "reproof_executed": False,
+        "reproof_executed": True,
+        "proof_subject": attestation["subject"],
+        "proof_attestation": attestation["id"],
+        "publication_readiness": publication["state"],
     }

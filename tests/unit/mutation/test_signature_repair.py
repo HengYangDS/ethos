@@ -19,6 +19,7 @@ from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.commit.signature import observe_signature_effects
 from ethos.adapters.repo.commit.signature import signature_plan
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git_object import commit_payload
@@ -519,6 +520,38 @@ def test_repair_lock_contention_is_waiting_not_an_unknown_effect(tmp_path):
     assert result["verdict"] == "block"
     assert result["state"] == "waiting"
     assert result["required_gaps"] == ["signature_repair_in_progress"]
+    assert git(repo, "show-ref") == before
+
+
+def test_signature_effect_observation_failure_preserves_unknown_without_mutation(tmp_path):
+    repo, old, _candidate = _repository(tmp_path)
+    ready = repair.repair_signature(root=repo, expect_head=old)
+    coordinates = ready["coordinates"]
+    assert isinstance(coordinates, dict)
+    before = git(repo, "show-ref")
+    malformed = coordinates | {"refs": None}
+    observed = observe_signature_effects(repo, malformed, "")
+    assert observed["selected_refs"] == "unknown"
+    assert observed["signed_object"] == "unknown"
+    assert observed["observation_error"]
+    assert git(repo, "show-ref") == before
+
+
+def test_signature_hook_rejects_intent_without_recorded_result(tmp_path):
+    repo, old, _candidate = _repository(tmp_path)
+    new = repair.create_signed_replacement(repo, old)
+    write_ref_intent(
+        root=repo,
+        ref_name="refs/heads/dev",
+        update=GitRefUpdate(expected=old, desired=new),
+        operation="commit.identity-replace",
+        plan_digest="0" * 64,
+    )
+    before = git(repo, "show-ref")
+    observed = signature_repair_ref_report(repo, "refs/heads/dev", old, new)
+    assert observed is not None
+    assert observed["verdict"] == "block"
+    assert observed["required_gaps"] == ["signature_repair_effect_evidence_missing"]
     assert git(repo, "show-ref") == before
 
 

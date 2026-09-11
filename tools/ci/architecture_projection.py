@@ -1,70 +1,44 @@
+"""Native architecture projection command over the shared producer owner."""
+
 import json
 import sys
-import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.repository.policy.projections import observe_projections
+from ethos.repository.policy.projections import render_architecture
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/architecture/projection.toml"
-HEADER = "%% Generated from {source}. Do not edit by hand."
-MIN_QUOTED_PARTS = 2
-DESCRIPTION_QUOTED_PARTS = 4
-
-
-def _parse_model(source: Path) -> tuple[dict[str, str], list[tuple[str, str, str]]]:
-    nodes: dict[str, str] = {}
-    rels: list[tuple[str, str, str]] = []
-    for raw in source.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        parts = line.split('"')
-        if line.startswith(("system ", "container ")) and len(parts) >= MIN_QUOTED_PARTS:
-            head = parts[0].split()
-            ident = head[1]
-            label_parts = [parts[1]]
-            if len(parts) >= DESCRIPTION_QUOTED_PARTS and parts[3].strip():
-                label_parts.append(parts[3])
-            nodes[ident] = " ".join(label_parts).strip()
-        elif line.startswith("rel ") and len(parts) >= MIN_QUOTED_PARTS:
-            left = line.split('"', 1)[0].split()
-            rels.append((left[1], left[2], parts[1]))
-    return nodes, rels
 
 
 def render(source_rel: str) -> str:
-    nodes, rels = _parse_model(ROOT / source_rel)
-    lines = [HEADER.format(source=source_rel), "flowchart LR"]
-    for ident, label in nodes.items():
-        lines.append(f'  {ident}["{label}"]')
-    for src, dst, label in rels:
-        lines.append(f'  {src} -->|"{label}"| {dst}')
-    return "\n".join(lines) + "\n"
+    """Render through the producer shared with admission."""
+    return render_architecture(source_rel, (ROOT / source_rel).read_text(encoding="utf-8"))
 
 
 def main() -> int:
-    config = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     failures: list[dict[str, str]] = []
     projections: list[dict[str, object]] = []
-    for entry in config.get("projection", []):
-        source = str(entry["source"])
-        output = str(entry["output"])
+    for relation in observe_projections(ROOT):
+        if relation.declaration != CONFIG_PATH.relative_to(ROOT).as_posix():
+            continue
+        source, output = relation.source, relation.output
         expected = render(source)
         output_path = ROOT / output
         actual = output_path.read_text(encoding="utf-8") if output_path.is_file() else ""
         matches = actual == expected
         if not matches:
-            failures.append({"id": str(entry["id"]), "reason": f"projection drift: {output}"})
+            failures.append({"id": output, "reason": f"projection drift: {output}"})
         projections.append(
             {
-                "id": entry["id"],
+                "id": output,
                 "source": source,
                 "output": output,
                 "matches": matches,
-                "truth_boundary": entry.get("truth_boundary", ""),
+                "truth_boundary": "generated projection, not intent authority",
             }
         )
     payload = {

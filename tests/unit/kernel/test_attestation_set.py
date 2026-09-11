@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.adapters.repo.attestation_set as attestation_set
+import ethos.adapters.repo.git_object as git_object
 from ethos.adapters.repo.git import run_git
 from ethos.contracts.semantic import Attestation
 from tests.support.governed_repository import git
@@ -253,7 +254,9 @@ def test_attestation_set_rejects_malformed_git_protocol_output(
             return CompletedProcess(args, 0, stdout=stdout, stderr=b"")
         return original(root, *args, **kwargs)
 
-    monkeypatch.setattr(attestation_set, "run_git", malformed)
+    monkeypatch.setattr(
+        git_object if command == "cat-file" else attestation_set, "run_git", malformed
+    )
     with pytest.raises(ValueError, match="attestation_set_root_invalid"):
         attestation_set.read_attestation_set(repo)
 
@@ -273,7 +276,7 @@ def test_attestation_set_rejects_failed_git_protocol_reads(
             return CompletedProcess(args, 1, stdout=stdout, stderr=stderr)
         return original(root, *args, **kwargs)
 
-    monkeypatch.setattr(attestation_set, "run_git", failed)
+    monkeypatch.setattr(git_object if command == "cat-file" else attestation_set, "run_git", failed)
     with pytest.raises(ValueError, match="attestation_set_root_invalid"):
         attestation_set.read_attestation_set(repo)
 

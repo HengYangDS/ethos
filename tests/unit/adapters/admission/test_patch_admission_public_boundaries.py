@@ -87,10 +87,12 @@ def test_patch_admission_reports_failed_postimage_apply(
 
     real_run = admission.run_git
 
-    def fail_second_apply(*args: object, **kwargs: object):
+    def fail_second_apply(root: Path, *args: str, **kwargs):
         nonlocal calls
+        completed = real_run(root, *args, **kwargs)
+        if args[:1] != ("apply",):
+            return completed
         calls += 1
-        completed = real_run(*args, **kwargs)
         return completed if calls == 1 else completed.__class__(completed.args, 1, "", "")
 
     monkeypatch.setattr(admission, "run_git", fail_second_apply)

@@ -11,6 +11,7 @@ from ethos.contracts.artifacts.topology import generated_artifact_contract
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from ethos.repository.policy.artifact_entrypoints import generated_artifact_entrypoint_audit
+from ethos.repository.policy.projections import observe_projections
 
 _PRUNE_DIRS = frozenset({".git", ".pixi", ".venv", "__pycache__", "node_modules"})
 
@@ -22,9 +23,7 @@ def generated_artifact_topology_report(
     tracked_untracked_paths: tuple[str, ...],
 ) -> dict[str, Any]:
     """Report generated artifact placement drift without mutating the repository."""
-    declaration = load_generated_artifact_topology_declaration(
-        root / "system/policies/generated-artifact-topology.toml"
-    )
+    declaration = load_generated_artifact_topology_declaration()
     allowed_paths: list[str] = []
     denied_paths: list[str] = []
     review_paths: list[str] = []
@@ -33,13 +32,23 @@ def generated_artifact_topology_report(
     review_gaps: list[str] = []
     path_blockers: list[str] = []
 
+    projection_gaps: list[str] = []
+    try:
+        outputs = {item.output for item in observe_projections(root)}
+    except (OSError, ValueError, UnicodeError) as exc:
+        outputs = set()
+        projection_gaps.append(f"projection_ownership_unknown:{exc}")
     for path in _candidate_paths(root, declaration):
         rel = path.relative_to(root).as_posix()
         if rel in ignored_local_paths:
             observed_ignored_paths.append(rel)
             continue
 
-        policy = path_policy_from_declaration(rel, declaration)
+        policy = path_policy_from_declaration(
+            rel,
+            declaration,
+            origin="projection" if rel in outputs else "unclassified",
+        )
         decision = str(policy["decision"])
         if decision == "allow":
             allowed_paths.append(rel)
@@ -59,7 +68,7 @@ def generated_artifact_topology_report(
     path_blockers.extend(
         f"generated_artifact_tracked_untracked_home:{path}" for path in tracked_untracked
     )
-    required_gaps = sorted({*path_blockers, *entrypoint_blockers})
+    required_gaps = sorted({*path_blockers, *entrypoint_blockers, *projection_gaps})
 
     allowed_paths.sort()
     denied_paths.sort()
@@ -134,21 +143,7 @@ def _candidate_paths(root: Path, declaration: GeneratedArtifactTopologyDeclarati
         for name in filenames:
             path = directory / name
             rel = path.relative_to(root).as_posix()
-            generated = (
-                name not in declaration.source_metadata_filenames
-                and not name.endswith(declaration.source_schema_suffix)
-                and (
-                    name in declaration.generated_filenames
-                    or path.suffix in declaration.generated_suffixes
-                    or name.startswith(declaration.generated_filename_prefixes)
-                )
-            )
-            if (
-                rel not in candidates
-                and (generated or rel in prefixes or rel.startswith(descendant_prefixes))
-                and path_policy_from_declaration(path.relative_to(root), declaration)["decision"]
-                != "ignore"
-            ):
+            if rel not in candidates:
                 candidates[rel] = path
     return [candidates[key] for key in sorted(candidates)]
 

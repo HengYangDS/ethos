@@ -1,3 +1,5 @@
+"""CI provider checks consuming the single native projection relation owner."""
+
 from __future__ import annotations
 
 import hashlib
@@ -9,6 +11,8 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from ethos.repository.policy.projections import observe_projections
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_RELATIVE_PATH = ".config/checks/ci/templates.toml"
@@ -115,6 +119,7 @@ def _forge_surface_reports() -> tuple[list[dict[str, Any]], list[dict[str, str]]
 def check_templates(*, json_output: bool) -> int:
     failures: list[dict[str, str]] = []
     projections: list[dict[str, Any]] = []
+    relations = {item.output: item for item in observe_projections(ROOT)}
     for entry in projection_entries():
         provider = str(entry["provider"])
         template = ROOT / str(entry["template"])
@@ -144,7 +149,8 @@ def check_templates(*, json_output: bool) -> int:
         if owner_missing:
             reason = f"missing owner scripts: {', '.join(owner_missing)}"
             failures.append({"provider": provider, "reason": reason})
-        match = template.read_bytes() == projection.read_bytes()
+        relation = relations[str(entry["projection"])]
+        match = (ROOT / relation.source).read_bytes() == projection.read_bytes()
         if not match:
             reason = (
                 f"projection drift: {projection.relative_to(ROOT)} != {template.relative_to(ROOT)}"

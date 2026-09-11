@@ -221,3 +221,66 @@ def test_signed_replacement_rejects_invalid_source_and_trust(tmp_path: Path, fai
         new = str(caught.value.observation["replacement"])
         assert commit_payload(repo, new) == commit_payload(repo, old)
         assert caught.value.observation["refs_changed"] is False
+
+
+@pytest.mark.parametrize("failure", ["subject", "signer", "object-write"])
+def test_signed_replacement_preserves_failure_boundary_and_never_moves_refs(
+    tmp_path, monkeypatch, failure
+):
+    repo = _signature_repository(tmp_path, "sha1")
+    if failure == "subject":
+        git(repo, "commit", "--allow-empty", "-m", "invalid subject")
+    elif failure == "signer":
+        git(repo, "config", "gpg.ssh.program", sys.executable)
+    old = git(repo, "rev-parse", "HEAD")
+    before = git(repo, "show-ref"), (repo / ".git/index").read_bytes()
+    native_git = creation.run_git
+
+    def fail_write(root, *args, **kwargs):
+        if args[:1] == ("hash-object",):
+            return subprocess.CompletedProcess(args, 1, b"", b"object store unavailable")
+        return native_git(root, *args, **kwargs)
+
+    if failure == "object-write":
+        monkeypatch.setattr(creation, "run_git", fail_write)
+    gap = {
+        "subject": "commit_subject_invalid",
+        "signer": "signature_repair_signing_failed",
+        "object-write": "signature_repair_object_failed:object store unavailable",
+    }[failure]
+    with pytest.raises(ValueError, match=gap):
+        creation.create_signed_replacement(repo, old)
+    assert (git(repo, "show-ref"), (repo / ".git/index").read_bytes()) == before
+    assert list((repo / ".git").glob("ethos-signature-*")) == []
+
+
+@pytest.mark.parametrize("failure", ["observe", "payload"])
+def test_signed_replacement_preserves_created_oid_when_validation_fails(
+    tmp_path, monkeypatch, failure
+):
+    repo = _signature_repository(tmp_path, "sha1")
+    old = git(repo, "rev-parse", "HEAD")
+    before = git(repo, "show-ref"), (repo / ".git/index").read_bytes()
+    native_payload = creation.commit_payload
+
+    def observe(root, revision):
+        if revision != old:
+            if failure == "observe":
+                error = "object observation unavailable"
+                raise OSError(error)
+            return b"different payload"
+        return native_payload(root, revision)
+
+    monkeypatch.setattr(creation, "commit_payload", observe)
+    gap = (
+        "object observation unavailable"
+        if failure == "observe"
+        else "signature_repair_payload_changed"
+    )
+    with pytest.raises(ProcessExecutionError, match=gap) as caught:
+        creation.create_signed_replacement(repo, old)
+    observed = caught.value.observation
+    assert observed["validation_verdict"] == ("unknown" if failure == "observe" else "block")
+    assert native_payload(repo, str(observed["replacement"])) == native_payload(repo, old)
+    assert (git(repo, "show-ref"), (repo / ".git/index").read_bytes()) == before
+    assert list((repo / ".git").glob("ethos-signature-*")) == []

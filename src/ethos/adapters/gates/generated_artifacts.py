@@ -18,9 +18,7 @@ _ROOT_TEST_RESIDUE_PREFIXES = (".coverage.",)
 
 def generated_artifact_gate_report(root: Path) -> dict[str, Any]:
     """Observe Git classifications, then apply generated-artifact policy."""
-    declaration = load_generated_artifact_topology_declaration(
-        root / "system/policies/generated-artifact-topology.toml"
-    )
+    declaration = load_generated_artifact_topology_declaration()
     ignored = frozenset(
         name for name in (*_ROOT_TEST_RESIDUE_FILENAMES,) if _ignored_untracked(root, name)
     ) | frozenset(

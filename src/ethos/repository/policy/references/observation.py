@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import posixpath
 import re
 import sys
 import tomllib
@@ -470,3 +471,46 @@ def _github_reference(value: str) -> str:
     if action.startswith("docker://"):
         return "docker"
     return "github" if "@" in action and "/" in action.partition("@")[0] else ""
+
+
+def deleted_input_gaps(
+    files: Mapping[str, str], deleted: frozenset[str]
+) -> tuple[list[str], list[str]]:
+    """Close deleted paths against surviving explicit native command inputs.
+
+    This bounded observation does not claim whole-program reference coverage.
+    Unknown native input expressions stay distinct from known dangling inputs.
+    """
+    gaps: list[str] = []
+    unknown: list[str] = []
+    if not deleted:
+        return gaps, unknown
+    for path, text in files.items():
+        if path.rsplit("/", 1)[-1] != "package.json":
+            continue
+        scripts = _native_scripts(text)
+        if scripts is None:
+            unknown.append(f"deleted_input_observation_unknown:{path}")
+            continue
+        for name, command in scripts.items():
+            if not isinstance(command, str):
+                unknown.append(f"deleted_input_observation_unknown:{path}:{name}")
+                continue
+            inputs, unresolved = command_references.shell_configuration_inputs(command)
+            if unresolved:
+                unknown.append(f"deleted_input_observation_unknown:{path}:{name}")
+            for value in inputs:
+                target = posixpath.normpath(posixpath.join(posixpath.dirname(path), value))
+                if target in deleted:
+                    gaps.append(f"deleted_input:{target}:{path}:scripts.{name}")
+    return sorted(set(gaps)), sorted(set(unknown))
+
+
+def _native_scripts(text: str) -> dict[str, object] | None:
+    """Read the native scripts map without silently accepting malformed structure."""
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        return None
+    scripts = payload.get("scripts", {}) if isinstance(payload, dict) else None
+    return scripts if isinstance(scripts, dict) else None

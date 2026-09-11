@@ -225,9 +225,7 @@ def test_direct_python_bounds_equal_the_locked_resolution() -> None:
 
 
 def test_local_ci_logs_use_declared_disposable_runtime_home() -> None:
-    declaration = load_generated_artifact_topology_declaration(
-        ROOT / "system/policies/generated-artifact-topology.toml"
-    )
+    declaration = load_generated_artifact_topology_declaration()
     relative = local_ci.LOG_ROOT.relative_to(ROOT).as_posix()
 
     assert relative == "build/runtime/work/local-ci/logs"

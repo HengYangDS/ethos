@@ -155,9 +155,7 @@ def test_pre_commit_skips_unselected_staged_secret_capability(monkeypatch, tmp_p
     repo.mkdir()
     assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-    monkeypatch.setattr(
-        hook_runtime, "hook_admission_report", lambda **_kwargs: {"verdict": "pass"}
-    )
+    monkeypatch.setattr(hook_runtime, "prewrite_guard", lambda **_kwargs: {"verdict": "pass"})
     (repo / "README.md").write_text("# governed work lane\n", encoding="utf-8")
     assert git_process(repo, "add", "README.md").returncode == 0
 

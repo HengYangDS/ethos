@@ -1,24 +1,13 @@
 schema_version = 1
 id = "generated-artifact-topology"
-source_refs = ["system/policies/generated-artifact-topology.toml"]
+source_refs = ["src/ethos/contracts/artifacts/topology.toml"]
 adopter_specific_product_dirs_allowed = false
 cache_flat_root_prefix = ".cache"
 cache_allowed_prefixes = [".cache/local-state"]
 runtime_flat_root_prefix = "build/runtime"
 runtime_allowed_prefixes = [".venv", "build/runtime/tool-cache", "build/runtime/work"]
 ignore_boundary = "not a generated artifact topology subject"
-source_schema_suffix = ".schema.json"
-
-generated_suffixes = [".coverage", ".html", ".json", ".jsonl", ".log", ".sqlite", ".xml"]
-generated_filenames = [".coverage", "coverage.xml", "junit.xml", "proof.json", "report.json"]
-generated_filename_prefixes = [".coverage."]
-source_metadata_filenames = ["package-lock.json", "package.json", "pyproject.toml", "uv.lock"]
 product_adopter_root_prefixes = ["adopters", "profiles", "tests/fixtures/adopters"]
-
-[[cel_rule]]
-id = "generated"
-expression = "!(facts.name in policy.source_metadata_filenames || facts.name.endsWith(policy.source_schema_suffix)) && (facts.name in policy.generated_filenames || facts.suffix in policy.generated_suffixes || policy.generated_filename_prefixes.exists(prefix, facts.name.startsWith(prefix)))"
-decision = "classify"
 
 [[cel_rule]]
 id = "product-adopter-root"
@@ -76,6 +65,12 @@ id = "review"
 expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
 decision = "review"
 prefix_group = "review_prefix"
+
+[[cel_rule]]
+id = "owned-projection"
+expression = "facts.origin == \"projection\""
+decision = "allow"
+boundary = "native producer owns this exact output; effect requires producer consistency"
 
 [[cel_rule]]
 id = "denied-generated"

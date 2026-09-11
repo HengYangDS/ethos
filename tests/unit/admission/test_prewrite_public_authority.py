@@ -9,6 +9,9 @@ import ethos.adapters.repo.runtime.binding as runtime_binding_adapter
 from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
+from tests.support.governed_repository import commit_active_change
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -45,6 +48,49 @@ def _bind_common(monkeypatch: pytest.MonkeyPatch, root: Path, *, role: str = "wo
     monkeypatch.setattr(prewrite, "_is_ignored", lambda _root, _path: False)
 
 
+@pytest.mark.parametrize("coordinate", ["head", "index", "unchanged"])
+def test_staged_coordinates_are_rechecked_after_other_admission_owners(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, coordinate: str
+) -> None:
+    """Later scope evaluation cannot launder an already-observed index result."""
+    root = init_git_repo(tmp_path / "repo")
+    source = root / "input.json"
+    source.write_text("{}\n", encoding="utf-8")
+    commit_active_change(root)
+    source.write_text('{"candidate":true}\n', encoding="utf-8")
+    git(root, "add", "input.json")
+    _bind_common(monkeypatch, root)
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="matched",
+        branch="work/example",
+        actor="agent:test",
+        lease={},
+        current_head=git(root, "rev-parse", "HEAD"),
+        current_tree=git(root, "rev-parse", "HEAD^{tree}"),
+    )
+    monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
+
+    def injected_scope(*_args):
+        if coordinate == "head":
+            git(root, "commit", "--allow-empty", "-m", "concurrent commit")
+        elif coordinate == "index":
+            source.write_text('{"concurrent":true}\n', encoding="utf-8")
+            git(root, "add", "input.json")
+        return {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
+
+    monkeypatch.setattr(prewrite, "_commitment_scope", injected_scope)
+    report = prewrite.prewrite_guard(root=root, paths=[source], editor_root=root, staged=True)
+
+    assert report["verdict"] == ("pass" if coordinate == "unchanged" else "block"), report
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    if coordinate != "unchanged":
+        assert (
+            f"staged_{'tree' if coordinate == 'index' else 'head'}_changed_during_admission" in gaps
+        )
+
+
 def test_prewrite_fails_closed_on_non_repository_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -64,9 +110,15 @@ def test_prewrite_fails_closed_on_non_repository_root(
     report = prewrite.prewrite_guard(root=tmp_path, paths=[tmp_path / "README.md"])
 
     assert report["verdict"] == "block"
-    assert report["runtime_binding"]["reason"] == "root_binding_mismatch"
-    assert report["required_gaps"][0] == "root_binding_mismatch"
-    assert report["decision"]["next_action"] == "repair_required_gap"
+    binding = report["runtime_binding"]
+    assert isinstance(binding, dict)
+    assert binding["reason"] == "root_binding_mismatch"
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert gaps[0] == "root_binding_mismatch"
+    decision = report["decision"]
+    assert isinstance(decision, dict)
+    assert decision["next_action"] == "repair_required_gap"
 
 
 @pytest.mark.parametrize(
@@ -94,11 +146,17 @@ def test_prewrite_editor_authority_is_actionable(
         require_editor_root=bool(require_editor_root_value),
     )
 
-    assert report["editor_root"]["reason"] == reason
+    editor = report["editor_root"]
+    assert isinstance(editor, dict)
+    assert editor["reason"] == reason
     assert report["verdict"] == ("block" if reason != "not_checked" else "pass")
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    decision = report["decision"]
+    assert isinstance(decision, dict)
     if report["verdict"] == "block":
-        assert reason in report["required_gaps"]
-        assert report["decision"]["next_action"] == "repair_required_gap"
+        assert reason in gaps
+        assert decision["next_action"] == "repair_required_gap"
         if reason == "editor_root_missing":
             assert report["next_action"] == (
                 f"ethos lane prewrite <path> --editor-root {tmp_path} --require-editor-root --json"
@@ -117,10 +175,16 @@ def test_prewrite_reports_outside_path_without_inventing_path_scope(
     )
 
     assert report["verdict"] == "block"
-    assert report["blocked_paths"][0]["reason"] == "path_outside_worktree"
-    assert "prewrite_path_outside_worktree" in report["required_gaps"]
-    assert report["material_scope"]["state"] == "not_applicable"
-    assert report["material_scope"]["uncovered_paths"] == []
+    blocked = report["blocked_paths"]
+    assert isinstance(blocked, list)
+    assert blocked[0]["reason"] == "path_outside_worktree"
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert "prewrite_path_outside_worktree" in gaps
+    scope = report["material_scope"]
+    assert isinstance(scope, dict)
+    assert scope["state"] == "not_applicable"
+    assert scope["uncovered_paths"] == []
 
 
 def test_prewrite_projects_unknown_openspec_scope_fail_closed(
@@ -143,9 +207,13 @@ def test_prewrite_projects_unknown_openspec_scope_fail_closed(
     report = prewrite.prewrite_guard(root=tmp_path, paths=[], editor_root=tmp_path)
 
     assert report["verdict"] == "unknown"
-    assert report["material_scope"]["state"] == "not_available"
-    assert report["material_scope"]["required_gaps"] == ["carrier_unreadable"]
-    assert report["required_gaps"] == ["carrier_unreadable"]
+    scope = report["material_scope"]
+    assert isinstance(scope, dict)
+    assert scope["state"] == "not_available"
+    assert scope["required_gaps"] == ["carrier_unreadable"]
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert gaps == ["carrier_unreadable"]
 
 
 def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
@@ -199,7 +267,9 @@ def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
     )
 
     assert report["verdict"] == "pass"
-    assert report["material_scope"]["state"] == "attributed"
+    scope = report["material_scope"]
+    assert isinstance(scope, dict)
+    assert scope["state"] == "attributed"
 
 
 def test_prewrite_passes_exact_requested_paths_to_current_resolution(
@@ -266,7 +336,9 @@ def test_prewrite_passes_exact_requested_paths_to_current_resolution(
 
     assert report["verdict"] == "pass"
     assert observed == [paths]
-    assert report["material_scope"]["state"] == "official_change_bootstrap"
+    scope = report["material_scope"]
+    assert isinstance(scope, dict)
+    assert scope["state"] == "official_change_bootstrap"
 
 
 def test_prewrite_reuses_exact_archive_generation_binding(
@@ -274,7 +346,7 @@ def test_prewrite_reuses_exact_archive_generation_binding(
 ) -> None:
     _bind_common(monkeypatch, tmp_path)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    lease = {
+    lease: dict[str, object] = {
         "lane_ref": "work/example",
         "holder_ref": "agent:test:case:owner",
         "generation": 1,
@@ -318,11 +390,11 @@ def test_prewrite_reuses_exact_archive_generation_binding(
     )
 
     assert report["verdict"] == "pass"
-    assert report["material_scope"]["state"] == "archive_attested"
-    assert report["material_scope"]["covered_paths"] == [
-        {"path": "README.md", "changes": ["example"]}
-    ]
-    assert report["material_scope"]["required_gaps"] == []
+    scope = report["material_scope"]
+    assert isinstance(scope, dict)
+    assert scope["state"] == "archive_attested"
+    assert scope["covered_paths"] == [{"path": "README.md", "changes": ["example"]}]
+    assert scope["required_gaps"] == []
 
 
 def test_prewrite_archive_authority_rejects_unattested_path(
@@ -361,16 +433,20 @@ def test_prewrite_archive_authority_rejects_unattested_path(
     )
 
     assert report["verdict"] == "block"
-    assert report["material_scope"]["covered_paths"] == []
-    assert report["material_scope"]["uncovered_paths"] == ["src/unattested.py"]
-    assert report["required_gaps"] == ["openspec_material_path_uncovered:src/unattested.py"]
+    scope = report["material_scope"]
+    assert isinstance(scope, dict)
+    assert scope["covered_paths"] == []
+    assert scope["uncovered_paths"] == ["src/unattested.py"]
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert gaps == ["openspec_material_path_uncovered:src/unattested.py"]
 
 
 def test_prewrite_projects_only_minimal_lease_and_fresh_git_coordinates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _bind_common(monkeypatch, tmp_path)
-    lease = {
+    lease: dict[str, object] = {
         "lease_state": "valid",
         "lane_ref": "work/example",
         "holder_ref": "agent:test:case:owner",

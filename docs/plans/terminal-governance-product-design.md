@@ -1071,9 +1071,96 @@ absorption:
 | `20260810-public-test-boundaries` | Rewritten and replaced test obligations have current-owner correspondence below; accepted public receipt `aff5e7d3` now proves physical retirement. Preserve the existing ref-intent regressions, not the obsolete Commitment fixture. |
 | `20260810-coverage-source-policy-matrices` | All fifteen added definitions are adjudicated and accepted; public receipt `bb4c385a` now proves physical retirement. |
 | `20260810-coverage-public-failure-matrix` | Nine original hashes, dirty deltas and all 14533 native inventory entries were reviewed; no content remained unclassified. Accepted public receipt `67f6f76f` removes the detached worktree and administration only. Postchecks prove root/registration absence and unchanged refs, Lease rows, sibling worktrees and external Python. Four-field CAS, actor readmission, public recovery and cooperative quiescence preserve useful semantics; persistent Lease content/offer binding is superseded. |
-| `20260811-repository-transition-model` | Fresh CAS/Attestation, local-or-multiple-peer topology and minimal-entity intent remain valid; persistent Commitment roots and historical scope/Lease bindings are superseded. The 341 dirty items are not yet semantically adjudicated. |
+| `20260811-repository-transition-model` | All 26 explicit tasks now have retained, adjusted or superseded meaning dispositions. Its 341 dirty paths and committed changes yield 388 distinct paths requiring complete review; matching names or ASTs do not establish absorption. Preserve its raw-header-byte counterexample in the current Git object owner. Persistent Commitment/scope, fixed train, private operation store and obsolete budgets are superseded. |
 | Unlinked `codex/openspec-19-archive-owner` ref | Retired through the accepted public owner; Attestation `067dd0dabfb6b6b6a5e6603c14ea84df11a026da6e8b0a0c7e0f72226b6a92bc`. Its absence does not retire the distinct dirty linked OpenSpec lane. |
-| `20260908-accepted-carrier-signature-repair` | Handoff is received; seven unique commits and eighteen paths remain unaccepted. Absorb necessary signature and transaction invariants, not the command-private repair implementation by default; failed historical proof is not current acceptance. |
+| `20260908-accepted-carrier-signature-repair` | All 18 source hashes remain unchanged and the source is clean. Its same official Change is now being absorbed in the existing authoring lane, without another worktree. Current Git payload/signature observation has failing native-object counterexamples and a focused repair; the public accepted-tip composition and source retirement are still incomplete. |
+
+#### Current Delivery And Absorption Boundary
+
+The semantic-version and visibility correction is accepted at `be54b587`, tree
+`f48e6972106e1acba75db873e0bb5acfed24431d`. Both exact pre-archive and
+post-archive proofs pass all 35 gates. Official archive moves eight files without
+content edits; all 20 Change/spec preimages match their resulting locations.
+The selected immutable runtime is `c909c33d`, bound to that exact source/tree.
+GitLab and GitHub dev/main refs were independently read back at the same commit.
+New hosted CI and provider signature acceptance remain separate open observations.
+
+This delivers the single `skills` gate/portfolio owner, removal of unconsumed
+generation labels and `_resources`, interpreter-bound default gates and schemas,
+and the current import-visibility checks. It does not prove global Python alias,
+scope or program-point analysis, complete module documentation, all public/private
+boundaries, unified 500-ELOC test policy or the full product/adopter chain.
+
+The first proof found a dropped pure-semantics/bounded-effects distinction in
+architecture copy. The existing 30-test projection suite now precedes heavy
+proof in its native architecture gate; this is failure-left-shift, not a second
+projection validator. The old accepted runner also rejected the renamed skill
+document during closeout. The documented current-runner/explicit-accepted-root
+route passed without restoring the obsolete path or bypassing hooks. Make that
+runner distinction discoverable before expensive verification; do not infer a
+candidate-source error from an old interpreter's embedded document list.
+
+Post-archive tests took 1435.163 seconds. The 26 land and eight closeout cases
+account for 862.426 of 2818.648 aggregate testcase seconds. This is measured
+hotspot selection, not wall-clock attribution or proof that fixture setup alone
+causes the cost. A bounded live sample observed repeated native Git hooks during
+these fixtures. Instrument those existing setup/effect boundaries, remove repeated
+non-asserted lifecycle construction and reuse only complete, still-valid inputs.
+Keep two workers, real effect-boundary conformance and the 95 percent floor.
+Archive currently still requires a new exact proof after an unchanged-byte move;
+sub-evidence reuse must preserve native source identity and fresh authorization.
+
+#### Signature-Lane Absorption
+
+The existing authoring lane now owns official
+`accepted-carrier-signature-repair`, carrying the source lane's valid meaning
+instead of replaying its old implementation. The first regression demonstrates
+that `bytes.splitlines()` in the Git payload comparator removes non-signature
+CR bytes. A second regression shows the signature observer interpreting a CR
+inside another header as a new signature record. SHA-1 and SHA-256 native-object
+cases reject both mistakes. Both consumers now use Git's LF record boundary;
+the current object/ref-effect suite passes 127 cases. This is focused unaccepted
+work, not a complete signature-repair command or source-retirement claim.
+
+The remaining path is authorized object creation, current trusted-policy and
+payload validation, exact selected-ref CAS, linked-worktree postconditions and
+recovery through existing Attestations/effect owners. Do not copy the source
+lane's `AcceptedCarrierRepair`/`AcceptedCarrierProgress` stores, imply signing is
+read-only or force candidate/dev/main equality onto unrelated references. Keep
+complete-DAG identity rewriting distinct. Source retirement follows accepted
+obligation closure and exact content-reviewed public admission.
+
+`accepted-carrier-absorption-review.json`, `transition-content-comparison.json`
+and `transition-definition-comparison.json` in the existing ignored quality
+evidence home retain exact source coordinates and comparison boundaries. The
+transition comparison covers 26 task dispositions and discovers changed
+definitions; it does not establish complete understanding of all 388 paths or
+all historical feedback. No source lane has been deleted on that evidence.
+
+#### Native Reference And Review Projection Follow-Up
+
+AIGW's exact review-prewrite receipt and an isolated current-code replay expose
+a native ownership omission: gate commands in `.ethos/profile.toml` and
+publication commands in `.ethos/release.toml` declare an executable, but the
+reference-owner compiler does not consume those command fields. A new reference
+to that executable is therefore blocked despite the trusted baseline declaration.
+Repair the existing declaration compiler generically; do not add a `mise`
+exception, adopter carrier or second parser. Missing, malformed and genuinely
+undeclared commands need distinct negative cases.
+
+Proposal status with no Lease does not authorize editing a review checkout:
+proposal is an exact-object projection, not an authoring lane. Nevertheless,
+`protected_lane_prewrite_blocked` mislabels that boundary and recommends a
+non-progressing retry. The public publication owner also restricts proposal
+sources to candidate checkout identity. Reconcile selected-object projection,
+review and fresh admission in that owner; assess whether any local checkout
+update is actually required before adding a command. No raw read-tree effect,
+hook bypass or adopter write is authorized by the reported mismatch.
+
+The reproduction uses the adopter's exact baseline declaration blobs in an
+isolated Git fixture and calls current `patch_admission`. Evidence is
+`proposal-native-owner-probe.json`; the temporary root was removed. This remains
+unfixed at accepted `be54b587` and cannot be resolved by rebinding that version.
 
 #### Codex Topic Priority Retirement
 

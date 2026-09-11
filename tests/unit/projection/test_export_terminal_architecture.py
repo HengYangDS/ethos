@@ -11,6 +11,8 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
+from tools.ci import architecture_projection
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 EXPORTER_PATH = REPOSITORY_ROOT / "tools/projection/export_terminal_architecture.py"
 SCHEMA_PATH = REPOSITORY_ROOT / "system/schemas/projection-input.schema.json"
@@ -181,6 +183,64 @@ def test_export_validates_the_projection_input_schema(tmp_path: Path) -> None:
     assert exported["documents"]["quality_contract"] == "schema: fixture.quality/v1\n"
     assert "assertion" not in exported["semantics"]["nodes"]["intent"]
     assert "assertion" not in exported["semantics"]["relations"][0]
+
+
+@pytest.mark.parametrize(
+    "source_state", ["valid", "stale", "missing", "uncommitted", "native_drift"]
+)
+def test_architecture_gate_checks_the_same_exact_export(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    source_state: str,
+) -> None:
+    """Source alignment must fail in the cheap gate, not first in heavy tests."""
+    root, commit = _fixture_repository(tmp_path)
+    source = root / "docs/source.md"
+    if source_state == "missing":
+        source.unlink()
+    elif source_state in {"stale", "uncommitted"}:
+        source.write_text("changed source meaning\n", encoding="utf-8")
+    if source_state == "native_drift":
+        config = root / ".config/checks/architecture/projection.toml"
+        config.parent.mkdir(parents=True)
+        config.write_text(
+            'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
+            'source = "docs/model.c4"\noutput = "docs/model.mmd"\n',
+            encoding="utf-8",
+        )
+        (root / "docs/model.c4").write_text("model {}\n", encoding="utf-8")
+        (root / "docs/model.mmd").write_text("invalid rendering\n", encoding="utf-8")
+    if source_state in {"stale", "missing"}:
+        _git(root, "add", ".")
+        _git(root, "commit", "-qm", "source changed after archive")
+        commit = _git(root, "rev-parse", "HEAD")
+    monkeypatch.setattr(architecture_projection, "ROOT", root)
+    monkeypatch.setattr(
+        architecture_projection, "CONFIG_PATH", root / ".config/checks/architecture/projection.toml"
+    )
+
+    result = architecture_projection.main()
+    report = json.loads(capsys.readouterr().out)
+
+    if source_state in {"stale", "missing", "native_drift"}:
+        assert result == 1
+        assert report["verdict"] == "block"
+        reason = report["failures"][0]["reason"]
+        expected = {
+            "stale": "source digest mismatch: source",
+            "missing": "docs/source.md does not exist in the selected Git tree",
+            "native_drift": "projection drift: docs/model.mmd",
+        }
+        assert expected[source_state] in reason
+    else:
+        assert result == 0
+        exported = _load_exporter().export_projection_input(root=root, revision=commit)
+        terminal = next(p for p in report["projections"] if p["id"] == "terminal-architecture")
+        assert report["head"] == commit
+        assert terminal["source"] == exported["source"]["git"]
+        assert terminal["digest"] == exported["digest"]
+        assert terminal["matches"] is True
 
 
 def test_export_fails_closed_on_stale_or_missing_exact_tree_sources(tmp_path: Path) -> None:

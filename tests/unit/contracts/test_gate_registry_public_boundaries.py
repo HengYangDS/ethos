@@ -110,7 +110,15 @@ def test_gate_registry_missing_or_malformed_source_fails_closed(tmp_path: Path) 
 
 
 @pytest.mark.parametrize(
-    "prerequisite", ["ruff", "schemas", "config-quality", "python-types", "source-budget"]
+    "prerequisite",
+    [
+        "ruff",
+        "schemas",
+        "config-quality",
+        "python-types",
+        "source-budget",
+        "architecture-projection",
+    ],
 )
 def test_heavy_tests_require_inexpensive_source_readiness(prerequisite: str) -> None:
     """Known cheap failures must be found before launching the expensive test suite."""

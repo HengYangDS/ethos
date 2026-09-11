@@ -1,4 +1,4 @@
-"""Tests for the concrete semantic owner named by this module path."""
+"""Hook activation, compensation, generation reuse and live-consumer-safe cleanup."""
 
 from __future__ import annotations
 
@@ -25,7 +25,6 @@ from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
-from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.repository.release.identity import BuildIdentity
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import git_process
@@ -269,43 +268,19 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
         "expected_runtime_build",
         lambda _root: (selected.build, None),
     )
-    environment = runtime_environment(
-        python_abi=selected.python_abi,
-        python_version=selected.python_version,
-        python_implementation=selected.python_implementation,
-        dependency_lock_sha256=selected.dependency_lock_sha256,
-        platform_name=selected.platform,
-        architecture_name=selected.architecture,
-    )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "require_python_image_source",
-        lambda _python: {
-            "executable": selected.python.resolve().as_posix(),
-            "base_executable": selected.python.resolve().as_posix(),
-            "python_abi": selected.python_abi,
-            "python_version": selected.python_version,
-            "python_implementation": selected.python_implementation,
-            "architecture": selected.architecture,
-            "prefix": selected.python.parent.parent.resolve().as_posix(),
-            "base_prefix": selected.python.parent.parent.resolve().as_posix(),
-        },
-    )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "observe_runtime_environment",
-        lambda *_args, **_kwargs: environment,
-    )
     monkeypatch.setattr(
         runtime_materialization,
         "resolve_runtime_wheel",
         lambda *_args, **_kwargs: pytest.fail("exact runtime generation was rebuilt"),
     )
 
+    before = runtime_selection.runtime_file_inventory(selected.root)
     first = install_hook_launchers(repo)
     second = install_hook_launchers(repo)
 
-    assert first["runtime_digest"] == second["runtime_digest"]
+    assert first["runtime_digest"] == second["runtime_digest"] == selected.digest
+    assert runtime_selection.runtime_file_inventory(selected.root) == before
+    assert first["required_gaps"] == second["required_gaps"] == []
 
 
 @pytest.mark.parametrize("consumer", ["operations", "transactions", "ref-intent"])

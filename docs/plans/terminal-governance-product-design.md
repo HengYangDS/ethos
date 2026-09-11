@@ -128,7 +128,14 @@ independent 45000 ceilings. This source is not accepted or installed. The next
 bounded consolidation removes repeated proof payload and compact/detailed
 projection construction, reducing that CLI from 536 to 492 ELOC without moving
 code or adding a module. Seventy-seven affected cases and the real size provider
-verify that boundary; four other per-file exceedances remain. An intermediate
+verify that boundary; it reached signed `38db73aeb99d69ece45745713f86500ab5fe1056`,
+tree `19706715f4aaa3c59f9e86b030564d0711bb9207`. The hook activation test then
+removed an unused hand-built Python/environment projection from its reuse case,
+preserving the no-rebuild assertion and adding exact selected-digest, unchanged
+inventory and empty-gap checks. All 72 activation cases pass in 46.84 seconds
+with scratch removed; the module falls from 808 to 783 ELOC. Three declared
+file-size gaps remain: publication CLI, publication tests and retirement tests.
+This does not settle the separate unified-500 trial. An intermediate
 shared-payload mutation was caught by the existing persistence-failure test and
 replaced with a new failure payload, preserving earlier observations.
 The first consolidation commit attempt raced a post-spawn `git write-tree`

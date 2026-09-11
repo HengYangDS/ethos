@@ -15,6 +15,7 @@
 - [x] 3.1 Reproduce the archive midnight mismatch and verify explicit-clock collision scenarios.
 - [x] 3.2 Replace the inert runtime fixture prefix; verify selected child source with existing Python 3.13 and 3.14 supplies.
 - [x] 3.3 Preserve full retirement failure diagnostics and validate affected process-reference scenarios without relaxing safety.
+- [x] 3.4 Preserve activation query diagnostics through rollback and public JSON; verify the native-fixture budget and portable plan boundaries.
 
 Exact proof, archive, accepted delivery and hosted results are external lifecycle
 preconditions recorded in the canonical terminal plan, not source checkboxes

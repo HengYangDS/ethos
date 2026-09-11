@@ -20,7 +20,7 @@ NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
 
 
 class ProcessExecutionError(ValueError):
-    """Preserve the exact boundary of a failed process creation."""
+    """Preserve a failed process boundary and any bounded observation evidence."""
 
     def __init__(
         self,
@@ -30,6 +30,7 @@ class ProcessExecutionError(ValueError):
         command: tuple[str, ...] = (),
         cwd: str = "",
         cause: str = "",
+        observation: Mapping[str, object] | None = None,
     ) -> None:
         super().__init__(code)
         self.code = code
@@ -37,6 +38,7 @@ class ProcessExecutionError(ValueError):
         self.command = command
         self.cwd = cwd
         self.cause = cause
+        self.observation = dict(observation or {})
 
     def evidence(self) -> dict[str, object]:
         """Return the stable machine-readable failure evidence."""
@@ -46,6 +48,7 @@ class ProcessExecutionError(ValueError):
             "command": list(self.command),
             "cwd": self.cwd,
             "cause": self.cause,
+            **({"observation": self.observation} if self.observation else {}),
         }
 
 

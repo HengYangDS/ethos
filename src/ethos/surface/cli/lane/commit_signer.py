@@ -1,4 +1,4 @@
-"""Public authorization command for the configured Git commit signer."""
+"""Public commands for signer authorization and exact accepted-tip repair."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
+from ethos.adapters.mutation.accepted.signature import repair_signature
 from ethos.adapters.repo.git_object import authorize_configured_commit_signer
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
 from ethos.surface.cli.lane.lifecycle import lane_app
@@ -28,6 +29,33 @@ def trust_commit_signer(options: Annotated[CommitSignerTrustOptions, Parameter(n
         root,
         options.target_commit,
         expected_anchor_sha256=options.expected_anchor_sha256,
+        apply=options.apply,
+        authorized=options.authorize,
+    )
+    project_lane_result(
+        options.command,
+        report,
+        enforce=options.apply,
+        json_output=options.json_output,
+    )
+
+
+class SignatureRepairOptions(AppliedLaneCommandOptions):
+    command = "lane repair-signature"
+    expect_head: Annotated[str, Parameter(name="--expect-head")]
+    replacement: str = ""
+    authorize: bool = False
+
+
+@lane_app.command(name="repair-signature")
+def repair_commit_signature(
+    options: Annotated[SignatureRepairOptions, Parameter(name="*")],
+) -> None:
+    """Observe or explicitly authorize a byte-preserving accepted-tip signature repair."""
+    report = repair_signature(
+        root=resolve_root(options.root),
+        expect_head=options.expect_head,
+        replacement=options.replacement,
         apply=options.apply,
         authorized=options.authorize,
     )

@@ -1122,13 +1122,30 @@ cases reject both mistakes. Both consumers now use Git's LF record boundary;
 the current object/ref-effect suite passes 127 cases. This is focused unaccepted
 work, not a complete signature-repair command or source-retirement claim.
 
-The remaining path is authorized object creation, current trusted-policy and
-payload validation, exact selected-ref CAS, linked-worktree postconditions and
-recovery through existing Attestations/effect owners. Do not copy the source
-lane's `AcceptedCarrierRepair`/`AcceptedCarrierProgress` stores, imply signing is
-read-only or force candidate/dev/main equality onto unrelated references. Keep
-complete-DAG identity rewriting distinct. Source retirement follows accepted
-obligation closure and exact content-reviewed public admission.
+The in-flight implementation now exposes `lane repair-signature` through the
+existing signer CLI. One shared commit-signature admission owner re-derives
+trusted policy, selected refs, payload, signer and clean linked worktrees for
+both recovery and hooks. It rejects reissued evidence rather than treating a
+valid digest as permission. A real JSON roundtrip counterexample exposed
+insertion-ordered `Facts.source_refs`; the existing Git-effect compiler now
+sorts that unordered projection, preserving exact plan identity on recovery.
+
+Native regressions cover malformed and reissued evidence, omitted/dirty
+worktrees, independent candidates, local-only custom accepted roles, explicit
+authorization, lock contention, known untrusted objects, result-persistence
+failure and actual child exit after signing or CAS. Failure JSON retains a
+known replacement and separately observes native effects. These are bounded
+local tests, not proof of arbitrary same-UID isolation or platform-wide crash
+safety. Package conformance now uses the existing installed lifecycle and
+adopter fixture; its new command path passed in the source environment, but the
+current wheel/runtime execution and full proof remain required.
+
+Complete the affected reference closure and verification, freeze the candidate,
+then obtain exact proof, official archive, accepted closeout and runtime
+acceptance. Immediately follow with content-reviewed retirement of the source
+lane. Do not copy `AcceptedCarrierRepair`/`AcceptedCarrierProgress`, imply signing
+is read-only or force a candidate/dev/main train onto independent refs.
+Complete-DAG identity rewriting remains distinct.
 
 `accepted-carrier-absorption-review.json`, `transition-content-comparison.json`
 and `transition-definition-comparison.json` in the existing ignored quality
@@ -1161,6 +1178,17 @@ The reproduction uses the adopter's exact baseline declaration blobs in an
 isolated Git fixture and calls current `patch_admission`. Evidence is
 `proposal-native-owner-probe.json`; the temporary root was removed. This remains
 unfixed at accepted `be54b587` and cannot be resolved by rebinding that version.
+
+The adopter has now reproduced the same publication cycle through public
+commands: proposal publication requires candidate, while candidate landing
+requires archive before the Change's hosted checks can finish. Preserve the
+distinction between an unaccepted review snapshot and accepted integration;
+review publication must not require false task completion or premature archive.
+The related hosted/local exact-tree admission must consume declared roles from
+the generic owner, replacing adopter-specific CI environment parsing only after
+equivalent protection is executable. No existing adopter check is removed on a
+promise. Rebinding the accepted package fixes runtime currentness only, not this
+still-open semantic gap.
 
 #### Codex Topic Priority Retirement
 

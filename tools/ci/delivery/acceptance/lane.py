@@ -6,6 +6,8 @@ import shlex
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import commit_payload
+from ethos.adapters.repo.git_object import verify_commit_trust
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from tools.ci.delivery.acceptance.invocation import invoke
@@ -85,9 +87,8 @@ def prove_lifecycle(
         prewrite,
         environment=lane_environment,
     )
-    if prewrite_result.get("required_gaps") != [
-        "openspec_change_metadata_prewrite_required:bootstrap-change"
-    ]:
+    prewrite_gaps = prewrite_result.get("required_gaps")
+    if prewrite_gaps != ["openspec_change_metadata_prewrite_required:bootstrap-change"]:
         message = "package_lane_bootstrap_prewrite_invalid"
         raise RuntimeError(message)
     next_action = tuple(shlex.split(str(prewrite_result.get("next_action") or "")))
@@ -100,7 +101,7 @@ def prove_lifecycle(
             "state": "passed",
             "branch": branch,
             "runtime_command": expected_command,
-            "prewrite_gap": prewrite_result["required_gaps"][0],
+            "prewrite_gap": str(prewrite_gaps[0]) if isinstance(prewrite_gaps, list) else "",
         },
         "retirement_recovery": _prove_retirement_recovery(
             python,
@@ -208,4 +209,82 @@ def _prove_retirement_recovery(
         "state": "passed",
         "completed_effects": ["remove_worktree", "delete_ref", "revoke_lease"],
         "receipt_sha256": receipt["sha256"],
+    }
+
+
+def prove_signature_repair(
+    python: Path, repo: Path, *, environment: Mapping[str, str]
+) -> dict[str, object]:
+    """Exercise installed repair, exact reproof continuation and replay without publication."""
+    old = run_git(repo, "rev-parse", "HEAD").stdout.strip()
+    candidate = run_git(repo, "rev-parse", "candidate/dev").stdout.strip()
+    remote_refs = run_git(repo, "ls-remote", "origin").stdout
+    prefix = (python.as_posix(), "-B", "-I", "-m", "ethos.cli")
+    command = (
+        *prefix,
+        "lane",
+        "repair-signature",
+        "--root",
+        str(repo),
+        "--expect-head",
+        old,
+        "--json",
+    )
+    env = {**environment, "ETHOS_ACTOR": "agent:test:package-only:signature"}
+    code, ready, diagnostic = invoke(repo, command, environment=env)
+    if code or ready.get("state") != "ready_to_repair":
+        message = f"package_signature_readiness_failed:{diagnostic}"
+        raise RuntimeError(message)
+    denied_code, denied, diagnostic = invoke(repo, (*command, "--apply"), environment=env)
+    if not denied_code or denied.get("required_gaps") != ["authorization_required"]:
+        message = f"package_signature_authorization_failed:{diagnostic}"
+        raise RuntimeError(message)
+    if run_git(repo, "rev-parse", "HEAD").stdout.strip() != old:
+        message = "package_signature_readiness_mutated"
+        raise RuntimeError(message)
+    code, applied, diagnostic = invoke(repo, (*command, "--apply", "--authorize"), environment=env)
+    if code or applied.get("state") != "signature_repaired":
+        message = f"package_signature_repair_failed:{diagnostic}"
+        raise RuntimeError(message)
+    new = run_git(repo, "rev-parse", "HEAD").stdout.strip()
+    if (
+        new == old
+        or commit_payload(repo, old) != commit_payload(repo, new)
+        or (verify_commit_trust(repo, new)["verdict"] != "pass")
+    ):
+        message = "package_signature_payload_or_trust_invalid"
+        raise RuntimeError(message)
+    next_action = shlex.split(str(applied.get("next_action", "")))
+    if next_action != [
+        "ethos",
+        "prove",
+        "--root",
+        str(repo),
+        "--execute",
+        "--expect-head",
+        new,
+        "--json",
+    ]:
+        message = "package_signature_reproof_continuation_invalid"
+        raise RuntimeError(message)
+    code, repeated, diagnostic = invoke(repo, (*command, "--apply", "--authorize"), environment=env)
+    if (
+        code
+        or repeated.get("state") != "signature_repaired"
+        or (
+            run_git(repo, "rev-parse", "HEAD").stdout.strip() != new
+            or run_git(repo, "rev-parse", "candidate/dev").stdout.strip() != candidate
+            or run_git(repo, "ls-remote", "origin").stdout != remote_refs
+        )
+    ):
+        message = f"package_signature_replay_failed:{diagnostic}"
+        raise RuntimeError(message)
+    return {
+        "state": "passed",
+        "previous_head": old,
+        "head": new,
+        "candidate_unchanged": True,
+        "remote_unchanged": True,
+        "reproof_command": next_action,
+        "reproof_executed": False,
     }

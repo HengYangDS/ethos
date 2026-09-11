@@ -1141,8 +1141,11 @@ cleanup. The final extension now executes replacement-bound proof and local
 publication readiness instead of merely comparing the suggested command. Its
 fixture uses official OpenSpec archive and supplies a real Purpose for the
 created capability; strict warnings remain failures. Git common-directory
-identity is explicit in repair coordinates. Rebuild the final wheel before
-claiming those extended obligations accepted.
+identity is explicit in repair coordinates. The extended installed lifecycle
+passed at `c2959d68b`: it issued replacement-bound proof, reached local
+publication readiness, replayed without another signature, preserved candidate
+and remote refs, and removed its owned temporary root. Repository full proof,
+official archive, accepted closeout and source retirement remain separate.
 
 The complete 18-path transferred delta has the following semantic disposition;
 exact source paths and unchanged hashes remain in the existing absorption

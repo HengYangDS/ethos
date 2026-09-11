@@ -10,4 +10,4 @@
 ## 3. Verify Absorption And Package Behavior
 
 - [x] 3.1 Map all 18 transferred paths and unique negative cases to current owners or explicit replacement reasons; verify no separate request/progress implementation is retained.
-- [ ] 3.2 Exercise one package-only accepted-tip repair and reproof continuation; verify JSON failure evidence, no remote mutation and owned temporary-root cleanup.
+- [x] 3.2 Exercise one package-only accepted-tip repair and reproof continuation; verify JSON failure evidence, no remote mutation and owned temporary-root cleanup.

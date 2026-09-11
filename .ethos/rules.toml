@@ -59,7 +59,7 @@ subject = "local-state-truth-boundary"
 severity = "advisory"
 stop_condition = "local-state-truth-boundary"
 profile_layers = []
-path_globs = ["system/policies/generated-artifact-topology.toml", "src/ethos/contracts/artifacts/topology.py", "src/ethos/repository/policy/artifacts.py"]
+path_globs = ["src/ethos/contracts/artifacts/topology.toml", "src/ethos/contracts/artifacts/topology.py", "src/ethos/repository/policy/artifacts.py"]
 required_gates = ["generated-artifacts"]
 evidence_requirements = ["generated_artifact_topology"]
 

@@ -134,3 +134,9 @@ after persistence failure. Preserve public response fields and verdicts; remove
 duplicate construction rather than moving it into a new module or weakening
 the source ceiling. Existing persistence-failure and projection comparisons
 must distinguish accidental mutation of an earlier observation.
+
+The repeated hook-install case must verify reuse of the selected immutable
+generation, not construct a second Python/environment description for a build
+path that must never run. Remove that unused setup; retain rejection of any
+wheel rebuild and compare selected identity, file inventory and reported gaps
+before and after repetition. No activation or cleanup scenario is removed.

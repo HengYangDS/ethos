@@ -13,6 +13,14 @@ cache. It neither trusts ambient PATH nor writes system directories. Existing
 bounded download transport is reused. Linux and Darwin ARM64/x86_64 share this
 owner; unsupported platforms fail before mutation of the installed executable.
 
+Cache reuse verifies the archive and compares its member bytes with the current
+regular executable, then observes the version without changing file identity.
+Only missing, damaged or non-executable supply creates a temporary replacement.
+This removes repeated extraction and executable identity churn while preserving
+fresh validation; a prior successful invocation is never sufficient authority.
+The existing installer owns comparison, temporary lifetime and atomic replacement
+in one Python operation rather than splitting lifetime across shell and Python.
+
 The shared hosted-proof entry prepares this supply before executing any gate,
 then exposes its exact directory through child PATH. Preparation failures flow
 through the existing non-passing receipt/diagnostic path. Neither Forge gains
@@ -28,3 +36,7 @@ Run the actual pinned binary against current source-budget inputs. Full proof,
 accepted runtime, and hosted jobs are separately required closeout observations.
 This Change does not claim general crash-atomic installation or hostile same-UID
 process isolation. Its temporary preparation directory is owned and removed.
+Verify stable inode and modification time on unchanged repeat calls, repair of
+mode and symlink damage, and rejection of archive tampering even after a valid
+installation. Measure cold/warm native execution separately; this optimization
+does not establish the cause of hook-query or process-observation failures.

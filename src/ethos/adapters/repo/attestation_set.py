@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import read_blobs
 from ethos.contracts.semantic import Attestation
 
 ATTESTATION_SET_REF = "refs/ethos/attestations-set"
@@ -105,43 +106,6 @@ def _tree_entries(repo: Path, root: str) -> tuple[tuple[str, str, str, str], ...
     return tuple(entries)
 
 
-def _batch_blobs(repo: Path, object_ids: tuple[str, ...]) -> tuple[bytes, ...]:
-    result = run_git(
-        repo,
-        "cat-file",
-        "--batch",
-        stdin=b"".join(f"{object_id}\n".encode() for object_id in object_ids),
-        text=False,
-        check=False,
-        observation=True,
-    )
-    if result.returncode != 0:
-        message = "attestation_set_root_invalid"
-        raise ValueError(message)
-    payload, offset = result.stdout, 0
-    blobs: list[bytes] = []
-    try:
-        for expected in object_ids:
-            header_end = payload.index(b"\n", offset)
-            object_id, kind, raw_size = payload[offset:header_end].decode().split(" ")
-            size = int(raw_size)
-            content_start, content_end = header_end + 1, header_end + 1 + size
-            _require_entry(
-                valid=(
-                    object_id == expected
-                    and kind == "blob"
-                    and payload[content_end : content_end + 1] == b"\n"
-                )
-            )
-            blobs.append(payload[content_start:content_end])
-            offset = content_end + 1
-    except (UnicodeError, ValueError) as error:
-        message = "attestation_set_root_invalid"
-        raise ValueError(message) from error
-    _require_entry(valid=offset == len(payload))
-    return tuple(blobs)
-
-
 def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[Attestation, ...]]:
     if not root:
         return {}, ()
@@ -172,7 +136,9 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
     attestations: list[Attestation] = []
     for (_object_id, path), raw in zip(
         files,
-        _batch_blobs(repo, tuple(object_id for object_id, _path in files)),
+        read_blobs(
+            repo, tuple(object_id for object_id, _path in files), gap="attestation_set_root_invalid"
+        ),
         strict=True,
     ):
         try:

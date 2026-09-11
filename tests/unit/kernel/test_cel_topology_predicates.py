@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import tomllib
+from typing import TYPE_CHECKING
+from typing import cast
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -18,13 +22,45 @@ from ethos.contracts.policy.cel import evaluate_cel_value
 from ethos.contracts.policy.cel import validate_cel_expression
 from tests.support.literal_cases import literal_case
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 _PREFIX_RULE = 'facts.path == rule.prefix || facts.path.startsWith(rule.prefix + "/")'
+
+
+def test_runtime_topology_is_not_selected_by_the_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unrelated checkout cannot replace the executing runtime's policy."""
+    expected = load_generated_artifact_topology_declaration()
+    override = tmp_path / "system/policies/generated-artifact-topology.toml"
+    override.parent.mkdir(parents=True)
+    override.write_text("incompatible_successor = [\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    assert load_generated_artifact_topology_declaration() == expected
+
+
+@pytest.mark.parametrize("present", [False, True])
+def test_invalid_runtime_policy_never_falls_back_to_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, present: bool
+) -> None:
+    """A missing or malformed package resource is a broken runtime, not an override."""
+    if present:
+        (tmp_path / "topology.toml").write_text("incompatible = [\n", encoding="utf-8")
+    monkeypatch.setattr(topology_contract.resources, "files", lambda _package: tmp_path)
+
+    with pytest.raises(tomllib.TOMLDecodeError if present else FileNotFoundError):
+        load_generated_artifact_topology_declaration()
 
 
 @pytest.mark.parametrize(
     ("path", "prefix", "outcome"),
-    literal_case(
-        "kernel.test_cel_topology_predicates:parametrize:test_restricted_cel_prefix_predicate_preserves_path_boundary:0"
+    cast(
+        "list[tuple[str, str, str]]",
+        literal_case(
+            "kernel.test_cel_topology_predicates:parametrize:test_restricted_cel_prefix_predicate_preserves_path_boundary:0"
+        ),
     ),
 )
 def test_restricted_cel_prefix_predicate_preserves_path_boundary(
@@ -104,26 +140,21 @@ def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions()
         GeneratedArtifactTopologyDeclaration.model_validate(payload)
 
     payload = load_generated_artifact_topology_declaration().model_dump(mode="json")
-    payload["cel_rule"][0]["decision"] = "allow"
-
-    with pytest.raises(ValueError, match="generated rule must classify"):
-        GeneratedArtifactTopologyDeclaration.model_validate(payload)
-
-    payload = load_generated_artifact_topology_declaration().model_dump(mode="json")
-    payload["cel_rule"][1]["decision"] = "classify"
-
-    with pytest.raises(ValueError, match="only generated may classify"):
+    payload["cel_rule"][0]["decision"] = "classify"
+    with pytest.raises(ValueError, match="Input should be"):
         GeneratedArtifactTopologyDeclaration.model_validate(payload)
 
 
-def test_named_cel_helpers_fail_closed_for_missing_rule() -> None:
+def test_topology_format_does_not_supply_origin() -> None:
     declaration = load_generated_artifact_topology_declaration()
-    incomplete = declaration.model_copy(
-        update={"cel_rule": tuple(rule for rule in declaration.cel_rule if rule.id != "generated")}
-    )
-
-    with pytest.raises(ValueError, match="missing topology CEL rule"):
-        path_policy_from_declaration("build/generated.json", incomplete)
+    for path in ("report.json", ".config/settings.json", "docs/page.html"):
+        ordinary = path_policy_from_declaration(path, declaration)
+        assert ordinary["origin"] == "unclassified"
+        assert ordinary["decision"] == "ignore"
+        generated = path_policy_from_declaration(path, declaration, origin="machine_evidence")
+        assert generated["decision"] == "deny"
+        projection = path_policy_from_declaration(path, declaration, origin="projection")
+        assert projection["decision"] == "allow"
 
 
 def test_external_method_pack_shadow_authority_is_denied() -> None:
@@ -178,51 +209,32 @@ def test_restricted_cel_prefix_predicate_matches_segment_boundary(path: str, pre
 def test_topology_cel_rules_compile_and_first_match_witnesses_cover_every_rule() -> None:
     declaration = load_generated_artifact_topology_declaration()
     witnesses = {
-        "product-adopter-root": "adopters/sample-adopter/report.json",
-        "denied-prefix": ".config/ci/scripts/run-python-tests.sh",
-        "denied-root-cache": ".import_linter_cache/cache.sqlite",
-        "cache-flat": ".cache/tool/state.json",
-        "denied-legacy-generated": "build/cache/lychee/archive.tar.gz",
-        "runtime-flat": "build/runtime/random-cache/state.json",
-        "declarative": ".config/ethos/policy.toml",
-        "allowed": "build/ethos/proof/report.json",
-        "review": "tools/ci/scripts/check-source.sh",
-        "denied-generated": ".config/ethos/report.json",
-        "repo-root-generated": "report.json",
+        "product-adopter-root": ("adopters/sample-adopter/report.json", "unclassified", "deny"),
+        "denied-prefix": (".config/ci/scripts/run-python-tests.sh", "unclassified", "deny"),
+        "denied-root-cache": (".import_linter_cache/cache.sqlite", "runtime_cache", "deny"),
+        "cache-flat": (".cache/tool/state.json", "runtime_cache", "deny"),
+        "denied-legacy-generated": ("build/cache/lychee/archive.tar.gz", "runtime_cache", "deny"),
+        "runtime-flat": ("build/runtime/random-cache/state.json", "runtime_cache", "deny"),
+        "declarative": (".config/ethos/policy.toml", "unclassified", "review"),
+        "allowed": ("build/ethos/proof/report.json", "machine_evidence", "allow"),
+        "review": ("tools/ci/scripts/check-source.sh", "unclassified", "review"),
+        "owned-projection": ("docs/architecture/diagram.mmd", "projection", "allow"),
+        "denied-generated": (".config/ethos/report.json", "machine_evidence", "deny"),
+        "repo-root-generated": ("report.json", "machine_evidence", "deny"),
     }
-
-    assert [rule.id for rule in declaration.cel_rule] == ["generated", *witnesses]
-    assert [
-        next(
+    assert [rule.id for rule in declaration.cel_rule] == list(witnesses)
+    for identity, (path, origin, decision) in witnesses.items():
+        matched = next(
             rule.id
             for rule in declaration.cel_rule
-            if rule.decision != "classify"
-            and evaluate_cel_predicate(
+            if evaluate_cel_predicate(
                 rule.expression,
-                facts={
-                    "path": path,
-                    "name": path.rsplit("/", maxsplit=1)[-1],
-                    "suffix": ".json" if path.endswith(".json") else "",
-                    "generated": path.endswith(".json"),
-                },
+                facts={"path": path, "origin": origin, "generated": origin != "unclassified"},
                 policy=declaration.cel_policy(),
                 rule={"prefix_group": rule.prefix_group},
             )
         )
-        for path in witnesses.values()
-    ] == list(witnesses)
-    assert [
-        path_policy_from_declaration(path, declaration)["decision"] for path in witnesses.values()
-    ] == [
-        "deny",
-        "deny",
-        "deny",
-        "deny",
-        "deny",
-        "deny",
-        "review",
-        "allow",
-        "review",
-        "deny",
-        "deny",
-    ]
+        assert matched == identity
+        assert (
+            path_policy_from_declaration(path, declaration, origin=origin)["decision"] == decision
+        )

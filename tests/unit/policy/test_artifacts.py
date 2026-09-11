@@ -18,6 +18,18 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def test_public_artifact_gate_uses_runtime_policy_not_checkout_policy(tmp_path: Path) -> None:
+    """Candidate package data must not be parsed by the predecessor runtime."""
+    root = init_git_repo(tmp_path / "repo")
+    declaration = root / "system/policies/generated-artifact-topology.toml"
+    declaration.parent.mkdir(parents=True)
+    declaration.write_text("incompatible_successor = [\n", encoding="utf-8")
+
+    report = generated_artifact_gate_report(root)
+
+    assert report["verdict"] == "pass", report
+
+
 @pytest.mark.parametrize(
     ("script", "expected_gap_count"),
     cast(
@@ -201,8 +213,7 @@ def test_topology_report_classifies_every_generated_home_and_prunes_runtime_tree
         for paths in (report["review_paths"], report["denied_paths"])
         for path in paths
     )
-    assert {".config/result.json", ".pytest_cache", "build/runtime/flat/report.json"} <= set(
-        report["denied_paths"]
-    )
+    assert ".config/result.json" not in report["denied_paths"]
+    assert {".pytest_cache", "build/runtime/flat/report.json"} <= set(report["denied_paths"])
     assert report["verdict"] == "block"
-    assert report["summary"]["path_blocker_count"] >= 4
+    assert report["summary"]["path_blocker_count"] >= 3

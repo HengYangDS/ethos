@@ -1,12 +1,18 @@
+"""Fresh repository write admission over authority, origin and exact effects."""
+
 from __future__ import annotations
 
 import os
+import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.current.authority import observe_current_authority
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.admission.patch_admission import patch_admission
+from ethos.adapters.admission.patch_admission import projection_preimages
+from ethos.adapters.admission.patch_admission import revalidate_staged_admission
+from ethos.adapters.admission.patch_admission import staged_artifact_admission
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
@@ -26,22 +32,15 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
+from ethos.repository.policy.projections import observe_projections
+from ethos.repository.policy.projections import projection_relations
 
 if TYPE_CHECKING:
     from ethos.adapters.admission.current.authority import CurrentAuthority
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "holder_ref", "generation", "head")
-_SCOPE_LIST_FIELDS = (
-    "changed_paths",
-    "material_patterns",
-    "material_paths",
-    "changes",
-    "covered_paths",
-    "uncovered_paths",
-    "required_gaps",
-    "advisory_gaps",
-)
 
 
 def has_invalid_path_token_character(text: str) -> bool:
@@ -55,13 +54,19 @@ def prewrite_guard(
     editor_root: Path | None = None,
     require_editor_root: bool = False,
     patch: str = "",
+    staged: bool = False,
     selected_runtime: SelectedRuntime | None = None,
 ) -> dict[str, object]:
     status = _prewrite_status(root, selected_runtime=selected_runtime)
     status_role, status_branch = str(status["role"]), str(status["branch"])
     effective = _effective_write_context(root=root, role=status_role, branch=status_branch)
     runtime_check = runtime_binding_check(status)
-    checked = [_check_path(root=root, path=path, role=effective["role"]) for path in paths]
+    staged_report = (
+        staged_artifact_admission(root, git_stdout(root, "rev-parse", "HEAD")) if staged else None
+    )
+    checked, origin_gap = _checked_paths(
+        root, paths, effective["role"], effect_report=staged_report
+    )
     tracked = any(path["tracked_candidate"] for path in checked)
     requested = tuple(
         str(path["relative_path"])
@@ -88,16 +93,14 @@ def prewrite_guard(
             changed=False,
             prewrite_paths=requested,
         )
+        scope = resolution.scope_report(requested)
         if resolution.verdict != "pass":
-            scope = resolution.scope_report(requested)
             scope.update(
                 verdict=resolution.verdict,
                 required_gaps=list(resolution.required_gaps),
                 next_action=resolution.next_action,
                 user_decision_required=resolution.user_decision_required,
             )
-        else:
-            scope = resolution.scope_report(requested)
     else:
         scope = _commitment_scope(root, requested, lease)
     editor = _editor_root_check(
@@ -105,12 +108,24 @@ def prewrite_guard(
         editor_root=editor_root,
         require_editor_root=require_editor_root or tracked,
     )
-    patch_report = patch_admission(
-        root=root,
-        requested_paths=requested,
-        baseline_head=str(authority.get("current_head") or ""),
-        patch=patch,
+    patch_report = (
+        staged_report
+        if staged_report is not None
+        else patch_admission(
+            root=root,
+            requested_paths=requested,
+            baseline_head=str(authority.get("current_head") or ""),
+            patch=patch,
+        )
     )
+    if origin_gap and patch and report_verdict(patch_report) == "pass":
+        checked, origin_gap = _checked_paths(
+            root, paths, effective["role"], effect_report=patch_report
+        )
+    elif origin_gap:
+        patch_report.update(verdict="unknown", reason=origin_gap)
+    patch_report = revalidate_staged_admission(root, patch_report)
+    _apply_path_effects(checked, patch_report, patch_supplied=bool(patch) or staged)
     blocked = [path for path in checked if path["allowed"] is False]
     gaps = _gaps(runtime_check, authority, editor, patch_report, scope, blocked)
     verdict = reduce_verdicts(
@@ -122,7 +137,15 @@ def prewrite_guard(
         report_verdict(scope),
         required_gaps=tuple(gaps),
     )
-    decision = _prewrite_decision(root, effective, checked, authority, verdict, tuple(gaps))
+    decision = _prewrite_decision(
+        root,
+        effective,
+        checked,
+        authority,
+        verdict,
+        tuple(gaps),
+        index_tree=str(patch_report.get("index_tree") or ""),
+    )
     next_action = str(scope.get("next_action") or "")
     user_decision_required = False
     if verdict != "pass":
@@ -137,7 +160,7 @@ def prewrite_guard(
                 "--require-editor-root --json"
             )
         if not next_action:
-            next_action = "ethos lane prewrite <path>"
+            next_action = _artifact_next_action(root, requested, patch_report)
     return {
         "verdict": decision.verdict,
         "error": gaps[0] if gaps else "",
@@ -160,6 +183,88 @@ def prewrite_guard(
         "next_action": next_action,
         "user_decision_required": user_decision_required,
     }
+
+
+def _artifact_next_action(
+    root: Path,
+    requested: tuple[str, ...],
+    patch_report: dict[str, object],
+) -> str:
+    """Select a source observation or corrected exact patch, never a blind replay."""
+    reason = str(patch_report.get("reason") or "")
+    repair_paths = set(requested)
+    if reason.startswith("projection_ownership_unknown:"):
+        repair_paths.update(path for path in PROJECTION_DECLARATIONS if path in reason)
+    if reason.startswith("deleted_input:"):
+        repair_paths.add(reason.split(":", 3)[2])
+    elif reason.startswith("deleted_input_observation_unknown:"):
+        repair_paths.add(reason.split(":", 2)[1])
+    command = shlex.join(
+        (
+            "ethos",
+            "lane",
+            "prewrite",
+            *sorted(repair_paths),
+            "--root",
+            root.as_posix(),
+            "--editor-root",
+            root.as_posix(),
+            "--require-editor-root",
+        )
+    )
+    return command + " --patch <repaired-patch-file> --json"
+
+
+def _checked_paths(
+    root: Path,
+    paths: list[Path],
+    role: str,
+    *,
+    effect_report: dict[str, object] | None = None,
+) -> tuple[list[dict[str, object]], str]:
+    """Observe ownership once per request, preserving unavailable declarations."""
+    if effect_report is not None:
+        declared = effect_report.get("origin_outputs", [])
+        outputs = {str(path) for path in declared} if isinstance(declared, list) else set()
+        effects = effect_report.get("effects") if effect_report.get("index_tree") else None
+        return [
+            _check_path(
+                root=root,
+                path=path,
+                role=role,
+                outputs=outputs,
+                indexed_effects=effects if isinstance(effects, dict) else None,
+            )
+            for path in paths
+        ], ""
+    try:
+        committed = projection_relations(
+            projection_preimages(root, git_stdout(root, "rev-parse", "HEAD"))
+        )
+        outputs = {item.output for item in (*committed, *observe_projections(root))}
+        origin_gap = ""
+    except (OSError, UnicodeError, ValueError) as exc:
+        outputs = set()
+        origin_gap = f"projection_ownership_unknown:{exc}"
+    checked = [_check_path(root=root, path=path, role=role, outputs=outputs) for path in paths]
+    return checked, origin_gap
+
+
+def _apply_path_effects(
+    checked: list[dict[str, object]],
+    report: dict[str, object],
+    *,
+    patch_supplied: bool,
+) -> None:
+    """Annotate path observations without confusing absent files with deletions."""
+    effects = report.get("effects")
+    for item in checked:
+        relative = str(item["relative_path"])
+        item["effect"] = (
+            effects.get(relative, "unspecified") if isinstance(effects, dict) else "unspecified"
+        )
+        if item.get("origin") == "projection" and not patch_supplied and item["allowed"]:
+            item.update(allowed=False, reason=f"generated_projection_patch_required:{relative}")
 
 
 def _prewrite_status(
@@ -237,6 +342,8 @@ def _prewrite_decision(
     lease_check: dict[str, object],
     verdict: Verdict,
     gaps: tuple[str, ...],
+    *,
+    index_tree: str = "",
 ) -> AdmissionDecision:
     branch, role = effective["branch"], effective["role"]
     paths = tuple(
@@ -255,6 +362,7 @@ def _prewrite_decision(
                 "holder_ref": str(lease_check.get("holder_ref") or ""),
                 "generation": integer_value(lease_check.get("generation")),
                 "head": str(lease_check.get("current_head") or ""),
+                **({"index_tree": index_tree} if index_tree else {}),
             },
         ),
         policy_refs=("commitment:tracked-write-admission",),
@@ -262,7 +370,7 @@ def _prewrite_decision(
         basis=DecisionBasis(
             enforcement_boundary="local_process_guard",
             identity_basis="holder_ref_equality" if lease_check.get("required") else "not_required",
-            state_bindings=_STATE_BINDINGS,
+            state_bindings=(*_STATE_BINDINGS, "index_tree") if index_tree else _STATE_BINDINGS,
             evidence_boundary="current_local_observation",
             verifier_provenance="current_worktree_runner",
             time_basis="evaluation_time",
@@ -303,7 +411,14 @@ def _editor_root_check(
     }
 
 
-def _check_path(*, root: Path, path: Path, role: str) -> dict[str, object]:
+def _check_path(
+    *,
+    root: Path,
+    path: Path,
+    role: str,
+    outputs: set[str],
+    indexed_effects: dict[str, object] | None = None,
+) -> dict[str, object]:
     text = path.as_posix()
     if has_invalid_path_token_character(text):
         reason = (
@@ -313,23 +428,36 @@ def _check_path(*, root: Path, path: Path, role: str) -> dict[str, object]:
         )
         return _path_report(text, reason=reason)
     root_path = root.resolve()
-    resolved = (path if path.is_absolute() else root_path / path).resolve()
+    candidate = path if path.is_absolute() else root_path / path
+    resolved = candidate if indexed_effects is not None else candidate.resolve()
+    if indexed_effects is not None and ".." in resolved.parts:
+        return _path_report(resolved.as_posix(), reason="path_outside_worktree")
     try:
         relative = resolved.relative_to(root_path).as_posix()
     except ValueError:
         return _path_report(resolved.as_posix(), reason="path_outside_worktree")
     topology = path_policy_from_declaration(
         relative,
-        load_generated_artifact_topology_declaration(
-            root_path / "system/policies/generated-artifact-topology.toml"
-        ),
+        load_generated_artifact_topology_declaration(),
+        origin="projection" if relative in outputs else "unclassified",
     )
-    ignored = _is_ignored(root_path, relative)
+    present = (
+        relative in indexed_effects and indexed_effects[relative] != "delete"
+        if indexed_effects is not None
+        else resolved.exists()
+    )
+    observed = {
+        "origin": topology["origin"],
+        "existence": "present" if present else "absent",
+        "placement": topology["decision"],
+    }
+    ignored = False if indexed_effects is not None else _is_ignored(root_path, relative)
     tracked = not ignored
     if topology["decision"] == "deny":
         return _path_report(
             resolved.as_posix(),
             relative_path=relative,
+            **observed,
             ignored=ignored,
             tracked_candidate=tracked,
             reason=str(topology.get("required_gap") or "generated_artifact_topology_denied"),
@@ -338,6 +466,7 @@ def _check_path(*, root: Path, path: Path, role: str) -> dict[str, object]:
     return _path_report(
         resolved.as_posix(),
         relative_path=relative,
+        **observed,
         ignored=ignored,
         tracked_candidate=tracked,
         allowed=not protected,

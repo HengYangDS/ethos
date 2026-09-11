@@ -31,6 +31,77 @@ Raw transcripts, extracts, classifiers, and scratch matrices never become this
 plan's inputs after that Change is proven and archived; their exact owned copies
 are then deleted.
 
+## September 11 Delivery And Artifact-Origin Checkpoint
+
+Accepted source `b212408dc06e9367a2325bcdc528775d713e3764`, tree
+`4dcc27e05572163051b91a60c053158c291843b8`, contains the archived
+`hosted-budget-tool-supply` Change. Its 35-gate exact proof passed with
+2917 tests passed, one skipped and combined coverage 95.210915%. Installed
+runtime `ddc557f1ab03a0108987015b42ace2181a3fe19901015bc244b0c8737e28976d`
+was read back against that exact source/tree. Local candidate, dev and main,
+and both remote dev/main refs were equal after receipt-bound publication.
+Both forges verified the archive commit's signature. September 11 follow-up
+observed every GitLab job successful in pipelines 6457 and 6458; GitHub dev
+source verification was still running and main source verification queued.
+Those observations do not claim later hosted completion.
+
+The successor official Change `artifact-origin-admission` stays in the owned
+`20260907-missing-lease-reconciliation` Work Lane. AIGW's authored configuration
+rejection remains present in the accepted runtime above; upgrading to it is
+not a fix. Six public counterexamples turned green in the working source,
+followed by 89 affected regressions. Further counterexamples closed committed-
+producer erasure and repeated native ignore-input loss. Two subsequent public
+pre-commit index/projection regressions were then repaired. The combined affected
+run passed 170 cases in 223.94 seconds, with owned temporary storage removed.
+This covers staged bytes, output/producer retirement, HEAD/index drift and the
+shared Git blob reader, not full proof or accepted runtime delivery.
+
+The bounded repair removes suffix provenance and source-filename exceptions.
+Existing lifecycle homes and native producer relations determine origin;
+placement, existence and proposed effects remain separate. The existing patch
+owner retains deleted postimages and checks surviving explicit native inputs.
+Architecture and CI checks reuse the producer owner rather than duplicating
+rendering. Unresolved dynamic input observations remain unknown. No adopter
+source, runtime, session model, additional lane or parallel carrier is changed.
+The predecessor/parser mismatch was reproduced and replaced by coherent native
+package ownership: topology policy now lives beside its interpreter in
+`src/ethos/contracts/artifacts/topology.toml`. The old system carrier, wheel
+copy mapping and runtime checkout override were removed, not retained as a shim.
+Two incompatible-checkout counterexamples failed before repair; 48 affected
+resource/policy tests then passed, including missing or malformed package data.
+The actual installed predecessor passed current status, all-path prewrite and
+its real `pre-commit` launcher over the staged successor batch. Wheel and sdist
+native file selection each include the single resource. This proves predecessor
+admission is reachable, not that the successor is accepted or installed.
+
+Additional adversarial checks reproduced late HEAD/index drift after artifact
+observation, and an unstaged outside symlink incorrectly affecting valid index
+admission. Final coordinate fencing and Git-native staged path observation now
+reject drift without consulting unstaged output bytes. A valid exact patch can
+repair invalid uncommitted producer syntax while retaining prior known owners;
+the duplicate producer evaluation was removed. The final combined affected run
+passed 198 cases in 224.72 seconds, with owned scratch removed. Ruff, format, Ty,
+schemas, docstrings, layout, import boundaries, configuration and both native
+projection checks passed. Product/test ELOC is 40561/41173 against independent
+45000 limits; prewrite is 494 ELOC after deleting dead fields and duplication.
+
+One newly selected resource path was written after a failed prewrite caused by
+an omitted declared Node supply environment. That was an execution violation,
+not authorization. The failed receipt remains; source status and exact-path
+prewrite were re-established before further edits, followed by independent
+installed-runtime admission. Passing re-entry does not erase the prior failure.
+Future mutation batches must finish and inspect preflight before dispatching
+dependent writes; a shared tool call must not cross that decision boundary.
+Actual proof/archive/acceptance/install effects are not task completion gates.
+
+Next: freeze and normally sign the successor source under predecessor hooks,
+then obtain exact full proof and
+complete the official accepted/runtime lifecycle before giving an adopter
+update command as remediation. Native startup intermittency, candidate runtime
+readiness leaking into policy identity, and the two historical lanes remain
+separate open obligations; neither focused green nor this delivery retires them.
+Keep easy, proven absorbed-ref retirement ahead of new broad work.
+
 ## Architecture
 
 ### Semantic Authority And Projection Homomorphism
@@ -2017,6 +2088,113 @@ Subsequent replacements remain globally required: native Ruff/Ty
 scope, metric correctness, semantic structure/docs/configuration, security and
 supply conformance, resource lifecycle and provider/adopter closure. Independent
 historical lane absorption is not postponed until the entire audit finishes.
+
+##### Test Reporting And Allure Ecosystem — September 11
+
+This is a testing-architecture decision, not a cosmetic report task. The user
+requires the terminal model even when that demands destructive replacement.
+Change size is not a preservation criterion: retain an owner only when its
+semantics, measurable cost and failure boundaries serve that model. Independently
+provable delivery increments do not limit the total redesign. Do not defer
+cross-cutting defects indefinitely behind an unrelated small Change.
+
+At accepted `b212408dc06e9367a2325bcdc528775d713e3764`, GitLab exposes JUnit
+and Cobertura from `ethos:verify`; GitHub uploads those files. Native host
+conformance has separate smoke JSON. This is partial transport, not complete
+quality visibility. Current source already schedules ready DAG nodes, so the
+older barrier-wave diagnosis must not be reused as present fact. The optional
+pytest shard reuse key remains HEAD plus shard count; this does not itself
+establish a complete policy/toolchain/environment input identity.
+
+The current candidate supplies a concrete effectiveness counterexample: 89
+focused regressions passed, then two additional public pre-commit probes failed.
+One valid staged projection was denied for missing a manual patch; an invalid
+staged projection produced that same generic denial rather than validating the
+index. Those two regressions subsequently passed and the affected 170-case run passed.
+The original RED receipts remain evidence of the missing boundary. Public write
+admission and prospective Git index validation now share artifact effect
+evaluation; committed-object proof and runtime migration still require their
+complete lifecycle evidence, not an inference from focused tests.
+
+###### Target Testing Model
+
+| Concern | Terminal requirement and replacement boundary |
+| --- | --- |
+| What is tested | Map accepted behavior, forbidden behavior and environmental assumptions to falsifiable observations. Use independent model/property/metamorphic tests for pure decisions and real effects at actual Git/runtime/Forge boundaries; do not mirror implementation internals or count green tests as semantic completeness |
+| Test scope and cost | Classify semantic scope separately from allowed resources. Fast decision tests need no lane/runtime installation; effect tests own the minimal real resources; end-to-end tests retain complete legal and illegal product paths. Replace repeated lifecycle setup, not merely its directory name or test label |
+| Isolation and lifetime | Share only immutable supply; isolate index, refs, SQLite, worktrees and external effects. Pair resource acquisition with teardown and cover failed setup, timeout, process death and crash recovery. Worker count cannot repair incorrect ownership |
+| Selection and execution | Keep one quality-obligation owner. Evaluate a mature execution engine against the present runner if it removes custom scheduling/materialization/cache machinery. Bind reusable execution to all relevant inputs; fresh authorization is never a cache hit. Cold, warm and cache-cleared verdicts must agree |
+| Results and diagnostics | Separate candidate identity, execution attempt, raw result, verifier judgment and current acceptance. Retain initial failure and subsequent retries; report setup error, cancellation, missing evidence and not-executed distinctly. Regenerate views without rerunning mutations or tests |
+| Human and Agent access | Provide one source-bound quality entry linking tests, coverage, static/schema/docs checks, supply-chain artifacts, package/runtime conformance and proof. Every actual test scope contributes results; non-test checks retain native evidence rather than fabricated passing test cases |
+
+###### Comparative Disposition
+
+| Option | Evidence-backed capability | ETHOS disposition |
+| --- | --- | --- |
+| Existing runners plus JUnit uploads only | Present baseline transports basic results but leaves rich diagnosis and cross-scope navigation incomplete | Reject as the terminal solution |
+| Semantic test redesign plus pytest/Hypothesis and Allure Report 3 | pytest supports explicit scoped fixtures; Hypothesis generates and shrinks stateful action sequences; Allure supplies structured results, steps, attachments, history, environments, multistage merging and human/Agent views | Preferred reporting and testing direction; retain frameworks, replace deficient ETHOS setup/result/admission plumbing. This is not limited to adding a reporter flag |
+| Pants/Bazel execution substrate plus the same reporting | Official documentation and prior fixed-source research cover explicit process inputs, isolated execution and content-addressed reuse | Compare on identical real workloads against the current engine; adopt when it removes more custom machinery and reduces measured cost without weakening native macOS/Windows or effect boundaries. Neither adoption nor rejection is yet proved |
+| Allure TestOps or ReportPortal service | TestOps adds managed launches, test plans, integrations and long-term analytics; ReportPortal adds centralized analysis and collaborative triage | Evaluate when those capabilities are required. Service storage is not automatically a second authority; keep accepted intent and permission with ETHOS. Do not add both services or reject either merely by counting components |
+
+Allure Report is more than a UI. The inspected Allure 3 source at
+`e3bd84f644e1c58276a673f9d0ec546d2aba5855` contains official report plugins,
+Agent inspection/query/selection commands and report quality-gate machinery.
+Its README and CLI source describe inspecting existing result dumps without
+rerunning tests. This is source evidence, not an executed ETHOS adapter test.
+The default Agent auto-report policy can omit the human report above 1000
+stored results; an ETHOS suite exceeding that size must explicitly verify that
+its chosen human report is generated and opens. Upstream defaults are not our
+acceptance criteria. Allure known-issue labels, report gates and rerun suggestions
+must not create independent acceptance exceptions or effect authority.
+
+Use official adapters to capture Allure and JUnit from the same test execution;
+retain Cobertura for native coverage views. Evaluate environments, multistage
+dumps, history, dashboards and Agent inspect/query before writing local report
+plumbing. Configure bounded output/attachment/history retention and identity;
+separate platforms from retries. Use local generation without requiring a remote.
+For each configured Forge, prove the report is actually accessible, source-bound
+and useful on failure. Report-generation failure preserves the original test
+outcome and never triggers mutation replay. Reporting tools are development
+capabilities, not installed product-runtime dependencies by default.
+
+###### Research Boundary And Acceptance Experiment
+
+The original September 10 research reports were re-read with their supplied
+SHA-256 identities verified. They already cover COMET, Inspect, Bazel, Pants,
+DICE and Nix, but explicitly do not provide a common executed ETHOS benchmark.
+The September 11 follow-up compared current repository owners and retained
+receipts with official sources below. The prior claim that a large redesign was
+unnecessary was not supported and is withdrawn. No measured superiority,
+Allure installation, rendered report or completed framework migration is claimed.
+
+Use the existing quality-convergence sequence, not another roadmap:
+
+1. Establish one shared workload with a pure decision, real Git/index/Lease
+   transitions, package/native-platform conformance and deliberate faults.
+   Measure collection/setup/body/teardown, process and build counts, p50/p95
+   feedback latency, bytes/inodes, and false allowance/rejection separately.
+2. Replace the failing semantic/test boundary and redundant fixture machinery;
+   retain real end-to-end evidence. Prototype Allure's official capture and
+   report-only reconstruction on those same results, including failures,
+   setup errors, skips, retries, environments and partial execution.
+3. Compare existing execution with a mature-engine candidate where reuse or
+   scheduling remains the measured bottleneck. Declare obligations, costs and
+   removal targets before choosing; prototype code does not become a second
+   production scheduler or acceptance engine.
+4. Admit compatible stable tools, migrate consumers, delete replaced paths,
+   prove cold/warm/cleared-cache equivalence and open local/Forge reports.
+   Preserve combined coverage at least 95 percent and independent product/test
+   ELOC ceilings of 45000. Publish actual measured results, not predicted speedup.
+
+Primary sources: [Google's scope/size distinction](https://abseil.io/resources/swe-book/html/ch12.html),
+[pytest fixture safety](https://docs.pytest.org/en/stable/how-to/fixtures.html),
+[Hypothesis stateful testing](https://hypothesis.readthedocs.io/en/latest/stateful.html),
+[Pants testing](https://www.pantsbuild.org/stable/docs/python/goals/test),
+[Bazel action caching](https://bazel.build/versions/9.0.0/remote/caching),
+[Allure multistage reports](https://allurereport.org/docs/multistage-builds/),
+[fixed Allure 3 source](https://github.com/allure-framework/allure3/tree/e3bd84f644e1c58276a673f9d0ec546d2aba5855),
+[TestOps execution model](https://docs.qameta.io/use-testops/test-plans-and-launches/run-automated-tests/),
+and [ReportPortal architecture](https://github.com/reportportal/reportportal).
 
 ##### Resource Recurrence Checkpoint
 

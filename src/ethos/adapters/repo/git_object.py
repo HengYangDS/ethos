@@ -516,3 +516,47 @@ def _trust_report(
         "verifier_version": verifier_version,
         "required_gaps": gaps,
     }
+
+
+def read_blobs(
+    repo: Path,
+    object_ids: tuple[str, ...],
+    *,
+    gap: str = "git_blob_batch_invalid",
+) -> tuple[bytes, ...]:
+    """Read exact blobs in one native batch, validating framing and requested identities."""
+    if not object_ids:
+        return ()
+    result = run_git(
+        repo,
+        "cat-file",
+        "--batch",
+        stdin=b"".join(f"{object_id}\n".encode() for object_id in object_ids),
+        text=False,
+        check=False,
+        observation=True,
+    )
+    if result.returncode != 0:
+        raise ValueError(gap)
+    payload, offset = result.stdout, 0
+    blobs: list[bytes] = []
+    try:
+        for expected in object_ids:
+            header_end = payload.index(b"\n", offset)
+            object_id, kind, raw_size = payload[offset:header_end].decode().split(" ")
+            size = int(raw_size)
+            content_start, content_end = header_end + 1, header_end + 1 + size
+            if not (
+                object_id == expected
+                and kind == "blob"
+                and size >= 0
+                and payload[content_end : content_end + 1] == b"\n"
+            ):
+                break
+            blobs.append(payload[content_start:content_end])
+            offset = content_end + 1
+    except (UnicodeError, ValueError) as error:
+        raise ValueError(gap) from error
+    if offset != len(payload) or len(blobs) != len(object_ids):
+        raise ValueError(gap)
+    return tuple(blobs)

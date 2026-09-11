@@ -94,12 +94,16 @@ def _shell_candidate_lines(text: str) -> list[str]:
     return lines
 
 
-def _shell_command_segments(line: str) -> tuple[tuple[str, ...], ...]:
+def _shell_command_segments(
+    line: str, *, strict: bool = False, preserve_context: bool = False
+) -> tuple[tuple[str, ...], ...]:
     lexer = shlex.shlex(line, posix=True, punctuation_chars=";&|()")
     lexer.whitespace_split, lexer.commenters = True, "#"
     try:
         tokens = list(lexer)
     except ValueError:
+        if strict:
+            raise
         return ()
     segments: list[tuple[str, ...]] = []
     start = 0
@@ -108,7 +112,7 @@ def _shell_command_segments(line: str) -> tuple[tuple[str, ...], ...]:
             continue
         segment = tuple(tokens[start:index])
         start = index + 1
-        command = _shell_segment_command(segment)
+        command = segment if preserve_context else _shell_segment_command(segment)
         if command:
             segments.append(command)
     return tuple(segments)
@@ -446,3 +450,67 @@ _UVX_OPTIONS_WITH_VALUE = frozenset(
 _NPM_OPTIONS_WITH_VALUE = frozenset({"--prefix", "--workspace", "-w"})
 
 _ENV_OPTIONS_WITH_VALUE = frozenset({"--chdir", "--unset", "-C", "-u"})
+
+
+def shell_configuration_inputs(text: str) -> tuple[set[str], bool]:
+    """Observe explicit native Prettier config inputs, retaining dynamic uncertainty.
+
+    This covers --config and --ignore-path, not arbitrary shell effects. Native
+    command wrappers use the existing executable resolver. Changed directories,
+    substitutions and malformed shell cannot be treated as resolved paths.
+    """
+    inputs: set[str] = set()
+    unknown = False
+    try:
+        segments = _shell_command_segments(text, strict=True, preserve_context=True)
+    except ValueError:
+        return inputs, True
+    changed_directory = False
+    for tokens in segments:
+        changed_directory |= tokens[0] in {"cd", "pushd", "popd"} or (
+            tokens[0] == "env"
+            and any(token.partition("=")[0] in {"-C", "--chdir"} for token in tokens[1:])
+        )
+        command = _command_tokens(tokens)
+        while command and (wrapped := _wrapped_command_tokens(command, command[0])):
+            if wrapped == command:
+                break
+            command = wrapped
+        if not command or command[0].rsplit("/", 1)[-1] != "prettier":
+            continue
+        values, invalid = _prettier_configuration_options(command)
+        unknown |= invalid
+        for value in values:
+            if changed_directory or any(token in value for token in ("$", "`", "*", "?", "~")):
+                unknown = True
+            else:
+                inputs.add(value)
+    return inputs, unknown
+
+
+def _prettier_configuration_options(command: tuple[str, ...]) -> tuple[set[str], bool]:
+    """Read explicit native options, not arbitrary occurrences of path strings."""
+    unknown = False
+    values: dict[str, str] = {}
+    ignored: set[str] = set()
+    index = 1
+    while index < len(command):
+        argument = command[index]
+        if argument == "--":
+            break
+        option, separator, value = argument.partition("=")
+        index += 1
+        if option == "--no-config":
+            values.pop("--config", None)
+        if option not in {"--config", "--ignore-path"}:
+            continue
+        if not separator:
+            value = command[index] if index < len(command) else ""
+            index += 1
+        if not value or value.startswith("-"):
+            unknown = True
+        elif option == "--ignore-path":
+            ignored.add(value)
+        else:
+            values[option] = value
+    return {*values.values(), *ignored}, unknown

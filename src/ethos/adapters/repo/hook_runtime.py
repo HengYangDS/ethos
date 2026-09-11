@@ -10,10 +10,10 @@ from pathlib import Path
 from typing import IO
 from typing import Literal
 
-from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
+from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.process import run_command
@@ -25,7 +25,6 @@ from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.adapters.repo.worktree_effects import restore_rejected_checkout_projection
-from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
@@ -84,16 +83,12 @@ def _pre_commit(root: Path, *, selected_runtime: SelectedRuntime) -> dict[str, o
         else path
         for path in staged
     )
-    return hook_admission_report(
-        request=HookAdmissionRequest(
-            root=root.as_posix(),
-            layer="pre-tool",
-            paths=paths,
-            editor_root=root.as_posix(),
-            expected_root=root.as_posix(),
-            require_editor_root=True,
-            command="git commit",
-        ),
+    return prewrite_guard(
+        root=root,
+        paths=[Path(path) for path in paths],
+        editor_root=root,
+        require_editor_root=True,
+        staged=True,
         selected_runtime=selected_runtime,
     )
 

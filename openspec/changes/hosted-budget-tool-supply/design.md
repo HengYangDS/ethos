@@ -65,3 +65,20 @@ existing result evidence in assertions, including `process_failure`, rather
 than truncate its cause. Do not relax observation completeness, retry admission
 implicitly, or classify later focused success as a root-cause repair. Keep that
 uncertainty and source-bound full proof as distinct acceptance obligations.
+
+The next exact proof exposed two deterministic verification mismatches and
+three selected-child query timeouts. Fixture size separates one byte-exact,
+independently copied native interpreter from bounded configuration overhead;
+it still rejects duplicate interpreters or copied dependency trees. Tracked
+planning references portable evidence locators; exact host paths remain in
+local receipts.
+
+The query reader already retained deadline evidence, but activation collapsed
+it into a plain error and the CLI suggested reinstalling. Activation now passes
+the observation through the existing process-error carrier, including argv,
+binary, cwd, deadline and captured streams. Existing transaction rollback runs
+before the CLI reports failure and requests fresh status, not another effect.
+Real activation tests inject only the query deadline and verify database,
+selector and configuration restoration plus public JSON. This fixes diagnostic
+loss, not the unestablished cause of native startup latency; no retry, cache,
+timeout extension or successful-query substitution is introduced.

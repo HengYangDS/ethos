@@ -174,12 +174,12 @@
     "contracts": {
       "path": "openspec/specs/contracts/spec.md",
       "authority": "current Commitment and Attestation contracts",
-      "sha256": "bd873fd63a9b09632e1ff14bcb2fc6d637abe4b196c5da37455c0cec73c97ef1"
+      "sha256": "b1c52ab9dc55694887f78ef420ce8d2385d9d01b8d0fb16c19d00c997130cf17"
     },
     "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
       "authority": "current repository lifecycle, proof, publication, and cleanup semantics",
-      "sha256": "e2188e8e4011ba50cd0fd1d7d038244748580d9e14178c1e3de9ea10731a0471"
+      "sha256": "dc323a77203993768ed81254e32a89916a6e1017bd5e5db1cba01113d63958c3"
     },
     "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",
@@ -959,9 +959,10 @@
       "layer": "candidate_worlds",
       "required_visible": true,
       "evidence": [
-        "runner_mutation"
+        "runner_mutation",
+        "repository_governance"
       ],
-      "semantics": "Fresh repository-root, branch-role, actor, four-field Lease, Git-state, changed-path, and official OpenSpec gate before tracked mutation.",
+      "semantics": "Fresh repository-root, branch-role, actor, four-field Lease, Git-state, changed-path, and official OpenSpec gate before tracked mutation. Artifact origin, existence, placement and effect are distinct; native producer ownership, exact staged bytes and surviving consumers govern projection and deletion admission. Executable topology policy shares its package runtime identity.",
       "verdict": "pass",
       "phase": "prewrite"
     },

@@ -156,7 +156,7 @@ after the helper rename; two reviewed changes reuse an existing effect call or
 express identical peer expectations once. No behavioral case was removed.
 New readiness/content test modules measure 154/146 ELOC; remaining remote-effect
 and retirement modules each measure 800. Current declared size violations are
-zero; this boundary still needs frozen full proof, archive and runtime delivery.
+zero; accepted and runtime delivery remain separate from the proof below.
 This does not settle the separate unified-500 trial. An intermediate
 shared-payload mutation was caught by the existing persistence-failure test and
 replaced with a new failure payload, preserving earlier observations.
@@ -166,12 +166,36 @@ confirmed the process exited, the lock disappeared and the exact staged patch
 remained. Capture index coordinates before spawning an index writer; no other
 index-writing command may overlap it. Preserve the failed receipt and revalidate
 before retrying; observation failure never permits mutation replay by itself.
-Do not launch another full proof until cheap source gates pass. Freeze the
-completed repair, obtain exact proof and complete archive/accepted/runtime
-delivery rather than expanding this batch. Immediately
-retire already-absorbed lanes through public admission; a global roadmap is not
-a reason to defer an otherwise safe retirement. No additional lane was retired
-by the measurement repair.
+The implementation at `796268daceff902e5764b7004bcd4beb0dd50f2d` passed all
+35 gates, 3008 tests with one skipped, and combined coverage 95.05018772507854%.
+Official archive produced `51679f00265d423731521571518c894348693186`; its full
+proof failed one actual-source export test after 1487.811 seconds, with 3007
+tests passed and one skipped. Coverage and package gaps are dependencies of that
+single failed gate, not additional independently failing tests. Both runs used
+two workers and removed their owned basetemp. The source is not accepted,
+installed or published.
+
+The bounded official `terminal-projection-preflight` continuation retains the
+same Work Lane and immutable archive. Exact source review finds two stale
+bindings out of thirteen: contracts and repository governance. The graph keeps
+all product capabilities and refines existing prewrite semantics for package
+policy, origin and consumer-safe effects; ELOC details need no new graph entity.
+The existing architecture gate now calls the official exact-tree exporter;
+the sole registry makes that gate a prerequisite of heavy tests. No parallel
+validator, automatic digest approval or lifecycle is added. Five initial
+regressions failed; all 49 affected exporter/registry cases then passed in
+3.02 seconds, including valid/stale/missing committed sources, ignored working
+drift and independent native-render drift. The real native Nox gate detects the
+old archive mismatch in 0.39 seconds. That is early failure detection, not a
+measurement of full-proof speedup. Changed working bytes still require a commit
+before they can satisfy exact committed export.
+
+Receipts remain under `build/evidence/quality/evidence-retirement/terminal-projection-*`.
+Complete quick source checks, freeze, prove the new exact source and archive,
+then accept and activate its runtime. Immediately retire already-absorbed lanes
+through public admission; a global roadmap is not a reason to defer otherwise
+safe retirement. Neither the measurement repair nor this continuation has
+retired another historical lane. The broader coverage table remains in force.
 
 ### Global Coverage And Delivery Boundary
 

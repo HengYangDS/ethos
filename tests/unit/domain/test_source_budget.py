@@ -179,6 +179,33 @@ def _fake_scc(
     monkeypatch.setattr(source_budget.subprocess, "run", dispatch)
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [('"padding"; value = 1\n', 1), ('payload = """first\n# literal\nlast"""\n', 3)],
+)
+def test_aggregate_python_budget_uses_the_same_semantic_measurement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str, expected: int
+) -> None:
+    """Aggregate budgets cannot retain a different interpretation of Python source."""
+    _, source = _repo(tmp_path)
+    source.write_text(text, encoding="utf-8")
+    _fake_scc(monkeypatch, tmp_path)
+    report = source_budget.source_budget_report(tmp_path)
+    assert report["metrics"]["python_product"] == expected, report
+
+
+def test_aggregate_python_budget_rejects_invalid_syntax(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A broken source file remains an explicit gap, not a passing small file."""
+    _, source = _repo(tmp_path)
+    source.write_text("def invalid(\n", encoding="utf-8")
+    _fake_scc(monkeypatch, tmp_path)
+    report = source_budget.source_budget_report(tmp_path)
+    assert report["verdict"] == "block", report
+    assert "source_budget_carrier_unreadable:src/ethos/demo.py" in report["required_gaps"]
+
+
 def _measure(
     monkeypatch: pytest.MonkeyPatch,
     root: Path,

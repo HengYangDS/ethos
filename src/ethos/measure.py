@@ -1,19 +1,16 @@
-"""Effective-LOC measurement — the single source of truth for the code-size hard rule.
+"""Measure Python source consistently for per-file and aggregate budgets.
 
-Lives at the BOTTOM of the dependency graph (pure kernel, zero IO beyond reading a
-path) so every consumer — the code-size gate, the pre-tool write-admission hook, and
-CI — imports downward into ONE metric and agrees byte-for-byte.
-
-Effective LOC = physical lines, minus:
-  - blank lines
-  - full-line and inline ``#`` comments
-  - docstring spans (the leading string Expr of every Module/Class/Function)
-  - bare string-literal expression statements (multi-line-string padding)
+Count physical lines occupied by meaningful tokens, including literal data.
+Exclude comments, whitespace and standalone string expressions (including
+docstrings), without removing other code on those lines. Invalid Python has no
+measurement. Formatting remains a separate native-tool obligation.
 """
 
 from __future__ import annotations
 
 import ast
+import io
+import tokenize
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -21,42 +18,44 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _string_expr_line_spans(tree: ast.AST) -> set[int]:
-    """Line numbers occupied by docstrings and bare string-literal statements."""
-    spans: set[int] = set()
-    # Bare string-literal expression statements anywhere. A docstring is the leading
-    # bare string Expr of a module/class/function body, so this single walk already
-    # covers docstrings and multi-line-string padding alike.
+def _without_string_expressions(source: str, tree: ast.AST) -> str:
+    """Mask exact AST byte spans, preserving line structure and neighboring code."""
+    lines = [bytearray(line.encode("utf-8")) for line in io.StringIO(source)]
     for node in ast.walk(tree):
         if (
             isinstance(node, ast.Expr)
             and isinstance(node.value, ast.Constant)
             and isinstance(node.value.value, str)
         ):
-            end = node.value.end_lineno or node.value.lineno
-            spans.update(range(node.value.lineno, end + 1))
-    return spans
+            end = node.end_lineno or node.lineno
+            for row in range(node.lineno, end + 1):
+                line = lines[row - 1]
+                first = node.col_offset if row == node.lineno else 0
+                last = node.end_col_offset if row == end else len(line.rstrip(b"\r\n"))
+                line[first:last] = b" " * (len(line[first:last]))
+    return b"".join(lines).decode("utf-8")
 
 
 @lru_cache(maxsize=4_096)
 def effective_code_lines_for_source(source: str) -> int:
-    """Measure immutable Python source once for repeated read-only reports."""
-    try:
-        tree: ast.AST | None = ast.parse(source)
-    except SyntaxError:
-        tree = None
-    excluded = _string_expr_line_spans(tree) if tree is not None else set()
-    count = 0
-    for index, line in enumerate(source.splitlines(), start=1):
-        stripped = line.strip()
-        if not stripped:
+    """Count token-bearing physical lines; propagate invalid syntax to the caller."""
+    source = io.StringIO(source, newline=None).read()
+    masked = _without_string_expressions(source, ast.parse(source))
+    excluded = {
+        tokenize.COMMENT,
+        tokenize.NL,
+        tokenize.NEWLINE,
+        tokenize.INDENT,
+        tokenize.DEDENT,
+        tokenize.ENDMARKER,
+        tokenize.ENCODING,
+    }
+    occupied: set[int] = set()
+    for token in tokenize.generate_tokens(io.StringIO(masked).readline):
+        if token.type in excluded or (token.type == tokenize.OP and token.string == ";"):
             continue
-        if stripped.startswith("#"):
-            continue
-        if index in excluded:
-            continue
-        count += 1
-    return count
+        occupied.update(range(token.start[0], token.end[0] + bool(token.end[1])))
+    return len(occupied)
 
 
 def effective_code_lines(path: Path) -> int:

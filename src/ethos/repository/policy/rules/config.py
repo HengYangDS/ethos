@@ -5,10 +5,40 @@ from __future__ import annotations
 import fnmatch
 import tomllib
 from typing import TYPE_CHECKING
+from typing import Annotated
 from typing import Any
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+type _LineLimit = Annotated[int, Field(gt=0, multiple_of=100)]
+
+
+class CodeSizePolicy(BaseModel):
+    """Declared file-size ceilings without coercion, hidden defaults or exemptions."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    default_effective_max_lines: _LineLimit
+    test_effective_max_lines: _LineLimit | None = None
+    surface_effective_max_lines: _LineLimit | None = None
+    surface_path_globs: list[Annotated[str, Field(pattern=r"\S")]] = Field(default_factory=list)
+
+
+def code_size_policy(config: dict[str, Any]) -> CodeSizePolicy | None:
+    """Compile the optional policy from the existing rules parser; invalid is not absent."""
+    if "_parse_error" in config:
+        raise ValueError(config["_parse_error"])
+    quality = config.get("quality", {})
+    if not isinstance(quality, dict):
+        message = "quality must be a table"
+        raise TypeError(message)
+    return CodeSizePolicy.model_validate(quality["code_size"]) if "code_size" in quality else None
 
 
 def rules_path(root: Path) -> Path:

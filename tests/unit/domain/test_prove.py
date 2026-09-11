@@ -1,8 +1,47 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import cast
 
+import pytest
+
 import ethos.domain.prove as prove
+from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+
+
+@pytest.mark.parametrize(
+    ("relative", "limit"),
+    [("src/logic.py", 500), ("src/ethos/surface/cli/view.py", 500), ("tests/test_case.py", 800)],
+)
+def test_public_size_gate_enforces_current_role_boundaries(
+    tmp_path: Path, relative: str, limit: int
+) -> None:
+    """The native CLI accepts each exact ceiling and rejects one additional source line."""
+    root = init_git_repo(tmp_path / "repo")
+    rules = root / ".ethos/rules.toml"
+    rules.parent.mkdir()
+    rules.write_bytes((Path(__file__).resolve().parents[3] / ".ethos/rules.toml").read_bytes())
+    source = root / relative
+    source.parent.mkdir(parents=True)
+    for lines in (limit, limit + 1):
+        source.write_text("value = 1\n" * lines, encoding="utf-8")
+        git(root, "add", relative)
+        result = run_ethos_raw(
+            "prove", "--host", "--execute", "--gate", "python-size", "--json", cwd=root
+        )
+        report = json.loads(result.stdout)
+        assert report["verdict"] == ("pass" if lines == limit else "block"), report
+        observed = json.loads(report["data"]["checks"][0]["stdout"])["providers"][0]["report"]
+        assert observed["default_effective_max_lines"] == 500
+        assert observed["surface_effective_max_lines"] == 500
+        assert observed["test_effective_max_lines"] == 800
+        assert observed["required_gaps"] == (
+            [] if lines == limit else [f"code_size_exceeded:{relative}:{lines}>{limit}"]
+        )
+        assert report["summary"]["proof_attestation_issued"] is False
 
 
 def test_code_size_report_applies_role_limits_and_global_cap(tmp_path, monkeypatch):

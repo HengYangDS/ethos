@@ -121,8 +121,23 @@ used eight workers inadvertently; subsequent bounded runs are serial and any
 new full proof must explicitly retain the user-required two-worker limit.
 
 Current code-size and policy observation repairs have public RED/GREEN evidence.
-They are uncommitted at source `f13647a1`; five declared per-file exceedances
-remain. Do not launch another full proof until cheap source gates pass. First
+They reached signed `e4488d943d39e39464dfdc4cf95685b99f3d60c4`, tree
+`19ee9440e200d8ab91bb1865ca9803ca878e3ff6`, through normal hooks. Nine selected
+source gates passed; measured product/test totals were 40629/41555 against
+independent 45000 ceilings. This source is not accepted or installed. The next
+bounded consolidation removes repeated proof payload and compact/detailed
+projection construction, reducing that CLI from 536 to 492 ELOC without moving
+code or adding a module. Seventy-seven affected cases and the real size provider
+verify that boundary; four other per-file exceedances remain. An intermediate
+shared-payload mutation was caught by the existing persistence-failure test and
+replaced with a new failure payload, preserving earlier observations.
+The first consolidation commit attempt raced a post-spawn `git write-tree`
+against `git commit` and failed on index.lock before HEAD changed. Readback
+confirmed the process exited, the lock disappeared and the exact staged patch
+remained. Capture index coordinates before spawning an index writer; no other
+index-writing command may overlap it. Preserve the failed receipt and revalidate
+before retrying; observation failure never permits mutation replay by itself.
+Do not launch another full proof until cheap source gates pass. First
 freeze this repair, consolidate the independently identified mixed owners, then
 obtain exact proof and complete archive/accepted/runtime delivery. Immediately
 retire already-absorbed lanes through public admission; a global roadmap is not

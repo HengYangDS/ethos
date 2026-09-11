@@ -276,32 +276,11 @@ def _proof_next_action(
 
 
 def _issue_proof_or_emit_gap(
-    repo: Path,
-    *,
-    plan: TransitionPlan,
-    checks: list[dict[str, object]],
-    verdict: Verdict,
-    options: _ProofOptions,
-    scope: str,
-    boundary: str,
-    required_gaps: tuple[str, ...],
-    json_output: bool,
+    repo: Path, payload: Mapping[str, object], *, json_output: bool
 ) -> Attestation | None:
-    """Issue one proof or project its semantic mismatch at the CLI boundary."""
+    """Expose an issuance failure once, without disguising it as an Attestation."""
     try:
-        return issue_proof_attestation(
-            repo,
-            {
-                "plan": plan,
-                "checks": tuple(checks),
-                "verdict": verdict,
-                "issuer": os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
-                "scope": scope,
-                "boundary": boundary,
-                "objective": options.objective,
-                "required_gaps": required_gaps,
-            },
-        )
+        return issue_proof_attestation(repo, payload)
     except ValueError as error:
         emit(
             EthosResult(
@@ -314,6 +293,32 @@ def _issue_proof_or_emit_gap(
             json_output=json_output,
         )
         return None
+
+
+def _compact_proof_context(
+    audit: dict[str, object], lifecycle: dict[str, object]
+) -> dict[str, object]:
+    """Project bounded audit and lifecycle summaries without their full evidence bodies."""
+    audit_openspec = cast("dict[str, object]", audit.get("openspec") or {})
+    lifecycle_summary = cast("dict[str, object]", lifecycle.get("summary") or {})
+    lifecycle_change_count = lifecycle_summary.get("change_count")
+    return {
+        "audit": {
+            "verdict": report_verdict(audit),
+            "mode": str(audit.get("mode") or ""),
+            "openspec_mode": str(audit_openspec.get("mode") or ""),
+            "required_gap_count": len(string_sequence(audit.get("required_gaps"))),
+        },
+        "openspec_lifecycle": {
+            "verdict": report_verdict(lifecycle),
+            "change": str(lifecycle.get("change") or ""),
+            "schema_name": str(lifecycle.get("schema_name") or ""),
+            "change_count": (
+                lifecycle_change_count if isinstance(lifecycle_change_count, int) else 0
+            ),
+            "required_gaps": list(string_sequence(lifecycle.get("required_gaps"))),
+        },
+    }
 
 
 @app.command
@@ -446,18 +451,18 @@ def prove(
         required_gaps=required_gaps,
     )
     boundary = "focused" if focused else "repository"
+    payload = {
+        "plan": plan,
+        "checks": tuple(checks),
+        "verdict": verdict,
+        "issuer": os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+        "scope": str(scope_binding["scope"]),
+        "boundary": boundary,
+        "objective": options.objective,
+        "required_gaps": required_gaps,
+    }
     attestation = (
-        _issue_proof_or_emit_gap(
-            repo,
-            plan=plan,
-            checks=checks,
-            verdict=verdict,
-            options=options,
-            scope=str(scope_binding["scope"]),
-            boundary=boundary,
-            required_gaps=required_gaps,
-            json_output=json_output,
-        )
+        _issue_proof_or_emit_gap(repo, payload, json_output=json_output)
         if options.execute
         else None
     )
@@ -472,18 +477,7 @@ def prove(
             )
             verdict = "block"
             attestation = issue_proof_attestation(
-                repo,
-                {
-                    "plan": plan,
-                    "checks": tuple(checks),
-                    "verdict": "block",
-                    "issuer": os.environ.get("ETHOS_ACTOR", "").strip()
-                    or "agent:local:process:ethos",
-                    "scope": str(scope_binding["scope"]),
-                    "boundary": boundary,
-                    "objective": options.objective,
-                    "required_gaps": required_gaps,
-                },
+                repo, {**payload, "verdict": verdict, "required_gaps": required_gaps}
             )
     result_state = (
         "proven"
@@ -492,73 +486,38 @@ def prove(
         if verdict == "pass"
         else "gapped"
     )
-    next_action = _proof_next_action(
-        options=options,
-        result_state=result_state,
-    )
     detailed = options.execute or bool(options.gate) or options.full
-    audit_openspec = cast("dict[str, object]", audit.get("openspec") or {})
-    lifecycle_summary = cast("dict[str, object]", openspec_lifecycle.get("summary") or {})
-    lifecycle_change_count = lifecycle_summary.get("change_count")
     check_summaries = _check_summaries(checks)
-    attestation_data = attestation.model_dump(mode="json") if attestation is not None else {}
     artifact = attestation.payload.body.get("artifact") if attestation is not None else {}
-    artifact_reference = dict(artifact) if isinstance(artifact, Mapping) else {}
-    data = (
-        {
-            "governance_context": audit["governance_context"],
-            "repository_audit": audit,
-            "openspec_lifecycle": openspec_lifecycle,
-            "changed_paths": list(changed_paths),
-            "executed": options.execute,
-            "boundary": boundary,
-            "scope": scope_binding["scope"],
-            "scope_binding": scope_binding,
-            "host_probe": host_probe,
-            "transition_plan": plan.model_dump(mode="json"),
-            "attestation": attestation_data,
-            "artifact_reference": artifact_reference,
-            "checks": check_summaries,
-            "expected_head": {
-                "expected": options.expect_head or "",
-                "current": current_head,
-                "matches": options.expect_head is None or options.expect_head == current_head,
-            },
-        }
-        if detailed
-        else {
-            "executed": options.execute,
-            "boundary": boundary,
-            "scope": scope_binding["scope"],
-            "scope_binding": scope_binding,
-            "host_probe": host_probe,
-            "gate_ids": [check["action_id"] for check in checks],
-            "changed_path_count": len(changed_paths),
-            "audit": {
-                "verdict": report_verdict(audit),
-                "mode": str(audit.get("mode") or ""),
-                "openspec_mode": str(audit_openspec.get("mode") or ""),
-                "required_gap_count": len(string_sequence(audit.get("required_gaps"))),
-            },
-            "openspec_lifecycle": {
-                "verdict": report_verdict(openspec_lifecycle),
-                "change": str(openspec_lifecycle.get("change") or ""),
-                "schema_name": str(openspec_lifecycle.get("schema_name") or ""),
-                "change_count": (
-                    lifecycle_change_count if isinstance(lifecycle_change_count, int) else 0
-                ),
-                "required_gaps": list(string_sequence(openspec_lifecycle.get("required_gaps"))),
-            },
-            "attestation": attestation_data,
-            "artifact_reference": artifact_reference,
-            "checks": check_summaries,
-            "expected_head": {
-                "expected": options.expect_head or "",
-                "current": current_head,
-                "matches": options.expect_head is None or options.expect_head == current_head,
-            },
-        }
-    )
+    data = {
+        "executed": options.execute,
+        "boundary": boundary,
+        "scope": scope_binding["scope"],
+        "scope_binding": scope_binding,
+        "host_probe": host_probe,
+        "attestation": attestation.model_dump(mode="json") if attestation is not None else {},
+        "artifact_reference": dict(artifact) if isinstance(artifact, Mapping) else {},
+        "checks": check_summaries,
+        "expected_head": {
+            "expected": options.expect_head or "",
+            "current": current_head,
+            "matches": options.expect_head is None or options.expect_head == current_head,
+        },
+    }
+    if detailed:
+        data.update(
+            governance_context=audit["governance_context"],
+            repository_audit=audit,
+            openspec_lifecycle=openspec_lifecycle,
+            changed_paths=list(changed_paths),
+            transition_plan=plan.model_dump(mode="json"),
+        )
+    else:
+        data.update(
+            gate_ids=[check["action_id"] for check in checks],
+            changed_path_count=len(changed_paths),
+            **_compact_proof_context(audit, openspec_lifecycle),
+        )
     result = EthosResult(
         command="prove",
         verdict=verdict,
@@ -570,7 +529,7 @@ def prove(
             "gate_count": len(checks),
         },
         required_gaps=required_gaps,
-        next_action=next_action,
+        next_action=_proof_next_action(options=options, result_state=result_state),
         governance_context=cast("dict[str, object]", audit["governance_context"]),
         data=data,
     )

@@ -126,3 +126,11 @@ without file splitting, role reassignment or evidence removal to fit a number.
 Repository-wide consolidation is subsequent work, not silently added to this
 artifact admission Change. Product/test aggregate budgets remain independent
 45000 ceilings and combined coverage remains at least 95 percent.
+
+The already-blocking proof surface repeats issuance payload fields and the
+common compact/detailed response. Construct each once, keep bounded presentation
+normalization separate from proof effects, and create a distinct failure payload
+after persistence failure. Preserve public response fields and verdicts; remove
+duplicate construction rather than moving it into a new module or weakening
+the source ceiling. Existing persistence-failure and projection comparisons
+must distinguish accidental mutation of an earlier observation.

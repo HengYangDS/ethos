@@ -10,6 +10,7 @@ from typing import cast
 
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.git import committed_file_text
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -78,6 +79,7 @@ def signature_coordinates(root: Path, old: str, actor: str, new: str = "") -> di
         _require(not gaps, gaps[0] if gaps else "")
     return {
         "root": root.as_posix(),
+        "common_dir": str(git_common_dir(root)),
         "repository": repository_identity(root, tree_ref=old),
         "actor": actor,
         "old": old,
@@ -155,6 +157,7 @@ def signature_record_coordinates(record: Attestation) -> dict[str, object]:
         and set(coordinates)
         == {
             "root",
+            "common_dir",
             "repository",
             "actor",
             "old",

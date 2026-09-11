@@ -10,17 +10,20 @@ import subprocess
 import sys
 import tarfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 ROOT = Path(__file__).resolve().parents[3]
 
 
-@pytest.mark.parametrize("fault", ["none", "digest", "version", "missing", "transport", "platform"])
-def test_budget_tool_supply_checks_bytes_before_replacing_executable(
+def _budget_supply(
     tmp_path: Path, fault: str
-) -> None:
-    """Invalid supply cannot replace a retained executable; valid supply repairs it."""
+) -> tuple[Callable[[], subprocess.CompletedProcess[str]], Path, Path, bytes]:
+    """Bind a real installer to isolated supply and controllable upstream faults."""
     repo = tmp_path / "repo"
     scripts = repo / "tools/ci/scripts"
     scripts.mkdir(parents=True)
@@ -74,29 +77,9 @@ def test_budget_tool_supply_checks_bytes_before_replacing_executable(
         "ETHOS_CI_TOOL_CACHE_DIR": str(repo / "build/runtime/tool-cache/ci-tools"),
         "ETHOS_CI_DOWNLOAD_ATTEMPTS": "1",
     }
-    result = subprocess.run(
-        ["bash", str(scripts / installer.name)],
-        cwd=repo,
-        env=env,
-        text=True,
-        capture_output=True,
-        timeout=20,
-        check=False,
-    )
-    if fault != "none":
-        assert result.returncode != 0
-        assert result.stderr
-        assert executable.read_text() == "retained-but-untrusted"
-    else:
-        assert result.returncode == 0, result.stderr
-        assert Path(result.stdout.strip()) == cache
-        assert executable.read_bytes() == body
-        assert (
-            subprocess.check_output([str(executable), "--version"]).strip() == b"scc version 4.1.0"
-        )
-        transfer_log.unlink()
-        executable.write_text("tampered")
-        repeated = subprocess.run(
+
+    def invoke() -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
             ["bash", str(scripts / installer.name)],
             cwd=repo,
             env=env,
@@ -105,7 +88,61 @@ def test_budget_tool_supply_checks_bytes_before_replacing_executable(
             timeout=20,
             check=False,
         )
-        assert repeated.returncode == 0, repeated.stderr
+
+    return invoke, executable, package, body
+
+
+@pytest.mark.parametrize("fault", ["digest", "version", "missing", "transport", "platform"])
+def test_budget_tool_supply_rejects_invalid_supply_without_replacement(tmp_path, fault):
+    """A failed supply check preserves the old executable and removes preparation."""
+    invoke, executable, _package, _body = _budget_supply(tmp_path, fault)
+
+    result = invoke()
+
+    assert result.returncode != 0
+    assert result.stderr
+    assert executable.read_text() == "retained-but-untrusted"
+    assert not list(executable.parent.glob(".prepare-*"))
+
+
+def test_budget_tool_supply_reuses_verified_identity_and_repairs_damage(tmp_path):
+    """Warm reuse preserves identity, not permission to skip fresh supply validation."""
+    invoke, executable, package, body = _budget_supply(tmp_path, "none")
+    cache, transfer_log = executable.parent, tmp_path / "transfer.log"
+    result = invoke()
+    assert result.returncode == 0, result.stderr
+    assert Path(result.stdout.strip()) == cache
+    assert executable.read_bytes() == body
+    transfer_log.unlink()
+    executable.write_text("tampered")
+    repeated = invoke()
+    assert repeated.returncode == 0, repeated.stderr
+    assert executable.read_bytes() == body
+    assert not transfer_log.exists(), "verified cached archive needs no download"
+    identity = executable.stat()
+    reused = invoke()
+    assert reused.returncode == 0, reused.stderr
+    after = executable.stat()
+    assert (after.st_ino, after.st_mtime_ns) == (identity.st_ino, identity.st_mtime_ns), (
+        "verified unchanged supply must not create another executable identity"
+    )
+    assert not transfer_log.exists()
+    archive_digest = hashlib.sha256(package.read_bytes()).hexdigest()
+    for damaged in ("mode", "symlink"):
+        if damaged == "mode":
+            executable.chmod(0o444)
+        else:
+            executable.unlink()
+            executable.symlink_to(package)
+        repaired = invoke()
+        assert repaired.returncode == 0, repaired.stderr
+        assert not executable.is_symlink()
+        assert os.access(executable, os.X_OK)
         assert executable.read_bytes() == body
-        assert not transfer_log.exists(), "verified cached archive needs no download"
+        assert hashlib.sha256(package.read_bytes()).hexdigest() == archive_digest
+    (cache / "scc_Linux_arm64.tar.gz").write_bytes(b"corrupt cached archive")
+    rejected = invoke()
+    assert rejected.returncode != 0
+    assert "scc_archive_checksum_mismatch" in rejected.stderr
+    assert executable.read_bytes() == body, "warm reuse cannot bypass archive validation"
     assert not list(cache.glob(".prepare-*")), "preparation owns and removes temporary output"

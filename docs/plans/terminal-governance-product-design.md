@@ -2782,6 +2782,36 @@ and the withdrawn experiment's rationale. The source repair remains committed
 and independently testable; paused binding semantics and remaining lanes are
 not declared absorbed or retired.
 
+The next bounded correction stays within hosted tool supply. Repeated preparation
+previously extracted and replaced an already verified executable on every call.
+A regression failed on changed inode/mtime; the installer now verifies archive
+digest, member bytes and executable version while retaining an unchanged regular
+executable. Missing, tampered, non-executable or symlink supply receives a verified
+atomic replacement, never a write through the link. Temporary lifetime belongs
+to the same Python owner as validation/replacement; redundant shell staging is
+removed. This is not a fix for every native startup or process-observer failure.
+
+All 84 installer, shared hosted-entry and release-owner regressions passed in
+75.10 seconds; the explicit isolated test root was removed. Ruff, Ty, shell syntax
+and official OpenSpec validation pass. An actual pinned Darwin ARM64 comparison
+used one cold and three warm preparations for each implementation: the previous
+warm calls took 1.07–1.70 seconds and changed file identity each time; the candidate
+took 0.21–0.33 seconds without changing inode/mtime. Cold calls took 1.07 and
+1.21 seconds respectively. Both returned zero and left no preparation directory.
+This small sample proves reduced repeated materialization, not long-run resource
+closure, hosted CI success or a full-proof speedup. The exact archive/owner hashes
+and results are in `scc-ci-verified-reuse-native.json`, SHA256
+`66e60e69719f7cb94ce9200206cac06a79f54b4bc3c43b34ed0b427ed61b9dd5`,
+under the existing ignored evidence root.
+
+A separate 25-second read-only probe captured 113 successful native file-reference
+observations during hosted execution; no failing payload was observed. It does
+not explain the prior retirement rejection. The prior publication timeout's
+stack is in local accepted-ref CAS, before peer publication; do not diagnose it
+as a network failure. Continue exact failure capture without changing process
+safety or interrupting the still-running hosted tests. Both full-proof failures,
+accepted delivery and hosted verification remain unresolved.
+
 ## Convergence Rules
 
 1. **Promote before compatibility.** Replace a missing model boundary before

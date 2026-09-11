@@ -179,12 +179,12 @@
     "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
       "authority": "current repository lifecycle, proof, publication, and cleanup semantics",
-      "sha256": "dc323a77203993768ed81254e32a89916a6e1017bd5e5db1cba01113d63958c3"
+      "sha256": "a717615ac7ce02f960faa5bb0ec27bbb0f57900bae5a80d4a26bde2a2c7587e0"
     },
     "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",
       "authority": "current public command and result semantics",
-      "sha256": "fccfede6691875eaf6d4153ec3d3c88ba1a18960173a14db566c3ef3ff0ff337"
+      "sha256": "acbb53d2750705be3ddca0a90d0ca61824d00293510dfec163911680f964f1da"
     },
     "learning_relations": {
       "path": "docs/governance/evolution-campaign.md",

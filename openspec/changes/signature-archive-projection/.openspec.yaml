@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-09-12
+goal: Reconcile the existing terminal projection with the officially archived
+  signature requirements before accepted closeout, without adding product
+  semantics or another lane.
+
+skip_specs: true

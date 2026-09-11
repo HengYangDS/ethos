@@ -1168,11 +1168,34 @@ model. Signature repair requires no semantic Lease and never repairs arbitrary
 identity history. These dispositions permit source retirement only after final
 package proof, exact repository proof and accepted closeout succeed.
 
-Complete the affected reference closure and verification, freeze the candidate,
-then obtain exact proof, official archive, accepted closeout and runtime
-acceptance. Immediately follow with content-reviewed retirement of the source
-lane. Do not copy `AcceptedCarrierRepair`/`AcceptedCarrierProgress`, imply signing
-is read-only or force a candidate/dev/main train onto independent refs.
+Exact full proof at `265330d7429ba2ee200f2b1afd7c5c9d432a9556` passed all 35
+gates: 3130 tests passed, one skipped and none failed; combined statement/branch
+coverage was 95.05 percent. Total proof took 1589.83 seconds with two workers;
+its owned pytest root was removed. The earlier 94.9849-percent result remains
+failed evidence, not rounded-up acceptance. Official archive then produced
+`d3689d829ca41e6d9928023e14bf100d193686c5`: all six Change artifacts were moved
+byte-identically and three requirements entered two canonical specs.
+
+Archive exposed a downstream closure gap: those two spec digests became stale
+in the existing terminal graph, while archived material scope correctly refused
+that additional write. The same lane's bounded official no-spec Change
+`signature-archive-projection` maps the new requirements to existing effect,
+trust, payload, worktree and recovery owners before refreshing only the two
+bindings. All other eleven source bindings match. No graph entity, product
+requirement, renderer or quality threshold changes for this repair.
+
+Keep the owner-level follow-up explicit: archive needs a reviewed downstream
+projection closure rather than recurring manual follow-up Changes. Its preflight
+also predicted a host-local September 12 path while the official UTC child
+returned September 11; actual-path hashes were checked and no second archive
+was attempted. Neither mechanism is fixed by refreshing source bindings.
+
+Next validate the corrected projection before heavy work, freeze, obtain exact
+proof and official no-spec archive, then accepted closeout and runtime acceptance.
+Immediately follow with content-reviewed retirement of the source lane. Current
+archive is not accepted/runtime/remote delivery and the source remains unretired.
+Do not copy `AcceptedCarrierRepair`/`AcceptedCarrierProgress`, imply signing is
+read-only or force a candidate/dev/main train onto independent refs.
 Complete-DAG identity rewriting remains distinct.
 
 `accepted-carrier-absorption-review.json`, `transition-content-comparison.json`

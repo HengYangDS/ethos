@@ -1136,9 +1136,34 @@ authorization, lock contention, known untrusted objects, result-persistence
 failure and actual child exit after signing or CAS. Failure JSON retains a
 known replacement and separately observes native effects. These are bounded
 local tests, not proof of arbitrary same-UID isolation or platform-wide crash
-safety. Package conformance now uses the existing installed lifecycle and
-adopter fixture; its new command path passed in the source environment, but the
-current wheel/runtime execution and full proof remain required.
+safety. The installed wheel at `4b933c7f8` passed repair/replay and owned-root
+cleanup. The final extension now executes replacement-bound proof and local
+publication readiness instead of merely comparing the suggested command. Its
+fixture uses official OpenSpec archive and supplies a real Purpose for the
+created capability; strict warnings remain failures. Git common-directory
+identity is explicit in repair coordinates. Rebuild the final wheel before
+claiming those extended obligations accepted.
+
+The complete 18-path transferred delta has the following semantic disposition;
+exact source paths and unchanged hashes remain in the existing absorption
+receipt, not another task authority:
+
+| Source responsibility | Current owner and retained obligation | Superseded form |
+| --- | --- | --- |
+| Six official Change artifacts | This same official Change retains signature-only preservation, exact selected refs, current trust, clean worktrees, failure recovery and package acceptance. | Old derive/apply shape and source-lane completion claims are not acceptance. |
+| Ref admission and hook dispatch | Shared commit-signature admission validates both public recovery and the installed reference-transaction boundary. | Candidate-only dispatch for this distinct signature replacement. |
+| Repair composition | Accepted signature mutation composes native signing, the existing Git CAS and worktree observers. Real interrupted-process tests reject duplicate signing. | Command-private request/progress stores and reconstructed commit payloads. |
+| Carrier contracts | Existing immutable Attestation/TransitionPlan plus fresh source-derived common-dir, policy, role, payload and worktree bindings. Reissued actor, subject, repository and effect coordinates are rejected. | Separate `AcceptedCarrierRepair`/`AcceptedCarrierProgress` models and monotonic progress as truth. |
+| Two CLI projections | One `lane repair-signature` command has effect-free readiness, explicit authorization and structured recovery. | Signing during derive, implicit actor invention and compatibility command aliases. |
+| Three test surfaces | Current native-object, public/hook, actual process-exit and package acceptance tests preserve the positive and negative obligations. | Tests of obsolete storage shape or mandatory candidate/dev/main equality. |
+| Three package acceptance surfaces | Existing package lifecycle exercises installed repair, exact reproof, local publication readiness, replay and cleanup in its existing fixture. | A second repository clone, package environment or repair implementation. |
+
+The source's actor equality is retained, not silently widened: a different
+actor cannot turn an unresolved attempt into a new signing attempt. Generic
+cross-actor recovery remains subject to the existing authorization/handoff
+model. Signature repair requires no semantic Lease and never repairs arbitrary
+identity history. These dispositions permit source retirement only after final
+package proof, exact repository proof and accepted closeout succeed.
 
 Complete the affected reference closure and verification, freeze the candidate,
 then obtain exact proof, official archive, accepted closeout and runtime

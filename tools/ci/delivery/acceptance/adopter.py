@@ -6,6 +6,7 @@ import shutil
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 
@@ -116,6 +117,8 @@ capabilities = ["repository", "publication"]
     spec = change / "specs/package-smoke/spec.md"
     spec.parent.mkdir(parents=True)
     spec.write_text(
+        "## Purpose\n\n"
+        "Verify installed governance of native repository changes without source access.\n\n"
         "## ADDED Requirements\n\n"
         "### Requirement: Installed lifecycle\n\n"
         "The installed package SHALL govern an official OpenSpec Change.\n\n"
@@ -170,7 +173,12 @@ def prepare_acceptance_topology(
 ) -> Path:
     """Prepare the repository facts consumed by one package-acceptance run."""
     git = _required_executable("git")
-    run(git, "rm", "-r", "openspec/changes/smoke-change", cwd=root)
+    openspec = openspec_base_command()
+    if openspec is None:
+        message = "package_acceptance_openspec_unavailable"
+        raise RuntimeError(message)
+    run(*openspec, "archive", "smoke-change", "--yes", "--json", cwd=root)
+    run(git, "add", "--all", "--", "openspec", cwd=root)
     run(git, "commit", "--quiet", "-m", "complete package smoke change", cwd=root)
     candidate = root.parent / "repo-candidate-dev"
     run(git, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev", cwd=root)
@@ -189,7 +197,22 @@ def prepare_acceptance_topology(
         'signing_format = "ssh"\n',
         encoding="utf-8",
     )
-    run(git, "add", ".ethos/workspace.toml", cwd=root)
+    profile = root / ".ethos/profile.toml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8")
+        + '\n[proof]\ncode_correctness_gates = ["signature-trust", "patch-validity"]\n'
+        + '[proof.code_correctness_map]\nbehavior = "signature-trust"\n'
+        + 'static-analysis = "patch-validity"\n'
+        + '[[proof.gates]]\nid = "signature-trust"\nkind = "test"\n'
+        + 'command = ["git", "verify-commit", "HEAD"]\ndimensions = ["behavior"]\n'
+        + 'execution_mode = "subprocess"\nevidence_class = "proof"\ntrust_bearing = true\n'
+        + '[[proof.gates]]\nid = "patch-validity"\nkind = "lint"\n'
+        + 'command = ["git", "diff", "--check", "HEAD^", "HEAD"]\n'
+        + 'dimensions = ["static-analysis"]\nexecution_mode = "subprocess"\n'
+        + 'evidence_class = "contract"\ntrust_bearing = true\n',
+        encoding="utf-8",
+    )
+    run(git, "add", ".ethos/workspace.toml", ".ethos/profile.toml", cwd=root)
     run(
         git,
         "-c",

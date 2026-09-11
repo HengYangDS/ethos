@@ -10,6 +10,7 @@ import ethos.adapters.mutation.proof as proof_adapter
 import ethos.adapters.mutation.publication.attestation as publication_attestation
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.mutation.remote_publication as remote_publication
+import ethos.domain.land.publication as publication_domain
 import ethos.repository.release.publication as release_publication
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.runtime.selection import runtime_command
@@ -180,6 +181,14 @@ def test_publish_local_readiness_does_not_project_a_publication_plan(tmp_path: P
     assert publication["source_role"] == "work_lane"
     assert "proposal_branch" not in publication
     assert "local_proposal_package" not in publication
+    context = publication_domain.observe_publication(
+        repo, apply=False, authorized=False, expect_head=None, target_refs=()
+    )
+    observed = publication_domain.publication_readiness_result(
+        context, apply=False, authorized=False, expect_head=None, probe_remote=False
+    )
+    assert observed.model_dump(mode="json")["data"] == payload["data"]
+    assert observed.state == payload["state"]
 
 
 _PROPOSAL = "terminal-convergence"

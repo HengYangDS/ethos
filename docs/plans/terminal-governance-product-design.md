@@ -133,8 +133,19 @@ tree `19706715f4aaa3c59f9e86b030564d0711bb9207`. The hook activation test then
 removed an unused hand-built Python/environment projection from its reuse case,
 preserving the no-rebuild assertion and adding exact selected-digest, unchanged
 inventory and empty-gap checks. All 72 activation cases pass in 46.84 seconds
-with scratch removed; the module falls from 808 to 783 ELOC. Three declared
-file-size gaps remain: publication CLI, publication tests and retirement tests.
+with scratch removed; the module falls from 808 to 783 ELOC and reached signed
+`300200fccc6a03ffd5e97d07dbfbddc883e76994`, tree
+`2e08061d6d7b48cbeb3bd5f1d53358bedffa33c7`. Publication's complete no-push
+readiness use case and shared local observation now belong to the existing
+publication domain owner; CLI retains transport selection and the existing
+remote-effect path. A transient typed context replaces the large parallel
+argument list; it stores no workflow state and grants no effect authority.
+CLI ELOC falls 697 to 405, while the domain owner is 499. This is responsibility
+consolidation, not a net-code deletion claim. All 33 publication cases pass in
+194.67 seconds, including local/single/multiple peers, exact signed tag and
+branch CAS, missing observations, receipt replay and proof drift. Tested source
+hashes match the candidate; owned scratch is removed. Two declared file-size
+gaps remain: publication tests and retirement tests.
 This does not settle the separate unified-500 trial. An intermediate
 shared-payload mutation was caught by the existing persistence-failure test and
 replaced with a new failure payload, preserving earlier observations.

@@ -25,3 +25,4 @@
 - [x] 4.4 Compare old and corrected measurements on one exact inventory and record semantic threshold disposition without implying calibration is complete.
 - [x] 4.5 Remove duplicate proof issuance and presentation construction while preserving public response and failure semantics.
 - [x] 4.6 Remove unused hook-reuse fixture projections and verify unchanged generation identity and content across the full activation suite.
+- [x] 4.7 Consolidate publication observation and no-push readiness under the existing domain owner, preserving the remote effect and public contract cases.

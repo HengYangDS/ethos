@@ -1,3 +1,5 @@
+"""Verify reviewed retirement preserves content and reports exact admission failures."""
+
 from __future__ import annotations
 
 import json
@@ -89,7 +91,7 @@ def test_reviewed_retirement_preserves_content_held_by_live_process(
         selected = repo.parent / "external-hardlink"
         os.link(lane / "abandoned.txt", selected)
     derived = _derive(repo, review_content=True, path=lane if detached else None)
-    assert derived["verdict"] == "pass", derived
+    assert derived["verdict"] == "pass", json.dumps(derived, indent=2)
     receipt = derived["receipt"]
     assert isinstance(receipt, dict)
     script = """import json, mmap, os, sys
@@ -129,12 +131,12 @@ if mode == 'writer':
         finally:
             child.communicate("x", timeout=10)
 
-    assert lane.is_dir(), result
+    assert lane.is_dir(), json.dumps(result, indent=2)
     assert child.returncode == 0
     assert (lane / "abandoned.txt").read_text() == (
         "stopped writer bytes\n" if consumer == "writer" else "abandoned\n"
     )
-    assert result["required_gaps"] == ["retirement_content_in_use"], result
+    assert result["required_gaps"] == ["retirement_content_in_use"], json.dumps(result, indent=2)
     assert before == (git(repo, "show-ref"), observe_lease(state_database(repo), "work/abandon"))
     released = operation.execute_retirement_operation(
         root=repo,
@@ -143,9 +145,11 @@ if mode == 'writer':
         apply=False,
         authorized=False,
     )
-    assert released["verdict"] == ("block" if consumer == "writer" else "pass"), released
+    assert released["verdict"] == ("block" if consumer == "writer" else "pass"), json.dumps(
+        released, indent=2
+    )
     reviewed = _derive(repo, review_content=True, path=lane if detached else None)
-    assert reviewed["verdict"] == "pass", reviewed
+    assert reviewed["verdict"] == "pass", json.dumps(reviewed, indent=2)
     final_receipt = reviewed["receipt"]
     assert isinstance(final_receipt, dict)
     retired = operation.execute_retirement_operation(
@@ -155,7 +159,7 @@ if mode == 'writer':
         apply=True,
         authorized=True,
     )
-    assert retired["state"] == "retired", retired
+    assert retired["state"] == "retired", json.dumps(retired, indent=2)
     assert not lane.exists()
     assert str(lane) not in git(repo, "worktree", "list", "--porcelain")
     if not detached:

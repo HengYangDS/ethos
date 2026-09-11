@@ -24,31 +24,17 @@ state_tracked_truth = false
 generated_outputs_tracked_truth = false
 
 [quality.code_size]
-# Role-based effective-LOC limits (AST-computed, excluding blanks/comments/
-# docstrings). Adopted from ETHOS module-layout policy and system axioms: a flat "every file <=400" rule is crude
-# — it forces a command aggregator and a logic module to the same bar. Instead,
-# one limit per role, calibrated to the repo's actual effective-LOC distribution
-# (each limit sits near the role's p90–p95 so the genuine tail must split while
-# cohesive mid-size modules stay whole):
-#
-#   role=logic   (domain/adapters/kernel reducers):  500
-#   role=surface (CLI command groups / aggregators): 800
-#   role=test    (broad contract coverage):         1100
-#
-# Each role has one current limit. An over-limit file is decomposed into a
-# semantic sub-package (rules/module_layout.md §1), never frozen in place.
+# Product logic and CLI surfaces share one ceiling; transport is not a reason
+# to accumulate orchestration. Tests have a separate ceiling for cohesive cases.
+# Exceedance requires semantic consolidation, not role reassignment, cosmetic
+# compression, per-file exemptions or raising the limit to fit existing files.
 default_effective_max_lines = 500
-# Surface role: CLI command modules are legitimately larger thin wiring sheets
-# (bind-args -> domain call -> emit), bounded but not held to the logic limit.
-surface_effective_max_lines = 800
+surface_effective_max_lines = 500
 surface_path_globs = [
   "src/ethos/cli.py",
   "src/ethos/surface/**",
 ]
-# Test files may carry one cohesive lifecycle matrix with shared fixtures. The
-# bounded 1100-ELOC tail contains the current 1032-ELOC maximum without forcing
-# a split that duplicates setup; logic and surface limits remain stricter.
-test_effective_max_lines = 1100
+test_effective_max_lines = 800
 
 [[rule]]
 id = "local-state-boundary"

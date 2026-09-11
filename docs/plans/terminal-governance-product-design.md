@@ -1190,10 +1190,34 @@ also predicted a host-local September 12 path while the official UTC child
 returned September 11; actual-path hashes were checked and no second archive
 was attempted. Neither mechanism is fixed by refreshing source bindings.
 
-Next validate the corrected projection before heavy work, freeze, obtain exact
-proof and official no-spec archive, then accepted closeout and runtime acceptance.
-Immediately follow with content-reviewed retirement of the source lane. Current
-archive is not accepted/runtime/remote delivery and the source remains unretired.
+The bounded projection correction and its no-spec archive are accepted at
+`00c23fc9d891b85c6800d2cbd5b0f99585ef5219`, tree
+`4e97c2a376dcd8d9a3f860c7e83ae971be53af5f`. Both exact proofs passed all 35 gates;
+the archived run had 3130 passes, one skip and 95.0454-percent combined coverage.
+Four no-spec artifacts moved byte-identically, all thirteen source bindings
+remained unchanged, and committed export remained deterministic. Its digest is
+`54207831704d296b8bb2e25d8b9b20eeba3afe0dbbd12c1376ff2a7066036634`.
+
+Public candidate and accepted CAS advanced local dev, main and candidate to that
+object. Immutable runtime `002dfcb0c5260d54cce7b7b9c3f694d0fff7d02ec06186d0df18012474515bf4`
+matches its source/tree; all four hooks are armed. Public receipt-bound publication
+updated dev/main as one ref set per peer; independent GitLab and GitHub reads
+returned the same selected OID. Newly triggered hosted CI was running or queued,
+not claimed complete. The prior accepted `be54b587` pipelines were independently
+confirmed successful on both providers. Forge signature verification remains
+separate from local trusted Git signature and SSH transport.
+
+The transferred signature source is now physically retired. Public exact-content
+review bound 23950 entries, its expired generation-2 Lease, exact source and
+accepted OIDs, and coordinated writer quiescence from the formal handoff. Terminal
+receipt `6d3fdc65f1e9db23546ab453944f119028bafa6561563ff0fd6fb46af33997cf`
+records worktree removal, ref deletion and Lease revocation. Independent readback
+confirmed the path, registration and administration absent; other roots' HEAD,
+index and dirty status, and all other branch/tag/tracking refs were unchanged.
+Seven source commits remain recoverable in a verified 30720-byte bundle, with
+necessary original reports retained only for the final absorption audit. These
+small recovery inputs do not justify retaining its environment, caches or wheel.
+
 Do not copy `AcceptedCarrierRepair`/`AcceptedCarrierProgress`, imply signing is
 read-only or force a candidate/dev/main train onto independent refs.
 Complete-DAG identity rewriting remains distinct.
@@ -1203,7 +1227,71 @@ and `transition-definition-comparison.json` in the existing ignored quality
 evidence home retain exact source coordinates and comparison boundaries. The
 transition comparison covers 26 task dispositions and discovers changed
 definitions; it does not establish complete understanding of all 388 paths or
-all historical feedback. No source lane has been deleted on that evidence.
+all historical feedback. The transition source has not been deleted on that
+evidence; the signature source retired only after its separate closure above.
+
+#### Transition Source Absorption
+
+Only the historical `work/20260811-repository-transition-model` remains alongside
+the current authoring lane. Its source HEAD is
+`84ba160bea96bb59391d1563c59771a5d27ed4ac`; the retained 341 dirty paths and
+388 distinct committed/dirty paths were rechecked against the existing file
+hash inventory with no drift. This is not permission to revive its old runtime,
+merge its whole branch or discard unique content.
+
+Official `transition-source-absorption` owns the bounded review and handoff.
+The complete proposal/design, all 26 tasks and all 35 delta requirements with
+48 scenarios have been read and dispositioned. Source hashes and per-requirement
+reasons are in `transition-requirement-disposition.json` under the existing ignored
+evidence home. That scope is explicit: it is not whole-lane implementation or
+proof that all historical user input has been recovered.
+
+| Responsibility | Current disposition and required continuation |
+| --- | --- |
+| Semantic contracts and current authority | Retain immutable normalized values, exact effects, explicit verdicts and non-authorizing evidence. Replace persistent Commitment scope/dependencies and controller-expanded Lease with official OpenSpec, transient compilation and four-field coordination. Old field-shape tests do not survive as product requirements. |
+| Gate declaration and execution | Retain dependency, executor, material and resource safety. Current dependency-ready executor replaces the old barrier waves and its ignored parallel flag. Resource-lock metadata is not proof of enforced locks; actual footprint and overlap semantics still need verification. Do not restore duplicate runtime/quality registries. |
+| Package and schema ownership | Retain source-hidden package defaults and exact resource bindings; do not restore `_resources`, generic resource facades or a second schema adapter solely to centralize library calls. Malformed schema, deterministic diagnostics and external-reference behavior must be verified at actual consumers. |
+| Commit policy and publication | Current optional `CommitPolicy`, raw/generated admission and exact push-range validator supersede the old mandatory default grammar and second validator carrier. Preserve missing proposal-title, review-source and merge-ingestion obligations in the existing publication follow-up; do not copy its fixed one-ref effect or reinterpret merge/retire as proposal-create authority. |
+| Full-DAG identity replacement | Distinct from signature-only tip repair. Preserve explicit mapping bijection, ordered parent correspondence, exact trees, timestamps, unknown-header bytes, stable boundaries and declared allowed changes. Current public full-DAG audit/apply is unproved. The old implementation silently permits identity/message replacement as a class and depends on retired Lease fields; its data model and effect composition are not accepted. |
+| Private import visibility | Static import ownership is implemented. An inert-source probe finds literal and aliased `import_module` calls crossing the private boundary still pass the current layout report. Retain this obligation with the existing alias/scope/program-point observation work. Reject the old spelling-only detector, which would mistake a shadowed local object for importlib. |
+| Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
+| Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
+
+The first 25 source paths now have explicit dispositions in the existing
+`transition-content-comparison.json`; 363 remain unreviewed. The current
+counterpart suite passed 317 tests in 6.84 seconds across semantic values,
+TransitionPlan, coordination, results, gate registry/execution, commit policy,
+native object trust, layout, schema loading and format ownership. Its owned
+temporary root was removed. These tests establish their retained assertions,
+not full-DAG replacement, complete dynamic coverage or all 388 source paths.
+
+Two discriminating probes prevent those passes from hiding missing behavior.
+The public `module_layout_gate_report` still passes a literal dynamic import
+across a private boundary. Separately, `system_contracts_report` raises native
+`SchemaError` for a declared schema with `type: 13`, rather than returning a
+structured failed report. The latter is a report-boundary observation; public
+CLI behavior has not been tested. Retain it for native schema-owner repair,
+not an extra schema abstraction. The semantic module's header also still calls
+Commitment persistent despite its transient implementation and contract; that
+factual documentation drift remains open.
+
+The dynamic-visibility counterexample is bound in
+`transition-dynamic-visibility-observation.json`. It invokes the existing report
+owner against temporary inert modules, never imports or executes the samples,
+and removes its scratch root. It establishes a report observation gap, not a
+full proof/land/publish bypass. The two public/report probes above are in
+`transition-current-counterexamples.json`. Shared binding resolution must fix it together
+with the already reproduced executable/environment reference gaps, rather than
+introducing one more recognizer into layout.
+
+Continue by actual delta families: finish current-contract counterpart tests;
+review recovery/adoption/proof and publication effects; then close docs/config,
+deleted and untracked content. Each family must settle its unique assertions,
+source owner, current counterpart and remaining acceptance. Preserve complete
+dirty bytes and exact original history before any retirement. Unimplemented
+capabilities remain obligations here after old carriers retire; classification
+and preservation never count as their implementation. This review adds no new
+product model and does not delay real fixes until a second global roadmap exists.
 
 #### Native Reference And Review Projection Follow-Up
 

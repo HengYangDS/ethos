@@ -333,6 +333,10 @@ def install(
         }
         if isinstance(error, ProcessExecutionError):
             runtime["process_failure"] = error.evidence()
+            if error.observation:
+                runtime["next_action"] = shlex.join(
+                    ("ethos", "status", "--root", repo.as_posix(), "--json")
+                )
         if state_failure:
             try:
                 runtime["state_schema"] = state_schema_report(repo)
@@ -375,7 +379,7 @@ def install(
         },
         required_gaps=gaps,
         next_action=(
-            _hook_install_recovery_command(repo, gaps[0])
+            str(runtime.get("next_action") or _hook_install_recovery_command(repo, gaps[0]))
             if gaps
             else _hook_install_recovery_command(repo, "")
             if cleanup_state == "deferred" or legacy_state == "retained"

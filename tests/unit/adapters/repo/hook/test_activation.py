@@ -13,9 +13,11 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.hook.activation as hook_activation
+import ethos.adapters.repo.hook.observation as hook_observation
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.selection as runtime_selection
+import ethos.surface.cli.hook.commands as hook_commands
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
@@ -165,6 +167,56 @@ def test_hook_install_restores_state_and_activation_after_failure(
                 "expires_at",
                 "payload_json",
             )
+
+
+@pytest.mark.parametrize("before_state", ["legacy", "absent"])
+def test_hook_install_query_timeout_survives_rollback_and_public_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    before_state: str,
+) -> None:
+    """An observation timeout must not become a blind reinstall instruction."""
+    repo, runtime, common = _materialized(tmp_path, monkeypatch)
+    database = _legacy_state(common) if before_state == "legacy" else common / "ethos/state.sqlite"
+    before = database.read_bytes() if database.exists() else None
+    keys = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
+    configured = hook_activation.config_effects.config_values(repo, keys, scope="local")
+    attempts = []
+
+    def expire(root, command, **kwargs):
+        attempts.append((root, command, kwargs["timeout"]))
+        raise subprocess.TimeoutExpired(
+            command, kwargs["timeout"], output=b"partial", stderr=b"deadline"
+        )
+
+    monkeypatch.setattr(hook_observation, "run_command", expire)
+    with pytest.raises(SystemExit) as stopped:
+        hook_commands.install(root=repo, json_output=True)
+    assert stopped.value.code != 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["verdict"] == "block"
+    assert not result["summary"]["wired"]
+    assert len(attempts) == 1
+    assert (database.read_bytes() if database.exists() else None) == before
+    assert all(
+        not database.with_name(database.name + suffix).exists() for suffix in ("-wal", "-shm")
+    )
+    assert not (common / "ethos/runtime/CURRENT").exists()
+    assert hook_activation.config_effects.config_values(repo, keys, scope="local") == configured
+    assert runtime.parent.is_dir()
+    assert result["data"]["process_failure"]["observation"] == {
+        "state": "unknown",
+        "reason": "runtime_hook_contract_timeout",
+        "command": list(attempts[0][1]),
+        "binary": attempts[0][1][0],
+        "cwd": attempts[0][0].as_posix(),
+        "timeout_seconds": 10,
+        "stdout": "partial",
+        "stderr": "deadline",
+        "effect_attempted": False,
+    }
+    assert result["next_action"] == f"ethos status --root {repo.as_posix()} --json"
 
 
 @pytest.mark.parametrize("failure", ["io", "residue", "retained"])

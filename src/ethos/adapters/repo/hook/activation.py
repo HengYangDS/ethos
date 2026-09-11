@@ -17,6 +17,7 @@ from typing import cast
 import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import process_listing_command
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
@@ -306,7 +307,16 @@ def _activate_common_runtime(
     if binding["hooks_path"] != hooks.as_posix():
         _fail("hook_runtime_activation_drift")
     if binding["required_gaps"]:
-        _fail("hook_runtime_activation_invalid:" + ",".join(binding["required_gaps"]))
+        reason = "hook_runtime_activation_invalid:" + ",".join(binding["required_gaps"])
+        if observation := binding.get("contract_observation"):
+            raise ProcessExecutionError(
+                reason,
+                reason=str(observation["reason"]),
+                command=tuple(cast("list[str]", observation["command"])),
+                cwd=str(observation["cwd"]),
+                observation=observation,
+            )
+        _fail(reason)
     if expected_runtime_build(repo)[0] != expected_build:
         _fail("hook_runtime_expected_build_stale")
     return binding, cleanup_plan

@@ -46,14 +46,14 @@ if [[ ! -s "${archive}" ]]; then
 		"https://github.com/boyter/scc/releases/download/v${version}/scc_${os}_${arch}.tar.gz" \
 		"${archive}" >&2
 fi
-temporary="$(mktemp -d "${cache}/.prepare-XXXXXX")"
-trap 'rm -rf "${temporary}"' EXIT
-python - "${archive}" "${digest}" "${version}" "${temporary}/scc" <<'PY'
+python - "${archive}" "${digest}" "${version}" "${cache}/scc" <<'PY'
 import hashlib
+import os
 import subprocess
 import sys
 import tarfile
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 archive, digest, version, target = sys.argv[1:]
 path = Path(target)
@@ -69,11 +69,26 @@ with Path(archive).open("rb") as stream:
         if source is None:
             raise SystemExit("scc_archive_executable_missing")
         with source:
-            path.write_bytes(source.read())
-path.chmod(0o755)
-result = subprocess.run([str(path), "--version"], capture_output=True, text=True, timeout=10)
-if result.returncode or result.stderr or result.stdout.strip() != f"scc version {version}":
-    raise SystemExit("scc_executable_version_mismatch")
+            expected = source.read()
+
+def verify(executable):
+    result = subprocess.run([str(executable), "--version"], capture_output=True, text=True, timeout=10)
+    if result.returncode or result.stderr or result.stdout.strip() != f"scc version {version}":
+        raise SystemExit("scc_executable_version_mismatch")
+
+if (
+    not path.is_symlink()
+    and path.is_file()
+    and os.access(path, os.X_OK)
+    and path.read_bytes() == expected
+):
+    verify(path)
+else:
+    with TemporaryDirectory(prefix=".prepare-", dir=path.parent) as directory:
+        prepared = Path(directory) / "scc"
+        prepared.write_bytes(expected)
+        prepared.chmod(0o755)
+        verify(prepared)
+        prepared.replace(path)
 PY
-mv -f "${temporary}/scc" "${cache}/scc"
 printf '%s\n' "${cache}"

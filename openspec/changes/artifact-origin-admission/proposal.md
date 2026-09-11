@@ -14,12 +14,17 @@ also loses deletions when collecting postimages, hiding surviving consumers.
   surviving native consumers while allowing coherent source retirement.
 - Report observed ownership, existence, proposed effect and a useful next action;
   retain unknown coverage instead of claiming unsupported semantics complete.
+- Repair the directly blocking quality-policy measurement boundary: one Python
+  ELOC interpretation for both consumers, strict declared ceilings, and explicit
+  invalid versus unavailable observations instead of coercion or fallback counts.
 
 ## Capabilities
 
 ### Modified Capabilities
 
 - `repository-governance`: origin-aware artifact admission and deletion closure.
+- `contracts`: shared fail-closed Python measurement semantics.
+- `quality`: declared file-size limits and actionable observation failures.
 
 ## Impact
 

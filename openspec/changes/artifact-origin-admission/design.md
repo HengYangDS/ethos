@@ -99,3 +99,30 @@ Nox gates execute through the already-bound interpreter; provisioning remains
 outside gate execution. Remove this lone nested bootstrap command rather than
 warm an ambient cache to conceal a second environment owner. Regression checks
 all declared Nox gates bind the same interpreter and preserve source identity.
+
+### Source Measurement And Policy Compilation
+
+The user's threshold review exposed a measurement defect before calibration:
+whole-line string removal also erased neighboring code, and lexical comment
+tests erased multiline literal data. Keep the existing pure measurement owner;
+mask exact AST byte spans and count remaining token-bearing physical lines.
+Python newline handling must preserve Unicode separators inside literal data.
+Invalid syntax has no count. File and aggregate consumers use the same function.
+
+Compile optional per-file policy through the existing rules parser and a strict
+native model. Present limits are positive integer multiples of one hundred;
+role omissions inherit an explicitly declared default, not a hidden runtime
+ceiling. Absent policy is not configured for a generic repository. Present
+malformed policy blocks; inaccessible input remains unknown. Neither condition
+may become an empty passing measurement. Report the exact path, cause and fresh
+prewrite derivation. Keep required-policy selection under repository governance;
+the optional generic boundary does not authorize removing a required policy.
+
+The current numeric declaration remains 500/500/800 while the user-requested
+unified-500 trial evaluates the same accepted inventory. Existing sizes and
+pass rate are diagnostics, not the justification for either ceiling. The trial
+must examine semantic cohesion, duplicate setup and independent change reasons
+without file splitting, role reassignment or evidence removal to fit a number.
+Repository-wide consolidation is subsequent work, not silently added to this
+artifact admission Change. Product/test aggregate budgets remain independent
+45000 ceilings and combined coverage remains at least 95 percent.

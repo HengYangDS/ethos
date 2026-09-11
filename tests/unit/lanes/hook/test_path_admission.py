@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -30,12 +31,16 @@ def worktree(tmp_path: Path) -> Path:
 
 def _hook(root: Path, path: Path) -> dict[str, object]:
     request = HookAdmissionRequest(
-        root=root, layer="pre-tool", paths=(path,), editor_root=root, require_editor_root=True
+        root=str(root),
+        layer="pre-tool",
+        paths=(str(path),),
+        editor_root=str(root),
+        require_editor_root=True,
     )
     return hook_admission_report(request)
 
 
-def _guard(lane: Path, paths: tuple[str, ...], patch: str | None = None) -> dict[str, object]:
+def _guard(lane: Path, paths: tuple[str, ...], patch: str = "") -> dict[str, object]:
     return admission_prewrite.prewrite_guard(
         root=lane,
         paths=[lane / path for path in paths],
@@ -55,7 +60,7 @@ def test_invalid_path_matrix(worktree: Path, token: str, kind: str) -> None:
     assert report["verdict"] == "block"
     assert "ok" not in report
     assert report["decision"] == {"action": "block", "reason": reason}
-    assert report["admission"]["paths"] == [
+    assert cast("dict[str, object]", report["admission"])["paths"] == [
         {
             "path": token,
             "relative_path": "",
@@ -63,9 +68,10 @@ def test_invalid_path_matrix(worktree: Path, token: str, kind: str) -> None:
             "tracked_candidate": False,
             "allowed": False,
             "reason": f"path_invalid_{kind}",
+            "effect": "unspecified",
         }
     ]
-    assert reason in report["required_gaps"]
+    assert reason in cast("list[str]", report["required_gaps"])
 
 
 SHADOW = "external_method_pack_shadow_authority:.superpowers/sdd/tasks/progress.md"
@@ -76,14 +82,15 @@ IGNORED_CASES = [
 
 
 @pytest.mark.parametrize("case", IGNORED_CASES)
-def test_ignored_path_matrix(worktree: Path, case: tuple[object, ...]) -> None:
+def test_ignored_path_matrix(worktree: Path, case: tuple[str, str, str, str, str]) -> None:
     relative, ignore, content, verdict, reason = case
     path = worktree / relative
     path.parent.mkdir(parents=True)
     path.write_text("{}\n")
     (worktree / ignore).write_text(content)
     report = _hook(worktree, path)
-    admitted = report["admission"]["paths"][0]
+    admission = cast("dict[str, object]", report["admission"])
+    admitted = cast("list[dict[str, object]]", admission["paths"])[0]
     assert report["verdict"] == verdict
     assert "ok" not in report
     assert admitted["ignored"] is True
@@ -92,7 +99,7 @@ def test_ignored_path_matrix(worktree: Path, case: tuple[object, ...]) -> None:
     assert admitted["reason"] == reason
     if verdict == "block":
         assert report["decision"] == {"action": "block", "reason": reason}
-        assert report["admission"]["error"] == reason
+        assert admission["error"] == reason
 
 
 @pytest.mark.parametrize("mismatch", ["runner", "schema"])
@@ -117,8 +124,8 @@ def test_editor_binding_matrix(
     assert report["verdict"] == "block"
     assert "ok" not in report
     assert report["error"] == "root_binding_mismatch"
-    assert report["runtime_binding"]["audit_root"] == worktree.as_posix()
-    assert report["editor_root"]["reason"] == "matched"
+    assert cast("dict[str, object]", report["runtime_binding"])["audit_root"] == worktree.as_posix()
+    assert cast("dict[str, object]", report["editor_root"])["reason"] == "matched"
 
 
 def test_unknown_editor_component(worktree: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -148,7 +155,9 @@ def test_owned_lane_bootstraps_only_official_change_artifacts(worktree: Path) ->
         f"--editor-root {worktree} --require-editor-root --root {worktree} --json"
     )
     assert initial["verdict"] == "pass"
-    assert initial["material_scope"]["state"] == "official_change_bootstrap"
+    assert (
+        cast("dict[str, object]", initial["material_scope"])["state"] == "official_change_bootstrap"
+    )
     assert initial["next_action"] == "openspec new change bootstrap-test --json"
 
     command = openspec_cli.openspec_base_command()
@@ -195,7 +204,7 @@ def test_cli_path_token(worktree: Path) -> None:
     assert data["admission"]["paths"][0]["path"] == token
 
 
-def _lane(tmp: Path, _scope: tuple[str, ...], imports: tuple[str, ...]) -> Path:
+def _lane(tmp: Path, imports: tuple[str, ...]) -> Path:
     repo = init_git_repo(tmp / "repo")
     dependencies = [root.replace("_", "-") for root in imports]
     (repo / "system").mkdir()
@@ -236,21 +245,22 @@ P_EXEC = _patch(*M, 'COMMAND = ["external-runner"]')
 P_COMMAND = _patch(*M, '@app.command(name="external-operation")')
 P_NEW = _patch(*A, "VALUE = 1", new=True)
 PATCH_CASES = [
-    ((), M, M, P_IMPORT, E_IMPORT),
-    ((), M, M, P_EXEC, E_EXEC),
-    ((), M, M, P_COMMAND, E_COMMAND),
-    (("external_sdk",), M, M, P_IMPORT, "head"),
-    ((), ("src/**",), A, P_NEW, "pass"),
-    ((), A, A, P_NEW, "pass"),
-    ((), M, T + M, DECL + P_EXEC, E_EXEC),
-    ((), T, T, DECL, "pass"),
+    ((), M, P_IMPORT, E_IMPORT),
+    ((), M, P_EXEC, E_EXEC),
+    ((), M, P_COMMAND, E_COMMAND),
+    (("external_sdk",), M, P_IMPORT, "head"),
+    ((), A, P_NEW, "pass"),
+    ((), T + M, DECL + P_EXEC, E_EXEC),
+    ((), T, DECL, "pass"),
 ]
 
 
 @pytest.mark.parametrize("case", PATCH_CASES)
-def test_patch_baseline_reference_path_matrix(tmp_path: Path, case: tuple[object, ...]) -> None:
-    imports, scope, paths, patch, expected = case
-    lane = _lane(tmp_path, scope, imports)
+def test_patch_baseline_reference_path_matrix(
+    tmp_path: Path, case: tuple[tuple[str, ...], tuple[str, ...], str, str]
+) -> None:
+    imports, paths, patch, expected = case
+    lane = _lane(tmp_path, imports)
     report = _guard(lane, paths, patch)
     assert "ok" not in report
     if expected.startswith("product_"):
@@ -259,4 +269,6 @@ def test_patch_baseline_reference_path_matrix(tmp_path: Path, case: tuple[object
     else:
         assert report["verdict"] == "pass"
         if expected == "head":
-            assert report["patch_admission"]["baseline_head"] == git(lane, "rev-parse", "HEAD")
+            assert cast("dict[str, object]", report["patch_admission"])["baseline_head"] == git(
+                lane, "rev-parse", "HEAD"
+            )

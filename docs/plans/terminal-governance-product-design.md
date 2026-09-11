@@ -108,13 +108,58 @@ the precise original cache/concurrency trigger remains unproved. Do not solve
 that boundary by adding cache exceptions, relaxing offline checks or rerunning
 the full graph until the corrected gate has passed independently.
 
-Next: freeze and normally sign the successor source under predecessor hooks,
-then obtain exact full proof and
-complete the official accepted/runtime lifecycle before giving an adopter
-update command as remediation. Native startup intermittency, candidate runtime
-readiness leaking into policy identity, and the two historical lanes remain
-separate open obligations; neither focused green nor this delivery retires them.
-Keep easy, proven absorbed-ref retirement ahead of new broad work.
+The subsequent full proof at `8da8f1e` blocked: 2964 tests passed, one skipped,
+and two path-admission assertions failed because the newly explicit unspecified
+effect was absent from their expected response. Focused reproduction confirmed
+the same two failures. The correction preserves rejection and checks the new
+effect field; it also removes one duplicate case distinguished only by an
+unused fixture argument. Expanded checking found and repaired type errors in
+the touched test, not a product authorization bypass. The combined current
+measurement, budget and path-admission suite passes 123 cases in 38.73 seconds,
+with owned scratch removed. This is not a new full proof. The previous proof
+used eight workers inadvertently; subsequent bounded runs are serial and any
+new full proof must explicitly retain the user-required two-worker limit.
+
+Current code-size and policy observation repairs have public RED/GREEN evidence.
+They are uncommitted at source `f13647a1`; five declared per-file exceedances
+remain. Do not launch another full proof until cheap source gates pass. First
+freeze this repair, consolidate the independently identified mixed owners, then
+obtain exact proof and complete archive/accepted/runtime delivery. Immediately
+retire already-absorbed lanes through public admission; a global roadmap is not
+a reason to defer an otherwise safe retirement. No additional lane was retired
+by the measurement repair.
+
+### Global Coverage And Delivery Boundary
+
+The critical path is serial; coverage of user obligations is not selective.
+This checkpoint routes existing obligations to existing owners and exit tests;
+it does not claim complete historical-input recovery or establish another queue.
+Full history and source-by-source semantic coverage remain unproved. Latest
+direct user budget instructions supersede stale goal snapshots: independent
+product/test ceilings are 45000, combined coverage is at least 95 percent, and
+unified 500 per file is a trial pending semantic assessment, not a completed
+policy decision. Examples do not narrow the global principles they illustrate.
+
+| Existing obligation | Current evidence boundary | Owner and remaining exit condition |
+| --- | --- | --- |
+| Intent fidelity and historical guidance | Available input has informed the contract and this route; complete recovery is not proved. | Existing Feedback Intent Preservation and P1/P2: settle each distinct in-scope obligation, retain unresolved source gaps, and reject the mandatory-winner mistranslation through the full acceptance path. |
+| Lane absorption and housekeeping | Two other lanes remain at the latest status; this batch retired none. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
+| Artifact, policy and admission correctness | Source repairs and focused regressions pass; accepted runtime still predates them. | Current official Change: cheap gates, exact full proof, archive, acceptance and immutable runtime readback before adopter remediation claims. |
+| Quality and full-cycle speed | ELOC coercion and path-response defects reproduced and repaired; coverage of all quality obligations is not established. | Existing quality owners and P5: finish semantic size consolidation, docstring/type/format scope, distinguishing failures, evidence reuse and actual first-failure/closeout measurements. |
+| Runtime, supply and temporary resources | The latest focused scratch roots were removed; sustained crash/kill boundedness and all-current supply are not proved. | Existing runtime/resource owners: verify package identity, migration/rollback, live-consumer-safe reclamation and sustained quantity/byte/inode budgets. |
+| Local and independent remote workflow | Previously published accepted objects are separate from this unaccepted source. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
+| Agent guidance and enforceable behavior | Hooks, runtime and skills exist; registration alone does not prove host coverage or agent adherence. | Existing Hook And Extension Boundaries: context selection, capability discovery, fresh effect admission, bounded failures and measurable recovery without vendor/model binding. |
+| Document and physical semantic structure | Current registry and contracts exist; all placement, naming, source/projection and legacy cleanup obligations remain separately auditable. | Existing docs, module-layout and projection owners: preserve distinct design/plan/decision/task/evidence roles, remove redundant entities and prove consumer closure. |
+| OpenSpec and OKF customization | Official extension surfaces have been inspected; no custom schema or OKF adapter has been adopted. | Existing P1/P2/P7: native config first, justified schema only after semantic preservation tests, interoperable exchange without a second intent store or lifecycle. |
+| Test reporting and observability | Existing test execution and reports do not establish the requested complete reporting experience. | Existing Allure and mechanism review: link exact source to failures, artifacts, timing and hosted UI; use telemetry to improve the same owners, not a second proof authority. |
+| Complete product and ecosystem | Compiler/CAS repairs are necessary but not the whole product. | Existing P3/P4/P6/P7: real greenfield/brownfield paths, replaceable capabilities, cooperation/competition/exploration/all-drop, fault recovery, actual benefit feedback, handoff and exit. |
+
+Before changing the active batch, classify new evidence into one of these
+existing responsibilities, determine whether it blocks current delivery, and
+retain a concrete exit condition. Closing one row cannot close another; an
+unchanged row need not trigger another inventory or research loop. Do not let
+research, convenient local green, or the latest interruption displace lane
+convergence and source-to-installed delivery.
 
 ## Architecture
 
@@ -2397,6 +2442,85 @@ official supply fidelity and easiest-first historical lane retirement remain req
 default independent protection. Full adoption workloads close the broader product
 mission; they are not silently added to this reader Change.
 
+##### Native OpenSpec Customization Boundary
+
+The September 11 native probe reports OpenSpec 1.12.0 from the declared Node
+supply; upstream's latest release is 1.13.0, published September 9 UTC. The
+upgrade is not complete and remains a supply-chain obligation. Official
+[customization documentation](https://github.com/Fission-AI/OpenSpec/blob/v1.13.0/docs/customization.md)
+defines project context, artifact rules, operation guidance and project-local
+schemas/templates. Native schema validation passes for the package-owned
+spec-driven schema; apply instructions actually include this project's context.
+No operation guidance is configured. These are executable observations, not
+proof that an agent followed the guidance or that custom schemas work in ETHOS.
+
+Customize for demonstrated semantic needs, first through the existing
+`openspec/config.yaml`: faithful source interpretation and non-goals in proposal,
+observable acceptance and distinguishing negative cases in specs, owner and
+tradeoff decisions in design, bounded implementation checks in tasks. Apply and
+archive guidance can project TDD, exact-root admission, unknown-effect recovery
+and proof/archive discipline without copying receipts or runtime decisions into
+source artifacts. Keep the product contract authoritative; config selects and
+projects its relevant meaning rather than becoming another requirements store.
+Native guidance is advisory, not an enforceable check or complete agent guard.
+
+Only introduce a custom schema when existing artifact roles cannot express a
+necessary distinction, or when a demonstrated dependency/template defect remains
+after config customization. Project-local tracked definitions are preferable to
+ambient user overrides for reproducibility. Do not add research, evidence,
+handoff or review files merely because schema customization permits them.
+Schema validation proves artifact structure and dependency legality, not semantic
+preservation, adequate tests, lifecycle safety or full agent adherence.
+
+One present integration limit needs a real counterexample before schema adoption:
+the no-spec acceptance compiler still selects proposal/design/tasks by fixed
+artifact IDs and paths, while official status emits schema-resolved
+artifactPaths. A non-default schema may therefore be valid officially but not
+supported by ETHOS; current evidence is source inspection, not a reproduced
+custom-schema failure. Validate renamed/optional artifacts, skip_specs,
+source/generation binding and archive/reopen/retire through the public path;
+consume native resolved metadata rather than create another Markdown parser.
+Malformed or ignored config guidance must remain visible instead of allowing
+an apparent successful lookup to imply complete constraint injection. This work
+belongs to existing P1/P2/P7 and does not expand the current admission repair.
+
+##### Open Knowledge Format — Bounded Adoption Assessment
+
+The September 11 review examined [OKF v0.2](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md)
+at exact upstream commit `ad30107c31c06aec8a7d5636e0d1058118604e6f`.
+Recommendation: evaluate OKF as an optional knowledge exchange projection, not
+as a replacement for accepted intent, document governance or effect admission.
+The format requires no runtime and leaves domain organization to producers.
+This assessment introduces no dependency, document migration or second plan.
+
+| Disposition | Source observation | ETHOS consequence |
+| --- | --- | --- |
+| Adopt the portable representation where needed | Markdown/YAML concepts, source references and ordinary links support human and tool interchange. | Derive a bounded bundle from existing owners; imported material remains input to interpretation and acceptance, never an instruction to mutate. |
+| Map, do not equate, metadata | OKF `type` classifies a concept; ETHOS Subject, Role, State and Relations express different responsibilities. | Preserve distinctions and unknown extension fields. Do not mechanically rename Role to type or duplicate manually maintained state. |
+| Separate consumption from admission | OKF consumers tolerate broken links and missing optional fields; missing status means stable. | Accept format-valid material without promoting it to accepted/current ETHOS meaning. Report unresolved references and apply the relevant native obligation before use. |
+| Preserve provenance without inheriting authority | Trust tiers are advisory and derived from actor labels in verified metadata. | Bind upstream claims to their original source and revision. Human-prefixed text, imported verification or successful parsing cannot establish local identity, authorization or currentness. |
+| Keep necessary identity distinctions | OKF concept identity is its bundle path without the Markdown suffix; link relation types remain prose. | File movement must not silently change ETHOS semantic identity. Preserve Subject and typed Relations in an explicit mapping or report the loss. |
+| Reuse existing navigation and history | index.md and log.md are optional. | Do not recreate directory indexes, duplicate README navigation, mirror external evidence or add a parallel change log merely for conformance. |
+| Defer executable integration | Executor packaging, attester ABI/sandboxing and full receipt/verdict wire formats are outside the current specification. | Attested Computation is not ETHOS Attestation. Never auto-execute imported resources; any future adapter uses the existing capability and fresh-admission boundaries. |
+
+Upstream [issue 15](https://github.com/GoogleCloudPlatform/open-knowledge-format/issues/15)
+reports ambiguous imported verification provenance and proposes an imported
+field. It was open at review time: it is supporting research, not a standardized
+field or evidence that the proposed repair works. Retain this boundary explicitly
+instead of silently treating foreign review as local verification.
+
+The smallest useful trial belongs to the existing P1/P7 context and ecosystem
+work after the current quality closeout. Select one actual external consumer
+and a bounded set covering a canonical definition, a decision and a guide;
+compare native consumption against export/import. Verify source/Subject binding,
+unchanged meaning and typed relations, explicit unresolved or lossy mappings,
+unknown-field preservation, rename behavior and no inherited trust or execution.
+Do not flatten document purpose into one template. No index or duplicated
+knowledge store is required. Measure reduction in consumer-specific glue and
+manual continuation effort before retaining an adapter. If there is no real
+consumer or no net reduction in complexity, retain the findings, not an unused
+implementation. This trial and conformance are not yet executed.
+
 ##### Hook And Extension Boundaries
 
 The September 10 user feedback connects hook reach, plugin composition,
@@ -2851,19 +2975,41 @@ runtime delivery or a whole-repository passing size gate. Receipts remain under
 the existing ignored quality evidence root as `eloc-policy-public-boundaries`
 and `eloc-500-500-800-public-gate`.
 
-Threshold enforcement does not close known metric and policy-reader gaps: a bare
-string on the same line as an assignment currently excludes that assignment;
-multiline string data starting with `#` is treated as a comment. The standalone
-size report accepts coerced numbers, silently defaults zero and ignores a rules
-parse error. These probes do not prove that other full-proof gates also accept
-malformed policy. Enforce positive integer hundred-unit thresholds, distinguish
-absent policy from invalid policy, and use one exact source inventory and metric
-with the aggregate budget owner. Product/test ceilings follow the conditional
-40000-to-45000 authorization above; the project total remains observational. External links in the preceding
-chat answer were not retrieved in that turn and are not threshold evidence.
+The later user correction requires trialling **500/500/500** before deciding the
+test ceiling. The existing 500/500/800 declaration is therefore an intermediate
+policy, not a settled terminal recommendation. Do not change it reflexively or
+justify it by current percentiles. Independent product/test totals remain 45000;
+the project total remains observational.
 
-Execute this bounded quality successor after the current retirement boundary;
-do not mix it into reviewed-content disposal or add a parallel plan/ledger.
+The corrected sole metric masks exact AST string-expression spans and counts
+token-bearing physical lines, preserving adjacent code and multiline literal
+data. Unicode line/paragraph separators in literals exposed a second masking
+defect; Python physical-line handling now preserves them. Syntax errors have no
+fallback count. Nineteen public CLI failures demonstrated coerced/malformed
+policy, an undeclared hidden ceiling and invalid-source reporting. The existing
+rules owner now uses strict positive integer hundred-unit limits; unknown keys
+and malformed tables block, absent policy is explicitly not configured, and
+unavailable input remains unknown. The affected suite passes 123 cases, not a
+whole-repository size or full-proof verdict.
+
+The same 478-file accepted inventory at `b212408d`, with each source hash retained,
+was measured before and after the correction. Logic totals change 40327 to 40330,
+surface remains 3687, and tests change 40692 to 40879. These are file-role totals,
+not the product/test aggregate budget coordinates. Unified 500 still identifies
+two surface and seventeen test files; the declared 500/500/800 still fails five.
+The unchanged exceedance count does not make the old metric correct or establish
+either threshold as optimal. Receipt `eloc-same-inventory-semantic-trial.json`
+contains the exact inventory and comparison under the existing quality root.
+
+Semantic review starts with concrete mixed responsibilities: proof CLI combines
+host observation with proof issuance; publication CLI mixes observation,
+admission and effect coordination; the largest test modules span activation and
+cleanup, branch/tag publication, and retirement review/recovery. Reuse their
+existing owners and preserve standalone test readability. The seventeen test
+files require individual assessment before a final test ceiling; a global
+500/500/500 versus 500/500/800 decision is not yet complete. This bounded metric
+repair does not authorize mechanical splitting or postponing lane retirement
+behind an unbounded structural rewrite.
 
 ### Accepted-Carrier Lane Handoff Received — 2026-09-08
 

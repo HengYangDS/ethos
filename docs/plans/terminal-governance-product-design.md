@@ -2823,16 +2823,35 @@ surface modules and tools. These observations do not establish optimal limits.
 | Surface | 19 | 536 | 697 | 697 | 800 |
 | Tests | 185 | 467 | 591 | 941 | 1100 |
 
-The config's percentile rationale and 1032-ELOC test maximum are stale. Its
-surface allowance assumes thin wiring, but publication and proof commands own
-business orchestration. The recommendation, not yet implemented policy, is 500
-for product including surface and 800 for tests. First absorb orchestration into
-existing use-case owners and organize the publication tests by independent
-readiness, branch-transaction and signed-tag obligations. Do not split by size,
-copy fixtures or introduce forwarding modules. Reassess against concrete
-cohesion and maintenance cost rather than rounding the current maximum upward.
+The table above is historical measurement, not current policy. The user-confirmed
+September 11 limits are logic/surface/test = **500/500/800**. The previous
+recommendation remained unimplemented; retaining 500/800/1100 was a delivery gap,
+not an evidence-based rejection of the requested model. The sole numeric owner
+`.ethos/rules.toml` now declares the confirmed limits and removes the stale
+1032-ELOC/percentile rationale. Product and test aggregate ceilings remain
+45000 each; coverage remains at least 95 percent.
 
-The metric and policy boundary must be repaired before calibration: a bare
+At source `8da8f1ebed6bc67cbf882cc2764b6e20e32eb765`, applying the new limits
+finds five over-limit modules: CLI proof 536, CLI publication 697, hook activation
+tests 808, publication tests 941, and abandonment tests 976 ELOC. The gate must
+report these as failures until the responsibilities are consolidated. First
+absorb orchestration into existing use-case owners and organize tests by
+independent activation, readiness, branch-transaction, signed-tag and retirement
+obligations. Do not split by size, copy fixtures, reclassify roles or introduce
+forwarding modules. Reassess cohesion and maintenance cost rather than rounding
+the current maximum upward.
+
+The existing registered provider is active, not an orphan function:
+`system/gates.toml` selects `ethos.domain.prove:code_size_report` through
+`LocalGateRunner`. Actual `prove --host --execute --gate python-size` reports
+500/500/800 and all five current violations. Three isolated real-CLI cases each
+accept their exact role ceiling and reject one extra line; the seven-test domain
+suite passes. This is executable policy and boundary evidence, not accepted
+runtime delivery or a whole-repository passing size gate. Receipts remain under
+the existing ignored quality evidence root as `eloc-policy-public-boundaries`
+and `eloc-500-500-800-public-gate`.
+
+Threshold enforcement does not close known metric and policy-reader gaps: a bare
 string on the same line as an assignment currently excludes that assignment;
 multiline string data starting with `#` is treated as a comment. The standalone
 size report accepts coerced numbers, silently defaults zero and ignores a rules

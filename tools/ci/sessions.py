@@ -9,6 +9,7 @@ import sys
 import tomllib
 from importlib import import_module
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import cast
 
 from PIL import Image
@@ -168,6 +169,18 @@ def ci_templates(session) -> None:
 def architecture_projection(session) -> None:
     if import_module("tools.ci.architecture_projection").main():
         session.error("architecture projections differ from their owner")
+    with TemporaryDirectory(prefix="ethos-projection-check-") as temporary:
+        session.run(
+            str(RUNTIME.python),
+            "-m",
+            "pytest",
+            "tests/unit/projection",
+            "-q",
+            "-o",
+            "addopts=",
+            "--no-cov",
+            f"--basetemp={Path(temporary).resolve()}",
+        )
 
 
 def format_selection(session) -> None:

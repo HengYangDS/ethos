@@ -106,3 +106,13 @@ incomplete declared layer coverage and undocumented external API promises. Scope
 and findings remain in the sole terminal plan until each has actual gate evidence.
 This batch settles import visibility and related source ownership; it does not
 claim arbitrary dynamic access or every quality obligation is already proved.
+
+## Projection Preservation Before Heavy Proof
+
+Adding a version-boundary assertion must preserve independent existing obligations.
+The visible capability copy retains pure-semantics/effect separation as well as
+identity, permission, cancellation and failure. The existing architecture Nox gate
+runs the existing projection test suite before heavy proof; it does not implement
+a second semantic validator. Its owned temporary root is cleaned on pass and
+failure, and the early run does not write combined coverage evidence. Structural
+export and keyword regressions are bounded safeguards, not complete understanding.

@@ -76,8 +76,22 @@ eleven unconsumed native-config labels and package-local topology version. The
 existing skill portfolio owner validates original input before normalization;
 portable gate declarations reject unsupported formats. Initial counterexamples
 failed, then 171 affected cases passed in 74.73 seconds. The public `skills` gate
-and six cheap source gates passed separately. These are focused/host observations;
-this Change is not committed, fully proven, archived, accepted or installed.
+and six cheap source gates passed separately. Signed implementation `151c7b1b`
+then failed full proof after 1643.73 seconds: 3055 tests passed, one failed and one
+skipped; measured combined coverage was 95.06 percent. Twenty-nine gates passed,
+one test gate failed and five dependent gates remained unexecuted. The failed
+static-copy regression identified a real lost obligation: adding version meaning
+had removed pure-semantics/effect separation. Exact source hashing and structural
+export did not prove semantic preservation. The owned pytest root was removed.
+
+The current correction restores that distinction without removing the version
+requirement. The existing architecture preflight now runs the existing complete
+projection regression suite before heavy tests, with owned temporary storage and
+no coverage writes. Before fixing the copy, this public native gate reproduced
+the same failure in 3.44 seconds. No second validator or automatic source approval
+is introduced. This prevents this known late failure; it does not establish
+complete semantic understanding or an overall proof speedup. Exact current proof,
+archive, acceptance, installation and publication remain pending.
 
 | Version family | Disposition and remaining boundary |
 | --- | --- |
@@ -149,7 +163,7 @@ proof, archive, acceptance, runtime activation and publication remain pending.
 | Import visibility | Existing owner repair applies to all governed Python; complete public-gate, runtime/package and regression verification remains required. No path exception or blanket public renaming. |
 | Private member and dynamic access | Ruff SLF checks ordinary member access; static import tests do not prove arbitrary reflection, runtime exports or dependency injection. Additional boundaries need concrete supported semantics and counterexamples. |
 | Dependency direction and composition | Current import-linter declares four layers only. Source observation also finds repository audit → assistants and assistants → repository dependencies. Resolve actual responsibilities and enforce the complete intended graph; do not add exemptions merely to preserve existing cycles. |
-| Public interfaces and documentation | Names without underscores do not establish an external compatibility promise. The inventory finds 152 missing module docstrings; existing public-docstring selection does not settle the user's every-code-file requirement. Implement native rule coverage with meaningful semantic documentation, not generated filler. |
+| Public interfaces and documentation | Names without underscores do not establish an external compatibility promise. The initial inventory found 152 missing module docstrings; 150 remain after the bounded changes; existing public-docstring selection does not settle the user's every-code-file requirement. Implement native rule coverage with meaningful semantic documentation, not generated filler. |
 | Source/default selection | Explicit missing input fails, and caller CWD/adopter schema cannot reinterpret defaults. Source-native and installed-package paths require separate evidence. |
 | Rules, code and enforcement correspondence | Correct false claims that SLF or D selection already covers everything. Every declared rule needs a real failing counterexample and legitimate-success case at its own gate. Broad green is not full encapsulation proof. |
 

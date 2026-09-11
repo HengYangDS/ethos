@@ -31,171 +31,132 @@ Raw transcripts, extracts, classifiers, and scratch matrices never become this
 plan's inputs after that Change is proven and archived; their exact owned copies
 are then deleted.
 
-## September 11 Delivery And Artifact-Origin Checkpoint
+## September 11 Delivery And Semantic-Version Checkpoint
 
-Accepted source `b212408dc06e9367a2325bcdc528775d713e3764`, tree
-`4dcc27e05572163051b91a60c053158c291843b8`, contains the archived
-`hosted-budget-tool-supply` Change. Its 35-gate exact proof passed with
-2917 tests passed, one skipped and combined coverage 95.210915%. Installed
-runtime `ddc557f1ab03a0108987015b42ace2181a3fe19901015bc244b0c8737e28976d`
-was read back against that exact source/tree. Local candidate, dev and main,
-and both remote dev/main refs were equal after receipt-bound publication.
-Both forges verified the archive commit's signature. September 11 follow-up
-observed every GitLab job successful in pipelines 6457 and 6458; GitHub dev
-source verification was still running and main source verification queued.
-Those observations do not claim later hosted completion.
+Accepted source `470fe13e7e62b64b0f8cd9a88ec327702f8b52ee`, tree
+`10550f66fe3354950518364d38388a3f6b6b4a02`, contains the archived artifact-origin
+repair and terminal-projection preflight. Implementation and archived exact-source
+proofs each passed all 35 gates with 3014 tests passed, one skipped and combined
+coverage at least 95 percent. Their elapsed times were 1619.42 and 1675.03 seconds;
+both used two workers and removed their owned pytest basetemp. Common-directory
+proof artifacts are `46c1a937160b856349e7f6bdd109ec804f63be495aa5b4af08eccf47b749342f`
+and `50fe28b2b295a45ea8fd93df8ff3e87b32fd76b26936edd311fcca485703ca0e`.
 
-The successor official Change `artifact-origin-admission` stays in the owned
-`20260907-missing-lease-reconciliation` Work Lane. AIGW's authored configuration
-rejection remains present in the accepted runtime above; upgrading to it is
-not a fix. Six public counterexamples turned green in the working source,
-followed by 89 affected regressions. Further counterexamples closed committed-
-producer erasure and repeated native ignore-input loss. Two subsequent public
-pre-commit index/projection regressions were then repaired. The combined affected
-run passed 170 cases in 223.94 seconds, with owned temporary storage removed.
-This covers staged bytes, output/producer retirement, HEAD/index drift and the
-shared Git blob reader, not full proof or accepted runtime delivery.
+Installed runtime `44e11d5395716c762d27d434485d95dc92598c3848c36c2f72d67c862ca9222d`
+was read back against that exact source/tree. Receipt-bound publication and
+subsequent remote reads found local candidate/dev/main and both independent
+remote dev/main refs equal to this commit. Hosted CI and Forge signature
+verification at this SHA have not yet been observed. Successful delivery of the
+older `b212408d` does not establish those newer external states.
 
-The bounded repair removes suffix provenance and source-filename exceptions.
-Existing lifecycle homes and native producer relations determine origin;
-placement, existence and proposed effects remain separate. The existing patch
-owner retains deleted postimages and checks surviving explicit native inputs.
-Architecture and CI checks reuse the producer owner rather than duplicating
-rendering. Unresolved dynamic input observations remain unknown. No adopter
-source, runtime, session model, additional lane or parallel carrier is changed.
-The predecessor/parser mismatch was reproduced and replaced by coherent native
-package ownership: topology policy now lives beside its interpreter in
-`src/ethos/contracts/artifacts/topology.toml`. The old system carrier, wheel
-copy mapping and runtime checkout override were removed, not retained as a shim.
-Two incompatible-checkout counterexamples failed before repair; 48 affected
-resource/policy tests then passed, including missing or malformed package data.
-The actual installed predecessor passed current status, all-path prewrite and
-its real `pre-commit` launcher over the staged successor batch. Wheel and sdist
-native file selection each include the single resource. This proves predecessor
-admission is reachable, not that the successor is accepted or installed.
+Artifact origin now follows native producers and lifecycle ownership, not suffix
+or source-filename exceptions. Origin, placement, existence and proposed effect
+remain distinct. Admission uses staged bytes, preserves deletion postimages,
+checks surviving consumers and rechecks coordinates before effects. Package
+policy is coupled to its immutable interpreter; the checkout override and
+parallel resource copy are gone. Unresolved dynamic input remains unknown.
+AIGW's owner reports that the public runtime update, exact-path admission and
+staged deletion of its unused authored Prettier configuration now pass without
+`generated_artifact_config_drift`. This is adopter-reported removal of the
+original blocker, not our independent observation or its final delivery proof.
 
-Additional adversarial checks reproduced late HEAD/index drift after artifact
-observation, and an unstaged outside symlink incorrectly affecting valid index
-admission. Final coordinate fencing and Git-native staged path observation now
-reject drift without consulting unstaged output bytes. A valid exact patch can
-repair invalid uncommitted producer syntax while retaining prior known owners;
-the duplicate producer evaluation was removed. The final combined affected run
-passed 198 cases in 224.72 seconds, with owned scratch removed. Ruff, format, Ty,
-schemas, docstrings, layout, import boundaries, configuration and both native
-projection checks passed. Product/test ELOC is 40561/41173 against independent
-45000 limits; prewrite is 494 ELOC after deleting dead fields and duplication.
+The architecture gate reuses the official exact-tree exporter and precedes heavy
+tests in the existing gate graph. This catches the old archive/source mismatch
+in about 0.39 seconds rather than after the failed 1487.811-second proof.
+Export at accepted source above has digest
+`885712f35378a0cdb5174f431d92e8e3394c071bf80fa023796c84219b21e63f`, with all thirteen
+source bindings, 113 nodes and 164 relations. Neither exportability nor this
+failure-left-shift measurement proves rendered-diagram quality or an overall
+suite speedup. Delivery receipts remain in the existing ignored evidence home.
 
-One newly selected resource path was written after a failed prewrite caused by
-an omitted declared Node supply environment. That was an execution violation,
-not authorization. The failed receipt remains; source status and exact-path
-prewrite were re-established before further edits, followed by independent
-installed-runtime admission. Passing re-entry does not erase the prior failure.
-Future mutation batches must finish and inspect preflight before dispatching
-dependent writes; a shared tool call must not cross that decision boundary.
-Actual proof/archive/acceptance/install effects are not task completion gates.
+The active official Change is `semantic-version-boundaries`, in the same owned
+`work/20260907-missing-lease-reconciliation` lane. Working implementation removes
+`playbooks-v2`, its single mode, duplicate compliance score, per-record labels,
+eleven unconsumed native-config labels and package-local topology version. The
+existing skill portfolio owner validates original input before normalization;
+portable gate declarations reject unsupported formats. Initial counterexamples
+failed, then 171 affected cases passed in 74.73 seconds. The public `skills` gate
+and six cheap source gates passed separately. These are focused/host observations;
+this Change is not committed, fully proven, archived, accepted or installed.
 
-Normal signed source commits reached `501a82e24140e6e5f885ffeb075b89118d2ec059`.
-The first full proof stopped after 18.96 seconds: `config-quality` attempted
-nested editable-package bootstrap through `uv run --offline` and failed for
-uncached `tomlkit==0.15.1`. The seven dependent gaps were not executed tests.
-Its complete diagnostics remain in the common-dir artifact
-`53af44d0177e2d34d274b6a27e3a0b3ae81eab4fa9df9e3f39ede38b2075870c`.
-The other 27 gates passed. A direct repeat passed but did not explain the cache
-interleaving, so it is not evidence of a repaired root cause. The configuration
-gate now uses the existing bound `{python} -m nox` execution path, like the other
-native Nox gates. A declaration-level RED case protects against nested bootstrap;
-the precise original cache/concurrency trigger remains unproved. Do not solve
-that boundary by adding cache exceptions, relaxing offline checks or rerunning
-the full graph until the corrected gate has passed independently.
+| Version family | Disposition and remaining boundary |
+| --- | --- |
+| Skill names, single-mode and report decoration | Remove in this Change; retain one portfolio owner and explicit verdict/gaps. No old alias. |
+| Original activation and package wire input | Retain effective schema discrimination; reject unsupported fields before normalization. |
+| Native checkout configuration | Remove labels with no interpretation consumer; native syntax, tool versions and integrity remain. |
+| Portable gate registry | Retain one supported format; verify rejection through the actual native loader, not only its model. |
+| Package-owned topology | Remove the separate revision; immutable code and policy share one package identity. |
+| Result, runtime/build and proof wire input | Preserve real independent-reader boundaries; nested labels and numeric discriminator behavior remain to be adjudicated. |
+| Hash domains and signed proof-floor identity | Preserve until a coherent, evidence-preserving semantic migration is proven. |
+| Graph, copy, view and renderer formats | Preserve real independent consumers; review each boundary rather than mechanically equating it with the export container. |
+| Per-rule, docs metadata and diagnostic versions | Necessity remains to be decided from consumers and identity, not spelling or incumbent validation. |
+| Native dependencies and immutable history | Preserve authentic release/protocol and historical identities; do not rewrite them to satisfy naming aesthetics. |
 
-The subsequent full proof at `8da8f1e` blocked: 2964 tests passed, one skipped,
-and two path-admission assertions failed because the newly explicit unspecified
-effect was absent from their expected response. Focused reproduction confirmed
-the same two failures. The correction preserves rejection and checks the new
-effect field; it also removes one duplicate case distinguished only by an
-unused fixture argument. Expanded checking found and repaired type errors in
-the touched test, not a product authorization bypass. The combined current
-measurement, budget and path-admission suite passes 123 cases in 38.73 seconds,
-with owned scratch removed. This is not a new full proof. The previous proof
-used eight workers inadvertently; subsequent bounded runs are serial and any
-new full proof must explicitly retain the user-required two-worker limit.
+Next close the active Change's spec and projection correspondence before heavy
+verification. Review the official archive's projected spec bytes in advance;
+a source-bound graph must describe the exact committed sources both before and
+after archive. Do not invent a second Markdown parser, turn semantic changes into
+no-spec changes, ignore early-sync warnings, or automatically approve new hashes.
+The official merge now produces all intended requirements, after consolidating
+two duplicate ADDED section headings that silently lost one requirement. Specs
+are synchronized before freeze; replay must produce zero changes. Its three
+"already removed" warnings are accounted for by exact original requirements,
+reviewed replacements and byte-equal replay, not suppressed. Any other warning
+or changed postimage blocks delivery. Complete affected checks, freeze, and use
+exact proof and public lifecycle decisions for delivery. Then resume historical-lane absorption easiest
+first: neither this batch nor its immediate predecessor retired another lane.
 
-Current code-size and policy observation repairs have public RED/GREEN evidence.
-They reached signed `e4488d943d39e39464dfdc4cf95685b99f3d60c4`, tree
-`19ee9440e200d8ab91bb1865ca9803ca878e3ff6`, through normal hooks. Nine selected
-source gates passed; measured product/test totals were 40629/41555 against
-independent 45000 ceilings. This source is not accepted or installed. The next
-bounded consolidation removes repeated proof payload and compact/detailed
-projection construction, reducing that CLI from 536 to 492 ELOC without moving
-code or adding a module. Seventy-seven affected cases and the real size provider
-verify that boundary; it reached signed `38db73aeb99d69ece45745713f86500ab5fe1056`,
-tree `19706715f4aaa3c59f9e86b030564d0711bb9207`. The hook activation test then
-removed an unused hand-built Python/environment projection from its reuse case,
-preserving the no-rebuild assertion and adding exact selected-digest, unchanged
-inventory and empty-gap checks. All 72 activation cases pass in 46.84 seconds
-with scratch removed; the module falls from 808 to 783 ELOC and reached signed
-`300200fccc6a03ffd5e97d07dbfbddc883e76994`, tree
-`2e08061d6d7b48cbeb3bd5f1d53358bedffa33c7`. Publication's complete no-push
-readiness use case and shared local observation now belong to the existing
-publication domain owner; CLI retains transport selection and the existing
-remote-effect path. A transient typed context replaces the large parallel
-argument list; it stores no workflow state and grants no effect authority.
-CLI ELOC falls 697 to 405, while the domain owner is 499. This is responsibility
-consolidation, not a net-code deletion claim. All 33 publication cases pass in
-194.67 seconds, including local/single/multiple peers, exact signed tag and
-branch CAS, missing observations, receipt replay and proof drift. It reached
-signed `4da3d2c39db9f7e7ee188acee259f6a4f709a432`, tree
-`5962980d9013090f202c64f27e3a96da6c629a9e`; owned scratch is removed.
-The remaining test responsibilities are now separated at their actual owners:
-local publication readiness from remote effects, and retirement inventory from
-execution/recovery. Native directory-scoped fixture sharing replaces duplicate
-setup; the existing lane scenario owner holds the shared explicit request.
-All 153 original parameterized cases remain present once and pass with two
-workers in 172.21 seconds. Forty-four test bodies remain structurally identical
-after the helper rename; two reviewed changes reuse an existing effect call or
-express identical peer expectations once. No behavioral case was removed.
-New readiness/content test modules measure 154/146 ELOC; remaining remote-effect
-and retirement modules each measure 800. Current declared size violations are
-zero; accepted and runtime delivery remain separate from the proof below.
-This does not settle the separate unified-500 trial. An intermediate
-shared-payload mutation was caught by the existing persistence-failure test and
-replaced with a new failure payload, preserving earlier observations.
-The first consolidation commit attempt raced a post-spawn `git write-tree`
-against `git commit` and failed on index.lock before HEAD changed. Readback
-confirmed the process exited, the lock disappeared and the exact staged patch
-remained. Capture index coordinates before spawning an index writer; no other
-index-writing command may overlap it. Preserve the failed receipt and revalidate
-before retrying; observation failure never permits mutation replay by itself.
-The implementation at `796268daceff902e5764b7004bcd4beb0dd50f2d` passed all
-35 gates, 3008 tests with one skipped, and combined coverage 95.05018772507854%.
-Official archive produced `51679f00265d423731521571518c894348693186`; its full
-proof failed one actual-source export test after 1487.811 seconds, with 3007
-tests passed and one skipped. Coverage and package gaps are dependencies of that
-single failed gate, not additional independently failing tests. Both runs used
-two workers and removed their owned basetemp. The source is not accepted,
-installed or published.
+The earlier omitted Node supply and post-spawn index-writer race remain execution
+lessons, not accepted exceptions: inspect passing exact-path prewrite before any
+write, carry the declared tool environment, capture index coordinates before
+spawning commit, and never overlap index writers. Observation failure requires
+effect readback before deciding whether a retry is legal. Original failure
+receipts remain evidence; this plan does not duplicate their execution narrative.
 
-The bounded official `terminal-projection-preflight` continuation retains the
-same Work Lane and immutable archive. Exact source review finds two stale
-bindings out of thirteen: contracts and repository governance. The graph keeps
-all product capabilities and refines existing prewrite semantics for package
-policy, origin and consumer-safe effects; ELOC details need no new graph entity.
-The existing architecture gate now calls the official exact-tree exporter;
-the sole registry makes that gate a prerequisite of heavy tests. No parallel
-validator, automatic digest approval or lifecycle is added. Five initial
-regressions failed; all 49 affected exporter/registry cases then passed in
-3.02 seconds, including valid/stale/missing committed sources, ignored working
-drift and independent native-render drift. The real native Nox gate detects the
-old archive mismatch in 0.39 seconds. That is early failure detection, not a
-measurement of full-proof speedup. Changed working bytes still require a commit
-before they can satisfy exact committed export.
+### Global Interface And Encapsulation Review
 
-Receipts remain under `build/evidence/quality/evidence-retirement/terminal-projection-*`.
-Complete quick source checks, freeze, prove the new exact source and archive,
-then accept and activate its runtime. Immediately retire already-absorbed lanes
-through public admission; a global roadmap is not a reason to defer otherwise
-safe retirement. Neither the measurement repair nor this continuation has
-retired another historical lane. The broader coverage table remains in force.
+The private-resource example exposed a repository-wide enforcement gap, not a
+request to special-case one file. The current inventory covers 482 Git-selected
+Python files and 5562 import statements across product, tests, tools and skill
+sources. Three private-module imports and one relative import bypassed the
+claimed policy. The native relative-import configuration prohibited only parent
+imports, while the custom layout check inspected imported symbol spelling but
+not private module targets. Ruff SLF/PLC selection did not supply the missing
+package-boundary semantics.
+
+The existing layout owner now resolves both import forms, aliases and relative
+names against module identity. Private symbols stay module-local; private modules
+stay within their direct semantic package, with private-package internals retained
+inside that subtree. Prefix similarity does not imply ownership. Thirteen initial
+failures covered missed visibility, ambient default-gate selection, silent missing
+explicit gate fallback and adopter replacement of skill schema. Seventy-five
+focused cases subsequently passed, including legal internal and public access.
+The mixed `_resources` owner is deleted: gates read explicit input or their source/
+package default; manifests use the existing interpreter-owned schema reader.
+These are working-source observations, not accepted or installed delivery.
+The expanded 155-case run passed in 9.54 seconds with owned scratch removed;
+actual host CLI probes reject cross-package private access and allow both public
+and direct internal access in approximately 0.4 seconds each. Whole-repository
+module-layout, import-boundaries, types, size, docs-registry, repository-audit,
+source-budget and the existing docstring selection pass. Native lint, configuration,
+schemas, Markdown and prose checks also pass. An initial unborn CLI fixture failed
+before entering the gate; it was corrected and is not counted as visibility evidence.
+All ten implementation/check tasks are ready for source freeze; exact-source full
+proof, archive, acceptance, runtime activation and publication remain pending.
+
+| Global obligation | Present boundary and remaining acceptance |
+| --- | --- |
+| Import visibility | Existing owner repair applies to all governed Python; complete public-gate, runtime/package and regression verification remains required. No path exception or blanket public renaming. |
+| Private member and dynamic access | Ruff SLF checks ordinary member access; static import tests do not prove arbitrary reflection, runtime exports or dependency injection. Additional boundaries need concrete supported semantics and counterexamples. |
+| Dependency direction and composition | Current import-linter declares four layers only. Source observation also finds repository audit → assistants and assistants → repository dependencies. Resolve actual responsibilities and enforce the complete intended graph; do not add exemptions merely to preserve existing cycles. |
+| Public interfaces and documentation | Names without underscores do not establish an external compatibility promise. The inventory finds 152 missing module docstrings; existing public-docstring selection does not settle the user's every-code-file requirement. Implement native rule coverage with meaningful semantic documentation, not generated filler. |
+| Source/default selection | Explicit missing input fails, and caller CWD/adopter schema cannot reinterpret defaults. Source-native and installed-package paths require separate evidence. |
+| Rules, code and enforcement correspondence | Correct false claims that SLF or D selection already covers everything. Every declared rule needs a real failing counterexample and legitimate-success case at its own gate. Broad green is not full encapsulation proof. |
+
+This global review stays in the current contract, layout rule and this plan.
+Bounded implementation is an execution strategy, not a reduction of scope.
+Remaining rows cannot be declared complete because `_resources` disappeared or
+because the current focused suite passed.
 
 ### Global Coverage And Delivery Boundary
 
@@ -212,10 +173,10 @@ policy decision. Examples do not narrow the global principles they illustrate.
 | --- | --- | --- |
 | Intent fidelity and historical guidance | Available input has informed the contract and this route; complete recovery is not proved. | Existing Feedback Intent Preservation and P1/P2: settle each distinct in-scope obligation, retain unresolved source gaps, and reject the mandatory-winner mistranslation through the full acceptance path. |
 | Lane absorption and housekeeping | Two other lanes remain at the latest status; this batch retired none. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
-| Artifact, policy and admission correctness | Source repairs and focused regressions pass; accepted runtime still predates them. | Current official Change: cheap gates, exact full proof, archive, acceptance and immutable runtime readback before adopter remediation claims. |
+| Artifact, policy and admission correctness | Artifact-origin repair is accepted and installed at `470fe13e`; the adopter owner reports the original deletion blocker cleared. | Current semantic-version Change still needs exact full proof, archive, acceptance and runtime readback; do not transfer predecessor evidence to it. |
 | Quality and full-cycle speed | ELOC coercion and path-response defects reproduced and repaired; coverage of all quality obligations is not established. | Existing quality owners and P5: finish semantic size consolidation, docstring/type/format scope, distinguishing failures, evidence reuse and actual first-failure/closeout measurements. |
 | Runtime, supply and temporary resources | The latest focused scratch roots were removed; sustained crash/kill boundedness and all-current supply are not proved. | Existing runtime/resource owners: verify package identity, migration/rollback, live-consumer-safe reclamation and sustained quantity/byte/inode budgets. |
-| Local and independent remote workflow | Previously published accepted objects are separate from this unaccepted source. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
+| Local and independent remote workflow | Accepted `470fe13e` was read back equal on both peers; current working changes are unpublished. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
 | Agent guidance and enforceable behavior | Hooks, runtime and skills exist; registration alone does not prove host coverage or agent adherence. | Existing Hook And Extension Boundaries: context selection, capability discovery, fresh effect admission, bounded failures and measurable recovery without vendor/model binding. |
 | Document and physical semantic structure | Current registry and contracts exist; all placement, naming, source/projection and legacy cleanup obligations remain separately auditable. | Existing docs, module-layout and projection owners: preserve distinct design/plan/decision/task/evidence roles, remove redundant entities and prove consumer closure. |
 | OpenSpec and OKF customization | Official extension surfaces have been inspected; no custom schema or OKF adapter has been adopted. | Existing P1/P2/P7: native config first, justified schema only after semantic preservation tests, interoperable exchange without a second intent store or lifecycle. |
@@ -590,6 +551,22 @@ one, and reuse an admitted lane. Measure progress by unique obligations absorbed
 and exact refs, worktrees, Leases, and owned projections verified retired, not by
 commits, tests, inventory passes, or documentation volume.
 
+Architecture, implementation, runtime performance and iteration speed are one
+optimization problem. First reduce repeated authority, interpretation, setup and
+work; then optimize the remaining measured critical path. Use the existing gate
+DAG and exact input closure: cheap distinguishing checks precede expensive proof,
+independent read-only checks may share valid work, and cache eviction must affect
+cost rather than verdict. Reuse requires fresh relevant source, policy, tools,
+environment and external facts; elapsed age or unchanged HEAD alone is insufficient.
+
+Measure time to first actionable failure, change-to-accepted-runtime duration,
+repeated execution, fixture/setup cost, resource peaks and recovery effort through
+existing receipts. Compare equivalent workloads and correctness boundaries before
+claiming improvement. Do not raise concurrency, narrow acceptance, lower coverage
+or budgets, suppress warnings, or add another orchestrator to improve a number.
+Projection/archive readiness belongs before the expensive final verification;
+local microbenchmark gains do not establish whole-cycle acceleration.
+
 Housekeeping is part of each lane's closeout, not a later bulk sweep. Before
 disposal, account for unique committed, staged, unstaged, and untracked meaning;
 prove its absorption, supersession, or authorized rejection. Then retire exact
@@ -639,8 +616,8 @@ mapped to the existing contract and current batch; it reopens source recovery
 only when it demonstrates a missing or contradictory terminal invariant.
 
 The bounded `reviewed-content-retirement` and `detached-reviewed-retirement`
-implementations are archived and accepted at `95b6153b`. The active bounded
-Change is `native-observer-socket-identity` in the same owned
+implementations are archived and accepted at `95b6153b`. At that historical checkpoint, the bounded
+Change was `native-observer-socket-identity` in the same owned
 `work/20260907-missing-lease-reconciliation` lane. The earlier disconnected
 POSIX snapshot prototype remains withdrawn; its implementation is not restored.
 The official Change instead binds reviewed dirty content, index and ignored
@@ -1035,7 +1012,7 @@ All observed processes remain UID 65534; `lsof` exits zero without stderr. The
 existing parser rejects the exact frame as `file_observation_unreadable`.
 Changing identity or filtering unknown processes would address the wrong cause.
 
-The active socket Change admits that typed socket record without inventing a
+The historical socket Change admits that typed socket record without inventing a
 filesystem identity. Complete REG/DIR identity, malformed fields, duplicate
 fields, inaccessible state and transport failures still reject. The existing
 matrix first records one failure and 33 passes, then 40 passes. The first fix
@@ -2777,7 +2754,7 @@ limits, not implemented capabilities or a second product contract.
 Current evidence supersedes the report's coordinates: local accepted source is
 `9a774f9852d117909942d89218ed66b32687aa89`, with matching installed runtime
 `5e22f8da2362cb2ee477762facfd41c10862ce508bf87065c840dc935fe154c2`.
-The idle lane-status loop is already fixed. The active `verification-feedback`
+The idle lane-status loop is already fixed. The earlier `verification-feedback`
 Change remains bounded to scheduling and hosted report visibility. Its current
 86 affected tests pass; full proof, timing comparison and remote visibility are
 not yet demonstrated for that overlay. Do not restart completed work or label

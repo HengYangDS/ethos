@@ -9,16 +9,16 @@ include = [
   "references/portfolio-design.md",
 ]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:8976d9658f23aee5063c619b06be28c72f10f9656e603870787413ef668b5f02"
+expected_digest = "sha256:db0b8763b8f2af4855c13058a867314607b1dbb86aa8e6b094fca8ea1aeffc32"
 
 [quality]
 placeholder_allowed = false
 host_projection = false
 
 [[capability]]
-id = "ethos.prove.playbooks-v2"
+id = "ethos.prove.skills"
 kind = "command_proof"
-command = ["ethos", "prove", "--gate", "playbooks-v2", "--json"]
+command = ["ethos", "prove", "--gate", "skills", "--json"]
 
 [[capability]]
 id = "ethos.plan"

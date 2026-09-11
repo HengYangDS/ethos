@@ -1,4 +1,3 @@
-schema = "ethos-deptry-policy-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Dependency hygiene validates the sole Python distribution."
 runner = "uv run --frozen --offline python -m nox -s dependencies"

@@ -7,7 +7,7 @@ from ethos.assistants.skills.packages import compute_skill_package_digest
 if TYPE_CHECKING:
     from pathlib import Path
 
-OFFICIAL_PLAYBOOK_SKILL = """---
+SAMPLE_SKILL = """---
 name: sample-skill
 description: Use when governing sample repositories with ETHOS.
 ---
@@ -34,11 +34,11 @@ Repository source, tests, schemas, docs, claims, evidence, and command JSON are 
 """
 
 
-def write_playbook_package(skills_root: Path, skill_id: str) -> str:
+def write_skill_package(skills_root: Path, skill_id: str) -> str:
     package_dir = skills_root / skill_id
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(
-        OFFICIAL_PLAYBOOK_SKILL.replace("name: sample-skill", f"name: {skill_id}"), encoding="utf-8"
+        SAMPLE_SKILL.replace("name: sample-skill", f"name: {skill_id}"), encoding="utf-8"
     )
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     package_manifest = package_dir / "package.toml"

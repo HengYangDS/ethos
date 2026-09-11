@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 
 from ethos.adapters.gates.generated_artifacts import generated_artifact_gate_report
+from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.repository.policy.artifact_entrypoints import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from tests.support.governed_repository import git
@@ -16,6 +17,13 @@ from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_executable_topology_has_no_independent_revision() -> None:
+    """One immutable package owns both executable topology code and declaration."""
+    declaration = load_generated_artifact_topology_declaration()
+    assert "schema_version" not in declaration.model_dump()
+    assert "schema_version" not in declaration.to_contract()
 
 
 def test_public_artifact_gate_uses_runtime_policy_not_checkout_policy(tmp_path: Path) -> None:

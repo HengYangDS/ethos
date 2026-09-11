@@ -7,67 +7,6 @@ projections over repository truth.
 
 ## Requirements
 
-### Requirement: Playbook Projection
-
-ETHOS SHALL discover repo-local skills from ETHOS activation registry inputs,
-normalize them into a provider-neutral skill activation IR, and keep
-provider-visible skill packages as digest-bound projections over repository
-truth rather than truth stores.
-
-#### Scenario: Playbooks are checked
-
-- **WHEN** `ethos prove --gate playbooks-v2 --json` runs
-- **THEN** ETHOS reports normalized V2 registry metadata, package quality,
-  package digest state, routing coverage, projection drift, portfolio coverage,
-  portfolio design diagnostics, and required or advisory gaps
-
-#### Scenario: strict mode rejects placeholder skills
-
-- **GIVEN** a repo-local skill contains only a thin placeholder
-- **WHEN** `ethos prove --gate playbooks-v2 --json` runs
-- **THEN** ETHOS reports a required gap for official skill package quality
-
-#### Scenario: strict mode rejects overlapping skill route owners
-
-- **GIVEN** active repo-local skills declare the same exact changed-path route
-  glob in activation metadata
-- **WHEN** `ethos prove --gate playbooks-v2 --json` runs
-- **THEN** ETHOS reports a deterministic `skill_portfolio_path_glob_duplicate`
-  required gap
-- **AND** the payload exposes `portfolio_design` diagnostics without making
-  skills a repository truth center
-
-#### Scenario: strict mode rejects weak skill entrypoint shape
-
-- **GIVEN** a provider-visible skill entrypoint has a non-trigger description or
-  hides long procedure in `SKILL.md` without `references/` or `scripts/`
-- **WHEN** `ethos prove --gate playbooks-v2 --json` runs
-- **THEN** ETHOS reports a deterministic skill quality required gap
-
-#### Scenario: historical migration fixtures preserve adopter routing evidence
-
-- **GIVEN** a migration fixture contains v1 activation metadata
-- **WHEN** Skills V2 migration replay runs
-- **THEN** ETHOS preserves readable routing evidence while reporting V2
-  migration gaps
-
-#### Scenario: strict mode enforces portfolio coverage
-
-- **GIVEN** activation metadata declares required primary subjects and
-  single-owner subjects
-- **WHEN** `ethos prove --gate playbooks-v2 --json` runs
-- **THEN** ETHOS reports deterministic required gaps for missing active primary
-  owners and duplicate active primary owners
-- **AND** the check payload exposes the portfolio coverage contract and owner
-  map without treating skills as repository truth above source, tests, schemas,
-  docs, OpenSpec, claims, evidence, or command JSON
-
-#### Scenario: Skill eval metadata is inspected
-- **WHEN** a skill package declares eval metadata
-- **THEN** ETHOS validates the metric names, pass@k bounds, instability-gap bounds, treatment id, and evidence refs
-- **AND** the metadata is reported as package quality metadata
-- **AND** eval metadata does not replace package digests, proof commands, claims, or evidence
-
 ### Requirement: Projection Boundary
 
 ETHOS SHALL keep assistant, MCP, ACP, hosted CI, workflow runtimes, external
@@ -76,9 +15,8 @@ context providers, or projections over repository truth.
 
 #### Scenario: projection drift is audited
 
-- **WHEN** `ethos prove --gate playbooks-v2 --json` runs
-- **THEN** ETHOS reports package, registry, generator, and projection drift
-  records without accepting host metadata as authority
+- **WHEN** `ethos prove --gate skills --json` runs
+- **THEN** it reports package and registry drift without accepting host metadata as authority
 
 ### Requirement: Progressive disclosure for agent context
 
@@ -225,3 +163,41 @@ and absence reason through physical topology changes.
   provenance, or validity information
 - **THEN** projection proof SHALL block with the missing relation and source
 - **AND** presentation convenience SHALL not justify a second semantic carrier
+
+### Requirement: Skill portfolio validation
+
+ETHOS SHALL expose repo-local skill portfolio validation through the stable
+`skills` gate. One skill owner SHALL validate original activation inputs,
+package quality, routing, composition and retirement, then project explicit
+verdicts and gaps. Skills remain below repository truth.
+
+#### Scenario: Skills are checked through one owner
+
+- **WHEN** `ethos prove --gate skills --json` runs
+- **THEN** it uses the same portfolio owner as repository audit and planning
+- **AND** the report has no development-generation mode or duplicate compliance score
+
+#### Scenario: Placeholder and weak entrypoint are rejected
+
+- **WHEN** a skill lacks required content or a usable trigger and entrypoint
+- **THEN** the report retains precise package-quality failures
+
+#### Scenario: Overlapping route owners are rejected
+
+- **WHEN** active skills declare conflicting routes or duplicate primary owners
+- **THEN** the report identifies those conflicts without granting skill authority
+
+#### Scenario: Missing portfolio coverage is reported
+
+- **WHEN** declared required primary subjects have no active owner
+- **THEN** the report exposes missing coverage and the exact owner map
+
+#### Scenario: Unsupported activation remains invalid
+
+- **WHEN** old or future activation input does not satisfy the supported schema
+- **THEN** the original input is rejected rather than normalized into compatibility
+
+#### Scenario: Skill evaluation metadata remains evidence
+
+- **WHEN** a package declares evaluation metrics, treatment identity and evidence references
+- **THEN** the same package owner validates them without converting them into task progress

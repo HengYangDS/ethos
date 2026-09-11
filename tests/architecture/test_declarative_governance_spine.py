@@ -28,7 +28,7 @@ def test_proof_floor_has_no_workspace_history_precondition() -> None:
     [
         "docs-registry",
         "module-layout",
-        "playbooks-v2",
+        "skills",
         "product-boundary",
         "python-types",
         "repository-audit",

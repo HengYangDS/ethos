@@ -62,30 +62,6 @@ proof and command payloads.
 - **AND** provider, host, editor, model, and toolchain choices remain outside
   product semantics
 
-### Requirement: Provider-neutral Skill Activation Contract
-
-ETHOS SHALL represent skill activation through a provider-neutral contract IR
-that preserves historical activation fixture rows while exposing V2 ownership,
-operation, lifecycle, routing, composition, package, projection, and proof
-metadata.
-
-#### Scenario: historical activation normalizes without data loss
-
-- **GIVEN** a v1 `.agents/skills/activation.toml` record with `id` or `name`
-- **WHEN** ETHOS loads skill activation contracts
-- **THEN** the normalized IR preserves the declared identifier source,
-  subjects, path, path globs, intent tokens, pre-reads, post-checks,
-  co-activation hints, commands, boundary fields, and fixture-specific
-  extension fields
-- **AND** the output remains readable for existing playbook JSON records
-
-#### Scenario: strict activation requires V2 ownership
-
-- **GIVEN** a playbook check runs in `v2-strict` mode
-- **WHEN** an active primary skill lacks subject, operation, lifecycle, path
-  coverage, package manifest, command affordances, or proof obligations
-- **THEN** ETHOS reports deterministic required gaps
-
 ### Requirement: Skill Package Manifest
 
 ETHOS SHALL bind provider-visible skill packages to content-addressed package
@@ -94,27 +70,22 @@ algorithm, quality rules, and capability classes.
 
 #### Scenario: package digest mismatch is detected
 
-- **GIVEN** a skill package manifest declares included files and an expected
-  digest
-- **WHEN** the package contents no longer match that digest
-- **THEN** `ethos prove --gate playbooks-v2 --json` reports a required
-  package digest gap
+- **GIVEN** a skill package manifest declares included files and an expected digest
+- **WHEN** package contents no longer match that digest
+- **THEN** `ethos prove --gate skills --json` reports a required package digest gap
 
 #### Scenario: unsafe package paths are rejected
 
-- **GIVEN** a package manifest path, entrypoint, or included file uses an
-  absolute path or a path escaping its allowed root
+- **GIVEN** a package manifest path, entrypoint, or included file escapes its allowed root
 - **WHEN** ETHOS validates the manifest
-- **THEN** validation reports a required package path gap without reading
-  outside the repository or package directory
+- **THEN** validation reports a required package path gap without reading outside the package
 
 #### Scenario: package capabilities are classified
 
-- **GIVEN** a package manifest declares command, MCP, script, or host
-  capabilities
+- **GIVEN** a manifest declares command, MCP, script or host capabilities
 - **WHEN** ETHOS validates the manifest
-- **THEN** readonly capabilities reject mutating commands, proof capabilities
-  identify proof commands, and guarded mutation capabilities declare a guard
+- **THEN** readonly capabilities reject mutations, proof capabilities identify proof commands
+- **AND** guarded mutation capabilities declare a guard
 
 ### Requirement: Explicit mutation context contract
 ETHOS SHALL define mutation-capable operations with explicit target-root,
@@ -305,3 +276,47 @@ Commitment, Change, acceptance set, or task graph.
 - **WHEN** it is relevant but not already required by the bounded Change
 - **THEN** its selection remains available to a future official OpenSpec Change
 - **AND** current effect authority remains unchanged
+
+### Requirement: Skill activation preserves supported meaning
+
+ETHOS SHALL compile supported skill activation into a provider-neutral contract
+that preserves identity, ownership, operation, lifecycle, routing, composition,
+package and proof obligations. Original input SHALL be validated before
+normalization; unsupported versions and fields SHALL NOT be silently discarded.
+
+#### Scenario: Supported activation preserves meaning
+
+- **WHEN** a valid current activation document is compiled
+- **THEN** declared skill identity, routes, package and proof obligations remain explicit
+- **AND** the projection carries no historical compatibility fields or single-valued mode
+
+#### Scenario: Unsupported input is rejected before interpretation
+
+- **WHEN** an activation document has an unsupported version or undeclared fields
+- **THEN** skill validation reports the native input boundary as invalid
+- **AND** normalization does not convert that input into a passing current record
+
+#### Scenario: Required ownership is missing
+
+- **WHEN** an active primary skill lacks required ownership or operational fields
+- **THEN** the skill portfolio reports deterministic required gaps
+- **AND** no compliance score can compensate for a missing obligation
+
+### Requirement: Versions distinguish necessary interpretation boundaries
+
+ETHOS SHALL give capabilities stable semantic names. A version discriminator
+SHALL exist only where required for independent interpretation, compatibility,
+migration or evidence identity. Package-local metadata and diagnostic labels
+SHALL NOT add manual revision state when exact source identity already suffices.
+
+#### Scenario: Only one capability behavior exists
+
+- **WHEN** a mode or name only repeats an implementation generation
+- **THEN** the semantic owner exposes one behavior without that label or alias
+- **AND** callers consume the same owner and explicit verdict
+
+#### Scenario: Persisted or external formats differ
+
+- **WHEN** a version determines how an independently produced carrier is interpreted
+- **THEN** the owning reader rejects unsupported input before deriving behavior
+- **AND** existing signed or content-addressed evidence is not rewritten

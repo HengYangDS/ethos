@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "7a1d4185387a18041828c46431aa1be249b4dc0af2f52c463db71c1335b04ab1"
+      "sha256": "c83191d39ab0cca3903fb80889a81312a21d314ae7b5510c7a2994d2c9bb9d06"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -159,12 +159,12 @@
     "projections": {
       "path": "docs/architecture/agent-projections.md",
       "authority": "current agent-facing projection boundary",
-      "sha256": "2703d273521bbe4162f99c3287f6cd2790182393e4a31cc60b89ce619ad662b0"
+      "sha256": "accf5ea60a7dc0f094e4b757319b522e21fe303f0bb088cefec47d12ab3f4003"
     },
     "skills": {
-      "path": "docs/governance/playbooks-and-skills.md",
+      "path": "docs/governance/skills.md",
       "authority": "current skill projection boundary",
-      "sha256": "1aed70df4326a69daf9b68cc4a6ec1165cc3756e40721e8122a41319d5509070"
+      "sha256": "281cfa31913274c0b80e042fd5269c7a68e71a1ebe7ecb87657d59bdde7cf592"
     },
     "independent_verification": {
       "path": "docs/governance/independent-verification-adoption.md",
@@ -174,7 +174,7 @@
     "contracts": {
       "path": "openspec/specs/contracts/spec.md",
       "authority": "current Commitment and Attestation contracts",
-      "sha256": "b1c52ab9dc55694887f78ef420ce8d2385d9d01b8d0fb16c19d00c997130cf17"
+      "sha256": "c557ca839efc977970f45e88cc500a5aa10a42ddc3814e0a4059a9d226c67732"
     },
     "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
@@ -335,7 +335,7 @@
         "product_contract",
         "skills"
       ],
-      "semantics": "Replaceable domain capabilities make the full research-to-outcome path usable. Skills may route native tools and procedures but never own acceptance, authority, progress or lifecycle state."
+      "semantics": "Replaceable domain capabilities make the full research-to-outcome path usable. One portfolio owner validates original activation, packages, routing, composition and retirement before projection. Skills never own acceptance, authority, progress or lifecycle state."
     },
     "owner_native_tools": {
       "kind": "capability",
@@ -347,7 +347,7 @@
         "product_contract",
         "skills"
       ],
-      "semantics": "People and interchangeable Agents compose Skills, generators, verifiers and native tools. Evaluate official and mature capabilities before custom machinery. Contracts bind I/O, identity/version, permission, cancellation and failure. Pure semantics stay separate from bounded effects; capabilities grant no authority."
+      "semantics": "People and interchangeable Agents compose Skills, generators, verifiers and native tools. Evaluate official and mature capabilities before custom machinery. Stable names express responsibility; independently interpreted compatibility, migration or evidence boundaries justify versions. Contracts bind I/O, identity, permission, cancellation and failure. Pure semantics stay separate from bounded effects; capabilities grant no authority."
     },
     "actor": {
       "kind": "execution",

@@ -3,9 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
-import pytest
-
-from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.skills.capabilities import capability_records
 from ethos.assistants.skills.capabilities import contained_package_path
 from ethos.assistants.skills.packages import compute_skill_package_digest
@@ -14,6 +11,7 @@ from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
+from ethos.assistants.skills.portfolio import skill_portfolio_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -262,15 +260,12 @@ def test_portfolio_reports_duplicate_overloaded_and_unowned_routes(tmp_path: Pat
     ]
 
 
-def test_playbooks_public_report_rejects_unknown_mode_and_malformed_activation(
+def test_skills_public_report_rejects_malformed_activation(
     tmp_path: Path,
 ) -> None:
-    with pytest.raises(ValueError, match="unsupported playbook mode"):
-        playbooks_report(tmp_path, mode="legacy")
-
     activation = tmp_path / ".agents/skills/activation.toml"
     _write(activation, "[meta\n")
-    report = playbooks_report(tmp_path)
+    report = skill_portfolio_report(tmp_path)
     assert report["verdict"] == "block"
     assert ".agents/skills/activation.toml:invalid_toml" in report["required_gaps"]
     assert ".agents/skills/README.md" in report["required_gaps"]

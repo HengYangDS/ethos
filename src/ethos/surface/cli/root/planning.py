@@ -13,7 +13,7 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
-from ethos.assistants.playbooks import playbooks_report
+from ethos.assistants.skills.portfolio import skill_portfolio_report
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
 from ethos.contracts.skill.activation import compile_skill_activation
@@ -193,9 +193,9 @@ def plan(
             dict.fromkeys((*generation_scope.gaps, *rule_validation_gaps, *policy.gaps))
         ),
     )
-    playbooks = playbooks_report(repo)
+    portfolio = skill_portfolio_report(repo)
     skill_activation = compile_skill_activation(
-        cast("dict[str, object]", playbooks.get("registry") or {}),
+        cast("dict[str, object]", portfolio.get("registry") or {}),
         operation="plan",
         subjects=(commitment.id,),
         changed_paths=paths,

@@ -8,7 +8,7 @@ from ethos.repository.policy.layout.facades import module_facade_findings
 from ethos.repository.policy.layout.facades import package_init_facade_findings
 from ethos.repository.policy.layout.facades import private_alias_findings
 from ethos.repository.policy.layout.imports import package_root_submodule_import_findings
-from ethos.repository.policy.layout.imports import private_from_import_findings
+from ethos.repository.policy.layout.imports import private_import_findings
 from ethos.repository.policy.layout.naming import ambiguous_module_findings
 from ethos.repository.policy.layout.naming import ambiguous_package_findings
 from ethos.repository.policy.layout.naming import multiple_command_owner_findings
@@ -41,7 +41,7 @@ def module_layout_report(
             root, policy, files
         ),
         "dynamic_compat_facade_findings": dynamic_compat_facade_findings(root, policy, files),
-        "private_from_import_findings": private_from_import_findings(root, policy, files),
+        "private_import_findings": private_import_findings(root, policy, files),
     }
     gaps = [str(finding["gap"]) for findings in finding_groups.values() for finding in findings]
     summary = {

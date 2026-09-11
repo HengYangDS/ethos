@@ -35,6 +35,6 @@ date, and observable kill signal.
 Run the current proof gate and changed-scope plan:
 
 ```bash
-ethos prove --gate playbooks-v2 --json
+ethos prove --gate skills --json
 ethos plan --changed --json
 ```

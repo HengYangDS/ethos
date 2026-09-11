@@ -4,10 +4,9 @@ from pathlib import Path
 from typing import Any
 from typing import NamedTuple
 
+import ethos.adapters.openspec.lifecycle.scope as scope
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
-
-from . import scope
 
 _ACTIVE_STATUSES = frozenset({"in-progress", "no-tasks"})
 _COMPLETED_STATUSES = frozenset({"complete"})

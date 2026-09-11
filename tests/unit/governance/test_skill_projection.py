@@ -20,7 +20,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
 from tests.support.literal_cases import literal_case
-from tests.support.playbooks import write_playbook_package
+from tests.support.skills import write_skill_package
 
 
 def _registry(*skills: dict[str, object]) -> dict[str, Any]:
@@ -39,7 +39,7 @@ def _skill(skill_id: str, **updates: object) -> dict[str, object]:
     } | updates
 
 
-def test_activation_registry_contains_only_current_v2_semantics() -> None:
+def test_activation_registry_contains_only_current_contract_semantics() -> None:
     registry = _registry({"id": "sample"})
 
     record = registry["records"][0]
@@ -204,7 +204,7 @@ def test_plan_projects_the_compiled_skill_activation(
         _skill("repository-governance", path_globs=["**"], pre_reads=["AGENTS.md"]),
     )
     monkeypatch.setattr(
-        "ethos.surface.cli.root.planning.playbooks_report",
+        "ethos.surface.cli.root.planning.skill_portfolio_report",
         lambda _root: {"registry": registry, "required_gaps": []},
         raising=False,
     )
@@ -235,7 +235,7 @@ def test_plan_projects_the_compiled_skill_activation(
 
 
 def test_skill_package_manifest_rejects_undeclared_eval_fields(tmp_path: Path) -> None:
-    manifest = Path(write_playbook_package(tmp_path / ".agents" / "skills", "sample-skill"))
+    manifest = Path(write_skill_package(tmp_path / ".agents" / "skills", "sample-skill"))
     manifest.write_text(
         manifest.read_text(encoding="utf-8")
         + """
@@ -265,7 +265,7 @@ undeclared = "forbidden"
 def test_skill_package_schema_owns_manifest_structure(
     tmp_path: Path, old: str, new: str, gap: str
 ) -> None:
-    manifest = Path(write_playbook_package(tmp_path / ".agents" / "skills", "sample-skill"))
+    manifest = Path(write_skill_package(tmp_path / ".agents" / "skills", "sample-skill"))
     manifest.write_text(manifest.read_text(encoding="utf-8").replace(old, new), encoding="utf-8")
 
     result = validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
@@ -275,7 +275,7 @@ def test_skill_package_schema_owns_manifest_structure(
 
 
 def test_skill_package_omits_absent_eval_projection(tmp_path: Path) -> None:
-    manifest = Path(write_playbook_package(tmp_path / ".agents" / "skills", "sample-skill"))
+    manifest = Path(write_skill_package(tmp_path / ".agents" / "skills", "sample-skill"))
 
     result = validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
 
@@ -421,7 +421,7 @@ def test_retired_skill_requires_complete_disposition_and_absent_carrier(tmp_path
 
 
 def test_eval_metadata_remains_evidence_and_never_progress_state(tmp_path: Path) -> None:
-    manifest = Path(write_playbook_package(tmp_path / ".agents" / "skills", "sample-skill"))
+    manifest = Path(write_skill_package(tmp_path / ".agents" / "skills", "sample-skill"))
     manifest.write_text(
         manifest.read_text(encoding="utf-8")
         + """

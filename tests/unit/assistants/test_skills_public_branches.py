@@ -4,8 +4,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.skills.packages import compute_skill_package_digest
+from ethos.assistants.skills.packages import validate_skill_package_manifest
+from ethos.assistants.skills.portfolio import skill_portfolio_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -86,13 +87,15 @@ def _record(
     return (
         "[[skill]]\n"
         f'id = "{skill_id}"\n'
-        f"{f'path = {path!r}\n' if path else ''}"
+        f'path = "{path or f".agents/skills/{skill_id}/SKILL.md"}"\n'
         f"{f'package_manifest = {package_manifest!r}\n' if package_manifest else ''}"
         f"{fields}"
     ).replace("'", '"')
 
 
-def test_playbooks_report_preserves_identity_path_quality_and_command_gaps(tmp_path: Path) -> None:
+def test_skill_portfolio_report_preserves_identity_path_quality_and_command_gaps(
+    tmp_path: Path,
+) -> None:
     skills = tmp_path / ".agents/skills"
     _write(skills / "README.md", "# Skills\n")
     for skill_id in (
@@ -100,7 +103,6 @@ def test_playbooks_report_preserves_identity_path_quality_and_command_gaps(tmp_p
         "absolute",
         "absent",
         "quality",
-        "incomplete",
         "mismatch",
     ):
         _package(tmp_path, skill_id)
@@ -109,7 +111,6 @@ def test_playbooks_report_preserves_identity_path_quality_and_command_gaps(tmp_p
     activation = (
         '[meta]\nversion = 2\nsource_of_truth = "repository"\n\n'
         "[coverage]\nrequired_primary_subjects = []\nsingle_owner_subjects = []\n\n"
-        + _record("")
         + _record(
             "escaped",
             path="../escaped/SKILL.md",
@@ -126,7 +127,6 @@ def test_playbooks_report_preserves_identity_path_quality_and_command_gaps(tmp_p
             package_manifest=".agents/skills/absent/package.toml",
         )
         + _record("quality", package_manifest=".agents/skills/quality/package.toml")
-        + _record("incomplete", complete=False)
         + _record(
             "mismatch",
             path=".agents/skills/mismatch/OTHER.md",
@@ -135,26 +135,19 @@ def test_playbooks_report_preserves_identity_path_quality_and_command_gaps(tmp_p
     )
     _write(skills / "activation.toml", activation)
 
-    report = playbooks_report(tmp_path)
+    report = skill_portfolio_report(tmp_path)
     gaps = set(report["required_gaps"])
 
     assert "digest" not in report["registry"]
     assert report["verdict"] == "block"
-    assert {"skill_missing_id", "skill_missing_file:absent"} <= gaps
+    assert "skill_missing_file:absent" in gaps
     assert {
-        "playbook_skill_path_escape:escaped",
-        "playbook_skill_path_escape:absolute",
+        "skill_path_escape:escaped",
+        "skill_path_escape:absolute",
         "skill_quality_missing_frontmatter:quality",
-        "playbook_skill_missing_commands:escaped",
-        "playbook_skill_missing_commands:absent",
-        "playbook_skill_missing_commands:quality",
-        "playbook_skill_missing_subject:incomplete",
-        "playbook_skill_missing_operation:incomplete",
-        "playbook_skill_missing_authority:incomplete",
-        "playbook_skill_missing_path_globs:incomplete",
-        "playbook_skill_missing_pre_reads:incomplete",
-        "playbook_skill_missing_post_checks:incomplete",
-        "skill_package_manifest_missing:incomplete",
+        "skill_missing_commands:escaped",
+        "skill_missing_commands:absent",
+        "skill_missing_commands:quality",
         "skill_package_entrypoint_mismatch:mismatch",
     } <= gaps
     assert report["skills"] == [
@@ -162,25 +155,89 @@ def test_playbooks_report_preserves_identity_path_quality_and_command_gaps(tmp_p
         "absolute",
         "absent",
         "quality",
-        "incomplete",
         "mismatch",
     ]
     records = {record["id"]: record for record in report["records"]}
-    assert records["incomplete"]["package_manifest"] == (".agents/skills/incomplete/package.toml")
     assert records["mismatch"]["commands"] == []
 
 
-def test_playbooks_report_rejects_missing_invalid_and_unsupported_activation(
+def test_skill_portfolio_report_rejects_missing_invalid_and_unsupported_activation(
     tmp_path: Path,
 ) -> None:
-    missing = playbooks_report(tmp_path)
+    missing = skill_portfolio_report(tmp_path)
     assert missing["verdict"] == "block"
     assert ".agents/skills/activation.toml" in missing["required_gaps"]
     assert ".agents/skills" in missing["required_gaps"]
 
     _write(tmp_path / ".agents/skills/activation.toml", "[meta\n")
-    invalid = playbooks_report(tmp_path)
+    invalid = skill_portfolio_report(tmp_path)
     assert ".agents/skills/activation.toml:invalid_toml" in invalid["required_gaps"]
 
-    with pytest.raises(ValueError, match="unsupported playbook mode: legacy"):
-        playbooks_report(tmp_path, mode="legacy")
+
+def test_skill_report_has_no_generation_mode_or_duplicate_score(tmp_path: Path) -> None:
+    """Current skill obligations have one verdict, not a single-mode compatibility plane."""
+    report = skill_portfolio_report(tmp_path)
+    assert "mode" not in report
+    assert "v2_compliance" not in report
+
+
+@pytest.mark.parametrize("extra", ["", 'name = "discarded"', 'unexpected = "discarded"'])
+def test_original_activation_fields_cannot_disappear(tmp_path: Path, extra: str) -> None:
+    """Validation precedes normalization that would otherwise erase unknown input."""
+    _package(tmp_path, "valid", commands=True)
+    skills = tmp_path / ".agents/skills"
+    _write(skills / "README.md", "# Skills\n")
+    activation = (
+        '[meta]\nversion = 2\nsource_of_truth = "repository"\n'
+        "[coverage]\nrequired_primary_subjects = []\nsingle_owner_subjects = []\n"
+        + _record("valid", package_manifest=".agents/skills/valid/package.toml")
+        + extra
+        + "\n"
+    )
+    _write(skills / "activation.toml", activation)
+
+    report = skill_portfolio_report(tmp_path)
+
+    assert report["verdict"] == ("block" if extra else "pass")
+    assert bool(report["required_gaps"]) is bool(extra)
+    if extra:
+        assert any("activation" in gap and "invalid" in gap for gap in report["required_gaps"])
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "id",
+        "subject",
+        "operation",
+        "authority",
+        "lifecycle",
+        "path_globs",
+        "pre_reads",
+        "post_checks",
+        "package_manifest",
+    ],
+)
+def test_incomplete_original_skill_is_rejected(tmp_path: Path, field: str) -> None:
+    """Every former record obligation is enforced before lossy projection."""
+    record = _record("sample", package_manifest=".agents/skills/sample/package.toml")
+    record = "\n".join(line for line in record.splitlines() if not line.startswith(f"{field} ="))
+    _write(
+        tmp_path / ".agents/skills/activation.toml",
+        '[meta]\nversion = 2\nsource_of_truth = "repository"\n'
+        "[coverage]\nrequired_primary_subjects = []\nsingle_owner_subjects = []\n" + record,
+    )
+    report = skill_portfolio_report(tmp_path)
+    assert report["verdict"] == "block"
+    assert report["records"] == []
+    assert any(field in gap for gap in report["required_gaps"])
+
+
+def test_skill_schema_cannot_be_replaced_by_adopter_checkout(tmp_path: Path) -> None:
+    """Adopter payloads cannot replace the schema that interprets their package."""
+    _package(tmp_path, "valid", commands=True)
+    manifest = ".agents/skills/valid/package.toml"
+    expected = validate_skill_package_manifest(tmp_path, manifest)
+    assert expected["verdict"] == "pass"
+    _write(tmp_path / "system/schemas/kernel/skill-package-manifest.schema.json", "false\n")
+    assert validate_skill_package_manifest(tmp_path, manifest) == expected

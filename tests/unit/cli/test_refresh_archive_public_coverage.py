@@ -1,9 +1,12 @@
+"""Exercise archive admission and preservation against explicit Git and clock inputs."""
+
 from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -27,8 +30,7 @@ BRANCH = "work/feature"
 HEAD = "old-head"
 NEW_HEAD = "new-head"
 CHANGE = "fixture-change"
-ARCHIVE_DATE = datetime.now(UTC).date().isoformat()
-ARCHIVE_PATH = f"openspec/changes/archive/{ARCHIVE_DATE}-fixture-change"
+ARCHIVE_PATH = "openspec/changes/archive/2026-09-10-fixture-change"
 
 
 def _completed_governance(
@@ -252,11 +254,15 @@ def test_archive_public_preserves_current_resolution_recovery_action(monkeypatch
 
 
 @pytest.mark.parametrize("collision", ["absent", "preserve", "tracked", "untracked"])
+@pytest.mark.parametrize("archive_date", ["2026-09-10", "2026-09-11"])
 def test_archive_collision_observes_exact_git_and_preserves_existing_bytes(
-    tmp_path, monkeypatch, collision
+    tmp_path, monkeypatch, collision, archive_date
 ):
+    observed_at = datetime.fromisoformat(archive_date).replace(tzinfo=UTC)
+    monkeypatch.setattr(archive, "datetime", SimpleNamespace(now=observed_at.astimezone))
+    archive_path = f"openspec/changes/archive/{archive_date}-{CHANGE}"
     repo = init_git_repo(tmp_path / "repo")
-    source = repo / ARCHIVE_PATH / "proposal.md"
+    source = repo / archive_path / "proposal.md"
     source.parent.mkdir(parents=True)
     source.write_text("immutable archive\n")
     head = commit_fixture(repo, "archive fixture")
@@ -267,9 +273,9 @@ def test_archive_collision_observes_exact_git_and_preserves_existing_bytes(
         head = "HEAD"
     found = archive.archive_collision(repo, head, CHANGE)
     assert found is not None
-    assert found.path == ARCHIVE_PATH
-    assert found.tree == git(repo, "rev-parse", f"{head}:{ARCHIVE_PATH}")
-    assert found.preserved_path.startswith(ARCHIVE_PATH + "-")
+    assert found.path == archive_path
+    assert found.tree == git(repo, "rev-parse", f"{head}:{archive_path}")
+    assert found.preserved_path.startswith(archive_path + "-")
     if collision == "preserve":
         assert not (repo / found.preserved_path).exists()
         return

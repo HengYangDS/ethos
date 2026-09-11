@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-The first 25 source paths now have explicit dispositions in the existing
-`transition-content-comparison.json`; 363 remain unreviewed. The current
+There are now 43 explicitly reviewed source/test paths in the existing
+`transition-content-comparison.json`; 345 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1292,6 +1292,49 @@ dirty bytes and exact original history before any retirement. Unimplemented
 capabilities remain obligations here after old carriers retire; classification
 and preservation never count as their implementation. This review adds no new
 product model and does not delay real fixes until a second global roadmap exists.
+
+The next reviewed family contains all ten changed admission modules and eight
+changed admission tests. Its source hashes still match the original inventory;
+current counterpart hashes bind authoring HEAD `20a51d960`. These dispositions
+retain necessary behavior without copying obsolete field shapes:
+
+| Boundary | Retained meaning, current owner and unresolved evidence |
+| --- | --- |
+| Current write and intent admission | `admission/current` owns minimal coordination and official Change attribution; prewrite and staged admission bind fresh HEAD/index and exact requested paths. Controller-expanded Lease, durable Commitment scope and its rebind command are superseded. Standalone patch acceptance is not whole greenfield adoption. |
+| Push identity and protected refs | The shared commit-range compiler selects revisions once; identity, subject/signature, proof, topology and accepted-closeout evidence remain conjunctive. Historical reconciliation receipts and arbitrary `role.transition` dispatch do not return. Full-DAG replacement and the open review/publication cycle are not counted as implemented. |
+| Native Git intent | Exact ref/update/operation/plan binding, bounded issuance and prepared/terminal observation remain necessary transport. Removing persistent Commitment does not authorize deleting this protocol. Terminal callbacks do not advance semantic Lease fields. |
+| Independent receipt identity | Canonical JSON ownership is present, but an instantiated current receipt model preserves two equivalent timezone representations and produces different digests. Retain the historical equal-instant assertion for the existing receipt owner. This is a model counterexample, not a demonstrated signature-verification bypass. |
+| Reviewed divergent retirement | Real isolated policy resolution accepts exact divergent topic deletion. Its reverse `lane.retire.compensate` intent is rejected as `ref_move_policy_unavailable` because compensation still requires ancestry. The Git-effect owner uses this operation for reversal; full public failure/recovery behavior is not yet exercised. Resolve this asymmetry against exact forward evidence, reverse CAS and current authority, not by unconditional ancestry removal. |
+
+The control classifier also retains an absent `domain/campaign` prefix. Its
+historical removal is not absorbed merely because canonical digest tests pass;
+clean obsolete classifier entries in the existing owner without claiming that a
+path list alone proves complete control-plane coverage.
+
+`transition-admission-counterexamples.json` retains executable probe source,
+observations and owner hashes. Both isolated Git fixtures and the receipt probe
+leave the live/historical refs unchanged, and their owned temporary root was
+removed. The broad sixteen-module test selection reached its 300-second parent
+deadline after 306 passing progress markers, without a terminal pytest summary.
+`transition-admission-counterparts-operation.json` records exit 124 and successful
+owned-root cleanup. This is not a passing family suite; quiet output did not
+identify the final slow test or teardown, so no deadlock cause is asserted.
+
+The discriminating follow-up selected the actual retained assertions rather than
+rerunning every module: 36 cases passed in 3.89 seconds, serially, with verbose
+node outcomes, JUnit and durations. Exact intent reuse, terminal callbacks,
+shared push-range identity, policy resolution, official attribution and staged
+coordinate fencing are covered. The operation, log and JUnit use the existing
+`transition-admission-focused` receipt stem; its owned root was removed. These
+passes neither erase the broad timeout nor close the two counterexamples.
+Further review batches should select assertion-level counterparts first and
+retain node/duration evidence, reserving broad suites for implementation proof.
+
+The first prewrite attempt in this continuation omitted the already-declared
+Node supply/PATH and reported missing OpenSpec. Restoring that existing command
+environment made the same exact-path admission pass; no installation or source
+repair occurred. Treat command-envelope reuse as an execution prerequisite,
+rather than repeatedly diagnosing prepared supply as missing or installing it.
 
 #### Native Reference And Review Projection Follow-Up
 
@@ -1328,6 +1371,18 @@ the generic owner, replacing adopter-specific CI environment parsing only after
 equivalent protection is executable. No existing adopter check is removed on a
 promise. Rebinding the accepted package fixes runtime currentness only, not this
 still-open semantic gap.
+
+The adopter's later native-environment report attributes a separate mise failure
+to configuration discovery, not to a missing Lease: HOME/config-directory
+overrides alone left parent/system configuration able to select extra tools.
+It reports signed source `2e3731a71fd1fe850fa38dad6835ac49707bfff0`, exact proof and
+native macOS/Linux verification; those results are adopter-provided, not
+independently rerun ETHOS evidence. Windows remains statically checked only.
+Absorb the generic acceptance obligation: observe actual configuration origins,
+isolated install/cache paths and exact Git role/ref/remote/tag context in a
+verification copy. Detached OID equality does not preserve the source Work Lane
+role. Product-specific mise/CUE configuration stays with the adopter; ETHOS must
+not copy that parser or lifecycle checker. This does not close the proposal cycle.
 
 #### Codex Topic Priority Retirement
 

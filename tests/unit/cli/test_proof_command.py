@@ -412,6 +412,28 @@ def test_prove_emits_the_issuance_gap_without_a_second_result(
     assert emitted[0].required_gaps == ("proof_binding_invalid",)
 
 
+def test_compact_and_detailed_proof_preserve_the_same_observed_meaning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A presentation choice cannot drop coordinates, checks or lifecycle identity."""
+    _repo, emitted = _arrange(monkeypatch, tmp_path)
+    proof_cli.prove(_options(expect_head="a" * 40), root=tmp_path, json_output=True)
+    compact = emitted[-1]
+    proof_cli.prove(_options(expect_head="a" * 40, gate=("gate",)), root=tmp_path, json_output=True)
+    detailed = emitted[-1]
+    assert compact.state == detailed.state == "ready"
+    assert compact.data["boundary"] == "repository"
+    assert detailed.data["boundary"] == "focused"
+    assert compact.data["changed_path_count"] == len(detailed.data["changed_paths"]) == 1
+    assert compact.data["gate_ids"] == ("gate",)
+    for key in ("scope", "scope_binding", "host_probe", "checks", "expected_head", "attestation"):
+        assert compact.data[key] == detailed.data[key], key
+    assert detailed.data["expected_head"]["current"] == "a" * 40
+    assert detailed.data["checks"][0]["action_id"] == "gate"
+    assert "transition_plan" not in compact.data
+    assert detailed.data["transition_plan"]["facts"]["head"] == "a" * 40
+
+
 @pytest.mark.parametrize("openspec", [False, True])
 def test_prove_compiles_one_shared_repository_and_openspec_context(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, openspec: bool

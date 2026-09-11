@@ -23,3 +23,4 @@
 - [x] 4.2 Replace measurement fallback and policy coercion at their existing owners; verify real CLI failures and valid ceilings.
 - [x] 4.3 Verify invalid and unavailable observations, affected contracts and the original path-effect regression together.
 - [x] 4.4 Compare old and corrected measurements on one exact inventory and record semantic threshold disposition without implying calibration is complete.
+- [x] 4.5 Remove duplicate proof issuance and presentation construction while preserving public response and failure semantics.

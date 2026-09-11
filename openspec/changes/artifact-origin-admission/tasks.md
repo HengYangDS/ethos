@@ -13,7 +13,7 @@
 ## 3. Verify And Consolidate
 
 - [x] 3.1 Pass focused public positive, negative and unknown regressions without adopter changes.
-- [ ] 3.2 Pass affected static, budget, schema, projection and native carrier checks.
+- [x] 3.2 Pass affected static, budget, schema, projection and native carrier checks.
 - [x] 3.3 Implement and test predecessor-to-successor policy migration without hook bypass.
 - [x] 3.4 Update the existing terminal plan with disposition, removed paths and remaining evidence obligations.
 
@@ -26,3 +26,4 @@
 - [x] 4.5 Remove duplicate proof issuance and presentation construction while preserving public response and failure semantics.
 - [x] 4.6 Remove unused hook-reuse fixture projections and verify unchanged generation identity and content across the full activation suite.
 - [x] 4.7 Consolidate publication observation and no-push readiness under the existing domain owner, preserving the remote effect and public contract cases.
+- [x] 4.8 Separate readiness/content observation tests from effect/recovery tests, preserving every collected case and passing the complete affected workload.

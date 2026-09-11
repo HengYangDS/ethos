@@ -143,9 +143,20 @@ argument list; it stores no workflow state and grants no effect authority.
 CLI ELOC falls 697 to 405, while the domain owner is 499. This is responsibility
 consolidation, not a net-code deletion claim. All 33 publication cases pass in
 194.67 seconds, including local/single/multiple peers, exact signed tag and
-branch CAS, missing observations, receipt replay and proof drift. Tested source
-hashes match the candidate; owned scratch is removed. Two declared file-size
-gaps remain: publication tests and retirement tests.
+branch CAS, missing observations, receipt replay and proof drift. It reached
+signed `4da3d2c39db9f7e7ee188acee259f6a4f709a432`, tree
+`5962980d9013090f202c64f27e3a96da6c629a9e`; owned scratch is removed.
+The remaining test responsibilities are now separated at their actual owners:
+local publication readiness from remote effects, and retirement inventory from
+execution/recovery. Native directory-scoped fixture sharing replaces duplicate
+setup; the existing lane scenario owner holds the shared explicit request.
+All 153 original parameterized cases remain present once and pass with two
+workers in 172.21 seconds. Forty-four test bodies remain structurally identical
+after the helper rename; two reviewed changes reuse an existing effect call or
+express identical peer expectations once. No behavioral case was removed.
+New readiness/content test modules measure 154/146 ELOC; remaining remote-effect
+and retirement modules each measure 800. Current declared size violations are
+zero; this boundary still needs frozen full proof, archive and runtime delivery.
 This does not settle the separate unified-500 trial. An intermediate
 shared-payload mutation was caught by the existing persistence-failure test and
 replaced with a new failure payload, preserving earlier observations.
@@ -155,9 +166,9 @@ confirmed the process exited, the lock disappeared and the exact staged patch
 remained. Capture index coordinates before spawning an index writer; no other
 index-writing command may overlap it. Preserve the failed receipt and revalidate
 before retrying; observation failure never permits mutation replay by itself.
-Do not launch another full proof until cheap source gates pass. First
-freeze this repair, consolidate the independently identified mixed owners, then
-obtain exact proof and complete archive/accepted/runtime delivery. Immediately
+Do not launch another full proof until cheap source gates pass. Freeze the
+completed repair, obtain exact proof and complete archive/accepted/runtime
+delivery rather than expanding this batch. Immediately
 retire already-absorbed lanes through public admission; a global roadmap is not
 a reason to defer an otherwise safe retirement. No additional lane was retired
 by the measurement repair.

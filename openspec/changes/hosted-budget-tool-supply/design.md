@@ -40,3 +40,28 @@ Verify stable inode and modification time on unchanged repeat calls, repair of
 mode and symlink damage, and rejection of archive tampering even after a valid
 installation. Measure cold/warm native execution separately; this optimization
 does not establish the cause of hook-query or process-observation failures.
+
+## Hosted Verification Prerequisites
+
+The accepted hosted run exposed an archive fixture that captured UTC date at
+collection while the production owner read it at execution. The fixture now
+supplies one explicit clock and matching archive path, exercising both dates
+around the observed midnight with real Git collisions and preservation. The
+production date semantics remain unchanged; moving a live clock read later
+would merely shorten, not eliminate, the race.
+
+A separate executed child-origin counterexample showed the POSIX shell fixture
+retained its parent Python prefix, leaving its source-selecting `.pth` inert.
+The existing fixture now uses a native executable with `pyvenv.cfg`, sharing
+the base standard library and dependency site-packages without copying their
+trees. Its isolated child must report its own prefix and selected source,
+including when that source differs from the parent environment. Runtime link
+and inode checks remain unchanged. The materialization fixture binds dependency
+selection to its explicit test interpreter, not another checkout's `.venv`.
+This corrects verification identity; native copies are not claimed faster.
+
+The native hardlink retirement failure remains unexplained. Serialize complete
+existing result evidence in assertions, including `process_failure`, rather
+than truncate its cause. Do not relax observation completeness, retry admission
+implicitly, or classify later focused success as a root-cause repair. Keep that
+uncertainty and source-bound full proof as distinct acceptance obligations.

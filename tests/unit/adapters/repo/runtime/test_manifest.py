@@ -11,6 +11,7 @@ import pytest
 
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
+import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
@@ -21,8 +22,18 @@ from tests.support.runtime_scenarios import runtime_build
 from tests.support.runtime_scenarios import runtime_executable
 
 
-def test_fixture_python_is_bounded_and_executes_current_ethos(tmp_path: Path) -> None:
+@pytest.mark.parametrize("source", ["current", "alternate"])
+def test_fixture_python_is_bounded_and_executes_selected_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str
+) -> None:
     runtime = tmp_path / "python"
+    source_root = Path.cwd()
+    if source == "alternate":
+        source_root = tmp_path / "selected-source"
+        module = source_root / "src/ethos/__init__.py"
+        module.parent.mkdir(parents=True)
+        module.write_text('"""Selected fixture source, not the parent environment."""\n')
+        monkeypatch.setattr(runtime_scenarios, "REPOSITORY_ROOT", source_root)
 
     create_fixture_python(runtime)
 
@@ -34,14 +45,20 @@ def test_fixture_python_is_bounded_and_executes_current_ethos(tmp_path: Path) ->
             "-B",
             "-I",
             "-c",
-            "import ethos; print(ethos.__file__)",
+            (
+                "import ethos,json,nox,sys; "
+                "print(json.dumps({'prefix':sys.prefix,'source':ethos.__file__,'nox':nox.__file__}))"
+            ),
         ),
         capture_output=True,
         text=True,
         check=False,
     )
     assert completed.returncode == 0, completed.stderr
-    assert completed.stdout.strip() == (Path.cwd() / "src/ethos/__init__.py").as_posix()
+    observed = json.loads(completed.stdout)
+    assert Path(observed["prefix"]).resolve() == runtime.resolve()
+    assert Path(observed["source"]).resolve() == source_root / "src/ethos/__init__.py"
+    assert not Path(observed["nox"]).resolve().is_relative_to(runtime.resolve())
 
 
 def test_runtime_inventory_hashes_actual_bytes_without_location_aliases(tmp_path: Path) -> None:

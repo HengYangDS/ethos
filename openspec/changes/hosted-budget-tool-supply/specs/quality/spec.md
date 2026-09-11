@@ -36,3 +36,27 @@ installation or reliance on undeclared host executables.
 - **WHEN** the cached executable is missing, altered, non-executable or a symbolic link
 - **THEN** preparation validates a replacement before atomically installing it
 - **AND** it does not write through the symbolic link or change its target
+
+### Requirement: Source-bound runtime fixtures
+
+Runtime fixtures SHALL execute isolated children from their own Python prefix
+and selected source, sharing declared dependencies without inheriting another
+checkout's package projection. Executed child-origin checks SHALL establish
+this binding; parent imports and fixture file existence are insufficient.
+
+#### Scenario: Distinct parent source
+
+- **WHEN** the selected source differs from the parent interpreter's checkout
+- **THEN** an isolated child reports the fixture prefix and selected module path
+- **AND** dependencies remain shared without weakening runtime inventory checks
+
+### Requirement: Explicit archive fixture clocks
+
+Archive collision fixtures SHALL use one explicit clock and matching archive
+path for each scenario, independent of collection time and wall-clock rollover.
+
+#### Scenario: UTC date boundary
+
+- **WHEN** collision scenarios execute on either side of the declared UTC midnight
+- **THEN** real Git collisions preserve existing bytes or reject preservation conflicts
+- **AND** absent collisions remain valid without altering production date semantics

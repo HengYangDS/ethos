@@ -13,6 +13,10 @@ implicitly relied on tools installed on a maintainer host.
   both Forge projections continue to consume the same shell owner.
 - Fail before tests on unsupported supply, download, checksum or version errors,
   retaining current diagnostics rather than stale passing proof or reports.
+- Close the demonstrated hosted-verification prerequisites: explicit archive
+  test clocks and child interpreters bound to the selected source checkout.
+- Retain complete native process-observation failures in retirement assertions;
+  successful repetitions do not establish a repair of an intermittent failure.
 
 ## Capabilities
 
@@ -24,6 +28,6 @@ implicitly relied on tools installed on a maintainer host.
 ## Impact
 
 Existing budget configuration, hosted verification transport, one native tool
-installer, focused regressions and the canonical terminal plan. No system
+installer, runtime/archive test fixtures and the canonical terminal plan. No system
 installation, extra budget parser, Forge-specific policy, new lane or change to
 accepted product meaning. Python binding-observation work remains hash-preserved.

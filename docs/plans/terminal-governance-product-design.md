@@ -2921,6 +2921,14 @@ scratch roots were removed. Commands, source hashes and results are in
 `hosted-fixture-repair-focused.json` under the existing ignored evidence root;
 this is focused candidate evidence, not proof or delivery acceptance.
 
+The complete ten-case live-reference retirement matrix and process-owner
+regressions then passed 50 tests in 29.03 seconds, serially. The owned scratch
+root was removed. `hosted-retirement-diagnostic-focused.json` records the exact
+command and result. This validates the diagnostic correction without changing
+retirement admission; the historical intermittent observation cause remains
+unproved. Implementation tasks are now complete, not the full-proof or hosted
+acceptance obligations. Freeze this source before the next full proof.
+
 The user-authorized withdrawal removed only the five own untracked
 `fixture-source-isolation` Change files after preserving their exact contents
 and hashes. Their valid obligations are absorbed into the current official

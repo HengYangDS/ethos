@@ -95,24 +95,20 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
 
 
 def create_fixture_python(target: Path) -> None:
-    """Create an executable fixture image backed by the test environment."""
+    """Bind a native fixture prefix to the selected source and shared dependencies."""
     scripts = target / ("Scripts" if os.name == "nt" else "bin")
     scripts.mkdir(parents=True)
     source_python = Path(sys.executable).absolute()
     fixture_python = scripts / ("python.exe" if os.name == "nt" else "python")
-    if os.name == "nt":
-        shutil.copy2(source_python, fixture_python)
-        target.joinpath("pyvenv.cfg").write_text(
-            f"home = {Path(sys.base_prefix).as_posix()}\n"
-            "include-system-site-packages = false\n"
-            f"version = {platform.python_version()}\n"
-            f"executable = {source_python.as_posix()}\n",
-            encoding="utf-8",
-        )
-    else:
-        fixture_python.write_text(
-            f'#!/bin/sh\nexec {source_python.as_posix()!r} "$@"\n', encoding="utf-8"
-        )
+    shutil.copy2(source_python, fixture_python)
+    home = Path(sys.base_prefix) if os.name == "nt" else source_python.resolve().parent
+    target.joinpath("pyvenv.cfg").write_text(
+        f"home = {home.as_posix()}\n"
+        "include-system-site-packages = false\n"
+        f"version = {platform.python_version()}\n"
+        f"executable = {source_python.as_posix()}\n",
+        encoding="utf-8",
+    )
     fixture_python.chmod(0o755)
     version = f"python{sys.version_info.major}.{sys.version_info.minor}"
     relative_site = Path("Lib/site-packages" if os.name == "nt" else f"lib/{version}/site-packages")
@@ -170,6 +166,14 @@ def materialize_runtime_case(
     wheel.write_bytes(b"wheel")
     source_python = Path(sys.executable)
     python_facts = runtime_materialization.observe_python_facts(source_python)
+
+    def resolve_fixture_python(project: Path) -> Path:
+        assert project == REPOSITORY_ROOT
+        return source_python
+
+    monkeypatch.setattr(
+        runtime_materialization, "resolve_locked_environment_python", resolve_fixture_python
+    )
 
     def require_python_image_source(interpreter: Path) -> dict[str, str]:
         assert interpreter.samefile(source_python)
@@ -232,9 +236,11 @@ def materialize_runtime_case(
         _environment: RuntimeEnvironment,
         **kwargs: object,
     ) -> None:
+        expected_root = kwargs.get("expected_root")
+        assert expected_root is None or isinstance(expected_root, Path)
         require_selected_runtime(
             runtime,
-            expected_root=kwargs.get("expected_root"),
+            expected_root=expected_root,
             expected_build=artifact.build,
         )
 

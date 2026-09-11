@@ -26,6 +26,11 @@ _UNKNOWN_PROOF_GATE = "unknown proof gate"
 _DUPLICATE_PROOF_GATE = "duplicate proof gate"
 
 
+def bind_gate_command(command: tuple[str, ...], python_executable: str) -> tuple[str, ...]:
+    """Interpret declared runtime placeholders identically for execution and observation."""
+    return tuple(python_executable if part == "{python}" else part for part in command)
+
+
 class Gate(BaseModel):
     """One immutable gate declaration and executable projection."""
 
@@ -113,13 +118,7 @@ class GateRegistryDeclaration(BaseModel):
     ) -> dict[str, Gate]:
         """Compile an ordered registry view from gate declarations."""
         gates = (
-            gate.model_copy(
-                update={
-                    "command": tuple(
-                        python_executable if part == "{python}" else part for part in gate.command
-                    )
-                }
-            )
+            gate.model_copy(update={"command": bind_gate_command(gate.command, python_executable)})
             if python_executable
             else gate
             for gate in self.gates

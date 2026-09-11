@@ -70,5 +70,5 @@ subject = "skill-package-projection-drift"
 severity = "advisory"
 stop_condition = "skill-package-projection-drift"
 profile_layers = []
-path_globs = [".agents/skills/**", "rules/skills.md", "docs/governance/playbooks-and-skills.md"]
-required_gates = ["playbooks-v2"]
+path_globs = [".agents/skills/**", "rules/skills.md", "docs/governance/skills.md"]
+required_gates = ["skills"]

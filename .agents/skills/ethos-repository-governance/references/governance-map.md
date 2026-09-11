@@ -12,7 +12,7 @@ command plane.
 | Full local proof | `ethos prove --execute --full --expect-head <exact-head> --json` | Current object-bound proof result |
 | Work Lane write admission | `ethos lane prewrite ... --json` | Current lane decision |
 | OpenSpec lifecycle | official `openspec` CLI | Official command JSON |
-| Repo-local skills | `playbooks-v2` proof gate | Proof result |
+| Repo-local skills | `skills` proof gate | Proof result |
 
 Repository source, tests, schemas, docs, official OpenSpec, and Attestations
 remain above this map. Commitment is compiled transiently. The map routes work;

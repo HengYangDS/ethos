@@ -1,4 +1,3 @@
-schema = "ethos-format-selection-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Fail-closed executable-carrier admission audit."
 runner = "uv run --frozen --offline python -m nox -s format_selection"

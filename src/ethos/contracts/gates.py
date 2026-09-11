@@ -1,6 +1,7 @@
 """Typed declaration contract for ETHOS gate registries."""
 
 import tomllib
+from importlib import resources
 from pathlib import Path
 from typing import Self
 
@@ -9,8 +10,6 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
-from ethos._resources import declaration_text
-from ethos._resources import resolve_declaration_path
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.value import FrozenTuple
@@ -93,7 +92,7 @@ class GateRegistryDeclaration(BaseModel):
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str = Field(min_length=1)
-    schema_version: int = 1
+    schema_version: int = Field(default=1, ge=1, le=1)
     source_refs: FrozenTuple[str] = ()
     proof_sets: GateProofSets
     gates: FrozenTuple[Gate]
@@ -184,16 +183,19 @@ def _validate_proof_floor(gate_ids: tuple[str, ...], runtime_ids: set[str]) -> N
         raise ValueError(_DUPLICATE_PROOF_GATE)
 
 
-def _declaration_text(path: Path) -> str:
-    return declaration_text(path, resource=_DECLARATION_RESOURCE, canonical=DECLARATION_PATH)
-
-
 def load_gate_registry_declaration(
     path: Path | str | None = None,
 ) -> GateRegistryDeclaration:
-    """Load and validate the tracked gate registry declaration."""
-    declaration_path = resolve_declaration_path(
-        path, canonical=DECLARATION_PATH, module_file=__file__
-    )
-    payload = tomllib.loads(_declaration_text(declaration_path))
-    return GateRegistryDeclaration.model_validate(payload)
+    """Read explicit gate input or the current interpreter's source/package default."""
+    if path is not None:
+        text = Path(path).read_text(encoding="utf-8")
+    else:
+        source = Path(__file__).resolve().parents[3] / DECLARATION_PATH
+        text = (
+            source.read_text(encoding="utf-8")
+            if source.is_file()
+            else resources.files("ethos")
+            .joinpath(_DECLARATION_RESOURCE)
+            .read_text(encoding="utf-8")
+        )
+    return GateRegistryDeclaration.model_validate(tomllib.loads(text))

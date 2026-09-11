@@ -3,8 +3,8 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-default = ["repository-audit", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "python-vulnerabilities", "release-sbom", "secrets"]
+default = ["repository-audit", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
+full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "python-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -110,18 +110,18 @@ network_policy = "offline"
 version_source = "product"
 
 [[gates]]
-id = "playbooks-v2"
+id = "skills"
 kind = "governance"
-providers = ["ethos.assistants.playbooks:playbooks_report"]
+providers = ["ethos.assistants.skills.portfolio:skill_portfolio_report"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"
-asset_classes = ["playbooks", "assistant-projections"]
+asset_classes = ["skills", "assistant-projections"]
 dimensions = ["projection", "activation", "schema"]
 execution_mode = "provider"
 evidence_class = "contract"
 trust_bearing = true
-tool_adapter = "ethos-playbooks"
+tool_adapter = "ethos-skills"
 writes_files = false
 network_policy = "offline"
 version_source = "product"

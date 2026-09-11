@@ -4,7 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
-from ethos.assistants.playbooks import playbooks_report
+from ethos.assistants.skills.portfolio import skill_portfolio_report
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.verdict import observation_verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -45,7 +45,7 @@ REQUIRED_DOCS = (
     "docs/governance/provenance-and-attestation.md",
     "docs/governance/docs-registry.md",
     "docs/governance/openspec-governance.md",
-    "docs/governance/playbooks-and-skills.md",
+    "docs/governance/skills.md",
     "docs/governance/release-governance.md",
     "docs/governance/evolution-campaign.md",
     "docs/plans/terminal-governance-product-design.md",
@@ -74,7 +74,7 @@ REQUIRED_SCHEMAS = (
 
 REQUIRED_RELEASE_FILES = PRODUCT_RELEASE_FILES
 
-REQUIRED_PLAYBOOK_FILES = (
+REQUIRED_SKILL_FILES = (
     ".agents/skills/README.md",
     ".agents/skills/activation.toml",
     ".agents/skills/ethos-repository-governance/SKILL.md",
@@ -166,7 +166,7 @@ def repository_audit(
     ]
     release_files = release_files_report(root)
     release_files_missing = list(cast("list[str]", release_files["missing"]))
-    playbooks_missing = [path for path in REQUIRED_PLAYBOOK_FILES if not (root / path).exists()]
+    skills_missing = [path for path in REQUIRED_SKILL_FILES if not (root / path).exists()]
     openspec_capability_missing = [
         f"openspec/specs/{family}/spec.md"
         for family in REQUIRED_OPENSPEC_CAPABILITIES
@@ -196,8 +196,8 @@ def repository_audit(
         str(gap) for gap in cast("list[str]", semantic_closure["required_gaps"])
     ]
     openspec_gaps = [str(gap) for gap in cast("list[str]", openspec["required_gaps"])]
-    playbook_report = playbooks_report(root, mode="v2-strict")
-    playbook_gaps = [str(gap) for gap in cast("list[str]", playbook_report["required_gaps"])]
+    portfolio_report = skill_portfolio_report(root)
+    skill_gaps = [str(gap) for gap in cast("list[str]", portfolio_report["required_gaps"])]
     system_contract_gaps = [
         str(gap) for gap in cast("list[str]", system_contracts["required_gaps"])
     ]
@@ -214,12 +214,12 @@ def repository_audit(
         "missing": schemas_missing,
         "validation": schema_report,
     }
-    playbooks = {
+    skills = {
         "verdict": reduce_verdicts(
-            observation_verdict(ok=not playbooks_missing), report_verdict(playbook_report)
+            observation_verdict(ok=not skills_missing), report_verdict(portfolio_report)
         ),
-        "missing": playbooks_missing,
-        "validation": playbook_report,
+        "missing": skills_missing,
+        "validation": portfolio_report,
     }
     openspec_capabilities = {
         "verdict": observation_verdict(ok=not openspec_capability_missing),
@@ -232,13 +232,13 @@ def repository_audit(
             + docs_without_front_matter
             + schemas_missing
             + release_files_missing
-            + [f"playbook_projection_missing:{path}" for path in playbooks_missing]
+            + [f"skill_projection_missing:{path}" for path in skills_missing]
             + [f"openspec_capability_missing:{path}" for path in openspec_capability_missing]
             + schema_gaps
             + semantic_closure_gaps
             + design_integrity_gaps
             + openspec_gaps
-            + playbook_gaps
+            + skill_gaps
             + system_contract_gaps
             + commit_policy_gaps
         )
@@ -248,7 +248,7 @@ def repository_audit(
             report_verdict(docs),
             report_verdict(schemas),
             report_verdict(release_files),
-            report_verdict(playbooks),
+            report_verdict(skills),
             report_verdict(openspec_capabilities),
             report_verdict(semantic_closure),
             report_verdict(design_integrity),
@@ -261,7 +261,7 @@ def repository_audit(
         "docs": docs,
         "schemas": schemas,
         "release_files": release_files,
-        "playbooks": playbooks,
+        "skills": skills,
         "openspec_capabilities": openspec_capabilities,
         "semantic_closure": semantic_closure,
         "design_integrity": design_integrity,

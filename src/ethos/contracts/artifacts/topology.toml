@@ -1,4 +1,3 @@
-schema_version = 1
 id = "generated-artifact-topology"
 source_refs = ["src/ethos/contracts/artifacts/topology.toml"]
 adopter_specific_product_dirs_allowed = false

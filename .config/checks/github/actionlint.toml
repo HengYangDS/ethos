@@ -1,4 +1,3 @@
-schema = "ethos-actionlint-policy-v1"
 owner = "ethos-quality-gate-governance"
 workflow = ".github/workflows/ci.yml"
 runner = "tools/ci/scripts/run-actionlint.sh"

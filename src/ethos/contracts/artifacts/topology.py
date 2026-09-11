@@ -121,7 +121,6 @@ class GeneratedArtifactTopologyDeclaration(BaseModel):
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str
-    schema_version: int = 1
     source_refs: FrozenTuple[str] = ()
     adopter_specific_product_dirs_allowed: bool = False
     cache_flat_root_prefix: str
@@ -152,7 +151,6 @@ class GeneratedArtifactTopologyDeclaration(BaseModel):
     def to_contract(self) -> dict[str, Any]:
         """Return the stable generated artifact topology contract."""
         return {
-            "schema_version": self.schema_version,
             "source_refs": list(self.source_refs),
             "declarative_prefixes": [
                 item.to_contract() for item in sorted(self.declarative_prefix, key=_prefix_key)
@@ -184,7 +182,6 @@ class GeneratedArtifactTopologyDeclaration(BaseModel):
                 mode="json",
                 exclude={
                     "id",
-                    "schema_version",
                     "source_refs",
                     "adopter_specific_product_dirs_allowed",
                     "ignore_boundary",

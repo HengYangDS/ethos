@@ -13,7 +13,7 @@ Status: canonical.
 Purpose: define the boundary between repository truth and agent-facing
 projections.
 
-See also: [Repo-local Skills](../governance/playbooks-and-skills.md) and
+See also: [Repo-local Skills](../governance/skills.md) and
 [Command Plane](../reference/command-plane.md).
 
 Assistant files, protocol adapters, hosted runners, provider prompts, and
@@ -24,7 +24,7 @@ The canonical repo-local skill portfolio lives in `.agents/skills/`. Its
 integrity is checked by the portfolio owner and the current proof gate:
 
 ```bash
-ethos prove --gate playbooks-v2 --json
+ethos prove --gate skills --json
 ```
 
 Agent protocols are optional adapter boundaries, not a public lifecycle. A

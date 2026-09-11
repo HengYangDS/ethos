@@ -239,9 +239,12 @@ replay runtime, shadow model, or debt contract.
 #### Scenario: Python ELOC has one semantic owner
 
 - **WHEN** Python source is measured from text or a file
-- **THEN** `effective_code_lines_for_source` owns blank, comment, docstring, bare
-  string-expression, inline-comment, and syntax-error fallback semantics
-- **AND** file measurement reads source and delegates without a parallel parser.
+- **THEN** `effective_code_lines_for_source` counts token-bearing physical lines,
+  excluding comments, whitespace and bare string expressions including docstrings
+- **AND** neighboring executable code and multiline literal data remain measured
+- **AND** Unicode separators inside literals do not create Python source lines
+- **AND** invalid syntax has no fallback count and consumers report the exact gap
+- **AND** file and aggregate measurement delegate without a parallel parser.
 
 #### Scenario: Canonicalization cannot be gamed
 

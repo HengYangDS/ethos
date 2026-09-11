@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.python_syntax as python_references
+from ethos.contracts.gates import bind_gate_command
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.observation import normalized_distribution
@@ -100,7 +101,7 @@ def _declared_gates(
     payload = _toml(_declaration_text(files, "gates"))
     selected_scripts: set[str] = set()
     for gate in _table_items(payload.get("gates")):
-        command = tuple(_string_items(gate.get("command")))
+        command = bind_gate_command(tuple(_string_items(gate.get("command"))), "python")
         owned["executable"].update(command_references.command_executables(command, npm_scripts))
         selected_scripts.update(
             token for token in command if token in files and token.endswith(".sh")

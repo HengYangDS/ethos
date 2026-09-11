@@ -89,3 +89,13 @@ and fail closed for missing or invalid package resources. Normal predecessor hoo
 execution and exact successor package proof are separate required observations.
 Migration implementation tests belong in tasks; actual proof/archive/acceptance
 and runtime activation remain delivery effects, not self-referential task gates.
+
+### Prepared Quality Runtime
+
+The first exact-source proof exposed a nested `uv run --offline` in the
+configuration gate. It attempted editable-package bootstrap and failed on an
+unavailable build-dependency cache before any heavy dependent tests ran. Native
+Nox gates execute through the already-bound interpreter; provisioning remains
+outside gate execution. Remove this lone nested bootstrap command rather than
+warm an ambient cache to conceal a second environment owner. Regression checks
+all declared Nox gates bind the same interpreter and preserve source identity.

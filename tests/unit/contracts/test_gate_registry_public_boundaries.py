@@ -116,3 +116,13 @@ def test_heavy_tests_require_inexpensive_source_readiness(prerequisite: str) -> 
     """Known cheap failures must be found before launching the expensive test suite."""
     registry = load_gate_registry_declaration().registry()
     assert prerequisite in registry["unit-architecture"].depends_on
+
+
+def test_native_nox_gates_share_the_bound_interpreter() -> None:
+    """Quality execution must not bootstrap or mutate its own prepared environment."""
+    python = "/bound/runtime/bin/python"
+    gates = load_gate_registry_declaration().registry(python_executable=python)
+    nox_gates = [gate for gate in gates.values() if "nox" in gate.command]
+    assert nox_gates
+    for gate in nox_gates:
+        assert gate.command[:3] == (python, "-m", "nox"), gate.id

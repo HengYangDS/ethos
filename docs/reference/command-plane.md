@@ -55,6 +55,30 @@ current continuation; after an effect, the caller re-observes instead of
 replaying a remembered sequence. `adopt` binds an external repository to the
 same command semantics; it is not a parallel lifecycle.
 
+## Accepted Signature Repair
+
+`ethos lane repair-signature --root <accepted-worktree> --expect-head <old-oid>
+--json` observes one exact unsigned accepted commit without creating a Git
+object, moving a ref, changing a worktree or writing an Attestation. Applying
+requires both `--apply` and `--authorize`, plus the current `ETHOS_ACTOR`.
+
+The signed replacement preserves every non-signature payload byte. Current
+policy determines selected local refs; unrelated candidates, independent release
+refs and remotes remain untouched. CLI recovery and reference-transaction
+admission share trusted-source, signer, plan and linked-worktree validation.
+
+Attestations preserve attempted and observed effects, not permission. An
+interrupted signing attempt without a durable result remains unknown and cannot
+be restarted under another actor. If its exact object has been recovered,
+`--replacement <oid>` binds that object for fresh validation without signing
+again. Failure JSON retains a known replacement and observes each selected
+ref/worktree outcome; lock contention is waiting, not a claimed partial effect.
+
+A successful result gives the exact replacement-bound `ethos prove` command.
+It does not prove the replacement, activate a runtime or publish anything.
+This operation is not a complete-DAG identity rewrite or a general bypass for
+failed admission.
+
 ## Result Envelope
 
 Every JSON command result uses schema version `2`. `verdict` remains the only

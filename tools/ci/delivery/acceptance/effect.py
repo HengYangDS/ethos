@@ -175,11 +175,18 @@ def observe_independent_command_plane(ethos: Path, adopter: Path) -> dict[str, o
             environment=env,
         )
         if args[:2] == ("publish", "--ref"):
-            plan = payload.get("data", {}).get("transition_plan", {})
-            gaps = tuple(str(gap) for gap in payload.get("required_gaps", ()))
-            if plan.get("effect", {}).get("operation") != "git.ref.compare-and-swap" or any(
-                gap.startswith(("publication_topology_", "publication_source_invalid:"))
-                for gap in gaps
+            data = payload.get("data")
+            plan = data.get("transition_plan") if isinstance(data, dict) else None
+            effect = plan.get("effect") if isinstance(plan, dict) else None
+            required = payload.get("required_gaps")
+            gaps = tuple(str(gap) for gap in required) if isinstance(required, list) else ()
+            if (
+                not isinstance(effect, dict)
+                or effect.get("operation") != "git.ref.compare-and-swap"
+                or any(
+                    gap.startswith(("publication_topology_", "publication_source_invalid:"))
+                    for gap in gaps
+                )
             ):
                 message = (
                     "installed full-ref publication plan is unavailable: "
@@ -327,6 +334,11 @@ def observe_runtime_lifecycle(
             runtime_python,
             repository,
             hooks_path=hooks_path,
+            environment=environment,
+        ),
+        "signature_repair": lane_acceptance.prove_signature_repair(
+            runtime_python,
+            repository,
             environment=environment,
         ),
         **lane_acceptance.prove_lifecycle(

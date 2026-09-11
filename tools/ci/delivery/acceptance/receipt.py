@@ -19,6 +19,7 @@ REQUIRED_LIFECYCLE_STAGES = frozenset(
         "relocation_repair",
         "retirement_recovery",
         "successor_activation",
+        "signature_repair",
     }
 )
 

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.mutation.accepted as accepted
+import ethos.adapters.mutation.accepted.promotion as accepted
 from ethos.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:

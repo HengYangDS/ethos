@@ -130,7 +130,7 @@ def compile_observed_git_effect(
             source_refs=(
                 "git:HEAD",
                 "git:HEAD^{tree}",
-                *(f"git:{ref}" for ref in (*effect.updates, *effect.assertions)),
+                *(f"git:{ref}" for ref in sorted((*effect.updates, *effect.assertions))),
                 *(("lease:current-generation",) if "lease_generation" in extra else ()),
             ),
         ),

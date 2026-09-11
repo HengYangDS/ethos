@@ -41,7 +41,7 @@ def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> No
         ("gpg.format", "ssh"),
         ("gpg.ssh.program", ssh_keygen),
         ("gpg.ssh.allowedSignersFile", str(trust_anchor)),
-        ("user.signingkey", str(signer)),
+        ("user.signingkey", str(signer.with_suffix(".pub"))),
         ("commit.gpgsign", "true"),
     ):
         run(git, "config", name, value, cwd=root)
@@ -180,4 +180,24 @@ def prepare_acceptance_topology(
     (candidate / "candidate.txt").write_text("candidate\n", encoding="utf-8")
     run(git, "add", "candidate.txt", cwd=candidate)
     run(git, "commit", "--quiet", "-m", "advance candidate independently", cwd=candidate)
+    (root / ".ethos/workspace.toml").write_text(
+        '[branch_roles]\nrelease_branch = "main"\naccepted_branch = "dev"\n'
+        'candidate_branch = "candidate/dev"\nrelease_mirror = "independent"\n'
+        'work_branch_prefix = "work/"\nproposal_branch_prefix = "proposal/"\n'
+        "canonical_sibling_worktrees = false\n"
+        '[commit_policy]\nsubject_pattern = ".+"\nsigning_required = true\n'
+        'signing_format = "ssh"\n',
+        encoding="utf-8",
+    )
+    run(git, "add", ".ethos/workspace.toml", cwd=root)
+    run(
+        git,
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--quiet",
+        "-m",
+        "require accepted signature repair",
+        cwd=root,
+    )
     return candidate

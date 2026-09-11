@@ -82,3 +82,11 @@ Real activation tests inject only the query deadline and verify database,
 selector and configuration restoration plus public JSON. This fixes diagnostic
 loss, not the unestablished cause of native startup latency; no retry, cache,
 timeout extension or successful-query substitution is introduced.
+
+The `132d4ad27` exact proof passed tests and all other gates but rejected one
+501-ELOC activation module against its 500 limit. Remove redundant intermediate
+values and casts rather than change the limit or split one concept mechanically.
+The registry already makes aggregate budget a test prerequisite but omitted
+per-file size. Add that missing dependency in the same registry; public proof
+regressions exercise both failed and unknown size results and establish that
+heavy tests, coverage consumption and delivery do not execute afterward.

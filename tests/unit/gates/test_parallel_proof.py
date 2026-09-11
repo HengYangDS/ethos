@@ -158,7 +158,10 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> 
 
 
 @pytest.mark.parametrize("verdict", ["block", "unknown"])
-def test_public_proof_stops_heavy_work_after_readiness_failure(monkeypatch, tmp_path, verdict):
+@pytest.mark.parametrize("readiness_gate", ["ruff", "python-size", "source-budget"])
+def test_public_proof_stops_heavy_work_after_readiness_failure(
+    monkeypatch, tmp_path, verdict, readiness_gate
+):
     """A real registry edge must stop the public proof transport before testing."""
     declaration = load_gate_registry_declaration()
     selected = declaration.proof_gates(full=True)
@@ -192,8 +195,8 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(monkeypatch, tmp_
             return ActionRunResult(
                 node.id,
                 node.command,
-                verdict if node.id == "ruff" else "pass",
-                1 if node.id == "ruff" else 0,
+                verdict if node.id == readiness_gate else "pass",
+                1 if node.id == readiness_gate else 0,
             )
 
     monkeypatch.setattr(
@@ -210,7 +213,10 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(monkeypatch, tmp_
     tests = next(check for check in checks if check["action_id"] == "unit-architecture")
     assert tests["exit_code"] is None
     assert tests["diagnostics"] == [
-        {"kind": "gate_dependency", "required_gaps": ["gate_dependency_not_proven:ruff"]}
+        {
+            "kind": "gate_dependency",
+            "required_gaps": [f"gate_dependency_not_proven:{readiness_gate}"],
+        }
     ]
 
 

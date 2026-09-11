@@ -70,7 +70,6 @@ def install_hook_launchers(
     _consumer_text(repo, common)
     linked = _linked_worktree_paths(repo)
     common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
-    current_before = _runtime_selection_bytes(common)
     binding, cleanup_plan, state_transition, worktrees_before = _activate_with_state(
         repo,
         common,
@@ -78,14 +77,13 @@ def install_hook_launchers(
         hooks,
         linked,
         common_before=common_before,
-        current_before=current_before,
+        current_before=_runtime_selection_bytes(common),
         reset_state=reset_state,
         expected_build=expected_build,
     )
-    cast("dict[str, object]", binding)["state_transition"] = state_transition
-    legacy_locator = _retire_legacy_locator(common)
-    cast("dict[str, object]", binding)["legacy_runtime_locator"] = legacy_locator
-    cast("dict[str, object]", binding)["linked_worktrees"] = [
+    binding["state_transition"] = state_transition
+    binding["legacy_runtime_locator"] = _retire_legacy_locator(common)
+    binding["linked_worktrees"] = [
         {
             "path": worktree.as_posix(),
             "state": (
@@ -102,10 +100,10 @@ def install_hook_launchers(
         cleanup_plan,
         expected_current=f"{runtime.parent.name}\n".encode("ascii"),
     )
-    if cleanup["state"] == "deferred" or legacy_locator["state"] == "retained":
+    if cleanup["state"] == "deferred" or binding["legacy_runtime_locator"]["state"] == "retained":
         binding["required_gaps"].append("hook_runtime_cleanup_deferred")
-        cast("dict[str, object]", binding)["next_action"] = "ethos hook install --json"
-    cast("dict[str, object]", binding)["generation_cleanup"] = cleanup
+        binding["next_action"] = "ethos hook install --json"
+    binding["generation_cleanup"] = cleanup
     return binding
 
 
@@ -437,8 +435,7 @@ def _generation_cleanup_plan(
         for path in candidates
         if path.as_posix() in consumers or f"ethos/{path.parent.name}/{path.name}" in consumers
     }
-    retained.update((hooks, runtime))
-    retained.add(selected_runtime.root)
+    retained.update((hooks, runtime, selected_runtime.root))
     removable = tuple(sorted(set(candidates) - retained, key=lambda path: path.as_posix()))
     return {
         "checked": tuple(sorted(candidates, key=lambda path: path.as_posix())),

@@ -147,7 +147,7 @@ version_source = "host-toolchain"
 [[gates]]
 id = "unit-architecture"
 kind = "test"
-depends_on = ["ruff", "schemas", "config-quality", "python-types", "source-budget"]
+depends_on = ["ruff", "schemas", "config-quality", "python-types", "python-size", "source-budget"]
 command = ["{python}", "-m", "nox", "-s", "tests"]
 policy = "required"
 profile = "product-toolchain"

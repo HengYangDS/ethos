@@ -286,7 +286,9 @@ passes; its own official Change must close the stated exit boundary.
    fixtures. Exit after normal exit and kill/crash tests show bounded zero or
    policy-limited residue across `/private/tmp`, Darwin user temp roots, and uv
    cache, within declared item, inode, byte, deletion-latency, and indexing-load
-   budgets.
+   budgets. The [resource recurrence checkpoint](#resource-recurrence-checkpoint)
+   supplies the confirmed crash counterexample, ownership boundaries and required
+   runtime acceptance; manual cleanup does not close this batch.
 8. **Close assurance and adopter conformance.** Compile requirement coverage
    into exact proof obligations and keep author identity, Git signature,
    transport authentication, forge verification, hosted CI, release assets,
@@ -1907,7 +1909,7 @@ required closure; it does not declare those properties delivered.
 | Carrier and projection integrity | Native format/schema/link owners and generated-asset checks; full proof did not include every local-CI carrier check | One effective configuration per property, all maintained admitted carriers in scope, cross-plane references and generated projections checked, archived/generated quantities separately reported |
 | Dependency and security assurance | deptry, locked supplies, uv audit and Gitleaks; native owners exist but security checks are not in the proof registry | Inventory/source/lock/runtime agreement, dev-tool reachability, secrets and vulnerable/adverse dependency counterexamples; online freshness distinguished from offline correctness and tool provisioning |
 | Package and provenance | Build/install owners and Syft; SPDX version recognition alone is not complete conformance | Exact wheel/npm contents, reproducibility, install/upgrade/rollback/uninstall, standard SBOM conformance and license coverage, provenance, signatures and publication each proved separately |
-| Runtime and resource safety | Temporary/supply/runtime owners and native process observation | Normal/crash/SIGKILL convergence, live-root protection, read-only-tree deletion, shared supply, bounded 24/48-hour item/byte/inode/latency/indexing cost; no artificial TTL increase or manual broad cleanup |
+| Runtime and resource safety | Test-gate finalization does not recover killed predecessors; shared-cache attribution and historical carrier producers remain partly unproved. See the [resource recurrence checkpoint](#resource-recurrence-checkpoint) | Normal/crash/SIGKILL convergence, live-root protection, read-only-tree deletion, shared supply, bounded actual 24/48-hour item/byte/inode/latency/indexing cost; no artificial TTL increase or manual broad cleanup |
 | Delivery and platform assurance | Native macOS/Linux/Windows matrix, Git/Forge publication and installed readback | Exact local object and independent remote refs/signatures, actual hosted jobs and assets, installed source/tree/digest; network failure, pending projection and real divergence remain distinct |
 | Gate effectiveness and economics | Existing quality owners, not a new quality platform | Each mandatory check detects its claimed real fault, fails closed on malformed/missing/stale evidence, preserves stderr/cwd/binary/actor, runs within bounded resources and has one repair path |
 
@@ -1921,6 +1923,87 @@ Subsequent replacements remain globally required: native Ruff/Ty
 scope, metric correctness, semantic structure/docs/configuration, security and
 supply conformance, resource lifecycle and provider/adopter closure. Independent
 historical lane absorption is not postponed until the entire audit finishes.
+
+##### Resource Recurrence Checkpoint
+
+The September 11, 2026 (+08:00) disk-governance input is accepted as a resource
+lifecycle defect, not authorization to interrupt tests or sweep shared caches.
+The source evidence is `/Users/yheng/disk-cleanup-20260828-1243`. Its inventory
+selects names and modification ages; it does not establish creation time or
+exclusive ETHOS provenance. The 362 temporary candidates comprise 343 files and
+19 directories, totalling 1,825,216 KiB. Four large `accepted-carrier-*` directories
+measure 373.51–428.33 MiB each. The 4,048 old uv archive directories belong to
+the shared native cache; attributing all of them to ETHOS or to a thirteen-day
+creation window is unsupported. The recorded deletion proves only that those
+selected historical items were removed.
+
+At source `d3716a4b020b83476bd2b088dccfe513b996d4c8`, the real
+`PythonTestGate` allocation/finalization owner was exercised in isolated child
+processes with a lightweight execution-body stub. Normal and exception exits
+removed their scratch roots. Six actual SIGKILL/normal-successor cycles left
+one through six dead roots and 4,096 through 24,576 payload bytes. Every
+successor removed its own root; a separate live control survived. The harness
+removed only its enumerated fixtures afterward. This proves missing successor
+reclamation, not installed-runtime acceptance or attribution of every old item.
+The coverage-write lock does not supply scratch liveness or dead-root discovery.
+
+The existing ignored `build/evidence/quality/evidence-retirement/` contains
+`disk-resource-recurrence-inputs-20260911.json`, SHA256
+`8402acf87ad494dbf9a76879f625f572778a47237bd6f7e4aa289e9458dbaaeb`,
+and `disk-resource-recurrence-owner-probe-20260911.json`, SHA256
+`89041ef6783b0b34b1fceec5c6cbe5ab3e00cc795aaba67cc4fba3d3cf042426`.
+The latter retains the executable child harness and actual results; the former
+binds the original inventories, staging/deletion and native-prune observations.
+Keep these small counterevidence inputs until reproducible regressions and
+accepted result evidence replace their consumers; do not preserve disposable
+runtime copies with them or turn this directory into a second work queue.
+
+| Resource | Generation and reclamation owner | Retention and required boundary |
+| --- | --- | --- |
+| Test scratch | `tools/ci/python_test_gate.py`; currently PID-named default basetemp with normal finalization only | Zero scratch retention after all consumers finish. Recover proven-dead roots at bounded owner maintenance, including before successor allocation. Caller-supplied `ETHOS_TEST_BASETEMP` remains caller-owned. Parent death alone cannot retire a live worker's root. |
+| Package acceptance and wheel staging | Existing `tools/ci/delivery/acceptance/effect.py` and `tools/ci/delivery/pipeline.py` | Retain only for the owning effect and its live consumers. Review the fixed smoke-test directory's concurrent use and crash windows; separate compact result evidence from disposable dependency copies. The producer of the historical top-level `accepted-carrier-*` harness directories still needs exact attribution. |
+| Runtime staging and generations | Runtime materialization and hook activation owners | Reclaim abandoned `.build-*` independently of committed generation selection. Keep CURRENT, rollback and other proven consumer references; an old name, timestamp or non-current selector is not absence of consumers. Protect immutable supply still used by other worktrees/interpreters. |
+| uv and bootstrap supply | ETHOS invocation owners select cache scope; uv owns cache format, locking and native pruning | Make the test/CI/bootstrap cache choice explicit and consistent. Reuse locked inputs; retire unreferenced checkout-specific bootstrap supply. Shared cache maintenance uses the native owner and must not force locks or delete archive internals. Runtime materialization already disables persistent caching; do not falsely attribute all installs to this cache. |
+| Agent and verification evidence | The producing operation plus its actual proof, recovery or handoff consumer | Retain irreproducible results while required; release reproducible bulk after its result is settled and needed meaning is conserved. Use the existing ignored evidence location, not loose `/tmp` logs or another tracked evidence tree. Relocation without an exit condition is not reclamation. |
+
+The first implementation atom repairs test scratch ownership through the existing
+gate, not a global prefix sweeper or a new resource database. It starts after
+the current hosted-supply atom reaches its safe boundary, with an official
+bounded Change and exact-path admission. This checkpoint does not add resource
+behavior to `hosted-budget-tool-supply`, change its completed source tasks, or
+claim its still-failed full proof passed. Preserve running tests and their
+checked-out code, runtime and caches throughout.
+
+Required regression and acceptance boundaries:
+
+1. Bind each reclaimable root to its exact allocation identity and producer.
+   Re-observe consumer liveness at disposal, including surviving descendants,
+   PID reuse and unavailable observation. Unknown ownership/liveness protects
+   the root and reports a bounded actionable gap; it never authorizes deletion.
+2. Serialize allocation/reclamation for the same root. Exercise two cleanup
+   contenders, repeated cleanup, path replacement, symlink escape, hard-linked
+   read-only supply and interrupted deletion. Idempotence cannot mean silently
+   swallowing permission errors or chmod-changing shared supplier inodes.
+3. Promote the real crash harness to regression tests: repeated normal, exception
+   and kill/restart cycles converge without residual count/byte/inode growth at
+   fixed inputs and concurrency. Preserve an active worker after coordinator
+   death. Prove cleanup failure reporting and recovery without replaying tests.
+4. Declare the maintenance trigger, maximum reclaim delay, admission headroom
+   and item/byte/inode high-water limits before runtime acceptance. Measure and
+   justify numeric limits from the fixed workload; do not invent passing budgets
+   from historical directory sizes. Cover idle recovery as well as successor
+   startup; merely waiting indefinitely for another run is not a time bound.
+5. Execute the repaired source-bound runtime and actual test/package owners in
+   cold/warm, concurrent and interrupted runs. Native uv maintenance has separate
+   evidence for private and shared scopes. At fixed lock/toolchain inputs,
+   warm-cache retention must stabilize; external consumers and new inputs are
+   reported separately rather than blamed on ETHOS or deleted to meet a count.
+6. Observe actual 24- and 48-hour windows with exact runtime/source, workload,
+   concurrency, growth curve, orphan age, high-water bytes/inodes, reclamation
+   latency and indexing cost. Preserve failed/unknown observations. Virtual-clock
+   tests, a six-cycle probe, one cache prune or short green tests cannot satisfy
+   this long-run plane. Until those observations pass, recurrence repair remains
+   open even if a narrow source fix has been accepted.
 
 ##### Research Intake And Quality Effectiveness
 

@@ -1175,15 +1175,54 @@ the corresponding bounded successor, deleting replaced rules and projections.
 This plan preserves the obligation now without expanding reviewed-content
 retirement, opening another lane or changing any comparison repository.
 
-AIGW's September 9 UTC feedback adds one unverified authored/generated admission
-case: at source `67108525`, runtime `0177926d`, deleting the authored Prettier
-configuration is reported as `generated_artifact_config_drift`. Its intended
-replacement uses native `--no-config` to preserve parent-config isolation.
-Verify classification and deletion admission in the existing artifact owner;
-retain the authored/generated distinction and unique native-policy consumer.
-Do not prescribe an unverified repair, bypass hooks, add a compatibility carrier
-or write the adopter. This belongs to the existing projection-conformance work,
-not the detached-retirement implementation.
+AIGW's September 9 authored/generated admission report is now independently
+reproduced against accepted `10d328944` on September 11. The adopter remains at
+`be0bab081d10c038be64badae9358a7f5b801823`, with runtime
+`88ed55a01971e2f96a613718269fb34c43f10bd04755ad193c0adc3134412fba`
+bound to that accepted ETHOS source and tree `1349a657`. Both immutable runtimes
+have byte-identical topology and prewrite owners. The current public prewrite
+in the owned ETHOS lane blocks `.config/checks/markdown/prettier.json` with
+`generated_artifact_config_drift` while actor, Lease and editor-root admission
+pass. Its next action merely repeats prewrite. No adopter file was changed or
+deleted, and no successful end-to-end deletion/proof is implied.
+
+The semantic defect is upstream of the filename: the declared CEL classifier
+treats every `.json` suffix as generated, then denies generated content under
+`.config`. Renaming the example to another JSON configuration still denies it;
+the equivalent TOML path is ignored. The path-only prewrite decision has neither
+authored/generated ownership evidence nor the intended create/update/delete
+effect. Missing paths are classified identically. A one-filename exemption,
+all-JSON allowance or bypass would conceal rather than repair that distinction.
+
+The existing artifact topology owner must consume explicit ownership and effect
+facts, reusing current source/declaration and producer contracts rather than a
+second registry or adopter gate. Genuine generated projections remain governed
+by their producer. Authored configuration may be removed with its consumers
+under ordinary admission; unknown origin must not be asserted as generated.
+Verify present, missing and deleted authored inputs, owned generated projections,
+unknown ownership, residual consumers and exact actionable continuations through
+the public prewrite and generated-artifact consumers. File syntax, Git tracking,
+name or location alone does not prove generation provenance.
+
+The adopter currently still references this file with `--config` in
+`package.json`; its formatting test also checks parent-config isolation. Preserve
+that consumer behavior when the adopter performs its own eventual removal.
+The supplied `--no-config` approach is research input, not an instruction to
+mutate the adopter. Evidence is `aigw-authored-config-accepted-verification.json`,
+SHA256 `d40679a35e660672e9661ec9313af8d35b7c988a574dce20efafb636c5a5681a`,
+under the existing ignored evidence root, with exact public output and installed
+owner hashes. This advances the previously unverified feedback to a confirmed
+admission defect; the repair remains unimplemented.
+
+Rebinding the same accepted build cannot repair this classification. After the
+bounded ownership repair passes proof and reaches accepted, invoke public
+`ethos hook install --root <adopter-worktree> --json` from that fixed accepted
+package runtime, then verify installed source/tree/currentness and repeat exact
+prewrite. The invoking package owns the adopter's expected build; invoking its
+old package is not an update discovery mechanism. Do not prescribe `ethos adopt`,
+state reset, manual runtime edits or model overrides. This remains in the
+existing projection-conformance sequence after the active hosted-verification
+atom; it does not expand that Change or create another lane or task authority.
 
 The September 8 inventory at source `a4d2877e` covers 2592 tracked paths,
 including 258 product Python paths, 197 test paths, 47 documentation paths and

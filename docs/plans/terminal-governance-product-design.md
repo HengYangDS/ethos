@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 43 explicitly reviewed source/test paths in the existing
-`transition-content-comparison.json`; 345 remain unreviewed. The earlier
+There are now 68 explicitly reviewed source/test paths in the existing
+`transition-content-comparison.json`; 320 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1335,6 +1335,43 @@ Node supply/PATH and reported missing OpenSpec. Restoring that existing command
 environment made the same exact-path admission pass; no installation or source
 repair occurred. Treat command-envelope reuse as an execution prerequisite,
 rather than repeatedly diagnosing prepared supply as missing or installing it.
+
+The coordination/storage/handoff family adds 25 reviewed paths, including
+deleted behavior and its tests. Current counterpart hashes bind `9091175fe`.
+The selected 40 tests passed in 23.38 seconds with no parallel workers; the
+largest case exercised actual cross-host Git import, compensation and source
+revocation in 13.28 seconds. Exact commands, JUnit, durations and successful
+scratch cleanup are retained under `transition-coordination-focused` in the
+existing ignored evidence home. This is not a full proof or a claim that injected
+exceptions cover process death in every effect window.
+
+| Boundary | Current disposition and remaining acceptance |
+| --- | --- |
+| Lease relation and schema | Preserve one lane/holder/generation/expiry relation and exact transactional CAS. A real isolated SQLite counterexample exposes incomplete schema admission: identical column names with `holder_ref` as primary key are classified `current`, then two different holders can be inserted for one lane. Validate actual key/constraint semantics in the existing schema owner. The live common-directory table was independently read: its primary key is `lane_ref`, with no duplicate lanes; no live corruption is claimed. |
+| State migration and reset | Source-bound runtime activation owns deliberate previous-schema projection and rollback inside SQLite. Historical checkout-state merging, generic destructive reset and their additional unbounded filelock do not return. Exact manifest/content preservation remains required when removing old state roots; no blanket deletion follows from a schema error. |
+| Missing and unknown coordination | Public reacquire preserves existing staged, unstaged and untracked bytes, recognizes repeated exact requests, and recovers evidence failure without replacing the committed Lease. Those tests pass. Reconstructing an absent worktree and explicitly authorized repair of an unknown current row remain distinct unproved capabilities; do not infer them from reacquire of an existing linked tree. |
+| Cross-host handoff | Preserve portable exact Git/context, target identity, post-import acknowledgement and subsequent exact source revocation. Current tests exercise these boundaries. A duplicate worktree parser in destination cleanup still rejects the valid native bare-repository record because it lacks `HEAD`; the shared exact-target observer returns absent correctly. Replace the duplicate observer at its owner after a public recovery regression, rather than adding a bare-name exception. |
+| Immutable artifacts and running evidence | Native immutable publication recognizes identical bytes, rejects changed bytes and symlinks, and preserves the symlink target. Retired generic model-store wrappers and the global operation/failure-count database are not necessary. Keep typed receipt validation with actual consumers and durable running/terminal observation with existing effects; coverage across all public long operations remains open. |
+| Collaboration and generated traces | Advisory path overlap is not semantic cooperation/competition selection. Preserve multi-contribution, all-drop knowledge, common-resource interference and negative observations in the full product path. Old Lease state-machine tests assert retired carrier/offer semantics; current sequence invariants need their own model, not those old field assertions. |
+
+`transition-coordination-counterexamples.json` includes the executable native
+probes and current owner hashes. Its owned temporary root was removed. The
+historical handoff canonical-digest consolidation also remains unabsorbed, and
+the current native signer fixture still hard-codes `/usr/bin/ssh-keygen` rather
+than the historical portable fixture helper. These are explicit identity and
+portability follow-ups, not reasons to restore old Lease/controller payloads.
+
+Prioritize the concrete schema-key counterexample at the next implementation
+boundary; the current review Change still introduces no product behavior. Keep
+the remaining source review grouped by retained acceptance and actual consumers,
+not by identical filenames. Unimplemented recovery obligations survive retirement
+of their original implementation through this plan and exact recovery inputs.
+
+Hosted readback for accepted `00c23fc9d` now confirms GitLab dev pipeline 6488 and
+main pipeline 6489 successful. GitHub run 34656812053 has successful quality and
+all nine native OS/Python package jobs, while its exact-HEAD source-verification
+job remains running; the other ETHOS CI run is queued. Neither partial matrix
+success nor the unchanged top-level timestamp establishes complete hosted proof.
 
 #### Native Reference And Review Projection Follow-Up
 

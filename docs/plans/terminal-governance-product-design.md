@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 140 explicitly reviewed source/test/carrier paths in the existing
-`transition-content-comparison.json`; 248 remain unreviewed. The earlier
+There are now 172 explicitly reviewed source/test/carrier paths in the existing
+`transition-content-comparison.json`; 216 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1473,6 +1473,68 @@ large stdin EAGAIN and path-alias matching. Its full proof was reported running,
 not complete. Treat these as further quality-conformance cases for current
 ETHOS inventory/native transport owners; do not copy an adopter engine or claim
 those exact additional failures already reproduced here.
+
+#### Historical Decisions And Architecture Disposition
+
+At `39de17893`, another 32 historical paths have explicit source-to-owner
+outcomes: all eight deleted Decision Records and three decision scaffolds, six
+architecture documents, four governance documents, two references, the old plan,
+and eight original Change artifacts. The last group reuses the earlier complete
+proposal/design, 26-task and 35-requirement review after exact source-hash checks;
+it is not new implementation. All 388 source inventory entries still match the
+retained worktree. The source remains read-only and retirement is not ready.
+
+| Historical source | Preserved meaning and terminal disposition |
+| --- | --- |
+| DR-0001, generated topology | Producers own lifecycle-safe output paths before writing. Current Git-selected Attestations replace mandatory workspace evidence/docs-evidence roots. Preserve active consumers and necessary evidence, not every old directory. |
+| DR-0002 and DR-0004, documentation | Portable semantic discovery does not require a cloned docs tree. Keep current documentation-portability rationale; reject fixed skeletons, lifecycle directories and marker READMEs. |
+| DR-0003, proof scope | Preserve host/repository plane separation and exact declared gates, not obsolete compatibility flags. Focused host checks cannot issue repository proof or reduce the selected default/full floor. |
+| DR-0005, compiler and ecosystem | Retain pure compilation, explicit effects, adaptive review and replaceable capabilities. Full ecosystem conformance remains required; neither a named framework nor a second lifecycle is compulsory. |
+| DR-0006, independent verification | Local integrity does not prove independent identity. Keep offline operation and risk/action-selected verification; remove persistent accepted Commitment authority and compulsory operator infrastructure. Tests are not deployed verifier evidence. |
+| DR-0007, adopter parity | Preserve adopter-owned private evidence and native layout. Reject historical claims that scaffold success proves directory necessity or generic self-shadow proves complete real adoption. |
+| DR-0008, budgets | Preserve independent owner ceilings, anti-gaming, classification and coverage. Retire private metric/debt machinery and obsolete aggregate/caps; current product and test limits are separately 45,000. |
+| Decision scaffolds | Do not restore empty indexes, compulsory README shells, revision ledgers or repeated decision sections. Preserve context, alternatives, one reasoned choice, consequences, evidence and revisit/retirement conditions where useful across Changes. |
+| Architecture and profile | Keep pure compilation, transient plans, native contracts and one common-state owner. Remove scope-bearing Commitment, expanded Lease and duplicate commit-message parser; public review refresh, safe migration and outcome recovery gaps remain open. |
+| Reference and plan | Keep asset provenance and discoverable native commands; do not resurrect a handwritten command registry or fixed lifecycle sequence. Brand positioning must follow the accepted full product, not only the compiler/transaction core. |
+
+The deletion of a Decision Record is justified only after its useful rationale,
+not just implemented behavior, has a durable current home or an explicit
+historical consumer. The source's intentionally empty index does not establish
+that all reasons were absorbed. Deleted compiler/protocol explanations also have
+substantive current counterparts; copying their historical deletion would lose
+useful boundaries.
+
+A concrete rule conflict remains: `docs/governance/docs-registry.md` currently
+says decision filenames are semantic **rather than numbered**, contradicting the
+user's `dr-number-topic` requirement already retained above. Resolve this in the
+existing documentation owner, without adding a decision database or making
+ETHOS-specific filenames mandatory for every adopter. Preserve document identity,
+links and exact historical provenance when renaming the three current records.
+
+The real `docs_registry_report` also passes an isolated `role: decision` document
+with no actual choice, alternatives, consequences or revisit condition. Its only
+record field is a malformed Decision ID. The existing grammar test instead uses
+`role: reference`; it correctly avoids treating an incidental table as a decision,
+but cannot prove meaningful decision validation. Both distinctions belong in the
+same semantic owner. The exact input and pass report are retained as
+`decision_role_without_decision_rationale` in the existing counterexample receipt.
+This is an API observation, not a demonstrated full-proof bypass.
+
+Twenty-one selected counterpart assertions passed in 2.78 seconds (3.28 seconds
+including process startup): host-result completeness and no repository proof,
+source-role non-compensation, classification, executable-in-record detection,
+anti-minification and action-scoped verifier defaults. The existing
+`transition-decisions-focused` operation/log/JUnit bind exact tests and HEAD;
+its owned temporary root was removed. Earlier plan/verification/docs counterpart
+results are reused only after a zero diff in source, tests, quality policy and
+locked Python supply. No heavy proof was repeated for a review checkpoint.
+
+Two additional projection gaps remain explicit: local-state prose still calls
+common-directory files proof receipts without explaining that current selection
+comes from the independent Git Attestation set; brand positioning still describes
+a narrower operating loop than the full product contract. Repair those existing
+projections with their owning work, not by restoring obsolete evidence roots or
+using the diagram as product authority.
 
 #### Native Reference And Review Projection Follow-Up
 

@@ -1909,13 +1909,45 @@ sequence, not this review's spec-free Change:
 | Documentation and adoption | Canonical text still prescribes evidence/history/reference lanes and one-file adoption; a deployed-reader clause names terminal-v1/v2 carriers. Resolve against actual native bootstrap and portable owner relations. Preserve meaningful decisions, custom adopter layout and explicit missing capabilities; do not restore the obsolete skeleton or compatibility carrier. |
 | Preserved capability versus retired mechanism | Learning, external inspection, negative experiments, handoff, complete adoption and recovery remain requirements after deleting campaign, claim, parity and feedback ledgers. Current equivalent evidence must be scoped; the full P1--P7 path and independent conformance remain unproved. |
 
-Complete review now permits exact recovery preparation, not disposal. The next
-step is to verify a reconstructible copy of unique committed, staged, unstaged
-and untracked source material, inspect ignored resources and actual writers,
-and obtain the public reviewed-retirement decision. Keep `retirement_ready=false`
-until those checks pass. Product repairs above remain open after source checkout
-retirement; preservation is bounded by their named consumers rather than an
-indefinite backup policy.
+Recovery verification at `43c4187ae` reconstructed the source in an isolated Git
+repository without shared metadata or object alternates. The complete bundle
+contains 59488 reachable objects and all 23 recorded source-reflog OIDs. All
+2795 selected working files match their hashes and modes; native index, status,
+staged/unstaged patches and untracked inventory match. Auxiliary diagnostics
+were extracted and verified, strict Git fsck passed, and the isolated root was
+removed. Source HEAD and reviewed content were unchanged. The existing recovery
+home contains the bundle, working/diagnostic archives and exact index/metadata;
+it excludes installed environments, caches and generated smoke repositories.
+
+Two verifier failures remain recorded rather than erased: fetching into the
+isolated checked-out branch was rejected, then differing native diff algorithms
+produced unequal patch text from identical bytes. Import without a destination
+branch and detached checkout fixed the first; explicit histogram comparison on
+both sides fixed the second. The same package was reused, not regenerated until
+it happened to pass. `transition-source-recovery/recovery-check.json` records
+the exact scope and artifact digests. This authoring-local recovery must survive
+its consumers before the authoring lane itself can retire.
+
+Public installed-runtime retirement derivation then returned
+`retirement_nested_repository` with no apply effect. The source contains a uv
+cache marker and actual package-smoke Git repositories. The cache marker alone
+is an empty file, not a valid Git repository; marker spelling cannot establish
+resource identity. Native uv owns that cache. Fresh package-runtime exact-path
+prewrite passed, native process-file observation found no intersecting cache
+identities, and `uv cache clean` ran against only the selected source-local cache,
+without force or network. It reported 78267 files removed; direct readback proved
+the cache root absent and source HEAD plus tracked/untracked status unchanged.
+The earlier authoring-runner prewrite correctly rejected a cross-checkout root;
+the selected common runtime supplied the valid execution boundary.
+
+`transition-native-cache-clean.json` and its native log retain that actual
+effect. This is cleanup of obsolete local cache, not proof that long-running
+resource production is bounded. Generated smoke repositories remain untouched
+and must be related to their producer, unique results, liveness and native
+worktree registrations before exact cleanup and renewed retirement preflight.
+Keep `retirement_ready=false`; whole-lane quiescence and public disposal are not
+proved. Product repairs above remain open after source checkout retirement;
+preservation is bounded by their named consumers, not indefinite backup policy.
 
 #### Native Reference And Review Projection Follow-Up
 

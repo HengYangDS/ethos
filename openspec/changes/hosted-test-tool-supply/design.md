@@ -20,6 +20,15 @@ proof must not execute and stale evidence must be absent. Replay the five native
 scanner cases with the declared scanner. Both hosted providers must then be
 observed independently at the accepted source; local passing tests are insufficient.
 
+The first exact Python 3.14 proof also reproduces the hosted coverage failure,
+with all 3,189 tests passing. Add executable regressions at the existing Git
+effect owner: restoring a valid index preserves unstaged bytes, an unreadable
+tree cannot be silently accepted, successful compensation preserves pre-existing
+overlay, and an unreadable index cannot authorize content deletion. No production
+branch is excluded and no old coverage data is merged into a new proof.
+Candidate acceptance also rejects a missing checkout or unbound hook runtime
+before CAS, with both refs observed unchanged through the real effect executor.
+
 ## Deferred Boundaries
 
 The pre-existing Linux installer is not generalized into a new cross-platform

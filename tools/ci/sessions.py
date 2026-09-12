@@ -154,7 +154,7 @@ def dependencies(session) -> None:
 
 
 def vulnerabilities(session) -> None:
-    import_module("tools.ci.python_vulnerability_audit").run(session)
+    import_module("tools.ci.dependency_audit").run(session)
 
 
 def supply_chain(session) -> None:

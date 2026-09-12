@@ -1247,14 +1247,72 @@ all historical feedback. That initial comparison did not authorize source
 deletion; the final complete review, recovery and public retirement below
 supersede this checkpoint.
 
+#### Native Dependency Audit Closure
+
+Official `dependency-audit-closure` replaces the Python-only security owner with
+one Nox dependency audit over native uv and npm reports. The lock contained a
+high-severity parser advisory despite Python security passing. An isolated native
+parser timed out after two seconds; npm reported two linked high findings. These
+are reproduced scope defects, not evidence of an exploited repository.
+
+The candidate now uses a scoped native npm override to smol-toml 1.8.0 while
+markdownlint-cli2 0.23.2 still pins 1.7.0. Native lock resolution and lane-local
+supply preparation leave the accepted shared supply unchanged. The malformed
+input is rejected in 0.16 seconds; Markdown lint reports no issues. Native audits
+observed 72 Python and 166 npm dependencies with zero findings. A preceding npm
+network failure remained UNKNOWN and is preserved, not counted as clean.
+
+Thirty-one audit assertions pass, covering both ecosystem outcomes,
+missing/malformed inputs, policy typos, partial timeout output, workspace/input drift,
+contention and interruption/recovery. The declaration guards package delivery;
+offline unit tests remain independent of online advisory availability. One locked
+aggregate receipt contains raw per-ecosystem output; no duplicate result store or
+new audit framework is introduced. Focused results do not prove power-loss safety,
+long-term retention, hosted CI or full repository acceptance.
+
+Evidence is in `dependency-audit-{boundaries-red,concurrency-red,green}.log`,
+`dependency-audit-{probes,node-supply,parser-green}.json` and
+`dependency-audit-{native,network-unavailable,static}.log` within the existing
+ignored quality evidence home. Finish static and public-gate validation, freeze,
+then complete exact proof, official archive and accepted/runtime/peer observation.
+Remove the scoped override when its direct owner resolves a current safe parser.
+This does not claim complete latest-stable supply convergence or close unrelated
+P0-P7 obligations.
+
 #### Transition Source Absorption
 
-Only the historical `work/20260811-repository-transition-model` remains alongside
-the current authoring lane. Its source HEAD is
-`84ba160bea96bb59391d1563c59771a5d27ed4ac`; the retained 341 dirty paths and
-388 distinct committed/dirty paths were rechecked against the existing file
-hash inventory with no drift. This is not permission to revive its old runtime,
-merge its whole branch or discard unique content.
+The historical `work/20260811-repository-transition-model` was retired through
+public `lane retire recover` on 2026-09-12. Current Git registration contains only
+the accepted root, candidate root and this authoring lane. Source HEAD
+`84ba160bea96bb59391d1563c59771a5d27ed4ac`, all 388 selected path dispositions,
+2,795 original files and 27,762 literal filesystem nodes were reconciled with
+isolated-verified recovery. The terminal retirement receipt is
+`d69d6351b7f8416d2acefda5b364cda118e76b8abb0c46c26a30e9adb8e40e96` in the Git
+common-directory retirement receipt store. Source worktree, ref and Lease are
+absent. This is content retirement, not implementation of the preserved gaps.
+
+Absorption and official archive were accepted at
+`d9a936edb49247d31e6dd4356ad00fd7d8c889cf`, tree
+`c1d155b35f0efe43a624d5d6684a0ddedf69fb5f`. Prearchive and archived exact full
+proof each passed 35 gates and 3,130 tests, with one skip and combined coverage
+95.0227100681302 percent. Both used two workers; the earlier interrupted
+eight-worker attempt is excluded. Runtime
+`cfc7ecbf7c1c037ae7bed09ea39073e8987daf546bfd6886aed548939f344a9e` binds that
+source/tree. Both peers' dev/main were read back at that same commit. GitLab
+pipelines 6496 and 6497 subsequently passed; GitHub 34681752360 was still running
+and 34681752410 queued at this checkpoint, so hosted peer closure remains open.
+
+Two stale GitHub proposal refs were removed with hooks enabled, native atomic
+push and exact old-OID leases after dev absorption and review-closure checks.
+Both peers then had zero proposal refs. The public proposal-retirement capability
+remains absent: successful bounded cleanup does not implement that product path.
+`absorbed-remote-proposals-retirement.json` records its exact scope and readback.
+
+The recovery set remains under the authoring evidence home's
+`transition-source-recovery/`. Its required content must be reconciled into the
+final recovery location before this authoring lane retires; neither indefinite
+preservation nor premature deletion counts as closure. The detailed reviews below
+retain their historical coordinates and unimplemented semantic obligations.
 
 Official `transition-source-absorption` owns the bounded review and handoff.
 The complete proposal/design, all 26 tasks and all 35 delta requirements with

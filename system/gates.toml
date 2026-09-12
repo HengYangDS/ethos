@@ -4,7 +4,7 @@ source_refs = ["system/gates.toml"]
 
 [proof_sets]
 default = ["repository-audit", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "python-vulnerabilities", "release-sbom", "secrets"]
+full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -238,7 +238,7 @@ command = ["{python}", "-m", "nox", "-s", "build"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
-depends_on = ["coverage-floor", "ruff"]
+depends_on = ["coverage-floor", "ruff", "dependency-vulnerabilities"]
 asset_classes = ["release-artifacts"]
 dimensions = ["reproducibility", "attestation"]
 execution_mode = "adapter"
@@ -574,7 +574,7 @@ network_policy = "offline"
 version_source = "locked-toolchain"
 
 [[gates]]
-id = "python-vulnerabilities"
+id = "dependency-vulnerabilities"
 kind = "security"
 command = ["{python}", "-m", "nox", "-s", "vulnerabilities"]
 policy = "required"

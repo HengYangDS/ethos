@@ -1,15 +1,4 @@
 owner = "ethos-quality-gate-governance"
-summary = "Python dependency vulnerabilities are audited directly from the frozen uv lock."
+summary = "Native uv and npm audits cover both declared dependency locks."
 runner = "uv run --frozen --offline python -m nox -s vulnerabilities"
-
-[uv_audit]
-state = "active_owner_gate"
-tool = "uv audit"
-input = "uv.lock"
-output = "build/evidence/quality/security/python-vulnerability-audit.json"
-evidence_class = "local_owner_gate"
-claim = "uv audit scanned the frozen workspace lock through OSV"
-forbidden_claims = [
-  "image/package scan passed",
-  "hosted CI passed",
-]
+timeout_seconds = 120

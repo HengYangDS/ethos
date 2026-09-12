@@ -186,7 +186,7 @@ policy decision. Examples do not narrow the global principles they illustrate.
 | Existing obligation | Current evidence boundary | Owner and remaining exit condition |
 | --- | --- | --- |
 | Intent fidelity and historical guidance | Available input has informed the contract and this route; complete recovery is not proved. | Existing Feedback Intent Preservation and P1/P2: settle each distinct in-scope obligation, retain unresolved source gaps, and reject the mandatory-winner mistranslation through the full acceptance path. |
-| Lane absorption and housekeeping | One historical source lane remains alongside the authoring lane; 140/388 paths are dispositioned, and this review batch retired none. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
+| Lane absorption and housekeeping | Current source coordinates, reviewed counts and recovery limits are recorded once in [Transition Source Absorption](#transition-source-absorption); classification is not retirement. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
 | Artifact, policy and admission correctness | Artifact-origin repair is accepted and installed at `470fe13e`; the adopter owner reports the original deletion blocker cleared. | Current semantic-version Change still needs exact full proof, archive, acceptance and runtime readback; do not transfer predecessor evidence to it. |
 | Quality and full-cycle speed | ELOC coercion and path-response defects reproduced and repaired; coverage of all quality obligations is not established. | Existing quality owners and P5: finish semantic size consolidation, docstring/type/format scope, distinguishing failures, evidence reuse and actual first-failure/closeout measurements. |
 | Runtime, supply and temporary resources | The latest focused scratch roots were removed; sustained crash/kill boundedness and all-current supply are not proved. | Existing runtime/resource owners: verify package identity, migration/rollback, live-consumer-safe reclamation and sustained quantity/byte/inode budgets. |
@@ -2829,6 +2829,24 @@ packages, installed runtimes, native platforms, provider projections and the
 resources created while checking them. This table records observed gaps and
 required closure; it does not declare those properties delivered.
 
+Apply the contract's one-semantic-owner invariant per decision, not per file.
+One declaration and compiler may feed several independently observed projections;
+their observations remain distinct and cannot be replaced by copied desired state.
+For each conflicting rule, identify its accepted meaning and owner, remove
+competing declarations or evaluators, migrate consumers, then verify the same
+input and policy produce consistent decisions through each relevant entrypoint.
+Independent tests challenge the owner rather than repeat its implementation.
+Necessary additional checks retain only obligations the native owner cannot
+express, with their own explicit scope and counterexample.
+
+Current examples are the contradictory decision-record naming rule, separate
+Google-style declarations in Ruff and the custom docstring policy, and the stale
+absorption count formerly repeated in the global coverage table. The last is
+replaced with a link to the existing detailed checkpoint; the first two still
+need owner-level repair. A sole owner can also compile valid intent incorrectly
+or misclassify an unknown effect: SSOT does not replace semantic completeness,
+fresh observation or fault recovery.
+
 | Quality responsibility | Existing owner and observed gap | Required completion evidence |
 | --- | --- | --- |
 | Intent and semantic preservation | Product contract, official quality spec and this plan; older tool findings were not consistently carried into execution | Every distinct obligation is accepted, superseded with reason, deferred with a trigger, or rejected; code/spec/docs/skills agree and no useful capability disappears during deletion |
@@ -2848,8 +2866,9 @@ The `quality-assurance-owner-closure` Change was accepted at `c9aad4a80` after
 both source and archived-source full proofs passed all 35 selected gates.
 Installed-runtime inventory and both independent remote dev/main refs were
 read back at that object; hosted CI completion remained unproved. This repairs
-selection and prerequisite-result enforcement, not every row at once. Independent
-product/test ceilings remain 40000 and combined coverage at least 95 percent.
+selection and prerequisite-result enforcement, not every row at once. At that
+checkpoint the independent product/test ceilings were 40000. Current budget and
+coverage requirements are stated in [Global Coverage And Delivery Boundary](#global-coverage-and-delivery-boundary).
 Subsequent replacements remain globally required: native Ruff/Ty
 scope, metric correctness, semantic structure/docs/configuration, security and
 supply conformance, resource lifecycle and provider/adopter closure. Independent

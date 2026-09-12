@@ -186,7 +186,7 @@ policy decision. Examples do not narrow the global principles they illustrate.
 | Existing obligation | Current evidence boundary | Owner and remaining exit condition |
 | --- | --- | --- |
 | Intent fidelity and historical guidance | Available input has informed the contract and this route; complete recovery is not proved. | Existing Feedback Intent Preservation and P1/P2: settle each distinct in-scope obligation, retain unresolved source gaps, and reject the mandatory-winner mistranslation through the full acceptance path. |
-| Lane absorption and housekeeping | Two other lanes remain at the latest status; this batch retired none. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
+| Lane absorption and housekeeping | One historical source lane remains alongside the authoring lane; 111/388 paths are dispositioned, and this review batch retired none. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
 | Artifact, policy and admission correctness | Artifact-origin repair is accepted and installed at `470fe13e`; the adopter owner reports the original deletion blocker cleared. | Current semantic-version Change still needs exact full proof, archive, acceptance and runtime readback; do not transfer predecessor evidence to it. |
 | Quality and full-cycle speed | ELOC coercion and path-response defects reproduced and repaired; coverage of all quality obligations is not established. | Existing quality owners and P5: finish semantic size consolidation, docstring/type/format scope, distinguishing failures, evidence reuse and actual first-failure/closeout measurements. |
 | Runtime, supply and temporary resources | The latest focused scratch roots were removed; sustained crash/kill boundedness and all-current supply are not proved. | Existing runtime/resource owners: verify package identity, migration/rollback, live-consumer-safe reclamation and sustained quantity/byte/inode budgets. |
@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 91 explicitly reviewed source/test paths in the existing
-`transition-content-comparison.json`; 297 remain unreviewed. The earlier
+There are now 111 explicitly reviewed source/test paths in the existing
+`transition-content-comparison.json`; 277 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1407,6 +1407,42 @@ not increase workers, omit assertions, or treat fewer selected tests as a global
 throughput improvement. The 100-case run locates its slowest cases in native
 reviewed-retirement tests; it does not isolate their internal costs or prove a
 deadlock.
+
+The runtime/adoption family adds 20 reviewed paths at current source
+`69fd1ffd3`, including the deleted private resource facade and superseded test
+cache. Exact historical hashes and current owner hashes are bound per row in
+`transition-content-comparison.json`. Forty-seven selected counterparts passed
+in 13.45 seconds, serially; the enclosing operation took 13.99 seconds and its
+owned scratch root was removed. Command, hashes, node outcomes and JUnit use the
+existing `transition-runtime-focused` evidence stem. This is neither a full
+proof nor a measured whole-suite speed improvement.
+
+| Responsibility | Retained meaning, replacement and unresolved boundary |
+| --- | --- |
+| Common runtime activation | Exact multiple Git config values, current selector, SQLite migration and compensation belong to existing config/activation owners. Replace the old family journal and unbounded lock. Selected reuse, failed activation and consumer-aware cleanup assertions pass; real process-death windows and sustained retention are still unproved. |
+| Runtime supply and immutable contents | Current package/dependency/native-image identity and full file inventory replace resource-only rebuilds and the extra resource manifest. Existing generations are validated, not rebuilt in place. Reject deleting every nonselected generation and the old blanket managed-Python restriction. Cold/warm equivalence and full installed package closure remain independent acceptance claims. |
+| Hook and commit-policy projection | Four thin launchers consume the package runtime and unique optional CommitPolicy. Retain exact message/range/currentness and nonarming timeout diagnostics; do not restore a second validator declaration or historical remediation catalogue. Current config, CLI, timeout and immutable-input assertions pass. |
+| Adoption and migration | Current two-file bootstrap preserves custom profile/config, rejects unsafe paths and checks the reviewed digest. It is not complete migration, uninstall or multi-file crash atomicity. Preserve those requirements and pre-archive task guidance; reject persistent Commitment migration, semantic Lease successors and deletion-by-known-marker content. |
+| Adoption next action | A real dry-run CLI with an invalid nonempty profile returns `adoption_conflict:.ethos/profile.toml`, but the outer action is `ethos status` and the inner action is `review read-only write plan`. The planner uses the final per-file conflict variable rather than aggregate conflicts, while the CLI replaces the derived action. Repair the single planner decision and its thin projection with this public regression; refusal remains intact and no apply was attempted. |
+| Schema source observation | The runtime diagnostic selector names adopter-local schemas when present, but the actual native schema loader ignores adopter roots and loads the product schema. The direct probe establishes diagnostic drift, not schema hijack. Use the existing schema owner for truthful source reporting; a generic resources facade is unnecessary. |
+| Test construction and output roles | Small native fixture prefixes and shared dependency supply replace symlinked complete runtime templates. Preserve construction-cost and input-closure obligations without reviving unsupported symlinked generations. An evidence directory's existence is not an adopter capability; preserve meaningful outcomes, not obsolete OutputRoots fields. |
+
+The two new probes extend `transition-current-counterexamples.json`, each with
+its own exact HEAD and claim boundary; their isolated scratch was removed.
+No source/runtime/adopter implementation changed in this review. The old
+publication/role-transition delta is only partially inspected and remains
+unclassified; the completed family must not imply that remaining review is done.
+
+For the remaining review, semantic families are the decision unit and paths are
+coverage evidence. Reuse unchanged counterpart results, test only distinguishing
+obligations, and retain exact unresolved inputs with a named existing consumer.
+Separate disposal safety from eventual capability completion: a recoverable,
+fully dispositioned source may retire through public admission without pretending
+all retained product work is implemented. Unique unclassified content still
+blocks disposal. Do not make a read-only checkpoint trigger another full proof.
+The first prewrite call in this batch omitted the required editor-root coordinate;
+its blocked verdict caused no write. Supplying the exact authoring root and
+`--require-editor-root` passed; preserve that invocation envelope on continuation.
 
 #### Native Reference And Review Projection Follow-Up
 
@@ -2912,17 +2948,143 @@ handoff or review files merely because schema customization permits them.
 Schema validation proves artifact structure and dependency legality, not semantic
 preservation, adequate tests, lifecycle safety or full agent adherence.
 
-One present integration limit needs a real counterexample before schema adoption:
-the no-spec acceptance compiler still selects proposal/design/tasks by fixed
-artifact IDs and paths, while official status emits schema-resolved
-artifactPaths. A non-default schema may therefore be valid officially but not
-supported by ETHOS; current evidence is source inspection, not a reproduced
-custom-schema failure. Validate renamed/optional artifacts, skip_specs,
-source/generation binding and archive/reopen/retire through the public path;
-consume native resolved metadata rather than create another Markdown parser.
+The September 12 isolated counterexample at `69fd1ffd3` now proves the
+previously source-inspected integration limit: keep the official spec-driven
+artifact IDs and change only design's output to `architecture.md`. Native schema
+validation, strict no-spec Change validation, status and apply instructions all
+succeed; current `load_openspec_commitment` rejects the same source with
+`openspec_acceptance_missing:semantic-probe`. The compiler still hashes fixed
+proposal/design/tasks paths instead of resolved `artifactPaths`. This is a
+compilation API failure, not a demonstrated full-proof bypass. Consume native
+resolved metadata and explicit artifact roles; verify renamed/optional artifacts,
+no-spec intent, exact source binding and archive/reopen/retire without inventing
+another Markdown parser. The exact fixture and outputs extend the existing
+`transition-current-counterexamples.json` evidence, not a new task authority.
 Malformed or ignored config guidance must remain visible instead of allowing
 an apparent successful lookup to imply complete constraint injection. This work
 belongs to existing P1/P2/P7 and does not expand the current admission repair.
+
+##### Native Git And OpenSpec Mechanism Convergence
+
+The September 12 owner-requested research is bounded to existing owners and the
+current absorption Change. Installed Git is 2.55.0 and OpenSpec is 1.12.0.
+Upstream release metadata identifies OpenSpec 1.13.0, published September 9 at
+21:10:23 UTC, commit `9d4e5974e5c0d9a09b9c6c1e1eb0975e80ec4461`.
+This research did not upgrade supply, create a lane or mutate an adopter.
+
+The recommendation is object-first observation, official artifact-graph
+resolution and native effect execution, with ETHOS retaining semantic acceptance,
+fresh authorization and cross-effect recovery. Do not build a second framework
+around capabilities already owned by Git or OpenSpec. Native primitives reduce
+mechanical work; they cannot establish that user intent was understood or that
+compatible-looking changes satisfy the combined requirements.
+
+| Boundary | Current evidence and chosen disposition |
+| --- | --- |
+| Historical semantic absorption | Use native commit/tree/blob identity and exact diff to partition changed, deleted and unique content once. `range-diff` and `patch-id` may locate rewritten counterparts, never certify semantic equality or dirty-content preservation. Keep dispositions by semantic family and inspect only genuinely different obligations. |
+| Batched source observation | `git_object.read_blobs` already owns framed native `cat-file --batch` and serves patch admission/Attestations. Reuse that owner instead of spawning one command per blob or introducing another Git client. Immutable object observations can be reused within a bound operation; actor, Lease, ref and external currentness must still be fresh. |
+| OpenSpec input projection | Current committed projection enumerates and checks out the entire OpenSpec tree. At `69fd1ffd3` that is 2004 files/3849330 bytes, including 1986 archived files. An isolated exact-object comparison retained the 18 nonarchive files/425482 bytes: selected show/status/apply/strict validation outputs match after root-path normalization. Materialization was 0.1908s versus 0.0033s; the four native calls were 0.5564s versus 0.4820s. These are single local samples, not full-proof speedups. Derive the actual schema/config/context/spec/archive input closure; never blindly exclude archive inputs needed by a selected proof or context. |
+| Repeated native observations | An actual Python audit-hook trace of `openspec_governance_report` took 1.71s and observed eleven OpenSpec invocations plus three Git tree listings. Version verification and selected status each ran twice because Commitment compilation re-enters discovery. Pass one typed, exact-source observation through existing consumers; do not add a persistent status cache or import private OpenSpec modules as a second supported API. |
+| Artifact graph and completion | Native status resolves artifact paths/dependencies and exposes planning completion. The current Change reports planning complete while native apply reports one of five tasks complete. Neither is product completion. Reuse native status/apply/context and distinguish artifact existence, implementation progress, proof and effect acceptance; no independent lifecycle database or fixed filename inference. |
+| Composition before materialization | Native `merge-tree --write-tree` can generate a candidate tree without a worktree or real index. The isolated probe used a quarantined object directory plus read-only alternates, retained both independent edits, left original refs/index/object store unchanged and rejected a conflicting variant. Use this for early structural merge diagnostics and candidate composition, then semantic combination checks and exact public CAS. A textual merge is not semantic acceptance; merge-tree still writes objects and is not an unrestricted read. |
+| Local ref transaction | Existing `GitEffect.program` already uses start/prepare/commit with `update-ref --stdin -z`. A native stale-second-ref probe changed neither ref. Keep the native all-or-none writer; do not replace it with sequential updates, `--batch-updates` partial success or a global transaction abstraction. Git documents that concurrent readers can still observe a subset; readback and source assertions remain necessary. |
+| Assertion versus update semantics | Current assertions use equal-old/new updates. Native `verify` looks narrower, but the actual hook probe reports old-to-zero events for verify, unlike equal updates. A mechanical substitution could be read as deletion by ETHOS. Preserve the current encoding until an exact intent/hook regression demonstrates a safe explicit distinction; no command-name optimization by assumption. |
+| Independent remote publication | Current owner already uses peer-local atomic push with exact leases. Retain one immutable selected commit/tag object and independently observe each peer. Atomic push cannot make multiple remotes, local worktrees and SQLite one transaction. Developer permissions and review ingestion remain separate; no forced dev push or hook bypass follows from native CAS support. |
+| Recovery and physical retention | Native worktree repair repairs administrative links, not Lease ownership or absent unique content. Reflog is expiring recovery assistance, not a durable review record. A verified bundle plus exact dirty/index/mode/untracked preservation can release an obsolete checkout after consumer handoff and public admission; bundle alone does not capture all working bytes. Avoid alternates whose source may be collected or deleted before preservation is independent. |
+| Native guidance and extensions | Use current config artifact rules plus advisory apply/archive guidance for source fidelity, TDD, bounded tests and recovery. Schema/templates are justified only by necessary artifact semantics; track and bind resolved sources rather than permit ambient overrides to silently alter proof meaning. Stores/worksets are optional native planning views, not permission to introduce another intent root or persisted ETHOS task graph. |
+| Failure localization | Use bounded Git Trace2 event/performance observations and existing subprocess receipts to separate process startup, object reads, index work, hooks, native OpenSpec and test construction. Current sanitized Git runner does not accept ambient Trace2 as an observation override; instrumentation needs the existing process/observation boundary, not global config changes. Do not infer a bottleneck from total test duration alone. |
+
+Evidence is in four new rows of `transition-current-counterexamples.json`:
+`official_custom_schema_renamed_design_output`,
+`git_object_backed_openspec_projection`,
+`native_git_transaction_and_object_merge`, and
+`official_command_reuse_observation`. Probes are bound to `69fd1ffd3`; every owned
+scratch root was removed. The command trace contains eleven native OpenSpec calls,
+not fourteen: three captured commands are Git listings whose path arguments
+contain OpenSpec. No trace/probe result is an implementation claim.
+
+Implementation remains in the existing P0/P1/P2/P5 sequence after this review
+boundary: first unify native observation/path resolution and preserve the renamed
+artifact regression; then reduce object projection to its proven input closure
+and remove repeated invocations; measure cold/warm verdict equality and wall time.
+Exercise config/schema/template/context changes, deleted artifacts, multiple
+active Changes, archived proof, symlink/root escape and failed JSON lookup before
+reuse is accepted. Upgrade official OpenSpec through the supply owner with its
+archive/list/fence/wrapped-scenario counterexamples, source/package/runtime
+readback and affected proof. Git composition/recovery follows the historical-lane
+need rather than preceding it as an abstract platform. All-drop, independent
+verification, greenfield/brownfield and real outcome feedback remain product
+obligations; native tooling does not narrow them.
+
+Primary sources: Git 2.55.0
+[ref transactions](https://github.com/git/git/blob/v2.55.0/Documentation/git-update-ref.adoc),
+[object-tree merge](https://github.com/git/git/blob/v2.55.0/Documentation/git-merge-tree.adoc),
+[range comparison](https://github.com/git/git/blob/v2.55.0/Documentation/git-range-diff.adoc),
+[worktree recovery](https://github.com/git/git/blob/v2.55.0/Documentation/git-worktree.adoc),
+and [Trace2](https://github.com/git/git/blob/v2.55.0/Documentation/technical/api-trace2.adoc);
+OpenSpec 1.13.0 [customization](https://github.com/Fission-AI/OpenSpec/blob/v1.13.0/docs/customization.md)
+and [release changes](https://github.com/Fission-AI/OpenSpec/releases/tag/v1.13.0).
+Installed native schema/resolver/status code was also inspected; upstream
+features and experimental extension contracts are not assumed installed.
+
+##### Semantic Tools, Graphs And Generated Projections
+
+The September 12 user extensions are one mechanism review, not separate product
+platforms. Existing `semantic_provider_comparison` and
+`typed_model_schema_generation` rows in `transition-current-counterexamples.json`
+bind eight inert-source probes and four native schema projections to `69fd1ffd3`.
+No new dependency or permanent index was installed. Apply the distinctions below
+to the complete product path, not just Python reference extraction.
+
+| Mechanism | Evidence, useful role and admission boundary |
+| --- | --- |
+| LSP and symbol identity | Serena's LSP backend on this authoring lane found the actual reference observer caller, confirmed against source. Use definition/reference/rename/diagnostic capabilities instead of whole-file retrieval; bind document version, workspace and server configuration. LSP is a protocol, not an assurance of complete dynamic behavior. Rename edits still need exact-path admission and consumer verification. |
+| Tree-sitter and structural transformations | Existing ast-grep 0.45.3 found call syntax in all eight samples and an ERROR node in malformed input. This is useful for incremental syntax, changed-node selection and reviewable codemods. It did not resolve import binding or effects. The standalone Tree-sitter CLI is 0.27.0; do not equate that version with ast-grep's bundled grammar. ERROR/recovered syntax cannot be labeled complete semantic coverage. |
+| LibCST and reaching definitions | Existing LibCST 1.9.0 distinguishes imported aliases from local shadowing and separates lexical scopes. The program-point sample still returns assignments from both before and after the read; conditional imports retain two possibilities. Metadata for a call through getattr names the builtin lookup, not the ultimate callee. Use it to replace binding heuristics only with explicit supported value/effect analysis and UNKNOWN propagation; do not add another name-special-case recognizer. Runtime dependency closure and modern-syntax support must be proved before adoption. |
+| Derived semantic graph | Build typed relations only for concrete queries: source-to-obligation-to-evidence, declares/refers-to, requires, reads/writes and supersedes are different relations. Keep authoritative OpenSpec/policy/effect data at its existing owner; graph views are rebuildable observations carrying source hash, provider/configuration identity and partial/unknown ranges. Do not turn a code graph into a second intent or lifecycle store. The existing accepted-root code index is dated September 10: observation.py is metadata-changed, so it cannot establish current whole-lane closure. |
+| Graph algorithms | Use reachability/reverse slicing for impact and input invalidation, strongly connected components for actual cyclic dependencies, topological order for ready work, and measured weighted critical paths for latency. Existing graphlib already orders and runs proof dependencies; replace duplication, not this working owner. Resource-interference edges must supplement dependency edges before permitting concurrent effects. An absent path in an incomplete graph is not evidence that deletion or test omission is safe; clustering/centrality only proposes review candidates. NetworkX/rustworkx remain alternatives for a demonstrated gap, not both new runtime dependencies. |
+| Symbolic constraints | Model typed symbols, binding, predicates, assumptions and effect footprints before choosing an engine. Distinguish code symbol resolution from formalized product constraints and natural-language interpretation. Reuse the installed CEL evaluator for supported predicates; assess CUE for configuration constraints and SMT for joint satisfiability or exact counterexamples only where they replace custom machinery. SAT is not user intent acceptance; UNSAT needs source-mapped conflicting constraints, and UNKNOWN stays unknown. No solver can prove missing premises. |
+| Templates and code generation | Distinguish one-time scaffold that becomes authored content, continuously generated owned projections, and semantics-preserving codemods. Four existing Pydantic-derived schemas regenerate identically and match tracked JSON; this is a working owner to reuse, not a reason to invent a universal generator. For maintainable scaffold updates, evaluate Copier's versioned template/customization merge at the greenfield/brownfield boundary. Bind generator, inputs, source maps and exact outputs; preserve custom edits, reject conflicts and remove obsolete generated consumers. Generated tests from the same rule are not independent evidence. |
+
+The recommended composition is native Git snapshots and OpenSpec artifact
+resolution, replaceable syntax/binding providers, property-scoped typed facts,
+query-specific graph or symbolic evaluation, and the existing exact effect owner.
+Do not deploy a universal ontology, graph database, code generator or solver
+runtime first. Extend an existing model only when a counterexample requires a
+new distinction, migrate consumers, and delete the replaced heuristic.
+
+The first implementation trial remains the existing Python-reference obligation:
+shared binding/value observations must serve patch admission, repository audit
+and private import checks. Retain alias/shadow/scope/program-point/conditional/
+reflection cases, mutation tests that falsify incorrect interpretations, cold/hot
+verdict equality and measured input/work reductions. Index freshness failures are
+explicit misses with direct-source fallback, not permission to continue on stale
+facts. Graph and symbolic composition then support the existing all-drop,
+collaboration, recovery and two-adopter acceptance paths. No parallel roadmap.
+
+Primary references: [LSP](https://microsoft.github.io/language-server-protocol/overviews/lsp/overview/),
+[Tree-sitter](https://tree-sitter.github.io/tree-sitter/),
+[LibCST metadata](https://libcst.readthedocs.io/en/latest/metadata.html),
+[graph components](https://networkx.org/documentation/stable/reference/algorithms/component.html),
+[SMT result semantics](https://microsoft.github.io/z3guide/docs/logic/basiccommands/),
+and [Copier updates](https://copier.readthedocs.io/en/stable/updating/).
+These references establish capabilities, not measured superiority on ETHOS.
+
+Adopter feedback also reports Markdown false green from empty globs, ignored
+tracked files and nested rule overrides, fixed in AIGW `8ce34a3e` with its own
+proof. ETHOS has not reproduced those claims yet. Existing quality scope owners
+must verify exact selected tracked bytes, nonempty applicable scope, effective
+native rules and warning handling; do not copy the adopter's adapter or mistake
+its green proof for ETHOS closure.
+
+Separately, actual task errors identify an upstream rate-limit failure; the
+AIGW owner reports HTTP-429 cooldown but no demonstrated SSE response.failed
+rate classification in its inspected source. Installed/source parity and the
+quota dimension are unproved. Gateway throttling and transport recovery belong
+to AIGW/Proxy, not another ETHOS implementation. ETHOS retains the generic
+requirements for bounded provider failure, single retry ownership, preserved
+receipts and observation before any replay of uncertain effects. No model,
+credential, service or adopter was changed by this investigation.
 
 ##### Open Knowledge Format — Bounded Adoption Assessment
 

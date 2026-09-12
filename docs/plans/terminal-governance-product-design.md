@@ -186,7 +186,7 @@ policy decision. Examples do not narrow the global principles they illustrate.
 | Existing obligation | Current evidence boundary | Owner and remaining exit condition |
 | --- | --- | --- |
 | Intent fidelity and historical guidance | Available input has informed the contract and this route; complete recovery is not proved. | Existing Feedback Intent Preservation and P1/P2: settle each distinct in-scope obligation, retain unresolved source gaps, and reject the mandatory-winner mistranslation through the full acceptance path. |
-| Lane absorption and housekeeping | One historical source lane remains alongside the authoring lane; 111/388 paths are dispositioned, and this review batch retired none. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
+| Lane absorption and housekeeping | One historical source lane remains alongside the authoring lane; 140/388 paths are dispositioned, and this review batch retired none. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
 | Artifact, policy and admission correctness | Artifact-origin repair is accepted and installed at `470fe13e`; the adopter owner reports the original deletion blocker cleared. | Current semantic-version Change still needs exact full proof, archive, acceptance and runtime readback; do not transfer predecessor evidence to it. |
 | Quality and full-cycle speed | ELOC coercion and path-response defects reproduced and repaired; coverage of all quality obligations is not established. | Existing quality owners and P5: finish semantic size consolidation, docstring/type/format scope, distinguishing failures, evidence reuse and actual first-failure/closeout measurements. |
 | Runtime, supply and temporary resources | The latest focused scratch roots were removed; sustained crash/kill boundedness and all-current supply are not proved. | Existing runtime/resource owners: verify package identity, migration/rollback, live-consumer-safe reclamation and sustained quantity/byte/inode budgets. |
@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 111 explicitly reviewed source/test paths in the existing
-`transition-content-comparison.json`; 277 remain unreviewed. The earlier
+There are now 140 explicitly reviewed source/test/carrier paths in the existing
+`transition-content-comparison.json`; 248 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1444,7 +1444,59 @@ The first prewrite call in this batch omitted the required editor-root coordinat
 its blocked verdict caused no write. Supplying the exact authoring root and
 `--require-editor-root` passed; preserve that invocation envelope on continuation.
 
+The documentation/rules/configuration family adds 29 reviewed paths at
+`bd691f676`, including deleted carriers. Fifteen selected documentation,
+format-assignment and namespace assertions passed in 0.65 seconds; operation
+wall time was 1.12 seconds, with scratch removed. Exact commands, hashes and
+JUnit are in `transition-docs-focused` evidence. These assertions validate their
+stated metadata/assignment boundaries, not whole-repository executed coverage.
+
+| Responsibility | Disposition and unresolved acceptance |
+| --- | --- |
+| Documentation topology | Keep docs/README as the single entry and guides/quickstart as the first-run guide. Remove duplicate index/README shells only after consumer closure; do not force five reader questions into a universal physical ontology. Preserve decisions as durable rationale, not governance navigation or a second authority. Required dr-number-topic naming/content conventions remain unimplemented. |
+| README necessity | Current docs health accepts a placeholder-only README when its metadata includes canonical_for. The isolated report passes despite no useful content or children. That exception does not prove a meaningful boundary; review the semantic necessity rule and distinguishing fixture rather than adding more metadata fields. |
+| Native Markdown coverage | Exact current native command/config rejects the invalid control and a Git-tracked ignored Markdown file, but accepts the same invalid text under a nested disabling config and accepts zero files. Two false-green cases are reproduced; AIGW's ignored-tracked omission does not reproduce here. Positive effective scope and one configuration owner must be enforced by the existing inventory/executor boundary. |
+| Path identity | The direct public docs report raises ValueError when a /var root meets /private/var-resolved files; the same fixture with normalized root returns a report. Preserve this exact API boundary; CLI propagation and other platforms are not yet tested. Normalize once at the root owner without rewriting authored paths. |
+| Formatting semantics | Historical Prettier/Markdownlint changes are not automatically adopted. Retain formatter/check convergence, native OpenSpec meaning, immutable archive nonrewrite and proper list/fence handling. Assigned format owners or executable commands are not proof that all intended bytes were checked. |
+| Common state and roles | Per-worktree state marker/ignore exceptions remain deleted; current common-directory state is the owner. Historical declarative role transitions are still not implemented: current workspace uses release_mirror/canonical_sibling_worktrees. Preserve the positive transition obligation separately from deletion of its obsolete implementation. |
+| Native intent and optional skills | Official OpenSpec owns artifacts/progress; task checkboxes do not prove later archive/publish effects. Remove duplicate authoring templates and the old package-only lifecycle graph. Native operation guidance is still absent; it must project current decisions rather than restore a fixed command pipeline. Rules and skill activation do not establish host enforcement by their presence. |
+
+`transition-current-counterexamples.json` retains native command stdout/stderr,
+fixture scope, source hashes and normalized/non-normalized report contrast.
+The first probe run completed Markdown checks but encountered the path-alias
+exception before receipt persistence; the small probe was rerun with explicit
+failure capture and both owned scratch roots were cleaned. This is research
+replay, not replay of an uncertain product effect.
+
+AIGW's later `47f1aff6` feedback adds Prettier ignored-tracked omission, fragmented
+large stdin EAGAIN and path-alias matching. Its full proof was reported running,
+not complete. Treat these as further quality-conformance cases for current
+ETHOS inventory/native transport owners; do not copy an adopter engine or claim
+those exact additional failures already reproduced here.
+
 #### Native Reference And Review Projection Follow-Up
+
+Current accepted `00c23fc9` still rejects work-root proposal refresh in
+`surface/cli/root/publish.py`: proposal targets require source_branch to equal
+candidate_branch. Installed runtime `002dfcb0` exposes no independent exact
+source-object/review-refresh option. Merely rebinding from `be54b587` does not
+supply the requested pre-archive work-to-proposal path. Preserve exact-object
+review publication as a positive public capability, separate from archive and
+accepted closeout; no candidate-role spoofing, new lane, squash/resigning or
+hook bypass is a valid substitute. This is committed-source/help evidence, not
+an adopter mutation or remote effect. The AIGW owner was notified directly.
+
+The same installed runtime also retains a concrete hook failure-serialization
+defect. A controlled nested MappingProxyType block report passed to execute_hook
+raises TypeError at json.dumps(failed[0]), outside the report-construction catch,
+leaving stderr empty. The installed module SHA256 is
+`212dbff0db531a8dd5db59c24ab1a8a62a51bf64da9704062d9a30e58d05d02e`.
+Dependency observations were stubbed; no push/ref effect occurred. This confirms
+the installed serialization boundary, not the adopter's full integration range
+or hidden original rejection. Use the existing typed JSON projection owner,
+not default=str or an adopter encoder. Add frozen nested block/unknown report
+regressions across hook outputs; rebinding this version fixes neither this
+failure nor the absent work-to-proposal publication capability.
 
 AIGW's exact review-prewrite receipt and an isolated current-code replay expose
 a native ownership omission: gate commands in `.ethos/profile.toml` and

@@ -208,25 +208,28 @@ convergence and source-to-installed delivery.
 
 ### Semantic Authority And Projection Homomorphism
 
-Convergence follows the contract's one-owner invariant at the level of each
-independently changeable decision, not each file. Select its authoritative
-declaration and interpretation owner, migrate every consumer, then retire the
-superseded declaration or implementation. Native configuration owns supported
-tool policy; CLI, hooks and CI consume that owner rather than reinterpreting it.
-Documentation may explain the same meaning without becoming another editable
-policy. A generated copy must retain exact provenance and freshness; a stale
-copy cannot silently become current authority.
+Apply the contract's [one-owner invariants](../governance/product-design-contract.md#invariants)
+and [projection semantics](../governance/product-design-contract.md#projection-homomorphism)
+through existing consumers, not another rule declaration in this plan.
 
-Verify both unique ownership and preservation through each transformation:
-change one source condition, observe every affected consumer, reject stale or
-contradictory projections, and retain independently chosen counterexamples.
-One shared implementation can still be wrong; tests that repeat its logic do
-not establish independent correctness. Incomplete observation, discarded UNKNOWN
-and invalid effect composition require their own repairs, not configuration
-deduplication alone. Compare the same assertion identity, scope, bindings,
-validity, verdict and absence reason across product/adopter surfaces rather than
-requiring identical physical layouts. This uses existing owners and tests, not
-another authority registry or a catch-all central module.
+1. Trace authority, constraints, consumers and effects before choosing entity
+   boundaries. Follow those relations forward from accepted meaning and backward
+   from historical residue. Check graph freshness and coverage, then inspect
+   actual calls and native declarations; a missing graph edge is not deletion
+   evidence.
+2. Compare suspected duplicate responsibilities by their typed relations,
+   invariants, observable outcomes and failure boundaries. Matching graph shape
+   locates a candidate; it does not erase distinct identity, permission or effect
+   ownership. Consolidate the decision itself, not another forwarding layer.
+3. Replace duplicate document prescriptions with references and duplicate code
+   decisions with calls. Keep necessary generated projections source-bound and
+   prove stale-input rejection before retiring the replaced path.
+4. Verify propagation by changing one authoritative input and checking all
+   affected surfaces. Independent counterexamples assess the same source
+   obligations; they neither copy implementation logic nor redefine the rules.
+5. Repair incomplete observation, lost UNKNOWN and invalid effect composition
+   at their existing owners. Configuration deduplication alone cannot close
+   those behavioral gaps.
 
 The terminal architecture declaration under
 `system/projections/terminal-architecture/` selects the complete visual
@@ -1270,8 +1273,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 367 explicitly reviewed source/test/carrier paths in the existing
-`transition-content-comparison.json`; 21 remain unreviewed. The earlier
+There are now 387 explicitly reviewed source/test/carrier paths in the existing
+`transition-content-comparison.json`; one remains unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1380,7 +1383,7 @@ exceptions cover process death in every effect window.
 | Lease relation and schema | Preserve one lane/holder/generation/expiry relation and exact transactional CAS. A real isolated SQLite counterexample exposes incomplete schema admission: identical column names with `holder_ref` as primary key are classified `current`, then two different holders can be inserted for one lane. Validate actual key/constraint semantics in the existing schema owner. The live common-directory table was independently read: its primary key is `lane_ref`, with no duplicate lanes; no live corruption is claimed. |
 | State migration and reset | Source-bound runtime activation owns deliberate previous-schema projection and rollback inside SQLite. Historical checkout-state merging, generic destructive reset and their additional unbounded filelock do not return. Exact manifest/content preservation remains required when removing old state roots; no blanket deletion follows from a schema error. |
 | Missing and unknown coordination | Public reacquire preserves existing staged, unstaged and untracked bytes, recognizes repeated exact requests, and recovers evidence failure without replacing the committed Lease. Those tests pass. Reconstructing an absent worktree and explicitly authorized repair of an unknown current row remain distinct unproved capabilities; do not infer them from reacquire of an existing linked tree. |
-| Cross-host handoff | Preserve portable exact Git/context, target identity, post-import acknowledgement and subsequent exact source revocation. Current tests exercise these boundaries. A duplicate worktree parser in destination cleanup still rejects the valid native bare-repository record because it lacks `HEAD`; the shared exact-target observer returns absent correctly. Replace the duplicate observer at its owner after a public recovery regression, rather than adding a bare-name exception. |
+| Cross-host handoff | Preserve portable exact Git/context, target identity, post-import acknowledgement and subsequent exact source revocation. Current tests exercise these boundaries. A duplicate worktree parser in destination cleanup still rejects the valid native bare-repository record because it lacks `HEAD`; the shared exact-target observer returns absent correctly. Graph and exact-source review trace its consumers to carrier removal, import worktree creation and Lease recovery, then import compensation. Migrate these consumers to native observation while retaining exact-target uniqueness, error mapping and branch normalization; do not add a bare-name exception or delete the wrapper without accounting for those relations. |
 | Immutable artifacts and running evidence | Native immutable publication recognizes identical bytes, rejects changed bytes and symlinks, and preserves the symlink target. Retired generic model-store wrappers and the global operation/failure-count database are not necessary. Keep typed receipt validation with actual consumers and durable running/terminal observation with existing effects; coverage across all public long operations remains open. |
 | Collaboration and generated traces | Advisory path overlap is not semantic cooperation/competition selection. Preserve multi-contribution, all-drop knowledge, common-resource interference and negative observations in the full product path. Old Lease state-machine tests assert retired carrier/offer semantics; current sequence invariants need their own model, not those old field assertions. |
 
@@ -1831,6 +1834,61 @@ The log/JUnit and test hashes are retained and owned scratch was removed. These
 results do not establish full proof, generic role edges, ref-only candidate
 support or hosted publication. No source implementation or lane retirement was
 performed by this review checkpoint.
+
+#### Final Hook, Recovery And Historical Feedback Review
+
+At `7a8cdfedd`, twenty further paths have justified dispositions. Review includes
+the complete changed hook/install/rebind assertions, deleted recovery tests,
+native identity cases, architectural constraints and seven changed literal-case
+entries compared by identity. The three feedback paths absent at both merge base
+and retained working tree were recovered from their intervening source-HEAD
+blobs; an empty endpoint diff would have missed them. All 388 original content
+hashes/existence observations remain unchanged.
+
+| Boundary | Retained obligation and disposition |
+| --- | --- |
+| Hook activation | Current runtime activation owns one common selector and family-wide native configuration. Preserve exact pre-state restoration, partially cleared overrides, every compensation failure, concurrent installer exclusion, reference-safe reclamation and source-independent execution. Historical prepared/committed journals express interruption cases, not authority to add another operation store. Ordinary exception tests do not prove abrupt-process-death recovery. |
+| Package resolution | Preserve exact wheel provenance, missing/ambiguous output rejection, durable content-addressed bytes, collision refusal, interpreter/ABI closure and no staging-bound executable after activation. Keep explicit tool stderr and unavailable supply; do not restore caller-venv copying, handwritten dependency closure or location-only trust. A fixture binary and BUILD marker are not proof of a distributable standalone runtime. |
+| Commit and review policy | The current optional CommitPolicy and shared range validator replace the historical mandatory grammar plus a second profile command parser. Retain staged/native message admission, generated-message parity, exact new integration range and signature checks. Proposal title and merge-ingestion admission remain unproved; an arbitrary external validator cannot quietly become another subject-policy owner. |
+| Intent transition and rebind | Preserve admitted semantic changes versus identity-only repair, exact staged tree/parent/overlay, independent signer trust, missing or ambiguous target refusal, package-only execution and no mutation during readiness. Preserve partial-effect recovery, idempotent recognition and renewed actor/generation checks without restoring persistent Commitment, permissions or Lease-carried Git/index fields. Removing that obsolete rebind command does not complete archive/reopen or legacy-input migration. |
+| Local state and refresh | Preserve unknown tables and records, DB/WAL/SHM families, exact source/target bytes, collisions, occupied staging, symlink/track protection and verification rollback. Reset cannot discard live or unknown coordination merely because its schema is obsolete. Refresh must preflight native conflicts and report original failed commit, unmerged stages, remaining replay and each reverse-CAS/attachment/restoration failure. |
+| Identity migration | Full-DAG replacement retains a bijection, ordered parents, exact trees, timestamps and unknown raw headers, stable boundaries and only declared changes. Current signature-only repair is narrower. A synthetic signature or signed tip does not prove ancestry trust; native effective global/local trust configuration remains part of verification. |
+| Architectural and literal fixtures | Preserve unique responsibilities and actual dependency/behavioral boundaries, not exact import/function-name sets, compulsory directory markers, second evidence roots, active Change IDs or regex-shaped task tables. Case data remain fixtures, not an independent policy. Their deleted/renamed cases retain source assertions even when old field and command shapes disappear. |
+| Feedback preservation | Preserve bounded raw occurrences, exact reconstruction, source attribution, explicit unresolved meaning, justified supersession and requirement/evidence correspondence. Reject the old host-specific ledger, sentence splitting as semantic atomization, label-based review certification and checked-task proof catalogue as another progress owner. Current intent context correctly distinguishes source completeness from interpretation-not-assessed; complete accepted understanding still requires the existing P1/P2 workload. |
+
+The deleted feedback manifest contains four historical source prefixes, 44
+mapping rules and nine grouped earlier-Change dispositions. Those selectors and
+counts are provenance locators, not proof that every source constraint was read
+or understood. Its durable Commitment, controller expansion, fixed review path
+and 36000-test budget are superseded; its open collaboration, publication,
+recovery, runtime, quality and complete-input obligations remain above. This
+review does not certify the underlying historical session's full semantic
+coverage or silently import application constraints as direct user instructions.
+
+A bounded execution of the deleted auditor's `semantic_review_gaps` function
+returns no gaps for a label-only item and for an unrelated mandatory-winner
+mapping of a source permitting all-decline. Only the default label is rejected.
+This is a historical single-function counterexample, not a current product or
+full-audit bypass. It explains why exact reconstruction and mapping coverage
+cannot certify accepted interpretation; do not port the old self-certifying
+test. The executable observation and source digest are retained in the existing
+counterexample receipt with that explicit boundary.
+
+Current counterpart verification passed 115 assertions in 37.50 seconds,
+38.13 seconds including startup. It covers native Git/config restoration,
+failure aggregation, staged policy, multi-update push dispatch, package input and
+manifest rejection, native signature bytes/trust and refresh recovery. The
+`transition-final-runtime-recovery-focused` operation, log and JUnit bind the
+unchanged HEAD and exact test hashes; its owned scratch root was removed. No
+wheel was built, historical test module installed, source implementation changed
+or full proof claimed. Earlier unchanged family evidence remains scoped reuse.
+
+The sole remaining path is the historical repository-governance specification:
+its committed 121 requirements and 336 scenarios were reduced from 3708 lines to
+251 retained lines. Review the actual removed assertions against current owners,
+not headings, counts or file similarity. Recovery/disposal readiness remains
+false until this review and exact recoverability checks finish. Missing product
+capabilities remain open even after the historical checkout can safely retire.
 
 #### Native Reference And Review Projection Follow-Up
 

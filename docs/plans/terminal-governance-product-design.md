@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 68 explicitly reviewed source/test paths in the existing
-`transition-content-comparison.json`; 320 remain unreviewed. The earlier
+There are now 91 explicitly reviewed source/test paths in the existing
+`transition-content-comparison.json`; 297 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1372,6 +1372,41 @@ main pipeline 6489 successful. GitHub run 34656812053 has successful quality and
 all nine native OS/Python package jobs, while its exact-HEAD source-verification
 job remains running; the other ETHOS CI run is queued. Neither partial matrix
 success nor the unchanged top-level timestamp establishes complete hosted proof.
+
+The retirement/Git-effect/proof family adds 23 reviewed paths at source hashes
+bound to `d2b86858a`. Current counterparts passed 100 selected tests in 103.09
+seconds, including actual lock-holder exit/kill, partial disposal preserving
+unreviewed survivors, recovery after worktree removal and Git process-creation
+failure, exact multi-ref CAS, failed postcondition/persistence compensation and
+ambiguous evidence rejection. Eight additional proof/postimage cases passed in
+78.61 seconds: archive-bound proof survives Lease retirement, missing or conflicting
+archive authority is rejected, issuance reuses frozen acceptance while rechecking
+current authority, and scratch postimage observation preserves the real index.
+The existing `transition-retirement-focused` operation/log/JUnit retain exact
+commands and source hashes; the supplementary run is nested in that operation
+receipt. Both owned scratch roots were removed. These are scoped counterparts,
+not a new full proof or physical retirement of the historical lane.
+
+| Historical mechanism | Disposition and current acceptance boundary |
+| --- | --- |
+| Separate abandonment and recreate-before-retire recovery | Replace with the current immutable RetirementOperation and observed remaining effects. Keep reason, exact source/accepted/holder binding, authorization, current content/liveness checks and recovery from the surviving control root. No need to reconstruct a removed checkout merely to delete it again. |
+| Candidate-only landed retirement | Do not relabel candidate integration as accepted absorption. Current landed policy requires accepted ancestry; explicit retained-topic history and reviewed-content disposal carry different claims. Preserve useful early-retirement requirements without restoring candidate proof as a second authority or waiting unnecessarily for main. |
+| Same-holder successor cutover | Preserve exact source and successor content, current generation and failure safety. Old controller-string equality does not establish quiescence. The existing semantic-successor route still rejects a live source Lease; the retained-topic route is a distinct history-preservation mechanism, not proof of accepted semantic absorption. |
+| Role-transition rollback bypass | Reject the historical `_compensation_environment` that sets `core.hooksPath` to the null device. Current executor has no such path. Reverse effects must satisfy the public authority/hook protocol; the previously observed divergent-ref compensation gap remains a real follow-up, not a justification for bypass. |
+| Operation-name authority and durable Commitment | Replace the old per-operation classifier catalogue and rebind exceptions with exact primitive effect binding plus the responsible semantic owner's admission. Matching a hash or command shape alone does not establish trusted policy or independent authorization. Current negative tests reject bare semantic operation labels and stale actor/generation/prestate. |
+| Per-plan effect receipt stores | Current Git-backed Attestation selection owns exact effect evidence and validated recovery. Flat/directory plan stores and old receipt-presence inference do not return. Scope, temporal validity, issuer and observation must still agree; unknown outcome is not success. |
+| Worktree and proof materialization | Current native worktree/postimage owners preserve exact bytes/index and resource identity; the historical text-to-100644 helper would lose mode semantics and is not copied. Proof uses frozen CurrentResolution and transient Commitment rather than caller-invented Lease HEAD bindings. Private proof-artifact JSON encoding remains an identity-consolidation review item, not a demonstrated corrupt artifact. |
+
+The eight-case run locates further iteration cost rather than proving a speed
+repair: one fixture setup took 15.27 seconds; three archive-proof cases each
+took 18.27–19.49 seconds including construction and queries, whose costs were
+not separately timed. Their fixtures rebuild adopted repositories and proof
+context. Measure and optimize construction and shared immutable inputs at that
+owner while keeping real integration and negative evidence; do
+not increase workers, omit assertions, or treat fewer selected tests as a global
+throughput improvement. The 100-case run locates its slowest cases in native
+reviewed-retirement tests; it does not isolate their internal costs or prove a
+deadlock.
 
 #### Native Reference And Review Projection Follow-Up
 

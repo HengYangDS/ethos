@@ -1273,8 +1273,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 387 explicitly reviewed source/test/carrier paths in the existing
-`transition-content-comparison.json`; one remains unreviewed. The earlier
+All 388 selected source/test/carrier paths now have explicit dispositions in
+`transition-content-comparison.json`; none remains unclassified. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1883,12 +1883,39 @@ unchanged HEAD and exact test hashes; its owned scratch root was removed. No
 wheel was built, historical test module installed, source implementation changed
 or full proof claimed. Earlier unchanged family evidence remains scoped reuse.
 
-The sole remaining path is the historical repository-governance specification:
-its committed 121 requirements and 336 scenarios were reduced from 3708 lines to
-251 retained lines. Review the actual removed assertions against current owners,
-not headings, counts or file similarity. Recovery/disposal readiness remains
-false until this review and exact recoverability checks finish. Missing product
-capabilities remain open even after the historical checkout can safely retire.
+#### Canonical Specification Absorption And Current Contradictions
+
+The last historical path is now reviewed: its committed repository-governance
+specification contains 121 requirements and 336 scenarios, while the retained
+rewrite has 15 requirements and 15 scenarios. Every original requirement has a
+reasoned disposition, exact block/scenario hashes and a current contract owner
+in the existing `transition-requirement-disposition.json`. The fifteen rewritten
+requirements have separate dispositions. This accounts for deleted meaning, not
+just surviving headings; it does not certify implementation or full historical
+conversation recovery.
+
+Comparison at `e532c4009` found 94 same-name requirements in the current canonical
+spec, 63 with unchanged text. Unchanged text is not acceptance: some preserves
+obsolete requirements. Current source has 133 requirements and 427 scenarios,
+but neither growth nor a complete heading map establishes semantic fidelity.
+The following corrections belong to the existing owners and implementation
+sequence, not this review's spec-free Change:
+
+| Current contradiction or missing relation | Required owner-level correction and exit evidence |
+| --- | --- |
+| Runtime and supply | Canonical clauses still require `build/runtime/venv`, reject root `.venv`, and copy a fixed OpenSpec version. Align their references with selected immutable Git-common runtime, native contributor toolchain and supply owners. Preserve source isolation, package closure and bounded nested-lock behavior; prove both execution contexts instead of replacing one pathname everywhere. |
+| Intent, coordination and evidence | Clauses retain Chronicle-gated clearing, predeclared or separately accepted Commitment permissions, subject/payload Lease schema and old transition matrices. Migrate consumers to official intent, transient compilation, four-field Lease and exact non-authorizing Attestations; retain unknown-row preservation, source attribution and each interrupted-effect obligation. No text substitution counts as a model migration. |
+| Trust and role boundaries | Old candidate-hook self-approval, independent release treated as unprotected, and fixed candidate-only proposal source conflict with incumbent-policy control and declared role semantics. Verify trusted prior policy, selected source OID, exact review/integration ranges and dev/main protection without broadening actor permissions. |
+| Documentation and adoption | Canonical text still prescribes evidence/history/reference lanes and one-file adoption; a deployed-reader clause names terminal-v1/v2 carriers. Resolve against actual native bootstrap and portable owner relations. Preserve meaningful decisions, custom adopter layout and explicit missing capabilities; do not restore the obsolete skeleton or compatibility carrier. |
+| Preserved capability versus retired mechanism | Learning, external inspection, negative experiments, handoff, complete adoption and recovery remain requirements after deleting campaign, claim, parity and feedback ledgers. Current equivalent evidence must be scoped; the full P1--P7 path and independent conformance remain unproved. |
+
+Complete review now permits exact recovery preparation, not disposal. The next
+step is to verify a reconstructible copy of unique committed, staged, unstaged
+and untracked source material, inspect ignored resources and actual writers,
+and obtain the public reviewed-retirement decision. Keep `retirement_ready=false`
+until those checks pass. Product repairs above remain open after source checkout
+retirement; preservation is bounded by their named consumers rather than an
+indefinite backup policy.
 
 #### Native Reference And Review Projection Follow-Up
 

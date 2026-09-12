@@ -382,8 +382,8 @@ def test_proof_issuance_reuses_the_plan_commitment_without_rereading_exact_head(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    write_active_commitment(repo, change_id="dirty-proof-binding")
-    head = git(repo, "rev-parse", "HEAD")
+    write_active_commitment(repo, change_id="frozen-proof-binding")
+    head = commit_fixture(repo, "freeze proof intent")
     plan = current_proof_plan(repo, expected_head=head)
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
 

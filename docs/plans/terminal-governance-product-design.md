@@ -1247,6 +1247,60 @@ all historical feedback. That initial comparison did not authorize source
 deletion; the final complete review, recovery and public retirement below
 supersede this checkpoint.
 
+#### Proof Execution Source Binding
+
+On 2026-09-12, the AIGW owner reported tracked-file drift during proof at its
+`f692767b` source and withheld that proof from publication. Its file times do not
+establish writer identity or every gate's input timing. ETHOS independently
+reproduced the actual current-source failure at `67e8454f0` with an isolated Git
+fixture, the real public `prove --full --execute` command and native subprocess
+gates: baseline passed; a gate changed tracked content while HEAD remained fixed,
+and the CLI still issued a passing exact-commit Attestation. No proof, parser or
+policy monkeypatch was needed. No adopter was modified.
+
+Official `proof-execution-source-binding` now owns this release-blocking repair.
+The root cause is in proof issuance and execution correspondence: committed HEAD,
+tree and Lease were checked, but the mutable checkout/index read by gates were
+not. Existing proof Facts now carry native worktree/index correspondence; the
+same owner checks before and after execution, at issuance and before selecting
+a newly issued result. A historical plan without the required source binding is
+not upgraded by hashing or rebinding. Historical evidence remains intact.
+
+Public RED observed five false passes for tracked modification/deletion,
+index-only mutation, policy mutation and untracked source. Those cases now fail
+closed without restoring user bytes. Clean input with ignored output still passes.
+Direct issuance and new-result selection also reject drift. One old test wrongly
+allowed uncommitted intent to support a HEAD proof; it now freezes that intent,
+while preserving the original no-repeat-OpenSpec-compilation obligation. Executor
+unit fixtures now provide real clean source coordinates instead of weakening the
+new boundary. The frozen authority/Commitment is reused; source is separately
+observed rather than adding source facts to Lease.
+
+This is native sampled source correspondence, not a hostile same-UID sandbox.
+Transient changes restored between observations, external input closure and
+independent verifier isolation remain separately bounded obligations. Do not
+claim a Lease, digest or sampled before/after equality proves immutable execution.
+A future isolated execution adapter must preserve native tools and package supply
+without creating another lifecycle. Source-aware diagnostic retention and exact
+failure currentness must remain usable during interruption/recovery.
+
+Evidence in the existing ignored home:
+`proof-source-observation.json`, `proof-source-red.log`,
+`proof-source-existing-boundaries.log`, `proof-source-frozen-runner-green.log`,
+`proof-source-observation-red.log` and `proof-source-green.log`. Focused repairs
+are not full proof or accepted/runtime delivery. The combined affected proof-set
+regression passed 107 tests in 217.36 seconds; source, schema, documentation and
+budget public preflight passed five gates. Ruff, Markdown and native config checks
+also passed. Late source failure now preserves check diagnostics in the existing
+content-addressed artifact home rather than discarding the successful execution
+observations. The final real late-selection drift check passed in 1.46 seconds with one
+selection attempt, a single failed CLI result, retained checks and unchanged
+user edits. The 105 downstream land/closeout/publication/accepted-ref and
+control-replacement regressions also passed in 547.73 seconds using two workers
+and an automatically removed temporary root. Freeze, then verify and archive
+this Change
+and close out the combined dependency/source-integrity candidate.
+
 #### Native Dependency Audit Closure
 
 Official `dependency-audit-closure` replaces the Python-only security owner with
@@ -1273,8 +1327,14 @@ long-term retention, hosted CI or full repository acceptance.
 Evidence is in `dependency-audit-{boundaries-red,concurrency-red,green}.log`,
 `dependency-audit-{probes,node-supply,parser-green}.json` and
 `dependency-audit-{native,network-unavailable,static}.log` within the existing
-ignored quality evidence home. Finish static and public-gate validation, freeze,
-then complete exact proof, official archive and accepted/runtime/peer observation.
+ignored quality evidence home. Implementation `11f314470` passed exact full proof: 35 gates, 3,161 tests
+passed, one skipped, 95.0227100681302 percent combined coverage, 1960.18 seconds.
+Its owned pytest root was removed. Official archive produced `67e8454f0`, tree
+`eef4dce37729017e51024d4cef2e3f24dd787187`; all five archived files match their
+original hashes and the working tree was clean. The newly reproduced proof-source
+integrity defect above takes priority over postarchive proof and acceptance.
+The dependency repair is archived but not accepted or installed. Complete both
+through one current exact proof and accepted/runtime/peer observation sequence.
 Remove the scoped override when its direct owner resolves a current safe parser.
 This does not claim complete latest-stable supply convergence or close unrelated
 P0-P7 obligations.

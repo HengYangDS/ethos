@@ -83,6 +83,7 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
     nodes = tuple(PlanNode(id=node_id, kind="check", command=(node_id,)) for node_id in ("a", "b"))
     commitment = commitment_fixture(id="repository:test", acceptance=("acceptance:fixture",))
     plan = compile_plan(
@@ -90,9 +91,9 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
         Facts(
             repository=commitment.id,
             head=head,
-            tree=git(repo, "rev-parse", "HEAD^{tree}"),
+            tree=tree,
             observed_at=datetime.now(UTC),
-            values={},
+            values={"execution_source": {"worktree": tree, "index": tree}},
         ),
         nodes,
         policy={},
@@ -163,6 +164,9 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     monkeypatch, tmp_path, verdict, readiness_gate
 ):
     """A real registry edge must stop the public proof transport before testing."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
     declaration = load_gate_registry_declaration()
     selected = declaration.proof_gates(full=True)
     registry = {gate.id: gate for gate in selected}
@@ -177,10 +181,10 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
         commitment,
         Facts(
             repository=commitment.id,
-            head="a" * 40,
-            tree="b" * 40,
+            head=head,
+            tree=tree,
             observed_at=datetime.now(UTC),
-            values={},
+            values={"execution_source": {"worktree": tree, "index": tree}},
         ),
         nodes,
         policy={},
@@ -190,7 +194,7 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     class Runner(gate_runner.LocalGateRunner):
         def run(self, node, gate, *, root):
             assert gate.id == node.id
-            assert root == tmp_path
+            assert root == repo
             executed.append(node.id)
             return ActionRunResult(
                 node.id,
@@ -203,7 +207,7 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
         proof_cli, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
     )
     monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
-    checks, passed = proof_cli.run_plan_checks(repo=tmp_path, plan=plan, execute=True, capacity=2)
+    checks, passed = proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
     assert passed is False
     assert "schemas" in executed
     assert not {"unit-architecture", "coverage-floor", "build", "local-install-smoke"}.intersection(

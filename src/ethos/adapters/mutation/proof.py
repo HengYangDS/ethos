@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
@@ -16,19 +17,23 @@ from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
+from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
@@ -111,6 +116,61 @@ def _proof_issue_values(
     )
 
 
+def _execution_source(root: Path, head: str, tree: str) -> dict[str, str]:
+    """Observe native working content and staged correspondence without editing the index."""
+    try:
+        staged = run_git(
+            root,
+            "diff",
+            "--cached",
+            "--quiet",
+            "--no-ext-diff",
+            head,
+            "--",
+            check=False,
+            observation=True,
+        )
+        with observe_worktree_postimage(root, previous=head) as observed:
+            worktree = observed.tree
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        message = f"proof_execution_source_unavailable:{error}"
+        raise ValueError(message) from error
+    if staged.returncode not in {0, 1}:
+        message = f"proof_execution_source_unavailable:{staged.stderr.strip()}"
+        raise ValueError(message)
+    return {"worktree": worktree, "index": tree if staged.returncode == 0 else ""}
+
+
+def assert_proof_execution_source(
+    root: Path, plan: TransitionPlan, *, checks: tuple[dict[str, object], ...] = ()
+) -> None:
+    """Fence exact-commit execution and retain completed checks if source drifts."""
+    head = str(plan.facts.get("head") or "")
+    gaps = execution_source_gaps(plan.facts)
+    gap = gaps[0] if gaps else ""
+    cause: ValueError | None = None
+    try:
+        if not gap and (
+            current_tracked_head(root) != head
+            or _execution_source(root, head, str(plan.facts.get("tree") or ""))
+            != plan.facts["values"]["execution_source"]
+        ):
+            gap = "proof_execution_source_changed"
+    except ValueError as error:
+        gap, cause = str(error), error
+    if not gap:
+        return
+    if not checks:
+        raise ValueError(gap) from cause
+    artifact = write_proof_artifact(proof_artifact_root(root), head, checks)
+    raise ProcessExecutionError(
+        gap,
+        reason="execution_source_correspondence_failed",
+        cwd=str(root),
+        observation={"artifact_reference": artifact, "proof_attestation_selected": False},
+    ) from cause
+
+
 def _assert_proof_issuance_currentness(root: Path, plan: TransitionPlan) -> str:
     """Reject mutable repository or authority drift before proof issuance."""
     head = str(plan.facts.get("head") or "")
@@ -155,6 +215,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         msg = "proof_plan_not_admitted"
         raise ValueError(msg)
     head = _assert_proof_issuance_currentness(root, plan)
+    assert_proof_execution_source(root, plan, checks=checks)
     commitment = (
         Commitment.model_validate(mutable_json(plan.commitment), strict=False)
         if plan.commitment is not None
@@ -266,6 +327,7 @@ def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str,
     ]
     if structural_gaps:
         raise ValueError(structural_gaps[0])
+    assert_proof_execution_source(root, plan_from_statement(attestation), checks=checks or ())
     return record_attestations(root, (attestation,))
 
 
@@ -302,6 +364,7 @@ def proof_plan(
             "changed_paths": effective_paths,
             "change_id": selected_change_id,
             "gate_ids": tuple(node.id for node in nodes),
+            "execution_source": _execution_source(root, head, authority.current_tree),
             **(
                 {
                     "selected_carrier": observed_scope.selected_carrier,

@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 282 explicitly reviewed source/test/carrier paths in the existing
-`transition-content-comparison.json`; 106 remain unreviewed. The earlier
+There are now 323 explicitly reviewed source/test/carrier paths in the existing
+`transition-content-comparison.json`; 65 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1710,6 +1710,60 @@ than restoring the historical implementation wholesale. Preserve these gaps in
 the existing quality/P5 sequence while finishing the remaining absorption
 families and recovery; do not expand this review into a second implementation
 roadmap or postpone source retirement behind an unbounded audit.
+
+#### Package, Output And Recovery Projection Review
+
+At `b7af85361`, 41 further source/test/carrier paths were dispositioned. Review
+covered the complete historical package hook and install-smoke delta, Skills,
+result/operation schemas, public hook/Lease/recovery projections and related
+contract tests. All source inventory entries remain unchanged. Two deleted
+namespace markers contain only docstrings; their original Git blobs are bound
+without treating empty markers as missing product capabilities.
+
+| Boundary | Retained meaning and current disposition |
+| --- | --- |
+| Package construction | Use prepared lock-bound production supply and one build identity; current hook owns identity-temp cleanup and sdist/wheel projection. Reject the old uncleaned temporary npm tree, partial dependency copying, duplicate resource manifest and extra resource package. Current fixture tests are not crash/kill or complete installed-platform evidence. |
+| Pure-package acceptance | Keep source-hidden command/schema/resource checks, activation/upgrade/repair, real signing and missing-coordination recovery. Current delivery acceptance replaces the monolithic smoke. Reject persistent Commitment migration, controller/Lease expansion, fixed observation dates and true-only checks as behavioral assurance. Signature-only tip repair is not complete-DAG replacement. |
+| Skills and schema | Preserve optional capabilities, safe package paths, content identity, unique semantic owners and nonauthorizing evaluation evidence. Current portfolio and interpreter-owned schemas replace playbooks-v2 modes/scores and caller-checkout schema substitution. Do not restore a generic resources/schema facade. |
+| Result and output | Preserve immutable typed values, explicit authority choice, domain state and one actionable continuation. Do not collapse partial or unknown states or enforce a factory by constructor spelling. Transport failure must not discard verdict enforcement or pretend a partial JSON write completed. |
+| Long operations | Preserve running/terminal observations, process identity, logs, bounded waits and safe recovery without effect replay. Historical status/resume can cycle after process loss; resume tokens and failure-count escalation do not justify a permanent operation database. Host tool handles and local test receipts do not establish the installed product capability. |
+| Public lifecycle projections | Retain exact actor/generation, fresh authority, content recovery and current commands. Current hook install is an effect command without the historical --apply option. Missing-worktree reconstruction, lossless failure continuation and full-DAG migration remain distinct gaps; do not restore old receipt commands to disguise them. |
+| Model and inventory | Keep transient intent, canonical values, four-field Lease and native generated schemas. Removed collaboration heuristics and tests do not retire cooperation/competition/all-drop obligations. Inventory failure cannot be represented by an empty successful source set. |
+
+Two new counterexamples change the required repair evidence:
+
+1. `emit` normally enforces a blocked result with exit code 1. With a real full
+   nonblocking pipe, its `BlockingIOError` handler returns normally before the
+   enforcement check. A short-write transport accepts only three characters of
+   a passing JSON result and also returns normally. The current output test
+   explicitly expects a terminal no-op for both broken pipe and backpressure;
+   that test endorses the latter defect rather than proving safety. Distinguish
+   broken consumer, temporary congestion and partial write; bound delivery and
+   preserve a non-success outcome without replaying already-performed effects.
+2. The actual host `python-size` CLI passes a 501-line untracked Python file
+   under a 500-line policy, blocks when it is staged, then passes again after
+   its isolated Git index is corrupted. Both passing reports have no gaps.
+   `git_files` maps failed native inventory to `[]`, and `code_size_report`
+   labels it evaluated. Untracked early-check scope and unreadable inventory
+   are separate distinctions. Preserve a valid empty-repository path while
+   making unavailable input honest and keeping source visibility consistent.
+
+Exact inputs and observations are retained as
+`public_emitter_loses_enforcement_on_backpressure` and
+`size_inventory_failure_and_untracked_source_are_false_empty`. The latter includes
+an initial unborn fixture correctly blocked by `repository_tree_ref_invalid`
+before gate execution, followed by the valid committed-baseline contrast above.
+These are output API and real host-gate observations, not a demonstrated full
+proof, accepted-object or publication bypass. Native pipe descriptors and all
+scratch repositories were closed or removed.
+
+The `transition-package-output-focused` run passed 107 assertions in 0.30 seconds,
+0.73 seconds including startup. Exact test hashes, operation log and JUnit bind
+prepared supply, hook construction, Skills, result contracts and acceptance
+reducer/failure boundaries. Many tests use fixtures or substituted dependencies;
+none builds a wheel or executes the complete installed lifecycle. Source and
+policy remain unchanged, and the two defects remain open. Reuse prior accepted
+package evidence only at its original identity and scope.
 
 #### Native Reference And Review Projection Follow-Up
 

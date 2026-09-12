@@ -4891,6 +4891,31 @@ removing suffix inference alone would leave that acceptance distinction missing.
     independent when selected, but cannot become a universal duplicate
     implementation or default heavyweight blocker.
 
+### Hosted Scanner Supply Follow-Up — September 13, 2026 (+08:00)
+
+GitLab dev pipeline 6522 at accepted `e34d894` failed five native scanner
+regressions: verify job 37430 lacked gitleaks, although its separate secrets job
+passed. Coverage and generated-artifact gates were dependency-blocked, not
+independently failing. The same shared entrypoint must prepare its own native
+test prerequisites; ambient local tools cannot prove that closure.
+
+The bounded `hosted-test-tool-supply` Change reuses the existing scanner and SCC
+installers, preserves their diagnostics, and stops before proof on either
+preparation failure. The real transport reproduced RED for missing scanner
+preparation. Its success and prerequisite-failure cases plus the five actual
+scanner cases pass together: 37 tests, no concurrency or timeout change, owned
+scratch removed. The complete three affected modules then pass 76 tests on the source-bound
+Python 3.14 environment; Ruff, shell syntax, ShellCheck, shfmt and native
+Markdown validation pass. Exact-source proof and both hosted observations
+remain separate completion requirements. The earlier intermittent 15-second
+child startup timeout is not fixed by this supply correction.
+
+Proposal review ingress remains the next independent correction in this owned
+lane: remove the candidate-only/full-Change-proof cycle through the publication
+semantic owner and its consumers, retaining exact objects, signature and range
+policy, fresh peer CAS and stronger accepted/release obligations. No adopter
+mutation, role spoofing, compatibility carrier or second roadmap is involved.
+
 ## Completion Boundary
 
 Terminal convergence is verified only when every batch above is accepted and

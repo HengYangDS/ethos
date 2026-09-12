@@ -336,6 +336,17 @@ packages into the repository audit.
   gate as separate declared gates
 - **AND** neither gate becomes a second lifecycle command plane
 
+#### Scenario: Empty current scope does not rehydrate historic archive authority
+- **GIVEN** proof resolution has no current changed paths and retains only a
+  valid historic OpenSpec archive authority
+- **WHEN** full proof compiles its TransitionPlan for the current HEAD
+- **THEN** the plan does not carry that historic archive authority as a prior
+  attestation
+- **AND** the plan does not report `proof_archive_scope_stale` solely because
+  historic authorized paths are absent from the empty current scope
+- **AND** an applicable non-empty current scope retains strict archive-path
+  validation.
+
 ### Requirement: Proof States Distinguish Planning From Execution
 ETHOS SHALL distinguish planned gate readiness from executed proof.
 

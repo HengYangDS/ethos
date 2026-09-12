@@ -18,10 +18,23 @@ _FACT_FIELDS = {
     "change_id",
     "changed_paths",
     "gate_ids",
+    "execution_source",
     "lease_generation",
     "path_attributions",
     "selected_carrier",
 }
+
+
+def execution_source_gaps(facts: Mapping[str, object]) -> tuple[str, ...]:
+    """Require explicit native checkout/index correspondence for exact-commit proof."""
+    values = facts.get("values")
+    source = values.get("execution_source") if isinstance(values, Mapping) else None
+    if not isinstance(source, Mapping) or set(source) != {"worktree", "index"}:
+        return ("proof_execution_source_binding_missing",)
+    tree = facts.get("tree")
+    if not isinstance(tree, str) or not tree or any(value != tree for value in source.values()):
+        return ("proof_execution_source_mismatch",)
+    return ()
 
 
 def archive_authority_valid(value: object) -> bool:

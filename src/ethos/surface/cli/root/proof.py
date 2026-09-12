@@ -18,9 +18,11 @@ from ethos.adapters.admission.current.resolution import resolve_current_resoluti
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import run_gate_graph
+from ethos.adapters.mutation.proof import assert_proof_execution_source
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.verdict import Verdict
@@ -207,6 +209,8 @@ def run_plan_checks(
     if not isinstance(plan_head, str) or not plan_head:
         message = "proof_plan_head_missing"
         raise ValueError(message)
+    if execute:
+        assert_proof_execution_source(repo, plan)
     gates_by_id = resolve_gate_policy(
         repo,
         tree_ref=plan_head,
@@ -233,6 +237,8 @@ def run_plan_checks(
                 "diagnostics": list(run_result.diagnostics),
             }
         )
+    if execute:
+        assert_proof_execution_source(repo, plan, checks=tuple(checks))
     verdicts_ok = bool(checks) and all(check["verdict"] == "pass" for check in checks)
     trust_bearing_ok = any(
         check["trust_bearing"] is True and check["verdict"] == "pass" for check in checks
@@ -275,6 +281,21 @@ def _proof_next_action(
     return "ethos plan --changed --json"
 
 
+def _emit_proof_gap(error: ValueError, *, json_output: bool) -> None:
+    """Project one proof failure with its original diagnostics and no second claim."""
+    emit(
+        EthosResult(
+            command="prove",
+            verdict="block",
+            state="gapped",
+            required_gaps=(str(error),),
+            next_action="ethos plan --changed --json",
+            data=error.observation if isinstance(error, ProcessExecutionError) else {},
+        ),
+        json_output=json_output,
+    )
+
+
 def _issue_proof_or_emit_gap(
     repo: Path, payload: Mapping[str, object], *, json_output: bool
 ) -> Attestation | None:
@@ -282,16 +303,7 @@ def _issue_proof_or_emit_gap(
     try:
         return issue_proof_attestation(repo, payload)
     except ValueError as error:
-        emit(
-            EthosResult(
-                command="prove",
-                verdict="block",
-                state="gapped",
-                required_gaps=(str(error),),
-                next_action="ethos plan --changed --json",
-            ),
-            json_output=json_output,
-        )
+        _emit_proof_gap(error, json_output=json_output)
         return None
 
 
@@ -355,16 +367,7 @@ def prove(
             full=options.full,
         )
     except ValueError as exc:
-        emit(
-            EthosResult(
-                command="prove",
-                verdict="block",
-                state="gapped",
-                required_gaps=(str(exc),),
-                next_action="ethos plan --changed --json",
-            ),
-            json_output=json_output,
-        )
+        _emit_proof_gap(exc, json_output=json_output)
         return
     plan_gaps = plan.required_gaps
     if plan.verdict != "pass":
@@ -382,16 +385,7 @@ def prove(
     try:
         checks, runs_ok = run_plan_checks(repo=repo, plan=plan, execute=options.execute)
     except ValueError as exc:
-        emit(
-            EthosResult(
-                command="prove",
-                verdict="block",
-                state="gapped",
-                required_gaps=(str(exc),),
-                next_action="ethos plan --changed --json",
-            ),
-            json_output=json_output,
-        )
+        _emit_proof_gap(exc, json_output=json_output)
         return
     verdicts_ok = bool(checks) and all(check["verdict"] == "pass" for check in checks)
     trust_bearing_ok = any(
@@ -466,8 +460,6 @@ def prove(
         if options.execute
         else None
     )
-    if options.execute and attestation is None:
-        return
     if attestation is not None and attestation.verdict == "pass":
         try:
             persist_proof_attestation(repo, attestation)
@@ -476,9 +468,13 @@ def prove(
                 dict.fromkeys((*required_gaps, f"proof_attestation_persistence_failed:{error}"))
             )
             verdict = "block"
-            attestation = issue_proof_attestation(
-                repo, {**payload, "verdict": verdict, "required_gaps": required_gaps}
+            attestation = _issue_proof_or_emit_gap(
+                repo,
+                {**payload, "verdict": verdict, "required_gaps": required_gaps},
+                json_output=json_output,
             )
+    if options.execute and attestation is None:
+        return
     result_state = (
         "proven"
         if verdict == "pass" and options.execute

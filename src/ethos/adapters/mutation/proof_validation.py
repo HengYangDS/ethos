@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
@@ -163,6 +164,7 @@ def proof_statement_gaps(
         return [str(error)]
     return [
         *_binding_gaps(attestation, plan),
+        *execution_source_gaps(plan.facts),
         *_statement_gaps(attestation, statement),
         *_gate_gaps(plan, checks),
         *_result_gaps(attestation, checks),

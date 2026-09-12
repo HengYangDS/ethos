@@ -167,6 +167,78 @@ def test_repository_proof_without_active_change_has_no_commitment(tmp_path: Path
     assert proof_module.proof_for_repository_transition(candidate, head) == (record, [])
 
 
+def test_proof_plan_does_not_rehydrate_archive_authority_without_current_scope(
+    tmp_path: Path,
+) -> None:
+    """Historic archive authority is not a proof input when fresh scope is empty."""
+    _repo, candidate = start_adopted_candidate(tmp_path)
+    head = git(candidate, "rev-parse", "HEAD")
+    archive_authority = {
+        "predicate": "effect:git-ref-update",
+        "attestation_id": "a" * 64,
+        "effect_digest": "c" * 64,
+        "plan_digest": "d" * 64,
+        "claim": {"operation": "openspec.archive", "effect": "c" * 64},
+        "source": "archive_commit",
+        "authorized_paths": ["openspec/changes/archive/previous/tasks.md"],
+    }
+    resolution = CurrentResolution(
+        verdict="pass",
+        authority=CurrentAuthority(
+            verdict="pass",
+            reason="not_required",
+            branch="candidate/dev",
+            actor="agent:test:case:agent-test",
+            lease={},
+            current_head=head,
+            current_tree=git(candidate, "rev-parse", "HEAD^{tree}"),
+            required=False,
+        ),
+        commitment=None,
+        scope=CurrentScope((), archive_authority=archive_authority),
+    )
+
+    plan = proof_plan(candidate, resolution=resolution)
+
+    assert plan.prior_attestations == {}
+    assert "proof_archive_scope_stale" not in plan.required_gaps
+
+
+def test_proof_plan_keeps_archive_validation_for_nonempty_current_scope(tmp_path: Path) -> None:
+    """A live scope still fails closed when it does not cover historic archive paths."""
+    _repo, candidate = start_adopted_candidate(tmp_path)
+    head = git(candidate, "rev-parse", "HEAD")
+    archive_authority = {
+        "predicate": "effect:git-ref-update",
+        "attestation_id": "a" * 64,
+        "effect_digest": "c" * 64,
+        "plan_digest": "d" * 64,
+        "claim": {"operation": "openspec.archive", "effect": "c" * 64},
+        "source": "archive_commit",
+        "authorized_paths": ["openspec/changes/archive/previous/tasks.md"],
+    }
+    resolution = CurrentResolution(
+        verdict="pass",
+        authority=CurrentAuthority(
+            verdict="pass",
+            reason="not_required",
+            branch="candidate/dev",
+            actor="agent:test:case:agent-test",
+            lease={},
+            current_head=head,
+            current_tree=git(candidate, "rev-parse", "HEAD^{tree}"),
+            required=False,
+        ),
+        commitment=None,
+        scope=CurrentScope(("FEATURE.md",), archive_authority=archive_authority),
+    )
+
+    plan = proof_plan(candidate, resolution=resolution)
+
+    assert mutable_json(plan.prior_attestations) == {"openspec_archive": archive_authority}
+    assert plan.required_gaps == ("proof_archive_scope_stale",)
+
+
 @pytest.mark.parametrize(
     ("field", "value", "gap"),
     frozen_tuple(

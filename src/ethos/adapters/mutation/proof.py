@@ -318,7 +318,7 @@ def proof_plan(
             *(("lease:current-generation",) if work_lane else ()),
         ),
     )
-    archive_authority = observed_scope.archive_authority
+    archive_authority = observed_scope.archive_authority if effective_paths else {}
     prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}
     return compile_plan(
         commitment,

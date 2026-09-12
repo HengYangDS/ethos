@@ -4910,6 +4910,17 @@ Markdown validation pass. Exact-source proof and both hosted observations
 remain separate completion requirements. The earlier intermittent 15-second
 child startup timeout is not fixed by this supply correction.
 
+The subsequent exact-source Python 3.14 run at `62a12a1db` passes 3,189 tests and
+skips one; its 94.986% combined coverage matches GitHub's failure. The prior
+Python 3.13 artifact has a different executable-statement denominator. Loose
+coverage files without the exact source binding are excluded from comparison.
+No threshold, exclusion, timeout or concurrency is relaxed. Five real recovery
+cases now exercise valid/invalid index restoration, overlay-preserving cleanup,
+unreadable-index refusal and missing/unbound candidate acceptance. The complete
+Git effect module passes 17 cases in 2.66 seconds, including five previously
+unobserved statements and five branches. A new full proof is still required;
+those focused observations are not merged into an old proof or called acceptance.
+
 Proposal review ingress remains the next independent correction in this owned
 lane: remove the candidate-only/full-Change-proof cycle through the publication
 semantic owner and its consumers, retaining exact objects, signature and range

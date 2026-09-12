@@ -13,6 +13,9 @@ must fail before the expensive test suite, not after twenty minutes.
   original diagnostic; exercise both prerequisite owners and successful supply.
 - Preserve real scanner regressions, coverage requirements, concurrency and
   exact-source hosted result semantics.
+- Close demonstrated gaps in native Git index recovery and compensation
+  regressions. The Python 3.14 full run reproduces GitHub's 94.986% coverage;
+  retain the 95% floor and test real failure behavior rather than suppress code.
 
 ## Capabilities
 
@@ -24,7 +27,8 @@ must fail before the expensive test suite, not after twenty minutes.
 ## Impact
 
 `tools/ci/scripts/run-head-bound-proof.sh`,
-`tests/unit/ci/test_hosted_verification.py`, the quality specification and the
+`tests/unit/ci/test_hosted_verification.py`,
+`tests/unit/mutation/test_git_effect_operations.py`, the quality specification and the
 existing terminal plan. Both Forge projections invoke the shared entrypoint.
 
 ## Non-Goals

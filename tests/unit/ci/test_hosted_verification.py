@@ -39,14 +39,15 @@ def _report_source(repo: Path, reports: str) -> str:
     )
 
 
-def _hosted_scripts(repo: Path, supply_script: str) -> Path:
-    """Keep a real wrapper with one isolated external-tool preparation boundary."""
+def _hosted_scripts(repo: Path, supply_script: str, scanner_script: str = "exit 0\n") -> Path:
+    """Keep the real wrapper with isolated external-tool preparation boundaries."""
     scripts = repo / "tools/ci/scripts"
     scripts.mkdir(parents=True)
     shutil.copy2(ROOT / "tools/ci/scripts/run-head-bound-proof.sh", scripts)
-    installer = scripts / "install-scc.sh"
-    installer.write_text("#!/bin/sh\n" + supply_script)
-    installer.chmod(0o755)
+    for name, body in (("scc", supply_script), ("gitleaks", scanner_script)):
+        installer = scripts / f"install-{name}.sh"
+        installer.write_text("#!/bin/sh\n" + body)
+        installer.chmod(0o755)
     return scripts
 
 
@@ -109,9 +110,12 @@ def test_hosted_receipt_requires_exact_executed_observation(
     command_log = tmp_path / "commands.jsonl"
     binary = tmp_path / "bin/uv"
     binary.parent.mkdir()
+    scanner = binary.parent / "gitleaks"
     binary.write_text(
         f"#!{sys.executable}\n"
-        "import json, pathlib, sys\n"
+        "import json, pathlib, subprocess, sys\n"
+        f"scanner = subprocess.check_output([{str(scanner)!r}, 'version'], text=True)\n"
+        "assert scanner.strip() == 'fixture-scanner'\n"
         f"with pathlib.Path({str(command_log)!r}).open('a') as stream:\n"
         " stream.write(json.dumps(sys.argv[1:])+'\\n')\n"
         "if sys.argv[1:6] != ['run', '--frozen', '--offline', 'ethos', 'prove']:\n"
@@ -123,7 +127,11 @@ def test_hosted_receipt_requires_exact_executed_observation(
     )
     binary.chmod(0o755)
     (binary.parent / "python3").symlink_to(sys.executable)
-    scripts = _hosted_scripts(repo, f"printf '%s\\n' '{binary.parent}'\n")
+    scripts = _hosted_scripts(
+        repo,
+        f"printf '%s\\n' '{binary.parent}'\n",
+        f"printf '#!/bin/sh\\nprintf fixture-scanner\\n' > '{scanner}'\nchmod +x '{scanner}'\n",
+    )
     summary_file = tmp_path / "summary.md"
     completed = subprocess.run(
         ["bash", str(scripts / "run-head-bound-proof.sh"), expected],
@@ -163,10 +171,18 @@ def test_hosted_receipt_requires_exact_executed_observation(
     assert ("Coverage: 95.50%" if reports == "valid" else "Coverage: unavailable") in summary
 
 
-def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(tmp_path: Path) -> None:
+@pytest.mark.parametrize("failed_tool", ["scc", "gitleaks"])
+def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
+    tmp_path: Path, failed_tool: str
+) -> None:
     """A failed prerequisite must not leave prior passing output or invoke proof."""
     repo = init_git_repo(tmp_path / "repo")
-    scripts = _hosted_scripts(repo, "echo scc_archive_checksum_mismatch >&2\nexit 23\n")
+    failure = f"echo {failed_tool}_archive_checksum_mismatch >&2\nexit 23\n"
+    scripts = _hosted_scripts(
+        repo,
+        failure if failed_tool == "scc" else "exit 0\n",
+        failure if failed_tool == "gitleaks" else "exit 0\n",
+    )
     evidence = repo / "build/evidence/quality"
     proof = evidence / "proof/executed-proof.json"
     old_test = evidence / "tests/pytest/junit.xml"
@@ -191,7 +207,7 @@ def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(tmp_path: 
         check=False,
     )
     assert result.returncode == 23, result.stdout + result.stderr
-    assert "scc_archive_checksum_mismatch" in result.stderr
+    assert f"{failed_tool}_archive_checksum_mismatch" in result.stderr
     assert not invoked.exists()
     assert not old_test.exists()
     assert not proof.exists() or "stale passing output" not in proof.read_text()

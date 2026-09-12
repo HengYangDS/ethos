@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 240 explicitly reviewed source/test/carrier paths in the existing
-`transition-content-comparison.json`; 148 remain unreviewed. The earlier
+There are now 282 explicitly reviewed source/test/carrier paths in the existing
+`transition-content-comparison.json`; 106 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1652,6 +1652,64 @@ This extends the already reproduced official-custom-schema artifact-path gap;
 it does not justify an adopter carrier or a second Markdown parser. Standard
 no-spec planning already passes its current test and must not be reported as
 universally broken from the older adopter incident.
+
+#### Quality Execution And Input Closure Review
+
+At `1d99b640f`, 42 additional historical paths were reviewed across policy
+compilation, source budgets, native quality sessions, artifact/evidence ownership,
+schemas, CI emulation and their tests. Every retained source hash and deletion
+still matches the 388-path inventory. Deleted evidence modules bind their actual
+source-HEAD blobs, including changes since the merge base. Classification does
+not authorize source disposal or establish implementation of the retained gaps.
+
+| Historical mechanism | Preserved obligation and terminal disposition |
+| --- | --- |
+| Gate material declarations | Bind the complete inputs that can change the claimed check, including native configuration, code, rules and environment. Retain direct-source binding but do not treat it as transitive closure. Do not copy failed Git expansion as an empty success, duplicate runtime/quality registries or unchecked model construction. |
+| Scheduling and resource locks | Preserve dependency-ready execution, failed/unknown prerequisite refusal, ordered results and actual resource interference. Historical forced serialization and lock-labelled wave tests do not prove cross-process safety. Resource footprint, cancellation and shared-runtime boundaries need their own real counterexamples. |
+| Source measurement | Preserve complete inventory, semantic ELOC, noncompensating role limits and native cross-check errors. Reject the historical unavailable-inventory fallback that discarded gaps. Per-file and aggregate inventories must have consistent declared scope; old caps and evidence-root exemptions do not return. |
+| Native sessions and formatting | Preserve working write/check commands, deleted-file exclusion, semantic-preserving formatting and idempotence. Use the existing native session owner, not a second implementation map, a session-name allowlist or largest-bytecode-tuple discovery. Historical hardcoded Python paths and global Markdown rewriting are not accepted. |
+| Evidence and artifacts | Current Git-selected Attestations replace mandatory evidence/docs-evidence trees and topology-only freshness. Preserve identity, malformed/collision refusal, lifecycle-safe producer homes, nonauthorizing human summaries and necessary historical bytes. A reported current HEAD is not proof that evidence is bound to it. |
+| Schema, supply and documentation | Keep executing-product schemas, native validation and exact package resources. Current runtime dependencies already include filelock/uv; do not restore old package layout or generic resource facades. Malformed-schema reporting, native Ruff D coverage and overlapping custom docstring semantics remain unresolved. |
+| CI emulation | Keep exact materialization, bounded subprocess/log evidence and cleanup. Dry-run/list, a nonempty log, local emulator completion and hosted CI are different claims. Mutable-context refactoring or removal of a class name proves none of those boundaries. |
+
+Three current counterexamples distinguish a named owner from a complete owner:
+
+1. In an isolated native Git repository, a real shell gate reads a configuration
+   value. Changing it from `95` to `0`, then deleting it, changes the actual
+   `LocalGateRunner` verdict from pass to block and block. All three resolved
+   policy digests remain identical with no policy gaps because only the script
+   is bound. Source commits and trees differ: this is an incomplete policy-input
+   identity, not proof that full proof or exact-HEAD admission can be bypassed.
+2. The real format ownership audit accepts a check equal to its formatter write
+   command, a `prettier --write` check, and a missing Nox session. Four isolated
+   cases retain exact declarations and reports. No declared formatter executed;
+   successful file-to-owner assignment does not prove nonmutating check behavior.
+3. The repository itself declares ten formatter commands using `-s format --`.
+   Its native `python -m nox -l` succeeds but lists no `format` session, matching
+   the current public session tuple. Existing architecture tests check metadata
+   and selected gate sessions, not the reachability of all formatter commands.
+
+These inputs and actual results are in the existing counterexample receipt as
+`gate_policy_dependency_material_not_bound`,
+`format_owner_declaration_accepts_nonchecking_commands` and
+`native_format_session_is_declared_but_unavailable`. The first native session
+listing attempt omitted declared node supply and failed before observation;
+the corrected envelope reused existing supply without installation or effect
+replay. This harness error is retained separately from the missing session.
+
+Eighty-one focused current assertions passed in 2.99 seconds, 3.45 seconds
+including startup. They cover runner failure/ordering, native inventory and
+sessions, formatting assignment, budget failures, artifact classification and
+Git-selected Attestation identity. The `transition-quality-focused` operation,
+log and JUnit bind exact test hashes; scratch was removed. These passing tests
+do not fix or contradict the counterexamples, certify hosted CI or replace a
+full proof. Source, tests, configuration and locked supply remain unchanged.
+
+Repair the existing format/session boundary and gate material compiler rather
+than restoring the historical implementation wholesale. Preserve these gaps in
+the existing quality/P5 sequence while finishing the remaining absorption
+families and recovery; do not expand this review into a second implementation
+roadmap or postpone source retirement behind an unbounded audit.
 
 #### Native Reference And Review Projection Follow-Up
 

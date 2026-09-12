@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 323 explicitly reviewed source/test/carrier paths in the existing
-`transition-content-comparison.json`; 65 remain unreviewed. The earlier
+There are now 358 explicitly reviewed source/test/carrier paths in the existing
+`transition-content-comparison.json`; 30 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1764,6 +1764,43 @@ reducer/failure boundaries. Many tests use fixtures or substituted dependencies;
 none builds a wheel or executes the complete installed lifecycle. Source and
 policy remain unchanged, and the two defects remain open. Reuse prior accepted
 package evidence only at its original identity and scope.
+
+#### Landing, Status And Proof Projection Review
+
+At `5258a839c`, 35 additional historical paths were dispositioned across landing,
+status, planning/proof, adoption, native role/schema projections and their
+fixtures. The retained source inventory remains unchanged. Existing admission,
+retirement and runtime focused-test hashes were rechecked without rerunning
+their unchanged assertions.
+
+| Boundary | Retained obligation and disposition |
+| --- | --- |
+| Candidate and accepted effects | Preserve exact candidate/accepted CAS, incumbent policy, proof predicate and input identity, equal-ref no-op and post-CAS worktree recovery. Ref identity must not depend on a persistent candidate checkout. Current ref-only candidate readiness is still rejected; the historical nullable-worktree implementation is not copied wholesale. |
+| Audit and closeout | Audit the exact candidate content, never substitute accepted-root content when a candidate checkout is absent. Current verified archived-proof selection and shared closeout command replace old carrier-bound authority; generic declared role transitions remain unimplemented. |
+| Planning and proof | Preserve one fresh intent/authority resolution, dependency-complete gates, host/focused/repository distinctions, persistence failures and first-action consistency. Reject persistent carrier/review fields, cost-count collaboration heuristics and structural wrappers that add no capability. Expected-head and audit failures must reject before expensive execution. |
+| Status and recovery | Preserve missing ref versus missing worktree, unknown state versus absent coordination, exact actor/generation and native field diagnostics. Retire controller/index/overlay Lease mirrors, shared inbox state, hardcoded calendar authority and semicolon prose masquerading as a command. Current profile diagnostics and recovery continuations remain incomplete. |
+| Lane identity | Preserve stable common-repository targeting, meaningful names, collision refusal and configured role boundaries. A date prefix or fixed work prefix is not semantic identity. Current start and landing still require linked candidate state; removing old tests would not deliver ref-only support. |
+| Failure and test preservation | Retain post-CAS attachment failure, reverse-CAS rejection, native conflict preflight, original-content restoration and signature trust as distinct acceptance cases. Do not restore fake signatures, direct Lease rewrites, private receipts or comment-only quality contracts merely to revive old tests. Shared doubles and field casts do not establish independent evidence. |
+
+Two fresh observations confirm outstanding boundaries. Native
+`candidate_base_report` rejects a repository with equal dev/candidate/work OIDs
+and no candidate checkout as `candidate_worktree_missing`; it used actual Git
+without supplied status or mocked ancestry. Separately, the public status CLI
+rejects `roots.rules = "."` but emits empty diagnostics and generic repair text,
+discarding the native validator's field and cause. Their exact inputs/results
+are retained as `unbound_candidate_native_readiness_block` and
+`invalid_profile_public_diagnostic_loses_field_reason`. Neither observation
+claims unauthorized landing or invalid-policy admission.
+
+The `transition-lifecycle-focused` run passed 37 assertions in 31.31 seconds,
+31.77 seconds including startup. One real isolated archive/candidate scenario
+with seeded proof verified that status, plan, closeout and pre-push project the
+same exact apply command; it accounted for 31.08 seconds. Remaining assertions
+exercise current candidate failure, proof result and public error boundaries.
+The log/JUnit and test hashes are retained and owned scratch was removed. These
+results do not establish full proof, generic role edges, ref-only candidate
+support or hosted publication. No source implementation or lane retirement was
+performed by this review checkpoint.
 
 #### Native Reference And Review Projection Follow-Up
 

@@ -4,3 +4,12 @@ title = "ETHOS gitleaks configuration"
 # set is extended directly so upstream rule improvements flow in.
 [extend]
 useDefault = true
+
+# Provider tokens have a prefix; legacy credential assignments remain covered
+# by the inherited generic-api-key rule. A Git OID is not a provider token.
+[[rules]]
+id = "sourcegraph-access-token"
+description = "Sourcegraph prefixed access token"
+regex = '''(?i)\b(sgp_(?:[a-f0-9]{16}|local)_[a-f0-9]{40}|sgp_[a-f0-9]{40})\b'''
+entropy = 3
+keywords = ["sgp_"]

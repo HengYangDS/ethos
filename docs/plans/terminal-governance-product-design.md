@@ -208,12 +208,25 @@ convergence and source-to-installed delivery.
 
 ### Semantic Authority And Projection Homomorphism
 
-The implementation compiles the semantic kernel into transport and presentation
-surfaces without changing assertion identity. Every projection preserves source
-identity, provenance, bindings, validity, and an external observation's absence
-reason; it cannot mint authority or hide a required gap. Isomorphism is checked
-across the product repository and adopters by comparing the same kernel inputs,
-verdict boundary, and attestation shape rather than their physical layouts.
+Convergence follows the contract's one-owner invariant at the level of each
+independently changeable decision, not each file. Select its authoritative
+declaration and interpretation owner, migrate every consumer, then retire the
+superseded declaration or implementation. Native configuration owns supported
+tool policy; CLI, hooks and CI consume that owner rather than reinterpreting it.
+Documentation may explain the same meaning without becoming another editable
+policy. A generated copy must retain exact provenance and freshness; a stale
+copy cannot silently become current authority.
+
+Verify both unique ownership and preservation through each transformation:
+change one source condition, observe every affected consumer, reject stale or
+contradictory projections, and retain independently chosen counterexamples.
+One shared implementation can still be wrong; tests that repeat its logic do
+not establish independent correctness. Incomplete observation, discarded UNKNOWN
+and invalid effect composition require their own repairs, not configuration
+deduplication alone. Compare the same assertion identity, scope, bindings,
+validity, verdict and absence reason across product/adopter surfaces rather than
+requiring identical physical layouts. This uses existing owners and tests, not
+another authority registry or a catch-all central module.
 
 The terminal architecture declaration under
 `system/projections/terminal-architecture/` selects the complete visual
@@ -1257,13 +1270,30 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 358 explicitly reviewed source/test/carrier paths in the existing
-`transition-content-comparison.json`; 30 remain unreviewed. The earlier
+There are now 367 explicitly reviewed source/test/carrier paths in the existing
+`transition-content-comparison.json`; 21 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
 temporary root was removed. These tests establish their retained assertions,
 not full-DAG replacement, complete dynamic coverage or all 388 source paths.
+
+The nine historical documentation paths were already read in full or as complete
+deltas; their original working hashes and deleted Git blobs were rechecked at
+`f50c368d4` before recording dispositions. README/index/history navigation does
+not restore a mandatory five-directory spine, duplicate entrypoint or README
+shell. The old product contract and evolution campaign preserve full-product,
+vendor-neutral learning capabilities, not persistent Commitment dependencies or
+two result homes. Retain the topology rationale of preservation, extraction,
+placement, integration, verification and retirement without prescribing directory
+counts. The deleted release plan retains immutable identities, exact objects,
+partial publication and independent hosted observations; its old release number,
+two-wheel layout and blanket force prohibition are historical. The tooling plan
+and mechanism comparison retain measurable replacement and native capability
+evaluation, not blanket tool bans, arbitrary finding quotas, a second tool
+registry, 100-percent coverage or permanent cache prohibition. Previously recorded
+doc/decision counterpart evidence is reused only where its exact test bytes are
+unchanged; it does not prove these open product capabilities or source disposal.
 
 Two discriminating probes prevent those passes from hiding missing behavior.
 The public `module_layout_gate_report` still passes a literal dynamic import

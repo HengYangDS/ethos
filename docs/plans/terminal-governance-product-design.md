@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 172 explicitly reviewed source/test/carrier paths in the existing
-`transition-content-comparison.json`; 216 remain unreviewed. The earlier
+There are now 204 explicitly reviewed source/test/carrier paths in the existing
+`transition-content-comparison.json`; 184 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1430,7 +1430,7 @@ proof nor a measured whole-suite speed improvement.
 The two new probes extend `transition-current-counterexamples.json`, each with
 its own exact HEAD and claim boundary; their isolated scratch was removed.
 No source/runtime/adopter implementation changed in this review. The old
-publication/role-transition delta is only partially inspected and remains
+publication/role-transition review was still partial at that checkpoint; it remained
 unclassified; the completed family must not imply that remaining review is done.
 
 For the remaining review, semantic families are the decision unit and paths are
@@ -1535,6 +1535,68 @@ comes from the independent Git Attestation set; brand positioning still describe
 a narrower operating loop than the full product contract. Repair those existing
 projections with their owning work, not by restoring obsolete evidence roots or
 using the diagram as product authority.
+
+#### Publication, Role Effects And Capability Projection Review
+
+At `5401d80ff`, another 32 paths are dispositioned across publication, accepted
+promotion, role transitions, Git signing and linked worktrees, CLI/Skills,
+provider documentation and seven main specifications. Six specification deltas
+only insert blank lines before existing headings/scenarios; those deltas add no
+new requirement. This does not adopt their obsolete baseline vocabulary or prove
+semantic equivalence from token counts. The adapter delta additionally retains
+hook-bootstrap ordering and partial-effect guarantees while replacing historical
+release-mirror wording with generic coupled roles; that generic role capability
+is not currently implemented.
+
+| Responsibility | Current counterpart and retained gap |
+| --- | --- |
+| Remote object publication | Current native executor has exact object/trust/proof binding, SHA-256 support and peer-local multi-ref atomicity. Keep it rather than copying the historical single-ref implementation, whose observer has three undefined `merged` references. |
+| Review source and proposal retirement | Preserve public exact-object review refresh, accepted merge lineage/range validation and deletion after dev acceptance plus review closure, without waiting for main. Current candidate-only source restriction remains; historical merge/retire commands and tests do not make the current capability available. |
+| Partial and uncertain outcomes | Actual effects, transport ACK, observation and terminal evidence are distinct. Current successful-push/postread-loss handling is present, but lost-ACK handling and CLI partial summary are still incorrect, as reproduced below. |
+| Local role transitions | Preserve exact source/target and linked-worktree consistency, postarchive proof selection, equality validation and bounded compensation. Do not restore a command-private role request store or derive permission from persistent Commitment. Current accepted promotion still uses release_mirror rather than generic declared edges. |
+| Candidate object versus checkout | Current decision and promotion require a candidate worktree. Preserve exact-OID audit without permanent checkout as an open capability; do not copy an audit reader that creates/removes registered worktrees or silently audits accepted bytes as candidate content. Reuse native object/projection owners. |
+| Native signing | Current commit owner requires explicit repository-local public-key input and validated signer. Historical effective-config/tilde/adjacent-private-key support is not automatically accepted: preserve native usability only with trusted-origin binding and actual signing tests, not filename inference. |
+| CLI and Skills | Retain thin native dispatch, root binding, stable failures, live-operation observation and failure-left discipline. Remove old lifecycle package, fixed command sequence, static retry table and playbooks-v2 vocabulary. Current publish help says it does not push although explicit apply does; align the existing declaration. |
+| Capability and Forge projections | Retain optional capability contracts and independent local/emulator/hosted evidence. Do not require every adapter to own a gate/config/CI stack or claim that a list of standards is implemented. Current adapter/standards pages and independent-proof example still overstate or blur these boundaries. |
+
+Nine selected public CLI tests passed in 57.96 seconds (58.46 seconds including
+startup) against isolated native bare peers: unavailable preflight, successful
+push followed by unavailable observation, terminal-record interruption, partial
+peer retry, peer-local multi-ref atomicity, SHA-256 creation, selected-proof
+drift and one-peer publication. `transition-publication-focused` retains the
+exact command, source hash, log and JUnit. Fixture proof is seeded; these tests
+are not hosted Forge permission tests or current full repository proof. The
+owned temporary root was removed. The multi-ref test consumed 28.57 seconds;
+optimize its measured setup/effect path rather than increasing concurrency.
+
+A further 4.49-second public CLI probe exposes two missing distinctions:
+
+- When the first peer accepts and the second peer's real pre-receive hook rejects,
+  state is partial and detailed effects name the applied peer, but the summary
+  still says `remote_push=not_performed`. Derive both views from the same effect
+  outcome rather than equating all nonterminal-success states with no effect.
+- When the second peer actually accepts, its transport ACK is lost and post-write
+  observation is unavailable, the executor emits block/partial and labels that
+  peer failed. Native readback after removing the injected fault finds both peers
+  at the requested OID. The owning boundary must preserve UNKNOWN until observed;
+  nonzero transport status is not evidence that the remote did not change.
+
+The probe uses actual isolated Git pushes and injects only ACK loss and the
+unavailable post-read. It records exactly one push to the affected peer. The
+existing counterexample receipt `public_publication_partial_and_lost_ack` carries
+inputs, source hashes, detailed results and independent ref readback. No live
+remote, adopter, model, runtime or repository ref was changed. The first probe
+attempt stopped because a hermetic empty Git template had no hooks directory;
+its scratch was removed, then the isolated fixture parent was created explicitly.
+Both fault cases completed and the final owned root was removed.
+
+Required repair stays in the existing publication owner and its CLI projection:
+merge attempt, ACK and observed ref facts without inventing certainty, preserve
+known partial effects, re-observe before a retry, and never replay a successful
+peer just to repair a summary. Existing per-peer atomicity remains; no global CAS,
+second retry framework, provider-native object recreation or adopter patch is
+introduced. Review refresh/merge/retirement needs the same exact source authority
+and public capability, not revival of the historical parallel command plane.
 
 #### Native Reference And Review Projection Follow-Up
 

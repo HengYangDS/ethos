@@ -1257,8 +1257,8 @@ proof that all historical user input has been recovered.
 | Public results, recovery and time | Retain first-action correctness, bounded running/terminal evidence and exact failure diagnostics. Do not restore a permanent operation database, failure-counter escalation or user-decision inference from command strings. Domain state, observation time and authorization remain distinct; UTC normalization and archive calendar consistency require actual wire/effect tests. |
 | Documentation and formatting | Retain guides/quickstart, meaningful decisions, producer/consumer ownership and executable formatter/check parity. Reject empty decision indexes, a versioned decision ledger, redundant README shells and moving decision authority into governance navigation. `dr-number-topic` naming remains an explicit uncompleted user requirement; merely lowercase existing filenames are insufficient. |
 
-There are now 204 explicitly reviewed source/test/carrier paths in the existing
-`transition-content-comparison.json`; 184 remain unreviewed. The earlier
+There are now 240 explicitly reviewed source/test/carrier paths in the existing
+`transition-content-comparison.json`; 148 remain unreviewed. The earlier
 counterpart suite passed 317 tests in 6.84 seconds across semantic values,
 TransitionPlan, coordination, results, gate registry/execution, commit policy,
 native object trust, layout, schema loading and format ownership. Its owned
@@ -1597,6 +1597,61 @@ peer just to repair a summary. Existing per-peer atomicity remains; no global CA
 second retry framework, provider-native object recreation or adopter patch is
 introduced. Review refresh/merge/retirement needs the same exact source authority
 and public capability, not revival of the historical parallel command plane.
+
+#### Official Intent, Archive And Continuation Review
+
+At `d482235a8`, 36 additional paths are dispositioned across official OpenSpec
+observation/compilation, archive effects, start/rollover, rebind, refresh, CLI and
+counterpart tests. The exact historical inventory is unchanged. Current source,
+policy and tests still match accepted `00c23fc9` outside the review documents;
+source classification remains distinct from implemented capability and disposal.
+
+| Historical mechanism | Preserved obligation and terminal owner |
+| --- | --- |
+| Repository/change Commitment files and schema | Retire persistent intent, scope, subjects, authority, risks, hypotheses and dependency carriers. Official OpenSpec owns accepted intent; three-field Commitment is transient. Learning, constraints and real prerequisites remain product capabilities, not deleted obligations. |
+| Rebind loader, admission, derivation and evidence | Remove permission-residue compatibility, expanded Lease mirrors, whole-store dangling-object discovery and a command-private receipt tree. Preserve exact staged content, trust, fresh actor/generation, ambiguity refusal and recovery through current resolution, native postimage and shared effects. |
+| Native OpenSpec adapter | Retain locked/bundled runtime identity, explicit contributor supply, bounded native errors, UTC/root environment and exact official artifact graph. Do not restore shared-clone-per-query or a resource facade. Consume declared artifact paths rather than hardcoded design/tasks filenames. |
+| Intent context | Preserve original sources, exclusions, assumptions, missing-source diagnostics and interpretation-not-assessed. Retire mandatory regex Requirement-To-Task-To-Proof tables. Native parsing and a coverage table do not prove accepted understanding or verifier sufficiency. |
+| Archive and next Change | Retain exact relocation/postimage, immutable collision preservation, legal no-spec proof and policy-admitted commits. Use current Git-selected result evidence and four-field coordination, not Lease-carrier rebinding. Official reopening and subsequent intent must remain reachable without old coordination resurrection. |
+| Calendar identity | One native archive invocation and its predicted collision path must agree, including a UTC-day boundary. Do not treat a caller-supplied date or chat date as authority over the native effect. Existing UTC adapter setup is not a complete temporal-boundary proof. |
+| Refresh feasibility | Preserve dry-run conflict evidence before user-worktree effects, failed commit and unmerged stages, surviving source bytes and exact target revalidation. Current dry run checks topology/ancestry but does not establish replay feasibility. Reject old per-command stores, unsigned replay for stable OIDs and swallowed restoration errors. |
+| Tasks and lifecycle | Keep native task progress separate from actual proof/archive/publication effects. Remove lifecycle.toml and first-word verb rules that strip checkboxes. A task about testing retirement is not itself an unauthorized retirement; no second task language or automatic intent rewrite. |
+
+Forty-nine selected current assertions passed in 1.31 seconds (1.82 seconds
+including startup), covering minimal/no-spec acceptance, native no-spec planning
+before tasks complete, task-checkbox identity stability, exact archived-result
+selection, preserved context, missing-source errors, subprocess timeout, native
+root environment and archive path/collision boundaries. Exact inputs, test
+hashes, output and JUnit are under `transition-openspec-focused`; its owned root
+was removed. Most cases isolate projections with fixtures; they do not establish
+complete installed-runtime archive, land, publication or cross-platform behavior.
+
+A new native counterexample identifies an acceptance-model gap that directly
+obstructs destructive simplification. An official Change containing only a
+REMOVED requirement, with its reason and migration, passes strict OpenSpec
+validation with zero issues and has a complete planning artifact graph. Official
+show returns one REMOVED delta with requirements. Current
+`load_openspec_commitment` rejects it as
+`openspec_acceptance_missing:remove-obsolete`: `_acceptance_items` discards every
+REMOVED delta, so a removal-only Change compiles to nothing. The existing removal
+test mixes REMOVED and ADDED and therefore cannot expose the missing legal path.
+
+The existing `official_removal_only_acceptance_compilation` counterexample
+contains all fixture source bytes/hashes, official validate/show/status JSON and
+the actual compiler error. The native sequence took 0.58 seconds and removed its
+scratch root. No monkeypatch, fake spec addition, live repository effect or full
+proof claim is involved. This verifies the public compiler boundary, not every
+CLI transition.
+
+Repair acceptance at that one compiler: preserve the removal operation and its
+accepted reason/migration as positive obligations about the resulting system,
+without requiring the retired behavior to remain true. Verify pure removal,
+mixed add/remove, rename, valid no-spec and malformed projections separately;
+absence of required semantics cannot be replaced by an arbitrary nonempty hash.
+This extends the already reproduced official-custom-schema artifact-path gap;
+it does not justify an adopter carrier or a second Markdown parser. Standard
+no-spec planning already passes its current test and must not be reported as
+universally broken from the older adopter incident.
 
 #### Native Reference And Review Projection Follow-Up
 

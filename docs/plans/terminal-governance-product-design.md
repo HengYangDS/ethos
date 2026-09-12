@@ -1942,12 +1942,48 @@ the selected common runtime supplied the valid execution boundary.
 
 `transition-native-cache-clean.json` and its native log retain that actual
 effect. This is cleanup of obsolete local cache, not proof that long-running
-resource production is bounded. Generated smoke repositories remain untouched
-and must be related to their producer, unique results, liveness and native
-worktree registrations before exact cleanup and renewed retirement preflight.
-Keep `retirement_ready=false`; whole-lane quiescence and public disposal are not
-proved. Product repairs above remain open after source checkout retirement;
-preservation is bounded by their named consumers, not indefinite backup policy.
+resource production is bounded.
+
+The historical install-smoke producer owns five Git checkout/bare-repository
+surfaces within one generated family. Native worktree and remote inspection
+found only internal registrations and targets; all four checkouts were clean.
+Native file-identity observation found no live references. Its 32 shared object
+inode groups were entirely internal to the fixture family. Before disposal,
+220 result, Git and configuration files were preserved in a 59639-byte archive;
+isolated reconstruction matched their hashes/modes and 201 directory entries.
+Native fsck and complete object inventories passed for both repositories and the
+empty publication peer. The original smoke result was already preserved by the
+source recovery package. Installed environments and generated private signing
+keys were excluded, not retained as a second executable runtime.
+
+Recovery exposed two real verifier mistakes: safe tar extraction changed
+read-only object modes, and a file-only archive omitted the empty bare peer's
+native directories. Exact manifest-mode restoration and the recorded directory
+inventory corrected these in isolated scratch; failed attempts remain in
+`transition-smoke-family-review.json`. The same archive was reused and scratch
+was removed. Recoverable Git topology is not implied by equal file bytes.
+
+Fresh common-runtime exact-path admission passed. Native Git repacked both
+fixture object stores with unreachable objects retained and one worker; all
+object IDs/types/sizes remained equal and all hardlinks became exclusive. The
+existing generated-tree owner then removed the family without weakening its
+inode guard, bypassing hooks or affecting external repositories. Readback found
+the exact root absent and the outer source HEAD/status unchanged. The inventory
+accounted for 553520938 bytes; this is logical content removed, not measured
+physical disk-space recovery.
+
+Renewed public reviewed-retirement derivation passed in 9.55 seconds and emitted
+receipt `cbde1e7012ffb69bf0c3e34f6265988ffb35ce2473fd9de6acc76f08c0cd62ed`.
+Its exact request remains under the common Git lane-retirement request home.
+This removes the nested-repository blocker; no outer-lane apply occurred. Keep
+`retirement_ready=false` until final whole-lane content/liveness and recovery
+checks settle the public disposal. Product repairs above remain open afterward;
+preservation is bounded by named consumers, not indefinite backup policy.
+
+One code-graph lookup returned stale line coordinates for the cleanup test;
+coverage reported `metadata_changed`. The unrelated snippet was rejected and
+current source read directly. Graph metadata, relationship completeness and
+actual source identity must be checked separately before a deletion decision.
 
 #### Native Reference And Review Projection Follow-Up
 
@@ -1957,9 +1993,33 @@ candidate_branch. Installed runtime `002dfcb0` exposes no independent exact
 source-object/review-refresh option. Merely rebinding from `be54b587` does not
 supply the requested pre-archive work-to-proposal path. Preserve exact-object
 review publication as a positive public capability, separate from archive and
-accepted closeout; no candidate-role spoofing, new lane, squash/resigning or
-hook bypass is a valid substitute. This is committed-source/help evidence, not
-an adopter mutation or remote effect. The AIGW owner was notified directly.
+accepted closeout. Candidate-role spoofing, hook bypass or silently changing an
+already selected object's identity is not an equivalent publication. This does
+not prohibit explicitly authorized construction of a new integration candidate.
+This is committed-source/help evidence, not an adopter mutation or remote effect.
+The AIGW owner was notified directly.
+
+The September 12 AIGW feedback requests that distinct capability: select the
+complete reviewed product tree and construct one new signed product commit above
+fresh accepted/dev, instead of rewriting every historical object. Current public
+lane/land help and exact installed landing, signature-repair and publication
+owners expose no such synthesis operation. Landing advances candidate to the
+existing work HEAD; signature repair preserves the accepted tip payload. The
+four inspected modules match authoring, accepted and installed bytes. Updating
+to this runtime cannot supply the missing command; no synthetic continuation is
+promised and the adopter is not asked to copy an implementation.
+
+Handle candidate synthesis in the existing integration owner and bounded product
+Change: bind trusted accepted parent A, selected tree T, official intent and
+retained review provenance, actor, subject/signature policy and fresh authority.
+The new C must satisfy parent(C)=A and tree(C)=T, receive applicable exact-object
+admission, and project as the same object to each peer after local CAS. Tree
+identity alone cannot transfer old commit-bound proof; reuse only evidence whose
+complete inputs and applicability remain unchanged. New-range admission and an
+independent all-history signature audit are different claims: unsigned ancestors
+already in A do not become signed by creating C. No historical exemption or
+mandatory full-DAG rewrite follows from this request. AIGW/Proxy were not mutated;
+the owner received the current capability gap and these preconditions directly.
 
 The same installed runtime also retains a concrete hook failure-serialization
 defect. A controlled nested MappingProxyType block report passed to execute_hook

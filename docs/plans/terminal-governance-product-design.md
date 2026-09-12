@@ -69,8 +69,8 @@ source bindings, 113 nodes and 164 relations. Neither exportability nor this
 failure-left-shift measurement proves rendered-diagram quality or an overall
 suite speedup. Delivery receipts remain in the existing ignored evidence home.
 
-The active official Change is `semantic-version-boundaries`, in the same owned
-`work/20260907-missing-lease-reconciliation` lane. Working implementation removes
+At that checkpoint the active official Change was `semantic-version-boundaries`,
+in the same owned `work/20260907-missing-lease-reconciliation` lane. Working implementation removes
 `playbooks-v2`, its single mode, duplicate compliance score, per-record labels,
 eleven unconsumed native-config labels and package-local topology version. The
 existing skill portfolio owner validates original input before normalization;
@@ -1087,9 +1087,9 @@ absorption:
 | `20260810-public-test-boundaries` | Rewritten and replaced test obligations have current-owner correspondence below; accepted public receipt `aff5e7d3` now proves physical retirement. Preserve the existing ref-intent regressions, not the obsolete Commitment fixture. |
 | `20260810-coverage-source-policy-matrices` | All fifteen added definitions are adjudicated and accepted; public receipt `bb4c385a` now proves physical retirement. |
 | `20260810-coverage-public-failure-matrix` | Nine original hashes, dirty deltas and all 14533 native inventory entries were reviewed; no content remained unclassified. Accepted public receipt `67f6f76f` removes the detached worktree and administration only. Postchecks prove root/registration absence and unchanged refs, Lease rows, sibling worktrees and external Python. Four-field CAS, actor readmission, public recovery and cooperative quiescence preserve useful semantics; persistent Lease content/offer binding is superseded. |
-| `20260811-repository-transition-model` | All 26 explicit tasks now have retained, adjusted or superseded meaning dispositions. Its 341 dirty paths and committed changes yield 388 distinct paths requiring complete review; matching names or ASTs do not establish absorption. Preserve its raw-header-byte counterexample in the current Git object owner. Persistent Commitment/scope, fixed train, private operation store and obsolete budgets are superseded. |
+| `20260811-repository-transition-model` | All 388 selected paths and original canonical requirements/scenarios are dispositioned. Verified source recovery preserves useful bytes and open obligations; public terminal receipt `d69d6351` proves worktree/ref/Lease retirement on September 12. No historical implementation was blindly merged. Missing product capabilities remain in their existing owners and plan. |
 | Unlinked `codex/openspec-19-archive-owner` ref | Retired through the accepted public owner; Attestation `067dd0dabfb6b6b6a5e6603c14ea84df11a026da6e8b0a0c7e0f72226b6a92bc`. Its absence does not retire the distinct dirty linked OpenSpec lane. |
-| `20260908-accepted-carrier-signature-repair` | All 18 source hashes remain unchanged and the source is clean. Its same official Change is now being absorbed in the existing authoring lane, without another worktree. Current Git payload/signature observation has failing native-object counterexamples and a focused repair; the public accepted-tip composition and source retirement are still incomplete. |
+| `20260908-accepted-carrier-signature-repair` | Eighteen source paths were reviewed and required signature behavior delivered through the existing owner. Public terminal receipt `6d3fdc65` proves physical source/ref/Lease retirement; seven source commits remain recoverable. Accepted-tip signature repair is not whole-DAG identity rewriting or candidate synthesis. |
 
 #### Current Delivery And Absorption Boundary
 
@@ -1243,8 +1243,9 @@ and `transition-definition-comparison.json` in the existing ignored quality
 evidence home retain exact source coordinates and comparison boundaries. The
 transition comparison covers 26 task dispositions and discovers changed
 definitions; it does not establish complete understanding of all 388 paths or
-all historical feedback. The transition source has not been deleted on that
-evidence; the signature source retired only after its separate closure above.
+all historical feedback. That initial comparison did not authorize source
+deletion; the final complete review, recovery and public retirement below
+supersede this checkpoint.
 
 #### Transition Source Absorption
 
@@ -1974,11 +1975,40 @@ physical disk-space recovery.
 
 Renewed public reviewed-retirement derivation passed in 9.55 seconds and emitted
 receipt `cbde1e7012ffb69bf0c3e34f6265988ffb35ce2473fd9de6acc76f08c0cd62ed`.
-Its exact request remains under the common Git lane-retirement request home.
-This removes the nested-repository blocker; no outer-lane apply occurred. Keep
-`retirement_ready=false` until final whole-lane content/liveness and recovery
-checks settle the public disposal. Product repairs above remain open afterward;
-preservation is bounded by named consumers, not indefinite backup policy.
+Final review matched all 2795 original files, recorded deletions, native index and
+status to the already verified recovery. All 27762 literal nodes were classified;
+no source content identity intersected the native live-process observation.
+Two pytest failure-selector/node inventories were preserved in a 49177-byte
+archive. Hypothesis contained generated constants and Unicode tables, not a
+retained examples database; generic caches and installed environments need no
+second permanent copy. The preflight returned ready for exactly worktree removal,
+ref deletion and Lease revocation.
+
+Public receipt execution completed those three effects in 52.81 seconds.
+Terminal receipt `d69d6351b7f8416d2acefda5b364cda118e76b8abb0c46c26a30e9adb8e40e96`
+reports worktree/ref/Lease absent and accepted unchanged. Native postchecks found
+the selected path, registration and branch absent; dev/main/candidate remain
+`00c23fc9`. The only registered worktrees are accepted, candidate and this active
+authoring lane. Its presence is the single advisory in accepted-root lane status,
+which returns pass/done with no next action; it is not a remaining historical lane.
+No hook bypass, protected source edit or remote mutation was used.
+
+The retained source is recoverable; disposal is not implementation completion.
+All named product gaps remain in this plan. Recovery stays in the authoring
+lane's existing ignored evidence home and must be transferred with verified
+content before that lane retires. This is a named remaining handoff obligation,
+not a claim of permanent storage or permission to preserve environments forever.
+The original review task's no-delete boundary applied to preparation; the
+separately authorized public retirement above is recorded as an executed effect,
+not retroactively inferred from a task checkbox.
+
+Final counterpart review reused thirteen successful scoped runs and retained the
+one earlier timeout as failed evidence. Exact test hashes and all implementation,
+rule/tool configuration and lock inputs are unchanged since those observations.
+Logs exist and every owned scratch root is absent. This supports each recorded
+counterpart's bounded claims, not a combined full-proof result or independent
+whole-product conformance. Documentation/OpenSpec checkpoints and product
+implementation must remain distinct.
 
 One code-graph lookup returned stale line coordinates for the cleanup test;
 coverage reported `metadata_changed`. The unrelated snippet was rejected and

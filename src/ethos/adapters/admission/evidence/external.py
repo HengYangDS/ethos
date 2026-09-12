@@ -19,6 +19,7 @@ from pydantic import ValidationError
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.profile import IndependentVerificationPolicy
@@ -190,9 +191,15 @@ def verify_independent_receipt_signature(
     return completed.returncode == 0
 
 
-def independent_verification_policy(root: Path, action: str) -> IndependentVerificationPolicy:
-    """Load the action-scoped policy with a default-disabled adopter posture."""
-    profile = load_repository_profile(root)
+def independent_verification_policy(
+    root: Path, action: str, *, tree_ref: str | None = None
+) -> IndependentVerificationPolicy:
+    """Select verification policy from the caller's explicit authority coordinate."""
+    profile = (
+        load_committed_repository_profile(root, tree_ref)
+        if tree_ref is not None
+        else load_repository_profile(root)
+    )
     if gaps := profile_required_gaps(profile):
         raise ValueError(gaps[0])
     declaration = profile.declaration

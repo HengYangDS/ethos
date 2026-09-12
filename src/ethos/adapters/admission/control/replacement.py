@@ -27,10 +27,7 @@ _CONTROL_PREFIXES = (
     "tools/ci/",
     "src/ethos/contracts/",
     "src/ethos/measure.py",
-    "src/ethos/adapters/admission/",
-    "src/ethos/adapters/gates/",
-    "src/ethos/adapters/mutation/",
-    "src/ethos/adapters/repo/git.py",
+    "src/ethos/adapters/",
     "src/ethos/domain/campaign/",
     "src/ethos/domain/land/",
     "src/ethos/domain/report",
@@ -85,6 +82,7 @@ def control_replacement_report(
         return report
     verification = _verification_report(
         root=candidate_root,
+        accepted_head=accepted_head,
         request=request,
         receipt_path=independent_verification_receipt,
     )
@@ -163,9 +161,12 @@ def _verification_subject(
 
 
 def _verification_report(
-    *, root: Path, request: dict[str, object], receipt_path: Path | None
+    *, root: Path, accepted_head: str, request: dict[str, object], receipt_path: Path | None
 ) -> dict[str, object]:
-    policy = independent_verification_policy(root, "control_replacement")
+    prior = independent_verification_policy(root, "control_replacement", tree_ref=accepted_head)
+    proposed = independent_verification_policy(root, "control_replacement")
+    modes = {"disabled": 0, "optional": 1, "required": 2}
+    policy = max((prior, proposed), key=lambda item: modes[item.mode])
     if receipt_path is None:
         return independent_verification_report(
             root=root,

@@ -29,6 +29,7 @@ and [Command Plane](reference/command-plane.md).
 | Public commands | [Command Plane](reference/command-plane.md) |
 | Agent entry | [AGENTS.md](../AGENTS.md) and [Rules](../rules/README.md) |
 | Adoption | [Adoption Profiles](architecture/adoption-profiles.md) |
+| Engineering foundation evaluation | [Modern Engineering Foundations](research/modern-engineering-foundations.md) |
 
 ## ETHOS Documentation Shape
 

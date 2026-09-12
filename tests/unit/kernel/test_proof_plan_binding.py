@@ -135,6 +135,32 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     _assert_proof(repo, head, selected=record)
 
 
+@pytest.mark.parametrize("with_commitment", [False, True])
+def test_proof_plan_rejects_unknown_facts_without_a_commitment_bypass(
+    tmp_path: Path, *, with_commitment: bool
+) -> None:
+    """A frozen Mapping has identical proof semantics with and without intent."""
+    repo, head = _adopted_repo(tmp_path / "repo")
+    original = current_proof_plan(repo, expected_head=head)
+    facts = Facts.model_validate(
+        dict(original.facts)
+        | {
+            "observed_at": datetime.now(UTC),
+            "values": dict(original.facts["values"]) | {"unsupported_authority": True},
+        }
+    )
+    commitment = Commitment.model_validate(dict(original.commitment)) if with_commitment else None
+
+    with pytest.raises(ValueError, match="transition_plan_model_gap"):
+        compile_plan(
+            commitment,
+            facts,
+            original.nodes,
+            policy=mutable_json(original.policy),
+            prior_attestations=mutable_json(original.prior_attestations),
+        )
+
+
 def test_repository_proof_without_active_change_has_no_commitment(tmp_path: Path) -> None:
     """A repository proof binds Git and policy without inventing authored intent."""
     _repo, candidate = start_adopted_candidate(tmp_path)

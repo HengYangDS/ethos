@@ -1,6 +1,7 @@
 """Transient, deterministic TransitionPlan compiled from repository declarations."""
 
 import hashlib
+from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from graphlib import CycleError
@@ -386,7 +387,7 @@ class TransitionPlan(_PlanModel):
             message = "transition_plan_closure_invalid"
             raise ValueError(message) from error
         if commitment is not None or (
-            isinstance(self.effect, dict) and self.effect.get("operation") == "proof.execute"
+            isinstance(self.effect, Mapping) and self.effect.get("operation") == "proof.execute"
         ):
             validate_proof_plan(self, commitment, facts)
         if self.inputs != PlanInputs(

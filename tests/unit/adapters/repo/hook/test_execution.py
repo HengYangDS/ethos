@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
 import subprocess
 import sys
 from io import StringIO
@@ -553,3 +555,43 @@ def test_reference_transition_policy_failure_is_blocked(
         stdin=StringIO(f"{'a' * 40} {'b' * 40} refs/heads/work/example\n"),
     )
     assert result == 1
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [("git-identity", 0), ("plain", 1), ("local", 1), ("instance", 1), ("legacy", 1)],
+)
+def test_native_secret_rule_distinguishes_credentials_from_git_identity(
+    kind: str,
+    expected: int,
+) -> None:
+    """Native rules reject credential evidence without suppressing research source IDs."""
+    executable = shutil.which("gitleaks")
+    assert executable is not None, "the declared secrets gate requires native gitleaks"
+    digest = hashlib.sha1(b"ETHOS synthetic credential probe", usedforsecurity=False).hexdigest()
+    provider = "source" + "graph"
+    prefix = "sgp" + "_"
+    fragments = {
+        "git-identity": f"Research: {provider}\ncommit {digest}\n",
+        "plain": prefix + digest,
+        "local": prefix + "local_" + digest,
+        "instance": prefix + digest[:16] + "_" + digest,
+        "legacy": provider.upper() + "_TOKEN=" + digest,
+    }
+    result = subprocess.run(
+        [
+            executable,
+            "stdin",
+            "--config",
+            str(REPOSITORY_ROOT / ".gitleaks.toml"),
+            "--redact=100",
+            "--no-banner",
+            "--timeout=20",
+        ],
+        input=fragments[kind] + "\n",
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == expected, result.stderr

@@ -333,3 +333,38 @@ def test_unresolvable_git_subject_defers_instead_of_allowing(tmp_path: Path) -> 
         "unknown",
         ["control_replacement_diff_unavailable"],
     )
+
+
+def test_candidate_cannot_disable_trusted_predecessor_verification(tmp_path: Path) -> None:
+    """Replacing control also replaces policy only after the prior authority accepts it."""
+    candidate, accepted, _head = _control_change(tmp_path)
+    profile = candidate / ".ethos/profile.toml"
+    head = commit_fixture_file(
+        candidate,
+        ".ethos/profile.toml",
+        profile.read_text().replace('mode = "required"', 'mode = "disabled"'),
+        "attempt verifier downgrade",
+    )
+    seed_executed_proof(candidate, head)
+    report = _report(candidate, accepted, head)
+    assert report["verdict"] != "pass", report
+    assert report["required_gaps"] == ["independent_verification_receipt_required"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "src/ethos/adapters/repo/runtime/selection.py",
+        "src/ethos/adapters/repo/hook_runtime.py",
+        "src/ethos/adapters/repo/git_effects.py",
+    ],
+)
+def test_runtime_and_effect_owners_require_control_verification(tmp_path: Path, path: str) -> None:
+    """Changing executing authority cannot escape prior-policy verification."""
+    candidate, accepted, head = _control_change(tmp_path, path=path)
+    seed_executed_proof(candidate, head)
+    report = _report(candidate, accepted, head)
+    assert report["required"] is True
+    assert path in report["control_paths"]
+    assert report["verdict"] != "pass"
+    assert "independent_verification_receipt_required" in report["required_gaps"]

@@ -31,6 +31,87 @@ Raw transcripts, extracts, classifiers, and scratch matrices never become this
 plan's inputs after that Change is proven and archived; their exact owned copies
 are then deleted.
 
+## September 13 Local-Time Recovery And Convergence Boundary
+
+The user authorizes destructive simplification and an exact, audited maintainer
+break-glass when the governor cannot read a valid successor proof. Do not build
+an interpreter-negotiation framework or preserve obsolete implementation merely
+to avoid that bounded recovery. The product contract still requires exact scope,
+current preconditions, explicit reason, non-interactive authority, effect evidence
+and re-entry; it does not authorize permanent hooks bypass or weaker quality.
+
+The shared-effect owner handed back quiescent state after accepting
+`ff7f3bac3a216ad0192ecef004e2749a5e078278`, tree
+`88964f7767d546575dd6e41e8d03f0e0c88e4a13`. Public `hook install` selected runtime
+`b57151de6a90ea884329fbf47ffd891f33f19c14e94bb5d41a0f83435c7db090` from that exact
+source, with normal hooks armed. This was a real runtime update, not completion of
+the newer execution-source proof-reader repair. A prepared but unused generation
+was reclaimed by the existing generation owner. Other retained generations still
+need exact consumer review; cleanup success does not prove they are all obsolete.
+
+Public `lane refresh-base` combined both accepted contributions with the current
+work at `e0e7274cecd78694f440aa93274ae37a61b4ae95`, tree
+`1acf844ccec01145e507f63b38043010ec9541b8`. Old proofs remain historical after this
+source change. The transferred `work/20260912-proof-empty-scope-closure` lane was
+then retired through public `lane retire landed`; its worktree, ref and Lease
+were all observed absent. The retirement receipt digest is
+`e9a68474774da8e2802ae6381477415e02c46d48b86cccafed89296eb349b0c7`. One authoring
+Work Lane remains; no replacement lane was created.
+
+All nineteen pending inputs were preserved with per-file hashes before refresh.
+Restore useful source and research without overwriting the accepted peer tests.
+The unconsumed evaluator-binding module, preparation wrapper, hook-prepare entry
+and dedicated tests are superseded, not queued for later resurrection. The
+existing `runtime-reader-handoff` Change now contains only the demonstrated
+proof-validation and trusted-control-policy repairs, numeric budget correction
+and the relevant research projection. Its native recovery operation is not a
+new persistent product API.
+
+Five genuine failures were reproduced: unsupported proof Facts escaped validation
+without Commitment; candidate policy disabled the predecessor verifier; runtime,
+hook and Git-effect code escaped control classification. Three existing semantic
+owners now close those gaps. Both affected test modules passed all 72 cases in
+146.81 seconds with two workers and owned scratch cleanup. These focused results
+do not establish the current dirty source's full proof, acceptance or publication.
+
+A native staged-secret rule also misclassified authentic Git OIDs as credentials
+in the research report. Its existing Gitleaks rule was refined by token grammar;
+five real scanner cases preserve positive detection and reject the false positive.
+No source hash, file, scanner or rule family was excluded. This is a bounded
+failure-left-shift repair in the current atom, not an additional parser or gate.
+
+The user sets independent Python product/test ceilings to 50,000 ELOC each. The
+sole executable owner remains [format selection](../../.config/checks/format/selection.toml).
+Historical 38,300/45,000 statements, including the old goal wording, are superseded.
+Keep coverage at least 95%, existing per-file ceilings, measurement, exclusions,
+non-compensation, DRY and complexity requirements unchanged. Current measured
+product/test totals are 41,301/43,112; a ceiling is not an allocation to fill.
+
+[Modern Engineering Foundations](../research/modern-engineering-foundations.md)
+retains alternatives, source evidence and diagnostic limitations; decisions and
+this plan keep their established responsibilities. No second roadmap, research
+index or tool dashboard is introduced. The P0–P7 route remains: close the current
+exact proof/runtime gap, then use bounded SCC/semantic/test-cost observations to
+replace inefficient owners. P5 can advance when measured latency blocks delivery;
+source inspection alone does not select or reject Pants, Dagger or another engine.
+
+The immediate exit is exact-source full proof, official archive with source-bound
+projections, current proof, fresh candidate/accepted CAS and installed-runtime
+readback. If only the incumbent reader rejects that exact valid proof, use the
+already authorized one-effect recovery rather than expanding compatibility code.
+Dispose of the pending-source archive after every input is restored or explicitly
+superseded, and retire old runtime resources only after live consumers are removed.
+
+Adopter-reported proposal publication still conflates review ingress with completed
+Change proof, even when commit-range policy passes. Owner emergency tag publication
+also needs a precise public boundary. Fix those generic publication owners after
+this atom; do not block adopter delivery or copy gates into AIGW/Proxy. Their
+reported P0 release success is not independently established by this plan.
+Implementation tasks must not demand later publishing/retirement before archive.
+Architecture R01–R14/P00–P09 references still need recovered definitions or an
+evidence-backed supersession mapping; bare identifiers and G-series counts are not
+equivalent semantics. These remain open obligations, not this Change's completion.
+
 ## September 11 Delivery And Semantic-Version Checkpoint
 
 Accepted source `470fe13e7e62b64b0f8cd9a88ec327702f8b52ee`, tree
@@ -179,7 +260,7 @@ This checkpoint routes existing obligations to existing owners and exit tests;
 it does not claim complete historical-input recovery or establish another queue.
 Full history and source-by-source semantic coverage remain unproved. Latest
 direct user budget instructions supersede stale goal snapshots: independent
-product/test ceilings are 45000, combined coverage is at least 95 percent, and
+product/test ceilings are 50000, combined coverage is at least 95 percent, and
 unified 500 per file is a trial pending semantic assessment, not a completed
 policy decision. Examples do not narrow the global principles they illustrate.
 
@@ -1644,7 +1725,7 @@ retained worktree. The source remains read-only and retirement is not ready.
 | DR-0005, compiler and ecosystem | Retain pure compilation, explicit effects, adaptive review and replaceable capabilities. Full ecosystem conformance remains required; neither a named framework nor a second lifecycle is compulsory. |
 | DR-0006, independent verification | Local integrity does not prove independent identity. Keep offline operation and risk/action-selected verification; remove persistent accepted Commitment authority and compulsory operator infrastructure. Tests are not deployed verifier evidence. |
 | DR-0007, adopter parity | Preserve adopter-owned private evidence and native layout. Reject historical claims that scaffold success proves directory necessity or generic self-shadow proves complete real adoption. |
-| DR-0008, budgets | Preserve independent owner ceilings, anti-gaming, classification and coverage. Retire private metric/debt machinery and obsolete aggregate/caps; current product and test limits are separately 45,000. |
+| DR-0008, budgets | Preserve independent owner ceilings, anti-gaming, classification and coverage. Retire private metric/debt machinery and obsolete aggregate/caps; current numeric limits come from the native source-budget declaration. |
 | Decision scaffolds | Do not restore empty indexes, compulsory README shells, revision ledgers or repeated decision sections. Preserve context, alternatives, one reasoned choice, consequences, evidence and revisit/retirement conditions where useful across Changes. |
 | Architecture and profile | Keep pure compilation, transient plans, native contracts and one common-state owner. Remove scope-bearing Commitment, expanded Lease and duplicate commit-message parser; public review refresh, safe migration and outcome recovery gaps remain open. |
 | Reference and plan | Keep asset provenance and discoverable native commands; do not resurrect a handwritten command registry or fixed lifecycle sequence. Brand positioning must follow the accepted full product, not only the compiler/transaction core. |
@@ -3274,8 +3355,8 @@ Do not replay that completed delivery sequence.
 
 The September 8 budget decision sets independent 40000-ELOC product/test
 ceilings; the project total is observational, not a 90000-ELOC blocker.
-The latest user guidance authorizes independent ceilings of up to 45000 ELOC
-for product and tests when a bounded semantic-consolidation review finds that
+At that checkpoint, user guidance authorized independent ceilings of up to
+45000 ELOC for product and tests when a bounded semantic-consolidation review finds that
 further reduction would sacrifice necessary behavior, test evidence, clarity
 or delivery efficiency. This is conditional headroom, not a growth target or
 permission to disguise source, remove obligations or compress formatting.
@@ -3380,6 +3461,10 @@ historical lane absorption is not postponed until the entire audit finishes.
 
 ##### Test Reporting And Allure Ecosystem — September 11
 
+Research conclusions are consolidated in [Modern Engineering Foundations](../research/modern-engineering-foundations.md).
+The dated observations and acceptance obligations below remain evidence and
+execution context, not a competing tool-selection authority.
+
 This is a testing-architecture decision, not a cosmetic report task. The user
 requires the terminal model even when that demands destructive replacement.
 Change size is not a preservation criterion: retain an owner only when its
@@ -3473,7 +3558,8 @@ Use the existing quality-convergence sequence, not another roadmap:
 4. Admit compatible stable tools, migrate consumers, delete replaced paths,
    prove cold/warm/cleared-cache equivalence and open local/Forge reports.
    Preserve combined coverage at least 95 percent and independent product/test
-   ELOC ceilings of 45000. Publish actual measured results, not predicted speedup.
+   ELOC ceilings from the native declaration. Publish actual measured results,
+   not predicted speedup.
 
 Primary sources: [Google's scope/size distinction](https://abseil.io/resources/swe-book/html/ch12.html),
 [pytest fixture safety](https://docs.pytest.org/en/stable/how-to/fixtures.html),
@@ -3929,6 +4015,10 @@ meaning. No new hook has been installed by this review.
 
 ##### Unified Mechanism Review And Verification Throughput
 
+Research conclusions are consolidated in [Modern Engineering Foundations](../research/modern-engineering-foundations.md).
+The dated observations and acceptance obligations below remain evidence and
+execution context, not a competing tool-selection authority.
+
 The next architecture decisions must separate constraint compilation, pure
 policy decisions, legal state transitions, effect execution and evidence
 reuse. A framework is useful only when it replaces an existing mechanism and
@@ -4308,8 +4398,8 @@ September 11 limits are logic/surface/test = **500/500/800**. The previous
 recommendation remained unimplemented; retaining 500/800/1100 was a delivery gap,
 not an evidence-based rejection of the requested model. The sole numeric owner
 `.ethos/rules.toml` now declares the confirmed limits and removes the stale
-1032-ELOC/percentile rationale. Product and test aggregate ceilings remain
-45000 each; coverage remains at least 95 percent.
+1032-ELOC/percentile rationale. Product and test aggregate ceilings follow the
+native declaration; coverage remains at least 95 percent.
 
 At source `8da8f1ebed6bc67cbf882cc2764b6e20e32eb765`, applying the new limits
 finds five over-limit modules: CLI proof 536, CLI publication 697, hook activation
@@ -4334,8 +4424,8 @@ and `eloc-500-500-800-public-gate`.
 The later user correction requires trialling **500/500/500** before deciding the
 test ceiling. The existing 500/500/800 declaration is therefore an intermediate
 policy, not a settled terminal recommendation. Do not change it reflexively or
-justify it by current percentiles. Independent product/test totals remain 45000;
-the project total remains observational.
+justify it by current percentiles. Independent product/test totals follow the
+native declaration; the project total remains observational.
 
 The corrected sole metric masks exact AST string-expression spans and counts
 token-bearing physical lines, preserving adjacent code and multiline literal

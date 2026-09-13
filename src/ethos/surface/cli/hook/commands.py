@@ -12,9 +12,10 @@ from cyclopts import Group
 from cyclopts import Parameter
 
 from ethos.adapters.admission.git_admission import hook_admission_report
-from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
+from ethos.adapters.admission.publication import push_admission_report
+from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.process import ProcessExecutionError
@@ -192,12 +193,7 @@ def pre_push(
     *,
     options: Annotated[PushOptions, Parameter(name="*")] = _DEFAULT_PUSH_OPTIONS,
 ) -> None:
-    """Evaluate push admission before a ref is pushed to a protected role.
-
-    Pushing to an accepted/candidate ref requires an executed proof bound to the
-    pushed HEAD — the same precondition `land` enforces, now bound to the push tail so
-    a raw `git push` cannot move a protected ref unproven. Called by the installed pre-push hook.
-    """
+    """Evaluate the exact destination's review or accepted publication obligations."""
     repo = resolve_root(options.root)
     report = push_admission_report(
         root=repo,
@@ -226,6 +222,27 @@ def pre_push(
             "decision": _decision_action(report),
         },
         lambda verdict: next_action if verdict != "pass" else "",
+    )
+    emit(result, json_output=options.json_output, enforce=True)
+
+
+@_app.command(name="ref-update")
+def ref_update(options: Annotated[CommitRangeOptions, Parameter(name="*")]) -> None:
+    """Observe exact ref-role, introduced-range and OpenSpec obligations without host state."""
+    repo = resolve_root(options.root)
+    report = ref_update_admission_report(
+        repo,
+        target_ref=options.target_ref,
+        proposed_head=options.proposed_head,
+        remote_head=options.remote_head,
+        remote_name=options.remote,
+        trusted_baseline=options.trusted_baseline,
+    )
+    result = _report_result(
+        "hook ref-update",
+        report,
+        {key: report[key] for key in ("target_ref", "role", "policy_ref", "proposed_commit")},
+        lambda _verdict: str(report["next_action"]),
     )
     emit(result, json_output=options.json_output, enforce=True)
 

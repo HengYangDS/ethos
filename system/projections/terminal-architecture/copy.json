@@ -117,7 +117,7 @@
     },
     "publication": {
       "label": "Deliver selected objects",
-      "text": "Local Git is the publication source. Zero, one or many independent remotes receive the same selected OIDs. Recheck each target; distinguish pending, divergent and unknown outcomes without global atomicity.",
+      "text": "Review offers trusted objects without completed-product proof. Accepted/release targets retain proof and closeout. Zero, one or many independent remotes receive the same local OIDs; fresh peer checks preserve partial and unknown outcomes, never global atomicity.",
       "surface": "main-static"
     },
     "outcomes": {

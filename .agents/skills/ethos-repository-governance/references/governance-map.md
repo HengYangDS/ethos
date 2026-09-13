@@ -11,7 +11,9 @@ command plane.
 | Focused capability proof | `ethos prove --execute --gate <gate-id> --json` | Executed gate result |
 | Full local proof | `ethos prove --execute --full --expect-head <exact-head> --json` | Current object-bound proof result |
 | Work Lane write admission | `ethos lane prewrite ... --json` | Current lane decision |
-| OpenSpec lifecycle | official `openspec` CLI | Official command JSON |
+| OpenSpec intent and transformation | official `openspec` CLI | Official command JSON |
+| Governed archive effect | `ethos lane archive-change --change <id> --expect-head <source-head> --json` | Exact source proof and the returned guarded continuation |
+| Detached CI ref observation | `ethos hook ref-update --target-ref <full-ref> --proposed-head <oid> --remote-head <old-oid> --remote <name> --json` | Shared role, introduced-range and intent observation; not repository proof |
 | Repo-local skills | `skills` proof gate | Proof result |
 
 Repository source, tests, schemas, docs, official OpenSpec, and Attestations
@@ -21,3 +23,18 @@ it does not create durable truth.
 A compact reader may select coordination detail once. Completed detail has no
 repeat-observation requirement. Follow a pending exact operation when one is
 selected; otherwise stop that read without altering foreign ownership.
+
+Review is not acceptance. Publish the selected trusted object to an explicit
+proposal ref without inventing product proof or archiving unfinished intent.
+Accepted/release targets retain their proof and closeout. Derive these meanings
+from the current command, never a detached checkout name or a copied proof label.
+
+Commit completed source intent before exact proof, then use the governed archive
+continuation. Editing tasks after proof makes a new source; ordinary Git commit
+does not finalize the archive effect. A staged archive without valid source proof
+requires a current recovery decision, not repeated commits or hook bypass.
+
+Treat each peer effect as a new trust boundary. A preflight PASS or earlier peer
+success does not authorize the next effect. Preserve applied peers, report
+UNKNOWN honestly and re-observe current refs before replay; do not repair partial
+publication by reconstructing or re-signing the product object.

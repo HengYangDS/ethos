@@ -187,28 +187,42 @@ promoted.
 `ethos publish --json` remains the local readiness boundary. Remote projection
 has one explicit entry point: `ethos publish --ref <full-ref> --probe-remote
 --expect-head <head> --json`. The full ref is resolved through the positive ref
-topology, so accepted branches, release branches, proposal branches, and
-annotated release tags share one object, proof, request, and executor contract.
+topology. All targets share one object/request/executor contract; the target
+role selects proof obligations. Review requires source trust and introduced-range
+policy but no fabricated Commitment or product proof. Accepted branches, release
+branches and annotated release tags retain their stronger proof and closeout.
 The dry-run observes every declared peer with live `ls-remote`, compiles one
 content-addressed request, and performs no push. The guarded apply form consumes
 that request internally; the explicit receipt form provides restartable
 execution. Both recheck the exact local object and signature trust, request
 digest, repository common directory, push admission, and every target ref
-before their first effect.
+before the first effect. Immediately before each peer transaction, they recheck
+source trust, required proof, declared targets and that peer's exact current
+refs. An earlier matching peer observation cannot stand in for this recheck.
 
 Each declared peer push uses provider-local exact CAS. Git cannot make multiple
 providers one atomic transaction, so ETHOS never claims cross-provider
 atomicity. If a later peer fails, the terminal Attestation names applied,
 failed, and pending peers; rerunning the same public receipt path converges peers
-that already match without rewriting them. Hosted CI remains a subsequent
+that still match without rewriting them. Unavailable intent or peer observations
+remain UNKNOWN; a known policy violation still blocks independently. Hosted CI remains a subsequent
 independent evidence state rather than an implication of push success.
 
 Local readiness carries no publication effect or implicit target. The caller
 selects one admitted full ref explicitly. In local-first mode, candidate closes
 into accepted `dev`/`main` before those exact accepted objects are projected. In
-proposal/MR mode, the proved candidate object is projected to an explicit
-`refs/heads/proposal/*` target; candidate and Work Lane refs remain local-only.
+proposal/MR mode, a selected trusted object, including an unfinished Change,
+is projected to an explicit `refs/heads/proposal/*` target. Candidate and Work
+Lane refs remain local-only; the checkout role does not decide review readiness.
 Actual mutation still requires the command's guarded options.
+
+Detached CI calls `ethos hook ref-update` with explicit target, proposed and
+previous objects and remote/baseline coordinates. The shared admission owner
+reads exact Git trees and the existing commit-range validator; it does not
+consult a host Lease or issue proof. The command reports the boundary, reason,
+coordinates and one read-only diagnostic. Prior target policy remains the floor
+until an exact accepted closeout supplies an already-accepted policy. CLI,
+pre-push and replay do not maintain their own interpretation of these roles.
 
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.

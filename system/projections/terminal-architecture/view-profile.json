@@ -1318,13 +1318,6 @@
       "target_view": "publication",
       "witness": "publication"
     },
-    "attestation-projects-publication-request": {
-      "view_edge_id": "attestation-projects-publication-request",
-      "mode": "direct",
-      "source_view": "evidence",
-      "target_view": "publication",
-      "witness": "publication"
-    },
     "ethos-self-governs": {
       "view_edge_id": "ethos-self-governs",
       "mode": "direct",
@@ -1968,6 +1961,13 @@
       "source_view": "exit",
       "target_view": "exit",
       "witness": "exit"
+    },
+    "git-projects-publication-object": {
+      "view_edge_id": "git-projects-publication-object",
+      "mode": "direct",
+      "source_view": "norms",
+      "target_view": "publication",
+      "witness": "publication"
     }
   },
   "omitted_nodes": {},

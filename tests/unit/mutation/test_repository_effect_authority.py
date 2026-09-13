@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.landing as landing
-import ethos.adapters.mutation.remote_publication as publication
+import ethos.adapters.mutation.publication.request as publication
 from ethos.contracts.semantic import Commitment
 
 if TYPE_CHECKING:

@@ -10,22 +10,21 @@ from typing import cast
 from cyclopts import Parameter
 
 import ethos.adapters.repo.git as git
-from ethos.adapters.admission.git_admission import push_admission_report
+from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.remote_publication import apply_remote_publication_effect
-from ethos.adapters.mutation.remote_publication import compile_remote_publication_request
-from ethos.adapters.mutation.remote_publication import load_remote_publication_request
-from ethos.adapters.mutation.remote_publication import observe_remote_publication_effect
-from ethos.adapters.mutation.remote_publication import persist_remote_publication_request
+from ethos.adapters.mutation.publication.execution import apply_remote_publication_effect
+from ethos.adapters.mutation.publication.request import compile_remote_publication_request
+from ethos.adapters.mutation.publication.request import load_remote_publication_request
+from ethos.adapters.mutation.publication.request import observe_publication_request
+from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
+from ethos.adapters.mutation.publication.request import persist_remote_publication_request
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.publication import PublicationEffect
-from ethos.contracts.publication import publication_effect_from_plan
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
-from ethos.domain.land.publication import PublicationContext
 from ethos.domain.land.publication import observe_publication
 from ethos.domain.land.publication import publication_readiness_result
 from ethos.normalization.coercion import string_sequence
@@ -119,29 +118,23 @@ def _publication_request_gaps(
     *,
     repo: Path,
     options: _PublishOptions,
-    source_branch: str,
-    candidate_branch: str,
     current_head: str,
     target_refs: tuple[str, ...],
     remotes: Mapping[str, str],
-    ref_admissions: Mapping[str, Mapping[str, object]],
 ) -> list[str]:
     """Return invocation and source facts required before publication effects."""
-    roles = tuple(
-        str(ref_admissions.get(target_ref, {}).get("role") or "other") for target_ref in target_refs
-    )
     conditions = (
         (options.expect_head is None, "expect_head_required"),
-        (
-            "proposal_ref" in roles and source_branch != candidate_branch,
-            f"publication_source_role_mismatch:{source_branch}:proposal_ref",
-        ),
         (options.apply and not options.authorize, "authorization_required"),
         (
             options.expect_head is not None and options.expect_head != current_head,
             "expect_head_mismatch",
         ),
-        (not options.probe_remote, "publication_remote_probe_required"),
+        (
+            options.receipt is not None and not options.apply,
+            "remote_publication_receipt_apply_required",
+        ),
+        (options.receipt is None and not options.probe_remote, "publication_remote_probe_required"),
         (not target_refs, "publication_target_ref_required"),
         (len(target_refs) != len(set(target_refs)), "publication_target_ref_duplicate"),
         (not remotes, "publication_peers_missing"),
@@ -169,10 +162,11 @@ def _publication_effect_observation(
     dict[str, dict[str, object]],
     dict[str, dict[str, object]],
     tuple[str, ...],
+    Verdict,
 ]:
     """Compile one effect and its admission reports from live peer facts."""
     if not (options.probe_remote and target_refs and remotes):
-        return None, {}, {}, ()
+        return None, {}, {}, (), "pass"
     source_ref = target_refs[0] if target_refs[0].startswith("refs/tags/") else current_head
     effect, observations, effect_gaps = observe_remote_publication_effect(
         root=repo,
@@ -190,19 +184,28 @@ def _publication_effect_observation(
         effect_gaps=effect_gaps,
         proof_admission=proof_admission,
     )
-    return effect, observations, reports, admission_gaps
+    effect_verdict: Verdict = (
+        "block"
+        if any(
+            not gap.startswith("publication_remote_observation_unavailable:") for gap in effect_gaps
+        )
+        else "unknown"
+        if effect_gaps
+        else "pass"
+    )
+    verdict = reduce_verdicts(effect_verdict, *(report_verdict(item) for item in reports.values()))
+    return effect, observations, reports, admission_gaps, verdict
 
 
 def _publish_projection(
-    context: PublicationContext,
+    repo: Path,
     *,
     options: _PublishOptions,
     json_output: bool,
 ) -> None:
     """Derive or replay one full-ref plan through the sole execution path."""
-    repo, current_head = context.root, context.head
     target_refs = options.target_refs
-    gaps = list(context.required_gaps)
+    gaps: list[str] = []
     observations: dict[str, dict[str, object]] = {}
     push_admission: dict[str, dict[str, object]] = {}
     request: dict[str, object] = {}
@@ -210,48 +213,39 @@ def _publish_projection(
     effect: PublicationEffect | None = None
     replay = options.receipt is not None
     if replay:
-        gaps.extend(
-            gap
-            for blocked, gap in (
-                (not options.apply, "remote_publication_receipt_apply_required"),
-                (not options.authorize, "authorization_required"),
-                (options.expect_head is None, "expect_head_required"),
-                (
-                    options.expect_head is not None and options.expect_head != current_head,
-                    "expect_head_mismatch",
-                ),
-            )
-            if blocked
-        )
         request = {"path": options.receipt or "", "sha256": options.receipt_sha256 or ""}
-        try:
-            plan = load_remote_publication_request(
-                repo, str(request["path"]), str(request["sha256"])
-            )
-            effect = publication_effect_from_plan(plan)
-        except ValueError as error:
-            gaps.append(str(error))
-    else:
-        gaps.extend(
-            _publication_request_gaps(
+        plan, effect, target_refs, gaps = observe_publication_request(
+            repo, str(request["path"]), str(request["sha256"])
+        )
+    projection_verdict: Verdict = "block" if gaps else "pass"
+    context = observe_publication(
+        repo,
+        apply=False,
+        authorized=options.authorize,
+        expect_head=options.expect_head,
+        target_refs=target_refs,
+    )
+    current_head = context.head
+    gaps.extend(context.required_gaps)
+    request_gaps = _publication_request_gaps(
+        repo=repo,
+        options=options,
+        current_head=current_head,
+        target_refs=target_refs,
+        remotes=context.remotes,
+    )
+    gaps.extend(request_gaps)
+    if not replay and not request_gaps:
+        effect, observations, push_admission, admission_gaps, projection_verdict = (
+            _publication_effect_observation(
                 repo=repo,
                 options=options,
-                source_branch=context.branch,
-                candidate_branch=context.role_policy.candidate_branch,
-                current_head=current_head,
                 target_refs=target_refs,
+                current_head=current_head,
                 remotes=context.remotes,
+                proof_admission=context.proof_admission,
                 ref_admissions=context.ref_admissions,
             )
-        )
-        effect, observations, push_admission, admission_gaps = _publication_effect_observation(
-            repo=repo,
-            options=options,
-            target_refs=target_refs,
-            current_head=current_head,
-            remotes=context.remotes,
-            proof_admission=context.proof_admission,
-            ref_admissions=context.ref_admissions,
         )
         gaps.extend(admission_gaps)
         if effect is not None:
@@ -263,22 +257,19 @@ def _publish_projection(
                 }
             plan = compile_remote_publication_request(root=repo, effect=effect, proof=proof)
             gaps.extend(plan.required_gaps)
+            projection_verdict = reduce_verdicts(projection_verdict, plan.verdict)
             if plan.verdict == "pass":
                 request = persist_remote_publication_request(repo, plan)
 
     if effect is not None and effect.source.peeled_commit != current_head:
         gaps.append("remote_publication_receipt_head_mismatch")
+        projection_verdict = "block"
     gaps = list(dict.fromkeys(gaps))
-    unknown_gaps = tuple(
-        gap for gap in gaps if gap.startswith("publication_remote_observation_unavailable:")
-    )
-    blocking_gaps = tuple(gap for gap in gaps if gap not in unknown_gaps)
-    verdict: Verdict = (
-        "block"
-        if context.verdict == "block" or blocking_gaps
-        else "unknown"
-        if context.verdict == "unknown" or unknown_gaps
-        else "pass"
+    verdict = reduce_verdicts(
+        context.verdict,
+        projection_verdict,
+        "block" if request_gaps else "pass",
+        required_gaps=tuple(gaps),
     )
     execution: dict[str, object] = {"state": "not_applied", "required_gaps": []}
     if options.apply and verdict == "pass" and plan is not None:
@@ -367,8 +358,8 @@ def _publish_projection(
                 "remote_push": (
                     "applied"
                     if state == "published"
-                    else "outcome_unknown"
-                    if state == "outcome_unknown"
+                    else state
+                    if state in {"partial", "outcome_unknown"}
                     else "not_performed"
                 ),
                 "declared_peer_count": len(effect.targets)
@@ -414,16 +405,16 @@ def publish(
     """Report publish readiness without pushing."""
     repo = resolve_root(root)
     projection_mode = bool(options.target_refs) or options.receipt is not None
+    if projection_mode:
+        _publish_projection(repo, options=options, json_output=json_output)
+        return
     context = observe_publication(
         repo,
-        apply=options.apply and not projection_mode,
+        apply=options.apply,
         authorized=options.authorize,
         expect_head=options.expect_head,
         target_refs=options.target_refs,
     )
-    if projection_mode:
-        _publish_projection(context, options=options, json_output=json_output)
-        return
     emit(
         publication_readiness_result(
             context,

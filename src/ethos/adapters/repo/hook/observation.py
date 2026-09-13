@@ -25,6 +25,7 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.repository.policy.commit import load_commit_policy
+from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.retirement import GenerationCleanup
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 class HookRuntimeBinding(TypedDict):
     """One repository family's exact generated-hook runtime provenance."""
 
+    required: bool
     hooks_path: str
     runtime_manifest_path: str
     runtime_digest: str
@@ -80,6 +82,7 @@ def hook_runtime_binding(
     """Project one binding, reusing a fresh transaction-local runtime observation."""
     repo = root.resolve()
     common = Path(git_common_dir(repo))
+    runtime_root = common / "ethos" / "runtime"
     generations = common / "ethos" / "hooks"
     configured = _configured_hooks_path(repo)
     hooks = configured or generations
@@ -145,6 +148,12 @@ def hook_runtime_binding(
     ):
         gaps.append("write_admission_not_armed:hook_generation_digest")
     return {
+        "required": (
+            load_repository_profile(repo).exists
+            or valid_generation
+            or runtime_root.exists()
+            or runtime_root.is_symlink()
+        ),
         "hooks_path": hooks.as_posix(),
         "runtime_manifest_path": selected.manifest.as_posix() if selected else "",
         "runtime_digest": selected.digest if selected else "",

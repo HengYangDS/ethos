@@ -18,6 +18,8 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import runtime_command
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import start_adopted_candidate
+from tests.support.governed_repository import write_test_profile
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.runtime_scenarios import runtime_build
@@ -155,6 +157,113 @@ def test_stale_runtime_unarms_both_policy_transports(
     assert capability["required_gaps"] == [gap]
     assert projected["required_gaps"].count(gap) == 1
     assert capability["next_action"].startswith((tmp_path / "accepted/.venv/bin/python").as_posix())
+
+
+@pytest.mark.parametrize("adopted", [False, True])
+@pytest.mark.parametrize(
+    "condition", ["current", "stale", "missing-launcher", "damaged-selector", "unknown"]
+)
+def test_status_preserves_runtime_readiness_without_commit_policy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    adopted: bool,
+    condition: str,
+) -> None:
+    """An optional policy cannot hide the installed runtime's independent gaps."""
+    repo, generation = _fixture(tmp_path)
+    if adopted:
+        write_test_profile(repo)
+    if condition == "stale":
+        monkeypatch.setattr(
+            runtime_authority,
+            "expected_runtime_build",
+            lambda _repo: (runtime_build("c" * 40, "d" * 40), tmp_path / "accepted"),
+        )
+    elif condition == "missing-launcher":
+        (generation / "pre-commit").unlink()
+    elif condition == "damaged-selector":
+        (Path(git_common_dir(repo)) / "ethos/runtime/CURRENT").write_text("invalid\n")
+    elif condition == "unknown":
+
+        def expire(_root: Path, command: tuple[str, ...], **kwargs: object) -> None:
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+        monkeypatch.setattr(hook_binding, "run_command", expire)
+
+    projected, capability = _capability(repo)
+    runtime = projected["data"]["hook_runtime"]
+
+    assert capability["state"] == "not_declared"
+    assert capability["required_gaps"] == []
+    assert capability["next_action"] == ""
+    if condition == "current":
+        assert runtime["current"] is True
+        assert not any(
+            gap.startswith("write_admission_not_armed:") for gap in projected["required_gaps"]
+        )
+    else:
+        gap = {
+            "stale": "write_admission_not_armed:runtime_build_stale",
+            "missing-launcher": "write_admission_not_armed:pre-commit_launcher_missing",
+            "damaged-selector": "write_admission_not_armed:runtime_current",
+            "unknown": "write_admission_not_armed:runtime_hook_contract_timeout",
+        }[condition]
+        assert runtime["current"] is False
+        assert runtime["required_gaps"] == [gap]
+        assert projected["required_gaps"].count(gap) == 1
+        assert projected["verdict"] != "pass"
+        assert projected["next_action"] == runtime["next_action"]
+        assert projected["user_decision_required"] is False
+
+
+@pytest.mark.parametrize("adopted", [False, True])
+def test_status_requires_installation_only_for_an_adopted_repository(
+    tmp_path: Path, *, adopted: bool
+) -> None:
+    """A missing adopter runtime blocks readiness, but inspection is not adoption."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    if adopted:
+        write_test_profile(repo)
+
+    projected, capability = _capability(repo)
+    runtime = projected["data"]["hook_runtime"]
+
+    assert capability["state"] == "not_declared"
+    assert runtime["current"] is False
+    if adopted:
+        assert "write_admission_not_armed:runtime_current" in projected["required_gaps"]
+        assert projected["next_action"] == runtime["next_action"]
+        assert projected["verdict"] == "block"
+    else:
+        assert not any(
+            gap.startswith("write_admission_not_armed:") for gap in projected["required_gaps"]
+        )
+        assert "hook install" not in projected["next_action"]
+
+
+def test_adopted_status_moves_from_ready_to_stale_without_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fully ready adopter must lose PASS when only its expected runtime advances."""
+    repo, _candidate = start_adopted_candidate(tmp_path)
+    before, policy = _capability(repo)
+    assert (before["verdict"], before["required_gaps"], before["next_action"]) == ("pass", [], "")
+    assert policy["state"] == "not_declared"
+    monkeypatch.setattr(
+        runtime_authority,
+        "expected_runtime_build",
+        lambda _repo: (runtime_build("c" * 40, "d" * 40), tmp_path / "accepted"),
+    )
+
+    after, _policy = _capability(repo)
+
+    assert after["verdict"] == "block"
+    assert after["required_gaps"] == ["write_admission_not_armed:runtime_build_stale"]
+    assert after["next_action"] == after["data"]["hook_runtime"]["next_action"]
+    assert "hook install" in after["next_action"]
 
 
 @pytest.mark.parametrize("payload", [b"\xff", b"#!/bin/sh\nexit 0\n"])

@@ -5290,10 +5290,62 @@ file was removed under recovery admission and recreated only after metadata-only
 PASS. Subsequent effect chains require successful exit and parsed PASS before
 continuing, rather than placing an effect after a failed check in the same batch.
 
-The adopter's reported Proxy runtime-currentness difference and its delivery
-task/proof self-reference remain open. Retain those original observations for
-the existing runtime authority and source/outcome model owners; do not infer
-freshness from version spelling or request another adopter carrier.
+The correction was accepted as `52db974eb5ac61c60e4c22fbc24c98cb9cd015fa`, tree
+`ebe9f18822e22642ec03e1143ed97541061f9249`. Source and post-archive proofs passed
+all 35 gates, each with 3,282 passed tests, one skip and 95.0783 percent combined
+coverage. Public installation selected exact runtime `3d4d9ca5…`; publication
+read back both peers at the same object, and the Work Lane, ref and Lease retired.
+GitLab pipelines 6603/6604 passed. GitHub dev source verification passed; final
+package delivery remains under observation; main source verification also passed.
+These jobs do not establish the outcome of their pending package delivery.
+
+### Independent Runtime Readiness
+
+The Proxy feedback is a reproduced status aggregation defect, not stale-version
+guesswork. Its retained payload reports old installed source `a378d7c0…`, expected
+source `3472cdad…`, and `runtime_build_stale`, while top-level status is PASS and
+offers landing. The status reader aggregated runtime gaps only through optional
+commit-policy enforcement. Absence of that unrelated policy therefore erased a
+required condition.
+
+The bounded `runtime-status-admission` Change keeps identity, applicability and
+repair at the hook-observation owner; status combines runtime and policy gaps
+independently and selects runtime recovery before source effects. A profile,
+managed hook generation or runtime storage makes inspection applicable even when
+the selector is damaged. A plain unadopted repository acquires no installation
+obligation by being read. Optional commit policy remains optional. No adopter
+mutation, compatibility carrier, timeout increase or parallel parser is required.
+
+Seven public counterexamples fail on the original aggregation. A further damaged
+selector case rejects conditioning applicability on a successfully read manifest.
+The corrected binding, reader, closeout and invalid-profile suite passes 95 cases
+in 370.28 seconds; its owned basetemp is removed. An adopted ready repository
+also transitions from PASS to the exact stale gap after only the expected runtime
+changes. These are focused source observations, not accepted implementation or
+installed-adopter validation. Evidence belongs to the existing ignored quality
+location under `runtime-status-admission`; finish static and exact lifecycle
+proof before claiming delivery.
+
+The affected hook activation/execution, binding, migration and status-audit suite
+then passes 129 cases in 65.37 seconds, with owned basetemp cleanup. All ten
+selected public owner gates and native repository-wide lint, config, Markdown,
+prose and import-boundary checks pass. Frozen source proof is the next boundary;
+no focused result is substituted for it.
+
+The latest adopter confirms public rebind to `52db974e…` with four linked
+worktrees checked, one obsolete generation removed, and unchanged product/config
+hashes. This is adopter-reported installation evidence, not a lifecycle repair.
+Delivery-inclusive Change archive/land self-reference and the Git-free archive
+consumer remain open at the source/outcome owners. Future publication, installed
+acceptance and retirement tasks cannot be prechecked or moved into another
+ledger to manufacture completion.
+
+The same adopter's official MODIFIED/REMOVED review superseded 22 contradictory
+inherited requirements across nine capabilities; adding more requirements had
+not removed the old owners. Accept the generic lesson: review the final merged
+meaning and surviving scenarios, not only delta validity. Apply it at the native
+OpenSpec config/skill and acceptance owners in the existing P1/P2 route; this
+status correction does not claim that separate semantic capability implemented.
 
 ## Completion Boundary
 

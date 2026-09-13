@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_GOVERNANCE_PYTHON: Path | None = None
 
 
 def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
@@ -53,7 +54,7 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
     build = expected_runtime_build(root)[0]
     environment = observe_runtime_environment(REPOSITORY_ROOT, Path(sys.executable))
     try:
-        create_fixture_python(staging / "python")
+        create_fixture_python(staging / "python", shared_executable=_GOVERNANCE_PYTHON)
         runtime_files = runtime_file_inventory(staging)
         digest = runtime_digest(
             wheel_sha256=wheel_sha256,
@@ -97,13 +98,20 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
         shutil.rmtree(staging, ignore_errors=True)
 
 
-def create_fixture_python(target: Path) -> None:
+def create_fixture_python(target: Path, *, shared_executable: Path | None = None) -> None:
     """Bind a native fixture prefix to the selected source and shared dependencies."""
     scripts = target / ("Scripts" if os.name == "nt" else "bin")
     scripts.mkdir(parents=True)
     source_python = Path(sys.executable).absolute()
     fixture_python = scripts / ("python.exe" if os.name == "nt" else "python")
-    shutil.copy2(source_python, fixture_python)
+    if shared_executable is None:
+        shutil.copy2(source_python, fixture_python)
+        fixture_python.chmod(0o755)
+    else:
+        if shared_executable.stat().st_mode & 0o222:
+            message = "shared fixture executable must be read-only"
+            raise ValueError(message)
+        os.link(shared_executable, fixture_python)
     home = Path(sys.base_prefix) if os.name == "nt" else source_python.resolve().parent
     target.joinpath("pyvenv.cfg").write_text(
         f"home = {home.as_posix()}\n"
@@ -112,7 +120,6 @@ def create_fixture_python(target: Path) -> None:
         f"executable = {source_python.as_posix()}\n",
         encoding="utf-8",
     )
-    fixture_python.chmod(0o755)
     version = f"python{sys.version_info.major}.{sys.version_info.minor}"
     relative_site = Path("Lib/site-packages" if os.name == "nt" else f"lib/{version}/site-packages")
     site_packages = target / relative_site

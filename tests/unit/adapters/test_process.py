@@ -1,3 +1,5 @@
+"""Native process selection and observations preserve their failure boundaries."""
+
 from __future__ import annotations
 
 import os
@@ -177,7 +179,8 @@ def test_posix_process_listing_resolves_native_ps_outside_ambient_path(
 
     assert process_adapter.process_listing_command(platform_name="posix") == (
         native.resolve().as_posix(),
-        "-axo",
+        "-axww",
+        "-o",
         "command=",
     )
     assert observed == {"name": "ps", "path": os.defpath}

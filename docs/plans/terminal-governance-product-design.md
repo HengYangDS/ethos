@@ -5239,15 +5239,61 @@ land/archive and proof owners immediately after the current runtime closure.
 Keep the no-Git archive consumer open too. This does not authorize adopter edits,
 another progress store, or scope expansion into the frozen proof.
 
-Finish same-owner docs/Skills/diagram bindings and consumer/static closure, then
-freeze source, execute exact proof, perform governed archive and post-archive
-proof, accept/install/publish and retire this lane through fresh public decisions.
-Only the accepted runtime may reclaim the five real obsolete generations.
+Source `cedf92b9e` subsequently passed all 35 full-proof gates: 3,281 tests passed
+and one was skipped, with 95.0783 percent combined coverage. Official archive
+produced `3472cdad230e92da41b8e3fd851e2eba4f96630d`, tree
+`c4522bb19a678e37a54544259a1199a27c3b6352`; its separate 35-gate proof also passed.
+Both owned basetemps disappeared. Public candidate/accepted CAS, installation and
+publication then completed. Local `dev`, `main`, `candidate/dev` and both peers'
+`dev`/`main` were read back at that same object; both forge signatures were
+verified. Runtime `ad05a363…` matches the accepted source and tree. Public install
+removed six obsolete runtimes and two old hook bundles; repeated install retained
+the same runtime and removed nothing. The worktree, branch and Lease retired,
+with no authoring or proposal refs left at that observation. Exact closure and
+causal evidence moved to the accepted ignored `build/evidence/quality/` owner;
+81 consumed passing-admission snapshots and empty diagnostics were removed.
+
+This is not hosted CI acceptance or complete latency repair. Source and archive
+proof still took 1,813.25 and 1,790.84 seconds. Input-complete evidence reuse and
+native observation consolidation remain necessary; adding workers or treating
+unchanged source portions as a complete dependency closure is not that repair.
 Full fd/mmap observation, arbitrary same-UID isolation, strong-kill scavenging and
 24/48-hour boundedness remain unproved and are not implied by this finite test.
 The full P0–P7 product route and undefined architecture R/P/floor obligations
 remain open; the ordered write strip is a source-text-bound projection, not new
 product nodes or proof that every host implements mediation.
+
+### Native Process Observation Correction
+
+Hosted GitLab job `37785` at accepted `3472cdad` failed one of 3,282 tests:
+the real live-process retirement case lost the dependency before process exit.
+Local macOS success did not prove Linux observation completeness. In the exact
+Linux arm64 base image, `ps -axo command=` returns success but truncates a long
+argument with `COLUMNS=32` or `80`. Full-width `ps -axww -o command=` preserves
+the same child's argument. The failed job's inherited width is not separately
+observed; the native width-dependent data-loss mechanism is reproduced.
+
+The bounded `native-process-observation` Change repairs the existing native
+selector, not runtime policy or a provider-specific workaround. The strengthened
+real retirement case fails twice on Linux before the repair and passes after it.
+Linux's 92 observer/retirement cases and macOS's 131 observer/retirement/activation
+cases pass; a Linux UID-65534 replay passes all three targeted cases. Native
+selection, errors and deadlines remain intact. Complete static, exact-source,
+post-archive and hosted verification before claiming the Linux defect closed.
+
+Keep one writer and bind command syntax before effects. The public lane owner
+derives its date/name; a rejected coordinate is not retried by guessing another
+path. Bootstrap first admits the metadata path alone, then creates official
+metadata, then admits resolved artifacts. A blocked multi-path bootstrap was
+incorrectly followed by metadata creation in this correction; that exact owned
+file was removed under recovery admission and recreated only after metadata-only
+PASS. Subsequent effect chains require successful exit and parsed PASS before
+continuing, rather than placing an effect after a failed check in the same batch.
+
+The adopter's reported Proxy runtime-currentness difference and its delivery
+task/proof self-reference remain open. Retain those original observations for
+the existing runtime authority and source/outcome model owners; do not infer
+freshness from version spelling or request another adopter carrier.
 
 ## Completion Boundary
 

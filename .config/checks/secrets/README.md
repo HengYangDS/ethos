@@ -9,7 +9,7 @@ discoverable alongside the other `.config/checks/<concern>/` gates.
 
 - Policy: `/.gitleaks.toml` (`[extend] useDefault = true`)
 - Supply identity: `supply.toml` (version and archive digests)
-- Installer: `tools/ci/scripts/install-gitleaks.sh` (policy-bound prebuilt binary)
+- Supply: `tools/ci/toolchain/native.py` (verified project-local executable, no system installation)
 - Runner: `tools/ci/scripts/run-secrets-scan.sh`
 - Scope: the runner materializes `git ls-files` into a temporary
   `ethos-gitleaks-tracked` mirror before scanning, so the gate covers tracked

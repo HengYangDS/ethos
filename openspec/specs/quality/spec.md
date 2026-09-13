@@ -861,23 +861,26 @@ SHALL NOT change their verdict when that supply is complete.
 - **THEN** direct and source-distribution builds use the locked environment
 - **AND** exact source identities and bundled Node package parity are verified
 
-### Requirement: Hosted budget tool supply
+### Requirement: Native verification tool supply
 
-Hosted verification SHALL prepare the declared source-budget cross-check
-executable from versioned, digest-bound native supply before executing gates.
-Both Forge projections SHALL consume the same preparation owner without system
-installation or reliance on undeclared host executables.
+Native verification tools SHALL use one materialization owner reading their
+versioned, digest-bound declarations. Supply SHALL use controlled cache storage,
+never system installation or ambient executable trust. Preparation SHALL verify
+regular archive members, executable bytes and version; serialize concurrent
+writers and atomically replace only the selected executable. Invalid supply
+SHALL preserve prior bytes and remove owned preparation scratch.
 
 #### Scenario: Clean supported runner
 
-- **WHEN** a supported runner has no ambient cross-check executable
-- **THEN** preparation verifies the declared archive and executable version
-- **AND** hosted gates receive the project-local executable on their effective PATH
+- **WHEN** a supported runner lacks an ambient scanner or budget executable
+- **THEN** preparation verifies and installs both declared tools in owned cache storage
+- **AND** callers receive their exact directories without administrator privileges
 
 #### Scenario: Invalid or unavailable supply
 
-- **WHEN** the archive, checksum, executable version or supported target is unavailable or invalid
+- **WHEN** the archive, digest, executable version or platform is invalid or unavailable
 - **THEN** verification fails before tests with the original supply diagnostic
+- **AND** prior executable bytes remain unchanged and owned scratch is removed
 - **AND** stale passing receipts and test reports cannot represent this attempt
 
 #### Scenario: Verified cached archive
@@ -897,6 +900,17 @@ installation or reliance on undeclared host executables.
 - **WHEN** the cached executable is missing, altered, non-executable or a symbolic link
 - **THEN** preparation validates a replacement before atomically installing it
 - **AND** it does not write through the symbolic link or change its target
+
+#### Scenario: Repeated or concurrent preparation
+
+- **WHEN** multiple invocations request the same declared tool identity
+- **THEN** a bounded lock serializes preparation and verified unchanged bytes are reused
+- **AND** invocation count does not create additional archives or executable generations
+
+#### Scenario: Cache path escapes through a link
+
+- **WHEN** a selected cache path is symlinked or otherwise unsafe
+- **THEN** preparation rejects it before writing or replacing external content
 
 ### Requirement: Source-bound runtime fixtures
 

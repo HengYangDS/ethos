@@ -44,10 +44,16 @@ def _hosted_scripts(repo: Path, supply_script: str, scanner_script: str = "exit 
     scripts = repo / "tools/ci/scripts"
     scripts.mkdir(parents=True)
     shutil.copy2(ROOT / "tools/ci/scripts/run-head-bound-proof.sh", scripts)
-    for name, body in (("scc", supply_script), ("gitleaks", scanner_script)):
-        installer = scripts / f"install-{name}.sh"
-        installer.write_text("#!/bin/sh\n" + body)
-        installer.chmod(0o755)
+    supply = repo / "tools/ci/toolchain/native.py"
+    supply.parent.mkdir()
+    supply.write_text(
+        "import subprocess, sys\n"
+        "assert sys.argv[1:3] == ['--root', str(__import__('pathlib').Path.cwd())]\n"
+        "assert sys.argv[3:] == ['gitleaks', 'scc']\n"
+        f"for body in ({scanner_script!r}, {supply_script!r}):\n"
+        " result = subprocess.run(['/bin/sh', '-c', body])\n"
+        " if result.returncode: sys.exit(result.returncode)\n"
+    )
     return scripts
 
 
@@ -126,7 +132,8 @@ def test_hosted_receipt_requires_exact_executed_observation(
         f"sys.exit({7 if fault == 'process' else 0})\n"
     )
     binary.chmod(0o755)
-    (binary.parent / "python3").symlink_to(sys.executable)
+    for name in ("python", "python3"):
+        (binary.parent / name).symlink_to(sys.executable)
     scripts = _hosted_scripts(
         repo,
         f"printf '%s\\n' '{binary.parent}'\n",
@@ -191,6 +198,7 @@ def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
         path.write_text("stale passing output")
     bins = tmp_path / "bin"
     bins.mkdir()
+    (bins / "python").symlink_to(sys.executable)
     (bins / "python3").symlink_to(sys.executable)
     invoked = tmp_path / "proof-invoked"
     uv = bins / "uv"

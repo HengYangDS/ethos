@@ -4927,6 +4927,51 @@ semantic owner and its consumers, retaining exact objects, signature and range
 policy, fresh peer CAS and stronger accepted/release obligations. No adopter
 mutation, role spoofing, compatibility carrier or second roadmap is involved.
 
+### Rootless Native Tool Supply — September 13, 2026 (+08:00)
+
+Accepted `076318d78` completed the first supply wiring and recovery-test repair:
+35 full gates pass before and after archive, 3,194 tests pass with one skipped,
+95.028% combined coverage, public land/closeout, exact installed runtime,
+four peer refs and both verified signatures. That completed lane is retired.
+GitLab 6536 nevertheless fails job 37512 before tests: the reused scanner
+installer tries `/usr/local/bin` without permission. The prior local result did
+not prove a non-privileged clean runner. This failure invalidates any claim that
+hosted tool supply was complete, not the source/proof/ref observations above.
+
+The `native-tool-supply` Change removes both duplicated SCC/gitleaks installers
+and puts identity validation, owned cache, bounded lock and atomic replacement
+in `tools/ci/toolchain/native.py`. Existing native tool declarations remain the
+only version/digest owners. Both entrypoints consume its exact PATH; no system
+installation, administrator request, ambient executable shortcut or compatibility
+wrapper remains. Repeated calls do not grow archive or executable identities.
+The public audit exposed one missing declaration edge after installer deletion:
+scanner ownership had been inferred from shell transport rather than its native
+supply declaration. The existing carrier table now selects both scanner and
+link-checker supply owners; transport-independent presence/removal regressions
+exercise that relationship without a duplicated executable registry.
+
+Focused supply and consumer/compiler tests pass. Real macOS binaries run from
+owned cache; an emulated Linux amd64 container runs both binaries as UID 65534
+with explicit HOME, read-only system root and no network. It verifies repeated
+and concurrent identity reuse, no system writes and no preparation residue.
+The initial probe's invalid HOME/platform assumptions are retained as failed
+evidence, not product failures. This is not native Linux arm64 coverage. A real
+download child originally outlived timeout; the owned process-group boundary now
+prevents its delayed write. SIGKILL orphan handling remains separately unproved.
+
+Official RENAMED projections also exposed a governor deadlock: native OpenSpec
+accepted the Change while the Commitment compiler rejected its from/to relation
+and blocked its own repair. Exact two-path maintainer recovery repaired that
+compiler, preserved rename identity without fabricated requirements, and returned
+to passing checkout-bound status/prewrite. Eight RED cases and the full 29-case
+compiler module verify the boundary. Existing graph meaning already includes
+accepted intent compilation; only its exact contracts source digest changes.
+Undefined R/P criteria and trusted-predecessor visual expression remain open.
+
+Exact-current full proof, official archive, accepted activation and new hosted
+results are still required for this Change. Proposal ingress and wider iteration
+speed remain next obligations; no adopter source or model state was changed.
+
 ## Completion Boundary
 
 Terminal convergence is verified only when every batch above is accepted and

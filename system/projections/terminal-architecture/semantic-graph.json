@@ -174,7 +174,7 @@
     "contracts": {
       "path": "openspec/specs/contracts/spec.md",
       "authority": "current Commitment and Attestation contracts",
-      "sha256": "c557ca839efc977970f45e88cc500a5aa10a42ddc3814e0a4059a9d226c67732"
+      "sha256": "fe037a0d25adc4522e675544fd38e132bddbbce51cdc8abc7e9ad89ac5235e8d"
     },
     "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",

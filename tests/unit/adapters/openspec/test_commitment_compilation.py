@@ -116,6 +116,66 @@ def test_removed_requirements_do_not_become_acceptance_obligations() -> None:
     )
 
 
+@pytest.mark.parametrize("with_requirement", [False, True])
+def test_native_rename_compiles_a_bound_relation_without_fabricated_requirements(
+    *, with_requirement: bool
+) -> None:
+    """A native rename is material intent, alone or alongside changed behavior."""
+    rename = {
+        "spec": "quality",
+        "operation": "RENAMED",
+        "rename": {"from": "Hosted budget tool supply", "to": "Native verification tool supply"},
+    }
+    requirement = {
+        "spec": "quality",
+        "operation": "MODIFIED",
+        "requirements": [
+            {
+                "text": "Native supply SHALL be rootless.",
+                "scenarios": [
+                    {"rawText": "- **WHEN** unprivileged\n- **THEN** materialize in owned cache"}
+                ],
+            }
+        ],
+    }
+    projection = {
+        "id": "native-supply",
+        "deltas": [rename, *([requirement] if with_requirement else [])],
+    }
+
+    result = commitment_from_projection("native-supply", projection)
+
+    assert (
+        'quality:rename:{"from": "Hosted budget tool supply", '
+        '"to": "Native verification tool supply"}' in result.acceptance
+    )
+    assert len(result.acceptance) == (3 if with_requirement else 1)
+    rename["rename"]["to"] = "Different destination"
+    assert commitment_from_projection("native-supply", projection).digest() != result.digest()
+
+
+@pytest.mark.parametrize(
+    "rename",
+    [
+        None,
+        {},
+        {"from": "Old"},
+        {"from": "", "to": "New"},
+        {"from": 1, "to": "New"},
+        {"from": "Same", "to": "Same"},
+    ],
+)
+def test_native_rename_rejects_incomplete_or_ambiguous_relation(rename: object) -> None:
+    """Neither missing endpoints nor an identity rename can form accepted intent."""
+    projection = {
+        "id": "native-supply",
+        "deltas": [{"spec": "quality", "operation": "RENAMED", "rename": rename}],
+    }
+
+    with pytest.raises(ValueError, match="openspec_show_invalid"):
+        commitment_from_projection("native-supply", projection)
+
+
 def test_official_spec_free_projection_compiles_minimal_commitment() -> None:
     projection = {
         "id": "dependency-refresh",

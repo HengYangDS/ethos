@@ -25,6 +25,36 @@ def test_reference_carriers_have_one_deterministic_dispatch(path: str, carrier: 
     assert reference_carrier(path).name == carrier
 
 
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        ".config/checks/secrets/supply.toml",
+        ".config/checks/lychee/supply.toml",
+        ".config/release/supply-chain.toml",
+    ],
+)
+def test_native_supply_owns_its_executable_without_an_installer(
+    tmp_path: Path, declaration: str
+) -> None:
+    """Replacing a transport cannot erase or fabricate native tool ownership."""
+    source = tmp_path / "src/ethos/runtime.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        'import subprocess\nsubprocess.run(["declared-native-check", "--version"], check=True)\n',
+        encoding="utf-8",
+    )
+    policy = tmp_path / declaration
+    policy.parent.mkdir(parents=True)
+    policy.write_text('tool = "declared-native-check"\n', encoding="utf-8")
+
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == []
+
+    policy.unlink()
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == [
+        "semantic_consumer_orphan:executable:declared-native-check:src/ethos/runtime.py"
+    ]
+
+
 def test_reference_closure_rejects_wcp_and_workstation_as_undeclared_dependencies(
     tmp_path: Path,
 ) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import tempfile
 from contextlib import contextmanager
@@ -87,10 +88,7 @@ def commitment_from_projection(
     if not isinstance(deltas, list):
         msg = f"openspec_acceptance_missing:{change}"
         raise TypeError(msg)
-    spec_free_projection = not deltas or all(
-        isinstance(delta, dict) and "requirements" not in delta for delta in deltas
-    )
-    if spec_free_projection:
+    if _spec_free_deltas(deltas):
         acceptance = _spec_free_acceptance(
             change,
             status=status,
@@ -105,6 +103,16 @@ def commitment_from_projection(
         schema_version=3,
         id=f"change:{change}",
         acceptance=acceptance,
+    )
+
+
+def _spec_free_deltas(deltas: object) -> bool:
+    """Distinguish native rename operations from spec-free proposal projections."""
+    return isinstance(deltas, list) and all(
+        isinstance(delta, dict)
+        and "requirements" not in delta
+        and str(delta.get("operation") or "").strip().upper() != "RENAMED"
+        for delta in deltas
     )
 
 
@@ -174,6 +182,18 @@ def _acceptance_items(change: str, delta: object) -> tuple[str, ...]:
     if str(delta.get("operation") or "").strip().upper() == "REMOVED":
         return ()
     spec = str(delta.get("spec") or "").strip()
+    if str(delta.get("operation") or "").strip().upper() == "RENAMED":
+        rename = delta.get("rename")
+        if (
+            not spec
+            or not isinstance(rename, dict)
+            or set(rename) != {"from", "to"}
+            or any(not isinstance(value, str) or not value.strip() for value in rename.values())
+            or rename["from"].strip() == rename["to"].strip()
+        ):
+            msg = f"openspec_show_invalid:{change}"
+            raise ValueError(msg)
+        return (f"{spec}:rename:{json.dumps(rename, sort_keys=True, ensure_ascii=False)}",)
     requirements = delta.get("requirements")
     if not spec or not isinstance(requirements, list):
         msg = f"openspec_show_invalid:{change}"
@@ -298,11 +318,7 @@ def load_openspec_commitment(
             raise ValueError(msg)
         payload = result.get("json")
         deltas = payload.get("deltas") if isinstance(payload, dict) else None
-        spec_free = isinstance(deltas, list) and (
-            not deltas
-            or all(isinstance(delta, dict) and "requirements" not in delta for delta in deltas)
-        )
-        if spec_free:
+        if _spec_free_deltas(deltas):
             status = openspec_cli.run_json(
                 projection,
                 command,

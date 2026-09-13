@@ -9,6 +9,7 @@ import re
 import shutil
 import stat
 import subprocess
+import time
 import tomllib
 from dataclasses import replace
 from pathlib import Path
@@ -541,6 +542,155 @@ def test_python_cleanup_removes_owned_readonly_runtime_tree(tmp_path) -> None:
     python_test_gate.remove_generated_path(target)
 
     assert not target.exists()
+
+
+@pytest.mark.parametrize("relation", ["root-link", "nested-link", "hardlink"])
+def test_python_cleanup_preserves_external_content_and_permissions(tmp_path, relation) -> None:
+    """Owned cleanup unlinks references without changing an external inode."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    payload = outside / "payload"
+    payload.write_bytes(b"external content")
+    target = tmp_path / "owned"
+    if relation == "root-link":
+        target.symlink_to(outside, target_is_directory=True)
+    else:
+        target.mkdir()
+        if relation == "nested-link":
+            (target / "link").symlink_to(outside, target_is_directory=True)
+        else:
+            os.link(payload, target / "link")
+    payload.chmod(0o444)
+    before = payload.stat()
+
+    python_test_gate.remove_generated_path(target)
+
+    assert not target.exists()
+    assert not target.is_symlink()
+    after = payload.stat()
+    assert payload.read_bytes() == b"external content"
+    assert (after.st_ino, after.st_mode, after.st_mtime_ns) == (
+        before.st_ino,
+        before.st_mode,
+        before.st_mtime_ns,
+    )
+
+
+@pytest.mark.parametrize("failure", ["prepare", "test", "cleanup", "freshness"])
+def test_python_attempt_revokes_previous_success_before_any_work(
+    tmp_path, monkeypatch, failure
+) -> None:
+    """A same-HEAD failure cannot retain a previous attempt's success marker."""
+    gate = _test_gate(tmp_path)
+    monkeypatch.setattr(python_test_gate, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        python_test_gate, "_head", lambda: "b" * 40 if failure == "freshness" else gate.s.head
+    )
+    gate.coverage.mkdir(parents=True)
+    gate.head_file.write_text(gate.s.head + "\n")
+    gate.data.write_bytes(b"old evidence")
+    remove = python_test_gate.remove_generated_path
+
+    def execute(*_args, **_kwargs) -> None:
+        assert not gate.head_file.exists()
+        if failure == "test":
+            raise KeyboardInterrupt
+
+    calls = 0
+
+    def clean(path: Path) -> None:
+        nonlocal calls
+        if path == tmp_path / ".coverage":
+            assert not gate.head_file.exists()
+            calls += 1
+            if (failure == "prepare" and calls == 1) or (failure == "cleanup" and calls == 2):
+                message = f"{failure} failed"
+                raise RuntimeError(message)
+        remove(path)
+
+    monkeypatch.setattr(python_test_gate, "remove_generated_path", clean)
+    with pytest.raises(KeyboardInterrupt if failure == "test" else RuntimeError):
+        gate.run_tests(cast("nox.Session", SimpleNamespace(run=execute)))
+
+    assert not gate.head_file.exists()
+    session = SimpleNamespace(error=pytest.fail)
+    with pytest.raises(pytest.fail.Exception, match="missing or stale"):
+        gate.enforce_floor(cast("nox.Session", session))
+
+
+def test_python_single_attempt_discards_partial_and_sharded_outputs(tmp_path, monkeypatch) -> None:
+    """An interrupted attempt's data cannot silently join a new test population."""
+    gate = _test_gate(tmp_path)
+    monkeypatch.setattr(python_test_gate, "ROOT", tmp_path)
+    monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)
+    gate.coverage.mkdir(parents=True)
+    (gate.pytest / "shards").mkdir(parents=True)
+    for name in (".coverage", ".coverage.worker", ".coverage.shard-1", "coverage.xml"):
+        (gate.coverage / name).write_bytes(b"stale")
+    for name in ("junit.xml", "junit-shard-1.xml", "nodeids.txt", "shards/shard-1.passed"):
+        (gate.pytest / name).write_bytes(b"stale")
+
+    def run(*_args, **_kwargs) -> None:
+        assert not list(gate.coverage.glob(".coverage*"))
+        assert not (gate.coverage / "coverage.xml").exists()
+        assert not tuple(gate.pytest.iterdir())
+        assert not gate.head_file.exists()
+
+    gate.run_tests(cast("nox.Session", SimpleNamespace(run=run)))
+
+    assert gate.head_file.read_text() == gate.s.head + "\n"
+    assert not gate.s.basetemp.exists()
+
+
+def test_killed_python_attempt_cannot_reuse_previous_completion(tmp_path, monkeypatch) -> None:
+    """An actual process kill cannot revive a prior same-source success marker."""
+    gate = _test_gate(tmp_path)
+    gate.coverage.mkdir(parents=True)
+    gate.data.write_bytes(b"old coverage")
+    gate.head_file.write_text(gate.s.head + "\n")
+    ready = tmp_path / "ready"
+    script = """
+import sys, time
+from pathlib import Path
+from types import SimpleNamespace
+from tools.ci.python_test_gate import PythonTestGate, Settings
+root = Path(sys.argv[1])
+gate = PythonTestGate(Settings(
+    head='a' * 40, evidence=root / 'evidence', basetemp=root / 'pytest',
+    basetemp_owned=True, workers=1, shards=1, durations=0, timeout=None,
+    lock_wait=0, uv_cache=None, node_package_supply=root / 'node_modules',
+))
+def execute(*args, **kwargs):
+    (root / 'ready').write_text('executing')
+    time.sleep(60)
+gate.run_tests(SimpleNamespace(run=execute))
+"""
+    environment = os.environ | {"PYTHONPATH": os.pathsep.join((str(ROOT), str(ROOT / "src")))}
+    with subprocess.Popen(
+        [str(python_test_gate.PYTHON), "-B", "-c", script, str(tmp_path)],
+        cwd=tmp_path,
+        env=environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    ) as process:
+        try:
+            deadline = time.monotonic() + 15
+            while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.02)
+            assert ready.exists(), "test owner did not enter native execution"
+            process.kill()
+            process.communicate(timeout=10)
+            assert process.returncode != 0
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.communicate(timeout=10)
+
+    assert not gate.head_file.exists()
+    monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)
+    with pytest.raises(pytest.fail.Exception, match="missing or stale"):
+        gate.enforce_floor(cast("nox.Session", SimpleNamespace(error=pytest.fail)))
 
 
 @pytest.mark.parametrize(

@@ -31,11 +31,14 @@ provider projections.
    through real owners; neither counters nor a clean audit prove effectiveness.
 7. Prove the exact gate path with focused scripts first, then run head-bound
    `ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json`.
+8. Close each reproduced failure through the existing owner, a distinguishing
+   regression, replacement-path deletion and actual consumer verification.
+   Apply the learning and interrupted-execution boundaries in
+   `references/gate-design.md`; a written lesson or running task is not proof.
 
 ## Evidence
 
-Apply the lifecycle skill's failure-escalation rule, then use owner scripts and
-proof output:
+Follow current command decisions and use owner scripts and proof output:
 
 ```bash
 uv run --frozen --offline python -m nox -s lint

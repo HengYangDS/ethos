@@ -19,6 +19,10 @@ identically in local, hosted and non-privileged environments.
 - Preserve official requirement renames as exact source/destination relations in
   the existing Commitment compiler. Native validation passed but the incumbent
   compiler blocked this Change and its own repair; bounded recovery is recorded.
+- Close the test-evidence prerequisite exposed by this batch's interrupted full
+  proof: invalidate prior completion before work, isolate partial results, and
+  preserve external referents during cleanup. Project the verified discipline
+  through the existing quality Skill, not a new feedback or execution system.
 
 ## Capabilities
 
@@ -38,6 +42,9 @@ existing native-supply/hosted tests, quality specification, configuration
 explanations and terminal plan.
 The necessary governor repair changes `src/ethos/adapters/openspec/commitment.py`
 and its existing compilation regression module; no new authority is introduced.
+The proof-integrity repair stays in `tools/ci/python_test_gate.py`, its existing
+regression module and the quality Skill. Automatic strong-kill resource recovery
+remains outside this bounded correction and is not claimed complete.
 
 ## Non-Goals
 

@@ -4890,6 +4890,13 @@ removing suffix inference alone would leave that acceptance distinction missing.
     only for the risk or completion plane that selects it. It must remain truly
     independent when selected, but cannot become a universal duplicate
     implementation or default heavyweight blocker.
+14. **Make learning change prevention.** A reproduced failure closes only when
+    its causal invariant, unique owner, distinguishing regression, superseded
+    path and consumer result agree. Put accepted intent in the official Change,
+    behavior in its executable owner, reusable judgment in the existing Skill
+    and observations in receipts. A recurrence reopens the failed causal
+    assumption, not an additional exception or feedback store. Measure false
+    admission, false blocking, repeated effects, recovery effort and cycle cost.
 
 ### Hosted Scanner Supply Follow-Up — September 13, 2026 (+08:00)
 
@@ -4967,6 +4974,25 @@ to passing checkout-bound status/prewrite. Eight RED cases and the full 29-case
 compiler module verify the boundary. Existing graph meaning already includes
 accepted intent compilation; only its exact contracts source digest changes.
 Undefined R/P criteria and trusted-predecessor visual expression remain open.
+
+The source proof at `6f750454` stopped without a final result; the original tool
+handle and all observed proof/test processes were absent. No JUnit, coverage
+completion marker or proof verdict survived. Exact recovery retired only its
+owned scratch and 486 incomplete coverage fragments; this is an interrupted
+attempt, not a passing or failing full-test verdict. The existing test owner now
+revokes old completion before preparation, commits success after cleanup and
+freshness, and isolates a fresh single attempt from partial/sharded output.
+Real cleanup regressions preserve external symlink/hardlink referents. The
+existing quality Skill carries causal learning and original-handle recovery;
+its presence alone does not prove future Agent adherence.
+
+Automatic strong-kill orphan reclamation remains open. Reuse of partial
+coverage is forbidden; reusable completed evidence needs a complete input
+closure. The last completed exact proof spent 26 minutes in tests; six lifecycle
+modules account for 56 percent of summed case time. A bounded current-worker
+sample found subprocess waiting, including native OpenSpec and Git hook calls.
+P5 therefore starts with these observed repeated boundaries, not extra workers
+or a speculative cache, while this independently useful repair is closed first.
 
 Exact-current full proof, official archive, accepted activation and new hosted
 results are still required for this Change. Proposal ingress and wider iteration

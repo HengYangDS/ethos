@@ -5332,6 +5332,23 @@ selected public owner gates and native repository-wide lint, config, Markdown,
 prose and import-boundary checks pass. Frozen source proof is the next boundary;
 no focused result is substituted for it.
 
+Exact proof of `c808957b1` then fails three existing current-authority recovery
+cases: status chooses runtime installation before restoring the actor or Lease,
+while plan/prewrite/hooks/prove correctly retain authority recovery. The run has
+3,292 passed tests, three failures and one skip in 1,658.75 seconds; dependent
+coverage/build gates do not run, and the owned basetemp is removed. This is a
+real priority regression, not native startup flakiness; no archive or acceptance
+is attempted. Source-only task checks were reopened before repair.
+
+The same status owner now projects the existing CurrentResolution recovery
+before runtime or policy repair when authority is not passing, without dropping
+their independent gaps. Six public RED cases cover absent/present commit policy;
+the focused suite passes 44 cases, and the full affected current-authority,
+reader and closeout set passes 130 in 361.64 seconds. Ten public owner checks
+pass again. Keep this composition matrix in the existing test owner so a later
+capability cannot displace a prerequisite and rediscover it only in full proof.
+The revised exact source still requires its complete proof.
+
 The latest adopter confirms public rebind to `52db974e…` with four linked
 worktrees checked, one obsolete generation removed, and unchanged product/config
 hashes. This is adopter-reported installation evidence, not a lifecycle repair.
@@ -5346,6 +5363,18 @@ not removed the old owners. Accept the generic lesson: review the final merged
 meaning and surviving scenarios, not only delta validity. Apply it at the native
 OpenSpec config/skill and acceptance owners in the existing P1/P2 route; this
 status correction does not claim that separate semantic capability implemented.
+
+The next lifecycle closure removes a false dependency, not a task carrier.
+Source acceptance, delivery outcome and full Change completion are distinct.
+Keep the same official active Change and its honestly incomplete tasks through
+accepted source integration and subsequent delivery; mark each task only after
+its effect is observed, then archive when all obligations are settled. Official
+OpenSpec v1.13.0 `docs/team-workflow.md` supports post-merge archive; its existence
+does not itself repair ETHOS's stronger active-carrier prohibition. Replace that
+prohibition coherently in the source/ref admission, archive and reader owners,
+with current proof and effect authority retained. Do not use upstream `--yes`
+to turn incomplete delivery into an archived-completion claim. This is the next
+existing P0/P1 closure, not implementation in this frozen status Change.
 
 ## Completion Boundary
 

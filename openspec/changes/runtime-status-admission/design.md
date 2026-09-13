@@ -20,9 +20,11 @@ cannot depend on successful validation. A plain repository with neither must
 not acquire an installation obligation merely from inspection.
 Commit-policy absence remains `not_declared` with no policy gaps.
 
-Runtime recovery takes precedence over a later source effect. Invalid policy
-still reports its own failure and recovery; no gap is discarded and no parser,
-cache, state store or second command builder is introduced. Read-only status
+Current authority recovery precedes runtime repair: an absent actor or invalid
+Lease cannot be sent to an effect first. Runtime recovery then precedes a later
+source effect. Invalid policy still reports its own failure and recovery; no gap
+is discarded and no parser, cache, state store or second command builder is
+introduced. Read-only status
 keeps its existing process-exit contract; its JSON verdict conveys readiness.
 
 ## Verification

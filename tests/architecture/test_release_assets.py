@@ -95,6 +95,14 @@ def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
         assert versions
         assert all(version not in installer for version in versions)
 
+    native = (ROOT / "tools/ci/toolchain/native.py").read_text(encoding="utf-8")
+    native_policies = set(re.findall(r"\.config/[A-Za-z0-9_./-]+\.toml", native))
+    assert native_policies == {
+        ".config/checks/format/selection.toml",
+        ".config/checks/secrets/supply.toml",
+    }
+    declared_policies.update(native_policies)
+
     assert declared_policies == {
         ".config/checks/format/selection.toml",
         ".config/checks/github/actionlint.toml",

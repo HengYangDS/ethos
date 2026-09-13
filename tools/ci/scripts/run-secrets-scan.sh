@@ -6,14 +6,15 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
-  exec "${script_dir}/with-python-runtime.sh" -- \
-    uv run --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+	exec "${script_dir}/with-python-runtime.sh" -- \
+		uv run --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-"${script_dir}/install-gitleaks.sh"
+supply_directory="$(python "${script_dir}/../toolchain/native.py" --root "${repo_root}" gitleaks)"
+export PATH="${supply_directory}:${PATH}"
 
 report_dir="${ETHOS_SECRETS_REPORT_DIR:-build/evidence/quality/secrets}"
 mkdir -p "${report_dir}"
@@ -61,9 +62,9 @@ PY
 # `--no-git` intentionally applies to the tracked-file mirror, not to the full
 # worktree. `--redact` keeps matched values out of logs and the report.
 gitleaks detect \
-  --source "${scan_root}" \
-  --config "${repo_root}/.gitleaks.toml" \
-  --no-git \
-  --redact \
-  --report-format json \
-  --report-path "${report_dir}/report.json"
+	--source "${scan_root}" \
+	--config "${repo_root}/.gitleaks.toml" \
+	--no-git \
+	--redact \
+	--report-format json \
+	--report-path "${report_dir}/report.json"

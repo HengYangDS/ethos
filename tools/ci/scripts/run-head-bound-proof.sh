@@ -17,10 +17,7 @@ mkdir -p "${out}"
 rm -f "${receipt}" "${stderr}" "${out}/hosted-verification.json" "${out}/hosted-verification.json.tmp"
 rm -f -- "${reports}/pytest"/junit*.xml "${reports}/coverage/coverage.xml" "${reports}/coverage/head.txt"
 set +e
-supply_directory="$(
-	"${dir}/install-gitleaks.sh" >&2 &&
-		"${dir}/install-scc.sh"
-)" 2>"${stderr}"
+supply_directory="$(python "${dir}/../toolchain/native.py" --root "$PWD" gitleaks scc 2>"${stderr}")"
 supply_status=$?
 proof_status=${supply_status}
 if [[ ${supply_status} -eq 0 ]]; then

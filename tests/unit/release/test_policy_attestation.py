@@ -270,7 +270,7 @@ def test_release_topology_enforces_invalid_declaration_without_bypass() -> None:
             "refs/heads/proposal/topic",
             "branch",
             "proposal_ref",
-            "current_commitment",
+            "review_object",
             "eligible",
         ),
         ("refs/tags/v1.2.3", "tag", "release_publication", "repository_transition", "eligible"),

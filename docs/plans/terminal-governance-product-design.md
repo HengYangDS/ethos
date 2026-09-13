@@ -5079,6 +5079,19 @@ standard or format converter. Confirm actual consumers, then remove or relocate
 this self-specific residue under the existing declaration-convergence work;
 do not make AIGW match a dead helper or invent signed standard artifacts.
 
+The first exact full proof at `e39d19302` failed one of 3,263 cases: the release
+topology matrix still expected `current_commitment` for a proposal target.
+All 3,261 other cases passed and one skipped. Coverage measured 25,284/26,607
+(95.0276 percent), but failed test execution correctly withheld completion and
+blocked downstream coverage/build/package claims. Owned basetemp was removed.
+The cause was incomplete impact selection: the release owner consumer was not
+included in the publication-focused set. The same test now checks `review_object`
+without changing accepted/release or local-only assertions. The quality Skill
+requires owner-to-consumer and return-contract closure before the heavy gate;
+its prose alone does not prove universal future Agent adherence. The failed proof
+remains evidence, and a new exact-source proof is required—no coverage stitching,
+waiver or reinterpretation of that failed result.
+
 ## Completion Boundary
 
 Terminal convergence is verified only when every batch above is accepted and

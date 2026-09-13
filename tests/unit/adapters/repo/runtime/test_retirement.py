@@ -352,14 +352,18 @@ def test_retirement_waits_boundedly_for_a_real_native_selector_lock(tmp_path: Pa
     assert lock_path.stat().st_ino == inode
 
 
-def test_live_native_process_keeps_generation_until_exit(tmp_path: Path) -> None:
-    """A real process reference survives cleanup, then releases the unused bytes."""
+@pytest.mark.parametrize("columns", ["32", "80"])
+def test_live_native_process_keeps_generation_until_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, columns: str
+) -> None:
+    """Display width cannot hide a live dependency or keep it after process exit."""
+    monkeypatch.setenv("COLUMNS", columns)
     repo, hooks, runtime = _tree(tmp_path)
     needed = _generation(runtime, "b" * 64)
     ready = tmp_path / "process-ready"
-    script = "import pathlib,sys; pathlib.Path(sys.argv[2]).write_text('ready'); sys.stdin.read(1)"
+    script = "import pathlib,sys; pathlib.Path(sys.argv[3]).write_text('ready'); sys.stdin.read(1)"
     with subprocess.Popen(
-        [sys.executable, "-B", "-I", "-c", script, str(needed), str(ready)],
+        [sys.executable, "-B", "-I", "-c", script, "padding" * 80, str(needed), str(ready)],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

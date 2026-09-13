@@ -72,7 +72,7 @@ def windows_powershell(*, environment: Mapping[str, str] | None = None) -> str:
 
 
 def process_listing_command(*, platform_name: str | None = None) -> tuple[str, ...]:
-    """Return the native process-listing command without consulting ambient PATH."""
+    """Observe full native command text, independent of PATH or display width."""
     windows = "Get-CimInstance Win32_Process | % CommandLine"
     if (platform_name or os.name) == "nt":
         return (
@@ -89,7 +89,7 @@ def process_listing_command(*, platform_name: str | None = None) -> tuple[str, .
             NATIVE_PROCESS_OBSERVER_UNAVAILABLE,
             reason="native_executable_missing",
         )
-    return (Path(executable).resolve().as_posix(), "-axo", "command=")
+    return (Path(executable).resolve().as_posix(), "-axww", "-o", "command=")
 
 
 def _file_observation_failure(reason: str) -> None:

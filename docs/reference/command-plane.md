@@ -49,6 +49,13 @@ repair operation. It activates one immutable generation in repository-common
 Git config, removes owned worktree-local activation overrides, post-observes
 every linked worktree, and reports exact checked, repaired, retained, and
 removed paths. Unknown consumers block cleanup rather than being guessed away.
+When activation succeeded but reclamation is incomplete, the result is
+`installed_cleanup_deferred`: `data.current` and `summary.wired` retain
+the successful activation observation, while `generation_cleanup` reports the
+completed removals, retained resources, deferred paths and failure. The overall
+verdict remains `block` for incomplete repair. Follow the returned public
+`ethos hook install --json` continuation to re-observe and retry; do not undo the
+successful activation or delete historical receipts to free their old runtimes.
 
 These roots are capabilities, not a fixed lifecycle. `status` selects the sole
 current continuation; after an effect, the caller re-observes instead of

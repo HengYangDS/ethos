@@ -44,8 +44,8 @@ def test_activation_authenticates_the_package_under_lock_and_renders_exact_comma
     validate = runtime_selection.require_selected_runtime
     locks = []
 
-    def selection_lock(path):
-        lock = lock_type(path)
+    def selection_lock(path, **kwargs):
+        lock = lock_type(path, **kwargs)
         locks.append(lock)
         return lock
 

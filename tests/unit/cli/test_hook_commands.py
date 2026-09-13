@@ -145,6 +145,7 @@ def test_install_projects_runtime_and_retains_deferred_cleanup(
     runtime = {
         "hooks_path": str(tmp_path / "hooks"),
         "python": str(tmp_path / "python"),
+        "current": True,
         "scripts": ["commit-msg", "pre-commit", "pre-push", "reference-transaction"],
         "linked_worktrees": [
             {"path": str(tmp_path), "state": "repaired"},
@@ -163,7 +164,8 @@ def test_install_projects_runtime_and_retains_deferred_cleanup(
     result = emitted[-1]
     assert result.to_dict()["data"] == runtime
     assert result.verdict == ("block" if deferred else "pass")
-    assert result.summary["wired"] is (not deferred)
+    assert result.summary["wired"] is True
+    assert result.state == ("installed_cleanup_deferred" if deferred else "installed")
     assert (
         result.summary["linked_worktrees_checked"],
         result.summary["linked_worktrees_repaired"],

@@ -71,8 +71,9 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     authority_projection = authority.projection() if authority is not None else {}
     runtime = hook_runtime_binding(repo)
     commit_policy = commit_policy_enforcement(repo, runtime)
+    runtime_gaps = string_sequence(runtime["required_gaps"]) if runtime["required"] else ()
     commit_policy_gaps = string_sequence(commit_policy.get("required_gaps"))
-    gaps = tuple(dict.fromkeys((*gaps, *commit_policy_gaps)))
+    gaps = tuple(dict.fromkeys((*gaps, *runtime_gaps, *commit_policy_gaps)))
     data = {
         "root": observed.get("root", ""),
         "branch": observed.get("branch", ""),
@@ -106,9 +107,11 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     stage_gates = cast("dict[str, object]", observed.get("stage_gates") or {})
     stage_action = str(stage_gates.get("next_action") or "")
     scope_exceeded = any(item.state == "uncovered" for item in generation_scope.attributions)
+    runtime_action = runtime["next_action"] if runtime_gaps else ""
     commit_policy_action = str(commit_policy.get("next_action") or "")
     next_action = (
-        commit_policy_action
+        runtime_action
+        or commit_policy_action
         or closeout_action
         or (
             "repair the selected Commitment scope for the uncovered current-generation paths"
@@ -121,7 +124,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     )
     user_decision_required = (
         False
-        if next_action == commit_policy_action and commit_policy_action
+        if next_action in {runtime_action, commit_policy_action} and next_action
         else resolution.user_decision_required
         if resolution is not None and resolution.next_action
         else bool(stage_gates.get("user_decision_required", False))

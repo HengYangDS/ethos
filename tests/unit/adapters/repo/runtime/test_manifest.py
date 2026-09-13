@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +22,7 @@ from tests.support.runtime_scenarios import create_fixture_python
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 from tests.support.runtime_scenarios import runtime_executable
+from tools.ci.python_test_gate import remove_generated_path
 
 
 @pytest.mark.parametrize("source", ["current", "alternate"])
@@ -59,6 +62,43 @@ def test_fixture_python_is_bounded_and_executes_selected_source(
     assert Path(observed["prefix"]).resolve() == runtime.resolve()
     assert Path(observed["source"]).resolve() == source_root / "src/ethos/__init__.py"
     assert not Path(observed["nox"]).resolve().is_relative_to(runtime.resolve())
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX shared executable inode contract")
+def test_governance_fixture_reuses_owned_binary_but_not_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Repeated governance fixtures avoid new executable inodes without sharing state."""
+    shared = tmp_path / "supply-python"
+    shutil.copy2(sys.executable, shared)
+    shared.chmod(0o555)
+    original = shared.read_bytes()
+    monkeypatch.setattr(runtime_scenarios, "_GOVERNANCE_PYTHON", shared, raising=False)
+    bindings = []
+    for name in ("first", "second"):
+        repo = tmp_path / name
+        repo.mkdir()
+        subprocess.run(["git", "init", "--quiet", "--initial-branch=dev"], cwd=repo, check=True)
+        bindings.append(runtime_scenarios.install_fixture_hook_runtime(repo))
+    first, second = (Path(item["python"]) for item in bindings)
+
+    assert first.samefile(shared)
+    assert second.samefile(shared)
+    assert first.parent.parent != second.parent.parent
+    for executable in (first, second):
+        prefix = subprocess.check_output(
+            [str(executable), "-B", "-I", "-c", "import sys; print(sys.prefix)"], text=True
+        ).strip()
+        assert Path(prefix).resolve() == executable.parent.parent.resolve()
+
+    first.unlink()
+    assert second.read_bytes() == original
+    assert shared.read_bytes() == original
+    assert shared.stat().st_mode & 0o222 == 0
+    remove_generated_path(second.parent.parent)
+    assert shared.read_bytes() == original
+    assert shared.stat().st_mode & 0o222 == 0
+    assert shared.stat().st_nlink == 1
 
 
 def test_runtime_inventory_hashes_actual_bytes_without_location_aliases(tmp_path: Path) -> None:

@@ -17,10 +17,14 @@ monitor.
 from __future__ import annotations
 
 import os
+import shutil
+import sys
 from pathlib import Path
 
 import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
+
+import tests.support.runtime_scenarios as runtime_scenarios
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 set_hypothesis_home_dir(
@@ -28,6 +32,20 @@ set_hypothesis_home_dir(
     / "build/runtime/tool-cache/hypothesis"
     / os.environ.get("PYTEST_XDIST_WORKER", "local")
 )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _governance_executable_supply(tmp_path_factory: pytest.TempPathFactory):
+    """Share only a test-owned read-only POSIX binary, never mutable runtime state."""
+    if os.name == "nt":
+        yield
+        return
+    executable = tmp_path_factory.mktemp("governance-python") / "python"
+    shutil.copy2(sys.executable, executable)
+    executable.chmod(0o555)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(runtime_scenarios, "_GOVERNANCE_PYTHON", executable)
+        yield
 
 
 @pytest.fixture(autouse=True)

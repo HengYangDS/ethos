@@ -5187,6 +5187,25 @@ Markdown/prose checks and all twelve official OpenSpec items pass. Product and
 test ELOC are 41,704 and 44,311, independently below their 50,000 ceilings.
 These complete the revised source inputs, not its future exact proof or delivery.
 
+Revised source `2c2470a439c8aef356117995b5b1327fd72017cc`, tree
+`64f01008ea382db57fb2a79c7d52afa36f2346ef`, then failed exact full proof after
+1,692.65 seconds: 3,267 tests passed, thirteen failed and one skipped; combined
+coverage was 95.0708 percent. The added shared-fixture diagnostic now shows every
+failure has the same `runtime_hook_contract_timeout` before business execution,
+with matching source/tree and empty output. Owned basetemp was removed. Accepted
+source/runtime remain `295856c830`/`a51a56dd…`; no archive, acceptance or cleanup
+was attempted from this failed proof.
+
+Stop unchanged full reruns. A local content-keyed contract memo experiment was
+removed because it neither eliminates the cold query nor closes the fixture's
+external `.pth` input relation; its failed evidence is retained, not its code.
+Resolve declaration identity versus executable readiness at the native runtime
+or fixture owner, preserve fresh authority and test both invalidation and native
+failure. This concrete prerequisite precedes the next full proof. Do not install
+a general cache framework, manufacture a green fixture, raise a timeout or alter
+host security services. Existing immutable proof artifacts and the bounded
+runtime-consumer evidence directory retain the exact attempts and rejected option.
+
 During the frozen attempt, AIGW reported a delivery-inclusive Change at 86/106
 tasks whose public land action prematurely asks for archive. Current source
 confirms a separate lifecycle gap: mandatory archive before integration has no

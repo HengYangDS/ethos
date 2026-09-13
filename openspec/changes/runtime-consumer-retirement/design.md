@@ -94,3 +94,20 @@ A persistent consumer registry duplicates state without a current writer needing
 it. Keeping all generations avoids deletion but violates bounded resource life.
 The selected design removes the accidental dependency while preserving positive
 live-consumer constraints and honest unknown results.
+
+### Rejected runtime-contract memo experiment
+
+Repeated full proof failures now identify native hook-contract cold startup as
+the shared failed prerequisite, not thirteen independent business defects.
+A process-local contract memo keyed by runtime digest reduced repeated queries
+but did not remove first-query failure. More importantly, the lightweight test
+runtime's external `.pth` source and dependency bindings are not fully contained
+in that digest. The memo experiment was removed before acceptance. Preserve
+current selector, manifest, configuration and executable-failure observations;
+do not cache a verdict or make partial input identity stand for semantic closure.
+
+The next repair must distinguish pure package declaration from executable
+currentness at the existing native runtime/fixture owner. Reuse requires the
+complete actual input relation and cold/warm equivalent decisions. Retain one
+bounded source repair here only insofar as required to verify retirement; broad
+test-cost and delivery-inclusive lifecycle work remain on the canonical plan.

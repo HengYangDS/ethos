@@ -10,3 +10,4 @@
 - [x] Align the existing runtime documentation, terminal plan, relevant skill guidance and exact source projection bindings.
 - [x] Close every changed consumer and run focused runtime/activation/CLI regressions, native format/type/semantic checks and official OpenSpec validation.
 - [x] Verify source-completion inputs for exact proof and governed archive; keep their later outcomes in receipts rather than task assertions.
+- [ ] Remove the demonstrated repeated runtime-contract cold-start prerequisite without caching authority, loosening deadlines or losing native failure evidence; replay exact affected consumers before another full proof.

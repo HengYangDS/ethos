@@ -61,14 +61,40 @@ stays package/workspace metadata. Ruff and pytest are owned explicitly by
 scripts pass those paths. Root `ruff.toml` is intentional; a second pytest or
 Ruff configuration would be a competing owner.
 
-## Tightening Rule
+## Learning And Failure Placement
 
-Tightening means moving a late failure upstream in this order:
+For a reproduced failure, distinguish the observation from its causal hypothesis
+and identify the violated invariant. Exercise the smallest real counterexample,
+repair its existing semantic owner, remove the replaced path, and replay both
+valid and invalid consumers. Use the existing Change for scope and acceptance,
+the canonical plan for unresolved work, and exact receipts for results. Add a
+Decision Record only for irreducible cross-Change rationale; do not add a feedback
+ledger, lesson catalog, alternate rule registry or a copied adopter gate.
+
+Move prevention to the earliest boundary that has enough information:
 
 ```text
-incident -> diagnosis -> config owner -> script owner -> hook/CI projection -> proof gate -> schema/default
+declaration/schema -> effect admission -> native execution -> verification -> projection
 ```
 
-Do not add a hosted CI command when a local owner script or ETHOS command can own
-that behavior. Do not add a new gate if an existing gate can expose the same
-concern with clearer evidence.
+Judge learning by a previously missed fault now rejected, a valid path restored,
+less repeated work, or a retired duplicate, not by added prose or test count.
+When a correction fails twice, revisit the owner and model before another patch.
+
+## Interrupted Execution
+
+Observe the original process or tool handle before waiting, recovering or
+restarting. A task marked active, an old running receipt or a lock filename does
+not establish liveness. A polling timeout alone does not establish termination.
+After confirmed termination without a complete result, keep the attempt
+unproved, retain its bounded failure evidence, and reclaim only verified owned
+scratch. Never merge incomplete coverage into a new proof or infer success from
+the absence of an error report.
+
+`tools/ci/python_test_gate.py` owns test-attempt isolation. Under its existing
+coverage lock, it invalidates the previous completion marker before preparation
+and writes a new marker only after tests, cleanup and source freshness succeed.
+Single-attempt execution clears prior partial and sharded output. Cleanup must
+not follow directory links or change permissions on external hard-linked files.
+Normal cleanup is not proof of SIGKILL recovery or sustained storage boundedness;
+those require real fault and retention tests at the responsible owner.

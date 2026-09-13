@@ -75,16 +75,27 @@ def _absolute_environment_path(name: str) -> Path | None:
 
 
 def remove_generated_path(path: Path) -> None:
-    """Remove one generated path without hiding cleanup failures."""
-    if path.is_dir():
+    """Unlink owned output without changing external referents or hiding failure."""
+    if path.is_symlink():
+        path.unlink()
+    elif path.is_junction():
+        path.rmdir()
+    elif path.is_dir():
         for parent, directories, files in os.walk(path, followlinks=False):
-            for name in (*directories, *files):
-                child = Path(parent, name)
-                if not child.is_symlink():
-                    child.chmod(stat.S_IMODE(child.stat().st_mode) | stat.S_IWUSR)
             directory = Path(parent)
-            if not directory.is_symlink():
-                directory.chmod(stat.S_IMODE(directory.stat().st_mode) | stat.S_IRWXU)
+            directory.chmod(stat.S_IMODE(directory.stat().st_mode) | stat.S_IRWXU)
+            for name in directories[:]:
+                child = directory / name
+                if child.is_symlink() or child.is_junction():
+                    directories.remove(name)
+                else:
+                    child.chmod(stat.S_IMODE(child.stat().st_mode) | stat.S_IRWXU)
+            if os.name == "nt":
+                for name in files:
+                    child = directory / name
+                    metadata = child.lstat()
+                    if stat.S_ISREG(metadata.st_mode) and metadata.st_nlink == 1:
+                        child.chmod(stat.S_IMODE(metadata.st_mode) | stat.S_IWUSR)
         shutil.rmtree(path)
     else:
         path.unlink(missing_ok=True)
@@ -155,13 +166,14 @@ class PythonTestGate:
     def run_tests(self, session: nox.Session) -> None:
         """Run unit and architecture tests with branch coverage."""
         with self._coverage_lock():
+            self.head_file.unlink(missing_ok=True)
             try:
                 self._prepare()
                 self._sharded(session) if self.s.shards not in {None, 1} else self._single(session)
-                self.head_file.write_text(self.s.head + "\n", encoding="utf-8")
             finally:
                 self._cleanup()
                 self._stable_head()
+            self.head_file.write_text(self.s.head + "\n", encoding="utf-8")
 
     def enforce_floor(self, session: nox.Session) -> None:
         """Enforce the hard floor against current-HEAD evidence only."""
@@ -272,8 +284,13 @@ class PythonTestGate:
         )
 
     def _single(self, session: nox.Session) -> None:
-        for path in (self.data, self.coverage / "coverage.xml", self.pytest / "junit.xml"):
+        for path in (
+            *self.coverage.glob(".coverage*"),
+            self.coverage / "coverage.xml",
+            self.pytest,
+        ):
             remove_generated_path(path)
+        self.pytest.mkdir(parents=True)
         self._run(
             session,
             *self._args(),

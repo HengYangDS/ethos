@@ -56,3 +56,24 @@ lock timeout and residue bounds. Execute the real scanner and SCC in a Linux
 container as an unprivileged user with a read-only system filesystem, without
 host mounts writable except one owned scratch root. Then run exact-source proof
 and observe both hosted CI targets; no test count substitutes for that result.
+
+## Proof Attempt Boundary
+
+The interrupted validation of this Change left no result, JUnit or completion
+marker, but retained temporary fixtures and partial coverage. Inspection also
+showed that a same-HEAD rerun could retain an older completion marker, and that
+cleanup changed hard-linked external permissions. These are failures of the
+existing proof prerequisite, not reasons to introduce another executor.
+
+The test owner invalidates its marker under the existing coverage lock before
+preparation. It writes completion only after execution, cleanup and HEAD
+freshness pass. A fresh single attempt removes prior fragments and sharded
+outputs. Cleanup unlinks directory links, makes owned directories removable and
+does not chmod external hard-linked files. Rootless native supply and test
+execution remain separate owners with the same explicit effect boundary.
+
+The quality Skill projects the causal learning loop and original-handle recovery
+discipline. No new Skill, ledger, registry, daemon or persistent task entity is
+introduced. SIGKILL cleanup, evidence reuse across complete input closures and
+full-cycle latency retain their existing unresolved plan obligations; this
+repair does not claim those properties.

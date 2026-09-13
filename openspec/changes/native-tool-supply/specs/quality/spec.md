@@ -55,3 +55,31 @@ SHALL preserve prior bytes and remove owned preparation scratch.
 
 - **WHEN** a selected cache path is symlinked or otherwise unsafe
 - **THEN** preparation rejects it before writing or replacing external content
+
+## ADDED Requirements
+
+### Requirement: Test attempt completion is committed last
+
+The Python test owner SHALL invalidate previous completion under its existing
+evidence lock before preparation. Completion SHALL be published only after
+execution, owned cleanup and source freshness succeed. A fresh single attempt
+SHALL discard earlier incomplete output. Cleanup SHALL unlink owned references
+without changing external referent content or permissions.
+
+#### Scenario: A same-source rerun fails or is interrupted
+
+- **WHEN** preparation, execution, cleanup or final source observation fails
+- **THEN** no prior completion marker can certify this attempt
+- **AND** the coverage-floor owner refuses the incomplete evidence
+
+#### Scenario: Partial results precede a fresh single attempt
+
+- **WHEN** a previous attempt left worker fragments, shard results or reports
+- **THEN** the single-attempt owner clears those outputs before executing tests
+- **AND** the new result does not silently include the previous test population
+
+#### Scenario: Owned cleanup encounters external references
+
+- **WHEN** an owned cleanup target is a directory link or contains linked files
+- **THEN** cleanup removes only the owned entries
+- **AND** external referent content, mode and modification time remain unchanged

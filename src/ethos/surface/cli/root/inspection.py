@@ -110,7 +110,10 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     runtime_action = runtime["next_action"] if runtime_gaps else ""
     commit_policy_action = str(commit_policy.get("next_action") or "")
     next_action = (
-        runtime_action
+        resolution.next_action
+        if resolution is not None
+        and (resolution.authority is None or resolution.authority.verdict != "pass")
+        else runtime_action
         or commit_policy_action
         or closeout_action
         or (

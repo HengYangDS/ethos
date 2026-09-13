@@ -1,3 +1,5 @@
+"""Public surfaces preserve current authority before downstream repair actions."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -17,6 +19,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+@pytest.mark.parametrize("policy_declared", [False, True])
 @pytest.mark.parametrize(
     ("actor", "gap", "decision_state"),
     [
@@ -31,11 +34,19 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
     actor: str | None,
     gap: str,
     decision_state: str,
+    *,
+    policy_declared: bool,
 ) -> None:
     lane = leased_worktree(
         init_git_repo(tmp_path / "repo"),
         tmp_path / "repo-work-feature",
     )
+    if policy_declared:
+        (lane / ".ethos/workspace.toml").write_text(
+            '[commit_policy]\nsubject_pattern = "fix: .+"\n'
+            'signing_required = false\nsigning_format = "ssh"\n',
+            encoding="utf-8",
+        )
     if actor is None:
         monkeypatch.delenv("ETHOS_ACTOR", raising=False)
     else:
@@ -71,6 +82,7 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
     )
 
     assert {result["required_gaps"][0] for result in results} == {gap}
+    assert "write_admission_not_armed:runtime_current" in results[0]["required_gaps"]
     assert {result["next_action"] for result in results} == {
         (f"ethos lane lease reacquire --path {lane} --holder-ref {actor} --root {lane} --json")
         if gap.startswith("work_lane_missing_lease:")

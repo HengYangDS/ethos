@@ -1,4 +1,4 @@
-"""Observe, persist, and execute exact-CAS remote publication effects."""
+"""Compile and persist exact remote publication requests without granting authority."""
 
 from __future__ import annotations
 
@@ -7,12 +7,9 @@ from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from typing import cast
 
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.repo.git as git
-from ethos.adapters.mutation.proof import proof_admission_report
-from ethos.adapters.mutation.publication.attestation import terminal_publication_result
 from ethos.adapters.repo.git_object import GitObjectKind
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
@@ -30,46 +27,6 @@ from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.repository.release.publication import publication_ref_transition
 from ethos.repository.release.publication import publication_source_version_gaps
-
-
-def _transaction_refs(observation: Mapping[str, object]) -> dict[str, dict[str, object]]:
-    """Return one typed peer observation's full-ref mapping."""
-    refs = observation.get("refs")
-    return cast("dict[str, dict[str, object]]", refs) if isinstance(refs, dict) else {}
-
-
-def _transaction_unavailable(observation: Mapping[str, object]) -> bool:
-    """Return whether any ref in one peer transaction is unavailable."""
-    return any(
-        item.get("state") == "unavailable" for item in _transaction_refs(observation).values()
-    )
-
-
-def _push_remote_ref_set_exact(
-    root: Path,
-    *,
-    remote: str,
-    updates: tuple[PublicationUpdate, ...],
-) -> dict[str, object]:
-    leases = tuple(
-        f"--force-with-lease={update.target_ref}:{update.expected}" for update in updates
-    )
-    refspecs = tuple(f"{update.desired}:{update.target_ref}" for update in updates)
-    completed = git.run_network_git(
-        root,
-        "push",
-        "--porcelain",
-        "--atomic",
-        *leases,
-        remote,
-        *refspecs,
-    )
-    return {
-        "state": "applied" if completed.returncode == 0 else "failed",
-        "exit_code": completed.returncode,
-        "stdout": completed.stdout.strip(),
-        "stderr": completed.stderr.strip(),
-    }
 
 
 def observe_remote_publication_effect(
@@ -294,221 +251,22 @@ def compile_remote_publication_request(
         commitment=commitment,
         facts=facts,
         effect=effect,
-        prior_attestations={"proof": proof},
+        prior_attestations={"proof": proof} if proof else {},
     )
 
 
-def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict[str, object]:
-    """Execute peer-local CAS pushes after a complete fresh preflight."""
-    effect = publication_effect_from_plan(plan)
-    proof_gaps = _proof_drift_gaps(root, plan=plan, effect=effect)
-    source_observation = observe_git_object(
-        root,
-        effect.source.object_oid,
-        effect.source.kind,
-    )
-    source_gaps = _source_drift_gaps(effect.source, source_observation)
-    observations: dict[str, dict[str, object]] = {
-        target.id: {
-            "kind": "git_remote_transaction_observation",
-            "remote": target.remote,
-            "state": "observed",
-            "refs": {
-                update.target_ref: publication_observation.observe_remote_ref(
-                    root, target.remote, update.target_ref
-                )
-                for update in target.updates
-            },
-        }
-        for target in effect.targets
-    }
-    observation_gaps = tuple(
-        f"publication_remote_observation_unavailable:{target.id}:{target.remote}:"
-        f"{update.target_ref}"
-        for target in effect.targets
-        for update in target.updates
-        if _transaction_refs(observations[target.id])[update.target_ref].get("state")
-        == "unavailable"
-    )
-    drift_gaps = tuple(
-        f"publication_target_drift:{target.id}:{update.target_ref.removeprefix('refs/heads/')}"
-        for target in effect.targets
-        for update in target.updates
-        if not _transaction_unavailable(observations[target.id])
-        and _transaction_refs(observations[target.id])[update.target_ref].get("object_oid")
-        not in {update.expected, update.desired}
-    )
-    gaps = (
-        *proof_gaps,
-        *source_gaps,
-        *observation_gaps,
-        *drift_gaps,
-    )
-    if gaps:
-        unknown = bool(observation_gaps) and not (proof_gaps or source_gaps or drift_gaps)
-        return terminal_publication_result(
-            root=root,
-            plan=plan,
-            effect=effect,
-            verdict="unknown" if unknown else "block",
-            state="preflight_unknown" if unknown else "preflight_blocked",
-            required_gaps=gaps,
-            observations=observations,
-            applied=(),
-            failed="",
-            pending=tuple(target.id for target in effect.targets),
-            attempts=(),
-        )
-    applied: list[str] = []
-    attempts: list[dict[str, object]] = []
-    for index, target in enumerate(effect.targets):
-        current_refs = _transaction_refs(observations[target.id])
-        if all(
-            current_refs[update.target_ref].get("object_oid") == update.desired
-            for update in target.updates
-        ):
-            applied.append(target.id)
-            attempts.append(
-                {
-                    "id": target.id,
-                    "remote": target.remote,
-                    "state": "already_applied",
-                    "exit_code": 0,
-                    "stderr": "",
-                }
-            )
-            continue
-        result = _push_remote_ref_set_exact(
-            root,
-            remote=target.remote,
-            updates=target.updates,
-        )
-        attempts.append({"id": target.id, "remote": target.remote, **result})
-        observed_refs = {
-            update.target_ref: publication_observation.observe_remote_ref(
-                root, target.remote, update.target_ref
-            )
-            for update in target.updates
-        }
-        observed: dict[str, object] = {
-            "kind": "git_remote_transaction_observation",
-            "remote": target.remote,
-            "state": (
-                "unavailable"
-                if any(item.get("state") == "unavailable" for item in observed_refs.values())
-                else "observed"
-            ),
-            "refs": observed_refs,
-        }
-        post_observation_gaps = tuple(
-            f"publication_remote_observation_unavailable:{target.id}:{target.remote}:{target_ref}"
-            for target_ref, item in observed_refs.items()
-            if item.get("state") == "unavailable"
-        )
-        if result["state"] == "applied" and post_observation_gaps:
-            return terminal_publication_result(
-                root=root,
-                plan=plan,
-                effect=effect,
-                verdict="unknown",
-                state="outcome_unknown",
-                required_gaps=post_observation_gaps,
-                observations={**observations, target.id: observed},
-                applied=tuple(applied),
-                failed="",
-                pending=tuple(item.id for item in effect.targets[index:]),
-                attempts=tuple(attempts),
-            )
-        parity = all(
-            item.get("object_oid") == effect.source.object_oid
-            and item.get("peeled_commit") == effect.source.peeled_commit
-            and item.get("tree_oid") == effect.source.tree_oid
-            for item in observed_refs.values()
-        )
-        if result["state"] != "applied" or not parity:
-            gap = f"publication_push_failed:{target.id}:{target.remote}"
-            return terminal_publication_result(
-                root=root,
-                plan=plan,
-                effect=effect,
-                verdict="block",
-                state="partial" if applied else "failed",
-                required_gaps=(gap,),
-                observations={**observations, target.id: observed},
-                applied=tuple(applied),
-                failed=target.id,
-                pending=tuple(item.id for item in effect.targets[index + 1 :]),
-                attempts=tuple(attempts),
-            )
-        applied.append(target.id)
-        observations[target.id] = observed
-    return terminal_publication_result(
-        root=root,
-        plan=plan,
-        effect=effect,
-        verdict="pass",
-        state="applied",
-        required_gaps=(),
-        observations=observations,
-        applied=tuple(applied),
-        failed="",
-        pending=(),
-        attempts=tuple(attempts),
-    )
-
-
-def _proof_drift_gaps(
+def observe_publication_request(
     root: Path,
-    *,
-    plan: TransitionPlan,
-    effect: PublicationEffect,
-) -> tuple[str, ...]:
-    """Re-select and compare the exact proof bound into the request."""
-    carried = plan.prior_attestations.get("proof")
-    if not isinstance(carried, Mapping) or not carried:
-        return ("publication_proof_binding_missing",)
-    selection = str(carried.get("selection") or "")
-    report = proof_admission_report(
-        root,
-        effect.source.peeled_commit,
-        repository_transition=selection == "repository_transition",
+    receipt_path: str,
+    receipt_sha256: str,
+) -> tuple[TransitionPlan | None, PublicationEffect | None, tuple[str, ...], list[str]]:
+    """Resolve receipt contents before any consumer selects destination obligations."""
+    try:
+        plan = load_remote_publication_request(root, receipt_path, receipt_sha256)
+        effect = publication_effect_from_plan(plan)
+    except ValueError as error:
+        return None, None, (), [str(error)]
+    refs = tuple(
+        dict.fromkeys(update.target_ref for target in effect.targets for update in target.updates)
     )
-    raw_gaps = report.get("required_gaps")
-    gaps = tuple(str(gap) for gap in raw_gaps) if isinstance(raw_gaps, (list, tuple)) else ()
-    if gaps:
-        return gaps
-    current = report.get("attestation")
-    if not isinstance(current, Mapping):
-        return ("publication_proof_binding_missing",)
-    return (
-        () if {**current, "selection": selection} == dict(carried) else ("publication_proof_drift",)
-    )
-
-
-def _source_drift_gaps(
-    expected: PublicationSource,
-    observed: dict[str, object],
-) -> tuple[str, ...]:
-    """Return exact local object or trust drift before any remote effect."""
-    if observed.get("required_gaps"):
-        return ("publication_source_signature_drift",)
-    signature = observed.get("signature")
-    if not isinstance(signature, dict):
-        return ("publication_source_signature_drift",)
-    actual = PublicationSource.model_validate(
-        {
-            "kind": observed["kind"],
-            "object_oid": observed["object_oid"],
-            "peeled_commit": observed["peeled_commit"],
-            "tree_oid": observed["tree_oid"],
-            "signature": {
-                "verdict": signature["verdict"],
-                "principal": signature["principal"],
-                "fingerprint": signature["fingerprint"],
-                "trust_anchor_sha256": signature["trust_anchor_sha256"],
-                "verifier": signature["verifier"],
-                "verifier_version": signature["verifier_version"],
-            },
-        }
-    )
-    return () if actual == expected else ("publication_source_identity_drift",)
+    return plan, effect, refs, []

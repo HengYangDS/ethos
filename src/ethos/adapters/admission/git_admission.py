@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.ref_intent import claim_ref_intent
@@ -16,31 +14,20 @@ from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
-from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.repo.commit.admission import commit_range_admission_report
-from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
-from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
-from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.release.configuration import release_config
-from ethos.repository.release.publication import publication_proof_selection
-from ethos.repository.release.publication import publication_ref_admission
-from ethos.repository.release.publication import publication_topology
 
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.contracts.admission import HookAdmissionRequest
-    from ethos.contracts.branch.roles import BranchRolePolicy
 
 HOOK_LAYERS = {
     name: {"timing": timing, "duty": duty, "fallback": fallback}
@@ -142,185 +129,6 @@ def _pre_run_report(
         if targets
         else _verdict(base, "block", "blocked", "block", "hook_prerun_paths_required")
     )
-
-
-def push_admission_report(
-    *,
-    root: Path,
-    target_ref: str,
-    pushed_head: str,
-    **options: object,
-) -> dict[str, object]:
-    """Admit a push only when its branch, identity, proof, and topology agree."""
-    remote_head = str(options.get("remote_head") or "")
-    remote_name = str(options.get("remote_name") or "origin")
-    repo = root.resolve()
-    policy = load_branch_role_policy(repo)
-    branch = target_ref.removeprefix("refs/heads/") if target_ref.startswith("refs/heads/") else ""
-    config = release_config(repo)
-    protected_refs = config.get("protected_refs")
-    raw_tags = protected_refs.get("tags") if isinstance(protected_refs, dict) else ()
-    release_tags = tuple(str(tag) for tag in raw_tags) if isinstance(raw_tags, list) else ()
-    topology = publication_topology(repo, config)
-    ref_admission = publication_ref_admission(
-        topology,
-        policy=policy,
-        target_ref=target_ref,
-        release_tags=release_tags,
-        remote_name=remote_name,
-    )
-    role = str(ref_admission["role"])
-    ref_kind = str(ref_admission["ref_kind"])
-    ref_gaps = list(cast("list[str]", ref_admission["enforcement_gaps"]))
-    proof_head = (
-        git_stdout(repo, "rev-parse", "--verify", f"{pushed_head}^{{commit}}")
-        if ref_kind == "tag"
-        else pushed_head
-    )
-    accepted_closeout, closeout_gaps, trusted_baseline, trusted_baseline_source = (
-        _accepted_closeout_baseline(
-            repo,
-            policy=policy,
-            branch=branch,
-            role=role,
-            proof_head=proof_head,
-            remote_head=remote_head,
-        )
-    )
-    commit_policy = commit_range_admission_report(
-        repo,
-        target_ref=target_ref,
-        proposed_head=pushed_head,
-        remote_head=remote_head,
-        remote_name=remote_name,
-        trusted_baseline=trusted_baseline,
-        trusted_baseline_source=trusted_baseline_source,
-    )
-    commit_policy_gaps = list(string_sequence(commit_policy.get("required_gaps")))
-    identity = push_identity_policy_report(
-        repo,
-        tuple(string_sequence(commit_policy.get("revisions"))),
-    )
-    identity_gaps = list(cast("list[str]", identity["required_gaps"]))
-    base: dict[str, object] = {"verdict": "pass", "state": "admitted", "hook": "pre-push"}
-    base.update(
-        target_ref=target_ref,
-        target_branch=branch,
-        ref_kind=ref_kind,
-        role=role,
-        remote_name=remote_name,
-    )
-    base.update(pushed_head=pushed_head, remote_head=remote_head)
-    base.update(
-        publication_ref_admission=ref_admission,
-        commit_policy_admission=commit_policy,
-        identity_policy=identity,
-    )
-    base.update(decision={"action": "allow", "reason": "push_admitted"}, required_gaps=[])
-    supplied_proof = options.get("proof_admission")
-    proof_admission = (
-        dict(supplied_proof)
-        if isinstance(supplied_proof, Mapping)
-        else proof_admission_report(
-            repo,
-            proof_head,
-            repository_transition=publication_proof_selection(role) == "repository_transition",
-        )
-        if not ref_gaps and proof_head
-        else {
-            "verdict": "block",
-            "state": "unavailable",
-            "selection": "",
-            "attestation": {},
-            "required_gaps": [],
-            "next_action": "",
-        }
-    )
-    reported_proof_gaps = list(cast("list[str]", proof_admission["required_gaps"]))
-    proof_gap_list = (
-        [gap for gap in reported_proof_gaps if gap.startswith("repository_commitment_")]
-        if branch == policy.accepted_branch
-        else reported_proof_gaps
-    )
-    base["proof_admission"] = proof_admission
-    topology_gaps = (
-        accepted_advance_gaps(repo, policy, old_value=remote_head, new_value=pushed_head)
-        if branch == policy.accepted_branch
-        else []
-    )
-    base["accepted_closeout_effect"] = accepted_closeout
-    gaps = list(
-        dict.fromkeys(
-            (
-                *ref_gaps,
-                *commit_policy_gaps,
-                *identity_gaps,
-                *proof_gap_list,
-                *topology_gaps,
-                *closeout_gaps,
-            )
-        )
-    )
-    base["next_action"] = str(proof_admission.get("next_action") or "")
-    if not gaps:
-        return base
-    reason = (
-        "publication_ref_unavailable"
-        if any(gap.startswith("publication_ref_unavailable:") for gap in ref_gaps)
-        else "publication_remote_name_missing"
-        if "publication_remote_name_missing" in ref_gaps
-        else "publication_remote_target_unknown"
-        if any(gap.startswith("publication_remote_target_unknown:") for gap in ref_gaps)
-        else "push_to_protected_role_not_proven"
-        if proof_gap_list or topology_gaps or closeout_gaps
-        else "pushed_commit_policy_not_allowed"
-        if commit_policy_gaps
-        else "pushed_commit_identity_not_allowed"
-    )
-    return _verdict(base, "block", "blocked", "block", reason, gaps)
-
-
-def _accepted_closeout_baseline(
-    repo: Path,
-    *,
-    policy: BranchRolePolicy,
-    branch: str,
-    role: str,
-    proof_head: str,
-    remote_head: str,
-) -> tuple[dict[str, object], list[str], str, str]:
-    accepted_branch = policy.accepted_branch
-    candidate_branch = policy.candidate_branch
-    required = branch == accepted_branch or (
-        remote_head in _ZERO_OIDS and publication_proof_selection(role) == "repository_transition"
-    )
-    if not required:
-        return {}, [], "", ""
-    accepted_ref = f"refs/heads/{accepted_branch}"
-    try:
-        closeout = accepted_closeout_attestation(
-            repo,
-            accepted_ref=accepted_ref,
-            candidate_ref=f"refs/heads/{candidate_branch}",
-            candidate_head=proof_head,
-        )
-    except ValueError as error:
-        return {}, [str(error)], "", ""
-    if closeout is None:
-        return {}, ["accepted_closeout_effect_not_attested"], "", ""
-    plan, attestation = closeout
-    accepted_before = git_effect_from_plan(plan).updates[accepted_ref].expected
-    projection = {
-        "attestation_id": attestation.id,
-        "plan_digest": plan.digest,
-        "accepted_ref": accepted_ref,
-        "accepted_before": accepted_before,
-        "remote_head": remote_head,
-        "candidate_head": proof_head,
-    }
-    if remote_head not in _ZERO_OIDS:
-        return projection, [], "", ""
-    return projection, [], accepted_before, "accepted_closeout_effect"
 
 
 def ref_move_admission_report(

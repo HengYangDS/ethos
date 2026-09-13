@@ -32,7 +32,7 @@ ETHOS exposes exactly these public roots:
 | `ethos publish --json` | Report local publication readiness. | Read-only. |
 | `ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json` | Derive an immutable exact-CAS request for one positively admitted branch or annotated release-tag ref from the exact local object and live declared peers. | Read-only; persists only content-addressed request evidence in Git private state. |
 | `ethos publish --ref <full-ref> --probe-remote --apply --authorize --expect-head <head> --json` | Derive and consume the same full-ref publication request. | Uses the same receipt-bound exact-CAS executor as explicit receipt apply. |
-| `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers. | Rechecks the local object, trust binding, and all peers before the first push; returns attested peer-local partial effects if a later peer fails. |
+| `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers. | Rechecks local trust, target obligations and refs before each peer effect; returns attested partial or unknown outcomes rather than implying cross-peer atomicity. |
 | `ethos adopt --root <repo> --json` | Plan adoption for one repository. | Applying requires explicit authorization and an expected head. |
 
 The public root anchors are `status`, `plan`, `prove`, `land`, `publish`, and
@@ -189,9 +189,15 @@ missing effect evidence, so its continuation does not repeat the insertion.
 
 ## OpenSpec Ownership
 
-The official OpenSpec CLI owns OpenSpec lifecycle operations. ETHOS consumes
-its current facts through `plan`, `prove`, and `land`; it does not re-export the
-lifecycle as an ETHOS root.
+The official OpenSpec CLI owns intent parsing and archive transformations.
+ETHOS consumes its facts without becoming a second intent carrier. Source
+completion, including task progress, must be committed before its exact proof.
+In a governed Work Lane, `ethos lane archive-change --change <id> --expect-head
+<source-head> --json` derives the bounded official archive and Git transition;
+follow its current guarded continuation. Ordinary `git commit` does not replace
+that effect owner. A staged official archive still needs valid source proof.
+New source bytes invalidate old proof; copied output or repeated commands do
+not repair that binding.
 
 ```bash
 openspec list --json
@@ -199,6 +205,25 @@ openspec status --change <id> --json
 openspec validate --all --strict --json
 openspec archive <id> --yes --json
 ```
+
+## Exact Ref Observation For CI
+
+```bash
+ethos hook ref-update --target-ref <full-ref> --proposed-head <object-oid> --remote-head <old-object-oid> --remote <name> --root <repository> --json
+```
+
+Use the repository-native zero OID for a new ref and `--trusted-baseline <oid>`
+when no declared accepted tracking ref supplies the baseline. Both SHA-1 and
+SHA-256 coordinates are supported. The command observes the exact introduced
+commit range, prior target policy and proposed OpenSpec tree without a host
+Lease, proof issuance, local ref changes or remote effects. Deletion has no
+introduced range; observation alone never authorizes deletion.
+
+Review targets may carry unfinished intent. Accepted/release targets cannot
+use detached checkout identity or a changed candidate declaration to evade
+their stronger obligations. Results include `boundary`, `why`, exact coordinates
+and a single diagnostic `next_action`; CI consumes the result rather than
+copying a parser. For publication effects use the guarded `publish` surface.
 
 ## Assurance And Evidence Boundary
 

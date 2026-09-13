@@ -57,7 +57,30 @@ def publication_source_version_gaps(
 
 def publication_proof_selection(role: str) -> str:
     """Return the sole proof selection mode for one publication lifecycle role."""
+    if role == _PROPOSAL_REF:
+        return "review_object"
     return "repository_transition" if role in _REPOSITORY_PROOF_ROLES else "current_commitment"
+
+
+def publication_ref_role(
+    policy: BranchRolePolicy, target_ref: str, release_tags: tuple[str, ...]
+) -> tuple[str, str, bool]:
+    """Resolve destination meaning with exact roles ahead of prefix projections."""
+    if target_ref.startswith("refs/heads/"):
+        branch = target_ref.removeprefix("refs/heads/")
+        role = policy.role_for_branch(branch)
+        if (
+            role == ROLE_OTHER
+            and policy.proposal_branch_prefix
+            and branch.startswith(policy.proposal_branch_prefix)
+        ):
+            role = _PROPOSAL_REF
+        return "branch", role, role in _BRANCH_PUBLICATION_ROLES
+    if target_ref.startswith("refs/tags/"):
+        tag = target_ref.removeprefix("refs/tags/")
+        allowed = any(fnmatchcase(tag, pattern) for pattern in release_tags)
+        return "tag", _RELEASE_PUBLICATION if allowed else ROLE_OTHER, allowed
+    return "unknown", ROLE_OTHER, False
 
 
 def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, object]:
@@ -91,24 +114,7 @@ def publication_ref_admission(
 ) -> dict[str, object]:
     """Resolve and admit one complete remote ref through the positive topology."""
     gaps = _strings(topology.get("required_gaps"))
-    if target_ref.startswith("refs/heads/"):
-        ref_kind = "branch"
-        branch = target_ref.removeprefix("refs/heads/")
-        role = (
-            _PROPOSAL_REF
-            if policy.proposal_branch_prefix and branch.startswith(policy.proposal_branch_prefix)
-            else policy.role_for_branch(branch)
-        )
-        allowed = role in _BRANCH_PUBLICATION_ROLES
-    elif target_ref.startswith("refs/tags/"):
-        ref_kind = "tag"
-        tag = target_ref.removeprefix("refs/tags/")
-        allowed = any(fnmatchcase(tag, pattern) for pattern in release_tags)
-        role = _RELEASE_PUBLICATION if allowed else ROLE_OTHER
-    else:
-        ref_kind = "unknown"
-        role = ROLE_OTHER
-        allowed = False
+    ref_kind, role, allowed = publication_ref_role(policy, target_ref, release_tags)
     if not allowed:
         gaps.append(f"publication_ref_unavailable:{ref_kind}:{role}:{target_ref}")
     elif not remote_name:

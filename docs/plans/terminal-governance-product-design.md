@@ -4994,9 +4994,90 @@ sample found subprocess waiting, including native OpenSpec and Git hook calls.
 P5 therefore starts with these observed repeated boundaries, not extra workers
 or a speculative cache, while this independently useful repair is closed first.
 
-Exact-current full proof, official archive, accepted activation and new hosted
-results are still required for this Change. Proposal ingress and wider iteration
-speed remain next obligations; no adopter source or model state was changed.
+The Change subsequently reached accepted `adf97abfc936ca23a354e669640488002b7fe88c`,
+tree `de5d9913c128f26d39e0cbd44b3021770145b3c4`. Its post-archive proof passes all
+35 gates: 3,230 tests pass, one skips, and combined coverage is
+25,105/26,418 (95.0299 percent). Public land, closeout, immutable runtime
+activation, same-OID publication and lane retirement are complete. The selected
+runtime is `4b2cd8469a315d1b8ca8bf24f6c0e08a7879154f82789f656aa739410a6083a4`.
+The existing native-tool-supply evidence directory retains the exact proof,
+runtime, peer, signature and retirement receipts; 99 superseded diagnostics
+were removed after consumer disposition, not copied into a new archive.
+
+GitLab 6553/6554 completed independently. GitHub 34735074088/34735074197 were
+re-observed September 13 at 05:21 UTC with all 12 jobs successful in each run.
+This closes their previous queued/running status, not future commits' hosted
+qualification. Strong-kill orphan reclamation, historical runtime consumer
+classification and measured iteration-cost reduction remain open at their
+existing owners; they are not implied by this successful batch.
+
+### Review Publication And Causal Learning — September 13, 2026 (+08:00)
+
+The sole active `review-publication` Change addresses a role error: review of an
+unfinished object had been treated as acceptance of completed product work.
+Exact source trust, introduced-range policy and independent peer CAS remain
+required; candidate checkout identity, fabricated proof and premature archive
+are removed from review admission. Accepted/release and mixed requests retain
+their stronger obligations. Detached CI gets the same exact-ref observation,
+not host Lease reconstruction or a copied adopter parser.
+
+The existing admission owner now serves CLI, pre-push and replay. Request
+compilation and effect execution move into the existing publication package;
+the old root module and forwarding path are deleted. Tests follow admission,
+effect and recovery semantics with one signed-fixture owner. This is semantic
+consolidation, not a larger line ceiling or a new workflow entity.
+
+| Reproduced cause | Mechanism and distinguishing evidence | Remaining boundary |
+| --- | --- | --- |
+| Preflight treated as reusable permission across peers | Real first-peer success followed by trust/proof/policy change now blocks the next effect; exact existing peer effects remain | Fresh admission does not isolate uncooperative same-UID writers |
+| Earlier matching ref treated as current after another effect | Change the second bare peer after the first write; a fresh read detects drift instead of claiming both converged | Independent remote writes cannot be made one global atomic effect |
+| Missing intent observation collapsed into BLOCK or success | Native Git read failure remains UNKNOWN through ref observation, pre-push and effect execution; known policy violations still dominate | Full source, package and hosted qualification remain separate |
+| Diagnostic summary hid a confirmed partial push | Partial outcomes remain visible rather than `not_performed`; receipts distinguish attempted, observed and pending | Lost outcomes still require re-observation |
+| Detached-CI guidance returned generic help | Exact boundary, reason, coordinates and one read-only diagnostic replace guessed host lifecycle commands | Diagnosis grants no authoring or effect authority |
+
+RED/GREEN outputs live under the existing ignored
+`build/evidence/quality/review-publication/` root. The first trust regression was
+RED before owner repair; subsequent adversarial cases exposed and closed the
+related observation and verdict defects. Focused checks are not exact-commit
+proof. The affected suite passed 187 cases in 332.96 seconds; after the final
+readiness consolidation, 95 publication/ref/projection cases passed in 141.07
+seconds. All seven selected host owner gates, source and touched-test typing,
+Ruff, native Markdown/config checks and all twelve OpenSpec items pass. Native
+OpenSpec spec application preserves every prior byte prefix and is idempotent;
+source graph bindings now include those official canonical spec projections.
+These observations support source completion, not installed capability.
+Completion requires native static/semantic
+gates, signed source, exact proof, official archive, post-archive proof, public
+land/closeout, installed capability, peer readback and this lane's retirement.
+
+The reusable lesson replaces misleading guidance in the existing governance
+map and quality reference. Commit completed source tasks before its proof;
+use the governed official archive effect instead of an ordinary Git commit.
+An independent Workstation report at pinned `4980cf57` demonstrated premature
+archive recovery through exact owned rollback and then the native operation;
+that report is not an ETHOS runtime repair or permission to bypass admission.
+
+The AIGW owner reports complete native tool-graph qualification at signed
+`9b784fcf8f0920a202405562ba27c27e72b028e8`: GitHub 34738120215 and GitLab 6558
+passed, including the Windows stdin-based link checker and all 26 native
+commands. This task did not independently rerun that workload. Absorb the
+general rule—platform qualification executes the complete realistic tool graph,
+not tool installation or a short suite—without importing adopter code or
+claiming AIGW release/installation. Later adopter changes require their own
+qualification. No new roadmap, lesson registry, runtime dependency or Agent
+model change is introduced.
+
+Two additional review findings stay with the existing quality/declaration
+owners rather than expanding publication scope. A bare whole-tree Ty probe
+reports 433 diagnostics, while the declared package gate selects `src` only;
+do not claim whole-repository type closure from that gate. Changed publication
+tests are checked separately without suppressions. The release
+`release_policy_report`/`version_manifest` helpers have no product caller in
+the current `src`/`tools` graph and embed Python-specific assumptions. Their
+`[attestation]` labels and `host_profile` report are not a generic adopter
+standard or format converter. Confirm actual consumers, then remove or relocate
+this self-specific residue under the existing declaration-convergence work;
+do not make AIGW match a dead helper or invent signed standard artifacts.
 
 ## Completion Boundary
 

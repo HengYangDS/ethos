@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "c83191d39ab0cca3903fb80889a81312a21d314ae7b5510c7a2994d2c9bb9d06"
+      "sha256": "53137067b02689baa52592601eaaca5e3cc7027dce183b8d50bfe32fe4a8d28d"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -144,7 +144,7 @@
     "runner_mutation": {
       "path": "docs/architecture/runner-and-mutation.md",
       "authority": "current runner, Work Lane, closeout, verifier and peer mutation boundaries",
-      "sha256": "a4ff2c40c0d038fac273dd95990d4da624c1474f3c622171ab640d684f2bd944"
+      "sha256": "9eaa32d7ebab62f5db76702d11b94dfb0425b3fc8614ea60bd8948483ed55d3d"
     },
     "local_state": {
       "path": "docs/architecture/local-state.md",
@@ -179,12 +179,12 @@
     "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
       "authority": "current repository lifecycle, proof, publication, and cleanup semantics",
-      "sha256": "c9d105bc7dd0cb056f1a6417e6f490e20b3ed2f0947eede557cc2155e5f91a0b"
+      "sha256": "be93f6bdffc6c7715c77f848546a13ee7f43c16beb765bf9983ad0551868e5bc"
     },
     "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",
       "authority": "current public command and result semantics",
-      "sha256": "acbb53d2750705be3ddca0a90d0ca61824d00293510dfec163911680f964f1da"
+      "sha256": "fca1a7150b7492580c469628f9d18217524e5584fea762b289e254bd0ab9096c"
     },
     "learning_relations": {
       "path": "docs/governance/evolution-campaign.md",
@@ -1195,7 +1195,7 @@
       "evidence": [
         "runner_mutation"
       ],
-      "semantics": "Boundary-local re-observation of the selected full remote ref, request digest and trust bindings immediately before publication.",
+      "semantics": "Fresh source trust, applicable proof, target policy and exact peer-local refs immediately before each independent effect or already-matching claim; earlier preflight or peer success does not authorize reuse.",
       "reality_boundary": "publication_remote"
     },
     "publication_admitted_runner": {
@@ -1231,7 +1231,7 @@
       "evidence": [
         "runner_mutation"
       ],
-      "semantics": "Durable verifier-bound statement of the peer-local publication outcome; it neither transfers nor invents authority.",
+      "semantics": "Durable verifier-bound statement of exact applied, failed, pending or unknown peer outcomes; it neither grants authority nor turns review into accepted product proof.",
       "root_concept": "Attestation",
       "reality_boundary": "publication_remote"
     },
@@ -2742,12 +2742,12 @@
       "guard": "none"
     },
     {
-      "id": "attestation-projects-publication-request",
-      "from": "attestation_n",
+      "id": "git-projects-publication-object",
+      "from": "git_substrate",
       "to": "publication_remote",
-      "kind": "exchanges",
+      "kind": "projects",
       "required_visible": true,
-      "payload": "scoped_claim_or_artifact",
+      "payload": "exact_trusted_git_object",
       "source_ids": [
         "product_contract",
         "runner_mutation"
@@ -2756,7 +2756,8 @@
       "plane": "federation",
       "flow_class": "federation",
       "effect_capable": false,
-      "guard": "repository_boundary"
+      "guard": "repository_boundary",
+      "semantics": "The local Git object is offered for review or accepted publication according to target obligations; Attestation is not a prerequisite for review."
     },
     {
       "id": "ethos-self-governs",
@@ -4632,12 +4633,11 @@
       "required_inputs": [
         "authorized_subject",
         "authority_reference",
-        "attestation_n",
-        "accepted_next",
+        "git_substrate",
         "publication_remote_observation",
         "publication_remote"
       ],
-      "required_claim_selector": "one selected full ref, request digest, repository common directory, signature trust and every target ref",
+      "required_claim_selector": "Exact trusted source object, introduced range, declared target role and peer-local refs; review needs no accepted-product proof, while accepted/release requires applicable proof and closeout. Re-derive obligations before each effect.",
       "output": "effect_pass",
       "failure_outputs": [
         "effect_block",
@@ -4727,7 +4727,7 @@
     },
     "publication_effect": {
       "repository_boundary": "publication_remote",
-      "resource_scope": "one explicitly selected full remote ref",
+      "resource_scope": "one peer-local atomic set of explicitly selected full remote refs",
       "expected_pre_state": "publication_remote_observation",
       "admission_gate": "publication_admission_gate",
       "pass_verdict": "effect_pass",

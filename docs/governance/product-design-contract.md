@@ -228,7 +228,8 @@ heads, and compare-and-swap ref updates are the repository substrate for an
 effect. A profile may map the self-hosted integration topology as:
 
 ```text
-release_root -> accepted_root -> candidate -> work_lane; proved candidate objects may be projected to proposal_ref
+release_root -> accepted_root -> candidate -> work_lane
+selected trusted object -> proposal_ref (review, not acceptance)
 ```
 
 This topology names Git resource roles, not semantic entities. Dirty, foreign,
@@ -259,6 +260,14 @@ already selected Git object; it is not a second authoring lane. In the ETHOS
 repository, only `dev` and `main` are protected: `dev` is accepted integration
 and `main` is release. An adopter may map different physical ref names while
 preserving these semantic roles and protection boundaries.
+
+Review admits an exact trusted object and its introduced commit range; it does
+not require a candidate checkout, completed Change proof or premature archive.
+Accepted and release destinations retain their proof, intent and closeout
+obligations. A mixed publication satisfies every selected destination. Exact
+prior policy classifies an unaccepted destination; proposed policy cannot
+quietly turn a protected target into review. Detached CI observes these same
+Git inputs without a host Lease, local mutation or authority issuance.
 
 A developer who cannot update protected `dev` directly publishes the selected
 proposal object and uses the forge's MR or PR review path. A maintainer may apply
@@ -321,6 +330,12 @@ exact receipt. If a peer observes another peer before the same batch reaches it,
 the result is a bounded `temporal_peer_projection_pending`, not proven
 divergence; after the declared window, unequal OIDs are genuine divergence. A
 local-only result claims neither remote publication nor hosted CI.
+
+Each peer effect freshly rechecks applicable source trust, proof, target policy
+and exact old refs. A successful earlier peer is not permission for a later
+one; an earlier equality observation is not currentness. Preserve confirmed
+effects when another peer blocks, keep missing observations UNKNOWN and resume
+only from fresh admission. A request digest binds intent, not reusable authority.
 
 ### Binding Taxonomy
 

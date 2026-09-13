@@ -462,6 +462,27 @@ def test_actual_view_accounts_for_each_contract_invariant() -> None:
             assert witness["text"].strip()
 
 
+def test_actual_publication_graph_does_not_require_acceptance_for_review() -> None:
+    """The publication projection cannot restore the proved-candidate review cycle."""
+    directory = REPOSITORY_ROOT / "system/projections/terminal-architecture"
+    graph = json.loads((directory / "semantic-graph.json").read_text())
+    gate = graph["gates"]["publication_admission_gate"]
+    assert "git_substrate" in gate["required_inputs"]
+    assert not {"accepted_next", "attestation_n"}.intersection(gate["required_inputs"])
+    assert "review" in gate["required_claim_selector"].lower()
+    copy = json.loads((directory / "copy.json").read_text())
+    visible = copy["assertions"]["publication"]
+    assert visible["surface"] == "main-static"
+    assert "review" in visible["text"].lower()
+    assert "accepted" in visible["text"].lower()
+    view = json.loads((directory / "view-profile.json").read_text())
+    relation = next(
+        edge for edge in graph["edges"] if edge["id"] == "git-projects-publication-object"
+    )
+    assert (relation["from"], relation["to"]) == ("git_substrate", "publication_remote")
+    assert view["edge_projection"][relation["id"]]["source_view"] == "norms"
+
+
 @pytest.mark.parametrize(
     ("identity", "obligations"),
     [

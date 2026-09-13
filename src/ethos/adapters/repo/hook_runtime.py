@@ -10,10 +10,10 @@ from pathlib import Path
 from typing import IO
 from typing import Literal
 
-from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report

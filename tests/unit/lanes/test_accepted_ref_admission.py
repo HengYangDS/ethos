@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.admission.git_admission as admission
+import ethos.adapters.admission.publication as publication_admission
 import ethos.adapters.admission.ref_intent as intent
 import ethos.adapters.admission.ref_move_policy as ref_move_policy
 import ethos.adapters.mutation.proof as proof
@@ -198,7 +199,7 @@ def _call(state: State, plane: str, target: str, old: str, new: str, **extra: st
             state.repo, ref_name=f"refs/heads/{target}", old_value=old, new_value=new
         )
     if plane == "p":
-        return admission.push_admission_report(
+        return publication_admission.push_admission_report(
             root=state.repo, target_ref=f"refs/heads/{target}", pushed_head=new, remote_head=old
         )
     return admission.ref_move_admission_report(

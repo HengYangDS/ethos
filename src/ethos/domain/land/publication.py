@@ -13,10 +13,10 @@ from typing import cast
 import ethos.adapters.repo.git as git
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
+from ethos.adapters.admission.publication import publication_proof_admission
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.openspec.profile import protected_branch_active_change_required_gaps
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
@@ -30,7 +30,6 @@ from ethos.domain.land.closeout import repository_audit_after_admission
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config
-from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
@@ -313,23 +312,17 @@ def observe_publication(
         root=repo,
         current_head=current_head,
     )
-    audit = repository_audit_after_admission(repo, decision)
     independent_verification = independent_verification_admission_report(
         root=repo,
         action="publish",
         request=independent_verification_request(root=repo, action="publish"),
     )
     branch = (status_payload := workspace_status(repo, include_foreign_path_scope=False))["branch"]
-    release_carrier_gaps = tuple(
-        protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
-    )
     policy = load_branch_role_policy(repo)
     config = release_config(repo)
     remote_topology = publication_topology(repo, config)
     configured_remotes = topology_remotes(remote_topology)
-    protected_refs = config.get("protected_refs")
-    raw_tags = protected_refs.get("tags") if isinstance(protected_refs, dict) else ()
-    release_tags = tuple(str(tag) for tag in raw_tags) if isinstance(raw_tags, list) else ()
+    release_tags = tuple(string_sequence(_object(config.get("protected_refs")).get("tags")))
     ref_admissions = {
         ref: publication_ref_admission(
             remote_topology,
@@ -341,14 +334,22 @@ def observe_publication(
         for ref in target_refs
     }
     target_roles = tuple(str(item.get("role") or "other") for item in ref_admissions.values())
-    proof_selections = {publication_proof_selection(role) for role in target_roles} or {
-        publication_proof_selection(str(status_payload["role"]))
-    }
+    review_only = bool(ref_admissions) and all(
+        item["proof_selection"] == "review_object" for item in ref_admissions.values()
+    )
+    audit = (
+        {"verdict": "pass", "state": "review_object", "required_gaps": []}
+        if review_only
+        else repository_audit_after_admission(repo, decision)
+    )
+    release_carrier_gaps = (
+        ()
+        if review_only
+        else tuple(protected_branch_active_change_required_gaps(repo, current_branch=str(branch)))
+    )
     proof_admission = (
-        proof_admission_report(
-            repo,
-            current_head,
-            repository_transition=proof_selections == {"repository_transition"},
+        publication_proof_admission(
+            repo, current_head, target_roles or (str(status_payload["role"]),)
         )
         if decision.verdict != "block"
         else {

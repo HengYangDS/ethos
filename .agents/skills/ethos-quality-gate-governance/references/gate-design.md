@@ -51,6 +51,12 @@ percentage with correct behavior or complete product assurance.
   proof from that fallback receipt. Use exact committed full proof for acceptance.
 - Hosted observation is a separately requested read after publication, never a
   dry-run success or a self-wait inside the pipeline being observed.
+- Platform qualification runs the complete declared native tool graph against
+  realistic input volume. Installed tools, one passing command or a partial
+  suite do not qualify the platform. Prefer native stdin/response-file interfaces
+  for bounded invocation; keep one owner across platforms rather than OS-specific
+  omission lists. Exact-source qualification does not automatically transfer to
+  a later commit or prove release and installation.
 
 ## Root Configuration Boundary
 

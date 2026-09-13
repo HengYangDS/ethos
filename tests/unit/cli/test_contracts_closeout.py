@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.surface.cli.hook.commands as hook_commands
-from ethos.adapters.admission.git_admission import push_admission_report
+from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation

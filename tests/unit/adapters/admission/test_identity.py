@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.identity import push_identity_policy_report
+from ethos.adapters.admission.publication import push_admission_report
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_publication_topology

@@ -27,6 +27,7 @@ from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.repository.policy.commit import load_commit_policy
 
 if TYPE_CHECKING:
+    from ethos.adapters.repo.runtime.retirement import GenerationCleanup
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.repository.release.identity import BuildIdentity
 
@@ -51,7 +52,7 @@ class HookRuntimeBinding(TypedDict):
     python: str
     scripts: list[str]
     required_gaps: list[str]
-    generation_cleanup: NotRequired[dict[str, object]]
+    generation_cleanup: NotRequired[GenerationCleanup]
     legacy_runtime_locator: NotRequired[dict[str, object]]
     linked_worktrees: NotRequired[list[dict[str, str]]]
     state_transition: NotRequired[dict[str, object]]

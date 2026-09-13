@@ -42,7 +42,7 @@
     },
     "coordination": {
       "label": "Shared runtime, not shared truth",
-      "text": "One Git-common activation, no per-worktree authority. Preview adoption; use the locked toolchain for immutable runtime activation, state migration, hook rebinding and rollback. Preserve exact prior state on failure; retire superseded generations only after consumers are discharged.",
+      "text": "One Git-common activation, no per-worktree authority. Preview adoption; use the locked toolchain for immutable runtime activation, state migration, hook rebinding and activation rollback. After activation, reclaim unused generations from fresh operational dependencies; deferred reclamation preserves successful activation and exact partial outcomes.",
       "surface": "main-static"
     },
     "selection": {

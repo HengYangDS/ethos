@@ -372,15 +372,22 @@ def install(
     legacy = runtime.get("legacy_runtime_locator")
     legacy_state = str(legacy.get("state") or "") if isinstance(legacy, dict) else ""
     state_transition = runtime.get("state_transition")
+    activated = runtime.get("current") is True
     result = EthosResult(
         command="hook install",
         verdict="block" if gaps else "pass",
-        state="blocked" if gaps else "installed",
+        state=(
+            "installed_cleanup_deferred"
+            if gaps and activated
+            else "blocked"
+            if gaps
+            else "installed"
+        ),
         summary={
             "hooks_path": runtime["hooks_path"],
             "python": runtime["python"],
-            "wired": not gaps,
-            "pack_refs_disabled": not gaps,
+            "wired": activated,
+            "pack_refs_disabled": activated,
             "linked_worktrees_checked": len(linked),
             "linked_worktrees_repaired": sum(
                 item.get("state") == "repaired" for item in linked if isinstance(item, dict)

@@ -5013,7 +5013,7 @@ existing owners; they are not implied by this successful batch.
 
 ### Review Publication And Causal Learning — September 13, 2026 (+08:00)
 
-The sole active `review-publication` Change addresses a role error: review of an
+The completed `review-publication` Change addresses a role error: review of an
 unfinished object had been treated as acceptance of completed product work.
 Exact source trust, introduced-range policy and independent peer CAS remain
 required; candidate checkout identity, fabricated proof and premature archive
@@ -5091,6 +5091,88 @@ requires owner-to-consumer and return-contract closure before the heavy gate;
 its prose alone does not prove universal future Agent adherence. The failed proof
 remains evidence, and a new exact-source proof is required—no coverage stitching,
 waiver or reinterpretation of that failed result.
+
+That source closure subsequently reached accepted `295856c830223d55afc565694ab187e5f07fe1ee`,
+tree `b1b1db533f407eacba07de8ef4f3d59e8c75f784`. Exact post-archive proof passes
+35 gates, with 3,262 tests passed, one skipped and 25,284/26,607 combined coverage
+(95.0276 percent). Public land/closeout, immutable runtime activation, both peers'
+same-OID publication and both verified signatures were observed. The prior lane,
+ref and Lease are retired; its necessary evidence was hash-verified into the
+existing accepted-root `build/evidence/quality/review-publication/` home after
+57 superseded diagnostics were removed. Installed runtime
+`a51a56dd287a0c1cd2c73d332b83543e7b108a162f7e09ce99c269cee6e9b591` binds that source.
+
+Hosted completion is separate. GitLab 6565/6566 and GitHub dev 34747548546 pass.
+GitHub main 34747548558 fails source verification: two hook-activation cases
+timed out reading the runtime hook contract; package artifacts were skipped.
+The downloaded exact-run JUnit identifies the ten-second contract observation,
+not a failed cleanup effect. The earlier local fifteen-second hosted-shell
+timeout remains causally unconfirmed too. An unchanged bounded retry passed
+locally, but neither retry establishes a systemic fix. Preserve both failures
+at the existing quality/P5 owner, instrument the smallest native startup boundary
+and keep full hosted qualification open. Do not raise concurrency or deadlines.
+
+The AIGW owner reports its public runtime update and normal-hook dry/actual
+proposal pushes passed at this source. One uncovered input form remains: public
+`hook ref-update` supports a detached Git checkout, not a pure unpacked source
+archive without an object database. Keep its effective native gate until a
+read-only exact-ref/root equivalent replaces it. Do not fabricate Git history,
+copy its state machine, or require a Go adopter to use Python/Nox orchestration.
+
+### Runtime Consumer Retirement — September 13, 2026 (+08:00)
+
+The sole current authoring lane and official Change are
+`work/20260913-runtime-consumer-retirement` and `runtime-consumer-retirement`.
+Five obsolete installed generations are retained by historical receipt text.
+That is a lifetime-model defect: current recovery contracts bind semantic inputs,
+not executable leases. Delete the generic history scan; keep the records intact.
+
+The new owner in the existing runtime package performs only post-activation
+reclamation. Selection, effective repository config, live native commands and
+linked interpreter bindings define current retention. Each removal re-observes
+dependencies and exact directory identity under the native selector fence.
+Activation remains successful when reclamation is deferred; partial results
+conserve confirmed removals and pending paths. A path in another repository with
+the same digest is not this resource's dependency. No status blacklist, consumer
+registry, compatibility carrier or alternate cleanup command is introduced.
+
+Historical pinning and stale-snapshot deletion first failed through the existing
+installation boundary, then passed after owner replacement. The affected suite
+passed 111 cases in 24.76 seconds, including a real live process and bounded native
+lock contention. A later counterexample exposed the initial common-directory
+read escaping deferred-outcome handling; its seven observation cases now pass.
+Direct aliases then exposed digest-spelling lookup as an incomplete relation;
+native resolved path ancestry replaced that heuristic. The complete affected
+runtime/activation/binding/CLI/exporter suite passes 170 cases in 47.37 seconds.
+One live read processed 145,411 command/config bytes into 1,757 candidate paths:
+0.057 seconds for observation and 0.136 for resolution, without deletion. This
+is one workload measurement, not a general latency or completeness guarantee.
+Official spec application changes one requirement and adds one, preserves all
+existing scenarios, emits no warnings and replays byte-identically. These are
+focused source observations, not exact proof or installed cleanup completion.
+
+Final safety review also moves selected-resource identity validation ahead of
+any deletion; a lost selected hook generation must not permit unrelated cleanup.
+Malformed environment metadata and absent worktrees remain unknown dependencies.
+After this correction, 83 runtime/activation cases pass in 27.26 seconds.
+An intervening run reproduced four hook-contract startup timeouts without
+coverage. A bounded measured rerun passed unchanged; three native child samples
+showed waiting in `dyld` before Python execution. Fresh copied-interpreter probes
+took 0.49–1.41 seconds cold and 0.023–0.026 seconds warm. This narrows an observed
+startup cost, not the cause of every ten-second timeout; no deadline, host service
+or quality floor was altered. The native runtime/fixture owner remains the next
+P5 diagnostic target. The runtime-activation spec is aligned too, so installation
+failure language cannot contradict deferred post-activation reclamation.
+
+Finish same-owner docs/Skills/diagram bindings and consumer/static closure, then
+freeze source, execute exact proof, perform governed archive and post-archive
+proof, accept/install/publish and retire this lane through fresh public decisions.
+Only the accepted runtime may reclaim the five real obsolete generations.
+Full fd/mmap observation, arbitrary same-UID isolation, strong-kill scavenging and
+24/48-hour boundedness remain unproved and are not implied by this finite test.
+The full P0–P7 product route and undefined architecture R/P/floor obligations
+remain open; the ordered write strip is a source-text-bound projection, not new
+product nodes or proof that every host implements mediation.
 
 ## Completion Boundary
 

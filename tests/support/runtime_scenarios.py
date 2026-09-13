@@ -253,6 +253,15 @@ def materialize_runtime_case(
     )
 
 
+def materialized_activation_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, Path, Path]:
+    """Provide a validated tiny runtime without rebuilding it during activation."""
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(runtime_materialization, "materialize_runtime", lambda *_a, **_k: runtime)
+    return repo, runtime, Path(git_common_dir(repo))
+
+
 def linked_runtime_case(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

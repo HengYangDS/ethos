@@ -458,11 +458,21 @@ the embedded OpenSpec version.
 Runtime activation is one transaction: preflight the complete offline closure
 and state-schema compatibility; stage a public, versioned migration or safe
 reset; construct and verify a new immutable generation; atomically switch
-`CURRENT`; rebind and verify hooks; then reclaim superseded generations only
-when no reference remains. Any failure restores selector, hooks, state, and
-generation ownership to their exact pre-state. Immutable generations are never
-modified in place, and cleanup restores owner permissions only within the exact
-owned generation before deletion.
+`CURRENT`; then rebind and verify hooks. Activation failure restores selector,
+hooks and state to their exact pre-state. Successful activation is not undone by
+later reclamation failure. Immutable generations are never modified in place.
+
+Reclamation has one runtime owner and follows current operational dependencies:
+selection, effective repository configuration, live native process commands and
+linked interpreter bindings. Historical observations preserve provenance without
+requiring their former executable to remain installed. Operation recovery uses
+the current selected runtime, not a historical path as an executable lease.
+Before each deletion, recheck dependencies and exact owned directory identity
+under the selector fence. Unavailable observations defer deletion. Retain exact
+removed, retained and deferred outcomes; retry from fresh facts rather than
+pretend to roll back completed removals. Permission repair stays inside the
+owned generation. The selector lock coordinates runtime actors; it does not
+isolate arbitrary operating-system processes or external configuration writes.
 
 Each dependency or embedded tool has one native declaration owner; exact locks
 and generated consumers project that selection, not another version registry.

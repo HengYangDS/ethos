@@ -77,6 +77,14 @@ the canonical plan for unresolved work, and exact receipts for results. Add a
 Decision Record only for irreducible cross-Change rationale; do not add a feedback
 ledger, lesson catalog, alternate rule registry or a copied adopter gate.
 
+Select focused verification from the changed semantic owner and every consumer
+of its inputs, outputs and invariants, not just touched files or similarly named
+test directories. Include return-value and parameterized contract tests across
+package boundaries. Before full proof, account for each direct consumer and its
+distinguishing case; an old assertion is changed only when accepted intent
+supersedes it, while stronger sibling obligations remain tested. Record this
+closure in normal test evidence, not a second dependency registry.
+
 Move prevention to the earliest boundary that has enough information:
 
 ```text

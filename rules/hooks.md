@@ -28,8 +28,13 @@ is the pre-tool hook.
 the effective hook path and ref-storage policy to repository-common Git config,
 remove the corresponding worktree-local overrides from every linked worktree,
 and post-observe one shared generation before returning PASS. Cleanup MUST
-derive a keep set from current config, launchers, live processes, and in-flight
-operation records; any unreadable consumer blocks deletion.
+derive retention from the selected runtime and hooks, effective repository
+config, live process commands and native linked interpreter bindings. Historical
+operation records do not lease their former executables. Each deletion rechecks
+current dependencies and exact directory identity under the bounded selector
+fence; unreadable observations defer deletion. Completed activation remains
+observable when reclamation is deferred, with precise partial results and a
+fresh public install continuation rather than an invented rollback.
 
 The sole executable runtime selection is
 `<git-common-dir>/ethos/runtime/CURRENT`. It names one validated,

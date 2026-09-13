@@ -15,11 +15,8 @@ from typing import NoReturn
 from typing import cast
 
 import ethos.adapters.repo.config_effects as config_effects
-import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 from ethos.adapters.process import ProcessExecutionError
-from ethos.adapters.process import process_listing_command
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
@@ -28,19 +25,17 @@ from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.observation import HookRuntimeBinding
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
+from ethos.adapters.repo.runtime.retirement import retire_generations
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
-from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
 from ethos.adapters.store.state.schema import prepare_state_transition
 from ethos.adapters.store.state.schema import state_database
 
 if TYPE_CHECKING:
-    from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.repository.release.identity import BuildIdentity
 
 _ACTIVATION_KEYS = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
 _WORKTREE_ACTIVATION_KEYS = ("core.hooksPath", "gc.packRefs")
-_ACTIVE_CONSUMER_DIRECTORIES = ("operations", "transactions", "ref-intent")
 
 
 def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
@@ -67,10 +62,9 @@ def install_hook_launchers(
     )
     common = Path(git_common_dir(repo))
     hooks = materialize_hook_launchers(common / "ethos" / "hooks")
-    _consumer_text(repo, common)
     linked = _linked_worktree_paths(repo)
     common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
-    binding, cleanup_plan, state_transition, worktrees_before = _activate_with_state(
+    binding, state_transition, worktrees_before = _activate_with_state(
         repo,
         common,
         runtime.parent,
@@ -95,11 +89,7 @@ def install_hook_launchers(
         }
         for worktree in linked
     ]
-    cleanup = _cleanup_after_activation(
-        common,
-        cleanup_plan,
-        expected_current=f"{runtime.parent.name}\n".encode("ascii"),
-    )
+    cleanup = retire_generations(repo, hooks=hooks, runtime=runtime.parent)
     if cleanup["state"] == "deferred" or binding["legacy_runtime_locator"]["state"] == "retained":
         binding["required_gaps"].append("hook_runtime_cleanup_deferred")
         binding["next_action"] = "ethos hook install --json"
@@ -120,7 +110,6 @@ def _activate_with_state(
     expected_build: BuildIdentity,
 ) -> tuple[
     HookRuntimeBinding,
-    dict[str, tuple[Path, ...]],
     dict[str, object],
     dict[Path, dict[str, tuple[str, ...]]],
 ]:
@@ -134,7 +123,7 @@ def _activate_with_state(
             connection.execute("begin immediate")
             state_transition = prepare_state_transition(connection, reset=reset_state)
             activated = True
-            binding, cleanup_plan = _activate_common_runtime(
+            binding = _activate_common_runtime(
                 repo,
                 common,
                 runtime,
@@ -162,7 +151,7 @@ def _activate_with_state(
         raise
     if not database_existed:
         _remove_state_sidecars(database)
-    return binding, cleanup_plan, state_transition, worktrees_before
+    return binding, state_transition, worktrees_before
 
 
 def _retire_legacy_locator(common: Path) -> dict[str, object]:
@@ -176,34 +165,6 @@ def _retire_legacy_locator(common: Path) -> dict[str, object]:
         return {"path": legacy.as_posix(), "state": "retained", "removed": False, "error": message}
     state = "retired" if present else "absent"
     return {"path": legacy.as_posix(), "state": state, "removed": present}
-
-
-def _cleanup_after_activation(
-    common: Path,
-    plan: dict[str, tuple[Path, ...]],
-    *,
-    expected_current: bytes,
-) -> dict[str, object]:
-    try:
-        cleanup = _apply_generation_cleanup(common, plan, expected_current=expected_current)
-    except (OSError, ValueError) as error:
-        if isinstance(error, ValueError) and str(error) == "hook_runtime_current_stale":
-            raise
-        return _deferred_cleanup(plan, error)
-    else:
-        return {"state": "complete", **cleanup}
-
-
-def _deferred_cleanup(
-    plan: dict[str, tuple[Path, ...]], error: OSError | ValueError
-) -> dict[str, object]:
-    paths = {key: [path.as_posix() for path in value] for key, value in plan.items()}
-    return paths | {
-        "state": "deferred",
-        "removed": [],
-        "deferred": [path.as_posix() for path in plan["removed"] if path.exists()],
-        "error": str(error) or error.__class__.__name__,
-    }
 
 
 def _remove_state_sidecars(database: Path) -> None:
@@ -281,7 +242,7 @@ def _activate_common_runtime(
     worktrees_before: dict[Path, dict[str, tuple[str, ...]]],
     *,
     expected_build: BuildIdentity,
-) -> tuple[HookRuntimeBinding, dict[str, tuple[Path, ...]]]:
+) -> HookRuntimeBinding:
     """Select and post-observe one common runtime/hook activation."""
     selected = activate_runtime(common, runtime, expected_current=_runtime_selection_bytes(common))
     config_effects.set_common_config(repo, {"extensions.worktreeConfig": "true"})
@@ -300,7 +261,6 @@ def _activate_common_runtime(
     for worktree in linked:
         config_effects.unset_worktree_config(worktree, _WORKTREE_ACTIVATION_KEYS)
     _require_common_activation(repo, linked, hooks)
-    cleanup_plan = _generation_cleanup_plan(repo, hooks, runtime, selected_runtime=selected)
     binding = hook_runtime_binding(repo, expected_build=expected_build, selected_runtime=selected)
     if binding["hooks_path"] != hooks.as_posix():
         _fail("hook_runtime_activation_drift")
@@ -317,7 +277,7 @@ def _activate_common_runtime(
         _fail(reason)
     if expected_runtime_build(repo)[0] != expected_build:
         _fail("hook_runtime_expected_build_stale")
-    return binding, cleanup_plan
+    return binding
 
 
 def _restore_failed_activation(
@@ -412,147 +372,3 @@ def _restore_activation(
         errors.append(str(error) or error.__class__.__name__)
     if errors:
         raise ValueError("hook_runtime_activation_compensation_failed:" + ",".join(errors))
-
-
-def _generation_cleanup_plan(
-    root: Path,
-    hooks: Path,
-    runtime: Path,
-    *,
-    selected_runtime: SelectedRuntime,
-) -> dict[str, tuple[Path, ...]]:
-    common = Path(git_common_dir(root))
-    hooks_root = common / "ethos" / "hooks"
-    runtime_root = common / "ethos" / "runtime"
-    candidates = (
-        _generated_directories(hooks_root)
-        + _generated_directories(runtime_root)
-        + _legacy_hook_directories(common)
-    )
-    consumers = _consumer_text(root, common) + "\n" + _config_text(root)
-    retained = {
-        path
-        for path in candidates
-        if path.as_posix() in consumers or f"ethos/{path.parent.name}/{path.name}" in consumers
-    }
-    retained.update((hooks, runtime, selected_runtime.root))
-    removable = tuple(sorted(set(candidates) - retained, key=lambda path: path.as_posix()))
-    return {
-        "checked": tuple(sorted(candidates, key=lambda path: path.as_posix())),
-        "removed": removable,
-        "retained": tuple(sorted(retained, key=lambda path: path.as_posix())),
-    }
-
-
-def _generated_directories(root: Path) -> tuple[Path, ...]:
-    if root.is_symlink() or runtime_filesystem.is_junction(root):
-        _fail("hook_runtime_generation_root_invalid")
-    if not root.exists():
-        return ()
-    if not root.is_dir():
-        _fail("hook_runtime_generation_root_invalid")
-    generated = tuple(
-        path
-        for path in root.iterdir()
-        if len(path.name) == 64 and not set(path.name) - set("0123456789abcdef")
-    )
-    if any(
-        path.is_symlink() or runtime_filesystem.is_junction(path) or not path.is_dir()
-        for path in generated
-    ):
-        _fail("hook_runtime_generation_root_invalid")
-    return generated
-
-
-def _legacy_hook_directories(common: Path) -> tuple[Path, ...]:
-    """Return exact directories created by the retired hook layout."""
-    prefix = "ethos-hooks-"
-    generated = tuple(
-        path
-        for path in common.iterdir()
-        if path.name == "ethos-hooks"
-        or (
-            path.name.startswith(prefix)
-            and len(path.name.removeprefix(prefix)) == 64
-            and not set(path.name.removeprefix(prefix)) - set("0123456789abcdef")
-        )
-    )
-    if any(
-        path.is_symlink() or runtime_filesystem.is_junction(path) or not path.is_dir()
-        for path in generated
-    ):
-        _fail("hook_runtime_generation_root_invalid")
-    return generated
-
-
-def _consumer_text(root: Path, common: Path) -> str:
-    texts = [process_commands(root)]
-    directories: list[Path] = []
-    try:
-        for name in _ACTIVE_CONSUMER_DIRECTORIES:
-            directory = common / "ethos" / name
-            try:
-                mode = directory.lstat().st_mode
-            except FileNotFoundError:
-                continue
-            if not stat.S_ISDIR(mode) or runtime_filesystem.is_junction(directory):
-                _fail("hook_runtime_consumers_unknown")
-            directories.append(directory)
-        while directories:
-            for path in directories.pop().iterdir():
-                mode = path.lstat().st_mode
-                if runtime_filesystem.is_junction(path):
-                    _fail("hook_runtime_consumers_unknown")
-                if stat.S_ISDIR(mode):
-                    directories.append(path)
-                elif stat.S_ISREG(mode):
-                    texts.append(path.read_text(encoding="utf-8"))
-                else:
-                    _fail("hook_runtime_consumers_unknown")
-    except (OSError, UnicodeError) as error:
-        _fail("hook_runtime_consumers_unknown", error)
-    return "\n".join(texts)
-
-
-def _config_text(root: Path) -> str:
-    def read(worktree: Path) -> str:
-        completed = run_git(
-            worktree,
-            "config",
-            "--show-origin",
-            "--get-regexp",
-            ".*",
-            check=False,
-        )
-        if completed.returncode not in {0, 1}:
-            _fail("hook_runtime_consumers_unknown")
-        return completed.stdout
-
-    return "\n".join(map(read, _linked_worktree_paths(root)))
-
-
-def process_commands(root: Path, *, platform_name: str | None = None) -> str:
-    """Return active process command lines from the native host observer."""
-    command = process_listing_command(platform_name=platform_name)
-    completed = run_command(root, command, remove_env_prefixes=("GIT_",))
-    if completed.returncode:
-        _fail("hook_runtime_consumers_unknown")
-    return completed.stdout
-
-
-def _apply_generation_cleanup(
-    common: Path,
-    plan: dict[str, tuple[Path, ...]],
-    *,
-    expected_current: bytes,
-) -> dict[str, list[str]]:
-    with runtime_selection_transaction(common, expected_current=expected_current):
-        for path in plan["removed"]:
-            if path.is_symlink() or runtime_filesystem.is_junction(path) or not path.is_dir():
-                _fail("hook_runtime_generation_cleanup_invalid")
-            runtime_materialization.remove_generated_tree(path)
-        if any(path.exists() or path.is_symlink() for path in plan["removed"]) or any(
-            path.is_symlink() or not path.is_dir() for path in plan["retained"]
-        ):
-            _fail("hook_runtime_generation_cleanup_failed")
-    return {key: [path.as_posix() for path in paths] for key, paths in plan.items()}

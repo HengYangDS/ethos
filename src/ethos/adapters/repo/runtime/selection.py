@@ -102,7 +102,7 @@ def activate_runtime(
     if candidate.parent != runtime_root:
         raise ValueError(_CURRENT_TARGET_INVALID)
     runtime_root.mkdir(parents=True, exist_ok=True)
-    with FileLock(_selection_lock_path(common_root).as_posix()):
+    with _selection_lock(common_root):
         selected = require_selected_runtime(candidate)
         release = (
             accepted_release_identity(selected.build, wheel_sha256=selected.wheel_sha256)
@@ -128,7 +128,7 @@ def restore_runtime_selection(
     """Restore the exact prior selector bytes after failed activation."""
     common_root = common.resolve()
     selector = common_root / "ethos" / "runtime" / _SELECTOR
-    with FileLock(_selection_lock_path(common_root).as_posix()):
+    with _selection_lock(common_root):
         if expected_current is not _UNSPECIFIED and _selector_bytes(selector) != expected_current:
             raise ValueError(_CURRENT_STALE)
         _replace_selector(selector, previous)
@@ -143,7 +143,7 @@ def runtime_selection_transaction(
     """Guard selector-dependent effects with the canonical lock and exact CAS."""
     common_root = common.resolve()
     selector = common_root / "ethos" / "runtime" / _SELECTOR
-    with FileLock(_selection_lock_path(common_root).as_posix()):
+    with _selection_lock(common_root):
         if _selector_bytes(selector) != expected_current:
             raise ValueError(_CURRENT_STALE)
         yield
@@ -268,8 +268,14 @@ def _replace_selector(selector: Path, value: bytes | None) -> None:
         staging.unlink(missing_ok=True)
 
 
-def _selection_lock_path(common: Path) -> Path:
-    return common / "ethos" / "runtime-selection.lock"
+def _selection_lock(common: Path) -> FileLock:
+    """Keep one native lock inode and bounded wait for every selector effect."""
+    return FileLock(
+        common / "ethos" / "runtime-selection.lock",
+        timeout=10,
+        fallback_to_soft=False,
+        preserve_lock_file=True,
+    )
 
 
 def _require_release_runtime_closure_unique(

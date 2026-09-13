@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "53137067b02689baa52592601eaaca5e3cc7027dce183b8d50bfe32fe4a8d28d"
+      "sha256": "b6c4881e43ef5fb0b5a5870abd00877388d7f65b7b1941be904e489a61ca75f3"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -149,7 +149,7 @@
     "local_state": {
       "path": "docs/architecture/local-state.md",
       "authority": "current host-local coordination boundary",
-      "sha256": "8941a5008f310b49b8b853f337879125b28c7aaf0671365ef26dcd682c4e6494"
+      "sha256": "01f656fa725e64e9c044bda3d08a7439d24daa36343a14de3edcb3b2f3e4299d"
     },
     "adoption": {
       "path": "docs/architecture/adoption-profiles.md",
@@ -179,7 +179,7 @@
     "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
       "authority": "current repository lifecycle, proof, publication, and cleanup semantics",
-      "sha256": "be93f6bdffc6c7715c77f848546a13ee7f43c16beb765bf9983ad0551868e5bc"
+      "sha256": "5fb96056abdf6f20677147c933f0a2e4ad1f6817a170169da5e6e19b7ff31e3b"
     },
     "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",
@@ -449,7 +449,7 @@
         "gc.packRefs"
       ],
       "worktree_local_owner_allowed": false,
-      "semantics": "One Git-common activation, no per-worktree authority. Preview adoption; use the locked toolchain for immutable runtime activation, state migration, hook rebinding and rollback. Preserve exact prior state on failure; retire superseded generations only after consumers are discharged."
+      "semantics": "One Git-common activation, no per-worktree authority. Preview adoption; use the locked toolchain for immutable runtime activation, state migration, hook rebinding and activation rollback. After activation, reclaim unused generations from fresh operational dependencies; deferred reclamation preserves successful activation and exact partial outcomes."
     },
     "runtime_generation_retirement": {
       "kind": "coordination",
@@ -463,13 +463,13 @@
         "command_plane"
       ],
       "required_consumer_observations": [
-        "effective_config",
-        "generated_launchers",
+        "selected_runtime_and_hooks",
+        "effective_repository_config",
         "live_process_commands",
-        "in_flight_operation_records"
+        "linked_interpreter_bindings"
       ],
       "unreadable_consumer_policy": "block_deletion",
-      "semantics": "A generated hook/runtime generation may be retired only after every declared consumer surface proves that no consumer remains; unreadable observation fails closed."
+      "semantics": "After successful activation, the sole retirement owner re-observes current operational dependencies and exact owned directory identity under a bounded selector fence before each removal. Historical observations are not executable leases. Unknown observations defer deletion; partial results conserve removed, retained and pending resources. The selector fence is not global process isolation."
     },
     "repository_family_convergence": {
       "kind": "projection",

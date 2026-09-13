@@ -13,8 +13,10 @@ A gate is active only when its existing owner surfaces agree:
    `.config/checks/<concern>/` or a root-native file when the tool requires root
    discovery.
 3. The shared gate executor owns dependency scheduling and prerequisite outcomes.
-   Nox exposes native checks; local CI selects the declared full closure, not a
-   private session list. `tools/ci/scripts/` retains necessary platform adapters.
+   ETHOS uses Nox for its Python checks; adopters keep their native declared
+   toolchain. Local CI selects that full closure, not a private session list or
+   a required Python orchestration layer. `tools/ci/scripts/` retains necessary
+   platform adapters.
 4. Hosted CI and hooks invoke Nox sessions, retained adapters, or ETHOS command surfaces; they do
    not restate policy inline.
 5. Tests or proof commands assert the contract so drift becomes visible.
@@ -57,6 +59,9 @@ percentage with correct behavior or complete product assurance.
   for bounded invocation; keep one owner across platforms rather than OS-specific
   omission lists. Exact-source qualification does not automatically transfer to
   a later commit or prove release and installation.
+  Shipped manifests need real-input checks with prerequisites arriving separately;
+  keep executable, configuration and home roles distinct, preserve explicit user
+  selection, and do not equate platform-path probes with native execution.
 
 ## Root Configuration Boundary
 
@@ -84,6 +89,14 @@ package boundaries. Before full proof, account for each direct consumer and its
 distinguishing case; an old assertion is changed only when accepted intent
 supersedes it, while stronger sibling obligations remain tested. Record this
 closure in normal test evidence, not a second dependency registry.
+
+Retirement tests must distinguish a historical path mention from an executable
+dependency. Exercise a real live consumer and its exit, native lock contention,
+dependencies changing between effects, partial failure and fresh retry. Observe
+activation and reclamation independently: a deferred cleanup neither erases a
+successful activation nor justifies a success verdict for the whole repair.
+Delete the old lifetime heuristic, not the historical evidence that exposed it.
+One successful cleanup does not prove sustained or strong-kill boundedness.
 
 Move prevention to the earliest boundary that has enough information:
 

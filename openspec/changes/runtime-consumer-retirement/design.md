@@ -32,8 +32,11 @@ Compare resolved native path ancestry, not digest spelling. Another repository
 can legitimately contain the same generation name, and a direct filesystem
 alias can refer to this generation without spelling its digest. Native command
 listings may omit quoting around spaces; retain possible absolute path bindings
-conservatively. Relative or dynamic program behavior and fd/mmap references are
-outside this command-observation boundary, not proved absent by parsing.
+conservatively. Traverse native directory components without treating legal
+punctuation as loss of the remaining path. Stop at absent components rather than
+combining every possible start/end pair in a command. Verify both path fidelity
+and bounded native work. Relative or dynamic program behavior and fd/mmap
+references are outside this boundary, not proved absent by parsing.
 
 Existing operation contracts retain exact semantic inputs, not interpreter
 leases. They resume through the current public command. No consumer registry or

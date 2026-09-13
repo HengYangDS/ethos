@@ -106,8 +106,26 @@ in that digest. The memo experiment was removed before acceptance. Preserve
 current selector, manifest, configuration and executable-failure observations;
 do not cache a verdict or make partial input identity stand for semantic closure.
 
-The next repair must distinguish pure package declaration from executable
-currentness at the existing native runtime/fixture owner. Reuse requires the
-complete actual input relation and cold/warm equivalent decisions. Retain one
-bounded source repair here only insofar as required to verify retirement; broad
-test-cost and delivery-inclusive lifecycle work remain on the canonical plan.
+Reuse must preserve actual executable currentness and independent fixture state,
+not cache a verdict from incomplete input identity. The bounded repair below
+removes repeated physical supply at the fixture owner. Broader test-cost and
+delivery-inclusive lifecycle work remain on the canonical plan.
+
+### Native fixture supply, not product-format expansion
+
+The native inode comparison exposed a direct repeated cost: copying the same
+Python binary for each governance fixture makes a new cold executable. Linking
+one test-owned read-only copy preserved actual Python execution while repeated
+startup fell from about 0.47 seconds to 0.02 seconds in the bounded probe.
+Each worker therefore owns one supply file under its existing pytest basetemp;
+governance fixtures hard-link only that file on POSIX and retain separate
+prefixes, `.pth`, manifests, selectors, configuration and repository state.
+No host or installed binary is hard-linked. Windows retains native copies until
+its sharing/cleanup behavior is qualified. Runtime materialization/mutation
+fixtures retain exclusive copies, so seal/delete/hardlink rejection tests stay
+real. Cleanup unlinks the owned basetemp without changing shared inode modes.
+
+This replaces repeated physical supply, not authority or execution evidence.
+The product manifest remains unchanged and the exploratory sealed-declaration
+schema change is removed. That broader design needs its own bootstrap migration
+and does not belong in a retirement fix merely to force a passing proof.

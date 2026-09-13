@@ -5199,12 +5199,34 @@ was attempted from this failed proof.
 Stop unchanged full reruns. A local content-keyed contract memo experiment was
 removed because it neither eliminates the cold query nor closes the fixture's
 external `.pth` input relation; its failed evidence is retained, not its code.
-Resolve declaration identity versus executable readiness at the native runtime
-or fixture owner, preserve fresh authority and test both invalidation and native
-failure. This concrete prerequisite precedes the next full proof. Do not install
-a general cache framework, manufacture a green fixture, raise a timeout or alter
-host security services. Existing immutable proof artifacts and the bounded
-runtime-consumer evidence directory retain the exact attempts and rejected option.
+A sealed-declaration prototype was also removed: changing the product manifest
+and bootstrap contract is not necessary to repair repeated fixture supply.
+
+The narrower native comparison identifies repeated executable inodes as avoidable
+startup work: independent copies take about 0.47 seconds each, while a test-owned
+shared inode takes about 0.46 seconds initially and 0.015–0.019 seconds thereafter.
+This measurement does not by itself explain every earlier timeout. Governance
+fixtures now share only one read-only copied binary per POSIX worker under the
+owned pytest basetemp. Prefixes, source bindings, manifests, selectors and Git
+state remain separate; product-runtime mutation fixtures retain exclusive copies.
+No host or installed executable is hard-linked, no verdict is cached, and the
+product manifest, quality floor, concurrency and deadlines remain unchanged.
+
+The old-copy counterexample fails the inode assertion. The changed fixture passes
+195 affected cases in 127.67 seconds and replays all thirteen exact previous
+failures in 76.82 seconds. Another 31 cases pass in 12.44 seconds, including real
+independent Python prefixes, runtime binding and cleanup that preserves shared
+bytes and modes; the owned basetemp was observed removed. These focused results
+establish the bounded mechanism, not full proof or sustained resource safety.
+The existing `runtime-consumer-retirement` evidence directory holds the native
+comparison, RED/GREEN, exact-failure replay and cleanup logs. Finish current
+source/static closure and execute one new frozen proof before acceptance.
+The eleven selected public owner checks and native Ruff/config/Markdown/prose
+checks pass; all twelve official OpenSpec items validate without warnings.
+The earlier SCC failure and sibling tool case replay pass in 8.35 seconds;
+this does not claim a repair to every native startup boundary. Product/test
+ELOC is 41,704/44,367. The source-input task is complete, while exact full proof,
+acceptance, installation, publication and resource retirement remain pending.
 
 During the frozen attempt, AIGW reported a delivery-inclusive Change at 86/106
 tasks whose public land action prematurely asks for archive. Current source

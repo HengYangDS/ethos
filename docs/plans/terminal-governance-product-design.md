@@ -5164,6 +5164,40 @@ or quality floor was altered. The native runtime/fixture owner remains the next
 P5 diagnostic target. The runtime-activation spec is aligned too, so installation
 failure language cannot contradict deferred post-activation reclamation.
 
+At source `df0a86af48`, full proof failed one native SCC supply timeout after
+1,818.53 seconds: 3,272 tests passed, one failed and one skipped; combined coverage
+was 25,364/26,677 (95.0782 percent). Its one bounded unchanged retry failed three
+fixture-installation assertions after 1,668.28 seconds. Neither run admits
+archive or delivery; both owned basetemps were removed. Focused replay passes
+but is not a timeout repair. The shared fixture now reports its full failed
+runtime observation, not a bare `current=False`, to expose the causal boundary.
+
+A further native-path probe rejected acceptance of that source even if its
+tests had passed: punctuation in an existing path was being discarded. Replacing
+that split with all suffix pairs then amplified about 168 KB into 551,710 path
+resolutions and an 86.51-second computation. The corrected single owner follows
+existing native components and stops absent prefixes; a distinguishing work-count
+test and 51 lifetime cases pass. A live 143,500-byte sample resolves 2,335 observed
+paths in 0.182 seconds. No filename exception, directory blacklist or extra
+observer process was added. Source tasks were reopened rather than reinterpreting
+either failed proof; a new frozen source and proof remain required.
+The corrected runtime/activation/binding and affected retirement suite passes
+196 cases in 109.54 seconds; seven public owner gates, native lint/type/config/
+Markdown/prose checks and all twelve official OpenSpec items pass. Product and
+test ELOC are 41,704 and 44,311, independently below their 50,000 ceilings.
+These complete the revised source inputs, not its future exact proof or delivery.
+
+During the frozen attempt, AIGW reported a delivery-inclusive Change at 86/106
+tasks whose public land action prematurely asks for archive. Current source
+confirms a separate lifecycle gap: mandatory archive before integration has no
+single-Change settlement for later publication, installed-byte acceptance and
+retirement tasks. Complete source-only Changes are supported, but reclassifying
+that complete product goal or prechecking future tasks is not equivalent.
+Promote the source-acceptance versus outcome boundary at existing OpenSpec,
+land/archive and proof owners immediately after the current runtime closure.
+Keep the no-Git archive consumer open too. This does not authorize adopter edits,
+another progress store, or scope expansion into the frozen proof.
+
 Finish same-owner docs/Skills/diagram bindings and consumer/static closure, then
 freeze source, execute exact proof, perform governed archive and post-archive
 proof, accept/install/publish and retire this lane through fresh public decisions.

@@ -125,12 +125,30 @@ def _reference_paths(references: str) -> frozenset[Path]:
     possible path boundary conservatively; digest spelling is not identity.
     """
     paths: set[Path] = set()
-    for field in re.split(r"[\n\x00'\";|&)]", references):
+    for field in re.split(r"[\n\x00]", references):
         for start in re.finditer(r"(?<![\w./:-])(?:[A-Za-z]:)?/", field):
-            suffix = field[start.start() :]
-            for end in re.finditer(r"\s|$", suffix):
-                paths.add(Path(suffix[: end.start()]).resolve())
+            paths.update(_native_path_prefixes(Path(start.group()), field[start.end() :]))
     return frozenset(paths)
+
+
+def _native_path_prefixes(anchor: Path, tail: str) -> set[Path]:
+    """Stop a possible path at its first absent directory, not arbitrary punctuation."""
+    paths: set[Path] = set()
+    current = anchor
+    while tail:
+        component, separator, rest = tail.partition("/")
+        for end in re.finditer(r"[\s'\";|&)]|$", component):
+            part = component[: end.start()]
+            candidate = current / part
+            if part and (candidate.exists() or candidate.is_symlink()):
+                paths.add(candidate.resolve(strict=True))
+        full = current / component
+        if not separator or not full.is_dir():
+            break
+        current = full.resolve(strict=True)
+        paths.add(current)
+        tail = rest
+    return paths
 
 
 def _require_identity(path: Path, expected: tuple[int, int, int, int]) -> None:

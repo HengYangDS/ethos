@@ -409,7 +409,7 @@ def test_unknown_historical_carriers_neither_block_activation_nor_get_deleted(
     assert (history / "external").is_symlink()
 
 
-@pytest.mark.parametrize("layout", ["plain", "with spaces"])
+@pytest.mark.parametrize("layout", ["plain", "with spaces", "O'Brien (native); owner"])
 @pytest.mark.parametrize(
     "reference", ["exact", "launcher", "alias", "direct-alias", "foreign-root", "longer-name"]
 )
@@ -440,3 +440,29 @@ def test_generation_reference_preserves_repository_and_path_identity(
     assert candidate.exists() is needed
     assert (candidate.as_posix() in result["retained"]) is needed
     assert (candidate.as_posix() in result["removed"]) is not needed
+
+
+def test_unrelated_command_arguments_do_not_amplify_path_resolution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Resolver work follows native path components, not all command suffix pairs."""
+    repo, hooks, runtime = _tree(tmp_path)
+    candidate = _generation(runtime, "b" * 64)
+    command = f"{candidate}/payload " + " ".join(f"/not-present-{i}/arg" for i in range(200))
+    monkeypatch.setattr(retirement, "process_commands", lambda _root: command)
+    resolve = Path.resolve
+    calls = 0
+
+    def measured(path: Path, *args, **kwargs):
+        nonlocal calls
+        calls += 1
+        assert calls < 1500, "command suffix combinations amplify native resolution work"
+        return resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", measured)
+
+    result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
+
+    assert result["state"] == "complete", result
+    assert candidate.as_posix() in result["retained"]
+    assert (candidate / "payload").read_text() == "b" * 64

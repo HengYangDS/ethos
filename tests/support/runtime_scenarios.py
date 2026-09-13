@@ -89,7 +89,10 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
                 "core.hooksPath": hooks.as_posix(),
             },
         )
-        return hook_runtime_binding(root)
+        binding = hook_runtime_binding(root)
+        if not binding["current"]:
+            raise AssertionError(binding)
+        return binding
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 

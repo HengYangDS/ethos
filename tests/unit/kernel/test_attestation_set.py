@@ -1,3 +1,5 @@
+"""Real Git boundaries for canonical Attestation set preservation and selection."""
+
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
@@ -341,7 +343,10 @@ def test_attestation_set_concurrent_writers_recompute_union_after_stale_cas(
 
     def synchronized_update(root: Path, *args: str, **kwargs):
         nonlocal synchronized
-        if args[:2] == ("update-ref", attestation_set.ATTESTATION_SET_REF) and synchronized < 2:
+        if (
+            args[:3] == ("update-ref", "--no-deref", attestation_set.ATTESTATION_SET_REF)
+            and synchronized < 2
+        ):
             synchronized += 1
             barrier.wait(timeout=10)
         return original(root, *args, **kwargs)
@@ -354,6 +359,7 @@ def test_attestation_set_concurrent_writers_recompute_union_after_stale_cas(
         )
         results = tuple(future.result(timeout=20) for future in futures)
 
+    assert synchronized == 2
     root, members = attestation_set.read_attestation_set(repo)
     assert root in {str(result["root"]) for result in results}
     assert members == tuple(sorted((one, two), key=lambda item: item.id))
@@ -371,7 +377,10 @@ def test_attestation_set_concurrent_single_winner_selects_one_semantic_witness(
 
     def synchronized_update(root: Path, *args: str, **kwargs):
         nonlocal synchronized
-        if args[:2] == ("update-ref", attestation_set.ATTESTATION_SET_REF) and synchronized < 2:
+        if (
+            args[:3] == ("update-ref", "--no-deref", attestation_set.ATTESTATION_SET_REF)
+            and synchronized < 2
+        ):
             synchronized += 1
             barrier.wait(timeout=10)
         return original(root, *args, **kwargs)
@@ -386,5 +395,200 @@ def test_attestation_set_concurrent_single_winner_selects_one_semantic_witness(
             )
         )
 
+    assert synchronized == 2
     assert selected[0] == selected[1]
     assert attestation_set.read_attestation_set(repo)[1] == (selected[0],)
+
+
+@pytest.mark.parametrize(
+    ("size", "expected_root"),
+    [
+        (1, "c4caabe7fef61ba9abf6c900b5e2ac4db1474032"),
+        (24, "36b278d7d0470a72e9e4bc94189fbca727c3c685"),
+    ],
+)
+def test_attestation_set_write_has_constant_native_process_cost(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, size: int, expected_root: str
+) -> None:
+    """Adding members preserves pinned roots without one Git process per member."""
+    repo = init_git_repo(tmp_path / 'quoted "workspace" 雪')
+    records = tuple(_attestation(ordinal) for ordinal in range(size))
+    before_index = (repo / ".git/index").read_bytes()
+    counted = Mock(wraps=attestation_set.run_git)
+    monkeypatch.setattr(attestation_set, "run_git", counted)
+
+    result = attestation_set.record_attestations(repo, records)
+
+    assert result["root"] == expected_root
+    writes = [
+        call
+        for call in counted.call_args_list
+        if call.args[1] in {"hash-object", "update-index", "write-tree"}
+    ]
+    assert len(writes) <= 4
+    assert (repo / ".git/index").read_bytes() == before_index
+    assert not tuple((repo / ".git").glob("attestation-set-*"))
+    assert attestation_set.read_attestation_set(repo)[1] == tuple(
+        sorted(records, key=lambda item: item.id)
+    )
+
+
+def test_attestation_set_reuses_validation_but_not_selected_membership(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Identical bytes decode once while changed and missing refs stay observable."""
+    repo = init_git_repo(tmp_path / "repo")
+    one, two = _attestation(3_001), _attestation(3_002)
+    first = attestation_set.record_attestations(repo, (one,))
+    validate = Mock(wraps=Attestation.model_validate_json)
+    monkeypatch.setattr(Attestation, "model_validate_json", validate)
+
+    for _ in range(3):
+        assert attestation_set.read_attestation_set(repo) == (first["root"], (one,))
+    assert validate.call_count == 1
+
+    second = attestation_set.record_attestations(repo, (two,))
+    assert attestation_set.read_attestation_set(repo) == (
+        second["root"],
+        tuple(sorted((one, two), key=lambda item: item.id)),
+    )
+    assert validate.call_count == 2
+    git(repo, "update-ref", attestation_set.ATTESTATION_SET_REF, str(first["root"]))
+    assert attestation_set.read_attestation_set(repo) == (first["root"], (one,))
+    git(repo, "update-ref", "-d", attestation_set.ATTESTATION_SET_REF)
+    assert attestation_set.read_attestation_set(repo) == ("", ())
+
+
+def test_attestation_set_growth_materializes_only_new_member_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An exact selected tree is reused instead of rewriting preserved members."""
+    repo = init_git_repo(tmp_path / "repo")
+    attestation_set.record_attestations(repo, tuple(_attestation(n) for n in range(24)))
+    new = _attestation(3_006)
+    original, materialized_bytes = attestation_set.run_git, 0
+
+    def observed(root: Path, *args: str, **kwargs):
+        nonlocal materialized_bytes
+        if args[0] == "hash-object" and "-w" in args and "-t" not in args:
+            if "--stdin-paths" in args:
+                materialized_bytes += sum(
+                    len((root / name).read_bytes()) for name in kwargs["stdin"].splitlines()
+                )
+            else:
+                materialized_bytes += len(kwargs["stdin"])
+        return original(root, *args, **kwargs)
+
+    monkeypatch.setattr(attestation_set, "run_git", observed)
+    attestation_set.record_attestations(repo, (new,))
+    assert materialized_bytes == len(new.canonical_json().encode())
+    assert len(attestation_set.read_attestation_set(repo)[1]) == 25
+
+
+@pytest.mark.parametrize("command", ["ls-tree", "cat-file"])
+def test_attestation_set_warm_validation_does_not_hide_read_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
+    """Cached pure values cannot substitute for a failed current object observation."""
+    repo = init_git_repo(tmp_path / "repo")
+    one = _attestation(3_003)
+    attestation_set.record_attestations(repo, (one,))
+    assert attestation_set.read_attestation_set(repo)[1] == (one,)
+    original = attestation_set.run_git
+
+    def failed(root: Path, *args: str, **kwargs):
+        if args[0] == command:
+            return CompletedProcess(args, 1, stdout=b"", stderr=b"unavailable")
+        return original(root, *args, **kwargs)
+
+    monkeypatch.setattr(git_object if command == "cat-file" else attestation_set, "run_git", failed)
+    with pytest.raises(ValueError, match="attestation_set_root_invalid"):
+        attestation_set.read_attestation_set(repo)
+
+
+@pytest.mark.parametrize("command", ["read-tree", "hash-object", "update-index", "write-tree"])
+def test_attestation_set_failed_batch_preserves_ref_index_and_cleans_staging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
+    """Failure in any native batch phase leaves no selected effect or owned scratch."""
+    repo = init_git_repo(tmp_path / "repo")
+    one, two = _attestation(3_004), _attestation(3_005)
+    before = attestation_set.record_attestations(repo, (one,))
+    before_index = (repo / ".git/index").read_bytes()
+    original = attestation_set.run_git
+
+    def failed(root: Path, *args: str, **kwargs):
+        if args[0] == command and not kwargs.get("observation"):
+            message = "native_batch_interrupted"
+            raise OSError(message)
+        return original(root, *args, **kwargs)
+
+    monkeypatch.setattr(attestation_set, "run_git", failed)
+    with pytest.raises(OSError, match="native_batch_interrupted"):
+        attestation_set.record_attestations(repo, (two,))
+    assert git(repo, "rev-parse", attestation_set.ATTESTATION_SET_REF) == before["root"]
+    assert (repo / ".git/index").read_bytes() == before_index
+    assert not tuple((repo / ".git").glob("attestation-set-*"))
+
+
+def test_attestation_set_oversized_member_does_not_consume_reuse_capacity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A large valid member stays admissible without retaining its bytes or value."""
+    repo = init_git_repo(tmp_path / "repo")
+    payload = _attestation(3_007).model_dump(mode="python", exclude={"id"})
+    payload["payload"] = {"kind": "input:feedback", "body": {"text": "x" * 65_536}}
+    large = Attestation.issue(payload)
+    attestation_set.record_attestations(repo, (large,))
+    validate = Mock(wraps=Attestation.model_validate_json)
+    monkeypatch.setattr(Attestation, "model_validate_json", validate)
+
+    assert attestation_set.read_attestation_set(repo)[1] == (large,)
+    assert attestation_set.read_attestation_set(repo)[1] == (large,)
+    assert validate.call_count == 2
+
+
+def test_attestation_set_eviction_changes_work_not_membership_or_meaning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reading more than the reuse capacity evicts old bytes without losing evidence."""
+    repo = init_git_repo(tmp_path / "repo")
+    records = tuple(sorted((_attestation(n) for n in range(4_000, 6_050)), key=lambda x: x.id))
+    first = records[0]
+    first_root = attestation_set.record_attestations(repo, (first,))["root"]
+    assert attestation_set.read_attestation_set(repo)[1] == (first,)
+    attestation_set.record_attestations(repo, records[1:])
+    assert len(attestation_set.read_attestation_set(repo)[1]) == len(records)
+    git(repo, "update-ref", attestation_set.ATTESTATION_SET_REF, str(first_root))
+    validate = Mock(wraps=Attestation.model_validate_json)
+    monkeypatch.setattr(Attestation, "model_validate_json", validate)
+
+    assert attestation_set.read_attestation_set(repo) == (first_root, (first,))
+    assert validate.call_count == 1
+
+
+def test_attestation_set_new_bytes_cannot_inherit_a_cached_member_identity(
+    tmp_path: Path,
+) -> None:
+    """A selected blob with changed bytes is validated even under the old member path."""
+    repo = init_git_repo(tmp_path / "repo")
+    record = _attestation(3_009)
+    valid = attestation_set.record_attestations(repo, (record,))["root"]
+    assert attestation_set.read_attestation_set(repo)[1] == (record,)
+    changed = record.canonical_json().replace('"source":"test"', '"source":"changed"')
+    blob = run_git(repo, "hash-object", "-w", "--stdin", stdin=changed).stdout.strip()
+    environment = {"GIT_INDEX_FILE": (tmp_path / "changed.index").as_posix()}
+    run_git(repo, "read-tree", str(valid), env=environment)
+    run_git(
+        repo,
+        "update-index",
+        "--cacheinfo",
+        f"100644,{blob},evidence/attestations/{record.id[:2]}/{record.id}.json",
+        env=environment,
+    )
+    tree = run_git(repo, "write-tree", env=environment).stdout.strip()
+    git(repo, "update-ref", attestation_set.ATTESTATION_SET_REF, _canonical_root(repo, tree))
+    with pytest.raises(ValueError, match="attestation_set_member_invalid"):
+        attestation_set.read_attestation_set(repo)
+    git(repo, "update-ref", attestation_set.ATTESTATION_SET_REF, str(valid))
+    assert attestation_set.read_attestation_set(repo)[1] == (record,)

@@ -31,86 +31,97 @@ Raw transcripts, extracts, classifiers, and scratch matrices never become this
 plan's inputs after that Change is proven and archived; their exact owned copies
 are then deleted.
 
-## September 13 Local-Time Recovery And Convergence Boundary
+## Current Convergence Boundary
 
-The user authorizes destructive simplification and an exact, audited maintainer
-break-glass when the governor cannot read a valid successor proof. Do not build
-an interpreter-negotiation framework or preserve obsolete implementation merely
-to avoid that bounded recovery. The product contract still requires exact scope,
-current preconditions, explicit reason, non-interactive authority, effect evidence
-and re-entry; it does not authorize permanent hooks bypass or weaker quality.
+Source-delivery lifecycle closure is accepted at
+`7a268f313dae24240dcd7c918ec6adc5ac7359e6`, tree
+`192fcbabb13348a90a9af227b0b69fc74bd63049`. Exact postarchive proof passes all
+35 gates with 3,337 tests passed, one skip and 95.0974 percent combined coverage.
+Public closeout, immutable runtime activation, independent peer publication and
+source-lane retirement have executed receipts under the existing ignored
+`build/evidence/quality/source-delivery-lifecycle/`. The accepted readback binds
+all six closing receipts by hash. This supersedes the earlier active-source and
+unpublished checkpoints below; historical observations retain their exact scope.
 
-The shared-effect owner handed back quiescent state after accepting
-`ff7f3bac3a216ad0192ecef004e2749a5e078278`, tree
-`88964f7767d546575dd6e41e8d03f0e0c88e4a13`. Public `hook install` selected runtime
-`b57151de6a90ea884329fbf47ffd891f33f19c14e94bb5d41a0f83435c7db090` from that exact
-source, with normal hooks armed. This was a real runtime update, not completion of
-the newer execution-source proof-reader repair. A prepared but unused generation
-was reclaimed by the existing generation owner. Other retained generations still
-need exact consumer review; cleanup success does not prove they are all obsolete.
+Runtime `071d2d700528c1b51c868c8942c63564e80f5b72c6fbeccbf01aa64e6c58ae88`
+selects that exact source/tree. Both peers' dev/main refs were independently
+read back at the same commit. GitHub reports VALID with the expected author and
+signer; GitLab reports verified. Publication used existing GitHub maintainer
+permission to bypass PR and then-pending required-check rules; local hooks stayed
+armed. Neither remote equality nor that permission proves hosted CI or review
+acceptance. GitLab pipelines 6666/dev and 6667/main subsequently passed; GitHub
+34840602113/34840602210 source verification remains a distinct observation.
 
-Public `lane refresh-base` combined both accepted contributions with the current
-work at `e0e7274cecd78694f440aa93274ae37a61b4ae95`, tree
-`1acf844ccec01145e507f63b38043010ec9541b8`. Old proofs remain historical after this
-source change. The transferred `work/20260912-proof-empty-scope-closure` lane was
-then retired through public `lane retire landed`; its worktree, ref and Lease
-were all observed absent. The retirement receipt digest is
-`e9a68474774da8e2802ae6381477415e02c46d48b86cccafed89296eb349b0c7`. One authoring
-Work Lane remains; no replacement lane was created.
+Historical author attribution remains open. The exact audit proves four commits
+use an email mapped to another GitHub account; it does not prove another person
+cryptographically signed them. Preserve the verified pre-repair bundle until an
+explicit byte-preserving DAG transformation and re-entry complete. Placeholder
+headers, missing historic key registration and platform signatures are distinct
+cases, not a mandate to re-sign every ancestor. Current tip validity does not
+repair historical attribution.
 
-All nineteen pending inputs were preserved with per-file hashes before refresh.
-Restore useful source and research without overwriting the accepted peer tests.
-The unconsumed evaluator-binding module, preparation wrapper, hook-prepare entry
-and dedicated tests are superseded, not queued for later resurrection. The
-existing `runtime-reader-handoff` Change now contains only the demonstrated
-proof-validation and trusted-control-policy repairs, numeric budget correction
-and the relevant research projection. Its native recovery operation is not a
-new persistent product API.
+Historical work lanes and the source-delivery lane have retired, with ref,
+worktree and Lease absence observed. One new serial owned Work Lane now carries
+only the official `attestation-materialization` Change. No foreign writer or
+parallel implementation is introduced. Retirement still follows unique-content
+review, completed delivery and exact absence observation, not source ancestry
+alone. The retired reader-handoff implementation and obsolete evaluator-binding
+proposal stay superseded; their preserved obligations live in current owners.
 
-Five genuine failures were reproduced: unsupported proof Facts escaped validation
-without Commitment; candidate policy disabled the predecessor verifier; runtime,
-hook and Git-effect code escaped control classification. Three existing semantic
-owners now close those gaps. Both affected test modules passed all 72 cases in
-146.81 seconds with two workers and owned scratch cleanup. These focused results
-do not establish the current dirty source's full proof, acceptance or publication.
+The immediate P0/P5 bottleneck is unnecessary repeated materialization. The
+existing Attestation set owner is being changed to seed an isolated native index
+from the selected tree, batch only new blobs, and reuse bounded pure validation
+of identical bytes. Current membership, raw-object availability, policy,
+identity, validity and effect authority are always reobserved. No cache grants
+permission or becomes another result store. Real-Git RED cases distinguish
+member-linear process creation, rehashing unchanged members and repeated decoding;
+cold/warm, eviction, malformed bytes, concurrency and failure cleanup are required
+GREEN boundaries. Existing tasks own this batch's progress. The equivalent native 256-member
+workload now needs nine Git calls for first construction and thirteen for one
+append, versus 519/524 in accepted code; roots are identical. Observing the same
+1,339-member selected set took 2.97 seconds in accepted code, 3.02 seconds cold
+in the candidate and 0.36–0.40 seconds warm. These single-host samples are not
+accepted-runtime or whole-cycle performance claims. The combined benchmark
+process reached about 389 MB peak RSS while retaining both implementations'
+results; separate memory measurements remain necessary. Evidence lives under
+this lane's existing ignored `build/evidence/quality/attestation-materialization/`.
+The 165 affected set, proof, effect and publication cases pass. A package-only
+smoke of the exact candidate module also passes activation, recovery, signature
+repair, lane creation and retirement; its owned temporary root is absent.
+The first invocation correctly rejected leaked source imports from PYTHONPATH;
+using the native editable development environment without that override closes
+the invocation fault, not a product defect. Exact full proof and accepted runtime
+delivery remain pending; no further unrelated edits belong after freeze.
 
-A native staged-secret rule also misclassified authentic Git OIDs as credentials
-in the research report. Its existing Gitleaks rule was refined by token grammar;
-five real scanner cases preserve positive detection and reject the false positive.
-No source hash, file, scanner or rule family was excluded. This is a bounded
-failure-left-shift repair in the current atom, not an additional parser or gate.
+After this independently useful closure, repair the already reproduced native
+startup/readiness and effect-deadline boundaries, including remote probe timeout
+versus unavailable classification. Do not increase workers or relax deadlines as
+a substitute for eliminating repeated work. Retain live operation handles;
+observation timeout is not permission to replay an unknown effect. Historical
+identity correction, tag-admission cause preservation, malformed archive
+postimage/re-entry and exact Lease continuation remain next bounded obligations.
 
-The user sets independent Python product/test ceilings to 50,000 ELOC each. The
-sole executable owner remains [format selection](../../.config/checks/format/selection.toml).
-Historical 38,300/45,000 statements, including the old goal wording, are superseded.
-Keep coverage at least 95%, existing per-file ceilings, measurement, exclusions,
-non-compensation, DRY and complexity requirements unchanged. Current measured
-product/test totals are 41,301/43,112; a ceiling is not an allocation to fill.
+General requirements describe authorized adopters, not project-specific names.
+The source-delivery owner's attributed adopter receipt now demonstrates active
+Change proof, candidate and accepted closeout, hook-enforced peer publication
+and proposal retirement. This is a real adopter execution receipt, not this
+writer's independent replay or retroactive approval of earlier recovery escapes.
+Architecture R01–R14/P00–P09 definitions, full historical intent recovery, complete
+P1–P7 journeys and independent ecosystem conformance remain unproved.
+
+The user sets independent Python product/test ceilings to 50,000 ELOC each.
+[Format selection](../../.config/checks/format/selection.toml) owns aggregate
+accounting; [.ethos/rules.toml](../../.ethos/rules.toml) owns 500 logic, 500 surface
+and 800 test per-file ceilings. Combined coverage remains at least 95 percent.
+Historical 38,300/45,000 ceilings and old goal snapshots are superseded. Budgets
+are ceilings, not allocations; maintain DRY, semantic cohesion and exclusions.
 
 [Modern Engineering Foundations](../research/modern-engineering-foundations.md)
-retains alternatives, source evidence and diagnostic limitations; decisions and
-this plan keep their established responsibilities. No second roadmap, research
-index or tool dashboard is introduced. The P0–P7 route remains: close the current
-exact proof/runtime gap, then use bounded SCC/semantic/test-cost observations to
-replace inefficient owners. P5 can advance when measured latency blocks delivery;
-source inspection alone does not select or reject Pants, Dagger or another engine.
-
-The immediate exit is exact-source full proof, official archive with source-bound
-projections, current proof, fresh candidate/accepted CAS and installed-runtime
-readback. If only the incumbent reader rejects that exact valid proof, use the
-already authorized one-effect recovery rather than expanding compatibility code.
-Dispose of the pending-source archive after every input is restored or explicitly
-superseded, and retire old runtime resources only after live consumers are removed.
-
-Adopter-reported proposal publication still conflates review ingress with completed
-Change proof, even when commit-range policy passes. Owner emergency tag publication
-also needs a precise public boundary. Fix those generic publication owners after
-this atom; do not block adopter delivery or copy gates into affected repositories. Their
-reported P0 release success is not independently established by this plan.
-Implementation tasks must not demand later publishing/retirement before archive.
-Architecture R01–R14/P00–P09 references still need recovered definitions or an
-evidence-backed supersession mapping; bare identifiers and G-series counts are not
-equivalent semantics. These remain open obligations, not this Change's completion.
+retains alternatives and evidence. The existing P0–P7 route remains complete:
+P5 may precede its usual position when measured latency blocks delivery. Research,
+receipt counts and local microbenchmarks do not certify product acceptance. One
+bounded Change closes its source, tests, exact proof, package/runtime, required
+peer observations and owned-resource retirement before another overlapping atom.
 
 ## September 11 Delivery And Semantic-Version Checkpoint
 
@@ -261,17 +272,17 @@ it does not claim complete historical-input recovery or establish another queue.
 Full history and source-by-source semantic coverage remain unproved. Latest
 direct user budget instructions supersede stale goal snapshots: independent
 product/test ceilings are 50000, combined coverage is at least 95 percent, and
-unified 500 per file is a trial pending semantic assessment, not a completed
-policy decision. Examples do not narrow the global principles they illustrate.
+current native per-file ceilings are 500 logic, 500 surface and 800 tests.
+Further tightening requires semantic evidence rather than incumbent file sizes. Examples do not narrow the global principles they illustrate.
 
 | Existing obligation | Current evidence boundary | Owner and remaining exit condition |
 | --- | --- | --- |
 | Intent fidelity and historical guidance | Available input has informed the contract and this route; complete recovery is not proved. | Existing Feedback Intent Preservation and P1/P2: settle each distinct in-scope obligation, retain unresolved source gaps, and reject the mandatory-winner mistranslation through the full acceptance path. |
-| Lane absorption and housekeeping | Current source coordinates, reviewed counts and recovery limits are recorded once in [Transition Source Absorption](#transition-source-absorption); classification is not retirement. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
-| Artifact, policy and admission correctness | Artifact-origin repair is accepted and installed at `470fe13e`; the adopter owner reports the original deletion blocker cleared. | Current semantic-version Change still needs exact full proof, archive, acceptance and runtime readback; do not transfer predecessor evidence to it. |
+| Lane absorption and housekeeping | Historical and source-delivery lanes are retired; one serial Attestation repair lane is active. Unique-content dispositions remain in [Transition Source Absorption](#transition-source-absorption), and exact retirement receipts remain separate evidence. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
+| Artifact, policy and admission correctness | Artifact-origin repair and source-delivery lifecycle are accepted; attributed adopter replay clears the prior active-Change integration cycle. | Existing admission owners still owe tag cause preservation and malformed archive postimage/re-entry; exact new evidence is required for each. |
 | Quality and full-cycle speed | ELOC coercion and path-response defects reproduced and repaired; coverage of all quality obligations is not established. | Existing quality owners and P5: finish semantic size consolidation, docstring/type/format scope, distinguishing failures, evidence reuse and actual first-failure/closeout measurements. |
 | Runtime, supply and temporary resources | The latest focused scratch roots were removed; sustained crash/kill boundedness and all-current supply are not proved. | Existing runtime/resource owners: verify package identity, migration/rollback, live-consumer-safe reclamation and sustained quantity/byte/inode budgets. |
-| Local and independent remote workflow | Accepted `470fe13e` was read back equal on both peers; current working changes are unpublished. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
+| Local and independent remote workflow | Accepted `7a268f313` is equal on both peers; current tip signatures verify. The new repair is unaccepted; historical attribution and GitHub source-verification completion remain separate. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
 | Agent guidance and enforceable behavior | Hooks, runtime and skills exist; registration alone does not prove host coverage or agent adherence. | Existing Hook And Extension Boundaries: context selection, capability discovery, fresh effect admission, bounded failures and measurable recovery without vendor/model binding. |
 | Document and physical semantic structure | Current registry and contracts exist; all placement, naming, source/projection and legacy cleanup obligations remain separately auditable. | Existing docs, module-layout and projection owners: preserve distinct design/plan/decision/task/evidence roles, remove redundant entities and prove consumer closure. |
 | OpenSpec and OKF customization | Official extension surfaces have been inspected; no custom schema or OKF adapter has been adopted. | Existing P1/P2/P7: native config first, justified schema only after semantic preservation tests, interoperable exchange without a second intent store or lifecycle. |
@@ -5349,8 +5360,8 @@ fixture repair therefore does not establish this generic path's reliability.
 Keep the deadline and fail-closed result; diagnose and remove the unnecessary
 work at the selected-package/fixture boundary rather than retry unchanged.
 The exact hosted proof and JUnit files are retained in
-`runtime-status-admission/github-main-artifacts/`. Dev run 34800725154 was still
-running at the latest observation. Earlier `52db974e` runs completed, including
+`runtime-status-admission/github-main-artifacts/`. Dev run 34800725154 subsequently failed at native descendant-readiness and
+unbounded Attestation Git waiting, as recorded below. Earlier `52db974e` runs completed, including
 package artifacts; neither that history nor local proof is current hosted success.
 
 ### Source Acceptance, Delivery And Archive
@@ -5409,8 +5420,9 @@ hashes but not contradictory source-authority labels. It now consumes the same
 pure owner from the selected Git commit; no second validator or installed-runtime
 substitution is introduced. The source-bound stdlib consumer contract is retained.
 Evidence is in the existing ignored `build/evidence/quality/source-delivery-lifecycle/`.
-Freeze and prove the amended source once; then perform archive, current proof,
-acceptance, immutable activation, publication and exact lane retirement.
+The amended source then completed archive, current proof, acceptance, immutable
+activation, publication and exact lane retirement at `7a268f313`; the current
+boundary above owns follow-up order. These completed effects are not pending tasks.
 
 Two distinct recovery gaps remain subsequent bounded work, not hidden additions
 to this Change. Workstation's archive preview passed before an invalid Purpose

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -9,6 +10,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
+from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.result import EthosResult
@@ -90,7 +92,9 @@ def emit_git_execution_failure(
             state="gapped",
             required_gaps=(error.code,),
             next_action=(
-                "install Git on the effective PATH and rerun the command"
+                shlex.join(("ethos", "status", "--root", error.cwd, "--json"))
+                if error.code in {GIT_PROCESS_TIMED_OUT, "build_source_identity_changed"}
+                else "install Git on the effective PATH and rerun the command"
                 if error.code == "git_executable_unavailable"
                 else "verify the repository root and rerun the command"
             ),

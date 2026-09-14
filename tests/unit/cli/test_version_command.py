@@ -39,3 +39,10 @@ def test_version_human_output_is_concise(tmp_path, monkeypatch) -> None:
         version_module, "require_selected_runtime", lambda _root: (_ for _ in ()).throw(ValueError)
     )
     assert version_module.version_text().startswith("ethos 0.2.0-alpha.5 ")
+
+
+def test_version_observation_does_not_create_an_undeclared_subcommand() -> None:
+    """The global version flag must not make an unknown command silently succeed."""
+    completed = run_ethos_raw("version")
+    assert completed.returncode != 0
+    assert "ethos 0.2.0-alpha.5 " not in completed.stdout

@@ -192,8 +192,8 @@ def _land_expected_state(
 
 
 def _observed_candidate_head(repo: Path, current_head: str) -> str:
-    status = workspace_status(repo, include_foreign_path_scope=False)
-    return str(string_mapping(status.get("candidate")).get("head") or current_head)
+    """Reobserve the candidate object without collecting unrelated workspace state."""
+    return git.ref_head(repo, load_branch_role_policy(repo).candidate_branch) or current_head
 
 
 def _stable_control_replacement(

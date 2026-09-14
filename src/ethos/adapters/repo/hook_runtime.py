@@ -8,7 +8,6 @@ import shutil
 import sys
 from pathlib import Path
 from typing import IO
-from typing import Literal
 
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
@@ -34,13 +33,12 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import report_verdict
 
-HookName = Literal["commit-msg", "pre-commit", "pre-push", "reference-transaction"]
 _ZERO_OIDS = {"0" * 40, "0" * 64}
 
 
 def execute_hook(
     root: Path,
-    name: HookName,
+    name: str,
     args: tuple[str, ...],
     *,
     stdin: IO[str],
@@ -55,8 +53,10 @@ def execute_hook(
             reports = (_pre_commit(repo, selected_runtime=selected_runtime),)
         elif name == "pre-push":
             reports = _pre_push(repo, args, stdin)
-        else:
+        elif name == "reference-transaction":
             reports = _reference_transaction(repo, args, stdin, selected_runtime=selected_runtime)
+        else:
+            reports = (_blocked(name, "hook_name_invalid"),)
     except (OSError, RuntimeError, TypeError, ValueError) as error:
         reports = (_blocked(name, str(error) or error.__class__.__name__),)
     failed = [report for report in reports if report_verdict(report) != "pass"]

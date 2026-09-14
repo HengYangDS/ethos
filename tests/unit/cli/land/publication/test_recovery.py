@@ -19,7 +19,7 @@ from ethos.contracts.value import mutable_json
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.governed_repository import seed_executed_proof
+from tests.support.proof import seed_executed_proof
 from tests.unit.cli.land.publication.support import PROPOSAL
 from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.support import apply_receipt

@@ -1,3 +1,5 @@
+"""Public budget observations preserve deterministic failure and measurement semantics."""
+
 from __future__ import annotations
 
 import json
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 
 
 def _repository(tmp_path: Path, *, extra_format: str = "") -> Path:

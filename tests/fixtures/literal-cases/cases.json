@@ -557,12 +557,12 @@
       "value_sha256": "8843a37a17974171b669dc3a59f2f70698be57c9952794512522d82cf1fd3079"
     },
     {
-      "id": "domain.test_source_budget:parametrize:test_ecosystem_lockfile_patterns_share_one_evidence_class:0",
+      "id": "domain.source_budget.test_measurement:parametrize:test_ecosystem_lockfile_patterns_share_one_evidence_class:0",
       "source": {
         "kind": "parametrize",
-        "line": 291,
+        "line": 205,
         "owner": "test_ecosystem_lockfile_patterns_share_one_evidence_class",
-        "path": "tests/unit/domain/test_source_budget.py"
+        "path": "tests/unit/domain/source_budget/test_measurement.py"
       },
       "value": {
         "items": [
@@ -580,12 +580,12 @@
       "value_sha256": "c48def3ad9e69a46b704bacc9384eddf47b330c9c228ea7ec5c162bf8c5b2bf3"
     },
     {
-      "id": "domain.test_source_budget:parametrize:test_python_carrier_roles_cannot_compensate_for_one_another:1",
+      "id": "domain.source_budget.test_measurement:parametrize:test_python_carrier_roles_cannot_compensate_for_one_another:1",
       "source": {
         "kind": "parametrize",
-        "line": 369,
+        "line": 283,
         "owner": "test_python_carrier_roles_cannot_compensate_for_one_another",
-        "path": "tests/unit/domain/test_source_budget.py"
+        "path": "tests/unit/domain/source_budget/test_measurement.py"
       },
       "value": {
         "items": [
@@ -663,12 +663,12 @@
       "value_sha256": "91ad6e6dcfbecf19b98daf771c7607e4328127e30af17ddb1cb924b9f0c96961"
     },
     {
-      "id": "domain.test_source_budget:parametrize:test_structured_measurement_is_formatting_and_order_invariant:2",
+      "id": "domain.source_budget.test_measurement:parametrize:test_structured_measurement_is_formatting_and_order_invariant:2",
       "source": {
         "kind": "parametrize",
-        "line": 513,
+        "line": 427,
         "owner": "test_structured_measurement_is_formatting_and_order_invariant",
-        "path": "tests/unit/domain/test_source_budget.py"
+        "path": "tests/unit/domain/source_budget/test_measurement.py"
       },
       "value": {
         "items": [
@@ -1085,7 +1085,7 @@
       "id": "kernel.test_proof_plan_binding:parametrize:test_proof_predicate_evidence_drift_fails_closed:0",
       "source": {
         "kind": "parametrize",
-        "line": 134,
+        "line": 219,
         "owner": "test_proof_predicate_evidence_drift_fails_closed",
         "path": "tests/unit/kernel/test_proof_plan_binding.py"
       },
@@ -1163,12 +1163,12 @@
       "value_sha256": "dcd4bc883862934b987154de5e043e882c41acadd9de8799b042d299762e793d"
     },
     {
-      "id": "kernel.test_proof_plan_binding:parametrize:test_proof_admission_rechecks_live_plan_closure:1",
+      "id": "kernel.test_proof_admission:parametrize:test_proof_admission_rechecks_live_plan_closure:1",
       "source": {
         "kind": "parametrize",
-        "line": 201,
+        "line": 45,
         "owner": "test_proof_admission_rechecks_live_plan_closure",
-        "path": "tests/unit/kernel/test_proof_plan_binding.py"
+        "path": "tests/unit/kernel/test_proof_admission.py"
       },
       "value": {
         "items": [
@@ -1478,12 +1478,12 @@
       "value_sha256": "48170874ca3eee9420f10119ed7b00ee0d46acc094e5a94f76d0911adb67ed74"
     },
     {
-      "id": "mutation.test_git_effect:parametrize:test_attestation_negative_claim_matrix:0",
+      "id": "mutation.test_git_effect_attestation_public_boundaries:parametrize:test_attestation_negative_claim_matrix:0",
       "source": {
         "kind": "parametrize",
-        "line": 522,
+        "line": 357,
         "owner": "test_attestation_negative_claim_matrix",
-        "path": "tests/unit/mutation/test_git_effect.py"
+        "path": "tests/unit/mutation/test_git_effect_attestation_public_boundaries.py"
       },
       "value": {
         "items": [

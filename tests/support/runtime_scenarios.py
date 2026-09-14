@@ -131,6 +131,11 @@ def create_fixture_python(target: Path, *, shared_executable: Path | None = None
         f"{(REPOSITORY_ROOT / 'src').as_posix()}\n{source_site.resolve().as_posix()}\n",
         encoding="utf-8",
     )
+    declaration = REPOSITORY_ROOT / "src/ethos/adapters/repo/hook/binding.toml"
+    if declaration.is_file():
+        destination = site_packages / "ethos/adapters/repo/hook/binding.toml"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(declaration, destination)
 
 
 def git_process(root: Path, *args: object, stdin: str = "") -> subprocess.CompletedProcess[str]:
@@ -237,7 +242,7 @@ def materialize_runtime_case(
         assert dependency_python.samefile(source_python)
         create_fixture_python(target)
         package = target / "lib/python3.14/site-packages/ethos/module.py"
-        package.parent.mkdir(parents=True)
+        package.parent.mkdir(parents=True, exist_ok=True)
         package.write_text("original\n", encoding="utf-8")
 
     monkeypatch.setattr(runtime_materialization, "materialize_python_image", materialize_python)
@@ -358,3 +363,17 @@ def candidate_runtime(
         lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, status, ""),
     )
     return candidate
+
+
+def empty_node_package_supply(root: Path) -> Path:
+    supply = root / "node_modules"
+    supply.mkdir(parents=True)
+    (root / "package-lock.json").write_text(
+        '{"lockfileVersion":3,"packages":{"":{}}}\n',
+        encoding="utf-8",
+    )
+    (supply / ".package-lock.json").write_text(
+        '{"lockfileVersion":3,"packages":{}}\n',
+        encoding="utf-8",
+    )
+    return supply

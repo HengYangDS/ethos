@@ -25,9 +25,9 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.governed_repository import seed_executed_proof
 from tests.support.openspec_lifecycle import assert_lifecycle_outcome
 from tests.support.openspec_lifecycle import completed_lifecycle
+from tests.support.proof import seed_executed_proof
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:

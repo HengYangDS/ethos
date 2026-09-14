@@ -24,10 +24,10 @@ from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import lane_start_arguments
-from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.literal_cases import literal_case
+from tests.support.proof import seed_executed_proof
 
 FIXTURE_ROOT = Path(__file__).parents[2] / "fixtures/contracts-land"
 FULL_GATES = (FIXTURE_ROOT / "full-gates.toml").read_text()
@@ -57,15 +57,6 @@ def _archive(monkeypatch: pytest.MonkeyPatch, root: Path, *, full: bool = False)
     )
     assert archived["verdict"] == "pass", archived
     return git(root, "rev-parse", "HEAD")
-
-
-def _commit(root: Path, message: str) -> None:
-    git(
-        root,
-        "commit",
-        "-m",
-        message,
-    )
 
 
 def _land(root: Path, head: str | None = None, *, blocked: bool = False) -> dict[str, object]:
@@ -408,7 +399,7 @@ def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPa
     target = worktree / ".ethos/workspace.toml"
     target.write_text(CHANGED_TOPOLOGY)
     git(worktree, "add", target.as_posix())
-    _commit(worktree, "change future branch topology")
+    git(worktree, "commit", "-m", "change future branch topology")
     head = _archive(monkeypatch, worktree)
     seed_executed_proof(worktree, head)
     landed = _land(worktree, head)
@@ -431,7 +422,7 @@ def _assert_declared_closeout_policy(
     workspace = repo / ".ethos/workspace.toml"
     if claim == CLOSEOUT_CASES[1]:
         git(repo, "rm", ".ethos/workspace.toml")
-        _commit(repo, "use default branch roles")
+        git(repo, "commit", "-m", "use default branch roles")
         accepted = git(repo, "rev-parse", "HEAD")
         git(candidate, "reset", "--hard", accepted)
         assert (repo / ".ethos/profile.toml").is_file()
@@ -439,7 +430,7 @@ def _assert_declared_closeout_policy(
     elif claim == CLOSEOUT_CASES[2]:
         workspace.write_text('[branch_roles]\naccepted_branch = "dev"\n')
         git(repo, "add", workspace.as_posix())
-        _commit(repo, "record incomplete branch roles")
+        git(repo, "commit", "-m", "record incomplete branch roles")
         accepted = git(repo, "rev-parse", "HEAD")
         git(candidate, "reset", "--hard", accepted)
         report = landing_mutation.apply_candidate_to_accepted(
@@ -455,7 +446,7 @@ def _assert_declared_closeout_policy(
             )
         )
         git(repo, "add", workspace.as_posix())
-        _commit(repo, "require release mirror")
+        git(repo, "commit", "-m", "require release mirror")
         accepted = git(repo, "rev-parse", "HEAD")
         git(repo, "branch", "main", accepted)
         git(candidate, "reset", "--hard", accepted)

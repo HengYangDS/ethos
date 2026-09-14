@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 from datetime import UTC
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 import pytest
 from filelock import FileLock
@@ -34,65 +32,14 @@ from ethos.contracts.semantic import canonical_json_digest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import render_branch_policy
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-
-def _repository(tmp_path: Path, *, coupled: bool = False) -> tuple[Path, str, Path]:
-    repo = init_git_repo(tmp_path / "repo")
-    (repo / ".ethos").mkdir()
-    (repo / ".ethos/profile.toml").write_text('profile_id = "signature-fixture"\n')
-    (repo / ".ethos/workspace.toml").write_text(
-        render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
-            release_mirror="accepted_ff" if coupled else "independent",
-        )
-        + '\n[commit_policy]\nsubject_pattern = "^fix: .+"\n'
-        + 'signing_required = true\nsigning_format = "ssh"\n'
-    )
-    git(repo, "add", ".ethos")
-    git(repo, "commit", "-m", "fix: accepted signing policy")
-    old = git(repo, "rev-parse", "HEAD")
-    git(repo, "branch", "candidate/dev", old)
-    git(repo, "branch", "main", old)
-    candidate = tmp_path / "candidate"
-    git(repo, "worktree", "add", str(candidate), "candidate/dev")
-    executable = shutil.which("ssh-keygen")
-    assert executable is not None
-    key = tmp_path / "signer"
-    subprocess.run(
-        (executable, "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
-        check=True,
-        capture_output=True,
-        timeout=15,
-    )
-    trust = tmp_path / "trust"
-    trust.mkdir(mode=0o700)
-    anchor = trust / "allowed-signers"
-    public = key.with_suffix(".pub").read_text()
-    anchor.write_text(f'test@example.invalid namespaces="git" {public}')
-    anchor.chmod(0o600)
-    for name, value in (
-        ("gpg.format", "ssh"),
-        ("gpg.ssh.program", executable),
-        ("user.signingkey", str(key.with_suffix(".pub"))),
-        ("gpg.ssh.allowedSignersFile", str(anchor)),
-    ):
-        git(repo, "config", name, value)
-    return repo, old, candidate
+from tests.support.signature import interrupted_signature
+from tests.support.signature import signature_repository
 
 
 @pytest.mark.parametrize("coupled", [False, True])
 def test_repair_has_readonly_readiness_and_exact_selected_effects(tmp_path, monkeypatch, coupled):
-    repo, old, candidate = _repository(tmp_path, coupled=coupled)
+    repo, old, candidate = signature_repository(tmp_path, coupled=coupled)
     before = git(repo, "show-ref"), read_attestation_set(repo), (repo / ".git/index").read_bytes()
     ready = repair.repair_signature(root=repo, expect_head=old)
     assert (ready["verdict"], ready["state"]) == ("pass", "ready_to_repair")
@@ -126,7 +73,7 @@ def test_repair_has_readonly_readiness_and_exact_selected_effects(tmp_path, monk
 
 @pytest.mark.parametrize("case", ["unauthorized", "dirty", "wrong-head", "wrong-actor"])
 def test_repair_rejects_before_signing(tmp_path, monkeypatch, case):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     if case == "dirty":
         (repo / "README.md").write_text("unaccepted\n")
     if case == "wrong-actor":
@@ -143,7 +90,7 @@ def test_repair_rejects_before_signing(tmp_path, monkeypatch, case):
 
 
 def test_repair_passes_installed_hooks_without_candidate_at_replacement(tmp_path):
-    repo, old, candidate = _repository(tmp_path, coupled=True)
+    repo, old, candidate = signature_repository(tmp_path, coupled=True)
     install_fixture_hook_runtime(repo)
     result = repair.repair_signature(root=repo, expect_head=old, apply=True, authorized=True)
     assert (result["verdict"], result["state"]) == ("pass", "signature_repaired"), result
@@ -151,7 +98,7 @@ def test_repair_passes_installed_hooks_without_candidate_at_replacement(tmp_path
 
 
 def test_repair_keeps_unrelated_candidate_and_independent_release(tmp_path):
-    repo, old, candidate = _repository(tmp_path)
+    repo, old, candidate = signature_repository(tmp_path)
     (candidate / "README.md").write_text("candidate work\n")
     git(candidate, "add", "README.md")
     git(candidate, "commit", "-m", "fix: independent candidate")
@@ -164,7 +111,7 @@ def test_repair_keeps_unrelated_candidate_and_independent_release(tmp_path):
 
 @pytest.mark.parametrize("accepted_branch", ["dev", "integration"])
 def test_repair_supports_local_only_without_candidate_or_release_refs(tmp_path, accepted_branch):
-    repo, old, candidate = _repository(tmp_path)
+    repo, old, candidate = signature_repository(tmp_path)
     git(repo, "worktree", "remove", str(candidate))
     git(repo, "branch", "-D", "candidate/dev", "main")
     if accepted_branch != "dev":
@@ -185,7 +132,7 @@ def test_repair_supports_local_only_without_candidate_or_release_refs(tmp_path, 
 
 
 def test_repair_rejects_unsolicited_replacement_before_any_attempt(tmp_path):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     new = repair.create_signed_replacement(repo, old)
     before = git(repo, "show-ref")
     ready = repair.repair_signature(root=repo, expect_head=old, replacement=new)
@@ -204,7 +151,7 @@ def test_repair_rejects_unsolicited_replacement_before_any_attempt(tmp_path):
 
 @pytest.mark.parametrize("failure", ["result-write", "after-cas", "worktree-observation"])
 def test_repair_recovers_observed_results_without_repeating_effects(tmp_path, monkeypatch, failure):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     signed = []
     native_sign = repair.create_signed_replacement
 
@@ -257,7 +204,7 @@ def test_repair_recovers_observed_results_without_repeating_effects(tmp_path, mo
 
 
 def test_public_signature_repair_has_exact_apply_and_reproof_commands(tmp_path):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     ready = run_ethos("lane", "repair-signature", "--expect-head", old, "--json", cwd=repo)
     assert ready["state"] == "ready_to_repair"
     denied = run_ethos_blocked(
@@ -278,23 +225,8 @@ def test_public_signature_repair_has_exact_apply_and_reproof_commands(tmp_path):
     assert git(repo, "rev-parse", "HEAD") in done["next_action"]
 
 
-def _interrupted_signature(repo, old, monkeypatch):
-    """Stop at the real effect boundary after durable signing evidence exists."""
-
-    def interrupt(*_args, **_kwargs):
-        error = "injected before ref CAS"
-        raise OSError(error)
-
-    with monkeypatch.context() as scope:
-        scope.setattr(repair, "execute_git_effect", interrupt)
-        observed = repair.repair_signature(root=repo, expect_head=old, apply=True, authorized=True)
-    assert observed["verdict"] != "pass"
-    _, records = read_attestation_set(repo)
-    return records
-
-
 def test_signature_plan_is_stable_after_canonical_record_roundtrip(tmp_path):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     ready = repair.repair_signature(root=repo, expect_head=old)
     new = repair.create_signed_replacement(repo, old)
     coordinates = ready["coordinates"]
@@ -305,10 +237,10 @@ def test_signature_plan_is_stable_after_canonical_record_roundtrip(tmp_path):
 
 
 def test_repair_rejects_relocated_git_common_directory_before_recovery(tmp_path, monkeypatch):
-    repo, old, candidate = _repository(tmp_path)
+    repo, old, candidate = signature_repository(tmp_path)
     git(repo, "worktree", "remove", str(candidate))
     git(repo, "branch", "-D", "candidate/dev")
-    records = _interrupted_signature(repo, old, monkeypatch)
+    records = interrupted_signature(repo, old, monkeypatch)
     moved = tmp_path / "relocated-git"
     git(repo, "init", "--separate-git-dir", str(moved), str(repo))
     assert read_attestation_set(repo)[1] == records
@@ -335,8 +267,8 @@ def test_repair_rejects_relocated_git_common_directory_before_recovery(tmp_path,
 def test_repair_rejects_reissued_evidence_at_both_effect_boundaries(
     tmp_path, monkeypatch, boundary, field
 ):
-    repo, old, _candidate = _repository(tmp_path)
-    records = _interrupted_signature(repo, old, monkeypatch)
+    repo, old, _candidate = signature_repository(tmp_path)
+    records = interrupted_signature(repo, old, monkeypatch)
     altered = []
     for item in records:
         value = item.model_dump(mode="json", exclude={"id"})
@@ -399,7 +331,7 @@ def test_repair_rejects_reissued_evidence_at_both_effect_boundaries(
 def test_repair_unknown_signing_is_observable_and_cannot_restart_with_another_actor(
     tmp_path, monkeypatch
 ):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
 
     def interrupt(*_args, **_kwargs):
         error = "injected signing result loss"
@@ -422,7 +354,7 @@ def test_repair_unknown_signing_is_observable_and_cannot_restart_with_another_ac
 
 @pytest.mark.parametrize("coordinates", [None, "malformed", [], {"root": "missing-fields"}])
 def test_repair_malformed_evidence_is_a_structured_rejection(tmp_path, monkeypatch, coordinates):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     monkeypatch.setenv("ETHOS_ACTOR", "fixture")
     now = datetime.now(UTC)
     record_attestations(
@@ -467,8 +399,8 @@ def test_repair_malformed_evidence_is_a_structured_rejection(tmp_path, monkeypat
 def test_repair_rejects_fresh_worktree_or_recompiled_scope_drift(
     tmp_path, monkeypatch, boundary, change
 ):
-    repo, old, candidate = _repository(tmp_path)
-    records = _interrupted_signature(repo, old, monkeypatch)
+    repo, old, candidate = signature_repository(tmp_path)
+    records = interrupted_signature(repo, old, monkeypatch)
     if change == "dirty-worktree":
         (candidate / "README.md").write_text("unaccepted change\n")
     else:
@@ -511,7 +443,7 @@ def test_repair_rejects_fresh_worktree_or_recompiled_scope_drift(
 
 
 def test_repair_lock_contention_is_waiting_not_an_unknown_effect(tmp_path):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     lock = local_state_root(repo) / "signature-repair.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
     before = git(repo, "show-ref")
@@ -524,7 +456,7 @@ def test_repair_lock_contention_is_waiting_not_an_unknown_effect(tmp_path):
 
 
 def test_signature_effect_observation_failure_preserves_unknown_without_mutation(tmp_path):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     ready = repair.repair_signature(root=repo, expect_head=old)
     coordinates = ready["coordinates"]
     assert isinstance(coordinates, dict)
@@ -538,7 +470,7 @@ def test_signature_effect_observation_failure_preserves_unknown_without_mutation
 
 
 def test_signature_hook_rejects_intent_without_recorded_result(tmp_path):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     new = repair.create_signed_replacement(repo, old)
     write_ref_intent(
         root=repo,
@@ -556,7 +488,7 @@ def test_signature_hook_rejects_intent_without_recorded_result(tmp_path):
 
 
 def test_repair_known_invalid_signer_is_blocked_and_preserves_created_object(tmp_path):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     (tmp_path / "trust/allowed-signers").write_text("")
     result = repair.repair_signature(root=repo, expect_head=old, apply=True, authorized=True)
     assert result["verdict"] == "block", result
@@ -571,7 +503,7 @@ def test_repair_known_invalid_signer_is_blocked_and_preserves_created_object(tmp
 
 @pytest.mark.parametrize("boundary", ["signing", "cas"])
 def test_repair_recovers_after_actual_child_exit_without_resigning(tmp_path, monkeypatch, boundary):
-    repo, old, _candidate = _repository(tmp_path)
+    repo, old, _candidate = signature_repository(tmp_path)
     code = """
 import os, sys
 from pathlib import Path

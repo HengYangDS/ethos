@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -16,6 +15,7 @@ from ethos.adapters.repo.git_object import verify_commit_trust
 from ethos.repository.policy.commit import CommitPolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.signature import configure_signer
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -136,28 +136,7 @@ def _signature_repository(tmp_path: Path, object_format: str) -> Path:
     )
     git(repo, "add", ".ethos/workspace.toml")
     git(repo, "commit", "-m", "fix: require trusted signing")
-    executable = shutil.which("ssh-keygen")
-    assert executable is not None
-    key = tmp_path / "signer"
-    subprocess.run(
-        (executable, "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
-        check=True,
-        capture_output=True,
-        timeout=15,
-    )
-    trust = tmp_path / "trust"
-    trust.mkdir(mode=0o700)
-    anchor = trust / "allowed-signers"
-    public_key = key.with_suffix(".pub").read_text()
-    anchor.write_text(f'test@example.invalid namespaces="git" {public_key}')
-    anchor.chmod(0o600)
-    for name, value in (
-        ("gpg.format", "ssh"),
-        ("gpg.ssh.program", executable),
-        ("user.signingkey", str(key.with_suffix(".pub"))),
-        ("gpg.ssh.allowedSignersFile", str(anchor)),
-    ):
-        git(repo, "config", name, value)
+    configure_signer(repo, tmp_path)
     return repo
 
 

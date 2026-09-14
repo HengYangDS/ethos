@@ -28,6 +28,8 @@ from ethos.adapters.repo.runtime.materialization.python_environment import file_
 from ethos.adapters.repo.runtime.materialization.python_environment import (
     observe_runtime_environment,
 )
+from ethos.adapters.repo.runtime.materialization.python_environment import same_python_identity
+from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.repository.release.identity import BuildIdentity
@@ -253,6 +255,22 @@ def materialize_runtime_case(
             expected_root=expected_root,
             expected_build=artifact.build,
         )
+        python = runtime_executable(runtime / "python", "python")
+        facts = runtime_materialization.observe_python_facts(python)
+        assert same_python_path(facts["executable"], python), facts
+        assert same_python_path(facts["prefix"], runtime / "python"), facts
+        assert same_python_identity(facts, python_facts), facts
+        if kwargs.get("smoke"):
+            completed = subprocess.run(
+                (str(python), "-B", "-I", "-m", "ethos.cli", "--version"),
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+            if completed.returncode or not completed.stdout.strip():
+                message = f"fixture_runtime_module_smoke_failed:{completed.stderr.strip()}"
+                raise ValueError(message)
 
     monkeypatch.setattr(runtime_materialization, "require_runtime_generation", require_runtime)
     return repo, runtime_materialization.materialize_runtime(

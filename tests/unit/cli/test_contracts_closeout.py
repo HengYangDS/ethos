@@ -1,3 +1,5 @@
+"""Public accepted closeout preserves exact proof, intent and Git coordinates."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -22,7 +24,6 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lane_scenarios import add_candidate_worktree
-from tests.support.openspec_lifecycle import stub_official_archive_state
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -96,6 +97,84 @@ def _archived_candidate(
         cwd=fixture.worktree,
     )
     return fixture.repository, fixture.candidate, accepted_head, archived_head
+
+
+def test_source_acceptance_preserves_pending_delivery_until_official_archive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One Change survives real Git integration, later delivery and archive."""
+    fixture = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    tasks = "openspec/changes/fixture-change/tasks.md"
+    pending = "- [ ] Observe delivered source after accepted integration\n"
+    head = commit_fixture_file(fixture.worktree, tasks, pending, "declare delivery obligation")
+    accepted = git(fixture.repository, "rev-parse", "HEAD")
+    seed_executed_proof(fixture.worktree, head)
+
+    archive = run_ethos_blocked(
+        "lane",
+        "archive-change",
+        "--change",
+        "fixture-change",
+        "--expect-head",
+        head,
+        "--apply",
+        "--json",
+        cwd=fixture.worktree,
+    )
+    assert "openspec_change_incomplete:fixture-change" in archive["required_gaps"]
+    assert git(fixture.worktree, "rev-parse", "HEAD") == head
+    assert (fixture.worktree / tasks).read_text() == pending
+
+    run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=fixture.worktree,
+    )
+    result = _closeout(fixture.repository, "--apply", "--authorize", expect_head=accepted)
+    assert result["verdict"] == "pass"
+    assert git(fixture.repository, "rev-parse", "HEAD") == head
+    assert (fixture.repository / tasks).read_text() == pending
+    assert (fixture.candidate / tasks).read_text() == pending
+    assert (fixture.worktree / tasks).read_text() == pending
+
+    delivered = commit_fixture_file(
+        fixture.worktree, tasks, pending.replace("[ ]", "[x]"), "record observed delivery"
+    )
+    seed_executed_proof(fixture.worktree, delivered)
+    run_ethos(
+        "lane",
+        "archive-change",
+        "--change",
+        "fixture-change",
+        "--expect-head",
+        delivered,
+        "--apply",
+        "--json",
+        cwd=fixture.worktree,
+    )
+    archived = git(fixture.worktree, "rev-parse", "HEAD")
+    assert not (fixture.worktree / tasks).exists()
+    seed_executed_proof(fixture.worktree, archived)
+    run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        archived,
+        "--json",
+        cwd=fixture.worktree,
+    )
+    assert (
+        _closeout(fixture.repository, "--apply", "--authorize", expect_head=head)["verdict"]
+        == "pass"
+    )
+    assert git(fixture.repository, "rev-parse", "HEAD") == archived
+    assert not (fixture.repository / tasks).exists()
 
 
 def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
@@ -325,20 +404,25 @@ def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_pro
     assert git(repo, "rev-parse", "HEAD") == accepted_head
 
 
-def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
+def test_land_closeout_observes_completed_active_openspec_change(
     tmp_path: Path, monkeypatch
 ) -> None:
-    repo, candidate, _accepted_head, _candidate_head = _archived_candidate(tmp_path, monkeypatch)
+    """Completed native intent stays valid until its deliberate archive effect."""
+    fixture = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    head = commit_fixture_file(
+        fixture.worktree,
+        "openspec/changes/fixture-change/tasks.md",
+        "- [x] Exercise fixture lifecycle\n",
+        "complete source work",
+    )
+    seed_executed_proof(fixture.worktree, head)
+    run_ethos(
+        "land", "--apply", "--authorize", "--expect-head", head, "--json", cwd=fixture.worktree
+    )
 
-    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
-        assert root.resolve() == candidate.resolve()
-        assert openspec_mode == "shape"
-        return {"verdict": "pass", "required_gaps": [], "root": root.as_posix()}
-
-    monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
-    stub_official_archive_state(monkeypatch, completed=True, change_name="sample-change")
-    payload = _closeout(repo)
-    assert payload["verdict"] == "block"
-    assert payload["state"] == "blocked"
-    assert "openspec_completed_change_unarchived:sample-change" in payload["required_gaps"]
-    assert payload["data"]["openspec_lifecycle"]["root"] == candidate.as_posix()
+    payload = _closeout(fixture.repository)
+    assert payload["verdict"] == "pass", payload
+    assert payload["required_gaps"] == []
+    assert payload["data"]["openspec_lifecycle"]["completed_changes"] == ["fixture-change"]
+    assert payload["data"]["openspec_lifecycle"]["root"] == fixture.candidate.as_posix()

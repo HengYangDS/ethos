@@ -30,7 +30,7 @@ def _residue(verdict: str = "pass") -> dict[str, object]:
         "required_gaps": ["openspec_branch_unavailable:candidate/dev"]
         if verdict == "unknown"
         else [],
-        "summary": {"residue_count": 0},
+        "summary": {"change_count": 0},
     }
 
 
@@ -90,9 +90,7 @@ def test_governance_rejects_archive_and_invalid_active_identifiers(monkeypatch, 
 def test_governance_reports_cli_unavailable_and_optional_absent_workspace(monkeypatch, tmp_path):
     root = _repo(tmp_path)
     monkeypatch.setattr(cli, "openspec_base_command", lambda: None)
-    monkeypatch.setattr(
-        governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
-    )
+    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
 
     unavailable = governance.openspec_governance_report(root)
     absent = fixture.init_git_repo(tmp_path / "absent")
@@ -107,9 +105,7 @@ def test_governance_reports_cli_unavailable_and_optional_absent_workspace(monkey
 def test_governance_reports_timeout(monkeypatch, tmp_path):
     root = _repo(tmp_path)
     monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
-    )
+    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
 
     timeout = _receipt(parse_error="openspec_command_timeout")
     calls = []
@@ -131,9 +127,7 @@ def test_governance_reports_malformed_command_payloads(monkeypatch, tmp_path):
     root = _repo(tmp_path)
     malformed = _receipt(parse_error="malformed")
     monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
-    )
+    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
 
     def run_malformed(_root, _base, args):
         if args[:2] == ("config", "list"):
@@ -158,9 +152,7 @@ def test_governance_reports_malformed_command_payloads(monkeypatch, tmp_path):
 def test_governance_accepts_an_empty_official_change_list(monkeypatch, tmp_path):
     root = _repo(tmp_path)
     monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
-    )
+    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
 
     monkeypatch.setattr(cli, "run_json", _run_empty)
 
@@ -183,9 +175,7 @@ def test_governance_observes_archive_effect_separately_from_generation_scope(mon
         "required_gaps": [],
     }
     monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
-    )
+    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
 
     monkeypatch.setattr(cli, "run_json", _run_empty)
 
@@ -241,9 +231,7 @@ def test_governance_keeps_completed_unarchived_change_as_current_intent(
 
 def test_governance_reports_invalid_commitment_and_artifact_paths(monkeypatch, tmp_path):
     root = _repo(tmp_path)
-    monkeypatch.setattr(
-        governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
-    )
+    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
     monkeypatch.setattr(
         governance,
         "official_change_rows",
@@ -258,7 +246,7 @@ def test_governance_reports_invalid_commitment_and_artifact_paths(monkeypatch, t
             "required_gaps": [],
             "changes": [],
             "scope_binding": {},
-            "protected_branch_residue": _residue(),
+            "branch_intent": _residue(),
         },
     )
     monkeypatch.setattr(cli, "status_contract_gaps", lambda _payload: [])

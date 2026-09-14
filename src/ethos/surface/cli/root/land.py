@@ -16,8 +16,7 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.landing import apply_candidate_to_accepted
 from ethos.adapters.mutation.landing import apply_land_to_candidate
 from ethos.adapters.mutation.landing import candidate_transition_readiness
-from ethos.adapters.openspec.profile import active_change_names
-from ethos.adapters.openspec.profile import completed_active_changes_report
+from ethos.adapters.openspec.profile import active_change_progress_report
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -248,7 +247,7 @@ def _closeout_land_result(
             next_action="",
         )
     audit = repository_audit_after_admission(audit_root, decision)
-    lifecycle = completed_active_changes_report(audit_root)
+    lifecycle = active_change_progress_report(audit_root)
     control_replacement, control_gaps = _stable_control_replacement(
         repo=repo,
         audit_root=audit_root,
@@ -341,18 +340,13 @@ def _candidate_land_result(
         status=None if apply else status_payload,
     )
     audit = repository_audit_after_admission(repo, decision)
-    lifecycle = completed_active_changes_report(repo)
-    archive_gaps = tuple(
-        f"openspec_active_change_unarchived:{name}:work_lane"
-        for name in active_change_names(repo / "openspec")
-    )
+    lifecycle = active_change_progress_report(repo)
     gaps = tuple(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))
             + decision.required_gaps
             + closeout_gaps
             + tuple(string_sequence(lifecycle.get("required_gaps")))
-            + archive_gaps
         )
     )
     verdict = reduce_verdicts(

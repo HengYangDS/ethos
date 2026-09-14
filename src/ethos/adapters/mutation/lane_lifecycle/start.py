@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import ref_head
@@ -107,8 +106,7 @@ def _candidate_gap(repo: Path, candidate: dict[str, object]) -> tuple[str, dict[
     )
     if gap := next((name for name, failed in checks if failed), ""):
         return gap, {}
-    gaps = openspec_carrier_gaps(candidate_path, "candidate")
-    return (gaps[0], {}) if gaps else ("", {})
+    return "", {}
 
 
 def _admit(

@@ -163,6 +163,14 @@ readers distinguish an uncommitted or unavailable working-tree projection from
 an unadopted repository. Executed proof binds an exact committed Git tree unless
 an operation explicitly defines a different immutable input.
 
+Source acceptance, delivery and whole-Change completion are distinct claims.
+The same official Change may accompany candidate, accepted and release source
+while its delivery or actual-use obligations remain open. Source acceptance
+requires exact applicable proof and current effect authority; task completion
+records observed results. Archive follows completion of the declared obligations,
+not merely integration readiness. A source-only Change may complete and archive
+before integration without imposing that order on delivery-inclusive Changes.
+
 Archive moves official artifacts; it does not erase proof identity. Before or as
 part of archive, ETHOS binds the compiled Commitment, source commit and tree,
 selected artifact identity, and archive effect. Subsequent closeout selects the
@@ -170,6 +178,13 @@ applicable proof Attestation by predicate and exact bindings, not by scanning th
 current archive as a database and not by substituting a transport, worktree, or
 Git-effect receipt. Reopening or superseding intent creates a fresh official
 Change; it does not mutate historical acceptance.
+
+Repository-transition proof binds the official acceptance at its exact source
+commit whether that intent is active or preserved by an attested archive effect.
+The authoring Lease's later expiry or retirement does not erase source evidence;
+each integration, publication or subsequent write still needs fresh authority.
+Changing task progress changes source identity and requires new exact evidence,
+even when the accepted meaning is unchanged.
 
 ```text
 (Commitment, Facts, prior Attestations) -> TransitionPlan -> new Attestations

@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shlex
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -60,8 +59,8 @@ def _observe(
     ("target", "role", "admitted"),
     [
         ("refs/heads/proposal/review", "proposal_ref", True),
-        ("refs/heads/dev", "accepted_root", False),
-        ("refs/heads/main", "release_root", False),
+        ("refs/heads/dev", "accepted_root", True),
+        ("refs/heads/main", "release_root", True),
         ("refs/heads/work/topic", "work_lane", False),
         ("refs/heads/candidate/dev", "candidate", False),
     ],
@@ -69,7 +68,7 @@ def _observe(
 def test_detached_ref_observation_uses_target_meaning_without_host_lease(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str, role: str, *, admitted: bool
 ) -> None:
-    """Detachment cannot hide active intent from a protected destination."""
+    """Intent remains observable without conflating a ref report with acceptance."""
     repo, baseline, proposed = _fixture(tmp_path)
     monkeypatch.delenv("ETHOS_ACTOR", raising=False)
     before_refs = git(repo, "show-ref")
@@ -84,20 +83,10 @@ def test_detached_ref_observation_uses_target_meaning_without_host_lease(
     assert report["data"]["satisfies_repository_proof"] is False
     assert report["data"]["mints_authority"] is False
     if role in {"accepted_root", "release_root"}:
-        assert report["required_gaps"] == [
-            f"openspec_ref_active_change_unarchived:{target}:unfinished"
-        ]
-        assert report["data"]["boundary"] == "accepted_intent"
-        command = shlex.split(report["next_action"])
-        assert command == [
-            "git",
-            "-C",
-            str(repo),
-            "show",
-            f"{proposed}:openspec/changes/unfinished/tasks.md",
-        ]
-        result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=15)
-        assert result.returncode == 0
+        assert report["verdict"] == "pass"
+        assert report["required_gaps"] == []
+        assert report["data"]["boundary"] == "ref_observation"
+        assert report["next_action"] == ""
     assert git(repo, "show-ref") == before_refs
     assert hashlib.sha256((repo / ".git/index").read_bytes()).hexdigest() == before_index
     assert set(repo.rglob("*")) == before_files
@@ -142,13 +131,13 @@ def test_candidate_policy_cannot_reclassify_predecessor_accepted_destination(tmp
     )
     proposed = commit_fixture(repo, "rename candidate accepted role")
 
-    report = _observe(repo, "refs/heads/dev", proposed, baseline, blocked=True)
+    report = _observe(repo, "refs/heads/dev", proposed, baseline)
 
     assert report["data"]["role"] == "accepted_root"
     assert report["data"]["policy_ref"] == baseline
-    assert report["required_gaps"] == [
-        "openspec_ref_active_change_unarchived:refs/heads/dev:unfinished"
-    ]
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    assert report["data"]["satisfies_repository_proof"] is False
 
 
 @pytest.mark.parametrize("fault", ["toml", "role", "tags", "link"])
@@ -188,12 +177,12 @@ def test_exact_accepted_role_precedes_an_overlapping_review_prefix(tmp_path: Pat
     (repo / "readme.txt").write_text("candidate\n")
     proposed = commit_fixture(repo, "new candidate")
 
-    report = _observe(repo, "refs/heads/review/dev", proposed, baseline, blocked=True)
+    report = _observe(repo, "refs/heads/review/dev", proposed, baseline)
 
     assert report["data"]["role"] == "accepted_root"
-    assert report["required_gaps"] == [
-        "openspec_ref_active_change_unarchived:refs/heads/review/dev:unfinished"
-    ]
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    assert report["data"]["satisfies_repository_proof"] is False
 
 
 def test_native_detached_cli_observes_exact_objects_without_a_state_directory(tmp_path: Path):

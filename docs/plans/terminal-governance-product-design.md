@@ -49,8 +49,8 @@ read back at the same commit. GitHub reports VALID with the expected author and
 signer; GitLab reports verified. Publication used existing GitHub maintainer
 permission to bypass PR and then-pending required-check rules; local hooks stayed
 armed. Neither remote equality nor that permission proves hosted CI or review
-acceptance. GitLab pipelines 6666/dev and 6667/main subsequently passed; GitHub
-34840602113/34840602210 source verification remains a distinct observation.
+acceptance. Subsequent exact-commit API reads confirm GitLab pipelines 6666/dev
+and 6667/main and GitHub runs 34840602113/dev and 34840602210/main all succeeded.
 
 Historical author attribution remains open. The exact audit proves four commits
 use an email mapped to another GitHub account; it does not prove another person
@@ -76,29 +76,84 @@ identity, validity and effect authority are always reobserved. No cache grants
 permission or becomes another result store. Real-Git RED cases distinguish
 member-linear process creation, rehashing unchanged members and repeated decoding;
 cold/warm, eviction, malformed bytes, concurrency and failure cleanup are required
-GREEN boundaries. Existing tasks own this batch's progress. The equivalent native 256-member
-workload now needs nine Git calls for first construction and thirteen for one
+GREEN boundaries. Existing tasks own this batch's progress. The equivalent native
+256-member workload now needs nine Git calls for first construction and thirteen for one
 append, versus 519/524 in accepted code; roots are identical. Observing the same
 1,339-member selected set took 2.97 seconds in accepted code, 3.02 seconds cold
 in the candidate and 0.36–0.40 seconds warm. These single-host samples are not
-accepted-runtime or whole-cycle performance claims. The combined benchmark
-process reached about 389 MB peak RSS while retaining both implementations'
-results; separate memory measurements remain necessary. Evidence lives under
-this lane's existing ignored `build/evidence/quality/attestation-materialization/`.
-The 165 affected set, proof, effect and publication cases pass. A package-only
-smoke of the exact candidate module also passes activation, recovery, signature
-repair, lane creation and retirement; its owned temporary root is absent.
-The first invocation correctly rejected leaked source imports from PYTHONPATH;
-using the native editable development environment without that override closes
-the invocation fault, not a product defect. Exact full proof and accepted runtime
-delivery remain pending; no further unrelated edits belong after freeze.
+accepted-runtime or whole-cycle performance claims. Separate process measurements
+observe about 245 MB accepted peak RSS and 275 MB candidate peak RSS over three reads of the same selected set; this is
+peak process memory, not a retained-heap bound. Evidence lives under this lane's
+existing ignored `build/evidence/quality/attestation-materialization/`.
+The 165 affected set, proof, effect and publication cases pass. Its first exact
+full proof at `6248ff72` failed six generic fixture hook-query startups; measured
+combined coverage was 95.0994 percent, while dependent gates correctly blocked.
+The owned pytest root was removed. These failures are not accepted proof.
 
-After this independently useful closure, repair the already reproduced native
-startup/readiness and effect-deadline boundaries, including remote probe timeout
-versus unavailable classification. Do not increase workers or relax deadlines as
-a substitute for eliminating repeated work. Retain live operation handles;
-observation timeout is not permission to replay an unknown effect. Historical
-identity correction, tag-admission cause preservation, malformed archive
+The prerequisite repair replaces executable hook-contract queries with one
+package-adjacent declaration that owns the launcher bytes, names and native
+interpreter paths. Runtime inventory binds that declaration; the existing
+renderer and observer consume it. No subprocess is needed to read constants,
+and missing declarations derive successor installation instead of reinstalling
+the same old package. An interim source-leaf equality shortcut was rejected and
+removed because it did not prove the full execution meaning. Read failures,
+resource drift and activation rollback remain distinguishing acceptance cases.
+The revised hook/runtime subset passes 110 cases; the final hook, command,
+retirement and fixture matrix passes 165 cases. Package-only activation, recovery,
+signature repair and retirement also pass. An isolated native upgrade from the
+actual accepted package to the candidate wheel passes missing-contract diagnosis,
+successor-command derivation, installation and current-runtime readback; its owned
+scratch is removed. The exact wheel and runtime identities remain in the existing
+`old-to-new-hook-package.json` receipt, not another migration ledger. The next
+exact full proof remains pending. Current source is not accepted or installed.
+
+Before freeze, the user's uniform 500-ELOC correction removed both repository
+role overrides. Three public-boundary RED cases exposed the old 800 test limit;
+the revised size suite passes all 43 cases. Nineteen test modules initially
+exceeded the new floor. Shared construction and distinct observation, effect,
+receipt, source-resolution and recovery responsibilities now have explicit test
+owners. Every existing or newly added Python file is at most 500 ELOC; the
+public size and source-budget gates pass without exceptions or metric changes.
+All 1,457 test function identities and all 3,358 collected parameter instances
+are retained. The 324 interpretation, budget, package-command and reference
+consumer cases pass, as do public types, docstrings, layout, configuration and
+repository-audit gates. The native lifecycle matrix passes all 1,243 cases in
+1,591.98 seconds with two workers. A final activation counterexample showed that
+rollback discarded the declaration read's path/cause and derived reinstall;
+the activation owner now carries that observation through compensation and the
+CLI requests a fresh status. Both RED cases fail before repair and the 189-case
+hook/effect consumer matrix passes afterward. These are prerequisites, not an
+exact committed full proof or accepted release.
+Test ELOC is 45,288 versus 45,108 before this consolidation: imports, explicit
+semantic boundaries and diagnostic assertions add 180 effective lines. The result removes oversized mixed
+owners but does not claim aggregate compression; DRY and maintenance remain
+independent requirements rather than a reason to hide that cost.
+
+The final package-only build and install-smoke pass after the diagnostic repair,
+including hook activation, signature repair, lane start and retirement recovery.
+The wheel binds source tree `8959bcc7fd7ba538927bddd35c885171ed7d0d17`; its
+SHA-256 is `e9a95d020c198120676ac67274da807dce230c3482b1ea401fbe7dfbf0951fe4`.
+Owned package smoke scratch is removed. This remains candidate-tree evidence;
+the next committed HEAD still requires its full proof and public delivery.
+
+The first package smoke correctly rejected leaked source imports from PYTHONPATH.
+Use the native editable development environment without that override; package
+acceptance must stay outside source import paths. A new full proof starts only
+after exact native and package prerequisites pass. No unrelated edits belong
+after freeze. General process deadlines and remote probe timeout classification
+remain later owner repairs; neither increased workers nor relaxed limits resolve
+repeated work. Retain operation handles and reobserve unknown effects before retry.
+
+The adopter owner reports successful public prove, land and closeout at
+`b0a97598` using accepted source `7a268f313`. Its later docs/tasks-only `4f961b5e`
+report says unchanged product, tests, lock and CI inputs still trigger complete
+race/coverage and quality gates. This is a nonblocking P5 input-closure/reuse
+obligation, not evidence that old-HEAD proof is valid for new HEAD. Existing
+execution evidence may be reused only after all relevant input identities and
+applicability agree; current governance, documentation, signature and aggregate
+proof bindings remain fresh. No second proof store or adopter patch follows.
+
+Historical identity correction, tag-admission cause preservation, malformed archive
 postimage/re-entry and exact Lease continuation remain next bounded obligations.
 
 General requirements describe authorized adopters, not project-specific names.
@@ -111,8 +166,9 @@ P1–P7 journeys and independent ecosystem conformance remain unproved.
 
 The user sets independent Python product/test ceilings to 50,000 ELOC each.
 [Format selection](../../.config/checks/format/selection.toml) owns aggregate
-accounting; [.ethos/rules.toml](../../.ethos/rules.toml) owns 500 logic, 500 surface
-and 800 test per-file ceilings. Combined coverage remains at least 95 percent.
+accounting; [.ethos/rules.toml](../../.ethos/rules.toml) owns one 500-ELOC ceiling
+for every Python file, including tests and surfaces. Role overrides are removed.
+Combined coverage remains at least 95 percent.
 Historical 38,300/45,000 ceilings and old goal snapshots are superseded. Budgets
 are ceilings, not allocations; maintain DRY, semantic cohesion and exclusions.
 
@@ -272,8 +328,10 @@ it does not claim complete historical-input recovery or establish another queue.
 Full history and source-by-source semantic coverage remain unproved. Latest
 direct user budget instructions supersede stale goal snapshots: independent
 product/test ceilings are 50000, combined coverage is at least 95 percent, and
-current native per-file ceilings are 500 logic, 500 surface and 800 tests.
-Further tightening requires semantic evidence rather than incumbent file sizes. Examples do not narrow the global principles they illustrate.
+the current native per-file ceiling is uniformly 500. No test or surface override
+remains. Existing file sizes cannot justify a looser limit; consolidation must
+preserve distinguishing cases and readable semantic boundaries. Examples do not
+narrow the global principles they illustrate.
 
 | Existing obligation | Current evidence boundary | Owner and remaining exit condition |
 | --- | --- | --- |
@@ -282,7 +340,7 @@ Further tightening requires semantic evidence rather than incumbent file sizes. 
 | Artifact, policy and admission correctness | Artifact-origin repair and source-delivery lifecycle are accepted; attributed adopter replay clears the prior active-Change integration cycle. | Existing admission owners still owe tag cause preservation and malformed archive postimage/re-entry; exact new evidence is required for each. |
 | Quality and full-cycle speed | ELOC coercion and path-response defects reproduced and repaired; coverage of all quality obligations is not established. | Existing quality owners and P5: finish semantic size consolidation, docstring/type/format scope, distinguishing failures, evidence reuse and actual first-failure/closeout measurements. |
 | Runtime, supply and temporary resources | The latest focused scratch roots were removed; sustained crash/kill boundedness and all-current supply are not proved. | Existing runtime/resource owners: verify package identity, migration/rollback, live-consumer-safe reclamation and sustained quantity/byte/inode budgets. |
-| Local and independent remote workflow | Accepted `7a268f313` is equal on both peers; current tip signatures verify. The new repair is unaccepted; historical attribution and GitHub source-verification completion remain separate. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
+| Local and independent remote workflow | Accepted `7a268f313` is equal on both peers; current tip signatures verify and both peers' dev/main CI succeeded. The new repair is unaccepted; historical attribution remains unresolved. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
 | Agent guidance and enforceable behavior | Hooks, runtime and skills exist; registration alone does not prove host coverage or agent adherence. | Existing Hook And Extension Boundaries: context selection, capability discovery, fresh effect admission, bounded failures and measurable recovery without vendor/model binding. |
 | Document and physical semantic structure | Current registry and contracts exist; all placement, naming, source/projection and legacy cleanup obligations remain separately auditable. | Existing docs, module-layout and projection owners: preserve distinct design/plan/decision/task/evidence roles, remove redundant entities and prove consumer closure. |
 | OpenSpec and OKF customization | Official extension surfaces have been inspected; no custom schema or OKF adapter has been adopted. | Existing P1/P2/P7: native config first, justified schema only after semantic preservation tests, interoperable exchange without a second intent store or lifecycle. |
@@ -4434,11 +4492,11 @@ runtime delivery or a whole-repository passing size gate. Receipts remain under
 the existing ignored quality evidence root as `eloc-policy-public-boundaries`
 and `eloc-500-500-800-public-gate`.
 
-The later user correction requires trialling **500/500/500** before deciding the
-test ceiling. The existing 500/500/800 declaration is therefore an intermediate
-policy, not a settled terminal recommendation. Do not change it reflexively or
-justify it by current percentiles. Independent product/test totals follow the
-native declaration; the project total remains observational.
+The September 15 user correction resolves the intermediate policy: the per-file
+ceiling is uniformly **500**, including tests. The native declaration now retains
+one default and removes both role overrides. The earlier 500/500/800 checkpoint
+above is historical evidence, not current policy. Independent product/test
+totals remain 50,000 each; the project total remains observational.
 
 The corrected sole metric masks exact AST string-expression spans and counts
 token-bearing physical lines, preserving adjacent code and multiline literal
@@ -4464,11 +4522,14 @@ Semantic review starts with concrete mixed responsibilities: proof CLI combines
 host observation with proof issuance; publication CLI mixes observation,
 admission and effect coordination; the largest test modules span activation and
 cleanup, branch/tag publication, and retirement review/recovery. Reuse their
-existing owners and preserve standalone test readability. The seventeen test
-files require individual assessment before a final test ceiling; a global
-500/500/500 versus 500/500/800 decision is not yet complete. This bounded metric
-repair does not authorize mechanical splitting or postponing lane retirement
-behind an unbounded structural rewrite.
+existing owners and preserve standalone test readability. The earlier
+seventeen-file assessment does not reopen the confirmed ceiling. Fresh
+measurement of the current lane finds nineteen test files above 500 and no
+product file above it. Their distinguishing cases must converge by removing
+duplication and moving genuinely separate responsibilities to their existing
+semantic owners. Mechanical splitting, reclassification, metric changes and
+exemptions cannot establish compliance. The active Change owns this correction's
+execution and real public-gate evidence; no second threshold ledger is added.
 
 ### Accepted-Carrier Lane Handoff Received — 2026-09-08
 

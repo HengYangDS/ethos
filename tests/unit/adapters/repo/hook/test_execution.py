@@ -9,16 +9,12 @@ import subprocess
 import sys
 from io import StringIO
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 import ethos.adapters.repo.hook_runtime as hook_runtime
-import ethos.adapters.repo.hook_runtime as runtime
 import ethos.adapters.repo.runtime.binding as runtime_binding_module
-import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.contracts.branch.roles import BranchRolePolicy
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
@@ -27,56 +23,11 @@ from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
-def test_hook_launcher_uses_git_shell_and_current_runtime_selector() -> None:
-    text = hook_launcher("pre-commit")
-
-    assert 'HOOK_DIR=${0%/*}; [ "$HOOK_DIR" = "$0" ] && HOOK_DIR=.' in text
-    assert 'HOOK_DIR=$(CDPATH= cd "$HOOK_DIR" && pwd)' in text
-    assert 'RUNTIME_ROOT="$HOOK_DIR/../../runtime"' in text
-    assert 'CURRENT="$RUNTIME_ROOT/CURRENT"' in text
-    assert 'exec "$RUNTIME/python/bin/python" -B -I -m ethos.cli hook run pre-commit "$@"' in text
-
-
-def test_hook_launcher_enters_the_selected_runtime_without_ambient_path(tmp_path: Path) -> None:
-    digest = "a" * 64
-    hooks = tmp_path / "ethos/hooks/generation"
-    runtime = tmp_path / "ethos/runtime" / digest / "python/bin/python"
-    hooks.mkdir(parents=True)
-    runtime.parent.mkdir(parents=True)
-    (tmp_path / "ethos/runtime/CURRENT").write_text(f"{digest}\n", encoding="ascii")
-    runtime.write_text('#!/bin/sh\nprintf "%s\\n" "$*"\n', encoding="utf-8")
-    runtime.chmod(0o755)
-    launcher = hooks / "pre-commit"
-    launcher.write_text(hook_launcher("pre-commit"), encoding="utf-8")
-    launcher.chmod(0o755)
-
-    completed = subprocess.run(
-        (launcher.as_posix(), "argument"),
-        check=False,
-        capture_output=True,
-        env={"PATH": ""},
-        text=True,
-    )
-
-    assert completed.returncode == 0, completed.stderr
-    assert completed.stdout == "-B -I -m ethos.cli hook run pre-commit argument\n"
-
-
-def test_windows_hook_launcher_uses_the_standalone_runtime_python(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(runtime_filesystem, "os", SimpleNamespace(name="nt"))
-
-    text = hook_launcher("pre-commit")
-
-    assert 'exec "$RUNTIME/python/python.exe" -B -I -m ethos.cli hook run pre-commit "$@"' in text
-    assert "Scripts/python.exe" not in text
-
-
 @pytest.mark.parametrize(
     ("name", "arguments", "stdin", "expected", "gap"),
     [
         ("pre-commit", (), "", 0, ""),
+        ("unknown", (), "", 1, "hook_name_invalid"),
         ("pre-push", ("origin",), "invalid\n", 1, "push_update_invalid"),
         ("pre-push", ("origin",), f"refs/heads/x {'0' * 40} refs/heads/x {'a' * 40}\n", 0, ""),
         ("reference-transaction", ("unknown",), "", 0, ""),
@@ -94,7 +45,7 @@ def test_hook_runtime_public_input_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
-    name: hook_runtime.HookName,
+    name: str,
     arguments: tuple[str, ...],
     stdin: str,
     expected: int,
@@ -476,13 +427,13 @@ def test_reference_transaction_dispatch_preserves_role_and_phase_semantics(
 def test_execute_hook_converts_runtime_exception_to_json_gap(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(runtime, "current_runtime", lambda _common: None)
+    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
     monkeypatch.setattr(
-        runtime,
+        hook_runtime,
         "run_git",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("state unavailable")),
     )
-    assert runtime.execute_hook(tmp_path, "pre-commit", (), stdin=StringIO()) == 1
+    assert hook_runtime.execute_hook(tmp_path, "pre-commit", (), stdin=StringIO()) == 1
     assert json.loads(capsys.readouterr().err)["required_gaps"] == ["state unavailable"]
 
 
@@ -491,9 +442,9 @@ def test_candidate_report_rejects_dirty_or_unbound_candidate(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(runtime, "current_runtime", lambda _common: None)
+    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
     candidate_runtime(monkeypatch, tmp_path, status="dirty\n")
-    result = runtime.execute_hook(
+    result = hook_runtime.execute_hook(
         tmp_path,
         "reference-transaction",
         ("prepared",),
@@ -519,16 +470,16 @@ def test_candidate_runner_requires_clean_binding_and_real_file(
     capsys: pytest.CaptureFixture[str],
     binding: dict[str, object],
 ) -> None:
-    monkeypatch.setattr(runtime, "current_runtime", lambda _common: None)
+    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
     candidate_runtime(monkeypatch, tmp_path, status="")
     if binding["python"]:
         binding["python"] = str(tmp_path / str(binding["python"]))
     monkeypatch.setattr(
-        runtime,
+        hook_runtime,
         "hook_runtime_binding",
         lambda _root, **_kwargs: binding,
     )
-    result = runtime.execute_hook(
+    result = hook_runtime.execute_hook(
         tmp_path,
         "reference-transaction",
         ("prepared",),
@@ -542,13 +493,13 @@ def test_candidate_runner_requires_clean_binding_and_real_file(
 def test_reference_transition_policy_failure_is_blocked(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(runtime, "current_runtime", lambda _common: None)
+    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
     monkeypatch.setattr(
-        runtime,
+        hook_runtime,
         "resolve_ref_move_policy",
         lambda *_args: (_ for _ in ()).throw(TypeError("bad policy")),
     )
-    result = runtime.execute_hook(
+    result = hook_runtime.execute_hook(
         tmp_path,
         "reference-transaction",
         ("prepared",),

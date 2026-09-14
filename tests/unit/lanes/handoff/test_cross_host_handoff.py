@@ -10,7 +10,6 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -19,22 +18,16 @@ from pydantic import BaseModel
 import ethos.adapters.mutation.lane_lifecycle.handoff.destination_import as destination_import
 import ethos.adapters.mutation.lane_lifecycle.handoff.destination_objects as destination_objects
 import ethos.adapters.repo.git_effects as git_effects
-from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import export_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import import_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import revoke_cross_host_source
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import LeaseObservation
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.coordination import CrossHostHandoffExportRequest
 from ethos.contracts.coordination import CrossHostHandoffImportRequest
 from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
-from ethos.contracts.coordination import HolderRef
-from ethos.contracts.coordination import LaneLease
 from tests.support.governed_repository import git
-from tests.support.governed_repository import start_adopted_candidate
-from tests.support.governed_repository import write_active_commitment
+from tests.unit.lanes.handoff.support import export_handoff_fixture
 
 
 def _write_object(destination: Path, content: str) -> str:
@@ -228,89 +221,6 @@ def _import_with_uncertain_effect(
         )
 
 
-def _export_handoff_fixture(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    source_holder: str,
-    target_holder: str,
-    branch: str,
-) -> tuple[Any, Any, Path, str, dict[str, object]]:
-    source_repo, _candidate = start_adopted_candidate(tmp_path / "source")
-    destination = tmp_path / "destination" / "repo"
-    destination.parent.mkdir()
-    subprocess.run(
-        ["git", "clone", "--no-local", source_repo.as_posix(), destination.as_posix()],
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    git(destination, "config", "commit.gpgsign", "false")
-    git(destination, "config", "core.hooksPath", ".git/test-hooks")
-    git(
-        destination,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "destination" / "repo-candidate-dev").as_posix(),
-        "origin/candidate/dev",
-    )
-    source_worktree = tmp_path / "source-worktree"
-    git(source_repo, "worktree", "add", "-b", branch, source_worktree.as_posix(), "dev")
-    write_active_commitment(source_worktree, change_id="handoff")
-    git(source_worktree, "add", ".")
-    git(
-        source_worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "declare handoff",
-    )
-    head = git(source_worktree, "rev-parse", "HEAD")
-    now = datetime.now(UTC)
-    lease = acquire_lease(
-        state_database(source_worktree),
-        lease=LaneLease(
-            lane_ref=branch,
-            holder_ref=HolderRef.parse(source_holder),
-            generation=1,
-            expires_at=now + timedelta(days=1),
-        ),
-    )
-    source = SimpleNamespace(worktree=source_worktree)
-    export_arguments = {
-        "root": source.worktree.as_posix(),
-        "branch": branch,
-        "holder_ref": source_holder,
-        "target_holder_ref": target_holder,
-        "generation": int(lease["generation"]),
-        "expires_at": str(lease["expires_at"]),
-        "expect_head": head,
-        "context_text": "Continue only after destination validates the package.",
-        "context_file": None,
-        "output_root": (tmp_path / "packages").as_posix(),
-        "apply": True,
-    }
-    monkeypatch.setenv("ETHOS_ACTOR", source_holder)
-    exported = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
-    assert exported["verdict"] == "pass"
-    assert exported["attestation"]["payload"]["body"]["result"]["state"] == "applied"
-    manifest = exported["manifest"]
-    expected_manifest = {
-        "source_head": head,
-        "source_tree": git(source_worktree, "rev-parse", "HEAD^{tree}"),
-    }
-    assert {key: manifest[key] for key in expected_manifest} == expected_manifest
-    package = Path(str(exported["package_path"]))
-    repeated_export = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
-    assert repeated_export["package_id"] == exported["package_id"]
-    assert repeated_export["attestation"]["payload"]["body"]["result"]["state"] == "recognized"
-    return source, destination, package, head, lease
-
-
 def _assert_failed_import_is_compensated(
     rolled_back: dict[str, object],
     *,
@@ -423,7 +333,7 @@ def test_handoff_source_revoke_rejects_live_generation_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     source_holder = "agent:test:case:source"
-    source, destination, package, _head, lease = _export_handoff_fixture(
+    source, destination, package, _head, lease = export_handoff_fixture(
         tmp_path,
         monkeypatch,
         source_holder,
@@ -459,7 +369,7 @@ def test_handoff_import_rejects_tampered_source_tree(
 ) -> None:
     source_holder = "agent:test:case:source"
     target_holder = "agent:test:case:target"
-    _source, destination, package, _head, _lease = _export_handoff_fixture(
+    _source, destination, package, _head, _lease = export_handoff_fixture(
         tmp_path, monkeypatch, source_holder, target_holder, "work/handoff"
     )
     manifest_path = package / "manifest.json"
@@ -537,7 +447,7 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
     source_holder = "agent:test:case:source"
     target_holder = "agent:test:case:target"
     branch = "work/handoff"
-    source, destination, package, head, lease = _export_handoff_fixture(
+    source, destination, package, head, lease = export_handoff_fixture(
         tmp_path, monkeypatch, source_holder, target_holder, branch
     )
 

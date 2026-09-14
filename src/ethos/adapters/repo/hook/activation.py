@@ -12,11 +12,9 @@ from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NoReturn
-from typing import cast
 
 import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
-from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
@@ -36,6 +34,14 @@ if TYPE_CHECKING:
 
 _ACTIVATION_KEYS = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
 _WORKTREE_ACTIVATION_KEYS = ("core.hooksPath", "gc.packRefs")
+
+
+class HookActivationError(ValueError):
+    """Carry a failed observation through activation compensation to its caller."""
+
+    def __init__(self, reason: str, observation: dict[str, object]) -> None:
+        super().__init__(reason)
+        self.observation = observation
 
 
 def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
@@ -267,13 +273,7 @@ def _activate_common_runtime(
     if binding["required_gaps"]:
         reason = "hook_runtime_activation_invalid:" + ",".join(binding["required_gaps"])
         if observation := binding.get("contract_observation"):
-            raise ProcessExecutionError(
-                reason,
-                reason=str(observation["reason"]),
-                command=tuple(cast("list[str]", observation["command"])),
-                cwd=str(observation["cwd"]),
-                observation=observation,
-            )
+            raise HookActivationError(reason, observation)
         _fail(reason)
     if expected_runtime_build(repo)[0] != expected_build:
         _fail("hook_runtime_expected_build_stale")

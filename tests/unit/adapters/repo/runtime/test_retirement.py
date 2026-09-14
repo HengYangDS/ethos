@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 import sys
 import time
@@ -10,11 +11,14 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.runtime.retirement as retirement
 import ethos.adapters.repo.runtime.selection as selection
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.runtime_scenarios import materialized_activation_case
 
 
 def _tree(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -470,3 +474,108 @@ def test_unrelated_command_arguments_do_not_amplify_path_resolution(
     assert result["state"] == "complete", result
     assert candidate.as_posix() in result["retained"]
     assert (candidate / "payload").read_text() == "b" * 64
+
+
+@pytest.mark.parametrize("failure", ["io", "residue", "retained"])
+def test_hook_install_reports_deferred_generation_cleanup_after_successful_activation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    repo, runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    stale, retained = (common / "ethos/runtime" / (letter * 64) for letter in "bc")
+    stale.mkdir()
+    retained.mkdir()
+    monkeypatch.setattr(retirement, "process_commands", lambda _root: retained.as_posix())
+    remove = retirement.remove_generated_tree
+
+    def remove_tree(path):
+        assert path == stale
+        if failure == "io":
+            message = "cleanup failed"
+            raise OSError(message)
+        if failure == "retained":
+            remove(path)
+            retained.rmdir()
+
+    monkeypatch.setattr(retirement, "remove_generated_tree", remove_tree)
+    installed = install_hook_launchers(repo)
+    cleanup = installed["generation_cleanup"]
+    assert (common / "ethos/runtime/CURRENT").read_text(
+        encoding="ascii"
+    ) == f"{runtime.parent.name}\n"
+    assert installed["state_transition"]["after"] == "current"
+    assert installed["current"] is True
+    assert installed["required_gaps"] == ["hook_runtime_cleanup_deferred"]
+    assert installed["next_action"] == "ethos hook install --json"
+    assert cleanup["state"] == "deferred"
+    assert cleanup["removed"] == ([stale.as_posix()] if failure == "retained" else [])
+    assert cleanup["error"] == (
+        "cleanup failed"
+        if failure == "io"
+        else "hook_runtime_generation_identity_stale"
+        if failure == "retained"
+        else "hook_runtime_generation_cleanup_failed"
+    )
+    assert cleanup["deferred"] == [
+        retained.as_posix() if failure == "retained" else stale.as_posix()
+    ]
+    assert stale.exists() is (failure != "retained")
+
+
+def test_historical_runtime_observation_does_not_pin_an_executable_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An old status path is provenance, not an operational dependency."""
+    repo, runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    obsolete = common / "ethos/runtime" / ("b" * 64)
+    obsolete.mkdir()
+    (obsolete / "payload").write_bytes(b"obsolete executable")
+    history = common / "ethos/operations/completed-status.json"
+    history.parent.mkdir(parents=True)
+    original = json.dumps(
+        {"command": "status", "state": "ready", "data": {"python": str(obsolete / "python")}}
+    ).encode()
+    history.write_bytes(original)
+
+    result = install_hook_launchers(repo)
+
+    assert not obsolete.exists(), "descriptive history kept an unused runtime alive"
+    assert result["generation_cleanup"]["removed"] == [obsolete.as_posix()]
+    assert history.read_bytes() == original
+    assert runtime.parent.is_dir()
+
+
+def test_generation_cleanup_reobserves_a_consumer_after_activation_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An earlier plan cannot delete a generation used by a newly observed process."""
+    repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    needed = common / "ethos/runtime" / ("b" * 64)
+    needed.mkdir()
+    sentinel = needed / "payload"
+    sentinel.write_bytes(b"live executable")
+    active = False
+    native = retirement.process_listing_command()
+    run = retirement.run_command
+
+    def observe(root, command, **kwargs):
+        if command == native:
+            return subprocess.CompletedProcess(command, 0, needed.as_posix() if active else "", "")
+        return run(root, command, **kwargs)
+
+    binding = hook_activation.hook_runtime_binding
+
+    def observe_activated(*args, **kwargs):
+        nonlocal active
+        result = binding(*args, **kwargs)
+        active = True
+        return result
+
+    monkeypatch.setattr(retirement, "run_command", observe)
+    monkeypatch.setattr(hook_activation, "hook_runtime_binding", observe_activated)
+
+    result = install_hook_launchers(repo)
+
+    assert sentinel.is_file(), "cleanup reused the pre-activation process snapshot"
+    assert sentinel.read_bytes() == b"live executable"
+    assert needed.as_posix() in result["generation_cleanup"]["retained"]
+    assert needed.as_posix() not in result["generation_cleanup"]["removed"]

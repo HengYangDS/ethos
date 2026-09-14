@@ -25,11 +25,11 @@ from ethos.contracts.semantic import Facts
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
-from tests.support.governed_repository import conformant_proof_check
-from tests.support.governed_repository import current_proof_plan
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import issue_conformant_proof
+from tests.support.proof import conformant_proof_check
+from tests.support.proof import current_proof_plan
+from tests.support.proof import issue_conformant_proof
 
 _PROGRAM = """
 from pathlib import Path

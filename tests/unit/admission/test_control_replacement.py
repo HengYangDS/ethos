@@ -19,9 +19,9 @@ from ethos.contracts.semantic import canonical_json_digest
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.literal_cases import literal_case
+from tests.support.proof import seed_executed_proof
 
 if TYPE_CHECKING:
     from pathlib import Path

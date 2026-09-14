@@ -5,17 +5,14 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
 import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
-import ethos.adapters.mutation.lane_lifecycle.change_overlay as overlay
 import ethos.adapters.repo.git_effects as git_effects
-from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
@@ -23,162 +20,21 @@ from ethos.repository.policy.commit import CommitPolicy
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.openspec_lifecycle import archive_authority
 from tests.support.openspec_lifecycle import assert_lifecycle_outcome
+from tests.support.openspec_lifecycle import completed_archive_governance
+from tests.support.openspec_lifecycle import official_archive_result
+from tests.support.openspec_lifecycle import stub_archive_public
 from tests.support.semantic import commitment_fixture
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 BRANCH = "work/feature"
 HEAD = "old-head"
 NEW_HEAD = "new-head"
 CHANGE = "fixture-change"
 ARCHIVE_PATH = "openspec/changes/archive/2026-09-10-fixture-change"
-
-
-def _completed_governance(
-    *, remaining: int = 0, required_gaps: tuple[str, ...] = ()
-) -> dict[str, object]:
-    return {
-        "required_gaps": list(required_gaps),
-        "lifecycle": {"changes": [{"name": CHANGE, "progress": {"remaining": remaining}}]},
-        "commands": {"status": {"json": {"changes": []}}},
-    }
-
-
-def _current_authority() -> CurrentAuthority:
-    return CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch=BRANCH,
-        actor="agent:test",
-        lease={
-            "lease_state": "valid",
-            "lane_ref": BRANCH,
-            "holder_ref": "agent:test",
-            "generation": 1,
-            "expires_at": "2099-01-01T00:00:00Z",
-        },
-        current_head=HEAD,
-        current_tree="source-tree",
-    )
-
-
-def _archive_result(
-    root: Path, *, change: str = CHANGE, path: str = ARCHIVE_PATH
-) -> dict[str, Any]:
-    absolute = root / path if not Path(path).is_absolute() else Path(path)
-    return {
-        "exit_code": 0,
-        "parse_error": "",
-        "stderr": "",
-        "command": ["openspec", "archive", change],
-        "json": {
-            "archive": {
-                "change": change,
-                "path": absolute.as_posix() if path else "",
-                "specsUpdated": [],
-                "totals": {},
-            }
-        },
-    }
-
-
-def _stub_archive_public(
-    monkeypatch: pytest.MonkeyPatch,
-    root: Path,
-    *,
-    remaining: int = 0,
-    result: dict[str, Any] | None = None,
-    collision: bool = False,
-    invocations: list[str] | None = None,
-    resolution_gaps: tuple[str, ...] = (),
-    resolution: CurrentResolution | None = None,
-) -> None:
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
-    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: HEAD)
-    authority = _current_authority()
-
-    def observe_workspace(*_args: object, **_kwargs: object):
-        if invocations is not None:
-            invocations.append("workspace")
-        return {"branch": BRANCH, "head": HEAD, "role": "work_lane"}, authority
-
-    def resolve_current(*_args: object, **_kwargs: object) -> CurrentResolution:
-        if invocations is not None:
-            invocations.append("resolution")
-        return resolution or CurrentResolution(
-            verdict="block" if resolution_gaps else "pass",
-            authority=authority,
-            commitment=(None if resolution_gaps else commitment_fixture(id=f"change:{CHANGE}")),
-            scope=CurrentScope(()),
-            openspec=_completed_governance(
-                remaining=remaining,
-                required_gaps=resolution_gaps,
-            ),
-            required_gaps=resolution_gaps,
-        )
-
-    monkeypatch.setattr(archive, "workspace_status_observation", observe_workspace)
-    monkeypatch.setattr(archive, "resolve_current_resolution", resolve_current)
-    monkeypatch.setattr(archive, "proof_gaps", lambda *_args: [])
-
-    def git_stdout(_root: Path, *args: str) -> str:
-        return {
-            ("branch", "--show-current"): BRANCH,
-            ("status", "--short"): "",
-            ("diff", "--cached", "--name-only", "--diff-filter=ACMRTD"): (
-                f"{ARCHIVE_PATH}/proposal.md"
-            ),
-            ("write-tree",): "archive-tree",
-            ("show", "-s", "--format=%ct", NEW_HEAD): "0",
-        }.get(args, "")
-
-    monkeypatch.setattr(archive, "git_stdout", git_stdout)
-    monkeypatch.setattr(archive_effect, "git_stdout", git_stdout)
-
-    def collision_report(*_args: object) -> archive.ArchiveCollision | None:
-        preserved = root / f"{ARCHIVE_PATH}.preserved"
-        if not collision:
-            return None
-        if preserved.exists():
-            message = "openspec_archive_collision_preservation_conflict"
-            raise ValueError(message)
-        return archive.ArchiveCollision(ARCHIVE_PATH, "archive-tree", f"{ARCHIVE_PATH}.preserved")
-
-    monkeypatch.setattr(archive, "archive_collision", collision_report)
-    postimages = iter(
-        (
-            ArchivePostimage(
-                change=CHANGE,
-                head=HEAD,
-                scope=None,
-                active_present=True,
-            ),
-            ArchivePostimage(
-                change=CHANGE,
-                head=HEAD,
-                scope={
-                    "archive_path": ARCHIVE_PATH,
-                    "changed_paths": (f"{ARCHIVE_PATH}/proposal.md",),
-                    "completion_artifacts": (),
-                    "tree": "archive-tree",
-                },
-                active_present=False,
-            ),
-        )
-    )
-
-    def observe_archive_postimage(*_args: object, **_kwargs: object) -> ArchivePostimage:
-        return next(postimages)
-
-    monkeypatch.setattr(archive, "archive_postimage", observe_archive_postimage)
-    monkeypatch.setattr(archive.openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        archive.openspec_cli,
-        "run_json",
-        lambda *_args: result or _archive_result(root),
-    )
-    monkeypatch.setattr(archive, "dirty_changed_paths", lambda _root: ("spec.md",))
-    monkeypatch.setattr(archive, "normalize_projected_specs", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(archive_effect, "stage_git_worktree", lambda *_args, **_kwargs: None)
 
 
 @pytest.mark.parametrize(
@@ -190,7 +46,7 @@ def _stub_archive_public(
     ],
 )
 def test_archive_subject_is_admitted_before_native_mutation(monkeypatch, tmp_path, subject, gap):
-    _stub_archive_public(monkeypatch, tmp_path)
+    stub_archive_public(monkeypatch, tmp_path)
     policy = CommitPolicy(
         subject_pattern=r"^release: .+", signing_required=True, signing_format="ssh"
     )
@@ -226,7 +82,7 @@ def test_archive_public_observes_workspace_and_resolves_intent_once(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     invocations: list[str] = []
-    _stub_archive_public(monkeypatch, tmp_path, invocations=invocations)
+    stub_archive_public(monkeypatch, tmp_path, invocations=invocations)
 
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
 
@@ -238,14 +94,14 @@ def test_archive_public_preserves_current_resolution_recovery_action(monkeypatch
     gap = f"invocation_actor_missing:{BRANCH}"
     resolution = CurrentResolution(
         verdict="block",
-        authority=replace(_current_authority(), verdict="block", reason=gap, actor=""),
+        authority=replace(archive_authority(), verdict="block", reason=gap, actor=""),
         commitment=None,
         scope=CurrentScope(()),
         required_gaps=(gap,),
         next_action="export ETHOS_ACTOR=agent:test",
     )
     invocations = []
-    _stub_archive_public(monkeypatch, tmp_path, invocations=invocations, resolution=resolution)
+    stub_archive_public(monkeypatch, tmp_path, invocations=invocations, resolution=resolution)
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
     assert invocations == ["workspace", "resolution"]
     assert report["required_gaps"] == [gap]
@@ -288,7 +144,7 @@ def test_archive_collision_observes_exact_git_and_preserves_existing_bytes(
         archive.archive_collision(repo, head, CHANGE)
     observe_collision = archive.archive_collision
     observe_git = archive.git_stdout
-    _stub_archive_public(monkeypatch, repo)
+    stub_archive_public(monkeypatch, repo)
     projected_git = archive.git_stdout
     monkeypatch.setattr(
         archive,
@@ -320,7 +176,7 @@ def test_archive_collision_observes_exact_git_and_preserves_existing_bytes(
 def test_archive_public_preflight_preserves_all_current_resolution_gaps(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _stub_archive_public(
+    stub_archive_public(
         monkeypatch,
         tmp_path,
         remaining=1,
@@ -338,7 +194,7 @@ def test_archive_public_preflight_preserves_all_current_resolution_gaps(
 def test_archive_public_missing_native_command_does_not_mutate(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _stub_archive_public(monkeypatch, tmp_path)
+    stub_archive_public(monkeypatch, tmp_path)
     monkeypatch.setattr(archive.openspec_cli, "openspec_base_command", lambda: None)
 
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
@@ -358,7 +214,7 @@ def test_archive_public_missing_native_command_does_not_mutate(
 def test_archive_public_exception_compensates_only_before_ref_advancement(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, committed: bool
 ) -> None:
-    _stub_archive_public(monkeypatch, tmp_path)
+    stub_archive_public(monkeypatch, tmp_path)
     monkeypatch.setattr(
         archive.openspec_cli,
         "run_json",
@@ -392,7 +248,7 @@ def test_archive_public_exception_compensates_only_before_ref_advancement(
 def test_archive_public_commit_failure_compensates_native_delta(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, collision: bool
 ) -> None:
-    _stub_archive_public(monkeypatch, tmp_path, collision=collision)
+    stub_archive_public(monkeypatch, tmp_path, collision=collision)
     monkeypatch.setattr(archive, "move_tracked_tree", lambda *_args: None)
     monkeypatch.setattr(
         archive_effect,
@@ -437,8 +293,8 @@ def test_archive_public_commit_failure_compensates_native_delta(
 def test_archive_public_rejects_invalid_native_receipt(
     monkeypatch, tmp_path, path, change, collision, compensated_path
 ):
-    result = _archive_result(tmp_path, change=change, path=path)
-    _stub_archive_public(monkeypatch, tmp_path, result=result, collision=collision)
+    result = official_archive_result(tmp_path, change=change, path=path)
+    stub_archive_public(monkeypatch, tmp_path, result=result, collision=collision)
     monkeypatch.setattr(archive, "move_tracked_tree", lambda *_args: None)
     compensated: list[str] = []
     monkeypatch.setattr(
@@ -467,7 +323,7 @@ def test_archive_public_reports_failed_compensation_and_retained_residue(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
-    _stub_archive_public(
+    stub_archive_public(
         monkeypatch,
         repo,
         result={
@@ -511,89 +367,10 @@ def test_archive_public_reports_failed_compensation_and_retained_residue(
     assert git(repo, "rev-parse", "HEAD") == head
 
 
-class _WorkLanePolicy:
-    def role_for_branch(self, _branch: str) -> str:
-        return "work_lane"
-
-
-@pytest.mark.parametrize(
-    ("lease", "actor", "expected_gap", "expected_state", "expected_action"),
-    [
-        (
-            {},
-            "agent:test",
-            f"work_lane_missing_lease:{BRANCH}",
-            "lease_missing",
-            "ethos lane status --json",
-        ),
-        (
-            {
-                "lease_state": "expired",
-                "lane_ref": BRANCH,
-                "holder_ref": "agent:test",
-                "generation": 7,
-                "expires_at": "2026-08-20T00:00:00Z",
-            },
-            "agent:test",
-            f"work_lane_lease_expired:{BRANCH}",
-            "lease_expired",
-            (
-                "ethos lane lease resume --generation 7 "
-                "--expires-at 2026-08-20T00:00:00Z "
-                f"--branch {BRANCH} "
-                "--holder-ref agent:test --apply --json"
-            ),
-        ),
-        (
-            {
-                "lease_state": "valid",
-                "lane_ref": BRANCH,
-                "holder_ref": "agent:other",
-                "generation": 1,
-                "expires_at": "2026-08-30T00:00:00Z",
-            },
-            "agent:test",
-            "lease_actor_mismatch",
-            "different_holder",
-            (
-                "ethos attestation query --predicate lane-resolution:takeover "
-                f"--subject git:branch:{BRANCH} --json"
-            ),
-        ),
-    ],
-)
-def test_work_lane_transition_reports_the_first_exact_lease_state(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    lease: dict[str, object],
-    actor: str,
-    expected_gap: str,
-    expected_state: str,
-    expected_action: str,
-) -> None:
-    monkeypatch.setattr(overlay, "load_branch_role_policy", lambda _root: _WorkLanePolicy())
-    monkeypatch.setattr(overlay, "git_stdout", lambda *_args: "")
-
-    gaps = overlay.work_lane_transition_gaps(
-        tmp_path,
-        branch=BRANCH,
-        head=HEAD,
-        expect_head=HEAD,
-        lease=lease,
-        actor=actor,
-        role_gap="archive_requires_work_lane",
-    )
-
-    assert gaps == [expected_gap]
-    report = archive.archive_preflight_report(BRANCH, HEAD, CHANGE, gaps, lease=lease)
-    assert report["state"] == expected_state
-    assert report["next_action"] == expected_action
-
-
 def test_archive_zero_effect_preflight_has_no_compensation_gap(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _stub_archive_public(monkeypatch, tmp_path)
+    stub_archive_public(monkeypatch, tmp_path)
     monkeypatch.setattr(
         archive,
         "_archive_coordinate_gaps",
@@ -636,7 +413,7 @@ def test_archive_zero_effect_preflight_has_no_compensation_gap(
 def test_archive_public_rejects_invalid_coordinates_before_any_effect(
     monkeypatch, tmp_path, boundary
 ):
-    _stub_archive_public(monkeypatch, tmp_path)
+    stub_archive_public(monkeypatch, tmp_path)
     monkeypatch.setattr(
         archive.openspec_cli, "run_json", lambda *_args: pytest.fail("preflight must not mutate")
     )
@@ -655,7 +432,7 @@ def test_archive_public_rejects_invalid_coordinates_before_any_effect(
             "workspace_status_observation",
             lambda *_args, **_kwargs: (
                 {"branch": BRANCH, "head": HEAD, "role": "accepted_root"},
-                _current_authority(),
+                archive_authority(),
             ),
         )
         gap = "archive_requires_work_lane"
@@ -665,12 +442,12 @@ def test_archive_public_rejects_invalid_coordinates_before_any_effect(
     elif boundary in {"commitment", "lifecycle"}:
         resolution = CurrentResolution(
             verdict="pass",
-            authority=_current_authority(),
+            authority=archive_authority(),
             commitment=None
             if boundary == "commitment"
             else commitment_fixture(id=f"change:{CHANGE}"),
             scope=CurrentScope(()),
-            openspec=_completed_governance() if boundary == "commitment" else {},
+            openspec=completed_archive_governance() if boundary == "commitment" else {},
         )
         monkeypatch.setattr(
             archive, "resolve_current_resolution", lambda *_args, **_kwargs: resolution
@@ -711,7 +488,7 @@ def test_archive_public_rejects_invalid_coordinates_before_any_effect(
 def test_archive_public_compensates_unrecognized_official_output(
     monkeypatch, tmp_path, invalid_postimage
 ):
-    _stub_archive_public(monkeypatch, tmp_path)
+    stub_archive_public(monkeypatch, tmp_path)
     images = iter((ArchivePostimage(CHANGE, HEAD, None, active_present=True), invalid_postimage))
     monkeypatch.setattr(archive, "archive_postimage", lambda *_args, **_kwargs: next(images))
     removed = []
@@ -728,17 +505,17 @@ def test_archive_public_compensates_unrecognized_official_output(
     "mode", ["ready", "missing_commitment", "incomplete", "missing_lifecycle", "dirty"]
 )
 def test_archive_public_staged_and_active_readiness_are_distinct(monkeypatch, tmp_path, mode):
-    _stub_archive_public(monkeypatch, tmp_path)
+    stub_archive_public(monkeypatch, tmp_path)
     resolution = CurrentResolution(
         verdict="pass",
-        authority=_current_authority(),
+        authority=archive_authority(),
         commitment=None
         if mode == "missing_commitment"
         else commitment_fixture(id=f"change:{CHANGE}"),
         scope=CurrentScope(()),
         openspec={}
         if mode == "missing_lifecycle"
-        else _completed_governance(remaining=1 if mode == "incomplete" else 0),
+        else completed_archive_governance(remaining=1 if mode == "incomplete" else 0),
     )
     monkeypatch.setattr(archive, "resolve_current_resolution", lambda *_args, **_kwargs: resolution)
     if mode in {"ready", "missing_commitment"}:

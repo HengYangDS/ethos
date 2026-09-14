@@ -7,18 +7,27 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.repo.attestation_set as attestation_set
 import ethos.adapters.repo.git_effect_attestation as attest
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.git_effect_attestation import records
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
+from tests.support.git_effect import ISSUER as EFFECT_ISSUER
+from tests.support.git_effect import fixture
+from tests.support.git_effect import plan
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
+from tests.support.literal_cases import literal_case
 from tests.support.semantic import commitment_fixture
+from tests.support.semantic import reissue_attestation
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -343,3 +352,83 @@ def test_attestation_record_store_preserves_exact_identity(tmp_path, monkeypatch
         else "git_effect_attestation_collision",
     ):
         attest.records(repo, plan, record)
+
+
+@pytest.mark.parametrize(
+    "kind",
+    literal_case(
+        "mutation.test_git_effect_attestation_public_boundaries:parametrize:test_attestation_negative_claim_matrix:0"
+    ),
+)
+def test_attestation_negative_claim_matrix(tmp_path: Path, kind: str) -> None:
+    case = fixture(tmp_path)
+    carried = plan(case.repo, case.effect)
+    record = execute_git_effect(case.repo, carried, issuer=EFFECT_ISSUER)
+    error = "git_effect_attestation_content_mismatch"
+    if kind == "live":
+        git(case.repo, "update-ref", "refs/heads/dev", case.old, case.new)
+        with pytest.raises((OSError, ValueError), match=error):
+            execute_git_effect(case.repo, carried, issuer=EFFECT_ISSUER)
+        return
+    if kind.startswith("expired"):
+        record = reissue_attestation(
+            record,
+            issued_at=record.issued_at - timedelta(minutes=2),
+            valid_from=record.issued_at - timedelta(minutes=2),
+            valid_until=record.issued_at - timedelta(minutes=1),
+        )
+        error = "git_effect_attestation_stale"
+        if kind.endswith("drift"):
+            git(case.repo, "update-ref", "refs/heads/dev", case.old, case.new)
+    elif kind == "checkout":
+        git(case.repo, "checkout", "-q", "-b", "side")
+        commit_fixture_file(case.repo, "SIDE", "x", "side")
+    elif kind == "facts_digest":
+        record, error = (
+            reissue_attestation(record, facts_digest="e" * 64),
+            "git_effect_attestation_binding_mismatch:facts_digest",
+        )
+    elif kind == "unknown":
+        record, error = (
+            reissue_attestation(record, verdict="unknown"),
+            "git_effect_attestation_verdict_unknown",
+        )
+    elif kind == "issued_at":
+        record = reissue_attestation(record, issued_at=record.issued_at + timedelta(seconds=1))
+    else:
+        replacements = {
+            "repository": "git:other",
+            "command": ("git", "update-ref"),
+            "program_sha256": "0" * 64,
+            "result": record.payload.body["result"] | {"exit_code": 7},
+            "inputs": {},
+            "output_digest": "0" * 64,
+        }
+        record = reissue_attestation(record, body=record.payload.body | {kind: replacements[kind]})
+    with pytest.raises((OSError, ValueError), match=error):
+        records(case.repo, carried, record)
+
+
+@pytest.mark.parametrize("failure", ["corrupt", "collision"])
+def test_attestation_store_public_failure_matrix(tmp_path: Path, failure: str) -> None:
+    case = fixture(tmp_path)
+    carried = plan(case.repo, case.effect)
+    record = execute_git_effect(case.repo, carried, issuer=EFFECT_ISSUER)
+
+    if failure == "corrupt":
+        root = git(case.repo, "show-ref", "--verify", "--hash", attestation_set.ATTESTATION_SET_REF)
+        git(
+            case.repo,
+            "update-ref",
+            attestation_set.ATTESTATION_SET_REF,
+            git(case.repo, "rev-parse", "HEAD"),
+            root,
+        )
+        with pytest.raises((OSError, ValueError), match="git_effect_attestation_invalid"):
+            records(case.repo, carried)
+    else:
+        other = reissue_attestation(
+            record, verifier="agent:test:case:other", subject="git-effect:other"
+        )
+        with pytest.raises((OSError, ValueError), match="git_effect_identity_collision"):
+            records(case.repo, carried, other)

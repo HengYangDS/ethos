@@ -13,12 +13,19 @@ The existing set owner must reduce that work without reusing authority decisions
 - Keep changed bytes, missing objects, malformed framing, invalid members and
   stale CAS observable; cache eviction changes cost, never the verdict.
 - Remove per-member Git process creation and verify native consumer behavior.
+- Replace executable hook-contract queries with one package-owned declaration.
+  Generation and observation consume identical data; selected runtime inventory
+  binds the source and no Python child is launched to read constants.
+- Apply the confirmed uniform repository file-size ceiling before accepting this
+  batch. Consolidate affected tests by semantic ownership without weakening cases,
+  changing measurement or creating role exemptions.
 
 ## Capabilities
 
 ### Modified Capabilities
 
 - `adapters`: subject=attestation-materialization; reuse=extend; change=modify
+- `quality`: subject=immutable-hook-contract; reuse=extend; change=modify
 
 ## Impact
 
@@ -28,6 +35,6 @@ persistent cache, permission store, new command or adopter carrier is added.
 
 ## Out Of Scope
 
-- Fixture startup deadlines and remote availability classification.
+- Raising fixture deadlines, remote availability classification and new runtime protocols.
 - Historical identity replacement and tag admission diagnostics.
 - Whole-proof reuse, hosted runner scheduling and unrelated projection redesign.

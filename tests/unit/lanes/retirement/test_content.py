@@ -2,15 +2,27 @@
 
 from __future__ import annotations
 
+import json
 import os
+import select
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+import ethos.adapters.mutation.lane_retirement.abandonment as abandonment
 import ethos.adapters.mutation.lane_retirement.content as content
 import ethos.adapters.mutation.lane_retirement.operation as operation
+import ethos.adapters.repo.worktree_effects as worktree_effects
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.repo.git import GitExecutionError
+from ethos.adapters.store.state.lease.projection import observe_lease
+from ethos.adapters.store.state.schema import state_database
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
+from tests.support.lane_scenarios import apply_retirement_receipt
 from tests.support.lane_scenarios import derive_abandonment
 
 
@@ -170,4 +182,321 @@ def test_reviewed_inventory_rejects_incomplete_or_unsafe_observation(
     ]
     assert git(repo, "show-ref") == before
     assert (lane / "abandoned.txt").read_text() == "abandoned\n"
+    assert not operation.operation_store(repo).exists()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="native POSIX process-reference observation")
+@pytest.mark.parametrize("consumer", ["cwd", "file", "mapping", "hardlink", "writer"])
+@pytest.mark.parametrize("detached", [False, True])
+def test_reviewed_retirement_preserves_content_held_by_live_process(
+    divergent_lane, consumer, detached
+):
+    repo, lane = divergent_lane
+    if detached:
+        git(lane, "switch", "--detach")
+    selected = lane if consumer == "cwd" else lane / "abandoned.txt"
+    if consumer == "hardlink":
+        selected = repo.parent / "external-hardlink"
+        os.link(lane / "abandoned.txt", selected)
+    derived = derive_abandonment(repo, review_content=True, path=lane if detached else None)
+    assert derived["verdict"] == "pass", json.dumps(derived, indent=2)
+    receipt = derived["receipt"]
+    assert isinstance(receipt, dict)
+    script = """import json, mmap, os, sys
+mode, path = json.loads(sys.stdin.readline())
+if mode == 'cwd':
+    os.chdir(path)
+else:
+    source = open(path, 'r+b' if mode == 'writer' else 'rb')
+    if mode == 'mapping':
+        mapped = mmap.mmap(source.fileno(), 0, access=mmap.ACCESS_READ)
+        source.close()
+print('ready', flush=True)
+sys.stdin.read(1)
+if mode == 'writer':
+    source.write(b'stopped writer bytes\\n')
+    source.flush()
+    os.fsync(source.fileno())
+"""
+    before = (git(repo, "show-ref"), observe_lease(state_database(repo), "work/abandon"))
+    with subprocess.Popen(
+        [sys.executable, "-B", "-c", script],
+        cwd=repo,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    ) as child:
+        assert child.stdin is not None
+        assert child.stdout is not None
+        try:
+            child.stdin.write(json.dumps([consumer, str(selected)]) + "\n")
+            child.stdin.flush()
+            assert select.select([child.stdout], [], [], 10)[0], "consumer did not become ready"
+            assert child.stdout.readline() == "ready\n"
+            assert child.poll() is None
+            result = apply_retirement_receipt(repo, receipt)
+        finally:
+            child.communicate("x", timeout=10)
+
+    assert lane.is_dir(), json.dumps(result, indent=2)
+    assert child.returncode == 0
+    assert (lane / "abandoned.txt").read_text() == (
+        "stopped writer bytes\n" if consumer == "writer" else "abandoned\n"
+    )
+    assert result["required_gaps"] == ["retirement_content_in_use"], json.dumps(result, indent=2)
+    assert before == (git(repo, "show-ref"), observe_lease(state_database(repo), "work/abandon"))
+    released = operation.execute_retirement_operation(
+        root=repo,
+        receipt_path=receipt["path"],
+        receipt_sha256=receipt["sha256"],
+        apply=False,
+        authorized=False,
+    )
+    assert released["verdict"] == ("block" if consumer == "writer" else "pass"), json.dumps(
+        released, indent=2
+    )
+    reviewed = derive_abandonment(repo, review_content=True, path=lane if detached else None)
+    assert reviewed["verdict"] == "pass", json.dumps(reviewed, indent=2)
+    final_receipt = reviewed["receipt"]
+    assert isinstance(final_receipt, dict)
+    retired = apply_retirement_receipt(repo, final_receipt)
+    assert retired["state"] == "retired", json.dumps(retired, indent=2)
+    assert not lane.exists()
+    assert str(lane) not in git(repo, "worktree", "list", "--porcelain")
+    if not detached:
+        assert git(repo, "branch", "--list", "work/abandon") == ""
+    assert observe_lease(state_database(repo), "work/abandon").state == (
+        "valid" if detached else "missing"
+    )
+
+
+@pytest.mark.parametrize("error_type", [ProcessExecutionError, GitExecutionError])
+@pytest.mark.parametrize("detached", [False, True])
+def test_reviewed_retirement_rejects_unknown_process_references(
+    divergent_lane, monkeypatch, error_type, detached
+):
+    repo, lane = divergent_lane
+    if detached:
+        git(lane, "switch", "--detach")
+    derived = derive_abandonment(repo, review_content=True, path=lane if detached else None)
+    assert derived["verdict"] == "pass", derived
+    receipt = derived["receipt"]
+    assert isinstance(receipt, dict)
+    before = git(repo, "show-ref")
+
+    error = error_type(
+        "native_process_observer_unavailable",
+        reason="file_references_unavailable",
+        command=("/native/observer", "--files"),
+        cwd=repo.as_posix(),
+        cause="permission denied",
+    )
+
+    def unavailable(_root):
+        raise error
+
+    monkeypatch.setattr(operation, "process_file_identities", unavailable)
+    result = apply_retirement_receipt(repo, receipt)
+
+    assert result["required_gaps"] == ["native_process_observer_unavailable"], result
+    assert result["process_failure"] == error.evidence()
+    assert lane.is_dir()
+    assert (lane / "abandoned.txt").read_text() == "abandoned\n"
+    assert git(repo, "show-ref") == before
+
+
+@pytest.mark.parametrize("dirty_kind", ["staged", "unstaged", "untracked", "ignored"])
+@pytest.mark.parametrize("detached", [False, True])
+def test_reviewed_absorbed_content_derives_exact_public_receipt(
+    divergent_lane, dirty_kind, detached
+):
+    repo, lane = divergent_lane
+    git(repo, "reset", "--hard", git(lane, "rev-parse", "HEAD"))
+    if detached:
+        git(lane, "switch", "--detach")
+    target = lane / ("residual.txt" if dirty_kind in {"untracked", "ignored"} else "abandoned.txt")
+    target.write_text("reviewed residual\n")
+    if dirty_kind == "staged":
+        git(lane, "add", target.name)
+    if dirty_kind == "ignored":
+        (lane / ".gitignore").write_text("residual.txt\n")
+    before = (git(repo, "show-ref"), git(lane, "diff", "--cached"), target.read_bytes())
+
+    result = run_ethos(
+        "lane",
+        "retire",
+        "abandon",
+        "--path" if detached else "--branch",
+        str(lane) if detached else "work/abandon",
+        "--reason-code",
+        "absorbed-content",
+        "--reason",
+        "current tests preserve this obligation",
+        "--review-content",
+        "--json",
+        cwd=repo,
+    )
+
+    assert result["verdict"] == "pass", result
+    data = result["data"]
+    receipt = data["receipt"]
+    request = operation.load_operation(repo, receipt["path"], receipt["sha256"])
+    assert request.reviewed_content["entries"][target.name]
+    assert request.reviewed_content["index"]
+    assert request.reviewed_content["root"]
+    if detached:
+        assert request.effects == ("remove_worktree",)
+        assert (request.branch, request.git_plan, request.lease) == ("", {}, {})
+    else:
+        assert request.git_plan["facts"]["values"]["linked_worktree"]["clean"] is False
+    assert (
+        request.digest()
+        == operation.load_operation(repo, receipt["path"], receipt["sha256"]).digest()
+    )
+    assert before == (git(repo, "show-ref"), git(lane, "diff", "--cached"), target.read_bytes())
+
+    target.write_text("unreviewed replacement\n")
+    rejected = operation.execute_retirement_operation(
+        root=repo,
+        receipt_path=receipt["path"],
+        receipt_sha256=receipt["sha256"],
+        authorized=True,
+        apply=True,
+    )
+    assert rejected["verdict"] == "block"
+    assert rejected["required_gaps"] == ["retirement_content_drift"]
+    assert target.read_text() == "unreviewed replacement\n"
+    assert git(repo, "show-ref") == before[0]
+    assert observe_lease(state_database(repo), "work/abandon").state == "valid"
+
+
+@pytest.mark.parametrize("fault", ["symlink", "unbound", "locked"])
+@pytest.mark.parametrize("detached", [False, True])
+def test_reviewed_derivation_rejects_unsafe_target_before_inventory(
+    divergent_lane, monkeypatch, fault, detached
+):
+    repo, lane = divergent_lane
+    if detached:
+        git(lane, "switch", "--detach")
+    if fault == "symlink":
+        retained = lane.with_name("retained")
+        lane.rename(retained)
+        lane.symlink_to(retained, target_is_directory=True)
+    elif fault == "unbound":
+        git(repo, "worktree", "remove", str(lane))
+    else:
+        git(repo, "worktree", "lock", str(lane))
+    before = (git(repo, "show-ref"), observe_lease(state_database(repo), "work/abandon"))
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_retirement.linked_effect.reviewed_content",
+        lambda _root: pytest.fail("unsafe or absent target reached inventory observation"),
+    )
+
+    result = derive_abandonment(repo, review_content=True, path=lane if detached else None)
+
+    assert result["verdict"] == "block", result
+    assert result["required_gaps"] == [
+        "retirement_reviewed_worktree_required"
+        if fault == "unbound"
+        else "retirement_content_unsafe"
+        if fault == "symlink"
+        else "retirement_worktree_locked"
+    ]
+    assert before == (git(repo, "show-ref"), observe_lease(state_database(repo), "work/abandon"))
+    assert not operation.operation_store(repo).exists()
+
+
+@pytest.mark.parametrize(
+    ("drift", "detached"),
+    [
+        (case, False)
+        for case in ("ignored", "process-scan", "git-admission", "actor", "lease", "accepted")
+    ]
+    + [(case, True) for case in ("ignored", "process-scan", "actor", "accepted")],
+)
+def test_retirement_rechecks_after_native_worktree_observation(
+    divergent_lane, monkeypatch, drift, detached
+):
+    repo, lane = divergent_lane
+    if detached:
+        git(lane, "switch", "--detach")
+    (repo / ".git/info").mkdir(exist_ok=True)
+    (repo / ".git/info/exclude").write_text("residual.txt\n")
+    derived = derive_abandonment(repo, review_content=True, path=lane if detached else None)
+    assert derived["verdict"] == "pass", derived
+    receipt = derived["receipt"]
+    assert isinstance(receipt, dict)
+    assert isinstance(receipt["path"], str)
+    assert isinstance(receipt["sha256"], str)
+    request = operation.load_operation(repo, receipt["path"], receipt["sha256"])
+    native_observation = worktree_effects.worktree_record
+    original_bytes = (lane / "abandoned.txt").read_bytes()
+
+    def observe_then_drift(*args, **kwargs):
+        record = native_observation(*args, **kwargs)
+        monkeypatch.setattr(worktree_effects, "worktree_record", native_observation)
+        if drift in {"process-scan", "git-admission"}:
+            observer = "process_file_identities" if drift == "process-scan" else "admit_git_effect"
+            native_admission_observation = getattr(operation, observer)
+
+            def observe_then_write(*args, **kwargs):
+                observed = native_admission_observation(*args, **kwargs)
+                (lane / "residual.txt").write_text("new unreviewed ignored data\n")
+                return observed
+
+            monkeypatch.setattr(operation, observer, observe_then_write)
+        elif drift == "ignored":
+            (lane / "residual.txt").write_text("new unreviewed ignored data\n")
+        elif drift == "actor":
+            monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:foreign")
+        elif drift == "lease":
+            operation.revoke_operation_lease(repo, request)
+        else:
+            git(repo, "update-ref", "refs/heads/dev", request.head, request.accepted_head)
+        return record
+
+    monkeypatch.setattr(worktree_effects, "worktree_record", observe_then_drift)
+    result = apply_retirement_receipt(repo, receipt)
+
+    assert lane.is_dir(), result
+    assert (lane / "abandoned.txt").read_bytes() == original_bytes
+    assert git(repo, "rev-parse", "refs/heads/work/abandon") == request.head
+    assert result["verdict"] == "block", result
+    assert result["required_gaps"] == [
+        "retirement_content_drift"
+        if drift in {"ignored", "process-scan", "git-admission"}
+        else "foreign_work_lane_retire_authority_required"
+        if drift == "actor"
+        else "retirement_operation_state_drift"
+    ]
+    if drift in {"ignored", "process-scan", "git-admission"}:
+        assert (lane / "residual.txt").read_text() == "new unreviewed ignored data\n"
+
+
+@pytest.mark.parametrize(
+    ("path", "branch", "review", "gap"),
+    [
+        (".", "", True, "retirement_target_path_not_absolute"),
+        ("lane", "work/abandon", True, "retirement_target_selection_invalid"),
+        ("lane", "", False, "retirement_target_selection_invalid"),
+        ("lane", "", True, "retirement_target_not_detached"),
+        ("root", "", True, "retirement_target_not_detached"),
+    ],
+)
+def test_detached_selection_rejects_ambiguous_or_bound_resources(
+    divergent_lane, path, branch, review, gap
+):
+    repo, lane = divergent_lane
+    before = (git(repo, "show-ref"), git(repo, "worktree", "list", "--porcelain"))
+    result = abandonment.derive_lane_abandonment(
+        root=repo,
+        branch=branch,
+        path={"lane": str(lane), "root": str(repo)}.get(path, path),
+        reason_code="absorbed-content",
+        reason="reviewed source",
+        review_content=review,
+    )
+    assert result["required_gaps"] == [gap], result
+    assert before == (git(repo, "show-ref"), git(repo, "worktree", "list", "--porcelain"))
     assert not operation.operation_store(repo).exists()

@@ -20,6 +20,7 @@ from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.admission import commit_range_admission_report
+from ethos.adapters.repo.hook.activation import HookActivationError
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook_runtime import execute_hook
@@ -348,8 +349,11 @@ def install(
             "linked_worktrees": [],
             "generation_cleanup": {"checked": [], "removed": [], "retained": []},
         }
-        if isinstance(error, ProcessExecutionError):
-            runtime["process_failure"] = error.evidence()
+        if isinstance(error, (ProcessExecutionError, HookActivationError)):
+            if isinstance(error, ProcessExecutionError):
+                runtime["process_failure"] = error.evidence()
+            else:
+                runtime["contract_observation"] = error.observation
             if error.observation:
                 runtime["next_action"] = shlex.join(
                     ("ethos", "status", "--root", repo.as_posix(), "--json")

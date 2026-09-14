@@ -21,9 +21,9 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lane_scenarios import add_candidate_worktree
+from tests.support.proof import seed_executed_proof
 
 if TYPE_CHECKING:
     from collections.abc import Callable

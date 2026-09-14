@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 import subprocess
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
 
-import ethos.adapters.repo.attestation_set as attestation_set
 import ethos.adapters.repo.git_effect_admission as admission
 import ethos.adapters.repo.git_effect_attestation as attest
 import ethos.adapters.repo.git_effects as runtime
@@ -18,129 +13,30 @@ from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.git_effect_attestation import records
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.plan import TransitionPlan
-from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import Facts
-from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
+from tests.support.git_effect import effect
+from tests.support.git_effect import fixture
+from tests.support.git_effect import generation
+from tests.support.git_effect import plan
+from tests.support.git_effect import proof_plan
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import write_test_profile
-from tests.support.literal_cases import literal_case
-from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.semantic import Attestation
 
 ISSUER = "agent:test:case:one"
 
 
 ZERO_OID, ZERO_DIGEST = "0" * 40, "0" * 64
-
-
-def fixture(root: Path, identity: str = "repository:repo") -> SimpleNamespace:
-    repo = init_git_repo(root / "repo")
-    write_test_profile(repo, profile_id=identity.removeprefix("repository:"))
-    git(repo, "add", ".ethos/profile.toml")
-    git(repo, "commit", "-m", "declare repository identity")
-    old = git(repo, "rev-parse", "HEAD")
-    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
-    return SimpleNamespace(repo=repo, old=old, new=new, effect=effect(old, new))
-
-
-def effect(old: str, new: str, ref: str = "refs/heads/dev") -> GitEffect:
-    return GitEffect(updates={ref: GitRefUpdate(expected=old, desired=new)})
-
-
-def plan(
-    root: Path,
-    value: GitEffect,
-    values: dict[str, object] | None = None,
-    policy: dict[str, object] | None = None,
-    prior: dict[str, object] | None = None,
-) -> TransitionPlan:
-    identity = f"repository:{root.name}"
-    facts = Facts(
-        repository=identity,
-        head=git(root, "rev-parse", "HEAD"),
-        tree=git(root, "rev-parse", "HEAD^{tree}"),
-        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
-        values={
-            "refs": {name: update.expected for name, update in value.updates.items()},
-            "assertions": value.assertions,
-            **(values or {}),
-        },
-    )
-    authority = commitment_fixture(
-        id="authority:test:git-effect", acceptance=("acceptance:fixture",)
-    )
-    return compile_git_effect_plan(
-        authority,
-        facts,
-        prior_attestations=prior or {},
-        policy=policy or {"operation": "git.ref.compare-and-swap", "effect_digest": value.digest()},
-        effect=value,
-    )
-
-
-def proof_plan(case: Any, value: GitEffect | None = None) -> TransitionPlan:
-    value = value or case.effect
-    desired = next(iter(value.updates.values())).desired
-    policy = {"operation": "git.ref.compare-and-swap", "effect_digest": value.digest()}
-    proof = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "proof:execution",
-            "verifier": ISSUER,
-            "subject": f"git:commit:{desired}",
-            "issued_at": datetime(2026, 8, 1, tzinfo=UTC),
-            "valid_from": datetime(2026, 8, 1, tzinfo=UTC),
-            "valid_until": None,
-            "verdict": "pass",
-            "payload": {"kind": "proof:execution", "body": {"head": desired}},
-            "relations": (),
-            "advisories": (),
-            "evidence_refs": (),
-            "commitment_digest": "a" * 64,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": canonical_json_digest(policy),
-            "effect_digest": None,
-            "mints_authority": False,
-        }
-    )
-    return plan(
-        case.repo,
-        value,
-        policy=policy,
-        prior={"proof": proof.model_dump(mode="json")},
-    )
-
-
-def generation(branch: str) -> dict[str, object]:
-    return {
-        "lane_ref": branch,
-        "generation": 1,
-        "holder_ref": ISSUER,
-        "expires_at": "2026-08-02T00:00:00+00:00",
-    }
-
-
-def reissue(value: Attestation, **updates: object) -> Attestation:
-    body = updates.pop("body", None)
-    payload = value.model_dump(mode="python", exclude={"id"})
-    if body is not None:
-        payload["payload"] = {"kind": value.payload.kind, "body": body}
-    return Attestation.issue(payload | updates)
 
 
 def reject(error: str, call: Any) -> None:
@@ -444,54 +340,6 @@ def test_plan_binding_and_stale_prestate_matrix(tmp_path: Path, kind: str) -> No
     assert git_stdout(case.repo, "rev-parse", "--verify", "refs/heads/dev") != case.new
 
 
-@pytest.mark.parametrize(
-    "kind",
-    literal_case("mutation.test_git_effect:parametrize:test_attestation_negative_claim_matrix:0"),
-)
-def test_attestation_negative_claim_matrix(tmp_path: Path, kind: str) -> None:
-    case = fixture(tmp_path)
-    carried = plan(case.repo, case.effect)
-    record = execute_git_effect(case.repo, carried, issuer=ISSUER)
-    error = "git_effect_attestation_content_mismatch"
-    if kind == "live":
-        git(case.repo, "update-ref", "refs/heads/dev", case.old, case.new)
-        reject(error, lambda: execute_git_effect(case.repo, carried, issuer=ISSUER))
-        return
-    if kind.startswith("expired"):
-        record = reissue(
-            record,
-            issued_at=record.issued_at - timedelta(minutes=2),
-            valid_from=record.issued_at - timedelta(minutes=2),
-            valid_until=record.issued_at - timedelta(minutes=1),
-        )
-        error = "git_effect_attestation_stale"
-        if kind.endswith("drift"):
-            git(case.repo, "update-ref", "refs/heads/dev", case.old, case.new)
-    elif kind == "checkout":
-        git(case.repo, "checkout", "-q", "-b", "side")
-        commit_fixture_file(case.repo, "SIDE", "x", "side")
-    elif kind == "facts_digest":
-        record, error = (
-            reissue(record, facts_digest="e" * 64),
-            "git_effect_attestation_binding_mismatch:facts_digest",
-        )
-    elif kind == "unknown":
-        record, error = reissue(record, verdict="unknown"), "git_effect_attestation_verdict_unknown"
-    elif kind == "issued_at":
-        record = reissue(record, issued_at=record.issued_at + timedelta(seconds=1))
-    else:
-        replacements = {
-            "repository": "git:other",
-            "command": ("git", "update-ref"),
-            "program_sha256": ZERO_DIGEST,
-            "result": record.payload.body["result"] | {"exit_code": 7},
-            "inputs": {},
-            "output_digest": ZERO_DIGEST,
-        }
-        record = reissue(record, body=record.payload.body | {kind: replacements[kind]})
-    reject(error, lambda: records(case.repo, carried, record))
-
-
 def _effect_failure_runner(
     case: Any,
     monkeypatch: pytest.MonkeyPatch,
@@ -620,30 +468,6 @@ def test_execute_ignores_legacy_plan_receipt_when_attestation_set_is_empty(
         "git_effect_recovery_intent_missing",
         lambda: execute_git_effect(case.repo, carried, issuer=ISSUER),
     )
-
-
-@pytest.mark.parametrize("failure", ["corrupt", "collision"])
-def test_attestation_store_public_failure_matrix(tmp_path: Path, failure: str) -> None:
-    case = fixture(tmp_path)
-    carried = plan(case.repo, case.effect)
-    record = execute_git_effect(case.repo, carried, issuer=ISSUER)
-
-    if failure == "corrupt":
-        root = git(case.repo, "show-ref", "--verify", "--hash", attestation_set.ATTESTATION_SET_REF)
-        git(
-            case.repo,
-            "update-ref",
-            attestation_set.ATTESTATION_SET_REF,
-            git(case.repo, "rev-parse", "HEAD"),
-            root,
-        )
-        reject("git_effect_attestation_invalid", lambda: records(case.repo, carried))
-    else:
-        other = reissue(record, verifier="agent:test:case:other", subject="git-effect:other")
-        reject(
-            "git_effect_identity_collision",
-            lambda: records(case.repo, carried, other),
-        )
 
 
 def test_prepare_failure_aborts_every_claimed_intent(

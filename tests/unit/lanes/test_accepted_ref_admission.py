@@ -44,6 +44,7 @@ import ethos.adapters.mutation.proof as proof
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from tests.support import governed_repository as fx
+from tests.support import proof as proof_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -69,7 +70,7 @@ class State:
                 {"base": fx.git(fixture.repository, "rev-parse", "dev")},
             )
             self.v["work"] = fx.commit_fixture_file(self.repo, "work", "work", "work")
-            fx.seed_executed_proof(self.repo, self.v["work"])
+            proof_fixture.seed_executed_proof(self.repo, self.v["work"])
         elif mode == "profile":
             (candidate / ".ethos/workspace.toml").unlink()
         elif mode == "fixture":
@@ -77,7 +78,7 @@ class State:
             head = fx.commit_fixture_file(
                 fixture.candidate, "CANDIDATE.md", "candidate\n", "candidate"
             )
-            fx.seed_executed_proof(fixture.candidate, head)
+            proof_fixture.seed_executed_proof(fixture.candidate, head)
             fx.git(fixture.repository, "update-ref", "refs/heads/dev", head)
             self.repo = fixture.worktree
             self.v = {"base": fx.git(fixture.repository, "rev-parse", f"{head}^"), "c1": head}
@@ -98,7 +99,7 @@ class State:
         elif code == "C":
             fx.git(self.repo, "branch", "-f", "candidate/dev", self.v["work"])
         elif code == "P":
-            fx.seed_executed_proof(self.repo, self.v["c1"])
+            proof_fixture.seed_executed_proof(self.repo, self.v["c1"])
 
     def _binding(self, code: str) -> None:
         if code in "IMR":
@@ -158,7 +159,7 @@ class State:
 
     def _distinct_proof(self) -> None:
         head = self.v["c1"]
-        base = fx.current_proof_plan(self.repo, expected_head=head)
+        base = proof_fixture.current_proof_plan(self.repo, expected_head=head)
         values = dict(base.facts["values"])
         values["changed_paths"] = ("other-operation",)
         plan = proof.compile_plan(
@@ -171,7 +172,7 @@ class State:
             prior_attestations=dict(base.prior_attestations),
         )
         checks = tuple(
-            fx.conformant_proof_check(gate, self.repo, tree_ref=head)
+            proof_fixture.conformant_proof_check(gate, self.repo, tree_ref=head)
             for gate in proof.resolve_gate_policy(self.repo, tree_ref=head).gate_ids
         )
         proof.persist_proof_attestation(

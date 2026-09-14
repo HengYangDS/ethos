@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import subprocess
 import sys
 from contextlib import closing
 from pathlib import Path
@@ -12,15 +11,11 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.hook.activation as hook_activation
-import ethos.adapters.repo.hook.observation as hook_observation
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
-import ethos.adapters.repo.runtime.retirement as runtime_retirement
 import ethos.adapters.repo.runtime.selection as runtime_selection
 import ethos.surface.cli.hook.commands as hook_commands
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.activation import install_hook_launchers
-from ethos.adapters.repo.hook.binding import HOOK_NAMES
-from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
@@ -163,34 +158,36 @@ def test_hook_install_restores_state_and_activation_after_failure(
 
 
 @pytest.mark.parametrize("before_state", ["legacy", "absent"])
-def test_hook_install_query_timeout_survives_rollback_and_public_json(
+def test_hook_install_unreadable_declaration_preserves_rollback_and_public_json(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     before_state: str,
 ) -> None:
-    """An observation timeout must not become a blind reinstall instruction."""
+    """A selected data-read failure cannot leave partial activation behind."""
     repo, runtime, common = materialized_activation_case(tmp_path, monkeypatch)
     database = _legacy_state(common) if before_state == "legacy" else common / "ethos/state.sqlite"
     before = database.read_bytes() if database.exists() else None
     keys = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
     configured = hook_activation.config_effects.config_values(repo, keys, scope="local")
-    attempts = []
+    reader = Path.read_text
+    paths = []
 
-    def expire(root, command, **kwargs):
-        attempts.append((root, command, kwargs["timeout"]))
-        raise subprocess.TimeoutExpired(
-            command, kwargs["timeout"], output=b"partial", stderr=b"deadline"
-        )
+    def unreadable(path, *args, **kwargs):
+        if path.name == "binding.toml" and path.is_relative_to(common):
+            paths.append(path)
+            message = "selected_declaration_unreadable"
+            raise PermissionError(message)
+        return reader(path, *args, **kwargs)
 
-    monkeypatch.setattr(hook_observation, "run_command", expire)
+    monkeypatch.setattr(Path, "read_text", unreadable)
     with pytest.raises(SystemExit) as stopped:
         hook_commands.install(root=repo, json_output=True)
     assert stopped.value.code != 0
     result = json.loads(capsys.readouterr().out)
     assert result["verdict"] == "block"
     assert not result["summary"]["wired"]
-    assert len(attempts) == 1
+    assert len(paths) == 1
     assert (database.read_bytes() if database.exists() else None) == before
     assert all(
         not database.with_name(database.name + suffix).exists() for suffix in ("-wal", "-shm")
@@ -198,63 +195,13 @@ def test_hook_install_query_timeout_survives_rollback_and_public_json(
     assert not (common / "ethos/runtime/CURRENT").exists()
     assert hook_activation.config_effects.config_values(repo, keys, scope="local") == configured
     assert runtime.parent.is_dir()
-    assert result["data"]["process_failure"]["observation"] == {
-        "state": "unknown",
-        "reason": "runtime_hook_contract_timeout",
-        "command": list(attempts[0][1]),
-        "binary": attempts[0][1][0],
-        "cwd": attempts[0][0].as_posix(),
-        "timeout_seconds": 10,
-        "stdout": "partial",
-        "stderr": "deadline",
-        "effect_attempted": False,
-    }
+    assert "runtime_hook_contract_unavailable" in result["required_gaps"][0]
+    observation = result["data"]["contract_observation"]
+    assert observation["state"] == "unknown"
+    assert observation["path"] == paths[0].as_posix()
+    assert observation["cause"] == "selected_declaration_unreadable"
+    assert observation["effect_attempted"] is False
     assert result["next_action"] == f"ethos status --root {repo.as_posix()} --json"
-
-
-@pytest.mark.parametrize("failure", ["io", "residue", "retained"])
-def test_hook_install_reports_deferred_generation_cleanup_after_successful_activation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
-) -> None:
-    repo, runtime, common = materialized_activation_case(tmp_path, monkeypatch)
-    stale, retained = (common / "ethos/runtime" / (letter * 64) for letter in "bc")
-    stale.mkdir()
-    retained.mkdir()
-    monkeypatch.setattr(runtime_retirement, "process_commands", lambda _root: retained.as_posix())
-    remove = runtime_retirement.remove_generated_tree
-
-    def remove_tree(path):
-        assert path == stale
-        if failure == "io":
-            message = "cleanup failed"
-            raise OSError(message)
-        if failure == "retained":
-            remove(path)
-            retained.rmdir()
-
-    monkeypatch.setattr(runtime_retirement, "remove_generated_tree", remove_tree)
-    installed = install_hook_launchers(repo)
-    cleanup = installed["generation_cleanup"]
-    assert (common / "ethos/runtime/CURRENT").read_text(
-        encoding="ascii"
-    ) == f"{runtime.parent.name}\n"
-    assert installed["state_transition"]["after"] == "current"
-    assert installed["current"] is True
-    assert installed["required_gaps"] == ["hook_runtime_cleanup_deferred"]
-    assert installed["next_action"] == "ethos hook install --json"
-    assert cleanup["state"] == "deferred"
-    assert cleanup["removed"] == ([stale.as_posix()] if failure == "retained" else [])
-    assert cleanup["error"] == (
-        "cleanup failed"
-        if failure == "io"
-        else "hook_runtime_generation_identity_stale"
-        if failure == "retained"
-        else "hook_runtime_generation_cleanup_failed"
-    )
-    assert cleanup["deferred"] == [
-        retained.as_posix() if failure == "retained" else stale.as_posix()
-    ]
-    assert stale.exists() is (failure != "retained")
 
 
 def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
@@ -281,66 +228,6 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
     assert first["runtime_digest"] == second["runtime_digest"] == selected.digest
     assert runtime_selection.runtime_file_inventory(selected.root) == before
     assert first["required_gaps"] == second["required_gaps"] == []
-
-
-def test_historical_runtime_observation_does_not_pin_an_executable_generation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """An old status path is provenance, not an operational dependency."""
-    repo, runtime, common = materialized_activation_case(tmp_path, monkeypatch)
-    obsolete = common / "ethos/runtime" / ("b" * 64)
-    obsolete.mkdir()
-    (obsolete / "payload").write_bytes(b"obsolete executable")
-    history = common / "ethos/operations/completed-status.json"
-    history.parent.mkdir(parents=True)
-    original = json.dumps(
-        {"command": "status", "state": "ready", "data": {"python": str(obsolete / "python")}}
-    ).encode()
-    history.write_bytes(original)
-
-    result = install_hook_launchers(repo)
-
-    assert not obsolete.exists(), "descriptive history kept an unused runtime alive"
-    assert result["generation_cleanup"]["removed"] == [obsolete.as_posix()]
-    assert history.read_bytes() == original
-    assert runtime.parent.is_dir()
-
-
-def test_generation_cleanup_reobserves_a_consumer_after_activation_validation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """An earlier plan cannot delete a generation used by a newly observed process."""
-    repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
-    needed = common / "ethos/runtime" / ("b" * 64)
-    needed.mkdir()
-    sentinel = needed / "payload"
-    sentinel.write_bytes(b"live executable")
-    active = False
-    native = runtime_retirement.process_listing_command()
-    run = runtime_retirement.run_command
-
-    def observe(root, command, **kwargs):
-        if command == native:
-            return subprocess.CompletedProcess(command, 0, needed.as_posix() if active else "", "")
-        return run(root, command, **kwargs)
-
-    binding = hook_activation.hook_runtime_binding
-
-    def observe_activated(*args, **kwargs):
-        nonlocal active
-        result = binding(*args, **kwargs)
-        active = True
-        return result
-
-    monkeypatch.setattr(runtime_retirement, "run_command", observe)
-    monkeypatch.setattr(hook_activation, "hook_runtime_binding", observe_activated)
-
-    result = install_hook_launchers(repo)
-
-    assert sentinel.is_file(), "cleanup reused the pre-activation process snapshot"
-    assert sentinel.read_bytes() == b"live executable"
-    assert needed.as_posix() in result["generation_cleanup"]["retained"]
-    assert needed.as_posix() not in result["generation_cleanup"]["removed"]
 
 
 def _configured_worktrees(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -441,31 +328,6 @@ def test_hook_install_restores_all_configs_after_linked_activation_failure(
     assert stale.is_dir()
 
 
-def test_hook_generation_failure_never_mutates_an_existing_generation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    root = tmp_path / "ethos" / "hooks"
-    old = root / ("a" * 64)
-    old.mkdir(parents=True)
-    (old / "legacy").write_text("retained\n", encoding="utf-8")
-    before = {path.name: path.read_bytes() for path in old.iterdir()}
-    write_text = Path.write_text
-
-    def fail_pre_push(path: Path, data: str, **kwargs: str | None) -> int:
-        if path.name == "pre-push" and path.parent.name.startswith(".generation-"):
-            message = "staging failed"
-            raise OSError(message)
-        return write_text(path, data, **kwargs)
-
-    monkeypatch.setattr(Path, "write_text", fail_pre_push)
-
-    with pytest.raises(OSError, match="staging failed"):
-        hook_activation.materialize_hook_launchers(root)
-
-    assert {path.name: path.read_bytes() for path in old.iterdir()} == before
-    assert {path.name for path in root.iterdir()} == {old.name}
-
-
 def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -506,67 +368,6 @@ def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
     assert installed["expected_source_commit"] == accepted_identity.source_commit
     assert installed["expected_source_tree"] == accepted_identity.source_tree
     assert installed["required_gaps"] == []
-
-
-def test_hook_generation_repairs_drift_without_changing_identity(tmp_path: Path) -> None:
-    root = tmp_path / "ethos" / "hooks"
-    generation = hook_activation.materialize_hook_launchers(root)
-    inode = generation.stat().st_ino
-    repeated = hook_activation.materialize_hook_launchers(root)
-
-    assert repeated == generation
-    assert repeated.stat().st_ino == inode
-    assert generation.parent == root
-    assert len(generation.name) == 64
-    assert {path.name for path in generation.iterdir()} == set(HOOK_NAMES)
-    (generation / "pre-push").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-
-    repaired = hook_activation.materialize_hook_launchers(root)
-
-    assert repaired == generation
-    assert (repaired / "pre-push").read_text(encoding="utf-8") == hook_launcher("pre-push")
-    assert all(
-        (repaired / name).read_text(encoding="utf-8") == hook_launcher(name) for name in HOOK_NAMES
-    )
-
-
-def test_hook_generation_post_replace_failure_restores_the_existing_generation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    root = tmp_path / "ethos" / "hooks"
-    generation = hook_activation.materialize_hook_launchers(root)
-    (generation / "pre-push").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-    before = {path.name: path.read_bytes() for path in generation.iterdir()}
-    read_bytes = Path.read_bytes
-    target_reads = 0
-
-    def fail_after_replace(path: Path) -> bytes:
-        nonlocal target_reads
-        if path == generation / "pre-push":
-            target_reads += 1
-            if target_reads == 2:
-                message = "post-replace validation failed"
-                raise OSError(message)
-        return read_bytes(path)
-
-    monkeypatch.setattr(Path, "read_bytes", fail_after_replace)
-
-    with pytest.raises(ValueError, match="hook_launcher_projection_invalid"):
-        hook_activation.materialize_hook_launchers(root)
-
-    assert {path.name: path.read_bytes() for path in generation.iterdir()} == before
-    assert {path.name for path in root.iterdir()} == {generation.name}
-
-
-def test_hook_generation_rejects_an_existing_symlink_target(tmp_path: Path) -> None:
-    root = tmp_path / "ethos" / "hooks"
-    generation = hook_activation.materialize_hook_launchers(root)
-    real = generation.with_name("real")
-    generation.rename(real)
-    generation.symlink_to(real, target_is_directory=True)
-
-    with pytest.raises(ValueError, match="hook_launcher_projection_invalid"):
-        hook_activation.materialize_hook_launchers(root)
 
 
 @pytest.mark.parametrize("drift", ["path", "gaps"])

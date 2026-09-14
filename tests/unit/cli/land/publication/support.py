@@ -12,7 +12,7 @@ from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import seed_executed_proof
+from tests.support.proof import seed_executed_proof
 
 if TYPE_CHECKING:
     from pathlib import Path

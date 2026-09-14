@@ -41,7 +41,7 @@ def test_fixture_python_is_bounded_and_executes_selected_source(
     create_fixture_python(runtime)
 
     payload = tuple(path for path in runtime.rglob("*") if path.is_file())
-    assert len(payload) <= 5
+    assert len(payload) <= 6
     completed = subprocess.run(
         (
             runtime_executable(runtime, "python").as_posix(),

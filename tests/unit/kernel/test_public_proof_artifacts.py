@@ -12,8 +12,8 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from tests.support.governed_repository import git
-from tests.support.governed_repository import issue_conformant_proof
 from tests.support.governed_repository import start_adopted_candidate
+from tests.support.proof import issue_conformant_proof
 
 if TYPE_CHECKING:
     from pathlib import Path

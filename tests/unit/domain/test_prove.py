@@ -56,7 +56,7 @@ def test_invalid_python_is_not_a_valid_size_measurement() -> None:
 
 @pytest.mark.parametrize(
     ("relative", "limit"),
-    [("src/logic.py", 500), ("src/ethos/surface/cli/view.py", 500), ("tests/test_case.py", 800)],
+    [("src/logic.py", 500), ("src/ethos/surface/cli/view.py", 500), ("tests/test_case.py", 500)],
 )
 def test_public_size_gate_enforces_current_role_boundaries(
     tmp_path: Path, relative: str, limit: int
@@ -75,7 +75,7 @@ def test_public_size_gate_enforces_current_role_boundaries(
         assert report["verdict"] == ("pass" if lines == limit else "block"), report
         assert observed["default_effective_max_lines"] == 500
         assert observed["surface_effective_max_lines"] == 500
-        assert observed["test_effective_max_lines"] == 800
+        assert observed["test_effective_max_lines"] == 500
         assert observed["required_gaps"] == (
             [] if lines == limit else [f"code_size_exceeded:{relative}:{lines}>{limit}"]
         )

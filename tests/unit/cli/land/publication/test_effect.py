@@ -14,8 +14,8 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import write_active_commitment
+from tests.support.proof import seed_executed_proof
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.support import apply_receipt

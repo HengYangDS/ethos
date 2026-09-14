@@ -64,3 +64,11 @@ def commitment_fixture(**fields: object) -> Commitment:
     return Commitment.model_validate(
         {"schema_version": 3, "acceptance": ("acceptance:fixture",), **fields}
     )
+
+
+def reissue_attestation(record: Attestation, **updates: object) -> Attestation:
+    body = updates.pop("body", None)
+    payload = record.model_dump(mode="python", exclude={"id"})
+    if body is not None:
+        payload["payload"] = {"kind": record.payload.kind, "body": body}
+    return Attestation.issue(payload | updates)

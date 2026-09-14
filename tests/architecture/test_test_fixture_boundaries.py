@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.hook.observation as observation
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
@@ -34,7 +35,7 @@ def test_generic_work_lane_fixture_uses_a_minimal_valid_hook_runtime(tmp_path: P
 
     assert leases_by_branch(fixture.worktree)["work/feature"]["lease_state"] == "valid"
     assert hook_runtime_binding(fixture.worktree)["required_gaps"] == []
-    assert len(files) <= 5
+    assert len(files) <= 6
     assert payload_bytes < 1_000_000
 
 
@@ -82,3 +83,22 @@ def test_runtime_fixture_rejects_failed_module_before_activation(
 
     runtime_root = tmp_path / "repo/.git/ethos/runtime"
     assert not any(path.is_dir() for path in runtime_root.iterdir())
+
+
+def test_matching_selected_hook_contract_does_not_start_a_child(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same immutable declaration inputs must not pay an unrelated startup boundary."""
+    fixture = start_adopted_work_lane(tmp_path)
+    execute = subprocess.run
+    calls = []
+
+    def observed(*args, **kwargs):
+        if args and "/ethos/runtime/" in str(args[0][0]):
+            calls.append(args)
+        return execute(*args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", observed)
+    binding = observation.hook_runtime_binding(fixture.worktree)
+    assert binding["required_gaps"] == []
+    assert calls == []

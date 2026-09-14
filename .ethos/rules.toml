@@ -24,17 +24,14 @@ state_tracked_truth = false
 generated_outputs_tracked_truth = false
 
 [quality.code_size]
-# Product logic and CLI surfaces share one ceiling; transport is not a reason
-# to accumulate orchestration. Tests have a separate ceiling for cohesive cases.
+# All Python files share one ceiling; role classification never grants capacity.
 # Exceedance requires semantic consolidation, not role reassignment, cosmetic
 # compression, per-file exemptions or raising the limit to fit existing files.
 default_effective_max_lines = 500
-surface_effective_max_lines = 500
 surface_path_globs = [
   "src/ethos/cli.py",
   "src/ethos/surface/**",
 ]
-test_effective_max_lines = 800
 
 [[rule]]
 id = "local-state-boundary"

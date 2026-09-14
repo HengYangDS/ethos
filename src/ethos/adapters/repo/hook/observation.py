@@ -1,11 +1,9 @@
-"""Observe installed hook currentness, policy enforcement and exact query failures."""
+"""Observe installed hook currentness, policy enforcement and declaration read failures."""
 
 from __future__ import annotations
 
-import json
 import os
 import shlex
-import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -13,13 +11,12 @@ from typing import NotRequired
 from typing import TypedDict
 
 import ethos.adapters.repo.runtime.authority as runtime_authority
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import HookContract
-from ethos.adapters.repo.hook.binding import hook_generation_digest
 from ethos.adapters.repo.hook.binding import hook_launcher
+from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
@@ -193,6 +190,7 @@ def hook_runtime_binding(
                 selected,
                 source_stale=source_stale,
                 build_source=build_source,
+                declaration_missing=contract_gap == "runtime_hook_contract_missing",
             )
             if gaps
             else ""
@@ -285,101 +283,36 @@ def _launcher_gap(
 def _hook_contract(
     selected: SelectedRuntime | None,
 ) -> tuple[HookContract | None, str, dict[str, object]]:
-    """Read the hook contract from the package that owns the selected runtime."""
+    """Read a declaration owned by the selected immutable runtime inventory."""
     if selected is None:
-        launchers = {name: hook_launcher(name) for name in HOOK_NAMES}
-        return (
-            {
-                "scripts": HOOK_NAMES,
-                "launchers": launchers,
-                "generation_digest": hook_generation_digest(launchers),
-            },
-            "",
-            {},
+        return load_hook_contract(), "", {}
+    version = ".".join(selected.python_version.split(".")[:2])
+    site = (
+        selected.root
+        / "python"
+        / (
+            "Lib/site-packages"
+            if selected.platform == "windows"
+            else f"lib/python{version}/site-packages"
         )
+    )
+    path = site / "ethos/adapters/repo/hook/binding.toml"
     try:
-        return _selected_runtime_hook_contract(selected), "", {}
-    except subprocess.TimeoutExpired as error:
-        reason = "runtime_hook_contract_timeout"
-        streams = {
-            key: value.decode(errors="replace") if isinstance(value, bytes) else value or ""
-            for key, value in (("stdout", error.stdout), ("stderr", error.stderr))
-        }
+        return load_hook_contract(path), "", {}
+    except FileNotFoundError:
+        return None, "runtime_hook_contract_missing", {}
+    except (OSError, TypeError, ValueError) as error:
         return (
             None,
-            reason,
+            "runtime_hook_contract_unavailable",
             {
                 "state": "unknown",
-                "reason": reason,
-                "command": list(error.cmd),
-                "binary": selected.python.as_posix(),
-                "cwd": selected.root.as_posix(),
-                "timeout_seconds": error.timeout,
-                **streams,
+                "reason": "runtime_hook_contract_unavailable",
+                "path": path.as_posix(),
+                "cause": str(error),
                 "effect_attempted": False,
             },
         )
-    except (OSError, TypeError, ValueError):
-        return None, "runtime_hook_contract_unavailable", {}
-
-
-def _selected_runtime_hook_contract(selected: SelectedRuntime) -> HookContract:
-    """Ask one immutable selected package for its exact generated hook contract."""
-    program = """
-import json
-from ethos.adapters.repo.hook.binding import HOOK_NAMES, hook_generation_digest, hook_launcher
-
-launchers = {name: hook_launcher(name) for name in HOOK_NAMES}
-print(json.dumps({
-    "scripts": list(HOOK_NAMES),
-    "launchers": launchers,
-    "generation_digest": hook_generation_digest(launchers),
-}, sort_keys=True, separators=(",", ":")))
-"""
-    completed = run_command(
-        selected.root,
-        (selected.python.as_posix(), "-B", "-I", "-c", program),
-        timeout=10,
-        remove_env=("PYTHONHOME", "PYTHONPATH"),
-        remove_env_prefixes=("GIT_",),
-    )
-    if completed.returncode:
-        message = "hook_runtime_contract_invalid"
-        raise ValueError(message)
-    payload = json.loads(completed.stdout)
-    if not isinstance(payload, dict):
-        message = "hook_runtime_contract_invalid"
-        raise TypeError(message)
-    raw_scripts = payload.get("scripts")
-    raw_launchers = payload.get("launchers")
-    if (
-        not isinstance(raw_scripts, list)
-        or not raw_scripts
-        or not all(isinstance(name, str) and name for name in raw_scripts)
-        or len(set(raw_scripts)) != len(raw_scripts)
-        or not isinstance(raw_launchers, dict)
-        or not all(
-            isinstance(name, str) and isinstance(content, str)
-            for name, content in raw_launchers.items()
-        )
-    ):
-        message = "hook_runtime_contract_invalid"
-        raise ValueError(message)
-    scripts = tuple(raw_scripts)
-    launchers = dict(raw_launchers)
-    digest = payload.get("generation_digest")
-    if (
-        not isinstance(digest, str)
-        or tuple(launchers) != scripts
-        or digest != hook_generation_digest(launchers, scripts=scripts)
-    ):
-        message = "hook_runtime_contract_invalid"
-        raise ValueError(message)
-    return HookContract(
-        scripts=scripts,
-        launchers=launchers,
-        generation_digest=digest,
-    )
 
 
 def _source_gap(
@@ -423,7 +356,23 @@ def _repair_action(
     *,
     source_stale: bool = False,
     build_source: Path | None = None,
+    declaration_missing: bool = False,
 ) -> str:
+    if declaration_missing:
+        return shlex.join(
+            (
+                Path(sys.executable).absolute().as_posix(),
+                "-B",
+                "-I",
+                "-m",
+                "ethos.cli",
+                "hook",
+                "install",
+                "--root",
+                repo.as_posix(),
+                "--json",
+            )
+        )
     if source_stale and build_source is not None:
         source = build_source.resolve()
         python = runtime_python(source / ".venv")

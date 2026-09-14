@@ -6,8 +6,14 @@ from typing import Any
 
 import pytest
 
+import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
+import ethos.adapters.mutation.lane_lifecycle.change_overlay as overlay
 import ethos.surface.cli.lane.commit_signer as commit_signer
 import ethos.surface.cli.lane.lifecycle as lifecycle
+
+ARCHIVE_BRANCH = "work/feature"
+ARCHIVE_HEAD = "old-head"
+ARCHIVE_CHANGE = "fixture-change"
 
 
 def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
@@ -264,3 +270,84 @@ def test_commit_signer_command_forwards_exact_authority_coordinates(
     assert captured["expected_anchor_sha256"] == "b" * 64
     assert captured["authorized"] is captured["apply"] is True
     assert captured["projection"] == {"enforce": True, "json_output": True}
+
+
+class _WorkLanePolicy:
+    def role_for_branch(self, _branch: str) -> str:
+        return "work_lane"
+
+
+@pytest.mark.parametrize(
+    ("lease", "actor", "expected_gap", "expected_state", "expected_action"),
+    [
+        (
+            {},
+            "agent:test",
+            f"work_lane_missing_lease:{ARCHIVE_BRANCH}",
+            "lease_missing",
+            "ethos lane status --json",
+        ),
+        (
+            {
+                "lease_state": "expired",
+                "lane_ref": ARCHIVE_BRANCH,
+                "holder_ref": "agent:test",
+                "generation": 7,
+                "expires_at": "2026-08-20T00:00:00Z",
+            },
+            "agent:test",
+            f"work_lane_lease_expired:{ARCHIVE_BRANCH}",
+            "lease_expired",
+            (
+                "ethos lane lease resume --generation 7 "
+                "--expires-at 2026-08-20T00:00:00Z "
+                f"--branch {ARCHIVE_BRANCH} "
+                "--holder-ref agent:test --apply --json"
+            ),
+        ),
+        (
+            {
+                "lease_state": "valid",
+                "lane_ref": ARCHIVE_BRANCH,
+                "holder_ref": "agent:other",
+                "generation": 1,
+                "expires_at": "2026-08-30T00:00:00Z",
+            },
+            "agent:test",
+            "lease_actor_mismatch",
+            "different_holder",
+            (
+                "ethos attestation query --predicate lane-resolution:takeover "
+                f"--subject git:branch:{ARCHIVE_BRANCH} --json"
+            ),
+        ),
+    ],
+)
+def test_work_lane_transition_reports_the_first_exact_lease_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    lease: dict[str, object],
+    actor: str,
+    expected_gap: str,
+    expected_state: str,
+    expected_action: str,
+) -> None:
+    monkeypatch.setattr(overlay, "load_branch_role_policy", lambda _root: _WorkLanePolicy())
+    monkeypatch.setattr(overlay, "git_stdout", lambda *_args: "")
+
+    gaps = overlay.work_lane_transition_gaps(
+        tmp_path,
+        branch=ARCHIVE_BRANCH,
+        head=ARCHIVE_HEAD,
+        expect_head=ARCHIVE_HEAD,
+        lease=lease,
+        actor=actor,
+        role_gap="archive_requires_work_lane",
+    )
+
+    assert gaps == [expected_gap]
+    report = archive.archive_preflight_report(
+        ARCHIVE_BRANCH, ARCHIVE_HEAD, ARCHIVE_CHANGE, gaps, lease=lease
+    )
+    assert report["state"] == expected_state
+    assert report["next_action"] == expected_action

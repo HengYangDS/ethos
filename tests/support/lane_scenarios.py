@@ -5,14 +5,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_retirement.abandonment as abandonment
+import ethos.adapters.mutation.lane_retirement.operation as operation
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.retirement import RetirementOperation
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import seed_executed_proof
+from tests.support.proof import seed_executed_proof
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 if TYPE_CHECKING:
@@ -120,4 +122,39 @@ def derive_abandonment(
         reason_code=reason_code,
         reason=reason,
         review_content=review_content,
+    )
+
+
+def apply_retirement_receipt(repo, receipt):
+    """Apply the exact reviewed receipt without replacing production admission."""
+    return operation.execute_retirement_operation(
+        root=repo,
+        receipt_path=receipt["path"],
+        receipt_sha256=receipt["sha256"],
+        apply=True,
+        authorized=True,
+    )
+
+
+def retirement_request(tmp_path: Path) -> RetirementOperation:
+    return RetirementOperation(
+        repository_common_dir=(tmp_path / ".git").as_posix(),
+        control_root=tmp_path.as_posix(),
+        mode="abandon",
+        branch="work/source",
+        head="a" * 40,
+        tree="b" * 40,
+        accepted_branch="dev",
+        accepted_head="c" * 40,
+        worktree_path=(tmp_path / "lane").as_posix(),
+        worktree_initial="linked",
+        lease_state="valid",
+        lease={
+            "holder_ref": "agent:test:case:holder",
+            "generation": 1,
+            "expires_at": "2026-09-03T00:00:00+00:00",
+        },
+        authority={"kind": "owner", "actor": "agent:test:case:holder"},
+        reason={"code": "duplicate-empty-lane", "summary": "duplicate empty lane"},
+        git_plan={"digest": "d" * 64},
     )

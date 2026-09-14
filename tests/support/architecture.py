@@ -21,3 +21,19 @@ def isolated_path(tmp_path: Path, executables: Mapping[str, str]) -> dict[str, s
     env = os.environ.copy()
     env["PATH"] = os.pathsep.join((str(fake_bin), "/bin", "/usr/bin"))
     return env
+
+
+def write_reference_source(root: Path, relative: str, content: str) -> None:
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.strip() + "\n", encoding="utf-8")
+
+
+def declare_reference_package(root: Path, *, entry_point: str = "") -> None:
+    """Declare package ownership, including Cyclopts only for command surfaces."""
+    metadata = '[project]\nname = "example"\nversion = "1"\n'
+    if entry_point:
+        metadata += (
+            f'dependencies = ["cyclopts"]\n\n[project.scripts]\nethos = "{entry_point}:main"\n'
+        )
+    write_reference_source(root, "pyproject.toml", metadata)

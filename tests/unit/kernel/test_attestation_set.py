@@ -18,36 +18,21 @@ from ethos.adapters.repo.git import run_git
 from ethos.contracts.semantic import Attestation
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.semantic import attestation_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 def _attestation(ordinal: int) -> Attestation:
-    return Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "observation:repository",
-            "verifier": "agent:test:attestation-set",
-            "subject": f"input:occurrence:{ordinal}",
-            "issued_at": datetime(2026, 8, 14, tzinfo=UTC),
-            "valid_from": None,
-            "valid_until": None,
-            "verdict": "pass",
-            "payload": {
-                "kind": "input:feedback",
-                "body": {"occurrence": {"ordinal": ordinal, "source": "test"}},
-            },
-            "relations": (),
-            "advisories": (),
-            "evidence_refs": (f"evidence:test:{ordinal}",),
-            "commitment_digest": None,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": None,
-            "mints_authority": False,
-        }
+    return attestation_fixture(
+        predicate="observation:repository",
+        verifier="agent:test:attestation-set",
+        subject=f"input:occurrence:{ordinal}",
+        issued_at=datetime(2026, 8, 14, tzinfo=UTC),
+        payload_kind="input:feedback",
+        payload_body={"occurrence": {"ordinal": ordinal, "source": "test"}},
+        evidence_refs=(f"evidence:test:{ordinal}",),
     )
 
 

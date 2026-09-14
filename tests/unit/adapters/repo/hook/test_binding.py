@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from typing import Literal
 
 import pytest
+import tomli_w
 
 import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.hook.binding as hook_contract
 import ethos.adapters.repo.hook.observation as hook_binding
 import ethos.adapters.repo.runtime.authority as runtime_authority
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.binding import hook_launcher
+from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import runtime_command
 from tests.support.ethos_cli_runner import run_ethos
@@ -185,11 +190,15 @@ def test_status_preserves_runtime_readiness_without_commit_policy(
     elif condition == "damaged-selector":
         (Path(git_common_dir(repo)) / "ethos/runtime/CURRENT").write_text("invalid\n")
     elif condition == "unknown":
+        reader = Path.read_text
 
-        def expire(_root: Path, command: tuple[str, ...], **kwargs: object) -> None:
-            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+        def unreadable(path: Path, *args, **kwargs):
+            if path.name == "binding.toml" and path.is_relative_to(repo):
+                message = "selected_declaration_unreadable"
+                raise PermissionError(message)
+            return reader(path, *args, **kwargs)
 
-        monkeypatch.setattr(hook_binding, "run_command", expire)
+        monkeypatch.setattr(Path, "read_text", unreadable)
 
     projected, capability = _capability(repo)
     runtime = projected["data"]["hook_runtime"]
@@ -207,7 +216,7 @@ def test_status_preserves_runtime_readiness_without_commit_policy(
             "stale": "write_admission_not_armed:runtime_build_stale",
             "missing-launcher": "write_admission_not_armed:pre-commit_launcher_missing",
             "damaged-selector": "write_admission_not_armed:runtime_current",
-            "unknown": "write_admission_not_armed:runtime_hook_contract_timeout",
+            "unknown": "write_admission_not_armed:runtime_hook_contract_unavailable",
         }[condition]
         assert runtime["current"] is False
         assert runtime["required_gaps"] == [gap]
@@ -277,45 +286,67 @@ def test_launcher_drift_fails_closed(tmp_path: Path, payload: bytes) -> None:
 
 
 @pytest.mark.parametrize(
-    "payload",
-    [
-        None,
-        "invalid json",
-        [],
-        {},
-        {"scripts": []},
-        {"scripts": ["pre-commit", "pre-commit"], "launchers": {}},
-        {"scripts": [1], "launchers": {}},
-        {"scripts": ["pre-commit"], "launchers": {"pre-commit": 1}},
-        {
-            "scripts": ["pre-commit"],
-            "launchers": {"pre-commit": "text"},
-            "generation_digest": "wrong",
-        },
-    ],
+    "defect",
+    ["toml", "extra", "empty", "duplicate", "name", "platforms", "absolute", "parent", "template"],
 )
-def test_unreadable_selected_hook_contract_never_arms_admission(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, payload: object
+def test_malformed_hook_declaration_is_rejected(tmp_path: Path, defect: str) -> None:
+    """Only the closed data grammar may produce launcher bytes."""
+    original = Path(hook_contract.__file__).with_suffix(".toml")
+    values = tomllib.loads(original.read_text())
+    if defect == "extra":
+        values["surprise"] = True
+    elif defect == "empty":
+        values["scripts"] = []
+    elif defect == "duplicate":
+        values["scripts"] = ["pre-commit", "pre-commit"]
+    elif defect == "name":
+        values["scripts"] = ["../unowned"]
+    elif defect == "platforms":
+        values["python"] = {"posix": "python/bin/python"}
+    elif defect in {"absolute", "parent"}:
+        values["python"]["posix"] = "/external/python" if defect == "absolute" else "../python"
+    elif defect == "template":
+        values["launcher"] = "#!/bin/sh\nexit 0\n"
+    declaration = tmp_path / "binding.toml"
+    declaration.write_text("invalid = [" if defect == "toml" else tomli_w.dumps(values))
+    with pytest.raises(ValueError, match=r"Invalid value|hook_launcher_declaration_invalid"):
+        hook_contract.load_hook_contract(declaration)
+
+
+def test_selected_hook_declaration_read_failure_is_nonarming(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Unavailable current bytes remain unknown rather than using another package."""
     repo, _generation = _fixture(tmp_path)
-    monkeypatch.setattr(
-        hook_binding,
-        "run_command",
-        lambda *_args, **_kwargs: subprocess.CompletedProcess(
-            (),
-            1 if payload is None else 0,
-            payload if isinstance(payload, str) else json.dumps(payload),
-            "broken contract",
-        ),
-    )
+    before = hook_runtime_binding(repo)
+    reader = Path.read_text
+    paths = []
 
-    observed = hook_runtime_binding(repo)
+    def unreadable(path: Path, *args, **kwargs):
+        if path.name == "binding.toml" and path.is_relative_to(repo):
+            paths.append(path)
+            message = "selected_declaration_unreadable"
+            raise PermissionError(message)
+        return reader(path, *args, **kwargs)
 
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "read_text", unreadable)
+        observed = hook_runtime_binding(repo)
+    assert len(paths) == 1
     assert observed["current"] is False
-    assert (
-        "write_admission_not_armed:runtime_hook_contract_unavailable" in observed["required_gaps"]
-    )
-    assert "hook install" in observed["next_action"]
+    assert observed["state"] == "unknown"
+    assert observed["required_gaps"] == [
+        "write_admission_not_armed:runtime_hook_contract_unavailable"
+    ]
+    assert observed["contract_observation"] == {
+        "state": "unknown",
+        "reason": "runtime_hook_contract_unavailable",
+        "path": paths[0].as_posix(),
+        "cause": "selected_declaration_unreadable",
+        "effect_attempted": False,
+    }
+    assert "status" in observed["next_action"]
+    assert hook_runtime_binding(repo) == before
 
 
 @pytest.mark.parametrize("configured_form", ["absolute", "relative"])
@@ -412,38 +443,108 @@ print(json.dumps({"digest": hook_generation_digest(launchers), "modules": sorted
     }.intersection(observed["modules"])
 
 
-def test_hook_query_timeout_is_nonarming_observation_with_exact_evidence(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, _ = _fixture(tmp_path)
-    before = hook_runtime_binding(repo)
-    calls = []
-
-    def expire(root, command, **kwargs):
-        calls.append((root, command, kwargs["timeout"]))
-        raise subprocess.TimeoutExpired(
-            command, kwargs["timeout"], output=b"partial", stderr=b"deadline"
+@pytest.mark.parametrize("platform", ["posix", "nt"])
+def test_declaration_preserves_native_launcher_identity(platform: str) -> None:
+    """Data migration leaves the published shell transport byte-compatible."""
+    contract = hook_contract.load_hook_contract(platform_name=platform)
+    python = "python/bin/python" if platform == "posix" else "python/python.exe"
+    assert contract["scripts"] == ("commit-msg", "pre-commit", "pre-push", "reference-transaction")
+    for name, launcher in contract["launchers"].items():
+        assert launcher.endswith(
+            f'exec "$RUNTIME/{python}" -B -I -m ethos.cli hook run {name} "$@"\n'
+        )
+    if platform == "posix":
+        assert (
+            contract["generation_digest"]
+            == "431a09e591988f814f631168f3276bac79de7e782d1d16634ea16f1556537438"
         )
 
-    with monkeypatch.context() as patch:
-        patch.setattr(hook_binding, "run_command", expire)
-        observed = hook_runtime_binding(repo)
-    assert len(calls) == 1
+
+def test_hook_declaration_rejects_symlink_and_unknown_platform(tmp_path: Path) -> None:
+    declaration = Path(hook_contract.__file__).with_suffix(".toml")
+    link = tmp_path / "binding.toml"
+    link.symlink_to(declaration)
+    with pytest.raises(ValueError, match="hook_launcher_declaration_invalid"):
+        hook_contract.load_hook_contract(link)
+    with pytest.raises(ValueError, match="hook_launcher_platform_invalid"):
+        hook_contract.load_hook_contract(platform_name="unknown")
+
+
+def test_predeclaration_runtime_derives_successor_install_not_old_reinstall(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A missing package contract must not send migration back to the old reader."""
+    repo, _generation = _fixture(tmp_path)
+    reader = Path.read_text
+
+    def missing(path: Path, *args, **kwargs):
+        if path.name == "binding.toml" and path.is_relative_to(repo):
+            raise FileNotFoundError(path)
+        return reader(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", missing)
+    observed = hook_runtime_binding(repo)
     assert observed["current"] is False
-    assert observed["state"] == "unknown"
-    assert "write_admission_not_armed:runtime_hook_contract_timeout" in observed["required_gaps"]
-    assert observed["contract_observation"] == {
-        "state": "unknown",
-        "reason": "runtime_hook_contract_timeout",
-        "command": list(calls[0][1]),
-        "binary": calls[0][1][0],
-        "cwd": calls[0][0].as_posix(),
-        "timeout_seconds": 10,
-        "stdout": "partial",
-        "stderr": "deadline",
-        "effect_attempted": False,
-    }
-    assert "status" in observed["next_action"]
-    assert "hook install" not in observed["next_action"]
+    assert observed["required_gaps"] == ["write_admission_not_armed:runtime_hook_contract_missing"]
+    command = shlex.split(observed["next_action"])
+    assert command[:7] == [sys.executable, "-B", "-I", "-m", "ethos.cli", "hook", "install"]
+    assert command[0] != observed["python"]
+
+
+def test_selected_declaration_drift_cannot_borrow_the_invoking_contract(tmp_path: Path) -> None:
+    """An inventory mismatch must unarm hooks before consuming changed package data."""
+    repo, _generation = _fixture(tmp_path)
+    before = hook_runtime_binding(repo)
+    selected = Path(before["runtime_manifest_path"]).parent
+    declaration = next(selected.glob("python/**/ethos/adapters/repo/hook/binding.toml"))
+    original = declaration.read_bytes()
+    declaration.write_bytes(original.replace(b"hook run @HOOK@", b"hook run wrong"))
+    observed = hook_runtime_binding(repo)
+    assert observed["current"] is False
+    assert (
+        "write_admission_not_armed:runtime_schema_migration_required" in observed["required_gaps"]
+    )
+    declaration.write_bytes(original)
     assert hook_runtime_binding(repo) == before
+
+
+def test_hook_launcher_uses_git_shell_and_current_runtime_selector() -> None:
+    text = hook_launcher("pre-commit")
+
+    assert 'HOOK_DIR=${0%/*}; [ "$HOOK_DIR" = "$0" ] && HOOK_DIR=.' in text
+    assert 'HOOK_DIR=$(CDPATH= cd "$HOOK_DIR" && pwd)' in text
+    assert 'RUNTIME_ROOT="$HOOK_DIR/../../runtime"' in text
+    assert 'CURRENT="$RUNTIME_ROOT/CURRENT"' in text
+    assert 'exec "$RUNTIME/python/bin/python" -B -I -m ethos.cli hook run pre-commit "$@"' in text
+
+
+def test_hook_launcher_enters_the_selected_runtime_without_ambient_path(tmp_path: Path) -> None:
+    digest = "a" * 64
+    hooks = tmp_path / "ethos/hooks/generation"
+    runtime = tmp_path / "ethos/runtime" / digest / "python/bin/python"
+    hooks.mkdir(parents=True)
+    runtime.parent.mkdir(parents=True)
+    (tmp_path / "ethos/runtime/CURRENT").write_text(f"{digest}\n", encoding="ascii")
+    runtime.write_text('#!/bin/sh\nprintf "%s\\n" "$*"\n', encoding="utf-8")
+    runtime.chmod(0o755)
+    launcher = hooks / "pre-commit"
+    launcher.write_text(hook_launcher("pre-commit"), encoding="utf-8")
+    launcher.chmod(0o755)
+
+    completed = subprocess.run(
+        (launcher.as_posix(), "argument"),
+        check=False,
+        capture_output=True,
+        env={"PATH": ""},
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout == "-B -I -m ethos.cli hook run pre-commit argument\n"
+
+
+def test_windows_hook_launcher_uses_the_standalone_runtime_python() -> None:
+    text = load_hook_contract(platform_name="nt")["launchers"]["pre-commit"]
+
+    assert 'exec "$RUNTIME/python/python.exe" -B -I -m ethos.cli hook run pre-commit "$@"' in text
+    assert "Scripts/python.exe" not in text

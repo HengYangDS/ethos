@@ -52,8 +52,8 @@ def test_closeout_helpers_authorize_only_pass(monkeypatch, tmp_path: Path) -> No
     unknown = _decision("unknown")
     monkeypatch.setattr(
         closeout,
-        "workspace_status",
-        lambda *_args, **_kwargs: {"candidate": {"worktree_path": candidate.as_posix()}},
+        "worktree_records",
+        lambda *_args, **_kwargs: [{"branch": "candidate/dev", "path": candidate.as_posix()}],
     )
     monkeypatch.setattr(
         closeout.ethos.domain.status,

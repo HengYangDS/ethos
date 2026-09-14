@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import cast
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -20,7 +19,7 @@ import ethos.domain.status
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
-from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import JsonObject
@@ -91,8 +90,12 @@ def closeout_apply_command(
     status: dict[str, object] | None = None,
 ) -> str:
     """Render the sole exact public accepted-closeout command."""
-    observed = status or workspace_status(root, include_foreign_path_scope=False)
-    accepted_root = accepted_worktree_root(observed.get("worktrees"), root).resolve()
+    worktrees = (
+        status.get("worktrees")
+        if status is not None
+        else worktree_records(root, current_path=root, policy=load_branch_role_policy(root))
+    )
+    accepted_root = accepted_worktree_root(worktrees, root).resolve()
     receipt = (
         f" --independent-verification-receipt {receipt_path.resolve().as_posix()}"
         if receipt_path is not None
@@ -233,14 +236,18 @@ def closeout_resolution(
 
 
 def closeout_audit_root(repo: Path, decision: AdmissionDecision) -> Path:
-    """Resolve closeout audit root, preserving land.workspace_status patchability."""
+    """Resolve only the candidate topology after passing mutation admission."""
     if decision.verdict != "pass":
         return repo
-    candidate = workspace_status(repo, include_foreign_path_scope=False).get("candidate", {})
-    if not isinstance(candidate, dict):
-        return repo
-    candidate_path = str(candidate.get("worktree_path") or "")
-    return Path(candidate_path) if candidate_path else repo
+    policy = load_branch_role_policy(repo)
+    return next(
+        (
+            Path(item["path"])
+            for item in worktree_records(repo, current_path=repo, policy=policy)
+            if item["branch"] == policy.candidate_branch
+        ),
+        repo,
+    )
 
 
 def runner_binding_report(*, accepted_root: Path, audit_root: Path) -> dict[str, object]:
@@ -279,19 +286,20 @@ def closeout_bootstrap_package(
     receipt_path: Path | None = None,
 ) -> dict[str, object]:
     """Build the closeout bootstrap package (command to run against accepted_root)."""
-    status = workspace_status(repo, include_foreign_path_scope=False)
-    accepted_root = accepted_worktree_root(status.get("worktrees"), repo).resolve()
+    policy = load_branch_role_policy(repo)
+    worktrees = worktree_records(repo, current_path=repo, policy=policy)
+    candidate = next((item for item in worktrees if item["branch"] == policy.candidate_branch), {})
+    accepted_root = accepted_worktree_root(worktrees, repo).resolve()
     policy = load_branch_role_policy(accepted_root)
-    candidate = status.get("candidate") if isinstance(status.get("candidate"), dict) else {}
     command = closeout_apply_command(
         accepted_root,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
         receipt_path=receipt_path,
+        status={"worktrees": worktrees},
     )
     runner_binding = runner_binding_report(accepted_root=accepted_root, audit_root=audit_root)
-    candidate_data = cast("dict[str, object]", candidate)
-    candidate_path = str(candidate_data.get("worktree_path") or "")
+    candidate_path = candidate.get("path", "")
     already_current = bool(accepted_head and candidate_head == accepted_head)
     proof_target_root = Path(candidate_path).resolve() if candidate_path else audit_root.resolve()
     proof_target = {

@@ -3,11 +3,15 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import cast
 
 import pytest
 
+import ethos.adapters.repo.runtime.authority as runtime_authority
 import ethos.cli as cli
+import ethos.surface.cli.version as version_module
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.cli import main
 from ethos.contracts.admission import root_command
@@ -19,8 +23,11 @@ from tests.support.literal_cases import literal_case
 
 @pytest.mark.parametrize(
     ("argv", "expected"),
-    literal_case(
-        "cli.test_invalid_profile_boundary:parametrize:test_invalid_profilecommand_name_detection_skips_option_values:0"
+    cast(
+        "list[object]",
+        literal_case(
+            "cli.test_invalid_profile_boundary:parametrize:test_invalid_profilecommand_name_detection_skips_option_values:0"
+        ),
     ),
 )
 def test_invalid_profilecommand_name_detection_skips_option_values(
@@ -87,8 +94,11 @@ def test_invalid_profile_readercommand_names_emit_json_result(
 
 @pytest.mark.parametrize(
     "case",
-    literal_case(
-        "cli.test_invalid_profile_boundary:parametrize:test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission:1"
+    cast(
+        "list[object]",
+        literal_case(
+            "cli.test_invalid_profile_boundary:parametrize:test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission:1"
+        ),
     ),
 )
 def test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission(
@@ -128,8 +138,11 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
 
 @pytest.mark.parametrize(
     ("code", "reason"),
-    literal_case(
-        "cli.test_invalid_profile_boundary:parametrize:test_git_execution_failures_emit_structured_json_without_traceback:2"
+    cast(
+        "list[object]",
+        literal_case(
+            "cli.test_invalid_profile_boundary:parametrize:test_git_execution_failures_emit_structured_json_without_traceback:2"
+        ),
     ),
 )
 def test_git_execution_failures_emit_structured_json_without_traceback(
@@ -167,6 +180,64 @@ def test_git_execution_failures_emit_structured_json_without_traceback(
     assert payload["data"]["command"] == ["/usr/bin/git", "status"]
     assert payload["data"]["cwd"] == tmp_path.resolve().as_posix()
     assert payload["data"]["cause"] == "OSError: denied"
+
+
+@pytest.mark.parametrize("command", ["status", "--version"])
+def test_source_timeout_reaches_public_failure_without_reinstall_or_traceback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    command: str,
+) -> None:
+    """Source observation failure remains evidence, not stale-runtime diagnosis."""
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+
+    def expire(*_args, **_kwargs):
+        raise GitExecutionError(
+            GIT_PROCESS_TIMED_OUT,
+            reason="deadline_exceeded",
+            command=("/usr/bin/git", "read-tree", "a" * 40),
+            cwd=repo.as_posix(),
+            cause="native source observation timed out",
+            observation={"timeout_seconds": 0.01, "stdout": "partial", "stderr": "waiting"},
+        )
+
+    monkeypatch.setattr(runtime_authority, "expected_runtime_build", expire)
+    monkeypatch.setattr(version_module, "invoking_build_identity", expire)
+    monkeypatch.setattr(sys, "argv", ["ethos", command, "--root", str(repo), "--json"])
+    with pytest.raises(SystemExit, match="1"):
+        main()
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.err + captured.out
+    payload = json.loads(captured.out)
+    assert payload["required_gaps"] == ["git_process_timed_out"]
+    assert payload["data"]["observation"]["stderr"] == "waiting"
+    assert payload["data"]["cwd"] == repo.as_posix()
+    assert payload["next_action"] == f"ethos status --root {repo.as_posix()} --json"
+
+
+def test_version_source_movement_is_reported_with_its_actual_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Version inspection reuses the native error envelope for a changed source."""
+
+    def moved():
+        message = "build_source_identity_changed"
+        raise GitExecutionError(
+            message,
+            reason="head_changed_during_observation",
+            cwd=tmp_path.as_posix(),
+            observation={"expected_head": "a" * 40, "observed_head": "b" * 40},
+        )
+
+    monkeypatch.setattr(version_module, "invoking_build_identity", moved)
+    monkeypatch.setattr(sys, "argv", ["ethos", "--version", "--json"])
+    with pytest.raises(SystemExit, match="1"):
+        main()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "version"
+    assert payload["data"]["observation"]["observed_head"] == "b" * 40
+    assert payload["next_action"] == f"ethos status --root {tmp_path.as_posix()} --json"
 
 
 def test_process_execution_failure_emits_structured_json_without_git_classification(

@@ -10,7 +10,10 @@ import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_effect_outcome
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
+from ethos.adapters.openspec.archive_projection import archive_projection_updates
+from ethos.adapters.openspec.archive_projection import refresh_archive_projections
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage_scope_report
 from ethos.adapters.repo.commit.creation import create_git_commit
 from ethos.adapters.repo.git import current_tracked_head
@@ -142,12 +145,14 @@ def commit_archive_postimage(
         raise ValueError(message)
     changed = tuple(str(path) for path in scope["changed_paths"])
     original_index_tree = git_stdout(root, "write-tree")
+    projection_restore: dict[str, tuple[bytes, bytes]] = {}
 
     def restore_failure_boundary() -> None:
         if owned_mutation:
             compensate_git_worktree(root, head=previous_head, untracked_path=compensation_path)
         else:
             restore_git_index(root, tree=original_index_tree)
+            _restore_projection_postimage(root, projection_restore)
 
     stage_git_worktree(root, previous=previous_head)
     staged_tree = git_stdout(root, "write-tree")
@@ -168,6 +173,21 @@ def commit_archive_postimage(
                 next_action=archive_recovery_command(change, previous_head, subject=subject),
             ),
         )
+    if scope.get("pending_projection_paths"):
+        try:
+            updates = archive_projection_updates(
+                root,
+                source_head=previous_head,
+                tree=staged_tree,
+                changed_paths=staged_paths,
+            )
+            projection_restore = {
+                path: ((root / path).read_bytes(), content) for path, content in updates.items()
+            }
+            staged_tree = _complete_projection_postimage(root, previous_head, change)
+        except (OSError, TypeError, ValueError):
+            restore_failure_boundary()
+            raise
     committed = create_git_commit(
         root,
         tree=staged_tree,
@@ -212,6 +232,40 @@ def commit_archive_postimage(
         if current_tracked_head(root) == previous_head:
             restore_failure_boundary()
         raise
+
+
+def _complete_projection_postimage(root: Path, head: str, change: str) -> str:
+    """Complete native and caller-supplied archive inputs through one owner."""
+    refresh_archive_projections(root, source_head=head)
+    completed = archive_postimage(root, head=head, change=change)
+    if (
+        completed is None
+        or completed.scope is None
+        or completed.scope.get("pending_projection_paths")
+    ):
+        message = "archive_projection_completion_invalid"
+        raise ValueError(message)
+    stage_git_worktree(root, previous=head)
+    tree = git_stdout(root, "write-tree")
+    if tree != completed.scope["tree"]:
+        message = "openspec_archive_delta_changed"
+        raise ValueError(message)
+    return tree
+
+
+def _restore_projection_postimage(
+    root: Path,
+    restore: dict[str, tuple[bytes, bytes]],
+) -> None:
+    """Restore only our derived edit; preserve and report any concurrent content."""
+    for relative, (before, after) in restore.items():
+        path = root / relative
+        current = path.read_bytes()
+        if current not in {before, after}:
+            message = f"archive_projection_compensation_conflict:{relative}"
+            raise ValueError(message)
+        if current != before:
+            path.write_bytes(before)
 
 
 def complete_archive(

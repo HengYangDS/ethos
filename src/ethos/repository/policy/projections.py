@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +26,89 @@ PROJECTION_DECLARATIONS = {
         "copy",
     ),
 }
+
+SOURCE_BINDING_DECLARATION = "system/projections/terminal-architecture/declaration.json"
+
+
+def source_binding_inputs(declaration: bytes) -> tuple[str, dict[str, dict[str, str]]]:
+    """Resolve the native graph's partial, multi-input derived binding fields."""
+    payload = json.loads(declaration)
+    if not isinstance(payload, dict) or payload.get("schema") != "ethos.projection-declaration/v1":
+        message = "source_binding_declaration_invalid"
+        raise ValueError(message)
+    documents, sources = payload.get("documents"), payload.get("sources")
+    if not isinstance(documents, dict) or not isinstance(sources, list) or not sources:
+        message = "source_binding_declaration_invalid"
+        raise ValueError(message)
+    output = _local_path(documents.get("semantic_graph"), SOURCE_BINDING_DECLARATION)
+    bindings: dict[str, dict[str, str]] = {}
+    for item in sources:
+        if not isinstance(item, dict):
+            message = "source_binding_declaration_invalid"
+            raise TypeError(message)
+        identity, authority = item.get("id"), item.get("authority")
+        source = _local_path(item.get("path"), SOURCE_BINDING_DECLARATION)
+        if (
+            not isinstance(identity, str)
+            or not identity
+            or identity in bindings
+            or not isinstance(authority, str)
+            or not authority
+            or source == output
+        ):
+            message = "source_binding_declaration_invalid"
+            raise ValueError(message)
+        bindings[identity] = {"path": source, "authority": authority}
+    return output, bindings
+
+
+def render_source_bindings(
+    graph: bytes,
+    bindings: Mapping[str, Mapping[str, str]],
+    before: Mapping[str, bytes],
+    after: Mapping[str, bytes],
+) -> bytes:
+    """Refresh only exact digest fields; neither accept nor rewrite authored meaning."""
+    payload = json.loads(graph)
+    validate_source_bindings(payload, bindings, before)
+    changed = False
+    for identity, binding in bindings.items():
+        source = binding["path"]
+        if source not in after:
+            message = f"source_binding_input_missing:{identity}"
+            raise ValueError(message)
+        row = payload["sources"][identity]
+        digest = hashlib.sha256(after[source]).hexdigest()
+        changed |= row["sha256"] != digest
+        row["sha256"] = digest
+    return (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode() if changed else graph
+
+
+def validate_source_bindings(
+    graph: object,
+    bindings: Mapping[str, Mapping[str, str]],
+    sources: Mapping[str, bytes],
+) -> None:
+    """Validate identity, role and bytes for both native refresh and exact export."""
+    declared = graph.get("sources") if isinstance(graph, dict) else None
+    if not isinstance(declared, dict) or declared.keys() != bindings.keys():
+        message = "source_binding_graph_invalid"
+        raise ValueError(message)
+    for identity, binding in bindings.items():
+        row = declared[identity]
+        if not isinstance(row, dict):
+            message = f"source_binding_graph_invalid:{identity}"
+            raise TypeError(message)
+        for key, value in binding.items():
+            if row.get(key) != value:
+                message = f"source {key} mismatch: {identity}"
+                raise ValueError(message)
+        if binding["path"] not in sources:
+            message = f"source_binding_input_missing:{identity}"
+            raise ValueError(message)
+        if row.get("sha256") != hashlib.sha256(sources[binding["path"]]).hexdigest():
+            message = f"source digest mismatch: {identity}"
+            raise ValueError(message)
 
 
 @dataclass(frozen=True, slots=True)

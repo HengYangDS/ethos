@@ -20,3 +20,5 @@
   acceptance, later task completion, official archive and subsequent acceptance.
 - [x] 3.2 Pass affected lifecycle/proof/publication regressions and required
   static/native checks without weakening coverage, budgets or deadlines.
+- [x] 3.3 Prove archive updates exact declared source bindings atomically,
+  preserves authored graph meaning, and rejects unrelated or stale postimages.

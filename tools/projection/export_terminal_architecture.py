@@ -9,6 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 from pathlib import PurePosixPath
+from types import ModuleType
 from typing import Any
 from typing import NoReturn
 
@@ -83,48 +84,35 @@ def _required_text(value: object, label: str) -> str:
     return value
 
 
-def _bindings(root: Path, commit: str, declaration: dict[str, Any]) -> list[dict[str, str]]:
-    declared_sources = declaration.get("sources")
-    if not isinstance(declared_sources, list) or not declared_sources:
-        _fail("projection declaration must select at least one source")
-    bindings: list[dict[str, str]] = []
-    identities: set[str] = set()
-    for item in declared_sources:
-        source = _required_mapping(item, "projection source")
-        identity = _required_text(source.get("id"), "projection source id")
-        path = _required_text(source.get("path"), f"projection source {identity} path")
-        authority = _required_text(
-            source.get("authority"), f"projection source {identity} authority"
-        )
-        if identity in identities:
-            _fail(f"duplicate projection source identity: {identity}")
-        identities.add(identity)
-        relative = _repository_path(path)
-        bindings.append(
-            {
-                "id": identity,
-                "path": relative,
-                "authority": authority,
-                "sha256": _sha256(_tree_bytes(root, commit, relative)),
-            }
-        )
-    return sorted(bindings, key=lambda item: item["id"])
-
-
 def _validate_source_alignment(
-    semantic_graph: dict[str, Any], bindings: list[dict[str, str]]
-) -> None:
-    sources = _required_mapping(semantic_graph.get("sources"), "semantic graph sources")
-    binding_by_id = {item["id"]: item for item in bindings}
-    if set(sources) != set(binding_by_id):
-        _fail("projection declaration and semantic graph source identities differ")
-    for identity, value in sources.items():
-        source = _required_mapping(value, f"semantic source {identity}")
-        binding = binding_by_id[identity]
-        if source.get("path") != binding["path"]:
-            _fail(f"semantic source path mismatch: {identity}")
-        if source.get("sha256") != binding["sha256"]:
-            _fail(f"source digest mismatch: {identity}")
+    root: Path, commit: str, declaration: dict[str, Any], semantic_graph: dict[str, Any]
+) -> list[dict[str, str]]:
+    """Use the selected tree's pure owner, even in an isolated stdlib consumer."""
+    owner_path = "src/ethos/repository/policy/projections.py"
+    code = _tree_bytes(root, commit, owner_path)
+    name = f"_ethos_projection_owner_{commit}"
+    owner = ModuleType(name)
+    previous = sys.modules.get(name)
+    sys.modules[name] = owner
+    try:
+        exec(compile(code, f"{commit}:{owner_path}", "exec"), owner.__dict__)
+        _output, bindings = owner.source_binding_inputs(_canonical_bytes(declaration))
+        sources = {
+            binding["path"]: _tree_bytes(root, commit, binding["path"])
+            for binding in bindings.values()
+        }
+        owner.validate_source_bindings(semantic_graph, bindings, sources)
+        return [
+            {"id": identity, **binding, "sha256": _sha256(sources[binding["path"]])}
+            for identity, binding in sorted(bindings.items())
+        ]
+    except (TypeError, ValueError) as error:
+        raise ProjectionExportError(str(error)) from error
+    finally:
+        if previous is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous
 
 
 def _provenance(value: object, known: set[str], *, label: str) -> list[str]:
@@ -355,8 +343,7 @@ def export_projection_input(
     view_profile = _json(document_bytes["view_profile"], path=document_paths["view_profile"])
     copy = _json(document_bytes["copy"], path=document_paths["copy"])
     quality_contract = document_bytes["quality_contract"].decode("utf-8")
-    bindings = _bindings(repository, commit, declaration)
-    _validate_source_alignment(semantic_graph, bindings)
+    bindings = _validate_source_alignment(repository, commit, declaration, semantic_graph)
     output = _projection_input(
         declaration,
         semantic_graph,

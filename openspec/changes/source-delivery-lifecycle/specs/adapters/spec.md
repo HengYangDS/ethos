@@ -38,3 +38,18 @@ the sole tracked intent and progress carrier during integration and delivery.
 - **WHEN** a historical archive contains obsolete names, metadata or task layout
 - **THEN** ETHOS preserves it as non-authorizing history
 - **AND** current admission does not replay its historical workflow.
+
+#### Scenario: archive updates a declared projection input
+
+- **WHEN** official archive changes canonical source bytes used by a declared
+  source-binding projection
+- **THEN** the same Git effect includes only the exact derived binding update
+- **AND** the authored graph meaning and unrelated files remain unchanged.
+
+#### Scenario: archive projection is stale or altered
+
+- **WHEN** the declared projection does not match its preimage source or the
+  proposed postimage changes more than the exact derived bindings
+- **THEN** ETHOS rejects the effect before CAS
+- **AND** native-operation changes are compensated without erasing a supplied
+  authoring overlay.

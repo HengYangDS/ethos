@@ -42,6 +42,22 @@ integration role, not a protected remote branch. Commands consume these facts
 without a second role-specific prohibition. Completed active tasks can make
 archive eligible; they do not invalidate the source object.
 
+### Archive Preserves Its Declared Projection Closure
+
+The final source preview exposes a necessary closeout condition: canonical
+specs change during official archive, so their declared source-binding hashes
+must change in the same Git effect. The existing projection owner derives these
+hashes from exact before/after source bytes. The archive adapter may apply only
+that deterministic update to the unchanged authored graph. Both staged and
+native archive paths verify the complete postimage before CAS; stale preimages,
+unrelated edits and altered graph meaning fail without committing the effect.
+
+This does not infer meaning from hashes or make arbitrary projections generated.
+The archived delta has already undergone source acceptance; only its declared
+binding projection is refreshed. General re-entry still needs current intent
+and authority. No second Change or post-archive compatibility permission is
+needed merely to keep the archive's own projections consistent.
+
 ## Alternatives Rejected
 
 - Prechecking delivery tasks would falsely claim an effect before it occurred.

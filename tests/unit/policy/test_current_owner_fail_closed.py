@@ -9,9 +9,8 @@ import pytest
 import ethos.domain.source_budget.measurement as source_budget
 from ethos.repository.openspec.audit import active_change_names_from_paths
 from ethos.repository.openspec.audit import changed_openspec_spec_obligation_removal_gaps
+from ethos.repository.openspec.audit import governed_branch_intent_report
 from ethos.repository.openspec.audit import official_config_report
-from ethos.repository.openspec.audit import protected_branch_active_change_report
-from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.commands import command_executables
@@ -166,15 +165,14 @@ canonical_sibling_worktrees = true
             },
         ),
     }
-    protected = protected_branch_active_change_report(
+    protected = governed_branch_intent_report(
         tmp_path, current_branch="work/current", branch_observations=observations
     )
-    assert protected["verdict"] == "block"
+    assert protected["verdict"] == "unknown"
     assert protected["required_gaps"] == ["main_unreadable"]
-    assert protected["summary"] == {"residue_count": 1}
-    assert protected_branch_active_change_required_gaps(protected, roles={"candidate"}) == [
-        "main_unreadable",
-        "openspec_protected_branch_active_change_unarchived:candidate/dev:candidate:still-active",
+    assert protected["summary"] == {"change_count": 1}
+    assert protected["records"] == [
+        {"branch": "candidate/dev", "role": "candidate", "change": "still-active"},
     ]
 
     assert active_change_names_from_paths("main", None)["verdict"] == "unknown"

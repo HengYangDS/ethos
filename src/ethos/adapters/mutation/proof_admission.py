@@ -10,15 +10,20 @@ from typing import TYPE_CHECKING
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
+from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
+from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.contracts.proof.plan import archive_authority_valid
 from ethos.contracts.proof.plan import archive_scope_gaps
+from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
+from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -39,14 +44,14 @@ def proof_attestation(
     root: Path,
     head: str,
     *,
-    require_archive: bool = False,
+    repository_transition: bool = False,
     store: Path,
 ) -> tuple[Attestation | None, list[str]]:
     """Return one deterministic member of the current exact proof set."""
     admitted, gaps = _admitted_proofs(
         root,
         head,
-        require_archive=require_archive,
+        repository_transition=repository_transition,
         store=store,
     )
     return (min(admitted, key=lambda item: item.id), []) if admitted else (None, gaps)
@@ -56,10 +61,10 @@ def _admitted_proofs(
     root: Path,
     head: str,
     *,
-    require_archive: bool,
+    repository_transition: bool,
     store: Path,
 ) -> tuple[tuple[Attestation, ...], list[str]]:
-    matching, gaps = _selected_candidates(root, head, require_archive=require_archive)
+    matching, gaps = _selected_candidates(root, head)
     if gaps:
         return (), gaps
     evaluated = tuple(
@@ -70,7 +75,7 @@ def _admitted_proofs(
                 head,
                 store,
                 item,
-                ignore_lease=require_archive,
+                repository_transition=repository_transition,
             ),
         )
         for item in matching
@@ -115,8 +120,6 @@ def _admitted_proofs(
 def _selected_candidates(
     root: Path,
     head: str,
-    *,
-    require_archive: bool,
 ) -> tuple[tuple[Attestation, ...], list[str]]:
     try:
         _selected_root, attestations = read_attestation_set(root)
@@ -129,12 +132,6 @@ def _selected_candidates(
     )
     if not candidates:
         return (), ["proof_not_proven"]
-    if require_archive:
-        candidates = tuple(
-            item for item in candidates if _archive_bound(item) or _repository_bound(item)
-        )
-        if not candidates:
-            return (), ["proof_archive_authority_missing"]
     current = tuple(item for item in candidates if _current_at(item, datetime.now(UTC)))
     if not current:
         return (), ["unknown_required_fact"]
@@ -190,28 +187,30 @@ def _bindings(attestation: Attestation) -> tuple[str, ...]:
     return tuple(getattr(attestation, name) for name in _BINDINGS)
 
 
-def _archive_bound(attestation: Attestation) -> bool:
-    try:
-        archive = plan_from_statement(attestation).prior_attestations.get("openspec_archive")
-    except (TypeError, ValueError):
-        return False
-    return archive_authority_valid(archive)
-
-
-def _repository_bound(attestation: Attestation) -> bool:
-    """Return whether proof binds repository truth without Work Lane intent."""
+def _source_intent_gaps(root: Path, head: str, attestation: Attestation) -> list[str]:
+    """Match carried acceptance to official meaning at the exact source object."""
     try:
         plan = plan_from_statement(attestation)
-    except (TypeError, ValueError):
-        return False
-    values = plan.facts.get("values")
-    return (
-        plan.inputs.commitment is None
-        and plan.commitment is None
-        and isinstance(values, Mapping)
-        and values.get("change_id") == ""
-        and "lease_generation" not in values
-    )
+        if not openspec_profile_enabled(root, tree_ref=head):
+            return [] if plan.commitment is None else ["proof_source_intent_mismatch"]
+        if plan.commitment is None:
+            observed = active_change_names_in_ref(root, head)
+            gaps = list(string_sequence(observed.get("required_gaps")))
+            if gaps:
+                return gaps
+            intent_present = bool(observed["changes"]) or (
+                attested_archive_transition(root, head=head) is not None
+            )
+            return ["proof_source_intent_mismatch"] if intent_present else []
+        carried = Commitment.model_validate(mutable_json(plan.commitment))
+        source = load_openspec_commitment(
+            root,
+            tree_ref=head,
+            change_id=carried.id.removeprefix("change:"),
+        )
+    except (TypeError, ValueError) as error:
+        return [f"proof_source_intent_unavailable:{error}"]
+    return [] if source == carried else ["proof_source_intent_mismatch"]
 
 
 def _assertion_digest(attestation: Attestation) -> str:
@@ -235,7 +234,7 @@ def _candidate_evaluation(
     store: Path,
     attestation: Attestation,
     *,
-    ignore_lease: bool,
+    repository_transition: bool,
 ) -> tuple[str, list[str]]:
     if attestation.subject != f"git:commit:{head}":
         return "", ["proof_attestation_head_mismatch"]
@@ -254,7 +253,7 @@ def _candidate_evaluation(
     values = plan.facts.get("values")
     fact_values = values if isinstance(values, Mapping) else {}
     generation = fact_values.get("lease_generation")
-    if isinstance(generation, Mapping) and not ignore_lease:
+    if isinstance(generation, Mapping) and not repository_transition:
         branch = str(generation.get("lane_ref") or "")
         current_lease = leases_by_branch(root).get(branch, {})
         if current_lease.get("lease_state") != "valid" or mutable_json(generation) != mutable_json(
@@ -269,6 +268,8 @@ def _candidate_evaluation(
     checks, gaps = artifact_checks(store, attestation)
     if checks is not None and not gaps:
         gaps = proof_statement_gaps(attestation, checks)
+    if not gaps and checks is not None and repository_transition:
+        gaps = _source_intent_gaps(root, head, attestation)
     if gaps or checks is None:
         return "", gaps
     canonical_policies = (

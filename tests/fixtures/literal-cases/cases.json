@@ -247,18 +247,18 @@
       "value": {
         "items": [
           "test_land_dry_run_reports_dirty_work_lane_gap",
-          "test_land_blocks_completed_active_openspec_change_before_candidate_landing",
+          "test_land_observes_completed_active_change_without_erasing_proof_obligation",
           "test_land_dry_run_reports_stale_candidate_base_with_refresh_action",
           "test_land_dry_run_requires_executed_proof_before_ready_state",
-          "test_land_blocks_active_change_even_when_exact_head_is_proven",
-          "test_land_apply_refuses_active_change_without_updating_candidate",
+          "test_land_accepts_exact_source_with_pending_delivery",
+          "test_land_apply_preserves_active_intent_in_candidate",
           "test_land_allows_officially_archived_work_lane_head",
           "test_land_readiness_rejects_wrong_actor_before_candidate_effect",
           "test_land_allows_full_proof_for_lease_bound_authority"
         ],
         "type": "tuple"
       },
-      "value_sha256": "ac5e084bf96bceadac0bd1e6f869946b864ee879f4f11604e701ce7756c9c74d"
+      "value_sha256": "63bba42ddb38238d221dc32f092b93a4e4f5b40e5a426e07d5a447ec0f31077d"
     },
     {
       "id": "cli.test_contracts_land:assign:REFRESH_CASES:2",

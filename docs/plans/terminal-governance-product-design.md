@@ -5299,143 +5299,122 @@ GitLab pipelines 6603/6604 passed. GitHub dev source verification passed; final
 package delivery remains under observation; main source verification also passed.
 These jobs do not establish the outcome of their pending package delivery.
 
-### Independent Runtime Readiness
+### Runtime Readiness And Native Fixtures — Accepted September 14, 2026
 
-The Proxy feedback is a reproduced status aggregation defect, not stale-version
-guesswork. Its retained payload reports old installed source `a378d7c0…`, expected
-source `3472cdad…`, and `runtime_build_stale`, while top-level status is PASS and
-offers landing. The status reader aggregated runtime gaps only through optional
-commit-policy enforcement. Absence of that unrelated policy therefore erased a
-required condition.
+`runtime-status-admission` and `native-runtime-fixture` are accepted at
+`e06d15651b90f3ce40c2a89605b8d6d585622408`, tree
+`c20c84775277c3f271146fc92498a9cee492a64b`. The final postarchive proof passes all
+35 gates: 3,300 passed tests, one skip, and combined coverage 25,389/26,703
+(95.0792 percent). Its elapsed time is 1,837.517 seconds; overall iteration
+latency is not solved. Proof Attestation:
+`997cb5737660bf75ea592e923d1cd4c3f5a5fe4d0e1964a9147b38bc35939cbb`.
 
-The bounded `runtime-status-admission` Change keeps identity, applicability and
-repair at the hook-observation owner; status combines runtime and policy gaps
-independently and selects runtime recovery before source effects. A profile,
-managed hook generation or runtime storage makes inspection applicable even when
-the selector is damaged. A plain unadopted repository acquires no installation
-obligation by being read. Optional commit policy remains optional. No adopter
-mutation, compatibility carrier, timeout increase or parallel parser is required.
+The source fixes two distinct causes. Runtime readiness no longer depends on
+optional commit policy: adoption, managed hooks or runtime storage establish
+applicability even with a damaged selector. Current actor/Lease recovery remains
+prior to runtime and source effects. The native fixture now establishes actual
+executable, Python identity, prefix and smoke prerequisites before activation;
+the hosted fixture shares immutable executable code but isolates each case's
+inputs. Neither deadlines nor concurrency increased.
 
-Seven public counterexamples fail on the original aggregation. A further damaged
-selector case rejects conditioning applicability on a successfully read manifest.
-The corrected binding, reader, closeout and invalid-profile suite passes 95 cases
-in 370.28 seconds; its owned basetemp is removed. An adopted ready repository
-also transitions from PASS to the exact stale gap after only the expected runtime
-changes. These are focused source observations, not accepted implementation or
-installed-adopter validation. Evidence belongs to the existing ignored quality
-location under `runtime-status-admission`; finish static and exact lifecycle
-proof before claiming delivery.
+Retain the distinguishing evidence, not the superseded waiting state. Status
+aggregation, damaged selectors and authority precedence have public RED/GREEN
+cases. The initial precedence regression was real, not native startup noise.
+One subsequent runtime startup timeout exposed omitted fixture prerequisites;
+a separate hosted shell timeout did not establish the same cause. Native
+comparisons measured fresh-script median 0.44 seconds versus 0.02 seconds with
+shared immutable code, not a universal latency bound. The affected native matrix
+passed 370 macOS cases, 42 Linux cases and 32 hosted cases with and without
+subprocess coverage. Failed attempts remain evidence, never acceptance.
 
-The affected hook activation/execution, binding, migration and status-audit suite
-then passes 129 cases in 65.37 seconds, with owned basetemp cleanup. All ten
-selected public owner gates and native repository-wide lint, config, Markdown,
-prose and import-boundary checks pass. Frozen source proof is the next boundary;
-no focused result is substituted for it.
+Public installation selected runtime
+`cdbd433f0ef2a2904d20868c6bd9cc31d2fedec3587fcf27ebe8e3928bdcf3cd`;
+repeat installation changed neither identity nor retained generations. Both
+peers' dev/main refs were read back at the exact accepted object with verified
+signatures. The former worktree, ref and Lease retired through the public command.
+Sixty-seven nonempty evidence files moved with matching hashes to the existing
+ignored `build/evidence/quality/runtime-status-admission/`; 21 empty terminal
+outputs were removed. That directory owns the migration, publication, retirement
+and hosted observations. The final proof basetemp was absent. This establishes
+this operation's cleanup, not sustained disk boundedness.
 
-Exact proof of `c808957b1` then fails three existing current-authority recovery
-cases: status chooses runtime installation before restoring the actor or Lease,
-while plan/prewrite/hooks/prove correctly retain authority recovery. The run has
-3,292 passed tests, three failures and one skip in 1,658.75 seconds; dependent
-coverage/build gates do not run, and the owned basetemp is removed. This is a
-real priority regression, not native startup flakiness; no archive or acceptance
-is attempted. Source-only task checks were reopened before repair.
+Hosted verification exposed a remaining distinct defect. GitLab pipelines
+6623/6624 passed; GitHub main run 34800724956 failed with two failures, 3,298
+passes and one skip in 3,793.57 seconds. Both failures occurred in generic
+fixture setup: the selected package's hook-contract query exceeded ten seconds
+before the archive-CAS or refresh-conflict behavior ran. The existing native
+fixture repair therefore does not establish this generic path's reliability.
+Keep the deadline and fail-closed result; diagnose and remove the unnecessary
+work at the selected-package/fixture boundary rather than retry unchanged.
+The exact hosted proof and JUnit files are retained in
+`runtime-status-admission/github-main-artifacts/`. Dev run 34800725154 was still
+running at the latest observation. Earlier `52db974e` runs completed, including
+package artifacts; neither that history nor local proof is current hosted success.
 
-The same status owner now projects the existing CurrentResolution recovery
-before runtime or policy repair when authority is not passing, without dropping
-their independent gaps. Six public RED cases cover absent/present commit policy;
-the focused suite passes 44 cases, and the full affected current-authority,
-reader and closeout set passes 130 in 361.64 seconds. Ten public owner checks
-pass again. Keep this composition matrix in the existing test owner so a later
-capability cannot displace a prerequisite and rediscover it only in full proof.
-The revised exact source still requires its complete proof.
+### Source Acceptance, Delivery And Archive
 
-The latest adopter confirms public rebind to `52db974e…` with four linked
-worktrees checked, one obsolete generation removed, and unchanged product/config
-hashes. This is adopter-reported installation evidence, not a lifecycle repair.
-Delivery-inclusive Change archive/land self-reference and the Git-free archive
-consumer remain open at the source/outcome owners. Future publication, installed
-acceptance and retirement tasks cannot be prechecked or moved into another
-ledger to manufacture completion.
+The existing P0/P1 lifecycle closure removes a false dependency, not a task
+carrier. Source acceptance, actual delivery and whole-Change completion are
+separate claims. The same official active Change carries honestly incomplete
+tasks through integration and delivery. Tasks change only after observed results;
+archive follows settled obligations. Official OpenSpec v1.13.0's
+`docs/team-workflow.md` explicitly supports post-merge archive; its convention
+is not an ETHOS implementation or permission to precheck tasks.
 
-The same adopter's official MODIFIED/REMOVED review superseded 22 contradictory
-inherited requirements across nine capabilities; adding more requirements had
-not removed the old owners. Accept the generic lesson: review the final merged
-meaning and surviving scenarios, not only delta validity. Apply it at the native
-OpenSpec config/skill and acceptance owners in the existing P1/P2 route; this
-status correction does not claim that separate semantic capability implemented.
+The bounded `source-delivery-lifecycle` Change replaces the archive prerequisite
+at the source-proof, ref, integration, publication and observation owners.
+Exact source intent, required proof floor, current effect authority and CAS remain
+independent conditions. Four public RED cases reproduced the old obstruction;
+nine focused cases now pass, including real Git integration, later task update,
+official archive and subsequent acceptance. Wrong or omitted source acceptance
+is rejected. Review then exposed a second candidate counterexample: empty active
+intent had allowed a proof to omit its attested archived acceptance. The existing
+archive-effect resolver now distinguishes genuinely intent-free source from
+archived meaning; the real archive omission is RED before repair and GREEN after
+it, together with valid archive and genuinely intent-free source cases.
 
-The next lifecycle closure removes a false dependency, not a task carrier.
-Source acceptance, delivery outcome and full Change completion are distinct.
-Keep the same official active Change and its honestly incomplete tasks through
-accepted source integration and subsequent delivery; mark each task only after
-its effect is observed, then archive when all obligations are settled. Official
-OpenSpec v1.13.0 `docs/team-workflow.md` supports post-merge archive; its existence
-does not itself repair ETHOS's stronger active-carrier prohibition. Replace that
-prohibition coherently in the source/ref admission, archive and reader owners,
-with current proof and effect authority retained. Do not use upstream `--yes`
-to turn incomplete delivery into an archived-completion claim. This is the next
-existing P0/P1 closure, not implementation in this frozen status Change.
+Eight publication effect cases pass, including active delivery intent, native
+hooks, two independent peers, per-peer multi-ref atomicity and recovery after a
+partial publication. Fifty-two publication admission/recovery cases and 76
+observation/projection cases pass. The real completed-Change closeout replaces
+an obsolete whole-OpenSpec stub: that stub supplied invalid `show` output to
+the new exact-source verifier. Its only other consumer now also uses real
+official intent and the misleading stub is deleted. These candidate results
+are retained under `build/evidence/quality/source-delivery-lifecycle/`; they are
+not exact full proof, installed behavior or current hosted acceptance. Complete
+affected verification and the normal acceptance boundary before delivery.
 
-### Native Runtime Fixture Prerequisite
+The affected source-integration/Lease and accepted-closeout suites now each
+pass 12 cases; six native static sessions and seven public source-owner gates
+also pass. Native OpenSpec strict validation reports no issues. Full proof is
+the next frozen-source boundary, not a reinterpretation of these scoped results.
 
-Revised status source `f3bd18166` passed all 35 proof gates: 3,298 tests passed,
-one skipped, and combined coverage was 25,389/26,703 (95.0792 percent). Official
-archive produced `eb1969437065e462ea898209e9d83f0acf7a0b70`; its full proof failed
-one of 3,299 cases in 1,723.26 seconds. The legacy-locator directory test failed
-with `runtime_hook_contract_timeout` before its retirement assertion. The
-post-archive run's owned basetemp was removed. Accepted source/runtime remain
-`52db974e…`/`3d4d9ca5…`; this is not status delivery completion.
+Two distinct recovery gaps remain subsequent bounded work, not hidden additions
+to this Change. Workstation's archive preview passed before an invalid Purpose
+was committed at `62fb3e0f`; its exact repair prewrite then required the removed
+active carrier. Validate the complete official postimage before effect and derive
+repair from attested outcome plus current authority. AIGW's expired Lease reader
+omits exact coordinates and reacquire can point back to the same blocked action.
+Same-holder expiry should derive resume with the exact tuple; missing coordination
+uses reacquire. Foreign ownership retains explicit handoff/authorization. The
+live lane-start positional reproduction also confirms that help and accepted
+arguments disagree. Repair existing continuation/CLI owners, not another state
+machine or adopter SQL recipe.
 
-The recurring native startup boundary has a concrete fixture mismatch:
-`materialize_runtime_case` substituted selector validation for production's
-prefix observation and new-generation smoke. Thus a copied executable reached
-activation without the prerequisite native executions. The separate bounded
-`native-runtime-fixture` Change stays in this same Work Lane; it does not reopen
-the archived status carrier, add a worktree or alter product runtime semantics.
+The inherited semantic lesson remains general: AIGW's native MODIFIED/REMOVED
+review superseded 22 contradictory requirements across nine capabilities.
+Adding new requirements had not removed the old meanings. Review the final
+merged meaning and surviving scenarios, not merely delta validity. Our first
+native delta validation likewise rejected a rename that omitted old scenarios;
+explicit removal and replacement now state the actual policy change.
 
-A native call-through counterexample first proves both executions missing. The
-fixture now observes its actual executable, Python identity and virtual prefix,
-then runs the real module smoke when requested. Runtime mutation images remain
-exclusive; production schemas, deadlines and workers remain unchanged. A broken
-module fails before activation and its generation is removed. All 370 affected
-runtime, hook and fixture cases pass in 194.66 seconds; owned scratch is removed.
-This proves the prerequisite and finite replay, not universal native startup
-latency or sustained resource safety. Native platform and exact proofs remain.
-
-The pinned Linux arm64 CI base image passes 42 fixture/activation cases in
-35.13 seconds with source copies, locked dependencies and native Git/SSH tools;
-the owned container and source archive are removed. Two initial probe setup
-failures exposed missing source-import and Git prerequisites before tests ran.
-They were repaired in the isolated invocation, not treated as product failures
-or reasons to change host configuration. Ten public owner gates and all native
-source/static checks pass. A new frozen source proof remains required.
-
-Source `167fefc02` then passes the runtime cases but fails one old hosted-receipt
-test at its unchanged 15-second outer shell deadline: 3,299 passed, one failed,
-one skipped; dependent gates remain unexecuted. No archive or unchanged full
-rerun follows. The missing runtime prerequisite was repaired, but it was not a
-universal diagnosis of every native startup failure.
-
-A timestamped shell replay completes in 1.86 seconds and locates most observed
-time in the generated test executable. Six native comparisons measure median
-new-script startup at 0.44 seconds versus 0.02 seconds for reused immutable
-code with isolated case input; these observations do not prove the full cause
-of the historical 15-second wait. The hosted fixture now shares only its
-read-only executable and stores variant proof/report values in each isolated
-repository, removing repeated generated programs. Real shell, scanner and child
-execution, the deadline and all thirty verdict cases remain. The 32-case matrix
-passes with and without subprocess coverage; the covered run takes 20.50 seconds.
-No focused coverage is combined into full-proof evidence. Complete the revised
-static/native boundary and exact proof before considering this lane delivered.
-
-Workstation also reports archive preview PASS followed by committed invalid
-Purpose at `62fb3e0f…`, with repair prewrite blocked after the active carrier is
-gone. Its supplied archive receipt and exact single-Purpose recovery were read;
-the latter is adopter recovery, not an ETHOS fix. Preserve this real counterexample
-for the same upcoming lifecycle closure: validate the exact official postimage
-before committing, and derive recovery from attested result and current authority
-rather than requiring an active carrier that archive removed. No filename
-exception, duplicate parser or adopter workaround belongs in the product.
+The next bounded closure addresses the confirmed hosted hook-query timeout at
+its selected-package/fixture owner. Archive postimage/re-entry and Lease
+continuation follow, then the existing architecture contract debt and P0–P7 route.
+Do not revive a persistent Commitment, second progress ledger, private parser or
+unproved compatibility exception. Do not rewrite adopters or the two renderer
+repositories. Whole-repository structure, latest-stable supply, full adopter
+journeys, evidence reuse and sustained resource limits remain open.
 
 ## Completion Boundary
 

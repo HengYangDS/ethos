@@ -22,7 +22,7 @@
     },
     "compile": {
       "label": "Compile, do not reinterpret",
-      "text": "Accepted intent compiles to transient Commitment; fresh Facts and applicable prior Attestations produce a bounded TransitionPlan and proof obligations. Valid no-spec changes and archive retain proof identity.",
+      "text": "Accepted intent compiles to transient Commitment; fresh Facts and applicable prior Attestations produce a bounded TransitionPlan and proof obligations. Source acceptance, delivery and Change completion are distinct; one active Change retains outstanding tasks until archive. Valid no-spec changes and archive retain proof identity.",
       "surface": "main-static"
     },
     "authority": {

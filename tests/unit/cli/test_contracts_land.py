@@ -1,3 +1,5 @@
+"""Public source integration, proof and exact-authority acceptance cases."""
+
 from __future__ import annotations
 
 import json
@@ -26,7 +28,6 @@ from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.literal_cases import literal_case
-from tests.support.openspec_lifecycle import stub_official_archive_state
 
 FIXTURE_ROOT = Path(__file__).parents[2] / "fixtures/contracts-land"
 FULL_GATES = (FIXTURE_ROOT / "full-gates.toml").read_text()
@@ -96,77 +97,36 @@ def _assert_dirty_land_is_blocked(tmp_path: Path) -> None:
     assert "work_lane_dirty" in payload["required_gaps"]
 
 
-def _assert_completed_change_is_blocked(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    repo, _ = start_adopted_candidate(tmp_path)
-    root = tmp_path / "repo-work-feature"
-    run_ethos(*lane_start_arguments(repo, root), cwd=repo)
-    monkeypatch.setattr(
-        "ethos.domain.status.audit_for_root",
-        lambda root, openspec_mode="shape": (
-            {"verdict": "pass", "required_gaps": [], "root": root.as_posix()}
-            if openspec_mode == "shape"
-            else pytest.fail("land readiness requested a non-shape OpenSpec audit")
-        ),
+def _assert_completed_change_is_observed(tmp_path: Path) -> None:
+    fixture = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(
+        fixture.worktree,
+        "openspec/changes/fixture-change/tasks.md",
+        "- [x] Exercise fixture lifecycle\n",
+        "complete source work",
     )
-    stub_official_archive_state(monkeypatch, completed=True, change_name="sample-change")
-    payload = _land(root)
+    payload = _land(fixture.worktree)
     assert (payload["verdict"], payload["state"]) == ("block", "blocked")
-    assert "openspec_completed_change_unarchived:sample-change" in payload["required_gaps"]
-    assert payload["data"]["openspec_lifecycle"]["completed_changes"] == ["sample-change"]
+    assert payload["required_gaps"] == ["proof_not_proven"]
+    assert payload["data"]["openspec_lifecycle"]["completed_changes"] == ["fixture-change"]
 
 
-def _assert_active_change_is_blocked(claim: str, fixture) -> None:
+def _assert_active_change_is_admitted(claim: str, fixture) -> None:
+    """Exact source integration preserves unfinished official progress."""
     head = git(fixture.worktree, "rev-parse", "HEAD")
     seed_executed_proof(fixture.worktree, head)
     candidate_head = git(fixture.candidate, "rev-parse", "HEAD")
-    payload = _land(
-        fixture.worktree,
-        head if claim == LAND_CASES[5] else None,
-        blocked=claim == LAND_CASES[5],
-    )
-    gaps = ["openspec_active_change_unarchived:fixture-change:work_lane"]
-    assert (payload["verdict"], payload["state"], payload["required_gaps"]) == (
-        "block",
-        "blocked",
-        gaps,
-    )
-    next_action = (
-        f"ethos lane archive-change --change fixture-change --expect-head {head} --apply --json"
-    )
-    assert payload["next_action"] == next_action
-    if claim == LAND_CASES[5]:
-        assert payload["data"]["candidate_update"] == {}
-        assert git(fixture.candidate, "rev-parse", "HEAD") == candidate_head
-        return
-    mutation = payload["data"]["mutation"]
-    state = mutation["decision"]["subject"]["expected_state"]
-    assert mutation["request"] == {
-        "command": "land",
-        "apply": False,
-        "confirmation_present": False,
-        "expect_head": None,
-    }
-    assert (mutation["decision"]["verdict"], mutation["decision"]["subject"]["action"]) == (
-        "block",
-        "candidate.integrate",
-    )
-    assert (
-        state["source_head"],
-        state["source_ref"],
-        state["target_ref"],
-        state["holder_ref"],
-    ) == (
-        head,
-        "refs/heads/work/feature",
-        "refs/heads/candidate/dev",
-        "agent:test:case:agent-test",
-    )
-    assert state["lease_generation"] == 1
-    assert state["lease_expires_at"]
-    assert mutation["decision"]["required_gaps"] == gaps
-    assert mutation["decision"]["mints_authority"] is False
-    assert "authorized" not in mutation
-    assert "proof_readiness" not in payload["data"]
+    pending = (fixture.worktree / "openspec/changes/fixture-change/tasks.md").read_bytes()
+    applied = claim == LAND_CASES[5]
+    payload = _land(fixture.worktree, head if applied else None)
+    assert payload["verdict"] == "pass"
+    assert payload["required_gaps"] == []
+    assert (fixture.worktree / "openspec/changes/fixture-change/tasks.md").read_bytes() == pending
+    assert git(fixture.candidate, "rev-parse", "HEAD") == (head if applied else candidate_head)
+    if not applied:
+        decision = payload["data"]["mutation"]["decision"]
+        assert decision["subject"]["action"] == "candidate.integrate"
+        assert decision["mints_authority"] is False
 
 
 def _assert_archived_land_readiness(
@@ -242,7 +202,7 @@ def test_land_readiness_claim_matrix(
         _assert_dirty_land_is_blocked(tmp_path)
         return
     if claim == LAND_CASES[1]:
-        _assert_completed_change_is_blocked(monkeypatch, tmp_path)
+        _assert_completed_change_is_observed(tmp_path)
         return
     fixture = start_adopted_work_lane(tmp_path)
     if claim == LAND_CASES[2]:
@@ -256,7 +216,7 @@ def test_land_readiness_claim_matrix(
         )
     commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
     if claim in LAND_CASES[4:6]:
-        _assert_active_change_is_blocked(claim, fixture)
+        _assert_active_change_is_admitted(claim, fixture)
         return
     head = _archive(monkeypatch, fixture.worktree, full=claim == LAND_CASES[8])
     _assert_archived_land_readiness(claim, fixture, head, monkeypatch)

@@ -6,9 +6,6 @@ from typing import cast
 
 import yaml
 
-from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
-from ethos.contracts.branch.roles import ROLE_CANDIDATE
-from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -91,19 +88,13 @@ def active_change_identifier_violations(openspec_root: Path) -> list[str]:
     ]
 
 
-def protected_branch_active_change_report(
+def governed_branch_intent_report(
     root: Path,
     *,
     current_branch: str,
     branch_observations: dict[str, tuple[dict[str, object], dict[str, object] | None]],
 ) -> dict[str, object]:
-    """Return active OpenSpec carriers hiding in governed branch trees.
-
-    The current checkout is not the whole repository truth. Release, accepted,
-    and candidate branches can be unbound worktree-wise while still being
-    publish/closeout-relevant Git facts. Scan their Git trees directly so active
-    `openspec/changes/<id>/...` carriers cannot hide outside the current worktree.
-    """
+    """Observe active intent in exact governed branch trees, including unbound refs."""
     policy = load_branch_role_policy(root)
     branches = (
         (policy.release_branch, policy.role_for_branch(policy.release_branch)),
@@ -111,7 +102,6 @@ def protected_branch_active_change_report(
         (policy.candidate_branch, policy.role_for_branch(policy.candidate_branch)),
     )
     records: list[dict[str, str]] = []
-    advisory_gaps: list[str] = []
     required_gaps: list[str] = []
     observations: list[dict[str, object]] = []
     seen: set[tuple[str, str, str]] = set()
@@ -136,44 +126,18 @@ def protected_branch_active_change_report(
             if key in seen:
                 continue
             seen.add(key)
-            gap = f"openspec_protected_branch_active_change_unarchived:{branch}:{role}:{change}"
-            advisory_gaps.append(gap)
-            records.append({"branch": branch, "role": role, "change": change, "gap": gap})
+            records.append({"branch": branch, "role": role, "change": change})
     return {
         "verdict": reduce_verdicts(
             *(report_verdict(item) for item in observations),
-            "block" if advisory_gaps else "pass",
             required_gaps=tuple(required_gaps),
         ),
         "records": records,
-        "advisory_gaps": advisory_gaps,
+        "advisory_gaps": [],
         "required_gaps": required_gaps,
         "observations": observations,
-        "summary": {"residue_count": len(records)},
+        "summary": {"change_count": len(records)},
     }
-
-
-def protected_branch_active_change_required_gaps(
-    report: dict[str, object], *, roles: set[str] | None = None
-) -> list[str]:
-    """Return protected-branch active carriers that block release readiness.
-
-    The lifecycle read model exposes all non-current protected residue as advisory
-    because observing another branch does not authorize mutation. Publication is
-    stricter: a release-root active OpenSpec carrier means the governed release
-    tree still contains an unclosed Change carrier, so publish readiness must fail
-    until that carrier is archived on its owning branch.
-    """
-    blocked_roles = roles or {ROLE_RELEASE_ROOT}
-    gaps = list(cast("list[str]", report["required_gaps"]))
-    for record in cast("list[object]", report["records"]):
-        if not isinstance(record, dict):
-            continue
-        if str(record.get("role") or "") in blocked_roles:
-            gap = str(record.get("gap") or "")
-            if gap:
-                gaps.append(gap)
-    return list(dict.fromkeys(gaps))
 
 
 def active_change_names_from_paths(ref: str, paths: tuple[str, ...] | None) -> dict[str, object]:
@@ -200,22 +164,6 @@ def active_change_names_from_paths(ref: str, paths: tuple[str, ...] | None) -> d
         "changes": sorted(active),
         "required_gaps": [],
     }
-
-
-def active_change_violations_for_role(openspec_root: Path, role: str) -> list[str]:
-    """Block active OpenSpec carriers on candidate, accepted-root, and release-root roles.
-
-    Active changes are legal authoring carriers in Work Lanes. Once a change is
-    promoted to candidate, accepted-root, or release-root truth, any remaining active
-    carrier is stale state and must be archived so current truth lives in source,
-    specs, claims, evidence, and chronicle rather than in `openspec/changes/<id>`.
-    """
-    if role not in {ROLE_RELEASE_ROOT, ROLE_ACCEPTED_ROOT, ROLE_CANDIDATE}:
-        return []
-    return [
-        f"openspec_active_change_unarchived:{name}:{role}"
-        for name in active_change_names(openspec_root)
-    ]
 
 
 def changed_openspec_spec_obligation_removal_gaps(diff_text: str | None) -> list[str]:
@@ -271,8 +219,7 @@ def _accepted_spec_physical_grammar_gaps(specs_root: Path) -> list[str]:
 def openspec_shape_report(
     root: Path,
     *,
-    current_branch: str,
-    protected_branch_residue: dict[str, object],
+    branch_intent: dict[str, object],
     spec_diff: str | None,
 ) -> dict[str, object]:
     """Report OpenSpec repository shape without invoking the OpenSpec CLI."""
@@ -287,23 +234,18 @@ def openspec_shape_report(
         required_gaps.append("openspec_specs_missing")
     else:
         required_gaps.extend(_accepted_spec_physical_grammar_gaps(specs_root))
-    required_gaps.extend(
-        active_change_violations_for_role(
-            openspec_root, load_branch_role_policy(root).role_for_branch(current_branch)
-        )
-    )
-    required_gaps.extend(cast("list[str]", protected_branch_residue["required_gaps"]))
+    required_gaps.extend(cast("list[str]", branch_intent["required_gaps"]))
     required_gaps.extend(active_change_identifier_violations(openspec_root))
     required_gaps.extend(changed_openspec_spec_obligation_removal_gaps(spec_diff))
     return {
         "verdict": reduce_verdicts(
             report_verdict(official_config),
-            ("unknown" if protected_branch_residue["verdict"] == "unknown" else "pass"),
+            report_verdict(branch_intent),
             required_gaps=tuple(required_gaps),
         ),
         "mode": "shape",
         "official_config": official_config,
-        "protected_branch_residue": protected_branch_residue,
-        "advisory_gaps": protected_branch_residue["advisory_gaps"],
+        "branch_intent": branch_intent,
+        "advisory_gaps": branch_intent["advisory_gaps"],
         "required_gaps": required_gaps,
     }

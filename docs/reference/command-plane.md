@@ -197,10 +197,16 @@ missing effect evidence, so its continuation does not repeat the insertion.
 ## OpenSpec Ownership
 
 The official OpenSpec CLI owns intent parsing and archive transformations.
-ETHOS consumes its facts without becoming a second intent carrier. Source
-completion, including task progress, must be committed before its exact proof.
-In a governed Work Lane, `ethos lane archive-change --change <id> --expect-head
-<source-head> --json` derives the bounded official archive and Git transition;
+ETHOS consumes its facts without becoming a second intent carrier. Commit source
+and actual task progress before exact proof. Source acceptance does not require
+completing future delivery tasks: the same active Change may remain through
+integration, accepted closeout, publication and actual use. Record task
+completion only after observing its result; proof does not authorize a later
+effect.
+
+After the Change's obligations are settled, an owned Work Lane invokes
+`ethos lane archive-change --change <id> --expect-head
+<source-head> --json` to derive the bounded official archive and Git transition;
 follow its current guarded continuation. Ordinary `git commit` does not replace
 that effect owner. A staged official archive still needs valid source proof.
 New source bytes invalidate old proof; copied output or repeated commands do
@@ -210,7 +216,7 @@ not repair that binding.
 openspec list --json
 openspec status --change <id> --json
 openspec validate --all --strict --json
-openspec archive <id> --yes --json
+ethos lane archive-change --change <id> --expect-head <source-head> --json
 ```
 
 ## Exact Ref Observation For CI

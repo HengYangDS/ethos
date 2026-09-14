@@ -409,7 +409,7 @@ def proof_for_repository_transition(
     return ethos.adapters.mutation.proof_admission.proof_attestation(
         root,
         head,
-        require_archive=True,
+        repository_transition=True,
         store=proof_artifact_root(root),
     )
 

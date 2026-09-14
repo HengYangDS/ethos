@@ -29,10 +29,13 @@ proposal ref without inventing product proof or archiving unfinished intent.
 Accepted/release targets retain their proof and closeout. Derive these meanings
 from the current command, never a detached checkout name or a copied proof label.
 
-Commit completed source intent before exact proof, then use the governed archive
-continuation. Editing tasks after proof makes a new source; ordinary Git commit
-does not finalize the archive effect. A staged archive without valid source proof
-requires a current recovery decision, not repeated commits or hook bypass.
+Commit source and actual task progress before exact proof. Source acceptance,
+delivery and Change completion are distinct: keep delivery obligations in the
+same active Change and mark them only after observing their results. Archive
+when those obligations are settled, using its governed continuation. Editing
+tasks after proof makes a new source; ordinary Git commit does not finalize the
+archive effect. A staged archive without valid source proof requires a current
+recovery decision, not repeated commits or hook bypass.
 
 Treat each peer effect as a new trust boundary. A preflight PASS or earlier peer
 success does not authorize the next effect. Preserve applied peers, report

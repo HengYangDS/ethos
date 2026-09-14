@@ -21,7 +21,7 @@ from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.lifecycle.report import selection_gaps
-from ethos.adapters.openspec.observation import protected_branch_active_change_report
+from ethos.adapters.openspec.observation import governed_branch_intent_report
 from ethos.adapters.repo.git import current_branch as git_current_branch
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
@@ -56,7 +56,7 @@ def openspec_governance_report(
                 "enabled": lifecycle,
                 "changes": report["changes"],
                 "scope_binding": report["scope_binding"],
-                "protected_branch_residue": report["protected_branch_residue"],
+                "branch_intent": report["branch_intent"],
             },
             "commands": {},
         }
@@ -109,7 +109,7 @@ def _active_identifier_rejected_report(
             "enabled": lifecycle,
             "changes": [],
             "scope_binding": {},
-            "protected_branch_residue": {},
+            "branch_intent": {},
         },
         "commands": {"doctor": {}, "list": {}, "status": {}, "validate": {}},
     }
@@ -123,18 +123,16 @@ def _openspec_governance_report(
 ) -> dict[str, Any]:
     official_config = official_config_report(root)
     current_branch = git_current_branch(root)
-    protected_branch_residue = protected_branch_active_change_report(
+    branch_intent = governed_branch_intent_report(
         root,
         current_branch=current_branch,
     )
-    advisory_gaps = [
-        str(gap) for gap in cast("list[object]", protected_branch_residue["advisory_gaps"])
-    ]
+    advisory_gaps = [str(gap) for gap in cast("list[object]", branch_intent["advisory_gaps"])]
     scope_binding = lifecycle_report(
         root,
         request=request._replace(lifecycle=False),
         list_payload={},
-        protected_branch_residue=protected_branch_residue,
+        branch_intent=branch_intent,
     )["scope_binding"]
     if (
         not request.require_workspace
@@ -159,7 +157,7 @@ def _openspec_governance_report(
                 "enabled": request.lifecycle,
                 "changes": [],
                 "scope_binding": scope_binding,
-                "protected_branch_residue": protected_branch_residue,
+                "branch_intent": branch_intent,
             },
             "commands": {},
         }
@@ -170,7 +168,7 @@ def _openspec_governance_report(
         official_package=openspec_cli.OFFICIAL_PACKAGE_SPEC,
         required_gaps=required_gaps,
         advisory_gaps=advisory_gaps,
-        protected_branch_residue=protected_branch_residue,
+        branch_intent=branch_intent,
     )
 
     if base_command is None:
@@ -260,7 +258,7 @@ def _openspec_governance_report(
             "required_gaps": archive_scope["required_gaps"],
             "changes": [],
             "scope_binding": archive_scope,
-            "protected_branch_residue": protected_branch_residue,
+            "branch_intent": branch_intent,
         }
         if archive_scope is not None
         else lifecycle_report(
@@ -269,7 +267,7 @@ def _openspec_governance_report(
             list_payload=list_result["json"],
             status_payload=status.get("json", {}),
             apply_payload=apply.get("json", {}),
-            protected_branch_residue=protected_branch_residue,
+            branch_intent=branch_intent,
         )
     )
     required_gaps.extend(str(gap) for gap in lifecycle_payload["required_gaps"])
@@ -311,7 +309,7 @@ def _openspec_governance_report(
             "enabled": request.lifecycle,
             "changes": lifecycle_payload["changes"],
             "scope_binding": lifecycle_payload["scope_binding"],
-            "protected_branch_residue": lifecycle_payload["protected_branch_residue"],
+            "branch_intent": lifecycle_payload["branch_intent"],
         },
         "commands": {
             "config": config,

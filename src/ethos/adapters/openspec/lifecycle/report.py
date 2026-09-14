@@ -26,7 +26,7 @@ class OpenSpecReportContext(NamedTuple):
     official_package: str
     required_gaps: list[str]
     advisory_gaps: list[str]
-    protected_branch_residue: dict[str, object]
+    branch_intent: dict[str, object]
 
 
 def official_change_rows(list_payload: dict[str, Any]) -> list[dict[str, str]] | None:
@@ -122,7 +122,7 @@ def openspec_official_cli(
 
 
 def empty_lifecycle(
-    root: Path, request: OpenSpecRequest, protected_branch_residue: dict[str, object]
+    root: Path, request: OpenSpecRequest, branch_intent: dict[str, object]
 ) -> dict[str, Any]:
     return {
         "enabled": request.lifecycle,
@@ -130,7 +130,7 @@ def empty_lifecycle(
         "scope_binding": scope.material_change_scope_report(
             root, changed_paths=request.changed_paths, active_change_names=()
         ),
-        "protected_branch_residue": protected_branch_residue,
+        "branch_intent": branch_intent,
     }
 
 
@@ -152,7 +152,7 @@ def _edge_report(
         "required_gaps": context.required_gaps,
         "advisory_gaps": context.advisory_gaps,
         "commands": commands,
-        "lifecycle": empty_lifecycle(root, context.request, context.protected_branch_residue),
+        "lifecycle": empty_lifecycle(root, context.request, context.branch_intent),
     }
 
 
@@ -265,17 +265,17 @@ def lifecycle_report(
     list_payload: dict[str, Any],
     status_payload: dict[str, Any] | None = None,
     apply_payload: dict[str, Any] | None = None,
-    protected_branch_residue: dict[str, object] | None = None,
+    branch_intent: dict[str, object] | None = None,
 ) -> dict[str, Any]:
-    residue = protected_branch_residue or {
+    intent = branch_intent or {
         "verdict": "pass",
         "records": [],
         "advisory_gaps": [],
         "required_gaps": [],
-        "summary": {"residue_count": 0},
+        "summary": {"change_count": 0},
     }
     if not request.lifecycle:
-        lifecycle = empty_lifecycle(root, request, residue)
+        lifecycle = empty_lifecycle(root, request, intent)
         lifecycle.pop("enabled")
         return {"required_gaps": [], **lifecycle}
     rows = official_change_rows(list_payload) or []
@@ -302,5 +302,5 @@ def lifecycle_report(
         "required_gaps": required_gaps,
         "changes": changes,
         "scope_binding": binding,
-        "protected_branch_residue": residue,
+        "branch_intent": intent,
     }

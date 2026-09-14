@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import is_ancestor
@@ -15,7 +14,6 @@ from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
-from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 
 if TYPE_CHECKING:
@@ -93,11 +91,10 @@ def _closeout_candidate_gaps(
     candidate_head = str(candidate.get("head") or "")
     if not is_ancestor(root, current_head, candidate_head):
         return ["candidate_diverged_from_accepted"]
-    gaps = openspec_carrier_gaps(candidate_path, ROLE_CANDIDATE)
     if not require_proof:
-        return gaps
+        return []
     _proof, proof_gaps = proof_for_repository_transition(candidate_path, candidate_head)
-    return [*gaps, *proof_gaps]
+    return proof_gaps
 
 
 def request_gaps(
@@ -157,13 +154,7 @@ def evaluate_mutation(
         if status["dirty"]
         else []
     )
-    gaps.extend(
-        str(gap)
-        for gap in (
-            *openspec_carrier_gaps(root, ROLE_WORK_LANE),
-            *cast("list[object]", closeout.get("required_gaps", [])),
-        )
-    )
+    gaps.extend(str(gap) for gap in cast("list[object]", closeout.get("required_gaps", [])))
     if apply:
         gaps.extend(proof_gaps(root, current_head))
     required_gaps = tuple(dict.fromkeys(gaps))
@@ -205,7 +196,6 @@ def evaluate_closeout_mutation(
     )
     gaps.extend(
         (
-            *openspec_carrier_gaps(root, ROLE_ACCEPTED_ROOT),
             *_closeout_candidate_gaps(
                 root,
                 candidate,

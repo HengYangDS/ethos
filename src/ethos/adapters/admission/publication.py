@@ -148,11 +148,6 @@ def _ref_update_admission(
     intent: dict[str, object] = {"verdict": "pass", "changes": [], "required_gaps": []}
     if proposed:
         intent = active_change_names_in_ref(root, proposed)
-        if policy_known and publication_proof_selection(role) == "repository_transition":
-            local_gaps.extend(
-                f"openspec_ref_active_change_unarchived:{target_ref}:{change}"
-                for change in string_sequence(intent.get("changes"))
-            )
     gaps = list(
         dict.fromkeys(
             (
@@ -249,13 +244,6 @@ def _ref_update_continuation(
             )
         )
     intent = cast("Mapping[str, object]", report["openspec"])
-    changes = string_sequence(intent.get("changes"))
-    if changes and publication_proof_selection(str(report["role"])) == "repository_transition":
-        return (
-            "accepted_intent",
-            "Complete and prove intent before governed archive; review is a distinct target.",
-            ("show", f"{proposed}:openspec/changes/{changes[0]}/tasks.md"),
-        )
     if report_verdict(intent) != "pass":
         return (
             "intent_observation",

@@ -57,7 +57,7 @@ import ethos.adapters.openspec.observation as observation
 import tests.support.governed_repository as fixture
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
-from ethos.adapters.openspec.profile import completed_active_changes_report
+from ethos.adapters.openspec.profile import active_change_progress_report
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import official_config_report
 from tests.support.semantic import commitment_fixture
@@ -238,7 +238,7 @@ def test_adopter_unknown_git_claim_matrix(monkeypatch, tmp_path, state, detail):
     failed = type("P", (), {"returncode": 128, "stdout": "", "stderr": "fatal"})()
     monkeypatch.setattr(observation, "run_git", lambda *_a, **_k: failed)
     report = (
-        observation.protected_branch_active_change_report(repo, current_branch="work/change")
+        observation.governed_branch_intent_report(repo, current_branch="work/change")
         if state == "protected"
         else observation.active_change_names_in_ref(repo, "candidate/dev")
     )
@@ -306,9 +306,9 @@ def test_adopter_lifecycle_claim_matrix(monkeypatch, tmp_path):
     assert report["intent_context"]["source_state"] == "complete"
     tasks = repo / "openspec/changes/active/tasks.md"
     tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
-    report = completed_active_changes_report(repo)
+    report = active_change_progress_report(repo)
     assert (report["verdict"], report["completed_changes"], report["required_gaps"]) == (
-        "block",
+        "pass",
         ["active"],
-        ["openspec_completed_change_unarchived:active"],
+        [],
     )

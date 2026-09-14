@@ -942,27 +942,6 @@ a local-ci fallback evidence path when the configured Git remote is unavailable.
   hosted CI policy inline
 - **AND** local fallback evidence does not claim hosted CI pipeline success
 
-### Requirement: OpenSpec active carrier residue is visible across protected branch trees
-
-ETHOS SHALL make active OpenSpec carriers visible when they remain in configured
-protected branch Git trees. Current protected-role checkouts MUST block on active
-carriers. Non-current protected branch residue MUST remain visible as an advisory
-signal so stale protected refs can be repaired without misclassifying the current
-accepted truth horizon.
-
-#### Scenario: Current release root blocks active carrier residue
-
-- **WHEN** repository audit runs on a checkout whose role is `release_root`
-- **AND** `openspec/changes/<id>/` exists outside `archive/`
-- **THEN** audit reports `openspec_active_change_unarchived:<id>:release_root` as a required gap
-
-#### Scenario: Non-current protected branch residue is advisory
-
-- **WHEN** repository audit runs on a different current role
-- **AND** a configured protected branch tree contains `openspec/changes/<id>/` outside `archive/`
-- **THEN** audit includes `openspec_protected_branch_active_change_unarchived:<branch>:<role>:<id>` in OpenSpec advisory gaps
-- **AND** audit does not make the current checkout fail solely because of that non-current protected branch residue
-
 ### Requirement: Advisory governance signals are visible in reader views
 
 ETHOS SHALL expose non-blocking advisory governance signals in the bounded
@@ -4432,3 +4411,53 @@ completed, retained and deferred resources independently from activation.
 - **WHEN** the selected runtime or exact candidate directory changes before its destructive effect
 - **THEN** reclamation rejects the stale coordinate
 - **AND** it does not delete a replacement directory under the old name.
+
+### Requirement: OpenSpec active intent is visible across governed branch trees
+
+ETHOS SHALL observe active official Changes in configured integration, accepted
+and release Git trees. Active intent SHALL remain valid through source
+integration and delivery. Each transition SHALL separately require exact source
+and policy proof, current authority and its own CAS preconditions.
+
+#### Scenario: active intent accompanies accepted source
+
+- **WHEN** an accepted or release source tree contains a valid active Change
+- **THEN** its presence is an ordinary observation, not an archive-required gap
+- **AND** current source proof and effect admission remain required.
+
+#### Scenario: another governed branch carries active intent
+
+- **WHEN** the current checkout differs from a configured governed branch
+- **THEN** its observed Change names remain visible with the exact branch role
+- **AND** presence alone is neither a warning nor authority to mutate that branch.
+
+#### Scenario: a required Git observation is unavailable
+
+- **WHEN** ETHOS cannot read a required branch or source tree
+- **THEN** the report preserves UNKNOWN and its precise missing fact
+- **AND** it does not silently interpret failure as an empty Change list.
+
+### Requirement: Repository transition proof binds source intent independently of archive
+
+ETHOS SHALL admit repository-transition proof only for the exact source commit,
+tree, official acceptance and required policy floor. Active and attested archived
+intent SHALL use the same source-binding rule. Authoring Lease lifetime SHALL
+not replace current effect authority or invalidate accepted source evidence.
+
+#### Scenario: exact source carries unfinished delivery intent
+
+- **WHEN** exact proof covers a valid active Change and the declared source floor
+- **THEN** candidate-to-accepted admission may consume that proof before archive
+- **AND** it does not assert completed delivery or authorize a later effect.
+
+#### Scenario: carried acceptance differs from source
+
+- **WHEN** proof names the correct commit but carries different acceptance
+- **THEN** repository-transition admission rejects the intent binding
+- **AND** green check results cannot compensate for that mismatch.
+
+#### Scenario: the authoring Lease has retired
+
+- **WHEN** source proof remains exact and applicable after its Work Lane retires
+- **THEN** an independently authorized repository transition can consume it
+- **AND** current-lane authoring still requires its own live Lease.

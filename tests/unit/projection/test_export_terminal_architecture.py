@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -141,6 +142,9 @@ def _fixture_repository(tmp_path: Path, *, effect_authority: bool = False) -> tu
     (projection_root / "quality-contract.yaml").write_text(
         "schema: fixture.quality/v1\n", encoding="utf-8"
     )
+    owner = "src/ethos/repository/policy/projections.py"
+    (root / owner).parent.mkdir(parents=True)
+    (root / owner).write_bytes((REPOSITORY_ROOT / owner).read_bytes())
 
     _git(root, "add", ".")
     _git(root, "commit", "-qm", "fixture")
@@ -158,6 +162,9 @@ def test_export_is_exact_tree_bound_deterministic_and_host_path_free(tmp_path: P
         capture_output=True,
     ).stdout
     (root / "docs/source.md").write_text("uncommitted drift\n", encoding="utf-8")
+    (root / "src/ethos/repository/policy/projections.py").write_text(
+        "raise RuntimeError('uncommitted owner must not run')\n", encoding="utf-8"
+    )
 
     first = exporter.export_projection_input(root=root, revision=commit)
     second = exporter.export_projection_input(root=root, revision=commit)
@@ -169,6 +176,31 @@ def test_export_is_exact_tree_bound_deterministic_and_host_path_free(tmp_path: P
     assert str(tmp_path) not in json.dumps(first)
     digest = first.pop("digest")
     assert digest == _sha256(_canonical_bytes(first))
+
+
+def test_selected_exporter_runs_in_an_isolated_stdlib_consumer(tmp_path: Path) -> None:
+    """Consumer tools need no installed ETHOS or mutable checkout imports."""
+    root, commit = _fixture_repository(tmp_path)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-B",
+            "-c",
+            EXPORTER_PATH.read_text(),
+            "--root",
+            str(root),
+            "--revision",
+            commit,
+        ],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    assert json.loads(result.stdout) == _load_exporter().export_projection_input(
+        root=root,
+        revision=commit,
+    )
 
 
 def test_export_validates_the_projection_input_schema(tmp_path: Path) -> None:
@@ -260,6 +292,20 @@ def test_export_fails_closed_on_stale_or_missing_exact_tree_sources(tmp_path: Pa
         exporter.export_projection_input(
             root=root, revision=commit, declaration_path="missing.json"
         )
+
+
+def test_export_rejects_an_altered_source_authority(tmp_path: Path) -> None:
+    """An unchanged digest cannot validate a contradictory authority label."""
+    root, _commit = _fixture_repository(tmp_path)
+    graph_path = root / "system/projections/terminal-architecture/semantic-graph.json"
+    graph = json.loads(graph_path.read_text())
+    graph["sources"]["source"]["authority"] = "projection is now product authority"
+    _write_json(graph_path, graph)
+    _git(root, "add", ".")
+    _git(root, "commit", "-qm", "alter authority without changing source")
+
+    with pytest.raises(ValueError, match="source authority mismatch"):
+        _load_exporter().export_projection_input(root=root)
 
 
 def test_projection_declaration_cannot_own_repository_effect_authority(tmp_path: Path) -> None:

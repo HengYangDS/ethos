@@ -16,6 +16,8 @@ dependency cycle, not incomplete adopter documentation.
   publication and lifecycle readers. Preserve current authority and exact CAS.
 - Keep incomplete tasks visible and keep archive conditional on completed
   obligations. Update the existing contract and skill projections.
+- Keep declared source-binding projections consistent within the exact archive
+  effect, without granting general post-archive write authority.
 
 ## Capabilities
 
@@ -32,7 +34,7 @@ state store, adopter carrier or separate delivery ledger is introduced.
 
 ## Out Of Scope
 
-- Archive postimage validation and post-archive repair admission.
+- General post-archive repair admission and malformed canonical-spec recovery.
 - Expired Lease recovery commands and lane-start positional parsing.
 - General proof caching, supply upgrades and architecture quality-contract debt.
 - Changes to AIGW, Proxy, Workstation or the diagram repositories.

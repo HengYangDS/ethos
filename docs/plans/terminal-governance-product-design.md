@@ -3441,6 +3441,7 @@ fresh observation or fault recovery.
 | Structure and maintainability | Module-layout, import-linter and source budgets; duplicate module identity parsing, empty test leaves, test-scope gaps and shallow/parallel owners remain | Resolve ownership using callers, dynamic registration, resources and independent change reasons; verify imports and public behavior after deleting incumbents, not file-count-driven moves |
 | Behavioral assurance | pytest, Hypothesis, combined coverage and selected mutation testing | At least 95 percent combined statement/branch coverage without exclusions or dilution, risk-selected boundary/state-machine/concurrency counterexamples and scoped mutation evidence, not copied implementation assertions |
 | Carrier and projection integrity | Native format/schema/link owners and generated-asset checks; full proof did not include every local-CI carrier check | One effective configuration per property, all maintained admitted carriers in scope, cross-plane references and generated projections checked, archived/generated quantities separately reported |
+| Shared documentation targets | September 14 AIGW feedback reports that Git-selected Markdown passes offline lychee when its target exists only as ignored/untracked local content; ETHOS reproduction remains pending | Use the native link extractor and exact Git index/tree membership for local file, directory and symlink targets, or an explicit published-artifact contract. Host existence is not shared delivery; navigation completeness remains a semantic review obligation, not a lint claim |
 | Dependency and security assurance | deptry, locked supplies, uv audit and Gitleaks; native owners exist but security checks are not in the proof registry | Inventory/source/lock/runtime agreement, dev-tool reachability, secrets and vulnerable/adverse dependency counterexamples; online freshness distinguished from offline correctness and tool provisioning |
 | Package and provenance | Build/install owners and Syft; SPDX version recognition alone is not complete conformance | Exact wheel/npm contents, reproducibility, install/upgrade/rollback/uninstall, standard SBOM conformance and license coverage, provenance, signatures and publication each proved separately |
 | Runtime and resource safety | Test-gate finalization does not recover killed predecessors; shared-cache attribution and historical carrier producers remain partly unproved. See the [resource recurrence checkpoint](#resource-recurrence-checkpoint) | Normal/crash/SIGKILL convergence, live-root protection, read-only-tree deletion, shared supply, bounded actual 24/48-hour item/byte/inode/latency/indexing cost; no artificial TTL increase or manual broad cleanup |
@@ -5379,15 +5380,36 @@ partial publication. Fifty-two publication admission/recovery cases and 76
 observation/projection cases pass. The real completed-Change closeout replaces
 an obsolete whole-OpenSpec stub: that stub supplied invalid `show` output to
 the new exact-source verifier. Its only other consumer now also uses real
-official intent and the misleading stub is deleted. These candidate results
-are retained under `build/evidence/quality/source-delivery-lifecycle/`; they are
-not exact full proof, installed behavior or current hosted acceptance. Complete
-affected verification and the normal acceptance boundary before delivery.
+official intent and the misleading stub is deleted. The first signed source
+`aebee6e210b5ad19564ea3b3f919b7f6b33b0f2b` passed all 35 full gates with 3,304
+tests passed, one skipped and 95.0636763 percent combined coverage. Its exact
+Attestation is `ef0c0283315731f4deea37dc625aa448a806fbfb91eaa8ef88b477f2da65a03a`.
+This proof remains evidence for that source, not later edits, installation,
+publication or the full product goal.
 
 The affected source-integration/Lease and accepted-closeout suites now each
 pass 12 cases; six native static sessions and seven public source-owner gates
-also pass. Native OpenSpec strict validation reports no issues. Full proof is
-the next frozen-source boundary, not a reinterpretation of these scoped results.
+also pass. Native OpenSpec strict validation reports no issues. The subsequent
+exact-source archive preview exposed a prerequisite missed by those tests:
+archive changes canonical specs but their declared projection bindings remain
+stale, while post-archive prewrite rejects a repair outside the original effect.
+Treating historical changed paths as general future authority is not the fix.
+
+The bounded closure now includes the archive's own derived binding postimage.
+The sole native projection owner verifies prior identity, authority labels and
+bytes, derives only changed source hashes, and preserves authored graph meaning.
+Both direct native archive and externally staged official archive use the same
+completion path before Git CAS. Failed commits restore owned edits; caller
+overlays remain intact. Exact effect recognition is idempotent and post-archive
+proof remains usable. A real public CLI RED/GREEN covers both paths; 164 related
+regressions pass, followed by four additional completion/fencing counterexamples.
+A separate counterexample revealed that the exporter checked
+hashes but not contradictory source-authority labels. It now consumes the same
+pure owner from the selected Git commit; no second validator or installed-runtime
+substitution is introduced. The source-bound stdlib consumer contract is retained.
+Evidence is in the existing ignored `build/evidence/quality/source-delivery-lifecycle/`.
+Freeze and prove the amended source once; then perform archive, current proof,
+acceptance, immutable activation, publication and exact lane retirement.
 
 Two distinct recovery gaps remain subsequent bounded work, not hidden additions
 to this Change. Workstation's archive preview passed before an invalid Purpose
@@ -5408,8 +5430,19 @@ merged meaning and surviving scenarios, not merely delta validity. Our first
 native delta validation likewise rejected a rename that omitted old scenarios;
 explicit removal and replacement now state the actual policy change.
 
-The next bounded closure addresses the confirmed hosted hook-query timeout at
-its selected-package/fixture owner. Archive postimage/re-entry and Lease
+The next bounded closure addresses hosted process timing and unbounded effect
+waiting at their existing owners. Both GitHub runs for accepted `e06d15651b90f3ce40c2a89605b8d6d585622408`
+are observed failed; GitLab pipelines 6623/dev and 6624/main are successful.
+GitHub main has two ten-second hook-contract startup timeouts. Dev adds a child
+readiness assumption of 0.5 seconds and a real attestation `git` subprocess with
+no timeout, interrupted only by pytest's 300-second limit. The native matrix
+passes but does not substitute for hosted source verification. Original proof
+and JUnit outputs are retained under the existing runtime-status-admission
+evidence root. Do not raise concurrency or timeouts, or rerun unchanged heavy
+jobs as a repair. Three browser outputs mistakenly generated in accepted root
+were attributed to their AIGW task, the producer stopped, and exact bytes were
+relocated to that existing ignored evidence root with source absence verified.
+General malformed archive postimage/re-entry and Lease
 continuation follow, then the existing architecture contract debt and P0–P7 route.
 Do not revive a persistent Commitment, second progress ledger, private parser or
 unproved compatibility exception. Do not rewrite adopters or the two renderer

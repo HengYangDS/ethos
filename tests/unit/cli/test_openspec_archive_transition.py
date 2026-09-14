@@ -1,5 +1,9 @@
+"""Verify exact native archive effects, derived bindings and recovery boundaries."""
+
 from __future__ import annotations
 
+import hashlib
+import json
 import sqlite3
 from collections.abc import Mapping
 from contextlib import closing
@@ -10,12 +14,18 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
 import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
+from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
+from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage_scope_report
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
+from tests.support.governed_repository import seed_executed_proof
 from tests.support.openspec_lifecycle import assert_lifecycle_outcome
 from tests.support.openspec_lifecycle import completed_lifecycle
 from tests.support.semantic import commitment_fixture
@@ -180,6 +190,122 @@ def test_archive_common_effect_rejects_cas_drift_before_mutation(
 
     assert git(lifecycle.worktree, "rev-parse", lifecycle.branch) == drift
     assert git(lifecycle.worktree, "rev-parse", lifecycle.branch) != target
+
+
+def _declare_archive_binding(root: Path) -> tuple[str, Path, dict[str, object]]:
+    """Bind an authored graph to a real canonical spec for archive scenarios."""
+    source = "openspec/specs/contracts/spec.md"
+    projection = root / "system/projections/terminal-architecture"
+    projection.mkdir(parents=True)
+    binding = {
+        "path": source,
+        "authority": "fixture canonical contract",
+        "sha256": hashlib.sha256((root / source).read_bytes()).hexdigest(),
+    }
+    graph = {"sources": {"contract": binding}, "nodes": {"intent": {"label": "Keep meaning"}}}
+    graph_path = projection / "semantic-graph.json"
+    graph_path.write_text(json.dumps(graph, indent=2) + "\n", encoding="utf-8")
+    declaration = {
+        "schema": "ethos.projection-declaration/v1",
+        "sources": [{"id": "contract", "path": source, "authority": binding["authority"]}],
+        "documents": {"semantic_graph": graph_path.relative_to(root).as_posix()},
+    }
+    (projection / "declaration.json").write_text(json.dumps(declaration) + "\n", encoding="utf-8")
+    commit_fixture(root, "declare bound projection")
+    return source, graph_path, graph
+
+
+@pytest.mark.parametrize("mode", ["native", "staged", "native-failure", "staged-failure"])
+def test_official_archive_closes_its_exact_source_binding_projection(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: str
+) -> None:
+    """Archival must not strand a proven Change behind stale derived hashes."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    root = lifecycle.worktree
+    source, graph_path, graph = _declare_archive_binding(root)
+    before_digest = json.loads(graph_path.read_bytes())["sources"]["contract"]["sha256"]
+    head = lifecycle.head
+    monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
+    seed_executed_proof(root, head)
+    if mode.startswith("staged"):
+        lifecycle.stage_official_archive()
+    before_index = git(root, "write-tree")
+    before_work = git(root, "status", "--porcelain")
+    before_graph = graph_path.read_bytes()
+    if mode.endswith("failure"):
+        monkeypatch.setattr(
+            archive_effect,
+            "create_git_commit",
+            lambda *_args, **_kwargs: Mock(returncode=1, stdout="", stderr="commit refused"),
+        )
+    invoke = run_ethos_blocked if mode.endswith("failure") else run_ethos
+    result = invoke(
+        "lane",
+        "archive-change",
+        "--change",
+        "fixture-change",
+        "--expect-head",
+        head,
+        "--root",
+        root.as_posix(),
+        "--apply",
+        "--json",
+        cwd=root,
+    )
+    report = result["data"]
+
+    if mode.endswith("failure"):
+        assert report["required_gaps"] == ["openspec_archive_commit_failed"]
+        assert report["compensation_state"] == "completed"
+        assert lifecycle.head == head
+        assert git(root, "write-tree") == before_index
+        assert git(root, "status", "--porcelain") == before_work
+        assert graph_path.read_bytes() == before_graph
+        return
+
+    assert report["verdict"] == "pass", report
+    updated = json.loads(graph_path.read_text(encoding="utf-8"))
+    assert (
+        updated["sources"]["contract"]["sha256"]
+        == hashlib.sha256((root / source).read_bytes()).hexdigest()
+    )
+    assert updated["sources"]["contract"]["sha256"] != before_digest
+    updated["sources"]["contract"]["sha256"] = before_digest
+    assert updated == graph
+    assert graph_path.relative_to(root).as_posix() in report["changed_paths"]
+    assert git(root, "status", "--short") == ""
+    archived_head = lifecycle.head
+    assert git(root, "rev-parse", "HEAD^") == head
+    seed_executed_proof(root, archived_head)
+    assert proof_gaps(root, archived_head) == []
+    replay = run_ethos(
+        "lane",
+        "archive-change",
+        "--change",
+        "fixture-change",
+        "--expect-head",
+        head,
+        "--root",
+        root.as_posix(),
+        "--apply",
+        "--json",
+        cwd=root,
+    )
+    assert replay["data"]["state"] == "recognized"
+    assert replay["data"]["attestation"] == report["attestation"]
+
+    graph_path.write_text(json.dumps({**graph, "nodes": {}}) + "\n", encoding="utf-8")
+    with observe_worktree_postimage(root, previous=head) as postimage:
+        rejected = archive_postimage_scope_report(
+            root,
+            source_head=head,
+            tree=postimage.tree,
+            changed_paths=postimage.changed_paths,
+            requested_change="fixture-change",
+            environment=postimage.environment,
+        )
+    assert rejected is None
+    assert lifecycle.head == archived_head
 
 
 def test_archive_change_blocks_when_the_work_lane_lease_is_missing(

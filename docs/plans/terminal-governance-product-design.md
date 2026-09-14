@@ -5376,6 +5376,49 @@ with current proof and effect authority retained. Do not use upstream `--yes`
 to turn incomplete delivery into an archived-completion claim. This is the next
 existing P0/P1 closure, not implementation in this frozen status Change.
 
+### Native Runtime Fixture Prerequisite
+
+Revised status source `f3bd18166` passed all 35 proof gates: 3,298 tests passed,
+one skipped, and combined coverage was 25,389/26,703 (95.0792 percent). Official
+archive produced `eb1969437065e462ea898209e9d83f0acf7a0b70`; its full proof failed
+one of 3,299 cases in 1,723.26 seconds. The legacy-locator directory test failed
+with `runtime_hook_contract_timeout` before its retirement assertion. The
+post-archive run's owned basetemp was removed. Accepted source/runtime remain
+`52db974e…`/`3d4d9ca5…`; this is not status delivery completion.
+
+The recurring native startup boundary has a concrete fixture mismatch:
+`materialize_runtime_case` substituted selector validation for production's
+prefix observation and new-generation smoke. Thus a copied executable reached
+activation without the prerequisite native executions. The separate bounded
+`native-runtime-fixture` Change stays in this same Work Lane; it does not reopen
+the archived status carrier, add a worktree or alter product runtime semantics.
+
+A native call-through counterexample first proves both executions missing. The
+fixture now observes its actual executable, Python identity and virtual prefix,
+then runs the real module smoke when requested. Runtime mutation images remain
+exclusive; production schemas, deadlines and workers remain unchanged. A broken
+module fails before activation and its generation is removed. All 370 affected
+runtime, hook and fixture cases pass in 194.66 seconds; owned scratch is removed.
+This proves the prerequisite and finite replay, not universal native startup
+latency or sustained resource safety. Native platform and exact proofs remain.
+
+The pinned Linux arm64 CI base image passes 42 fixture/activation cases in
+35.13 seconds with source copies, locked dependencies and native Git/SSH tools;
+the owned container and source archive are removed. Two initial probe setup
+failures exposed missing source-import and Git prerequisites before tests ran.
+They were repaired in the isolated invocation, not treated as product failures
+or reasons to change host configuration. Ten public owner gates and all native
+source/static checks pass. A new frozen source proof remains required.
+
+Workstation also reports archive preview PASS followed by committed invalid
+Purpose at `62fb3e0f…`, with repair prewrite blocked after the active carrier is
+gone. Its supplied archive receipt and exact single-Purpose recovery were read;
+the latter is adopter recovery, not an ETHOS fix. Preserve this real counterexample
+for the same upcoming lifecycle closure: validate the exact official postimage
+before committing, and derive recovery from attested result and current authority
+rather than requiring an active carrier that archive removed. No filename
+exception, duplicate parser or adopter workaround belongs in the product.
+
 ## Completion Boundary
 
 Terminal convergence is verified only when every batch above is accepted and

@@ -78,7 +78,7 @@ def test_profile_rejects_retired_or_incomplete_proof_owners(tmp_path: Path, proo
     _assert_invalid_profile(tmp_path, 'profile_id = "sample"\n\n[proof]\n' + proof)
 
 
-def test_real_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -> None:
+def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q", tmp_path], check=True)
     subprocess.run(["git", "config", "user.name", "test"], cwd=tmp_path, check=True)
     subprocess.run(
@@ -86,7 +86,7 @@ def test_real_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Pa
     )
     _write_profile(
         tmp_path,
-        'profile_id = "codex-responses-proxy"\n\n'
+        'profile_id = "native-check-adopter"\n\n'
         "[proof]\n"
         'code_correctness_gates = ["python-quality", "python-matrix"]\n\n'
         "[proof.code_correctness_map]\n"

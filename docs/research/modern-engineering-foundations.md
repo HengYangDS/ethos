@@ -105,7 +105,7 @@ Implementation acceptance and post-archive publication outcomes are different
 obligations. Do not require an immutable archive to hold future mutable task
 progress, nor check off publish/retire before their effects. Use an already owned
 release operation or subsequent official Change where appropriate, retaining
-source/result links and the full delivery goal. The recent AIGW task-cycle report
+source/result links and the full delivery goal. The reported adopter task cycle
 requires a public-path regression; this research has not established a currently
 working accepted-runtime solution or created another release carrier.
 

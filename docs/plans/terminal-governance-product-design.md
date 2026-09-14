@@ -105,7 +105,7 @@ superseded, and retire old runtime resources only after live consumers are remov
 Adopter-reported proposal publication still conflates review ingress with completed
 Change proof, even when commit-range policy passes. Owner emergency tag publication
 also needs a precise public boundary. Fix those generic publication owners after
-this atom; do not block adopter delivery or copy gates into AIGW/Proxy. Their
+this atom; do not block adopter delivery or copy gates into affected repositories. Their
 reported P0 release success is not independently established by this plan.
 Implementation tasks must not demand later publishing/retirement before archive.
 Architecture R01–R14/P00–P09 references still need recovered definitions or an
@@ -565,8 +565,9 @@ passes; its own official Change must close the stated exit boundary.
    local proof, and installed runtime readback separate. Run product, greenfield,
    brownfield, docs/infra, package-only, local-only, single-peer, dual-peer,
    interrupted, drifted, unbound, and adversarial fixtures through the same
-   kernel. Inspect AIGW and Proxy read-only only after the package runtime is
-   accepted. Exercise the declared Python floor and current supported versions
+   kernel. Inspect authorized real adopters read-only after the package runtime
+   is accepted; select them by the capabilities under test, not project name.
+   Exercise the declared Python floor and current supported versions
    plus native macOS, Linux, and Windows adapters. Exit when every requested
    plane has fresh evidence and no adopter compatibility carrier or copied state
    machine is required.
@@ -3922,7 +3923,7 @@ Separately, actual task errors identify an upstream rate-limit failure; the
 AIGW owner reports HTTP-429 cooldown but no demonstrated SSE response.failed
 rate classification in its inspected source. Installed/source parity and the
 quota dimension are unproved. Gateway throttling and transport recovery belong
-to AIGW/Proxy, not another ETHOS implementation. ETHOS retains the generic
+to the gateway and transport products, not another ETHOS implementation. ETHOS retains the generic
 requirements for bounded provider failure, single retry ownership, preserved
 receipts and observation before any replay of uncertain effects. No model,
 credential, service or adopter was changed by this investigation.
@@ -4495,7 +4496,7 @@ resolve the quality and archive-task-cycle risks, absorb or replace the necessar
 semantics, prove the result, and retire the source lane. Do not blindly merge its
 command-private recovery mechanism or make it an adopter-release prerequisite.
 The sender has stopped implementation; one receiver owns serial execution, and
-AIGW/Proxy remain read-only.
+external adopter repositories remain read-only.
 
 September 9 receiver re-observation supersedes the earlier admission snapshot:
 HEAD remains `aece154744bc7b2460de1dc478f52ed4426eaa44`, but public lane status
@@ -5078,7 +5079,7 @@ the current `src`/`tools` graph and embed Python-specific assumptions. Their
 `[attestation]` labels and `host_profile` report are not a generic adopter
 standard or format converter. Confirm actual consumers, then remove or relocate
 this self-specific residue under the existing declaration-convergence work;
-do not make AIGW match a dead helper or invent signed standard artifacts.
+do not make adopters match a dead helper or invent signed standard artifacts.
 
 The first exact full proof at `e39d19302` failed one of 3,263 cases: the release
 topology matrix still expected `current_commitment` for a proposal target.

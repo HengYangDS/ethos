@@ -85,6 +85,13 @@ this consistency; executable enforcement remains a tracked terminal-plan gap.
 
 ## Portability Boundary
 
+Product requirements and reusable procedures describe repository capabilities,
+roles and observed conditions, independently of a particular adopter. Concrete
+repository names belong to attributed research, reproducible cases or historical
+evidence; they identify the source, not an integration dependency or a special
+policy. Synthetic examples use descriptive sample identities. Named native tools
+remain appropriate where their actual protocol or behavior is the subject.
+
 The registry owns portable document metadata, role/state vocabulary, taxonomy
 extensions, visible sections, command examples, and plan discoverability. It
 reads the documentation root declared by the adopter profile, defaulting to

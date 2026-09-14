@@ -62,7 +62,7 @@ def test_edge_reports_and_lifecycle_mismatches_preserve_attribution(
         official_package="@fission-ai/openspec",
         required_gaps=["openspec_official_cli_missing"],
         advisory_gaps=[],
-        protected_branch_residue={"verdict": "pass"},
+        branch_intent={"verdict": "pass"},
     )
     unavailable = report.openspec_unavailable_report(tmp_path, context)
     timeout = report.openspec_timeout_report(

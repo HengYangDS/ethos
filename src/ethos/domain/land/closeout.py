@@ -365,17 +365,6 @@ def land_next_action(
         return "ethos land --closeout --json"
     if "candidate_base_stale" in gaps:
         return f"ethos lane refresh-base --apply --authorize --expect-head {current_head} --json"
-    active_carriers = tuple(
-        gap
-        for gap in gaps
-        if gap.startswith("openspec_active_change_unarchived:") and gap.endswith(":work_lane")
-    )
-    if active_carriers:
-        change = active_carriers[0].split(":", 2)[1]
-        return (
-            f"ethos lane archive-change --change {change} "
-            f"--expect-head {current_head} --apply --json"
-        )
     if "proof_not_proven" in gaps:
         return f"ethos prove --execute --expect-head {current_head} --json"
     return "ethos prove --json"

@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "b6c4881e43ef5fb0b5a5870abd00877388d7f65b7b1941be904e489a61ca75f3"
+      "sha256": "be3ea8d7e819728ee4377db5098326dc767e92e28a951571250d1d79883aae18"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -891,7 +891,7 @@
       "evidence": [
         "product_contract"
       ],
-      "semantics": "Official OpenSpec is the sole tracked accepted intent, specifications, design, tasks and archive. Valid no-spec Changes compile positive acceptance; archive preserves proof identity. Reopen as fresh intent, not a rewritten history."
+      "semantics": "Official OpenSpec is the sole tracked accepted intent, specifications, design, tasks and archive. Source acceptance can precede delivery; the same active Change retains outstanding obligations and archives after they are settled. Valid no-spec Changes compile positive acceptance; archive preserves proof identity. Reopen as fresh intent, not rewritten history."
     },
     "git_substrate": {
       "kind": "carrier",

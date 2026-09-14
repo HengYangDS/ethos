@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
@@ -150,12 +152,16 @@ def test_publish_branch_preflights_all_peers_and_retry_converges(tmp_path: Path)
     assert proposal_ref(remotes["github"]) == head
 
 
-def test_publish_applies_each_peers_multi_ref_set_atomically(tmp_path: Path) -> None:
+@pytest.mark.parametrize("active_change", [False, True])
+def test_publish_applies_each_peers_multi_ref_set_atomically(
+    tmp_path: Path, *, active_change: bool
+) -> None:
+    """Incomplete delivery intent does not split source or peer acceptance."""
     repo, remotes, old = branch_publication_fixture(tmp_path)
     (repo / "accepted.txt").write_text("accepted projection\n", encoding="utf-8")
-    git(repo, "add", "accepted.txt")
-    git(repo, "commit", "-m", "feat: prepare accepted projection")
-    head = git(repo, "rev-parse", "HEAD")
+    if active_change:
+        write_active_commitment(repo, change_id="delivery-work")
+    head = commit_fixture(repo, "prepare accepted projection")
     seed_executed_proof(repo, head)
     apply_accepted_closeout(repo, old, head)
     git(repo, "update-ref", "refs/heads/main", head)
@@ -212,6 +218,8 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(tmp_path: Path) -> 
     for remote in remotes.values():
         assert git(remote, "rev-parse", "refs/heads/dev") == head
         assert git(remote, "rev-parse", "refs/heads/main") == head
+        if active_change:
+            assert "- [ ]" in git(remote, "show", f"{head}:openspec/changes/delivery-work/tasks.md")
 
 
 def test_publish_sha256_ref_creation_uses_native_exact_cas(tmp_path: Path) -> None:

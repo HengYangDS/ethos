@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.repository.openspec.audit as audit
-from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
@@ -81,7 +80,7 @@ def test_active_change_reports_ignore_archives_and_reject_invalid_identifiers(tm
     assert audit.active_change_names(tmp_path / "absent") == []
 
 
-def test_protected_branch_report_preserves_unknown_and_unreadable_observations(
+def test_governed_branch_report_preserves_unknown_and_unreadable_observations(
     monkeypatch, tmp_path
 ):
     _protected_policy(monkeypatch)
@@ -96,7 +95,7 @@ def test_protected_branch_report_preserves_unknown_and_unreadable_observations(
         ),
     }
 
-    report = audit.protected_branch_active_change_report(
+    report = audit.governed_branch_intent_report(
         tmp_path,
         current_branch="dev",
         branch_observations=observations,
@@ -107,7 +106,7 @@ def test_protected_branch_report_preserves_unknown_and_unreadable_observations(
     assert report["records"] == []
 
 
-def test_protected_branch_report_deduplicates_and_promotes_selected_roles(monkeypatch, tmp_path):
+def test_governed_branch_report_deduplicates_intent_without_residue(monkeypatch, tmp_path):
     _protected_policy(monkeypatch)
     present: dict[str, object] = {"verdict": "pass", "state": "present", "required_gaps": []}
     observations: dict[str, tuple[dict[str, object], dict[str, object] | None]] = {
@@ -118,20 +117,19 @@ def test_protected_branch_report_deduplicates_and_promotes_selected_roles(monkey
         "candidate/dev": (present, {"verdict": "pass", "changes": ["active"], "required_gaps": []}),
     }
 
-    report = audit.protected_branch_active_change_report(
+    report = audit.governed_branch_intent_report(
         tmp_path, current_branch="dev", branch_observations=observations
     )
-    release_only = audit.protected_branch_active_change_required_gaps(report)
-    candidate_only = audit.protected_branch_active_change_required_gaps(report, roles={"candidate"})
+    assert report["summary"] == {"change_count": 2}
+    assert report["verdict"] == "pass"
+    assert report["advisory_gaps"] == report["required_gaps"] == []
+    assert report["records"] == [
+        {"branch": "release", "role": "release_root", "change": "active"},
+        {"branch": "candidate/dev", "role": "candidate", "change": "active"},
+    ]
 
-    assert report["summary"] == {"residue_count": 2}
-    assert len(release_only) == 1
-    assert ":release:release_root:active" in release_only[0]
-    assert len(candidate_only) == 1
-    assert ":candidate/dev:candidate:active" in candidate_only[0]
 
-
-def test_active_change_paths_and_role_reports_cover_unknown_archive_and_unprotected(tmp_path):
+def test_active_change_paths_preserve_unknown_and_exclude_archive():
     assert audit.active_change_names_from_paths("candidate/dev", None) == {
         "verdict": "unknown",
         "ref": "candidate/dev",
@@ -145,11 +143,6 @@ def test_active_change_paths_and_role_reports_cover_unknown_archive_and_unprotec
         "openspec/changes/active/specs/capability/spec.md",
     )
     assert audit.active_change_names_from_paths("candidate/dev", paths)["changes"] == ["active"]
-    (tmp_path / "openspec/changes/active").mkdir(parents=True)
-    assert audit.active_change_violations_for_role(tmp_path / "openspec", "work-lane") == []
-    assert audit.active_change_violations_for_role(tmp_path / "openspec", ROLE_ACCEPTED_ROOT) == [
-        "openspec_active_change_unarchived:active:accepted_root"
-    ]
 
 
 def test_removed_spec_obligations_report_only_semantic_lines():
@@ -200,8 +193,7 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
         "list[str]",
         audit.openspec_shape_report(
             tmp_path,
-            current_branch="work/change",
-            protected_branch_residue=residue,
+            branch_intent=residue,
             spec_diff="",
         )["required_gaps"],
     )
@@ -219,8 +211,7 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
         "list[str]",
         audit.openspec_shape_report(
             absent,
-            current_branch="work/change",
-            protected_branch_residue=residue,
+            branch_intent=residue,
             spec_diff="",
         )["required_gaps"],
     )

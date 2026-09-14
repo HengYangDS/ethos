@@ -17,7 +17,6 @@ from ethos.adapters.admission.publication import publication_proof_admission
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.openspec.profile import protected_branch_active_change_required_gaps
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -243,7 +242,6 @@ class PublicationContext:
     proof_admission: dict[str, object]
     audit: dict[str, object]
     independent_verification: dict[str, object]
-    release_carrier_gaps: tuple[str, ...]
     required_gaps: tuple[str, ...]
     verdict: Verdict
 
@@ -342,11 +340,6 @@ def observe_publication(
         if review_only
         else repository_audit_after_admission(repo, decision)
     )
-    release_carrier_gaps = (
-        ()
-        if review_only
-        else tuple(protected_branch_active_change_required_gaps(repo, current_branch=str(branch)))
-    )
     proof_admission = (
         publication_proof_admission(
             repo, current_head, target_roles or (str(status_payload["role"]),)
@@ -366,7 +359,6 @@ def observe_publication(
             (
                 *string_sequence(audit.get("required_gaps")),
                 *decision.required_gaps,
-                *release_carrier_gaps,
                 *string_sequence(independent_verification.get("required_gaps")),
                 *string_sequence(proof_admission.get("required_gaps")),
                 *string_sequence(remote_topology.get("required_gaps")),
@@ -392,7 +384,6 @@ def observe_publication(
         proof_admission=proof_admission,
         audit=audit,
         independent_verification=independent_verification,
-        release_carrier_gaps=release_carrier_gaps,
         required_gaps=gaps,
         verdict=local_verdict,
     )
@@ -415,7 +406,7 @@ def publication_readiness_result(
     )
     release_tags, local_verdict, gaps = context.release_tags, context.verdict, context.required_gaps
     audit, independent_verification = context.audit, context.independent_verification
-    release_carrier_gaps, governance = context.release_carrier_gaps, context.governance
+    governance = context.governance
     local_verification_command = str(
         _object(remote_topology.get("local")).get("verification_command") or ""
     )
@@ -524,10 +515,6 @@ def publication_readiness_result(
         governance_context=governance,
         data={
             "repository_audit": audit,
-            "release_root_open_spec": {
-                "required_gaps": list(release_carrier_gaps),
-                "blocking": bool(release_carrier_gaps),
-            },
             "independent_verification": independent_verification,
             "remote_push": remote_push,
             "remote_topology": remote_topology,

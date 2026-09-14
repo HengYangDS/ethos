@@ -1,3 +1,5 @@
+"""Exact proof semantics, current source intent and artifact-closure admission."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -31,6 +33,7 @@ from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.value import frozen_tuple
 from ethos.contracts.value import mutable_json
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
@@ -639,84 +642,64 @@ def test_persistence_identity_and_self_contained_closure(tmp_path: Path) -> None
     _assert_proof(repo, head, selected=record)
 
 
-def test_repository_transition_ignores_an_unarchived_work_lane_proof(
-    tmp_path: Path,
-) -> None:
+@pytest.mark.parametrize("omit", [False, True])
+def test_repository_transition_rejects_acceptance_not_bound_to_source(tmp_path, omit):
+    """Correct object hashes and green checks cannot validate invented intent."""
     fixture = start_adopted_work_lane(tmp_path)
-    head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
-    historical_plan = current_proof_plan(fixture.worktree, expected_head=head)
-    historical = _issue(fixture.worktree, head, plan=historical_plan)
-    persist_proof_attestation(fixture.worktree, historical)
-    git(fixture.candidate, "reset", "--hard", head)
-    values = dict(historical_plan.facts["values"])
-    values["change_id"] = ""
-    values.pop("lease_generation", None)
-    archive_plan = compile_plan(
-        Commitment.model_validate(dict(historical_plan.commitment)),
-        Facts.model_validate(
-            historical_plan.facts | {"observed_at": datetime.now(UTC), "values": values}
-        ),
-        historical_plan.nodes,
-        policy=dict(historical_plan.policy),
-        prior_attestations={
-            "openspec_archive": {
-                "predicate": "effect:git-ref-update",
-                "attestation_id": "a" * 64,
-                "effect_digest": "c" * 64,
-                "plan_digest": "d" * 64,
-                "claim": {"operation": "openspec.archive", "effect": "c" * 64},
-                "source": "archive_commit",
-                "authorized_paths": ["FEATURE.md"],
-            }
-        },
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    source = current_proof_plan(fixture.worktree, expected_head=head)
+    forged = compile_plan(
+        None if omit else commitment_fixture(id="change:fixture-change"),
+        Facts.model_validate(dict(source.facts) | {"observed_at": datetime.now(UTC)}),
+        source.nodes,
+        policy=dict(source.policy),
     )
-    archived = _reissue(
-        historical,
-        commitment_digest=archive_plan.inputs.commitment,
-        facts_digest=archive_plan.inputs.facts,
-        plan_digest=archive_plan.digest,
-        policy_digest=archive_plan.inputs.policy,
-        effect_digest=archive_plan.inputs.effect,
-        body=historical.payload.body | {"plan": archive_plan.model_dump(mode="json")},
-    )
-    persist_proof_attestation(fixture.candidate, archived)
+    record = _issue(fixture.worktree, head, plan=forged)
+    persist_proof_attestation(fixture.worktree, record)
 
-    selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
+    selected, gaps = proof_module.proof_for_repository_transition(fixture.worktree, head)
 
-    assert gaps == []
-    assert selected == archived
-    checks, gaps = artifact_checks(proof_artifact_root(fixture.candidate), archived)
-    assert checks is not None
-    assert gaps == []
-    former = _reissue(
-        archived,
-        body=dict(archived.payload.body) | {"head": head},
-    )
-    assert proof_statement_gaps(former, checks) == ["model_gap"]
+    assert selected is None
+    assert gaps == ["proof_source_intent_mismatch"]
 
 
-def _archive_bound_work_proof(tmp_path: Path) -> tuple[WorkLaneFixture, str, Attestation]:
+def _archive_bound_work_proof(
+    tmp_path: Path, *, omit: bool = False
+) -> tuple[WorkLaneFixture, str, Attestation]:
+    """Produce actual archive evidence rather than a synthetic archive-shaped claim."""
     fixture = start_adopted_work_lane(tmp_path)
-    head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
-    base = current_proof_plan(fixture.worktree, expected_head=head)
-    archived = compile_plan(
-        Commitment.model_validate(dict(base.commitment)),
-        Facts.model_validate(base.facts | {"observed_at": datetime.now(UTC)}),
-        base.nodes,
-        policy=dict(base.policy),
-        prior_attestations={
-            "openspec_archive": {
-                "predicate": "effect:git-ref-update",
-                "attestation_id": "a" * 64,
-                "effect_digest": "c" * 64,
-                "plan_digest": "d" * 64,
-                "claim": {"operation": "openspec.archive", "effect": "c" * 64},
-                "source": "archive_commit",
-                "authorized_paths": ["FEATURE.md"],
-            }
-        },
+    head = commit_fixture_file(
+        fixture.worktree,
+        "openspec/changes/fixture-change/tasks.md",
+        "- [x] Exercise fixture lifecycle\n",
+        "complete source work",
     )
-    proof = _issue(fixture.worktree, head, plan=archived)
+    persist_proof_attestation(fixture.worktree, _issue(fixture.worktree, head))
+    run_ethos(
+        "lane",
+        "archive-change",
+        "--change",
+        "fixture-change",
+        "--expect-head",
+        head,
+        "--apply",
+        "--json",
+        cwd=fixture.worktree,
+    )
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    source = current_proof_plan(fixture.worktree, expected_head=head)
+    plan = (
+        compile_plan(
+            None,
+            Facts.model_validate(dict(source.facts) | {"observed_at": datetime.now(UTC)}),
+            source.nodes,
+            policy=dict(source.policy),
+            prior_attestations=mutable_json(source.prior_attestations),
+        )
+        if omit
+        else source
+    )
+    proof = _issue(fixture.worktree, head, plan=plan)
     persist_proof_attestation(fixture.worktree, proof)
     git(fixture.candidate, "reset", "--hard", head)
     return fixture, head, proof
@@ -732,17 +715,31 @@ def test_repository_transition_uses_archive_proof_after_lease_retirement(
     assert gaps == []
 
 
-def test_repository_transition_requires_archive_authority(tmp_path: Path) -> None:
+def test_repository_transition_rejects_omitted_archived_intent(tmp_path: Path) -> None:
+    """Archive absence is not permission to discard accepted source meaning."""
+    fixture, head, _proof = _archive_bound_work_proof(tmp_path, omit=True)
+
+    selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
+
+    assert selected is None
+    assert gaps == ["proof_source_intent_mismatch"]
+
+
+def test_repository_transition_accepts_exact_active_intent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pending delivery does not invalidate proved source acceptance."""
     fixture = start_adopted_work_lane(tmp_path)
     head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
     proof = _issue(fixture.worktree, head)
     persist_proof_attestation(fixture.worktree, proof)
     git(fixture.candidate, "reset", "--hard", head)
+    monkeypatch.setattr(proof_admission, "leases_by_branch", lambda _root: {})
 
     selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
 
-    assert selected is None
-    assert gaps == ["proof_archive_authority_missing"]
+    assert selected == proof
+    assert gaps == []
 
 
 def test_repository_transition_rejects_conflicting_archive_proofs(

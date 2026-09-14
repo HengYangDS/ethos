@@ -210,6 +210,83 @@ def test_archive_effect_owns_postimage_commit_and_reuses_resolved_intent(
     assert observed["completion"] == {"apply": True, "result": None}
 
 
+@pytest.mark.parametrize("failure", ["missing", "pending", "index-drift", "concurrent-content"])
+def test_archive_projection_completion_rejects_drift_and_preserves_caller_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    """Finalization cannot commit an unverified rendering or erase a later writer."""
+    projection = tmp_path / "projection.json"
+    projection.write_bytes(b"before")
+    trees = iter(("prior-index", "native-tree", "different-tree"))
+    observed: list[str] = []
+    monkeypatch.setattr(
+        archive_effect,
+        "git_stdout",
+        lambda _root, *args: next(trees) if args == ("write-tree",) else "archive/tasks.md",
+    )
+    monkeypatch.setattr(archive_effect, "stage_git_worktree", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        archive_effect,
+        "restore_git_index",
+        lambda _root, *, tree: observed.append(tree),
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "archive_projection_updates",
+        lambda *_args, **_kwargs: {"projection.json": b"after"},
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "refresh_archive_projections",
+        lambda *_args, **_kwargs: projection.write_bytes(
+            b"other writer" if failure == "concurrent-content" else b"after"
+        ),
+    )
+    scope = {"tree": "completed-tree"}
+    if failure == "pending":
+        scope["pending_projection_paths"] = ["projection.json"]
+    monkeypatch.setattr(
+        archive_effect,
+        "archive_postimage",
+        lambda *_args, **_kwargs: (
+            None if failure in {"missing", "concurrent-content"} else SimpleNamespace(scope=scope)
+        ),
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "create_git_commit",
+        lambda *_args, **_kwargs: pytest.fail("unverified postimage reached commit"),
+    )
+    gap = (
+        "archive_projection_compensation_conflict"
+        if failure == "concurrent-content"
+        else "openspec_archive_delta_changed"
+        if failure == "index-drift"
+        else "archive_projection_completion_invalid"
+    )
+    with pytest.raises(ValueError, match=gap):
+        archive_effect.commit_archive_postimage(
+            tmp_path,
+            "work/change",
+            "change",
+            "a" * 40,
+            {
+                "tree": "native-tree",
+                "changed_paths": ["archive/tasks.md"],
+                "pending_projection_paths": ["projection.json"],
+            },
+            commitment=commitment_fixture(id="change:change"),
+            lease={},
+            owned_mutation=False,
+            compensation_path="archive",
+            subject="chore(openspec): archive change",
+        )
+    assert observed == ["prior-index"]
+    assert projection.read_bytes() == (
+        b"other writer" if failure == "concurrent-content" else b"before"
+    )
+
+
 def test_archive_effect_owns_durable_recovery_selection(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

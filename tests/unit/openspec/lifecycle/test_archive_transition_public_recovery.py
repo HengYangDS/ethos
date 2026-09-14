@@ -66,6 +66,7 @@ def _git(
         return SimpleNamespace(returncode=0 if value else 1, stdout=value)
 
     monkeypatch.setattr(archive, "run_git", run_git)
+    monkeypatch.setattr(archive, "archive_projection_scope", lambda *_args, **_kwargs: ((), ()))
 
 
 def _scope(

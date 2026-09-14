@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 
+from ethos.adapters.openspec.archive_projection import archive_projection_scope
 from ethos.adapters.openspec.lifecycle.archive_binding import archive_root_from_path
+from ethos.adapters.openspec.lifecycle.archive_binding import archive_source_path
 from ethos.adapters.openspec.lifecycle.archive_binding import archived_change_from_path
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_refresh import RefreshEdge
@@ -288,6 +290,7 @@ def archive_postimage(root: Path, *, head: str, change: str) -> ArchivePostimage
             tree=observed.tree,
             source_head=head,
             environment=observed.environment,
+            allow_pending_projection=True,
         )
     return ArchivePostimage(change, head, scope, active_present)
 
@@ -297,12 +300,10 @@ def lease_bound_archive_scope_report(
     *,
     changed_paths: tuple[str, ...] = (),
     requested_change: str | None = None,
-    official_change_complete: bool = False,
     completion_artifacts: tuple[str, ...] = (),
     preserved_archive: tuple[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """Project a committed archive diff from official OpenSpec and Git facts."""
-    del official_change_complete
     head = git_stdout(root, "rev-parse", "HEAD")
     parent = git_stdout(root, "rev-parse", f"{head}^")
     if not parent:
@@ -356,6 +357,7 @@ def archive_postimage_scope_report(
     tree: str,
     source_head: str | None = None,
     environment: Mapping[str, str] | None = None,
+    allow_pending_projection: bool = False,
 ) -> dict[str, Any] | None:
     """Validate one official OpenSpec archive post-image from Git facts only."""
     head = source_head or git_stdout(root, "rev-parse", "HEAD")
@@ -366,6 +368,7 @@ def archive_postimage_scope_report(
         tree=tree,
         changed_paths=changed_paths,
         environment=environment,
+        allow_pending_projection=allow_pending_projection,
     )
 
 
@@ -378,6 +381,7 @@ def _archive_scope(
     changed_paths: tuple[str, ...],
     completion_artifacts: tuple[str, ...] = (),
     environment: Mapping[str, str] | None = None,
+    allow_pending_projection: bool = False,
 ) -> dict[str, Any] | None:
     active_root = active_change_root(change)
     source_tree = _object_id(root, f"{source_head}:{active_root}", environment=environment)
@@ -410,7 +414,20 @@ def _archive_scope(
     allowed = (f"{active_root}/", f"{archive_root}/", "openspec/specs/") + (
         (f"{preservation}/",) if preservation else ()
     )
-    if not paths or any(not path.startswith(allowed) for path in paths):
+    projection = archive_projection_scope(
+        root,
+        source_head=source_head,
+        tree=tree,
+        changed_paths=paths,
+        environment=environment,
+        allow_pending=allow_pending_projection,
+    )
+    projection_paths, pending = projection if projection is not None else ((), ())
+    if (
+        projection is None
+        or not paths
+        or any(not path.startswith(allowed) and path not in projection_paths for path in paths)
+    ):
         return None
     source_artifacts = _tree_paths(root, source_head, active_root, environment=environment)
     if source_artifacts is None:
@@ -421,10 +438,12 @@ def _archive_scope(
         archive_root=archive_root,
         changed_paths=paths,
         completion_artifacts=completion_artifacts or source_artifacts,
+        projection_paths=projection_paths,
     ) | {
         "tree": tree,
         "archive_path": archive_root,
         "completion_artifacts": list(completion_artifacts or source_artifacts),
+        **({"pending_projection_paths": list(pending)} if pending else {}),
         **({"preserved_archive_path": preservation} if preservation else {}),
     }
 
@@ -467,6 +486,7 @@ def _scope_report(
     archive_root: str,
     changed_paths: tuple[str, ...],
     completion_artifacts: tuple[str, ...],
+    projection_paths: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     profile = load_repository_profile(root)
     if (
@@ -481,8 +501,10 @@ def _scope_report(
         for path in changed_paths
         if any(repository_path_matches(path, glob) for glob in patterns)
     )
-    authority_paths = {
-        path: _archive_authority_path(
+    source_paths = {
+        path: path
+        if path in projection_paths
+        else archive_source_path(
             path,
             change=change,
             archive_root=archive_root,
@@ -492,10 +514,10 @@ def _scope_report(
     }
     covered = [
         {"path": path, "changes": [change]}
-        for path, authority in authority_paths.items()
-        if authority is not None
+        for path, source in source_paths.items()
+        if source is not None
     ]
-    uncovered = [path for path, authority in authority_paths.items() if authority is None]
+    uncovered = [path for path, source in source_paths.items() if source is None]
     gaps = [f"openspec_material_path_uncovered:{path}" for path in uncovered]
     return {
         "verdict": "block" if gaps else "pass",
@@ -509,22 +531,3 @@ def _scope_report(
         "required_gaps": gaps,
         "advisory_gaps": [],
     }
-
-
-def _archive_authority_path(
-    path: str,
-    *,
-    change: str,
-    archive_root: str,
-    completion_artifacts: tuple[str, ...],
-) -> str | None:
-    """Map official archive output to the exact source artifact it relocated."""
-    active_root = active_change_root(change)
-    if path == archive_root or path.startswith(f"{archive_root}/"):
-        source = active_root + path.removeprefix(archive_root)
-        return source if source in completion_artifacts else None
-    canonical_prefix = "openspec/specs/"
-    if path.startswith(canonical_prefix):
-        source = f"{active_root}/specs/{path.removeprefix(canonical_prefix)}"
-        return source if source in completion_artifacts else None
-    return None

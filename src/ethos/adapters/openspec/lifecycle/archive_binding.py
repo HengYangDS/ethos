@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 
 from ethos.repository.openspec.identifiers import OPEN_SPEC_ARCHIVE_ROOT
+from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.openspec.identifiers import parse_archived_change_root
 
 
@@ -31,3 +32,22 @@ def collision_preservation_path(path: str, tree: str, head: str) -> str:
     """Return the deterministic immutable preservation path for a collision."""
     suffix = hashlib.sha256(f"{tree}\0{head}".encode()).hexdigest()[:12]
     return f"{path}-{suffix}"
+
+
+def archive_source_path(
+    path: str,
+    *,
+    change: str,
+    archive_root: str,
+    completion_artifacts: tuple[str, ...],
+) -> str | None:
+    """Map native output to its exact relocated source, not to write authority."""
+    active_root = active_change_root(change)
+    if path == archive_root or path.startswith(f"{archive_root}/"):
+        source = active_root + path.removeprefix(archive_root)
+        return source if source in completion_artifacts else None
+    canonical_prefix = "openspec/specs/"
+    if path.startswith(canonical_prefix):
+        source = f"{active_root}/specs/{path.removeprefix(canonical_prefix)}"
+        return source if source in completion_artifacts else None
+    return None

@@ -85,7 +85,11 @@ def _required_text(value: object, label: str) -> str:
 
 
 def _validate_source_alignment(
-    root: Path, commit: str, declaration: dict[str, Any], semantic_graph: dict[str, Any]
+    root: Path,
+    commit: str,
+    declaration: dict[str, Any],
+    semantic_graph: dict[str, Any],
+    quality_contract: str,
 ) -> list[dict[str, str]]:
     """Use the selected tree's pure owner, even in an isolated stdlib consumer."""
     owner_path = "src/ethos/repository/policy/projections.py"
@@ -102,6 +106,10 @@ def _validate_source_alignment(
             for binding in bindings.values()
         }
         owner.validate_source_bindings(semantic_graph, bindings, sources)
+        validate_assurance = getattr(owner, "validate_projection_assurance", None)
+        if not callable(validate_assurance):
+            _fail("projection_assurance_owner_missing")
+        validate_assurance(quality_contract, semantic_graph, bindings)
         return [
             {"id": identity, **binding, "sha256": _sha256(sources[binding["path"]])}
             for identity, binding in sorted(bindings.items())
@@ -343,7 +351,9 @@ def export_projection_input(
     view_profile = _json(document_bytes["view_profile"], path=document_paths["view_profile"])
     copy = _json(document_bytes["copy"], path=document_paths["copy"])
     quality_contract = document_bytes["quality_contract"].decode("utf-8")
-    bindings = _validate_source_alignment(repository, commit, declaration, semantic_graph)
+    bindings = _validate_source_alignment(
+        repository, commit, declaration, semantic_graph, quality_contract
+    )
     output = _projection_input(
         declaration,
         semantic_graph,

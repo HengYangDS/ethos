@@ -33,151 +33,146 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-Source-delivery lifecycle closure is accepted at
-`7a268f313dae24240dcd7c918ec6adc5ac7359e6`, tree
-`192fcbabb13348a90a9af227b0b69fc74bd63049`. Exact postarchive proof passes all
-35 gates with 3,337 tests passed, one skip and 95.0974 percent combined coverage.
-Public closeout, immutable runtime activation, independent peer publication and
-source-lane retirement have executed receipts under the existing ignored
-`build/evidence/quality/source-delivery-lifecycle/`. The accepted readback binds
-all six closing receipts by hash. This supersedes the earlier active-source and
-unpublished checkpoints below; historical observations retain their exact scope.
+Accepted source is `e7eb7c4cf51d659cce673c483a06156e27cf82e2`, tree
+`34e3af8dd30c8f5825e47610091a6464c428d9ac`. The implementation and official
+postarchive full proofs each passed all 35 gates; the latter reports 3,357
+passed, one skipped and combined line/branch coverage 25,544/26,860, or
+95.1005 percent. Public candidate integration, accepted closeout, installation,
+independent peer publication and source-lane retirement have executed receipts.
+The current acceptance is not a claim that the global terminal goal is complete.
 
-Runtime `071d2d700528c1b51c868c8942c63564e80f5b72c6fbeccbf01aa64e6c58ae88`
-selects that exact source/tree. Both peers' dev/main refs were independently
-read back at the same commit. GitHub reports VALID with the expected author and
-signer; GitLab reports verified. Publication used existing GitHub maintainer
-permission to bypass PR and then-pending required-check rules; local hooks stayed
-armed. Neither remote equality nor that permission proves hosted CI or review
-acceptance. Subsequent exact-commit API reads confirm GitLab pipelines 6666/dev
-and 6667/main and GitHub runs 34840602113/dev and 34840602210/main all succeeded.
+Installed common runtime
+`2953f87777dc546f16acec8ee749836eb04c84ec9e3db43650e485ac0dcde771` matches that
+source/tree. The successor installer retired the previous `071d2d70` generation;
+historical receipts do not require its executable. Both independent dev/main
+pairs read back at the same accepted object and neither peer retains a proposal
+ref. Publication used existing GitHub maintainer permission to bypass PR and
+then-pending required checks, with local hooks armed and protection settings
+unchanged. On September 15 (+08:00), GitLab 6694/dev and 6695/main succeeded;
+GitHub 34886679448/dev remains queued and 34886679269/main running at the recorded
+observation. Its quality gate and nine native environment cases passed, not the
+whole workflow. Do not infer hosted success from local proof or remote equality.
 
-Historical author attribution remains open. The exact audit proves four commits
-use an email mapped to another GitHub account; it does not prove another person
-cryptographically signed them. Preserve the verified pre-repair bundle until an
-explicit byte-preserving DAG transformation and re-entry complete. Placeholder
-headers, missing historic key registration and platform signatures are distinct
-cases, not a mandate to re-sign every ancestor. Current tip validity does not
-repair historical attribution.
+The previous work lane, ref and Lease are absent; accepted and candidate stayed
+clean and exact-equal. Fifty-one selected evidence files were retained with
+matching hashes under the existing ignored
+`build/evidence/quality/attestation-materialization/`; 83 superseded intermediate
+files and the disposable environment/cache retired with the lane. The
+`final-delivery-readback.json` receipt binds the results. One new serial owned
+lane now carries only official Change `projection-assurance`. No foreign writer
+or parallel implementation is introduced.
 
-Historical work lanes and the source-delivery lane have retired, with ref,
-worktree and Lease absence observed. One new serial owned Work Lane now carries
-only the official `attestation-materialization` Change. No foreign writer or
-parallel implementation is introduced. Retirement still follows unique-content
-review, completed delivery and exact absence observation, not source ancestry
-alone. The retired reader-handoff implementation and obsolete evaluator-binding
-proposal stay superseded; their preserved obligations live in current owners.
+The delivered materialization repair uses a native isolated index and batches
+only new Attestation members, with bounded pure-byte validation reuse. A
+256-member construction/append uses nine/thirteen Git calls instead of 519/524,
+with equal roots. Same-set observation measured 2.97 seconds before, 3.02 cold
+and 0.36–0.40 warm afterward; peak process RSS was about 245/275 MB. These bounded
+single-host observations do not establish whole-cycle speed or retained memory.
+The first exact proof exposed six hook-contract child-query failures. One
+package-adjacent declaration now owns launcher bytes, hook names and native
+interpreter paths; missing old-package declarations derive successor installation.
+Activation failure retains its original observation through rollback. The interim
+source-leaf equality shortcut and executable constant-query path were removed.
 
-The immediate P0/P5 bottleneck is unnecessary repeated materialization. The
-existing Attestation set owner is being changed to seed an isolated native index
-from the selected tree, batch only new blobs, and reuse bounded pure validation
-of identical bytes. Current membership, raw-object availability, policy,
-identity, validity and effect authority are always reobserved. No cache grants
-permission or becomes another result store. Real-Git RED cases distinguish
-member-linear process creation, rehashing unchanged members and repeated decoding;
-cold/warm, eviction, malformed bytes, concurrency and failure cleanup are required
-GREEN boundaries. Existing tasks own this batch's progress. The equivalent native
-256-member workload now needs nine Git calls for first construction and thirteen for one
-append, versus 519/524 in accepted code; roots are identical. Observing the same
-1,339-member selected set took 2.97 seconds in accepted code, 3.02 seconds cold
-in the candidate and 0.36–0.40 seconds warm. These single-host samples are not
-accepted-runtime or whole-cycle performance claims. Separate process measurements
-observe about 245 MB accepted peak RSS and 275 MB candidate peak RSS over three reads of the same selected set; this is
-peak process memory, not a retained-heap bound. Evidence lives under this lane's
-existing ignored `build/evidence/quality/attestation-materialization/`.
-The 165 affected set, proof, effect and publication cases pass. Its first exact
-full proof at `6248ff72` failed six generic fixture hook-query startups; measured
-combined coverage was 95.0994 percent, while dependent gates correctly blocked.
-The owned pytest root was removed. These failures are not accepted proof.
-
-The prerequisite repair replaces executable hook-contract queries with one
-package-adjacent declaration that owns the launcher bytes, names and native
-interpreter paths. Runtime inventory binds that declaration; the existing
-renderer and observer consume it. No subprocess is needed to read constants,
-and missing declarations derive successor installation instead of reinstalling
-the same old package. An interim source-leaf equality shortcut was rejected and
-removed because it did not prove the full execution meaning. Read failures,
-resource drift and activation rollback remain distinguishing acceptance cases.
-The revised hook/runtime subset passes 110 cases; the final hook, command,
-retirement and fixture matrix passes 165 cases. Package-only activation, recovery,
-signature repair and retirement also pass. An isolated native upgrade from the
-actual accepted package to the candidate wheel passes missing-contract diagnosis,
-successor-command derivation, installation and current-runtime readback; its owned
-scratch is removed. The exact wheel and runtime identities remain in the existing
-`old-to-new-hook-package.json` receipt, not another migration ledger. The next
-exact full proof remains pending. Current source is not accepted or installed.
-
-Before freeze, the user's uniform 500-ELOC correction removed both repository
-role overrides. Three public-boundary RED cases exposed the old 800 test limit;
-the revised size suite passes all 43 cases. Nineteen test modules initially
-exceeded the new floor. Shared construction and distinct observation, effect,
-receipt, source-resolution and recovery responsibilities now have explicit test
-owners. Every existing or newly added Python file is at most 500 ELOC; the
-public size and source-budget gates pass without exceptions or metric changes.
-All 1,457 test function identities and all 3,358 collected parameter instances
-are retained. The 324 interpretation, budget, package-command and reference
-consumer cases pass, as do public types, docstrings, layout, configuration and
-repository-audit gates. The native lifecycle matrix passes all 1,243 cases in
-1,591.98 seconds with two workers. A final activation counterexample showed that
-rollback discarded the declaration read's path/cause and derived reinstall;
-the activation owner now carries that observation through compensation and the
-CLI requests a fresh status. Both RED cases fail before repair and the 189-case
-hook/effect consumer matrix passes afterward. These are prerequisites, not an
-exact committed full proof or accepted release.
-Test ELOC is 45,288 versus 45,108 before this consolidation: imports, explicit
-semantic boundaries and diagnostic assertions add 180 effective lines. The result removes oversized mixed
-owners but does not claim aggregate compression; DRY and maintenance remain
-independent requirements rather than a reason to hide that cost.
-
-The final package-only build and install-smoke pass after the diagnostic repair,
-including hook activation, signature repair, lane start and retirement recovery.
-The wheel binds source tree `8959bcc7fd7ba538927bddd35c885171ed7d0d17`; its
-SHA-256 is `e9a95d020c198120676ac67274da807dce230c3482b1ea401fbe7dfbf0951fe4`.
-Owned package smoke scratch is removed. This remains candidate-tree evidence;
-the next committed HEAD still requires its full proof and public delivery.
-
-The first package smoke correctly rejected leaked source imports from PYTHONPATH.
-Use the native editable development environment without that override; package
-acceptance must stay outside source import paths. A new full proof starts only
-after exact native and package prerequisites pass. No unrelated edits belong
-after freeze. General process deadlines and remote probe timeout classification
-remain later owner repairs; neither increased workers nor relaxed limits resolve
-repeated work. Retain operation handles and reobserve unknown effects before retry.
-
-The adopter owner reports successful public prove, land and closeout at
-`b0a97598` using accepted source `7a268f313`. Its later docs/tasks-only `4f961b5e`
-report says unchanged product, tests, lock and CI inputs still trigger complete
-race/coverage and quality gates. This is a nonblocking P5 input-closure/reuse
-obligation, not evidence that old-HEAD proof is valid for new HEAD. Existing
-execution evidence may be reused only after all relevant input identities and
-applicability agree; current governance, documentation, signature and aggregate
-proof bindings remain fresh. No second proof store or adopter patch follows.
-
-Historical identity correction, tag-admission cause preservation, malformed archive
-postimage/re-entry and exact Lease continuation remain next bounded obligations.
-
-General requirements describe authorized adopters, not project-specific names.
-The source-delivery owner's attributed adopter receipt now demonstrates active
-Change proof, candidate and accepted closeout, hook-enforced peer publication
-and proposal retirement. This is a real adopter execution receipt, not this
-writer's independent replay or retroactive approval of earlier recovery escapes.
-Architecture R01–R14/P00–P09 definitions, full historical intent recovery, complete
-P1–P7 journeys and independent ecosystem conformance remain unproved.
-
-The user sets independent Python product/test ceilings to 50,000 ELOC each.
+The repository now has one 500-ELOC per-file ceiling, including tests and
+surfaces, and independent 50,000 product/test totals. The latest public size
+observation measured 509 Python files, a maximum of 499, product 41,855 and tests
+45,288 ELOC. All 1,457 test-function identities and 3,358 parameter instances
+were preserved during consolidation. Tests grew by 180 ELOC through boundaries,
+imports and diagnostics; this was structural correction, not aggregate compression.
 [Format selection](../../.config/checks/format/selection.toml) owns aggregate
-accounting; [.ethos/rules.toml](../../.ethos/rules.toml) owns one 500-ELOC ceiling
-for every Python file, including tests and surfaces. Role overrides are removed.
-Combined coverage remains at least 95 percent.
-Historical 38,300/45,000 ceilings and old goal snapshots are superseded. Budgets
-are ceilings, not allocations; maintain DRY, semantic cohesion and exclusions.
+accounting and [.ethos/rules.toml](../../.ethos/rules.toml) owns the file ceiling.
+Coverage remains at least 95 percent. Old goal snapshots and 38,300/45,000 or
+role-specific 800 ceilings are superseded, not current policy.
+
+### Current Source Assurance Repair
+
+The initial official quality import and inspected current consumers list
+R01–R14/P00–P09 but provide no definitions. The real exact-tree exporter allowed
+five counterexamples: undefined check IDs, an empty proposition, a duplicate
+proposition, unknown source and a new invariant without acceptance ownership.
+These are demonstrated source-input defects; they do not establish every
+renderer gate bypass or justify discarding source obligations.
+
+The existing quality owner now groups all 43 unchanged graph propositions into
+eight source-referenced acceptance families. Each names scope, applicability,
+evidence and rejection conditions; multiple evidence planes may reference the
+same proposition without duplicating its definition. Original principles remain
+source references. Faithfulness is a source-to-artifact judgment, not another
+drawn product component. The declaration, source judgment, independent meaning
+review, rendered measurement and owner acceptance are distinct claims.
+
+Static overview, navigable atlas and bounded story/Present/share/export views
+have explicit scopes and states. Partial views need not repeat the entire
+product, but every expressed relation retains its necessary conditions, identity
+and authority boundary. Hidden JSON, document prose hidden by Present mode, or
+leaving the current mode cannot establish what that view communicates.
+A qualified predecessor requires exact applicable identity, evidence and review;
+absent, unqualified and unknown predecessors remain distinct. Without a qualified
+predecessor, absolute current acceptance still applies and no comparative claim
+is made. The candidate cannot weaken its own acceptance floor.
+
+The carrier migrates from YAML v3 to JSON v4 at the same semantic owner, removing
+the former file. Standard JSON preserves stdlib-only selected-exporter execution;
+YAML syntax compatibility is not consumer compatibility. Both renderer owners
+must explicitly migrate schema admission, snapshot paths and acceptance reports
+only after the source handoff. ProjectionInput remains v2, quality content remains
+a string, and the closed four-document set remains unchanged. Graph propositions,
+copy/view witnesses and numerical quality floors retain their exact meaning.
+The source/consumer matrix passes 121 cases, including the real exporter and
+archive, artifact and CI projection consumers. The new policy branches have
+focused line/branch evidence; that data is diagnostic only and is not combined
+with a repository proof. Nine inexpensive public gates and native lint/config/
+Markdown/prose pass. Package-only build and install/lifecycle smoke pass with
+owned scratch removed. A precommit architecture check correctly finds the new
+exporter incompatible with the old selected owner; it now reports a typed owner
+contract mismatch instead of an uncaught exception. After source freeze the new
+committed owner must pass that real gate before full proof. This is not accepted
+delivery or either diagram's semantic, browser or aesthetic acceptance.
+
+### Remaining Dependencies And Delivery Order
+
+- Finish `projection-assurance` through distinguishing counterexamples, native
+  checks, exact proof/archive/acceptance, installed and peer readback. Return one
+  exact export identity and explicit migration boundary to the renderer owner;
+  do not edit its repositories or reuse a prior diagram's accepted state.
+- Keep measured P5 latency work high priority. The latest publication took about
+  nine minutes; its native sample shows CPU-heavy Pydantic activity, not a proved
+  lock deadlock. Whole-proof reuse still needs complete input closure over source,
+  rules, tools, environment and relevant external facts, with fresh governance,
+  signature and effect checks. Pure-byte reuse does not discharge that obligation.
+- The adopter owner independently updated all three roots to accepted `e7eb7c4c`
+  through the successor package's public installer and reports old-runtime
+  retirement. We verified the new-package stale-build diagnosis and derived
+  command, not its subsequent installation. Generic old-package `current=true`
+  means parity with the invoking package, not latest-source discovery. Expose
+  that distinction and a public update selection path at the runtime owner;
+  adopters must not infer internals or hand-edit selectors.
+- Preserve the scoped scanner-supply feedback: an adopter observed HTTP/2 checksum
+  transport failure and incompatible compiled Go analysis capability. Its
+  HTTP/1.1-scoped cold-install result is owner-reported, not grounds for a global
+  transport downgrade or a completed ETHOS repair.
+- Historical author attribution remains open for four wrong-email commits. The
+  audit does not prove another person signed them. Preserve the verified repair
+  bundle until exact byte-preserving DAG transformation and re-entry complete;
+  current tip validity does not repair historical attribution.
+- Tag-admission cause preservation, malformed archive postimage/re-entry, exact
+  Lease continuation, general process deadlines, remote-probe classification and
+  strong-kill/resource-retention bounds remain separate owner repairs.
+- The complete existing P0–P7 route remains: historical intent settlement;
+  acceptance/capability/proof-obligation compilation; collaboration, competition,
+  exploration and all-drop with composition/recovery; real greenfield and
+  brownfield formation/adoption/upgrade/handoff/exit; measured evidence reuse;
+  actual-use benefit feedback; and interchangeable ecosystem conformance.
+  Physical structure, documentation/projections, supply and resource lifetime
+  remain cross-cutting acceptance obligations, not optional cleanup.
 
 [Modern Engineering Foundations](../research/modern-engineering-foundations.md)
-retains alternatives and evidence. The existing P0–P7 route remains complete:
-P5 may precede its usual position when measured latency blocks delivery. Research,
-receipt counts and local microbenchmarks do not certify product acceptance. One
-bounded Change closes its source, tests, exact proof, package/runtime, required
-peer observations and owned-resource retirement before another overlapping atom.
+retains evaluated alternatives. Each new batch begins only at the current atomic
+safety boundary, preserves source intent and retires its superseded owner.
+Research, receipt counts, local green subsets and microbenchmarks cannot certify
+product completion. No second roadmap, feedback ledger or standing work lane is
+introduced.
 
 ## September 11 Delivery And Semantic-Version Checkpoint
 

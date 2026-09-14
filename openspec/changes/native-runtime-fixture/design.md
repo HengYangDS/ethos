@@ -24,6 +24,14 @@ consumers with cleanup before another frozen proof.
 
 ## Scope And Exit
 
+The hosted verification sibling exposed another fixture startup cost: each
+semantic case generated a new executable program. A native trace and six-sample
+comparison distinguish that cost from passing data to one immutable executable.
+Keep the real shell transport and child process, share only fixture code, and
+move variant proof/report material to each isolated repository. Retain the
+timeout and every semantic rejection case; timing alone does not prove the
+original timeout's entire cause.
+
 The prior status Change remains archived with its true failed post-archive proof.
 This separate fixture cause is repaired in the same owned lane. Accepted source
 and installed runtime stay unchanged until a complete current proof admits them.

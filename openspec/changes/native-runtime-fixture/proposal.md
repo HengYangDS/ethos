@@ -11,6 +11,7 @@ and smoke execution that production materialization performs before activation.
 - Establish its native executable, prefix and module prerequisites before the
   fixture exposes it, including the requested new-generation smoke check.
 - Reject unusable fixture images during materialization and preserve cleanup.
+- Separate stable hosted-fixture executable code from isolated per-case data.
 - Replay the exact failing installation cases before full proof.
 
 ## Capabilities

@@ -17,25 +17,46 @@ from tests.support.governed_repository import init_git_repo
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def _report_source(repo: Path, reports: str) -> str:
-    """Have the child produce report artifacts after the wrapper removes stale files."""
+@pytest.fixture(scope="module")
+def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Keep executable code stable while every invocation owns its case data."""
+    binary = tmp_path_factory.mktemp("hosted-proof-transport") / "uv"
+    binary.write_text(
+        f"#!{sys.executable}\n"
+        "import json, pathlib, subprocess, sys\n"
+        "case = json.loads(pathlib.Path('proof-case.json').read_text())\n"
+        "scanner = subprocess.check_output([case['scanner'], 'version'], text=True)\n"
+        "assert scanner.strip() == 'fixture-scanner'\n"
+        "with pathlib.Path(case['command_log']).open('a') as stream:\n"
+        " stream.write(json.dumps(sys.argv[1:])+'\\n')\n"
+        "if sys.argv[1:6] != ['run', '--frozen', '--offline', 'ethos', 'prove']:\n"
+        " print('unexpected lifecycle transport', file=sys.stderr); sys.exit(9)\n"
+        "for name, content in case['reports'].items():\n"
+        " path = pathlib.Path('build/evidence/quality/tests') / name\n"
+        " path.parent.mkdir(parents=True, exist_ok=True); path.write_text(content)\n"
+        "print(case['output'])\n"
+        "print('exact-child-diagnostic', file=sys.stderr)\n"
+        "sys.exit(case['exit_code'])\n"
+    )
+    binary.chmod(0o555)
+    return binary
+
+
+def _report_contents(reports: str) -> dict[str, str]:
+    """Keep per-case report data separate from the shared executable fixture."""
+    contents = {
+        "pytest/junit.xml": "<testsuite><testcase/><testcase><failure/></testcase></testsuite>",
+        "coverage/coverage.xml": (
+            '<coverage lines-covered="96" lines-valid="100" '
+            'branches-covered="95" branches-valid="100"/>'
+        ),
+    }
     return (
-        ""
+        {}
         if reports == "missing"
-        else "".join(
-            f"p=pathlib.Path({str(repo / 'build/evidence/quality/tests' / relative)!r});"
-            "p.parent.mkdir(parents=True,exist_ok=True);"
-            f"p.write_text({('{' if reports == 'malformed' else content)!r})\n"
-            for relative, content in {
-                "pytest/junit.xml": (
-                    "<testsuite><testcase/><testcase><failure/></testcase></testsuite>"
-                ),
-                "coverage/coverage.xml": (
-                    '<coverage lines-covered="96" lines-valid="100" '
-                    'branches-covered="95" branches-valid="100"/>'
-                ),
-            }.items()
-        )
+        else dict.fromkeys(contents, "{")
+        if reports == "malformed"
+        else contents
     )
 
 
@@ -74,7 +95,7 @@ def _hosted_scripts(repo: Path, supply_script: str, scanner_script: str = "exit 
 )
 @pytest.mark.parametrize("reports", ["missing", "malformed", "valid"])
 def test_hosted_receipt_requires_exact_executed_observation(
-    tmp_path: Path, fault: str, reports: str
+    tmp_path: Path, fault: str, reports: str, hosted_proof_transport: Path
 ) -> None:
     """No local lane readiness or misleading passing field can authorize CI success."""
     repo = init_git_repo(tmp_path / "repo")
@@ -112,26 +133,23 @@ def test_hosted_receipt_requires_exact_executed_observation(
         data["attestation"] = {"id": "unrelated-proof"}
     elif fault == "unexecuted":
         data["executed"] = False
-    output = "{" if fault == "malformed" else json.dumps(payload)
     command_log = tmp_path / "commands.jsonl"
     binary = tmp_path / "bin/uv"
     binary.parent.mkdir()
     scanner = binary.parent / "gitleaks"
-    binary.write_text(
-        f"#!{sys.executable}\n"
-        "import json, pathlib, subprocess, sys\n"
-        f"scanner = subprocess.check_output([{str(scanner)!r}, 'version'], text=True)\n"
-        "assert scanner.strip() == 'fixture-scanner'\n"
-        f"with pathlib.Path({str(command_log)!r}).open('a') as stream:\n"
-        " stream.write(json.dumps(sys.argv[1:])+'\\n')\n"
-        "if sys.argv[1:6] != ['run', '--frozen', '--offline', 'ethos', 'prove']:\n"
-        " print('unexpected lifecycle transport', file=sys.stderr); sys.exit(9)\n"
-        + _report_source(repo, reports)
-        + f"print({output!r})\n"
-        "print('exact-child-diagnostic', file=sys.stderr)\n"
-        f"sys.exit({7 if fault == 'process' else 0})\n"
+    (repo / "proof-case.json").write_text(
+        json.dumps(
+            {
+                "scanner": str(scanner),
+                "command_log": str(command_log),
+                "reports": _report_contents(reports),
+                "output": "{" if fault == "malformed" else json.dumps(payload),
+                "exit_code": 7 if fault == "process" else 0,
+            }
+        )
     )
-    binary.chmod(0o755)
+    binary.symlink_to(hosted_proof_transport)
+    assert binary.samefile(hosted_proof_transport)
     for name in ("python", "python3"):
         (binary.parent / name).symlink_to(sys.executable)
     scripts = _hosted_scripts(

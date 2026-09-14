@@ -5410,6 +5410,24 @@ They were repaired in the isolated invocation, not treated as product failures
 or reasons to change host configuration. Ten public owner gates and all native
 source/static checks pass. A new frozen source proof remains required.
 
+Source `167fefc02` then passes the runtime cases but fails one old hosted-receipt
+test at its unchanged 15-second outer shell deadline: 3,299 passed, one failed,
+one skipped; dependent gates remain unexecuted. No archive or unchanged full
+rerun follows. The missing runtime prerequisite was repaired, but it was not a
+universal diagnosis of every native startup failure.
+
+A timestamped shell replay completes in 1.86 seconds and locates most observed
+time in the generated test executable. Six native comparisons measure median
+new-script startup at 0.44 seconds versus 0.02 seconds for reused immutable
+code with isolated case input; these observations do not prove the full cause
+of the historical 15-second wait. The hosted fixture now shares only its
+read-only executable and stores variant proof/report values in each isolated
+repository, removing repeated generated programs. Real shell, scanner and child
+execution, the deadline and all thirty verdict cases remain. The 32-case matrix
+passes with and without subprocess coverage; the covered run takes 20.50 seconds.
+No focused coverage is combined into full-proof evidence. Complete the revised
+static/native boundary and exact proof before considering this lane delivered.
+
 Workstation also reports archive preview PASS followed by committed invalid
 Purpose at `62fb3e0f…`, with repair prewrite blocked after the active carrier is
 gone. Its supplied archive receipt and exact single-Purpose recovery were read;

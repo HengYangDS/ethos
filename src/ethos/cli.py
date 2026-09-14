@@ -25,31 +25,32 @@ from ethos.surface.cli.version import version_text
 def main() -> None:
     """Run the ETHOS CLI."""
     argv = sys.argv[1:]
-    if "--version" in argv:
-        sys.stdout.write(f"{version_text()}\n")
-        return
+    command = "version" if "--version" in argv else root_command(argv) or "ethos"
     try:
+        if "--version" in argv:
+            sys.stdout.write(f"{version_text()}\n")
+            return
         load_command_groups(argv)
         app(dispatch_arguments(argv))
     except GitExecutionError as exc:
         emit_git_execution_failure(
-            command=root_command(argv) or "ethos",
+            command=command,
             error=exc,
             json_output="--json" in argv,
         )
     except ProcessExecutionError as exc:
         emit_process_execution_failure(
-            command=root_command(argv) or "ethos",
+            command=command,
             error=exc,
             json_output="--json" in argv,
         )
     except ValueError as exc:
         if str(exc) == "repository_profile_invalid:.ethos/profile.toml":
-            _emit_invalid_profile(root_command(argv) or "ethos", argv)
+            _emit_invalid_profile(command, argv)
         else:
-            _emit_contract_failure(root_command(argv) or "ethos", argv, exc)
+            _emit_contract_failure(command, argv, exc)
     except RuntimeError as exc:
-        _emit_contract_failure(root_command(argv) or "ethos", argv, exc)
+        _emit_contract_failure(command, argv, exc)
 
 
 def _emit_invalid_profile(command: str, argv: list[str]) -> None:

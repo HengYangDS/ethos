@@ -11,6 +11,7 @@ from typing import NotRequired
 from typing import TypedDict
 
 import ethos.adapters.repo.runtime.authority as runtime_authority
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
@@ -415,6 +416,8 @@ def _expected_build(
         return selected, None, ""
     try:
         identity, source = runtime_authority.expected_runtime_build(repo)
+    except GitExecutionError:
+        raise
     except (OSError, RuntimeError, ValueError):
         if runtime_authority.accepted_version_migration_pending(repo):
             return None, None, ""
@@ -428,6 +431,8 @@ def _expected_source(repo: Path, selected: BuildIdentity | None) -> tuple[str, s
         return selected.source_commit, selected.source_tree
     try:
         return runtime_authority.expected_runtime_source(repo)
+    except GitExecutionError:
+        raise
     except (OSError, RuntimeError, ValueError):
         return None
 

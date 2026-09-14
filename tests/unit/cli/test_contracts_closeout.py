@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.repo.status.workspace as workspace
+import ethos.domain.land.closeout as closeout
 import ethos.surface.cli.hook.commands as hook_commands
+import ethos.surface.cli.root.land as land_commands
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.attestation_set import record_attestations
@@ -28,6 +31,9 @@ from tests.support.proof import seed_executed_proof
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
+    from typing import Any
+
+    from ethos.result import EthosResult
 
 
 def _closeout_repo(tmp_path: Path, *, changed: bool = False) -> tuple[Path, Path, str, str]:
@@ -45,7 +51,7 @@ def _closeout(
     *args: str,
     expect_head: str | None = None,
     blocked: bool = False,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     command = ["land", "--closeout", *args]
     if expect_head is not None:
         command.extend(("--expect-head", expect_head))
@@ -201,7 +207,9 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
         pushed_head=candidate_head,
         remote_head=accepted_head,
     )
-    assert (push["verdict"], push["accepted_closeout_effect"]["attestation_id"]) == (
+    effect = push["accepted_closeout_effect"]
+    assert isinstance(effect, dict)
+    assert (push["verdict"], effect["attestation_id"]) == (
         "pass",
         attestation["id"],
     )
@@ -262,7 +270,7 @@ def test_status_plan_closeout_and_hook_share_exact_apply_command(
     closeout = _closeout(repo)
     status = run_ethos("status", "--json", cwd=repo)
     plan = run_ethos("plan", "--json", cwd=repo)
-    emitted: list[object] = []
+    emitted: list[EthosResult] = []
     monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: candidate)
     monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
     hook_commands.pre_push(
@@ -426,3 +434,44 @@ def test_land_closeout_observes_completed_active_openspec_change(
     assert payload["required_gaps"] == []
     assert payload["data"]["openspec_lifecycle"]["completed_changes"] == ["fixture-change"]
     assert payload["data"]["openspec_lifecycle"]["root"] == fixture.candidate.as_posix()
+
+
+@pytest.mark.parametrize("projection", ["command", "bootstrap", "candidate"])
+def test_closeout_projection_does_not_collect_unrelated_workspace_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, projection: str
+) -> None:
+    """Ref and topology projections do not rerun runtime and Lease admission."""
+    repo, candidate, accepted, proposed = _closeout_repo(tmp_path)
+
+    def reject_full_observation(*_args, **_kwargs):
+        pytest.fail("projection unnecessarily collected complete workspace authority")
+
+    if projection == "candidate":
+        monkeypatch.setattr(land_commands, "workspace_status", reject_full_observation)
+        initial = _closeout(repo)
+        assert initial["data"]["closeout_resolution"]["coordinates"]["candidate_head"] == proposed
+        later = commit_fixture_file(candidate, "later.txt", "later\n", "advance candidate")
+        changed = _closeout(repo)
+        assert changed["data"]["closeout_resolution"]["coordinates"]["candidate_head"] == later
+        assert git(repo, "rev-parse", "HEAD") == accepted
+        return
+    monkeypatch.setattr(workspace, "workspace_status_observation", reject_full_observation)
+    if projection == "command":
+        command = closeout.closeout_apply_command(
+            candidate, accepted_head=accepted, candidate_head=proposed
+        )
+        assert f"--root {repo.resolve().as_posix()} --json" in command
+        assert f"--candidate-head {proposed}" in command
+    else:
+        result = closeout.closeout_bootstrap_package(
+            repo=candidate,
+            audit_root=candidate,
+            required_gaps=(),
+            accepted_head=accepted,
+            candidate_head=proposed,
+        )
+        assert result["accepted_root"] == repo.resolve().as_posix()
+        proof_target = result["proof_target"]
+        assert isinstance(proof_target, dict)
+        assert proof_target["root"] == candidate.resolve().as_posix()
+        assert result["candidate_head"] == proposed

@@ -30,6 +30,7 @@ _GIT_IDENTITY_ENV = (
 )
 GIT_EXECUTABLE_UNAVAILABLE = "git_executable_unavailable"
 GIT_PROCESS_SPAWN_FAILED = "git_process_spawn_failed"
+GIT_PROCESS_TIMED_OUT = "git_process_timed_out"
 
 
 class GitExecutionError(process_adapter.ProcessExecutionError):
@@ -97,6 +98,7 @@ def run_git(
     stdin: str | None = None,
     text: Literal[True] = True,
     observation: bool = False,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[str]: ...
 
 
@@ -109,6 +111,7 @@ def run_git(
     stdin: bytes | None = None,
     text: Literal[False],
     observation: bool = False,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[bytes]: ...
 
 
@@ -120,6 +123,7 @@ def run_git(
     stdin: str | bytes | None = None,
     text: bool = True,
     observation: bool = False,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[Any]:
     """Run one Git command and preserve the complete subprocess result."""
     if observation and env:
@@ -150,6 +154,8 @@ def run_git(
         }
     )
     command = (git_executable(effective_env), *args)
+    if timeout is not None and timeout <= 0:
+        raise _timeout_error(root, command, subprocess.TimeoutExpired(command, timeout))
     try:
         return process_adapter.run_command(
             root,
@@ -159,7 +165,10 @@ def run_git(
             env=effective_env,
             inherit_environment=False,
             stdin=stdin,
+            timeout=timeout,
         )
+    except subprocess.TimeoutExpired as error:
+        raise _timeout_error(root, command, error) from error
     except process_adapter.ProcessExecutionError as error:
         raise GitExecutionError(
             GIT_PROCESS_SPAWN_FAILED,
@@ -168,6 +177,26 @@ def run_git(
             cwd=error.cwd,
             cause=error.cause,
         ) from error
+
+
+def _timeout_error(
+    root: Path, command: tuple[str, ...], error: subprocess.TimeoutExpired
+) -> GitExecutionError:
+    """Keep one deadline failure shape for expired and already-running queries."""
+    return GitExecutionError(
+        GIT_PROCESS_TIMED_OUT,
+        reason="deadline_exceeded",
+        command=command,
+        cwd=root.resolve().as_posix(),
+        cause=str(error),
+        observation={
+            "timeout_seconds": error.timeout,
+            **{
+                name: value.decode(errors="replace") if isinstance(value, bytes) else value or ""
+                for name, value in (("stdout", error.stdout), ("stderr", error.stderr))
+            },
+        },
+    )
 
 
 def run_network_git(

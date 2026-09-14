@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -103,3 +104,45 @@ def test_remote_availability_classifies_git_exit_status(
     assert observed["available"] is (returncode == 0)
     if returncode:
         assert (observed["exit_code"], observed["reason"]) == (23, "ls_remote_failed")
+
+
+@pytest.mark.parametrize("timeout", [0.01, 0.0])
+def test_git_deadline_retains_process_evidence_and_never_starts_expired_work(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, timeout: float
+) -> None:
+    """The existing Git failure surface owns deadline and native timeout evidence."""
+    repo = init_git_repo(tmp_path / "repo")
+    spawned: list[tuple[str, ...]] = []
+
+    def expire(_root: Path, command: tuple[str, ...], **kwargs):
+        spawned.append(command)
+        assert kwargs["timeout"] == timeout
+        raise subprocess.TimeoutExpired(command, timeout, b"partial", b"waiting")
+
+    monkeypatch.setattr(process_adapter, "run_command", expire)
+    with pytest.raises(git_adapter.GitExecutionError, match="git_process_timed_out") as failure:
+        git_adapter.run_git(repo, "status", timeout=timeout)
+    assert failure.value.command[-1] == "status"
+    assert failure.value.cwd == repo.resolve().as_posix()
+    assert failure.value.observation["timeout_seconds"] == timeout
+    assert failure.value.observation["stdout"] == ("partial" if timeout else "")
+    assert failure.value.observation["stderr"] == ("waiting" if timeout else "")
+    assert bool(spawned) == bool(timeout)
+
+
+def test_native_git_transport_timeout_kills_and_reaps_the_owned_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The transport enforces a real process deadline, not only a mocked error."""
+    repo = init_git_repo(tmp_path / "repo")
+    monkeypatch.setattr(git_adapter, "git_executable", lambda _env: sys.executable)
+    with pytest.raises(git_adapter.GitExecutionError, match="git_process_timed_out") as failure:
+        git_adapter.run_git(
+            repo,
+            "-c",
+            "import time; print('started', flush=True); time.sleep(30)",
+            timeout=0.5,
+        )
+    assert failure.value.command[0] == sys.executable
+    assert failure.value.observation["stdout"] == "started\n"
+    assert failure.value.observation["timeout_seconds"] == 0.5

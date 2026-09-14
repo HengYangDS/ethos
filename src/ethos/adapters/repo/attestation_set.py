@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from pathlib import PurePosixPath
 
@@ -16,6 +17,13 @@ _MEMBER_ROOT = "evidence/attestations"
 _AUTHOR = "ETHOS Attestation Set <attestations@example.invalid> 0 +0000"
 _COMMIT_MESSAGE = "ETHOS Attestation Set\n"
 _MAX_CAS_ATTEMPTS = 16
+_MAX_REUSED_MEMBER_BYTES = 64 * 1024
+
+
+@lru_cache(maxsize=2048)
+def _validated_member(raw: bytes) -> Attestation:
+    """Reuse pure canonical validation, never membership or current authority."""
+    return Attestation.model_validate_json(raw)
 
 
 def _attestation_member_path(identity: str) -> str:
@@ -142,7 +150,11 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
         strict=True,
     ):
         try:
-            attestation = Attestation.model_validate_json(raw)
+            attestation = (
+                _validated_member(raw)
+                if len(raw) <= _MAX_REUSED_MEMBER_BYTES
+                else Attestation.model_validate_json(raw)
+            )
         except ValueError as error:
             message = f"attestation_set_member_invalid:{path}"
             raise ValueError(message) from error
@@ -181,37 +193,34 @@ def _canonical_inputs(attestations: tuple[Attestation, ...]) -> dict[str, bytes]
     return members
 
 
-def _write_tree(repo: Path, members: dict[str, bytes]) -> str:
+def _write_tree(repo: Path, members: dict[str, bytes], *, observed: str = "") -> str:
+    """Extend an observed tree through one native batch and an isolated index."""
     common = Path(git_common_dir(repo))
-    with tempfile.NamedTemporaryFile(prefix="attestation-set-", dir=common, delete=False) as file:
-        index = Path(file.name)
-    index.unlink()
-    environment = {"GIT_INDEX_FILE": index.as_posix()}
-    try:
-        for identity in sorted(members):
-            blob = (
-                run_git(
-                    repo,
-                    "hash-object",
-                    "-w",
-                    "--stdin",
-                    stdin=members[identity],
-                    text=False,
-                )
-                .stdout.decode()
-                .strip()
-            )
-            run_git(
-                repo,
-                "update-index",
-                "--add",
-                "--cacheinfo",
-                f"100644,{blob},{_attestation_member_path(identity)}",
-                env=environment,
-            )
+    with tempfile.TemporaryDirectory(prefix="attestation-set-", dir=common) as directory:
+        staging = Path(directory)
+        environment = {"GIT_INDEX_FILE": (staging / "index").as_posix()}
+        if observed:
+            run_git(repo, "read-tree", observed, env=environment)
+        identities = sorted(members)
+        paths: list[str] = []
+        for identity in identities:
+            member = staging / identity
+            member.write_bytes(members[identity])
+            paths.append(member.relative_to(common).as_posix())
+        blobs = run_git(
+            common,
+            "hash-object",
+            "-w",
+            "--no-filters",
+            "--stdin-paths",
+            stdin="".join(f"{path}\n" for path in paths),
+        ).stdout.splitlines()
+        entries = "".join(
+            f"100644 {blob}\t{_attestation_member_path(identity)}\0"
+            for identity, blob in zip(identities, blobs, strict=True)
+        )
+        run_git(repo, "update-index", "-z", "--index-info", stdin=entries, env=environment)
         return run_git(repo, "write-tree", env=environment).stdout.strip()
-    finally:
-        index.unlink(missing_ok=True)
 
 
 def _root_identity(repo: Path, tree: str, *, write: bool) -> str:
@@ -280,8 +289,10 @@ def record_attestations(
         added = tuple(sorted(incoming.keys() - current.keys()))
         if not added:
             return {"root": observed, "added": ()}
-        union = current | incoming
-        desired = _root_identity(repo, _write_tree(repo, union), write=True)
+        new_members = {identity: incoming[identity] for identity in added}
+        desired = _root_identity(
+            repo, _write_tree(repo, new_members, observed=observed), write=True
+        )
         if _compare_and_swap_root(repo, desired=desired, observed=observed):
             return {"root": desired, "added": added}
     message = "attestation_set_cas_retry_exhausted"
@@ -292,7 +303,7 @@ def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation
     """Select exactly one Attestation for a predicate and subject."""
     for _attempt in range(_MAX_CAS_ATTEMPTS):
         observed = _selected_root(repo)
-        current, members = _validated_members(repo, observed)
+        _current, members = _validated_members(repo, observed)
         matches = tuple(
             item
             for item in members
@@ -304,8 +315,7 @@ def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation
         if matches:
             return matches[0]
         incoming = _canonical_inputs((attestation,))
-        union = current | incoming
-        desired = _root_identity(repo, _write_tree(repo, union), write=True)
+        desired = _root_identity(repo, _write_tree(repo, incoming, observed=observed), write=True)
         if _compare_and_swap_root(repo, desired=desired, observed=observed):
             return attestation
     message = "attestation_set_cas_retry_exhausted"

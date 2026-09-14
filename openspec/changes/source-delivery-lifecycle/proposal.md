@@ -37,4 +37,4 @@ state store, adopter carrier or separate delivery ledger is introduced.
 - General post-archive repair admission and malformed canonical-spec recovery.
 - Expired Lease recovery commands and lane-start positional parsing.
 - General proof caching, supply upgrades and architecture quality-contract debt.
-- Changes to AIGW, Proxy, Workstation or the diagram repositories.
+- Changes to external adopter, host-control or diagram repositories.

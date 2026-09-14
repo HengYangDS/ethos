@@ -78,6 +78,6 @@
     "semantic_graph": "system/projections/terminal-architecture/semantic-graph.json",
     "copy": "system/projections/terminal-architecture/copy.json",
     "view_profile": "system/projections/terminal-architecture/view-profile.json",
-    "quality_contract": "system/projections/terminal-architecture/quality-contract.yaml"
+    "quality_contract": "system/projections/terminal-architecture/quality-contract.json"
   }
 }

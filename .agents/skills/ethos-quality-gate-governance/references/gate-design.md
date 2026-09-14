@@ -33,6 +33,16 @@ Inventory existing effective checks before deleting or merging their execution.
 Do not equate tool availability, graph coverage, lint success or a high coverage
 percentage with correct behavior or complete product assurance.
 
+For source-derived quality contracts, resolve required checks to their original
+propositions, scope, observation and rejection conditions before trusting a
+report. Undefined IDs are an input defect, not an invitation for a consumer to
+invent their meaning. Declaration validity, source judgment, independent
+source-to-artifact review, rendered measurements and owner acceptance remain
+distinct. Reference the existing contract; do not copy its checklist into a
+skill. A partial presentation or export preserves every necessary condition of
+the relations it expresses without pretending to cover the whole product.
+Hidden content and a prior PASS cannot repair an unsupported current claim.
+
 - `system/gates.toml` selects default and full closures. Default remains offline
   source verification. Full and local CI additionally execute declared security,
   carrier and delivery checks, including owners with explicit network needs.

@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
+from tests.support.architecture import projection_quality_fixture
 from tools.ci import architecture_projection
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -129,7 +130,7 @@ def _fixture_repository(tmp_path: Path, *, effect_authority: bool = False) -> tu
             "semantic_graph": "system/projections/terminal-architecture/semantic-graph.json",
             "copy": "system/projections/terminal-architecture/copy.json",
             "view_profile": "system/projections/terminal-architecture/view-profile.json",
-            "quality_contract": "system/projections/terminal-architecture/quality-contract.yaml",
+            "quality_contract": "system/projections/terminal-architecture/quality-contract.json",
         },
     }
     projection_root = root / "system/projections/terminal-architecture"
@@ -139,9 +140,7 @@ def _fixture_repository(tmp_path: Path, *, effect_authority: bool = False) -> tu
         projection_root / "copy.json", {"schema": "fixture.copy/v1", "title": "Fixture Terminal"}
     )
     _write_json(projection_root / "view-profile.json", view_profile)
-    (projection_root / "quality-contract.yaml").write_text(
-        "schema: fixture.quality/v1\n", encoding="utf-8"
-    )
+    _write_json(projection_root / "quality-contract.json", projection_quality_fixture(("source",)))
     owner = "src/ethos/repository/policy/projections.py"
     (root / owner).parent.mkdir(parents=True)
     (root / owner).write_bytes((REPOSITORY_ROOT / owner).read_bytes())
@@ -212,7 +211,9 @@ def test_export_validates_the_projection_input_schema(tmp_path: Path) -> None:
     Draft202012Validator.check_schema(schema)
     Draft202012Validator(schema).validate(exported)
     assert exported["documents"]["copy"]["title"] == "Fixture Terminal"
-    assert exported["documents"]["quality_contract"] == "schema: fixture.quality/v1\n"
+    assert json.loads(exported["documents"]["quality_contract"]) == projection_quality_fixture(
+        ("source",)
+    )
     assert "assertion" not in exported["semantics"]["nodes"]["intent"]
     assert "assertion" not in exported["semantics"]["relations"][0]
 
@@ -321,6 +322,16 @@ def _revise_projection(root: Path, name: str, revise) -> None:
     value = json.loads(path.read_text())
     revise(value)
     _write_json(path, value)
+    if name == "semantic-graph.json":
+        for invariant in value.get("invariants", []):
+            invariant.setdefault("source_ids", ["source"])
+        _write_json(path, value)
+        _write_json(
+            path.with_name("quality-contract.json"),
+            projection_quality_fixture(
+                ("source",), tuple(row["id"] for row in value.get("invariants", []))
+            ),
+        )
     _git(root, "add", ".")
     _git(root, "commit", "--allow-empty", "-qm", "revise projection")
 

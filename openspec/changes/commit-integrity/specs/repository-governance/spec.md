@@ -13,6 +13,13 @@ a candidate SHALL NOT waive its own integration obligations.
 - **THEN** admission verifies exact object bytes against the protected trust anchor
 - **AND** a signature envelope with invalid cryptography is rejected
 
+#### Scenario: Verification inputs remain current
+
+- **WHEN** one or many exact objects are verified against native SSH trust
+- **THEN** every object uses the same captured configuration, anchor and revocation material
+- **AND** source trust changes before observation completes reject the result
+- **AND** temporary verification material is removed on normal exit or reported failure
+
 #### Scenario: Identity requirements are declared
 
 - **WHEN** policy constrains author or committer identity

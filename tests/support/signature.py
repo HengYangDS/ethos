@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
+import time
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.accepted.signature as repair
@@ -82,3 +84,70 @@ def interrupted_signature(repo, old, monkeypatch):
     assert observed["verdict"] != "pass"
     _, records = read_attestation_set(repo)
     return records
+
+
+def killed_signature_repair(
+    repo: Path, old: str, first: str, backup: Path, *, boundary: str
+) -> str:
+    """Kill an owned repair child after a real effect, before its caller receives the ACK."""
+    ready = repo.parent / "effect-ready"
+    script = """
+import sys
+from pathlib import Path
+import ethos.adapters.mutation.accepted.signature as repair
+import ethos.adapters.repo.commit.history as history
+import ethos.adapters.repo.git_effects as effects
+repo, old, first, backup, marker, boundary = sys.argv[1:]
+owner, name = {
+    'signed-object': (history, 'create_signed_payload'),
+    'ref-cas': (repair, 'execute_git_effect'),
+    'ref-cas-unrecorded': (effects, '_run_effect_program'),
+}[boundary]
+native = getattr(owner, name)
+def pause_after_effect(*args, **kwargs):
+    result = native(*args, **kwargs)
+    completed = result if boundary == 'signed-object' else 'ref-effect-applied'
+    if boundary == 'ref-cas-unrecorded':
+        assert result.returncode == 0
+    Path(marker).write_text(completed)
+    sys.stdin.read(1)
+    return result
+setattr(owner, name, pause_after_effect)
+repair.repair_signature(root=Path(repo), expect_head=old, corrections={first: {'resign': True}},
+                      reason='Restore valid signatures', backup=Path(backup),
+                      apply=True, authorized=True)
+"""
+    with (
+        (repo.parent / "child-output.log").open("w+") as output,
+        subprocess.Popen(
+            [
+                sys.executable,
+                "-B",
+                "-I",
+                "-c",
+                script,
+                str(repo),
+                old,
+                first,
+                str(backup),
+                str(ready),
+                boundary,
+            ],
+            stdin=subprocess.PIPE,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+        ) as child,
+    ):
+        try:
+            deadline = time.monotonic() + 15
+            while not ready.exists() and child.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            output.seek(0)
+            assert ready.exists(), output.read()
+            assert child.poll() is None, "process must still await acknowledgement"
+        finally:
+            if child.poll() is None:
+                child.kill()
+            child.communicate(timeout=10)
+    assert child.returncode != 0
+    return ready.read_text()

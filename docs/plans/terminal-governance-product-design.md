@@ -325,26 +325,23 @@ The signed implementation checkpoint was refreshed by public `lane refresh-base`
 onto accepted `e0ba1e3a`, producing `859a47d2d6accc759ce7edfafa5053cee88dff47`;
 Git range-diff preserved the patch and native signature verification passed.
 Discovery now distinguishes installed transports from an unavailable external
-trust anchor; its 83-case regression suite passes. Exact hosted trust deployment
-remains open: the observed GitHub runner checkout has no local allowed-signers
-binding. It must not replace this missing prerequisite with candidate-authored
-trust. Current static type, module-layout, docstring, skill and source budgets
-pass; these are not full proof or installed prevention.
+trust anchor; its 83-case regression suite passes. Hosted trust must come from
+the external anchor, not candidate-authored configuration. Static checks alone
+do not establish installed prevention or actual hosted consumption.
 Hosted bootstrap now validates an explicitly supplied external anchor through
 the native trust owner and projects only its Git verification binding; the
 73-case supply/bootstrap/provider suite passes. Both runner configurations now
 reference a byte-equal public-only projection of the existing operator anchor.
 GitLab configuration reload is observed; a non-root isolated container can read
-the exact anchor through its read-only mount. GitHub activation requires an idle
-listener restart; no running job was interrupted and neither hosted execution
-is yet qualified. `runner-trust-deployment.json` holds exact changed fields and
-hashes without credentials. The existing package lifecycle now exercises the
-historical-selection path; both isolated CLI modes pass, while installed-wheel
-qualification remains pending. The attempted workflow-only patch was rejected by the incumbent
-prewrite for an existing `uv` reference; no workflow bytes changed. Supply the
-anchor through runner-owned environment instead of making candidate YAML an
-authority. Keep that prewrite observation defect for its owning convergence,
-without adding a tool to product runtime solely to silence it.
+the exact anchor through its read-only mount. The idle GitHub listener was
+restarted through its existing supervisor; its successor is listening, with
+configuration and anchor hashes unchanged. No running job was interrupted.
+`runner-trust-deployment.json` and `runner-trust-activation.json` retain the
+observations. A new job consuming the anchor on each Forge remains unobserved.
+The existing package lifecycle exercises historical selection; installed-wheel
+qualification passed in the first supply batch below. The initially rejected
+workflow patch exposed the native-owner omission, also repaired in that batch.
+Runner environment supplies the anchor; candidate YAML never grants trust.
 The dependency-expanded host check passed 3,513 tests and measured 95.11%
 combined coverage, but failed one obsolete file-owner assertion and two recovery
 fixtures that omitted replay admission. Range subtraction and historical DAG
@@ -355,10 +352,68 @@ All 51 related architecture, recovery and native commit-integrity cases pass.
 This is not current full proof. The prior invocation omitted worker controls and
 ran eight workers; subsequent invocations explicitly use two and inspect the
 declared gate dependency closure before execution.
-Actual multi-thousand-object performance, process-kill recovery, package re-entry,
-full proof, hosted trust setup and independent publication remain acceptance
-obligations. No historical correction is applied. Reuse batch Git reads;
-never multiply complete-history verification at every old Attestation lookup.
+The exact 40-object historical selection affects 2,841 commits at the accepted
+source below. Public dry-run readiness passed in 9.471 seconds without signing
+or ref updates; this does not measure applied repair or signing throughput.
+Original objects remain in the verified recovery bundle. No historical
+correction is applied. Reuse batch Git reads; never multiply complete-history
+verification at every old Attestation lookup.
+
+Actual killed-child tests now replace exception-only recovery simulation. They
+cover signed-object creation before acknowledgement, ref CAS after its receipt,
+and applied ref CAS before its receipt. Public recovery reuses completed objects,
+does not repeat completed CAS, preserves originals and is idempotent on replay.
+All 69 signature/history consumers pass; six public static gates pass on the
+same working tree. Receipts are `kill-recovery-final-consumers.log` and
+`kill-recovery-final-static.json` in the existing Change evidence directory.
+This qualifies existing behavior, not a new production repair or exact-HEAD
+proof. Large-scale applied recovery, hosted consumption and independent
+publication remain open; the trust-currentness repair is qualified below.
+
+Trust-currentness review reproduced four native verification counterexamples:
+an anchor, revocation file or configuration changed after a successful native
+verification still passed; the history owner's separate batch loop also passed.
+The existing trust-anchor package now owns single-object and batch verification.
+It supplies transient immutable material to native Git, binds absent SSH defaults
+as well as explicit settings, and rechecks source inputs before success. A fifth
+RED case caught a temporary override of an undeclared native default. The old
+object module's verifier definitions and history's private loop are removed;
+all consumers import the defining owner without compatibility exports.
+
+The distinguishing RED logs are `trust-freshness-red.log` and
+`trust-default-red.log`. The subsequent 348-case consumer run passes. A final
+55-case owner run also covers unreadable native configuration and reaches 100%
+line-plus-branch coverage of this module, not full-product coverage. Single
+commits, annotated tags, cross-batch invalid objects, temporary
+source edits and empty selections are exercised. Eight public static/shape
+gates pass; the newly untracked module was also checked explicitly with Ruff and
+ty because the per-file size inventory only visits tracked files. The module
+measures 181 ELOC and the aggregate budget includes untracked sources.
+Fresh offline package qualification passed all eight lifecycle stages with
+overlay tree `fb75b1c2294d0892484d36b0ddbf785787faf58c` and wheel SHA256
+`82f10f3b51f6120f9a802ce676510b120a15dc8e9defc8c266ff967496b2b359`.
+The packaged verifier bytes match the tested owner, the replaced definitions
+are absent and the temporary installation is removed. `trust-package.log` and
+`trust-package-input.json` retain the exact result; subsequent plan-only edits
+do not change those tested bytes. Exact-commit proof and installed deployment
+remain pending. Large applied repairs and hosted consumption are separate
+open obligations.
+
+The next native lifecycle regression proved that archive acceptance was lost
+after any descendant of a repaired tip, including a repeated repair. Both
+cases failed with `openspec_active_change_missing`; the immediate-repair control
+passed. The existing archive provenance owner now resolves validated refresh
+and repair edges in one traversal, preserving archive subtree identity and
+rejecting ambiguous paths. It replaces the HEAD-only fallback and recursive
+lookup, without a persistent history graph or another intent carrier.
+
+All 47 related cases pass, including actual public reproof at immediate,
+descendant and repeated-repair heads. Removing a necessary repair effect record
+rejects recovery and leaves refs unchanged. `history-continuation-red.log` and
+`history-public-reproof.log` retain the contrast. The initial archive admission
+uses explicitly seeded fixture proof; the post-repair proof executes declared
+native checks and binds the new exact HEAD. This is not real-repository history
+correction, accepted deployment or publication.
 
 Execution order is: finish and accept commit-integrity; activate it; enable the
 explicit self-repository identity declaration through its fresh supported policy
@@ -397,12 +452,41 @@ already required by bootstrap; its corrected execution is not a product fix or
 full Linux qualification. Second-batch full proof, acceptance, installation and
 remote publication remain pending.
 
+The second supply batch also passed fresh offline wheel build/install acceptance
+in the current lane. The tested overlay tree is
+`2d0563ef7f78cb134660711dfd02d2abf305f346`; wheel SHA256 is
+`4ac71124cfddb4eeb1e45f6efae71f2c47849ccaf01f9481dff96adbdfeb4b3d`.
+Packaged lock bytes include uv 0.12.15 and match the inputs. All eight package
+lifecycle stages passed, including historical repair, reproof, runtime activation,
+relocation and retirement recovery. The temporary installation was removed.
+`supply-final-package.log` and `supply-final-package-input.json` retain this
+bounded result; it is not acceptance of the overlay as an actual commit, an
+installed repository runtime or hosted qualification. Subsequent plan-only
+recording does not change the tested package inputs, but the final commit still
+requires its own identity-bound proof and package.
+
+The staged checkpoint initially could not create a commit because native signing
+was unavailable without interaction. After the credential owner supplied a real
+sign-and-verify observation, the retained ten-file index was committed as
+`3ff677aa2576357010a2d8d4084d80d4db66e276`, tree
+`e3afda30e2b23031f1570c4b3bc9a7021189f05a`. The normal hook path and explicit
+signing produced a native SSH signature; independent verification returned zero
+and author/committer remained unchanged. All unstaged repair bytes were preserved.
+`supply-signed-checkpoint.log` records this local checkpoint, not accepted source
+or remote publication. Do not infer signing from command success alone, trigger
+password prompts, replace keys or bypass admission.
+
 Supply convergence remains incomplete: ty/mutmut declare beta, deptry declares
 alpha, nodejs-wheel-binaries still embeds Node 24.19.0, and current Node archives
 bundle npm 11 while npm publishes 12.0.2. Resolve these at their existing quality
 and runtime owners in bounded closures, without pretending a latest wrapper or
 suffix-free version proves stable/current supply. Runner trust activation and
 hosted CI are separate delivery claims; no preview exception was approved.
+The final official registry recheck found 27 of 29 selected Python versions
+current; only ty and mutmut have newer numeric releases, still publisher-declared
+Beta. All five selected npm package versions match their current release tags.
+`supply-final-registry-recheck.json` records exact inputs and release sources;
+numeric freshness does not waive the publisher-lifecycle or embedded-tool gaps.
 
 The architecture adopter's September 16 feedback is a separate P0 audit-coverage
 gap. At accepted `e0ba1e3a`, inline profiles take `adopter_audit`, which checks the

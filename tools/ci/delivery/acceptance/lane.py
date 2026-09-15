@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import commit_payload
-from ethos.adapters.repo.git_object import verify_commit_trust
+from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from tools.ci.delivery.acceptance.invocation import invoke

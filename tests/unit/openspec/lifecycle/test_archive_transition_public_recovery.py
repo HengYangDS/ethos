@@ -1,3 +1,5 @@
+"""Check archive relocation and evidence-preserving history resolution."""
+
 from __future__ import annotations
 
 from datetime import UTC
@@ -7,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.openspec.lifecycle.archive_refresh as refresh
+import ethos.adapters.openspec.lifecycle.archive_provenance as provenance
 import ethos.adapters.openspec.lifecycle.archive_transition as archive
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
@@ -246,19 +248,20 @@ def archive_graph(tmp_path, monkeypatch):
         distance = distances.get(previous)
         return SimpleNamespace(returncode=0 if distance is not None else 1, stdout=str(distance))
 
-    for module in (archive, refresh):
+    for module in (archive, provenance):
         monkeypatch.setattr(module, "plan_from_attestation", lambda item: plans[item.id])
         monkeypatch.setattr(module, "git_effect_from_plan", lambda plan: effects[plan.digest])
         monkeypatch.setattr(module, "validate_git_effect_attestation", validate)
     monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ({}, tuple(items)))
     monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
-    monkeypatch.setattr(refresh, "repository_identity", lambda *_args, **_kwargs: "repository:test")
-    monkeypatch.setattr(archive, "run_git", ancestry)
-    monkeypatch.setattr(archive, "_object_id", lambda _root, spec, **_kwargs: objects.get(spec, ""))
+    monkeypatch.setattr(
+        provenance, "repository_identity", lambda *_args, **_kwargs: "repository:test"
+    )
+    monkeypatch.setattr(provenance, "run_git", ancestry)
+    monkeypatch.setattr(provenance, "ref_head", lambda _root, spec: objects.get(spec, ""))
     return SimpleNamespace(
         archive=archive_effect,
         refresh=refresh_effect,
-        items=items,
         plans=plans,
         effects=effects,
         distances=distances,
@@ -404,7 +407,7 @@ def test_archive_ancestry_observation_rejects_failed_or_malformed_count(
     def run_git(_root, *args, **_kwargs):
         return SimpleNamespace(returncode=code if args[0] == "rev-list" else 0, stdout=count)
 
-    monkeypatch.setattr(archive, "run_git", run_git)
+    monkeypatch.setattr(provenance, "run_git", run_git)
     recovered = archive_graph.resolve(change=CHANGE)
     if expected is None:
         assert recovered is None

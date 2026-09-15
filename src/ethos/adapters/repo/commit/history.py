@@ -14,8 +14,8 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object import unsigned_commit_payload
-from ethos.adapters.repo.git_object import verify_commit_trust
-from ethos.adapters.repo.git_object import verify_git_object_trust
+from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
+from ethos.adapters.repo.trust_anchor.verification import verify_git_object_trust
 
 
 class PreparedHistoryRepair(TypedDict):
@@ -238,16 +238,8 @@ def validate_history_repair(
         mapping[previous], inverse[current] = current, previous
         pending.extend(zip(parents, replacements, strict=True))
     _require(set(mapping) == affected, "history_repair_mapping_incomplete")
-    # Native Git verifies every object in each bounded batch. The protected anchor
-    # is validated once by the shared trust owner; no receipt replaces cryptography.
-    trust = verify_commit_trust(root, new)
+    trust = verify_commit_trust(root, tuple(mapping.values()))
     _require(trust["verdict"] == "pass", "history_repair_signature_untrusted")
-    revisions = tuple(mapping.values())
-    for start in range(0, len(revisions), 128):
-        verified = run_git(
-            root, "verify-commit", "--raw", *revisions[start : start + 128], check=False, timeout=30
-        )
-        _require(verified.returncode == 0, "history_repair_signature_untrusted")
     return mapping
 
 

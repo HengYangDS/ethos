@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import re
 import tempfile
 from pathlib import Path
 from typing import Literal
@@ -13,7 +12,8 @@ from typing import cast
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
-from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
+from ethos.adapters.repo.trust_anchor.verification import configured_commit_trust_anchor
+from ethos.adapters.repo.trust_anchor.verification import verify_git_object_trust
 
 GitObjectKind = Literal["commit", "annotated-tag"]
 
@@ -23,11 +23,6 @@ _SIGNATURE_ARMOR_FORMATS = {
     b"-----BEGIN PGP SIGNATURE-----": "openpgp",
     b"-----BEGIN SIGNED MESSAGE-----": "x509",
 }
-_SSH_STATUS = re.compile(
-    r'^Good "git" signature for (?P<principal>.+) with \S+ key '
-    r"(?P<fingerprint>SHA256:[A-Za-z0-9+/=]+)\r?$",
-    re.MULTILINE,
-)
 
 
 def zero_oid(root: Path) -> str:
@@ -146,83 +141,6 @@ def observe_git_object(root: Path, revision: str, kind: GitObjectKind) -> dict[s
     }
 
 
-def verify_git_object_trust(root: Path, revision: str, kind: GitObjectKind) -> dict[str, object]:
-    """Verify one commit or annotated tag against the configured trust anchor."""
-    configured = run_git(
-        root,
-        "config",
-        "--path",
-        "--get",
-        "gpg.ssh.allowedSignersFile",
-        check=False,
-    ).stdout.strip()
-    resolved, gaps = trust_anchor(root, configured)
-    verifier = "git verify-tag" if kind == "annotated-tag" else "git verify-commit"
-    version = run_git(root, "version", check=False).stdout.strip()
-    if gaps:
-        return _trust_report(
-            revision,
-            resolved.as_posix() if resolved else configured,
-            verifier,
-            version,
-            gaps,
-        )
-    anchor = cast("Path", resolved)
-    completed = run_git(
-        root,
-        "-c",
-        f"gpg.ssh.allowedSignersFile={anchor}",
-        "verify-tag" if kind == "annotated-tag" else "verify-commit",
-        "--raw",
-        revision,
-        check=False,
-    )
-    status = completed.stderr.strip() or completed.stdout.strip()
-    match = _SSH_STATUS.search(status) if completed.returncode == 0 else None
-    verification_gaps = (
-        []
-        if match is not None
-        else ["git_object_signature_untrusted"]
-        if completed.returncode
-        else ["git_object_signature_observation_unavailable"]
-    )
-    return {
-        **_trust_report(revision, anchor.as_posix(), verifier, version, verification_gaps),
-        "principal": match.group("principal") if match else "",
-        "fingerprint": match.group("fingerprint") if match else "",
-        "status": status,
-    }
-
-
-def trust_anchor(root: Path, configured: str) -> tuple[Path | None, list[str]]:
-    """Resolve one protected repository-external OpenSSH trust anchor."""
-    if not configured:
-        return None, ["git_object_trust_anchor_missing"]
-    anchor = Path(configured).expanduser()
-    if not anchor.is_absolute():
-        return None, ["git_object_trust_anchor_not_absolute"]
-    resolved: Path | None = None
-    gaps: list[str] = []
-    try:
-        resolved = anchor.resolve(strict=True)
-        resolved.relative_to(root.resolve())
-    except FileNotFoundError:
-        gaps = ["git_object_trust_anchor_missing"]
-    except ValueError:
-        resolved = anchor.resolve()
-    else:
-        gaps = ["git_object_trust_anchor_inside_repository"]
-    if resolved is not None and not gaps:
-        gaps = (
-            ["git_object_trust_anchor_missing"]
-            if not resolved.is_file()
-            else ["git_object_trust_anchor_unprotected"]
-            if not protected_from_untrusted_write(resolved)
-            else []
-        )
-    return resolved, gaps
-
-
 def commit_payload(root: Path, revision: str) -> bytes:
     """Return canonical commit bytes with only signature headers removed."""
     raw = _commit_object(root, revision)
@@ -276,19 +194,6 @@ def equivalent_commit_identity(root: Path, old: str, new: str) -> bool:
     """Return whether distinct commits differ only by signature headers."""
     payload = commit_payload(root, old)
     return old != new and bool(payload) and payload == commit_payload(root, new)
-
-
-def verify_commit_trust(root: Path, revision: str) -> dict[str, object]:
-    """Project generic object trust through the incumbent commit gap vocabulary."""
-    report = verify_git_object_trust(root, revision, "commit")
-    gaps = [_commit_gap(str(gap)) for gap in cast("list[object]", report["required_gaps"])]
-    return {
-        "verdict": "block" if gaps else "pass",
-        "revision": revision,
-        "anchor": report["anchor"],
-        "required_gaps": gaps,
-        "status": report.get("status", ""),
-    }
 
 
 def authorize_configured_commit_signer(
@@ -384,31 +289,6 @@ def _type(root: Path, object_oid: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def configured_commit_trust_anchor(root: Path) -> tuple[Path | None, list[str]]:
-    """Observe the native commit trust anchor independently of any candidate signature."""
-    configured = run_git(
-        root,
-        "config",
-        "--path",
-        "--get",
-        "gpg.ssh.allowedSignersFile",
-        check=False,
-    ).stdout.strip()
-    anchor, gaps = trust_anchor(root, configured)
-    return anchor, [_commit_gap(gap) for gap in gaps]
-
-
-def _commit_gap(gap: str) -> str:
-    return {
-        "git_object_trust_anchor_missing": "commit_trust_anchor_missing",
-        "git_object_trust_anchor_not_absolute": "commit_trust_anchor_not_absolute",
-        "git_object_trust_anchor_inside_repository": "commit_trust_anchor_inside_repository",
-        "git_object_trust_anchor_unprotected": "commit_trust_anchor_unprotected",
-        "git_object_signature_untrusted": "commit_signature_untrusted",
-        "git_object_signature_observation_unavailable": "commit_signature_untrusted",
-    }.get(gap, gap)
-
-
 def _configured_signer(root: Path) -> tuple[str, str, list[str]]:
     configured = run_git(
         root, "config", "--path", "--get", "user.signingkey", check=False
@@ -502,25 +382,6 @@ def _observation(
         "peeled_commit": peeled_commit,
         "tree_oid": tree_oid,
         "required_gaps": required_gaps,
-    }
-
-
-def _trust_report(
-    revision: str,
-    anchor: str,
-    verifier: str,
-    verifier_version: str,
-    gaps: list[str],
-) -> dict[str, object]:
-    digest = hashlib.sha256(Path(anchor).read_bytes()).hexdigest() if not gaps and anchor else ""
-    return {
-        "verdict": "block" if gaps else "pass",
-        "revision": revision,
-        "anchor": anchor,
-        "trust_anchor_sha256": digest,
-        "verifier": verifier,
-        "verifier_version": verifier_version,
-        "required_gaps": gaps,
     }
 
 

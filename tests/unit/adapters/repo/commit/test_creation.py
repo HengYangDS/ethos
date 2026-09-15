@@ -11,7 +11,7 @@ import pytest
 import ethos.adapters.repo.commit.creation as creation
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git_object import commit_payload
-from ethos.adapters.repo.git_object import verify_commit_trust
+from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.repository.policy.commit import CommitPolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo

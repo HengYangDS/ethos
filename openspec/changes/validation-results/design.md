@@ -68,3 +68,17 @@ non-branch transactions require no runtime inventory. Other hooks retain their
 current validation. This removes repeated work without a persistent cache,
 weaker prepared admission or a launcher bypass. Tests preserve role dispatch,
 malformed-input rejection, damaged-runtime rejection and batch ordering.
+
+Identity inspection does not use the command dispatcher. The CLI entrypoint
+loads the existing application and output owners at the first consuming branch;
+the version owner and its source/runtime identity checks remain unchanged. A
+native import-blocking counterexample verifies human and JSON version output
+without Cyclopts. Registration, dispatch and source-observation failures still
+reach their existing public envelopes. Test callers import the application from
+its concrete owner, not a re-export through the entrypoint.
+
+The Git transport timeout regression has the same invalid startup assumption as
+the download case. A loopback readiness observation precedes the unchanged timed
+communicate call. The real transport must retain partial output, terminate and
+reap the child, and produce EOF without a later write. Both immediate and delayed
+starts exercise the same deadline; the test does not redefine production timing.

@@ -248,6 +248,18 @@ ordering; its test module remains within the unchanged 500-ELOC ceiling.
 This source result does not establish installed-hook latency, full-journey
 recovery or a passing exact proof.
 
+The current complete acceptance/delivery/archive journey passes in 60.13 seconds
+without coverage. Its profile still contains 2,075 subprocesses, 1,951 product
+Git calls and 35 source-build compilations; overlapping cumulative times are
+not additive wall time. The related runtime fixture replay passes 77 cases with
+two workers. Native version inspection now avoids command-framework loading;
+import-denial RED/GREEN and 29 public/error-boundary tests verify that narrower
+dependency contract. Sampled warm startup remains around half a second, so no
+general latency improvement or hosted-timeout resolution is claimed. A second
+readiness race in the Git timeout regression now uses established-child/EOF
+observations with the same 0.5-second deadline. Remaining whole-cycle cost stays
+in P5; exact full proof and actual hosted runs decide delivery readiness.
+
 The adopter owner reports public installation of `c03e2091` in all three linked
 worktrees, completed generation cleanup, exact Lease resume from generation 12
 to 13 and passing prewrite/full proof. These are attributed adopter observations,

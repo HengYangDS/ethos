@@ -12,6 +12,8 @@
 - [x] 2.5 Replace the download-cleanup test's startup race with explicit descendant readiness and exit observations; verify delayed startup and parent-only termination.
 - [x] 2.6 Preserve partial publication progress under unknown observations and verify CLI, Attestation and retry agreement through real peer refs.
 - [x] 2.7 Scope runtime observation to prepared ref admission, preserving notification, input, damaged-runtime and batch-policy boundaries.
+- [x] 2.8 Isolate native version inspection from command loading and preserve public failure envelopes.
+- [x] 2.9 Establish Git timeout-test readiness independently of startup speed and verify real termination, output and reaping.
 
 ## 3. Retain Delivery And Execution Learning
 

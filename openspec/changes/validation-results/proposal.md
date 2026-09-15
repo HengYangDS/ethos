@@ -16,6 +16,9 @@ becoming invented errors. Preserve the complete result boundary at one owner.
   official early-sync and archive semantics unchanged.
 - Update the existing terminal plan and quality execution guidance from actual
   delivery, scope and dependency-expansion observations.
+- Record bounded local cleanup and rule-consumer comparison evidence in existing
+  research/plan owners; remove an unsupported adapter-availability claim without
+  introducing CUE or a structural rewrite into this implementation batch.
 
 ## Capabilities
 

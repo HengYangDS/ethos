@@ -13,3 +13,4 @@
 
 - [x] 3.1 Update the existing terminal plan from exact preceding delivery receipts.
 - [x] 3.2 Update quality execution guidance and replay dependency/resource-envelope selection.
+- [x] 3.3 Retain cleanup and rule-consumer evidence in existing research/plan owners and correct unsupported availability claims.

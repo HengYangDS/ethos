@@ -300,7 +300,7 @@ def authorize_configured_commit_signer(
     authorized: bool,
 ) -> dict[str, object]:
     """Authorize Git's configured signer for one exact signed commit."""
-    anchor, anchor_gaps = _configured_commit_trust_anchor(root)
+    anchor, anchor_gaps = configured_commit_trust_anchor(root)
     signer, principal, signer_gaps = _configured_signer(root)
     current = anchor.read_bytes() if anchor is not None and anchor.is_file() else b""
     digest = hashlib.sha256(current).hexdigest()
@@ -363,7 +363,7 @@ def commit_trust_setup_action(
     observed_anchor_sha256: str | None = None,
 ) -> str:
     """Return the exact authorization command for the configured trust anchor."""
-    anchor, gaps = _configured_commit_trust_anchor(root)
+    anchor, gaps = configured_commit_trust_anchor(root)
     if anchor is None or gaps:
         return "git config --global gpg.ssh.allowedSignersFile <absolute-owner-only-path>"
     digest = observed_anchor_sha256 or hashlib.sha256(anchor.read_bytes()).hexdigest()
@@ -384,7 +384,8 @@ def _type(root: Path, object_oid: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def _configured_commit_trust_anchor(root: Path) -> tuple[Path | None, list[str]]:
+def configured_commit_trust_anchor(root: Path) -> tuple[Path | None, list[str]]:
+    """Observe the native commit trust anchor independently of any candidate signature."""
     configured = run_git(
         root,
         "config",

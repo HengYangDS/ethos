@@ -8,7 +8,10 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
 from typing import Literal
+from typing import cast
 
 import pytest
 import tomli_w
@@ -29,6 +32,9 @@ from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.runtime_scenarios import runtime_build
 
+if TYPE_CHECKING:
+    from ethos.adapters.repo.hook.observation import CommitPolicyEnforcement
+
 _POLICY = (
     '[commit_policy]\nsubject_pattern = "fix: .+"\n'
     'signing_required = false\nsigning_format = "ssh"\n'
@@ -48,9 +54,11 @@ def _fixture(tmp_path: Path, *, policy: str | None = None) -> tuple[Path, Path]:
     return repo, Path(configured.stdout.strip())
 
 
-def _capability(repo: Path) -> tuple[dict[str, object], dict[str, object]]:
+def _capability(repo: Path) -> tuple[dict[str, Any], CommitPolicyEnforcement]:
     projected = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
-    return projected, projected["data"]["commit_policy_enforcement"]
+    return projected, cast(
+        "CommitPolicyEnforcement", projected["data"]["commit_policy_enforcement"]
+    )
 
 
 def test_hook_binding_tracks_exact_generation_and_expected_build(tmp_path: Path) -> None:
@@ -129,17 +137,29 @@ def test_commit_policy_capability_state_matrix(
 
 
 def test_candidate_hook_semantics_remain_pending_until_acceptance(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    (repo / ".ethos").mkdir(parents=True)
-    (repo / ".ethos/workspace.toml").write_text(_POLICY, encoding="utf-8")
-    capability = hook_binding.commit_policy_enforcement(
-        repo,
-        {"required_gaps": [], "scripts": ["pre-commit", "pre-push", "reference-transaction"]},
-    )
+    repo, _generation = _fixture(tmp_path, policy=_POLICY)
+    runtime = hook_runtime_binding(repo)
+    runtime["scripts"] = ["pre-commit", "pre-push", "reference-transaction"]
+    capability = hook_binding.commit_policy_enforcement(repo, runtime)
 
     assert capability["state"] == "pending_acceptance"
     assert capability["required_gaps"] == []
     assert capability["next_action"] == ""
+
+
+def test_armed_transport_does_not_claim_signature_trust_is_ready(tmp_path: Path) -> None:
+    repo, _generation = _fixture(tmp_path, policy=_POLICY.replace("false", "true"))
+    _report, capability = _capability(repo)
+    assert capability["commit_message_transport"] == "armed"
+    assert capability["push_range_enforcement"] == "armed"
+    assert capability["state"] == "unready"
+    assert capability["required_gaps"] == ["commit_trust_anchor_missing"]
+    assert capability["signature_trust"] == {
+        "state": "unready",
+        "anchor": "",
+        "required_gaps": ["commit_trust_anchor_missing"],
+    }
+    assert "gpg.ssh.allowedSignersFile" in capability["next_action"]
 
 
 def test_stale_runtime_unarms_both_policy_transports(

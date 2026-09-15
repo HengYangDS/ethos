@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+import ethos.adapters.repo.trust_anchor.verification as verification
 from ethos.adapters.repo.commit.history import history_repair_coordinates
 from ethos.adapters.repo.commit.history import history_repair_scope
 from ethos.adapters.repo.commit.history import prepare_history_repair
@@ -121,3 +122,26 @@ def test_resigning_with_the_same_trusted_key_is_rejected_before_object_creation(
     with pytest.raises(ValueError, match="history_repair_no_effect"):
         history_repair_scope(repo, signed, corrections={signed: {"resign": True}})
     assert (git(repo, "count-objects", "-v"), git(repo, "show-ref")) == before
+
+
+def test_history_validation_rejects_trust_change_after_native_batch(tmp_path, monkeypatch):
+    """History verification must not bypass the current native trust owner in its batch loop."""
+    repo, old, _selected, _before, corrections = _history(tmp_path)
+    prepared = prepare_history_repair(repo, old, corrections=corrections)
+    before = git(repo, "show-ref")
+    native = verification.run_git
+    verified = []
+
+    def revoke_after_batch(root, *args, **kwargs):
+        result = native(root, *args, **kwargs)
+        if "verify-commit" in args:
+            assert result.returncode == 0, result.stderr
+            verified.append(True)
+            (tmp_path / "trust/allowed-signers").write_bytes(b"")
+        return result
+
+    monkeypatch.setattr(verification, "run_git", revoke_after_batch)
+    with pytest.raises(ValueError, match="history_repair_signature_untrusted"):
+        validate_history_repair(repo, old, prepared["replacement"], corrections=corrections)
+    assert verified
+    assert git(repo, "show-ref") == before

@@ -50,6 +50,25 @@ result consumers re-derive source policy and permitted refs instead of accepting
 internally consistent reissued coordinates. These checks do not claim protection
 against a writer sharing the operator's OS identity.
 
+Native signature verification belongs to the existing trust-anchor package.
+Single objects and historical batches consume one transient snapshot of native
+configuration, protected anchor and revocation bytes. Git receives explicit
+snapshot paths; the owner re-observes source configuration, bytes and protection
+before issuing success. A changing source invalidates the observation rather
+than attaching a post-change digest to a pre-change verification. Remove the
+history owner's direct verification loop and migrate imports to the defining
+module; do not retain compatibility exports. These checks do not certify an
+untrusted verifier executable or isolation from a same-UID writer.
+
+Archive provenance resolves refresh and repair edges through one on-demand
+history traversal. Validate only relevant repair results against their native
+objects and completed effects; reuse that validation within the current lookup.
+Preserve archive subtree identity across every transformation and resolve the
+nearest unambiguous result in current ancestry. Later descendants and repeated
+repairs retain the original archive acceptance. Remove the exact-HEAD repair
+fallback and its recursive historical lookup; an old Attestation never becomes
+a new proof or current mutation authorization.
+
 ## Execution Order
 
 1. Preserve exact historical evidence and public negative probes.

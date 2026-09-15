@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 import ethos.adapters.repo.git_object as identity
+import ethos.adapters.repo.trust_anchor.verification as verification
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -125,7 +126,7 @@ def test_git_object_trust_requires_a_portable_terminal_signature_status(
     tmp_path, monkeypatch, suffix, gap
 ):
     repo, _anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=False)
-    native = identity.run_git
+    native = verification.run_git
     status = f'Good "git" signature for owner@example.com with ED25519 key{suffix}'
 
     def verify(root, *args, **kwargs):
@@ -135,8 +136,8 @@ def test_git_object_trust_requires_a_portable_terminal_signature_status(
             else native(root, *args, **kwargs)
         )
 
-    monkeypatch.setattr(identity, "run_git", verify)
-    report = identity.verify_git_object_trust(repo, target, "commit")
+    monkeypatch.setattr(verification, "run_git", verify)
+    report = verification.verify_git_object_trust(repo, target, "commit")
     assert report["verdict"] == ("block" if gap else "pass")
     assert report["required_gaps"] == ([gap] if gap else [])
     assert report["principal"] == ("" if gap else "owner@example.com")
@@ -165,7 +166,7 @@ def test_commit_trust_public_report_rejects_invalid_anchor_location(tmp_path, co
     value = "relative/allowed-signers" if configured == "relative" else str(anchor)
     if configured != "absent":
         git(repo, "config", "gpg.ssh.allowedSignersFile", value)
-    report = identity.verify_commit_trust(repo, git(repo, "rev-parse", "HEAD"))
+    report = verification.verify_commit_trust(repo, git(repo, "rev-parse", "HEAD"))
     assert report["required_gaps"] == [expected]
     action = identity.commit_trust_setup_action(repo, "HEAD")
     assert action == "git config --global gpg.ssh.allowedSignersFile <absolute-owner-only-path>"
@@ -189,8 +190,125 @@ def test_signer_authorization_requires_confirmation_before_atomic_apply(
     assert (ready["verdict"], ready["state"]) == ("pass", "ready_to_authorize_signer")
     assert blocked["required_gaps"] == ["authorization_required"]
     assert (applied["verdict"], applied["state"]) == ("pass", "signer_authorized")
-    assert identity.verify_commit_trust(repo, target)["verdict"] == "pass"
+    assert verification.verify_commit_trust(repo, target)["verdict"] == "pass"
     assert anchor.stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize("changed", ["anchor", "configuration", "revocation"])
+def test_native_trust_rejects_changed_inputs_after_verification(tmp_path, monkeypatch, changed):
+    """A native success cannot certify a trust policy changed before observation completes."""
+    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    public = (tmp_path / "signer.pub").read_text()
+    anchor.write_text(f'owner@example.com namespaces="git" {public}')
+    revoked = anchor.parent / "revoked"
+    revoked.write_text("")
+    revoked.chmod(0o600)
+    git(repo, "config", "gpg.ssh.revocationFile", str(revoked))
+    native = verification.run_git
+    verified = []
+
+    def change_after_verification(root, *args, **kwargs):
+        result = native(root, *args, **kwargs)
+        if "verify-commit" in args:
+            assert result.returncode == 0, result.stderr
+            verified.append(target)
+            if changed == "anchor":
+                anchor.write_bytes(b"")
+            elif changed == "configuration":
+                git(repo, "config", "gpg.minTrustLevel", "ultimate")
+            else:
+                revoked.write_text(public)
+        return result
+
+    monkeypatch.setattr(verification, "run_git", change_after_verification)
+    report = verification.verify_git_object_trust(repo, target, "commit")
+    assert verified == [target]
+    assert report["verdict"] == "block", report
+    assert report["required_gaps"] == ["git_object_trust_changed_during_verification"]
+
+
+@pytest.mark.parametrize("kind", ["commit", "annotated-tag"])
+def test_native_trust_uses_frozen_material_during_temporary_source_change(
+    tmp_path, monkeypatch, kind
+):
+    """A transient edit of the source anchor cannot alter the bytes consumed by Git."""
+    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    public = (tmp_path / "signer.pub").read_text()
+    original = f'owner@example.com namespaces="git" {public}'.encode()
+    anchor.write_bytes(original)
+    if kind == "annotated-tag":
+        git(repo, "tag", "-s", "-m", "signed release", "release", target)
+        target = git(repo, "rev-parse", "refs/tags/release")
+    native = verification.run_git
+
+    def temporary_source_change(root, *args, **kwargs):
+        verifying = "verify-commit" in args or "verify-tag" in args
+        if verifying:
+            anchor.write_bytes(b"")
+        try:
+            return native(root, *args, **kwargs)
+        finally:
+            if verifying:
+                anchor.write_bytes(original)
+
+    monkeypatch.setattr(verification, "run_git", temporary_source_change)
+    report = verification.verify_git_object_trust(repo, target, kind)
+    assert report["verdict"] == "pass", report
+    assert report["trust_anchor_sha256"] == hashlib.sha256(original).hexdigest()
+    assert report["principal"] == "owner@example.com"
+    assert anchor.read_bytes() == original
+
+
+@pytest.mark.parametrize("invalid_tail", [False, True])
+def test_native_trust_verifies_every_selected_object_across_batch_boundary(
+    tmp_path, monkeypatch, invalid_tail
+):
+    """A bad object after a full native batch must invalidate the complete selection."""
+    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    anchor.write_text(f'owner@example.com namespaces="git" {(tmp_path / "signer.pub").read_text()}')
+    last = git(repo, "rev-parse", f"{target}^") if invalid_tail else target
+    report = verification.verify_commit_trust(repo, (target,) * 128 + (last,))
+    assert report["verdict"] == ("block" if invalid_tail else "pass"), report
+    assert report["required_gaps"] == (["commit_signature_untrusted"] if invalid_tail else [])
+
+
+def test_native_trust_empty_selection_is_not_success(tmp_path):
+    """No verified objects cannot satisfy a signature obligation."""
+    repo = init_git_repo(tmp_path / "repo")
+    report = verification.verify_commit_trust(repo, ())
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["git_object_trust_selection_empty"]
+
+
+def test_native_trust_freezes_an_undeclared_native_default(tmp_path, monkeypatch):
+    """A temporarily added configuration must not override the captured native default."""
+    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    anchor.write_text(f'owner@example.com namespaces="git" {(tmp_path / "signer.pub").read_text()}')
+    native = verification.run_git
+
+    def change_default(root, *args, **kwargs):
+        verifying = "verify-commit" in args
+        if verifying:
+            git(repo, "config", "gpg.minTrustLevel", "ultimate")
+        try:
+            return native(root, *args, **kwargs)
+        finally:
+            if verifying:
+                git(repo, "config", "--unset", "gpg.minTrustLevel")
+
+    monkeypatch.setattr(verification, "run_git", change_default)
+    report = verification.verify_commit_trust(repo, target)
+    assert report["verdict"] == "pass", report
+
+
+def test_native_trust_unreadable_configuration_is_a_structured_failure(tmp_path):
+    """A malformed native config cannot silently select fallback verification policy."""
+    repo = init_git_repo(tmp_path / "repo")
+    target = git(repo, "rev-parse", "HEAD")
+    (repo / ".git/config").write_text("[broken\n")
+    report = verification.verify_commit_trust(repo, target)
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["git_object_trust_configuration_unavailable"]
 
 
 @pytest.mark.parametrize(

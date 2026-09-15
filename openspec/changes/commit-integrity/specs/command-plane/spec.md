@@ -31,6 +31,13 @@ apply exact selected refs. Historical evidence SHALL NOT be relabeled current.
 - **THEN** validated repair provenance preserves its exact intent bytes
 - **AND** new proof, runtime binding and each peer publication are verified separately
 
+#### Scenario: Continued history retains archived intent
+
+- **WHEN** later commits descend from a completed repair or a sequence of completed repairs
+- **THEN** archive resolution follows validated object mappings and native ancestry
+- **AND** it preserves the original archive acceptance without requiring the current HEAD to be a repair result
+- **AND** missing effect evidence or ambiguous replacement paths cannot supply archive authority
+
 #### Scenario: Readiness has no signing effect
 
 - **WHEN** an operator requests signature-repair readiness for an exact accepted head

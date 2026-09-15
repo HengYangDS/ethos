@@ -5,13 +5,16 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from datetime import UTC
 from datetime import datetime
 
 import pytest
 
 import ethos.adapters.mutation.accepted.signature as repair
+import ethos.adapters.openspec.lifecycle.archive_transition as archive
 import ethos.adapters.repo.commit.history as history
+import ethos.adapters.repo.git_effects as effects
 from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.commit.signature import completed_signature_repair
@@ -29,6 +32,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.proof import seed_executed_proof
 from tests.support.signature import configure_signer
+from tests.support.signature import killed_signature_repair
 from tests.support.signature import signature_repository
 
 
@@ -138,7 +142,10 @@ def test_completed_repair_provenance_requires_actual_ref_effect(tmp_path, monkey
     assert mapping[old] == new
 
 
-def test_archive_resolution_follows_only_completed_repair_provenance(tmp_path):
+@pytest.mark.parametrize("continuation", ["immediate", "descendant", "repeated"])
+def test_archive_resolution_follows_only_completed_repair_provenance(
+    tmp_path, monkeypatch, continuation
+):
     fixture = start_adopted_work_lane(tmp_path)
     root = fixture.worktree
     configure_signer(fixture.repository, tmp_path)
@@ -146,6 +153,38 @@ def test_archive_resolution_follows_only_completed_repair_provenance(tmp_path):
     workspace.write_text(
         workspace.read_text() + '\n[commit_policy]\nsubject_pattern = ".+"\n'
         'signing_required = true\nsigning_format = "ssh"\n'
+    )
+    profile = root / ".ethos/profile.toml"
+    profile.write_text(
+        profile.read_text()
+        .replace(
+            '["sample", "test"]',
+            json.dumps(
+                [
+                    sys.executable,
+                    "-c",
+                    (
+                        "from pathlib import Path; "
+                        "assert not Path('openspec/changes/fixture-change').exists(); "
+                        "print('archived source checked')"
+                    ),
+                ]
+            ),
+        )
+        .replace(
+            '["sample", "typecheck"]',
+            json.dumps(
+                [
+                    sys.executable,
+                    "-c",
+                    (
+                        "import tomllib; from pathlib import Path; "
+                        "tomllib.loads(Path('.ethos/profile.toml').read_text()); "
+                        "print('profile parsed')"
+                    ),
+                ]
+            ),
+        )
     )
     (root / "openspec/changes/fixture-change/tasks.md").write_text(
         "- [x] Complete native change.\n"
@@ -194,13 +233,61 @@ def test_archive_resolution_follows_only_completed_repair_provenance(tmp_path):
         authorized=True,
     )
     assert result["verdict"] == "pass", json.dumps(result, indent=2)
-    assert isinstance(result["head"], str)
+    repaired_head = result["head"]
+    if continuation == "repeated":
+        second_bundle = tmp_path / "second.bundle"
+        git(repo, "bundle", "create", str(second_bundle), "refs/heads/dev")
+        second = repair.repair_signature(
+            root=repo,
+            expect_head=repaired_head,
+            corrections={
+                repaired_head: {
+                    "author": {
+                        "expected": {"name": "ETHOS Test", "email": "test@example.invalid"},
+                        "replacement": {"name": "Corrected Test", "email": "test@example.invalid"},
+                    }
+                }
+            },
+            reason="Correct archived attribution",
+            backup=second_bundle,
+            apply=True,
+            authorized=True,
+        )
+        assert second["verdict"] == "pass", second
+        repaired_head = second["head"]
+    if continuation != "immediate":
+        tree = git(repo, "rev-parse", f"{repaired_head}^{{tree}}")
+        descendant = git(
+            repo, "commit-tree", "-S", tree, "-p", repaired_head, "-m", "later maintenance"
+        )
+        git(repo, "update-ref", "refs/heads/dev", descendant, repaired_head)
+        repaired_head = descendant
     restored = load_openspec_commitment(
         repo,
-        tree_ref=result["head"],
+        tree_ref=repaired_head,
         expected_digest=expected.digest(),
     )
     assert restored == expected
+    resolved = archive.attested_archive_transition(repo, head=repaired_head)
+    assert resolved is not None
+    chain = resolved[1]["repair_attestation_ids"]
+    assert len(chain) == (2 if continuation == "repeated" else 1)
+    proof = run_ethos("prove", "--execute", "--expect-head", repaired_head, "--json", cwd=repo)
+    assert proof["verdict"] == "pass", proof
+    assert proof["data"]["attestation"]["subject"] == f"git:commit:{repaired_head}"
+    original_set, records = archive.read_attestation_set(repo)
+    refs = git(repo, "show-ref")
+    with monkeypatch.context() as scope:
+        scope.setattr(
+            archive,
+            "read_attestation_set",
+            lambda _root: (
+                original_set,
+                tuple(record for record in records if record.id != chain[0]),
+            ),
+        )
+        assert archive.attested_archive_transition(repo, head=repaired_head) is None
+    assert git(repo, "show-ref") == refs
 
 
 def test_history_repair_ref_observation_uses_exact_completed_effect(tmp_path):
@@ -267,9 +354,11 @@ def test_public_history_request_does_not_erase_ambiguous_inputs(tmp_path, case):
     assert git(repo, "show-ref") == before
 
 
-def test_interrupted_history_repair_recovers_native_objects_without_resigning(
-    tmp_path, monkeypatch
+@pytest.mark.parametrize("boundary", ["signed-object", "ref-cas", "ref-cas-unrecorded"])
+def test_killed_history_repair_recovers_without_repeating_completed_effects(
+    tmp_path, monkeypatch, boundary
 ):
+    """A killed process loses its ACK, not its signed objects or completed ref CAS."""
     repo, first, _candidate = signature_repository(tmp_path, coupled=True)
     tree = git(repo, "rev-parse", "HEAD^{tree}")
     old = git(repo, "commit-tree", tree, "-p", first, "-m", "fix: descendant")
@@ -277,38 +366,47 @@ def test_interrupted_history_repair_recovers_native_objects_without_resigning(
         git(repo, "update-ref", f"refs/heads/{ref}", old)
     backup = tmp_path / "original.bundle"
     git(repo, "bundle", "create", str(backup), "refs/heads/dev")
+    originals = {oid: git(repo, "cat-file", "commit", oid) for oid in (first, old)}
+    completed = killed_signature_repair(repo, old, first, backup, boundary=boundary)
+    refs_after_kill = git(repo, "for-each-ref", "--format=%(objectname)", "refs/heads")
+    if boundary == "signed-object":
+        assert set(refs_after_kill.splitlines()) == {old}
+        completed_payload = history.unsigned_commit_payload(
+            subprocess.check_output(("git", "cat-file", "commit", completed), cwd=repo)
+        )
+    else:
+        assert old not in refs_after_kill.splitlines()
+        completed_payload = b""
     native = history.create_signed_payload
     signed_payloads = []
 
-    def interrupt(root, payload):
-        if signed_payloads:
-            message = "signer interrupted"
-            raise OSError(message)
-        signed_payloads.append(payload)
-        return native(root, payload)
-
-    monkeypatch.setattr(history, "create_signed_payload", interrupt)
-    interrupted = repair.repair_signature(
-        root=repo,
-        expect_head=old,
-        corrections={first: {"resign": True}},
-        reason="Restore valid signatures",
-        backup=backup,
-        apply=True,
-        authorized=True,
-    )
-    assert interrupted["verdict"] == "unknown", interrupted
-    assert git(repo, "rev-parse", "refs/heads/dev") == old
-
     def resume(root, payload):
+        assert payload != completed_payload, "completed object must not be signed again"
         assert payload not in signed_payloads, "completed object must not be signed again"
         signed_payloads.append(payload)
         return native(root, payload)
 
     monkeypatch.setattr(history, "create_signed_payload", resume)
-    observed = repair.repair_signature(root=repo, expect_head=old, apply=True, authorized=True)
+    if boundary != "signed-object":
+        monkeypatch.setattr(
+            effects,
+            "_apply_git_ref_transaction",
+            lambda *_args, **_kwargs: pytest.fail("completed CAS must not execute again"),
+        )
+    command = ("lane", "repair-signature", "--expect-head", old, "--apply", "--authorize", "--json")
+    observed = run_ethos(*command, cwd=repo)
     assert observed["verdict"] == "pass", observed
-    assert len(signed_payloads) == 2
+    new = git(repo, "rev-parse", "HEAD")
+    assert len(signed_payloads) == (1 if boundary == "signed-object" else 0)
+    if boundary == "signed-object":
+        assert git(repo, "rev-parse", f"{new}^") == completed
+    else:
+        assert refs_after_kill == git(repo, "for-each-ref", "--format=%(objectname)", "refs/heads")
+    assert {oid: git(repo, "cat-file", "commit", oid) for oid in originals} == originals
+    assert git(repo, "status", "--porcelain") == ""
+    assert run_ethos(*command, cwd=repo)["verdict"] == "pass"
+    assert git(repo, "rev-parse", "HEAD") == new
+    assert len(signed_payloads) == (1 if boundary == "signed-object" else 0)
 
 
 @pytest.mark.parametrize("field", ["repository", "policy_sha256", "payload_sha256", "refs"])

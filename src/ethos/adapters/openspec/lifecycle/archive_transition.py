@@ -12,10 +12,8 @@ from ethos.adapters.openspec.lifecycle.archive_binding import archive_root_from_
 from ethos.adapters.openspec.lifecycle.archive_binding import archive_source_path
 from ethos.adapters.openspec.lifecycle.archive_binding import archived_change_from_path
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
-from ethos.adapters.openspec.lifecycle.archive_refresh import RefreshEdge
-from ethos.adapters.openspec.lifecycle.archive_refresh import refresh_edges
+from ethos.adapters.openspec.lifecycle.archive_provenance import resolve_archive_head
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.adapters.repo.commit.signature import completed_signature_repair
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
@@ -73,20 +71,7 @@ def attested_archive_transition(
         if match is not None:
             matches.append(match)
     if not matches:
-        repaired = completed_signature_repair(root, new=head, attestations=attestations)
-        if repaired is None:
-            return None
-        previous = attested_archive_transition(root, head=str(repaired["old"]), change=change)
-        if previous is None:
-            return None
-        commitment, authority = previous
-        mapping = repaired["mapping"]
-        assert isinstance(mapping, dict)
-        return commitment, {
-            **authority,
-            "resolved_head": mapping.get(authority.get("resolved_head"), head),
-            "repair_attestation_id": repaired["attestation_id"],
-        }
+        return None
     nearest = min(match.distance for match in matches)
     selected = [match for match in matches if match.distance == nearest]
     if len(selected) > 1:
@@ -109,8 +94,15 @@ def _attested_archive(
         return None
     try:
         plan = plan_from_attestation(attestation)
-        effect = git_effect_from_plan(plan)
         archived_change = str(plan.policy.get("change") or "")
+        if (
+            plan.policy.get("transition") != "openspec.archive"
+            or not archived_change
+            or (change is not None and archived_change != change)
+            or plan.commitment is None
+        ):
+            return None
+        effect = git_effect_from_plan(plan)
         branch = str(plan.policy.get("branch") or "")
         update = effect.updates.get(f"refs/heads/{branch}")
         desired = str(update.desired) if update is not None else ""
@@ -118,7 +110,7 @@ def _attested_archive(
         facts = values if isinstance(values, Mapping) else {}
         paths = tuple(str(path) for path in facts.get("changed_paths", ()))
         archive_path = str(facts.get("archive_path") or "")
-        resolved = _resolve_archive_head(
+        resolved = resolve_archive_head(
             root,
             archived_head=desired,
             current_head=head,
@@ -127,12 +119,8 @@ def _attested_archive(
             attestations=attestations,
         )
         if (
-            plan.policy.get("transition") != "openspec.archive"
-            or not archived_change
-            or not branch
+            not branch
             or update is None
-            or (change is not None and archived_change != change)
-            or plan.commitment is None
             or resolved is None
             or current_tree(root, desired) == ""
             or not paths
@@ -149,7 +137,7 @@ def _attested_archive(
         commitment = Commitment.model_validate(dict(plan.commitment))
     except (TypeError, ValueError):
         return None
-    resolved_head, distance, refresh_attestation_ids = resolved
+    resolved_head, distance, chain = resolved
     return AttestedArchive(
         distance,
         commitment,
@@ -164,107 +152,15 @@ def _attested_archive(
             },
             "source": "archive_commit",
             "resolved_head": resolved_head,
-            "refresh_attestation_ids": list(refresh_attestation_ids),
+            "refresh_attestation_ids": [
+                edge.attestation_id for edge in chain if edge.kind == "refresh"
+            ],
+            "repair_attestation_ids": [
+                edge.attestation_id for edge in chain if edge.kind == "repair"
+            ],
             "authorized_paths": list(paths),
         },
     )
-
-
-def _resolve_archive_head(
-    root: Path,
-    *,
-    archived_head: str,
-    current_head: str,
-    branch: str,
-    archive_path: str,
-    attestations: tuple[Any, ...],
-) -> tuple[str, int, tuple[str, ...]] | None:
-    """Resolve one archive commit through an exact, unambiguous refresh chain."""
-    direct_distance = _ancestor_distance(root, archived_head, current_head)
-    if direct_distance is not None:
-        return archived_head, direct_distance, ()
-    if not archive_path:
-        return None
-    archive_tree = _object_id(root, f"{archived_head}:{archive_path}")
-    if not archive_tree:
-        return None
-    edges = refresh_edges(root, branch=branch, attestations=attestations)
-    candidates, graph_ambiguous = _archive_refresh_candidates(
-        root,
-        archived_head=archived_head,
-        current_head=current_head,
-        archive_path=archive_path,
-        archive_tree=archive_tree,
-        edges=edges,
-    )
-    if not candidates or graph_ambiguous:
-        return None
-    nearest = min(candidate[1] for candidate in candidates)
-    selected = [candidate for candidate in candidates if candidate[1] == nearest]
-    return selected[0] if len(selected) == 1 else None
-
-
-def _archive_refresh_candidates(
-    root: Path,
-    *,
-    archived_head: str,
-    current_head: str,
-    archive_path: str,
-    archive_tree: str,
-    edges: Mapping[str, tuple[RefreshEdge, ...]],
-) -> tuple[list[tuple[str, int, tuple[str, ...]]], bool]:
-    candidates: list[tuple[str, int, tuple[str, ...]]] = []
-    ambiguous = False
-    pending: list[tuple[str, tuple[str, ...], frozenset[str]]] = [
-        (archived_head, (), frozenset({archived_head}))
-    ]
-    while pending:
-        commit, chain, seen = pending.pop()
-        distance = _ancestor_distance(root, commit, current_head)
-        same_archive = _object_id(root, f"{commit}:{archive_path}") == archive_tree
-        if not same_archive:
-            continue
-        if distance is not None:
-            candidates.append((commit, distance, chain))
-        next_edges = tuple(edge for edge in edges.get(commit, ()) if edge.current not in seen)
-        if len(next_edges) > 1:
-            ambiguous = True
-        pending.extend(
-            (edge.current, (*chain, edge.attestation_id), seen | {edge.current})
-            for edge in next_edges
-        )
-    return candidates, ambiguous
-
-
-def _ancestor_distance(root: Path, ancestor: str, descendant: str) -> int | None:
-    """Return the exact Git distance when the archive effect remains in history."""
-    if not ancestor or not descendant:
-        return None
-    if (
-        run_git(
-            root,
-            "merge-base",
-            "--is-ancestor",
-            ancestor,
-            descendant,
-            check=False,
-            observation=True,
-        ).returncode
-        != 0
-    ):
-        return None
-    result = run_git(
-        root,
-        "rev-list",
-        "--count",
-        f"{ancestor}..{descendant}",
-        check=False,
-        observation=True,
-    )
-    try:
-        return int(result.stdout.strip()) if result.returncode == 0 else None
-    except ValueError:
-        return None
 
 
 def archive_postimage(root: Path, *, head: str, change: str) -> ArchivePostimage | None:

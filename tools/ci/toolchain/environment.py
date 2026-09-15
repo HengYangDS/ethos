@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_object import trust_anchor
+from ethos.adapters.repo.trust_anchor.verification import trust_anchor
 
 
 def bind_commit_trust(root: Path, anchor: Path) -> None:

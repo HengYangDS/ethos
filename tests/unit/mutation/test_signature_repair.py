@@ -21,7 +21,7 @@ from ethos.adapters.repo.commit.signature import observe_signature_effects
 from ethos.adapters.repo.commit.signature import signature_plan
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git_object import commit_payload
-from ethos.adapters.repo.git_object import verify_commit_trust
+from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate

@@ -59,3 +59,26 @@ avoid pushing an already matching peer again.
 
 - **WHEN** a push exits successfully but its required remote observation fails
 - **THEN** the result retains the attempt and unknown outcome without claiming confirmed application.
+
+### Requirement: Hook Runtime Validation Follows Effect Admission
+
+ETHOS SHALL fully validate the selected immutable runtime before admitting a
+prepared branch update and reuse that observation only within its invocation.
+Result notifications and transactions without a governed update SHALL not
+inventory the runtime. Malformed input and damaged admission authority SHALL
+remain failures.
+
+#### Scenario: A transaction only reports its outcome
+
+- **WHEN** Git sends committed or aborted notifications, or no governed update
+- **THEN** the hook preserves its protocol result without validating an unused runtime.
+
+#### Scenario: One prepared batch contains multiple governed refs
+
+- **WHEN** a prepared transaction changes multiple branch refs
+- **THEN** one full runtime observation precedes the existing policy decision for each ref.
+
+#### Scenario: Prepared admission selects a damaged runtime
+
+- **WHEN** runtime validation fails before a prepared branch update
+- **THEN** the hook rejects the transaction before executing its ref policy.

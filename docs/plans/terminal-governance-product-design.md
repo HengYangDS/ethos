@@ -138,9 +138,15 @@ introduced.
 The direct 32-case matrix and 199-case affected consumer suite pass. Unmodified
 locked OpenSpec output for an empty workspace, `skip_specs` INFO, and mixed
 valid/invalid items also passes the intended boundaries. Native results remain
-available in the public report. This establishes those result semantics, not
-all early-sync/removal replay, exact proof, runtime installation or adopter
-availability of this new repair.
+available in the public report. Four additional official archive paths now
+verify ordinary removal, already-synced removal, a near-miss header and a
+rename/removal conflict. Successful early sync preserves main-spec bytes and
+archived delta bytes; both invalid paths preserve the original files. The native
+already-removed warning remains visible and is explained by the observed no-op,
+not suppressed or promoted into an invented error. The existing two consumer
+test modules pass 39 cases; `native-removal-replay.json` and the tracked regression
+bind these observations. Exact repository proof, runtime installation and adopter
+availability of the new result repair remain unproved.
 
 Package-only build/install/lifecycle smoke and five installed result-boundary
 cases pass without source fallback. The wheel SHA256 is
@@ -149,7 +155,7 @@ to overlay tree `461becc2d7d861c5c8ddd245e6b040a439ee253b`; both owned scratch
 roots were removed. This package observation precedes the final source commit
 and cannot substitute for its exact repository proof.
 
-Fourteen selected public native gates pass with no heavy test dependency. Their
+Fifteen selected public native gates pass with no heavy test dependency. Their
 type verdict covers `src`, not the whole repository: the existing Ty adapter maps
 the package root to its source directory. Explicit whole-repository checks of
 both accepted and candidate inputs each report the same 424 diagnostics, 415 in
@@ -234,8 +240,8 @@ repositories or treat a source handoff as acceptance of their diagrams.
 ### Remaining Dependencies And Delivery Order
 
 - Complete `validation-results` through native consumer checks, exact proof and
-  ordinary delivery; finish actual early-sync/idempotent removal replay at the
-  official lifecycle boundary without erasing delta obligations.
+  ordinary delivery; retain the executed official early-sync/removal regressions
+  without confusing native fixture success with repository or adopter acceptance.
 - Resolve the current hosted operations, then continue measured P5 command,
   fixture, source and publication reduction. Whole-proof reuse must include
   source, rules, tools, environment and relevant external facts, with fresh

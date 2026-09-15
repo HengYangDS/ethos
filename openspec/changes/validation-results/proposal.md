@@ -17,6 +17,8 @@ peer progress in the result state. Preserve each result boundary at its owner.
   official early-sync and archive semantics unchanged.
 - Preserve observed peer progress when later publication evidence is unknown;
   keep CLI and Attestation projections consistent without replaying applied peers.
+- Validate the immutable hook runtime once at prepared branch admission, not
+  again for result notifications or transactions with no governed update.
 - Update the existing terminal plan and quality execution guidance from actual
   delivery, scope and dependency-expansion observations.
 - Record bounded local cleanup and rule-consumer comparison evidence in existing

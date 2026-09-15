@@ -41,3 +41,10 @@ closure and carrying the explicit resource envelope into each process. The
 previous accidental preflight expanded `generated-artifacts` into the full test
 suite; it was interrupted and is not acceptance evidence. This guidance does not
 replace native gates, increase workers or introduce another execution store.
+
+Hosted verification exposed a download-cleanup test whose readiness assertion
+depended on both subprocesses starting within the timeout under test. Establish
+the descendant through a loopback handshake before the unchanged timed wait;
+require connection closure afterward. A delayed-start case must pass, while
+terminating only the parent must fail. This corrects the test prerequisite, not
+the production timeout or the required process-group cleanup.

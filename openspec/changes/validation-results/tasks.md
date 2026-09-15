@@ -9,6 +9,7 @@
 - [x] 2.2 Correct incomplete producer fixtures without weakening their original assertions.
 - [x] 2.3 Run affected native checks and package result-boundary verification.
 - [x] 2.4 Verify official ordinary/early-synced removal and rejected ambiguous/conflicting archive paths with preserved source bytes.
+- [x] 2.5 Replace the download-cleanup test's startup race with explicit descendant readiness and exit observations; verify delayed startup and parent-only termination.
 
 ## 3. Retain Delivery And Execution Learning
 

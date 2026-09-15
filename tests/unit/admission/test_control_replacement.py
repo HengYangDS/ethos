@@ -355,7 +355,8 @@ def test_candidate_cannot_disable_trusted_predecessor_verification(tmp_path: Pat
     "path",
     [
         "src/ethos/adapters/repo/runtime/selection.py",
-        "src/ethos/adapters/repo/hook_runtime.py",
+        "src/ethos/adapters/repo/hook/protocol.py",
+        "src/ethos/adapters/repo/hook/admission.py",
         "src/ethos/adapters/repo/git_effects.py",
     ],
 )

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.config_effects as config_effects
-import ethos.adapters.repo.hook_runtime as hook_runtime
+import ethos.adapters.repo.hook.admission as hook_runtime
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.transition as identity_transition
 from ethos.adapters.repo.git import git_common_dir

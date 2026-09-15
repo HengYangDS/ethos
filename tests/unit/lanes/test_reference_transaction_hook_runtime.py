@@ -11,7 +11,7 @@ from contextlib import closing
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.current.authority import resolve_current_authority
-from ethos.adapters.repo.hook_runtime import execute_hook
+from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.worktree_effects import restore_rejected_checkout_projection
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
@@ -44,7 +44,8 @@ def _unavailable_runtime_repo(tmp_path: Path):
     hook.write_text(
         "#!/bin/sh\n"
         "# Deliberately unavailable runtime: fail closed before policy execution.\n"
-        'exec "/missing/ethos/python" -I -m ethos.cli hook run reference-transaction "$@"\n',
+        'exec "/missing/ethos/python" -I '
+        '-m ethos.adapters.repo.hook.protocol reference-transaction "$@"\n',
         encoding="utf-8",
     )
     hook.chmod(0o755)
@@ -119,11 +120,12 @@ def test_rejected_accepted_merge_preserves_head_index_and_worktree(tmp_path: Pat
         """from pathlib import Path
 import sys
 
-import ethos.adapters.repo.hook_runtime as runtime
+import ethos.adapters.repo.hook.admission as runtime
+from ethos.adapters.repo.hook.protocol import execute_hook
 
 runtime.current_runtime = lambda _common: object()
 raise SystemExit(
-    runtime.execute_hook(
+    execute_hook(
         Path.cwd(),
         "reference-transaction",
         tuple(sys.argv[1:]),
@@ -177,11 +179,12 @@ def test_rejected_work_lane_creation_preserves_head_index_and_worktree(tmp_path:
         """from pathlib import Path
 import sys
 
-import ethos.adapters.repo.hook_runtime as runtime
+import ethos.adapters.repo.hook.admission as runtime
+from ethos.adapters.repo.hook.protocol import execute_hook
 
 runtime.current_runtime = lambda _common: object()
 raise SystemExit(
-    runtime.execute_hook(
+    execute_hook(
         Path.cwd(),
         "reference-transaction",
         tuple(sys.argv[1:]),
@@ -278,11 +281,12 @@ def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(
         """from pathlib import Path
 import sys
 
-import ethos.adapters.repo.hook_runtime as runtime
+import ethos.adapters.repo.hook.admission as runtime
+from ethos.adapters.repo.hook.protocol import execute_hook
 
 runtime.current_runtime = lambda _common: object()
 raise SystemExit(
-    runtime.execute_hook(
+    execute_hook(
         Path.cwd(),
         "reference-transaction",
         tuple(sys.argv[1:]),
@@ -357,15 +361,15 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     git(candidate, "commit", "-m", "candidate")
     candidate_head = git(candidate, "rev-parse", "HEAD")
     monkeypatch.setattr(
-        "ethos.adapters.repo.hook_runtime.current_runtime",
+        "ethos.adapters.repo.hook.admission.current_runtime",
         lambda _common: object(),
     )
     monkeypatch.setattr(
-        "ethos.adapters.repo.hook_runtime._candidate_python",
+        "ethos.adapters.repo.hook.admission._candidate_python",
         lambda *_args, **_kwargs: tmp_path / "python",
     )
     monkeypatch.setattr(
-        "ethos.adapters.repo.hook_runtime.run_command",
+        "ethos.adapters.repo.hook.admission.run_command",
         lambda *_args, **_kwargs: subprocess.CompletedProcess((), 0, "", ""),
     )
     status = execute_hook(
@@ -409,7 +413,7 @@ def test_reference_transaction_reads_only_git_common_lease_state(
         initialize_state_connection(connection)
         connection.commit()
     monkeypatch.setattr(
-        "ethos.adapters.repo.hook_runtime.current_runtime",
+        "ethos.adapters.repo.hook.admission.current_runtime",
         lambda _common: None,
     )
     old = git(repo, "rev-parse", "work/x")

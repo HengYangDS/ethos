@@ -1,4 +1,4 @@
-"""Portable Git-hook launchers and the single Python hook execution owner."""
+"""Fresh native hook admission through the existing repository policy owners."""
 
 from __future__ import annotations
 
@@ -21,6 +21,8 @@ from ethos.adapters.repo.commit.admission import commit_message_report
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
+from ethos.adapters.repo.hook.protocol import blocked_report
+from ethos.adapters.repo.hook.protocol import passed_report
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.workspace import worktree_records
@@ -36,47 +38,47 @@ from ethos.contracts.verdict import report_verdict
 _ZERO_OIDS = {"0" * 40, "0" * 64}
 
 
-def execute_hook(
-    root: Path,
-    name: str,
-    args: tuple[str, ...],
-    *,
-    stdin: IO[str],
-) -> int:
-    """Execute one Git hook without shell-owned policy or PATH-selected ETHOS code."""
-    repo = root.resolve()
-    try:
-        if name == "reference-transaction":
-            reports = _reference_transaction(repo, args, stdin)
-        else:
-            selected_runtime = current_runtime(Path(git_common_dir(repo)))
-            if name == "commit-msg":
-                reports = (_commit_msg(repo, args),)
-            elif name == "pre-commit":
-                reports = (_pre_commit(repo, selected_runtime=selected_runtime),)
-            elif name == "pre-push":
-                reports = _pre_push(repo, args, stdin)
-            else:
-                reports = (_blocked(name, "hook_name_invalid"),)
-    except (OSError, RuntimeError, TypeError, ValueError) as error:
-        reports = (_blocked(name, str(error) or error.__class__.__name__),)
-    failed = [report for report in reports if report_verdict(report) != "pass"]
-    if failed:
-        sys.stderr.write(json.dumps(failed[0], sort_keys=True) + "\n")
-        return 1
-    return 0
+def admit_hook(
+    root: Path, name: str, args: tuple[str, ...], *, stdin: IO[str]
+) -> tuple[dict[str, object], ...]:
+    """Validate selected authority before the requested commit or push admission."""
+    selected_runtime = current_runtime(Path(git_common_dir(root)))
+    if name == "commit-msg":
+        return (_commit_msg(root, args),)
+    if name == "pre-commit":
+        return (_pre_commit(root, selected_runtime=selected_runtime),)
+    return _pre_push(root, args, stdin)
+
+
+def admit_reference(
+    root: Path, ref_name: str, old_value: str, new_value: str, *, selected_runtime: SelectedRuntime
+) -> dict[str, object]:
+    """Admit one prepared ref and retain exact rejected-checkout compensation."""
+    report = _prepared_reference_report(
+        root, ref_name, old_value, new_value, selected_runtime=selected_runtime
+    )
+    if (
+        report_verdict(report) != "pass"
+        and _protected_checkout(root)
+        and restore_rejected_checkout_projection(root, target_head=new_value)
+    ):
+        report["checkout_compensation"] = {
+            "state": "restored",
+            "head": run_git(root, "rev-parse", "HEAD", check=False).stdout.strip(),
+        }
+    return report
 
 
 def _commit_msg(root: Path, args: tuple[str, ...]) -> dict[str, object]:
     if len(args) != 1:
-        return _blocked("commit-msg", "commit_message_file_missing")
+        return blocked_report("commit-msg", "commit_message_file_missing")
     return commit_message_report(root, Path(args[0]))
 
 
 def _pre_commit(root: Path, *, selected_runtime: SelectedRuntime) -> dict[str, object]:
     staged = _git_paths(root, "diff", "--cached", "--name-only", "--diff-filter=ACMRTD")
     if not staged:
-        return _passed("pre-commit", "no_staged_paths")
+        return passed_report("pre-commit", "no_staged_paths")
     _scan_staged_secrets(root)
     _check_staged_python_format(root, staged)
     paths = tuple(
@@ -154,7 +156,7 @@ def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[s
     for line in stdin:
         fields = line.split()
         if len(fields) != 4:
-            reports.append(_blocked("pre-push", "push_update_invalid"))
+            reports.append(blocked_report("pre-push", "push_update_invalid"))
             continue
         _local_ref, local_sha, remote_ref, remote_sha = fields
         if local_sha in _ZERO_OIDS:
@@ -168,53 +170,7 @@ def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[s
                 remote_name=remote,
             )
         )
-    return tuple(reports) or (_passed("pre-push", "no_push_updates"),)
-
-
-def _reference_transaction(
-    root: Path,
-    args: tuple[str, ...],
-    stdin: IO[str],
-) -> tuple[dict[str, object], ...]:
-    """Validate the runtime once when a prepared branch update needs admission."""
-    phase = args[0] if args else ""
-    if phase not in {"prepared", "committed", "aborted"}:
-        return (_passed("reference-transaction", "phase_not_governed"),)
-    reports = []
-    selected_runtime: SelectedRuntime | None = None
-    for line in stdin:
-        fields = line.split()
-        if len(fields) != 3:
-            reports.append(_blocked("reference-transaction", "ref_update_invalid"))
-            continue
-        old_value, new_value, ref_name = fields
-        if not ref_name.startswith("refs/heads/") or (
-            old_value == new_value and old_value not in _ZERO_OIDS
-        ):
-            continue
-        if phase != "prepared":
-            reports.append(_passed("reference-transaction", f"{phase}_observed"))
-            continue
-        if selected_runtime is None:
-            selected_runtime = current_runtime(Path(git_common_dir(root)))
-        report = _prepared_reference_report(
-            root,
-            ref_name,
-            old_value,
-            new_value,
-            selected_runtime=selected_runtime,
-        )
-        if (
-            report_verdict(report) != "pass"
-            and _protected_checkout(root)
-            and restore_rejected_checkout_projection(root, target_head=new_value)
-        ):
-            report["checkout_compensation"] = {
-                "state": "restored",
-                "head": run_git(root, "rev-parse", "HEAD", check=False).stdout.strip(),
-            }
-        reports.append(report)
-    return tuple(reports) or (_passed("reference-transaction", "no_governed_updates"),)
+    return tuple(reports) or (passed_report("pre-push", "no_push_updates"),)
 
 
 def _protected_checkout(root: Path) -> bool:
@@ -242,7 +198,7 @@ def _prepared_reference_report(
     try:
         policy = resolve_ref_move_policy(root, ref_name, old_value, new_value)
     except (TypeError, ValueError):
-        return _blocked("reference-transaction", "ref_move_policy_unavailable", branch=branch)
+        return blocked_report("reference-transaction", "ref_move_policy_unavailable", branch=branch)
     protected = branch == policy.accepted_branch or (
         branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     )
@@ -278,7 +234,7 @@ def _prepared_reference_report(
     return (
         report
         if isinstance(decision, dict) and decision.get("action") == "block"
-        else _passed("reference-transaction", "unprotected_ref")
+        else passed_report("reference-transaction", "unprotected_ref")
     )
 
 
@@ -301,10 +257,10 @@ def _candidate_report(
         or record.get("head") != new_value
         or run_git(candidate, "status", "--porcelain", check=False).stdout.strip()
     ):
-        return _blocked("reference-transaction", "candidate_semantic_runner_unavailable")
+        return blocked_report("reference-transaction", "candidate_semantic_runner_unavailable")
     python = _candidate_python(candidate, selected_runtime=selected_runtime)
     if python is None:
-        return _blocked("reference-transaction", "candidate_semantic_runner_unavailable")
+        return blocked_report("reference-transaction", "candidate_semantic_runner_unavailable")
     completed = run_command(
         candidate,
         (
@@ -329,12 +285,12 @@ def _candidate_report(
     try:
         payload = json.loads(completed.stdout)
     except json.JSONDecodeError:
-        return _blocked("reference-transaction", "candidate_semantic_runner_invalid")
+        return blocked_report("reference-transaction", "candidate_semantic_runner_invalid")
     data = payload.get("data") if isinstance(payload, dict) else None
     return (
         data
         if isinstance(data, dict)
-        else _blocked("reference-transaction", "candidate_semantic_runner_invalid")
+        else blocked_report("reference-transaction", "candidate_semantic_runner_invalid")
     )
 
 
@@ -357,18 +313,3 @@ def _git_paths(root: Path, *args: str) -> tuple[str, ...]:
         for raw in completed.stdout.split(b"\0")
         if raw
     )
-
-
-def _passed(hook: str, state: str) -> dict[str, object]:
-    return {"verdict": "pass", "state": state, "hook": hook, "required_gaps": []}
-
-
-def _blocked(hook: str, gap: str, *, branch: str = "") -> dict[str, object]:
-    return {
-        "verdict": "block",
-        "state": "blocked",
-        "hook": hook,
-        "branch": branch,
-        "decision": {"action": "block", "reason": gap},
-        "required_gaps": [gap],
-    }

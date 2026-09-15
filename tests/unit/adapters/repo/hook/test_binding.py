@@ -444,19 +444,14 @@ print(json.dumps({"digest": hook_generation_digest(launchers), "modules": sorted
 
 
 @pytest.mark.parametrize("platform", ["posix", "nt"])
-def test_declaration_preserves_native_launcher_identity(platform: str) -> None:
-    """Data migration leaves the published shell transport byte-compatible."""
+def test_declaration_binds_native_protocol_on_each_platform(platform: str) -> None:
+    """Every platform binds the selected package without the interactive CLI."""
     contract = hook_contract.load_hook_contract(platform_name=platform)
     python = "python/bin/python" if platform == "posix" else "python/python.exe"
     assert contract["scripts"] == ("commit-msg", "pre-commit", "pre-push", "reference-transaction")
     for name, launcher in contract["launchers"].items():
         assert launcher.endswith(
-            f'exec "$RUNTIME/{python}" -B -I -m ethos.cli hook run {name} "$@"\n'
-        )
-    if platform == "posix":
-        assert (
-            contract["generation_digest"]
-            == "431a09e591988f814f631168f3276bac79de7e782d1d16634ea16f1556537438"
+            f'exec "$RUNTIME/{python}" -B -I -m ethos.adapters.repo.hook.protocol {name} "$@"\n'
         )
 
 
@@ -498,7 +493,9 @@ def test_selected_declaration_drift_cannot_borrow_the_invoking_contract(tmp_path
     selected = Path(before["runtime_manifest_path"]).parent
     declaration = next(selected.glob("python/**/ethos/adapters/repo/hook/binding.toml"))
     original = declaration.read_bytes()
-    declaration.write_bytes(original.replace(b"hook run @HOOK@", b"hook run wrong"))
+    changed = original.replace(b"@HOOK@", b"wrong")
+    assert changed != original
+    declaration.write_bytes(changed)
     observed = hook_runtime_binding(repo)
     assert observed["current"] is False
     assert (
@@ -515,7 +512,10 @@ def test_hook_launcher_uses_git_shell_and_current_runtime_selector() -> None:
     assert 'HOOK_DIR=$(CDPATH= cd "$HOOK_DIR" && pwd)' in text
     assert 'RUNTIME_ROOT="$HOOK_DIR/../../runtime"' in text
     assert 'CURRENT="$RUNTIME_ROOT/CURRENT"' in text
-    assert 'exec "$RUNTIME/python/bin/python" -B -I -m ethos.cli hook run pre-commit "$@"' in text
+    assert (
+        'exec "$RUNTIME/python/bin/python" -B -I '
+        '-m ethos.adapters.repo.hook.protocol pre-commit "$@"'
+    ) in text
 
 
 def test_hook_launcher_enters_the_selected_runtime_without_ambient_path(tmp_path: Path) -> None:
@@ -540,11 +540,14 @@ def test_hook_launcher_enters_the_selected_runtime_without_ambient_path(tmp_path
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert completed.stdout == "-B -I -m ethos.cli hook run pre-commit argument\n"
+    assert completed.stdout == "-B -I -m ethos.adapters.repo.hook.protocol pre-commit argument\n"
 
 
 def test_windows_hook_launcher_uses_the_standalone_runtime_python() -> None:
     text = load_hook_contract(platform_name="nt")["launchers"]["pre-commit"]
 
-    assert 'exec "$RUNTIME/python/python.exe" -B -I -m ethos.cli hook run pre-commit "$@"' in text
+    assert (
+        'exec "$RUNTIME/python/python.exe" -B -I '
+        '-m ethos.adapters.repo.hook.protocol pre-commit "$@"'
+    ) in text
     assert "Scripts/python.exe" not in text

@@ -1,3 +1,5 @@
+"""Public hook reports and installation, separate from native Git transport."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -69,25 +71,6 @@ def test_commit_range_command_forwards_explicit_coordinates(
     assert result.returncode == 0, result.stderr
     assert emitted[-1].verdict == "pass"
     assert emitted[-1].data["revisions"] == ("a" * 40,)
-
-
-@pytest.mark.parametrize(
-    ("hook", "expected", "calls"), [("post-commit", 1, 0), ("pre-commit", 23, 1)]
-)
-def test_hook_run_validates_name_and_propagates_runtime_exit(
-    monkeypatch: pytest.MonkeyPatch,
-    emitted: list[EthosResult],
-    hook: str,
-    expected: int,
-    calls: int,
-) -> None:
-    executed: list[object] = []
-    monkeypatch.setattr(commands, "execute_hook", lambda *_a, **_k: executed.append(1) or 23)
-    with pytest.raises(SystemExit) as stopped:
-        commands.run_hook(hook, ("arg",))
-    assert stopped.value.code == expected
-    assert len(executed) == calls
-    assert emitted == []
 
 
 @pytest.mark.parametrize(

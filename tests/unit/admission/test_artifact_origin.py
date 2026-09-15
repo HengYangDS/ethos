@@ -18,6 +18,7 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.runtime_scenarios import git_process
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -358,7 +359,7 @@ def test_precommit_validates_index_projection_not_working_copy(
         output.unlink()
         output.symlink_to(target)
     index_before = git(root, "write-tree")
-    completed = run_ethos_raw("hook", "run", "pre-commit", cwd=root)
+    completed = git_process(root, "hook", "run", "pre-commit")
     assert completed.returncode == (0 if staged_valid else 1), completed.stderr
     if not staged_valid:
         assert "generated_projection_drift:diagram.mmd" in completed.stderr

@@ -338,9 +338,11 @@ history. The inventory is not deletion approval or proof of semantic completenes
 no archive was deleted in `hook-execution`. Current main specifications, necessary
 decision rationale, and unresolved obligations retain their existing owners.
 
-Continue in this order: close native hook delivery; eliminate redundant bounded
-observations and eager capability preparation; reduce repeated fixture setup;
-then qualify input-complete execution reuse. Each must show unchanged valid and
+Continue in this order: repair the reproduced typed-Change selection blocker;
+retire unnecessary archived checkout material after its consumer checks;
+eliminate redundant bounded observations and eager capability preparation;
+reduce repeated fixture setup; then qualify input-complete execution reuse.
+Each must show unchanged valid and
 invalid outcomes, fewer operations/bytes or less time on the same workload, and
 cold/warm equivalence. Cache deletion may increase computation, never change the
 verdict. Strong interruption, corruption, source/policy/tool drift and concurrent
@@ -361,6 +363,40 @@ either side. Fifteen protocol/error cases pass; the 187 passing broader cases
 remain evidence for their unchanged consumers. The package-only build/install
 and lifecycle smoke also pass, and their owned work root is absent. These are
 precommit checks, not accepted-source or complete-proof claims.
+
+Native hook execution subsequently reached accepted `73def29c`, tree
+`7742d59500aadbb8d1509d1e9fd8a153eef308a0`. The exact postarchive full proof passed
+all 35 gates with 3,466 tests passing and one skipped. Public installation bound
+runtime `afdfd787` to that source/tree; both independent peers' dev/main refs were
+read back at the same commit. The public retirement removed the source lane,
+ref and Lease after 61 selected evidence files were copied and hash-verified in
+the accepted root's ignored `build/evidence/quality/hook-execution/`. Reproducible
+environments, generated IDE defaults and redundant intermediate receipts were
+not copied. This closes that lane, not hosted qualification or the whole goal.
+
+That closeout exposed a separate continuation defect: missing-proof guidance
+selected default execution although admission required the full declared floor.
+The 19-gate proof passed but could not admit the source; a subsequent exact full
+proof passed. Repair the existing proof/land continuation owners to derive the
+needed floor before expensive execution. Do not relabel default evidence or
+weaken the floor. Publication still took 963 seconds; a bounded native sample
+observed serialization, Pydantic validation and later pre-push execution, not a
+proved single performance cause.
+
+The preceding accepted `5915126` GitHub dev run `34947574093` failed seven cases:
+two 300-second lifecycle deadlines, two lock-owner startup waits, native process
+observation, source-overlay Git indexing, and lane-start Git execution. Exact
+JUnit and logs are retained with the lane evidence. These are predecessor-hosted
+observations, not proof that the current source fixes every cause. Continue P5
+at those owners without raising concurrency or timing thresholds.
+
+The next bounded `change-selection` repair addresses a real adapter ambiguity:
+official untyped `show` can select a same-name capability after Change archive,
+or reject ambiguous active names. Query the official Change namespace explicitly;
+retain the existing exact archive-effect and digest checks. Native isolated
+cases cover both a pre-existing capability and one created by archive, plus
+accepted closeout, missing evidence and malformed responses. Adopter source,
+capability names and runtime remain untouched until the repair is accepted.
 
 ### Projection Continuity
 

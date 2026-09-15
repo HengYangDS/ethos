@@ -304,7 +304,9 @@ def load_openspec_commitment(
         if logical_change_identifier_issue(change_id):
             msg = "openspec_change_required"
             raise ValueError(msg)
-        result = openspec_cli.run_json(projection, command, ("show", change_id, "--json"))
+        result = openspec_cli.run_json(
+            projection, command, ("show", change_id, "--type", "change", "--json")
+        )
         if result.get("exit_code") != 0 or result.get("parse_error"):
             archived = _archived_commitment(
                 repo,

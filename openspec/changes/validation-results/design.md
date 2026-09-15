@@ -58,3 +58,13 @@ remains unknown rather than confirmed applied. CLI and Attestation consume that
 same result. Retry observes exact refs and recognizes completed peers instead of
 repeating their pushes. No CLI-specific exception or additional state store is
 needed.
+
+Reference-transaction notifications and effect admission have different duties.
+Git's prepared phase admits ref changes; committed and aborted only notify their
+outcome. Parse the native envelope before loading authority. A prepared branch
+update still requires full immutable-runtime validation before its ref policy;
+all such updates in one invocation share that observation. Empty, unchanged and
+non-branch transactions require no runtime inventory. Other hooks retain their
+current validation. This removes repeated work without a persistent cache,
+weaker prepared admission or a launcher bypass. Tests preserve role dispatch,
+malformed-input rejection, damaged-runtime rejection and batch ordering.

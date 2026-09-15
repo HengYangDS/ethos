@@ -23,6 +23,13 @@ from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
+@pytest.fixture
+def repo(tmp_path: Path) -> Path:
+    """Provide an empty Git repository without installing hooks or creating objects."""
+    assert git_process(tmp_path, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    return tmp_path
+
+
 @pytest.mark.parametrize(
     ("name", "arguments", "stdin", "expected", "gap"),
     [
@@ -31,18 +38,29 @@ from tests.support.runtime_scenarios import install_fixture_hook_runtime
         ("pre-push", ("origin",), "invalid\n", 1, "push_update_invalid"),
         ("pre-push", ("origin",), f"refs/heads/x {'0' * 40} refs/heads/x {'a' * 40}\n", 0, ""),
         ("reference-transaction", ("unknown",), "", 0, ""),
+        ("reference-transaction", ("prepared",), "", 0, ""),
         ("reference-transaction", ("prepared",), "invalid\n", 1, "ref_update_invalid"),
+        *[
+            ("reference-transaction", (phase,), f"{'a' * 40} {'b' * 40} {ref}\n", 0, "")
+            for phase, ref in (
+                ("preparing", "refs/heads/dev"),
+                ("committed", "refs/heads/dev"),
+                ("aborted", "refs/heads/dev"),
+                ("prepared", "refs/tags/v1"),
+                ("prepared", "refs/ethos/attestations-set"),
+            )
+        ],
         (
             "reference-transaction",
             ("prepared",),
-            f"{'a' * 40} {'b' * 40} refs/tags/v1\n",
+            f"{'a' * 40} {'a' * 40} refs/heads/dev\n",
             0,
             "",
         ),
     ],
 )
 def test_hook_runtime_public_input_matrix(
-    tmp_path: Path,
+    repo: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     name: str,
@@ -52,25 +70,21 @@ def test_hook_runtime_public_input_matrix(
     gap: str,
 ) -> None:
     """Every Git protocol envelope either dispatches once or fails closed."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
+    observations: list[Path] = []
+    monkeypatch.setattr(hook_runtime, "current_runtime", observations.append)
 
     result = execute_hook(repo, name, arguments, stdin=StringIO(stdin))
 
     assert result == expected
     error = capsys.readouterr().err
     assert (gap in error) if gap else not error
+    assert len(observations) == int(name != "reference-transaction")
 
 
 def test_hook_execution_observes_the_full_runtime_once(
-    tmp_path: Path,
+    repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
     selected_runtime = object()
     observations: list[Path] = []
     projections: list[object] = []
@@ -96,23 +110,40 @@ def test_hook_execution_observes_the_full_runtime_once(
     assert all(projection is selected_runtime for projection in projections)
 
 
+@pytest.mark.parametrize("damaged", [False, True])
+def test_prepared_updates_validate_runtime_once_before_each_ref_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, damaged: bool
+) -> None:
+    """A batch shares one full runtime observation and never skips damaged authority."""
+    events: list[str] = []
+
+    def observe_runtime(_common: Path) -> object:
+        events.append("runtime")
+        if damaged:
+            message = "hook_runtime_manifest_invalid"
+            raise ValueError(message)
+        return object()
+
+    def admit_ref(**request: object) -> dict[str, object]:
+        events.append(str(request["ref_name"]))
+        return {"verdict": "pass", "required_gaps": []}
+
+    monkeypatch.setattr(hook_runtime, "current_runtime", observe_runtime)
+    monkeypatch.setattr(hook_runtime, "resolve_ref_move_policy", lambda *_: BranchRolePolicy())
+    monkeypatch.setattr(hook_runtime, "work_lane_ref_transition_report", admit_ref)
+    refs = ["refs/heads/work/first", "refs/heads/work/second"]
+    updates = "".join(f"{'a' * 40} {'b' * 40} {ref}\n" for ref in refs)
+    assert execute_hook(
+        tmp_path, "reference-transaction", ("prepared",), stdin=StringIO(updates)
+    ) == int(damaged)
+    assert events == (["runtime"] if damaged else ["runtime", *refs])
+
+
 def test_repository_does_not_track_host_specific_hook_launchers() -> None:
     completed = git_process(REPOSITORY_ROOT, "ls-files", ".githooks")
 
     assert completed.returncode == 0
     assert completed.stdout == ""
-
-
-def test_pre_commit_skips_unselected_staged_secret_capability(monkeypatch, tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-    monkeypatch.setattr(hook_runtime, "prewrite_guard", lambda **_kwargs: {"verdict": "pass"})
-    (repo / "README.md").write_text("# governed work lane\n", encoding="utf-8")
-    assert git_process(repo, "add", "README.md").returncode == 0
-
-    assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 0
 
 
 @pytest.mark.parametrize(
@@ -123,7 +154,7 @@ def test_pre_commit_skips_unselected_staged_secret_capability(monkeypatch, tmp_p
     ],
 )
 def test_commit_msg_uses_only_the_staged_policy(
-    tmp_path: Path,
+    repo: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     staged: str | None,
@@ -131,9 +162,6 @@ def test_commit_msg_uses_only_the_staged_policy(
     subject: str,
     gap: str,
 ) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
     policy = repo / ".ethos/workspace.toml"
     policy.parent.mkdir()
     policy.write_text(
@@ -272,12 +300,9 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
 
 
 def test_hook_execution_rejects_a_noncanonical_current_selector(
-    tmp_path: Path,
+    repo: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
     selector = Path(git_common_dir(repo)) / "ethos" / "runtime" / "CURRENT"
     selector.parent.mkdir(parents=True)
     selector.write_text("invalid\n", encoding="utf-8")
@@ -331,24 +356,23 @@ def test_pre_push_evaluates_every_non_delete_update_and_blocks_the_batch(
 @pytest.mark.parametrize(
     ("capability", "gap"),
     [
+        ("absent", ""),
         ("secrets", "staged_secret_gitleaks_missing"),
         ("format", "pre_commit_python_format_failed"),
     ],
 )
-def test_pre_commit_fails_closed_when_a_selected_capability_cannot_prove_clean(
+def test_pre_commit_requires_only_selected_capabilities_to_prove_clean(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    repo: Path,
     capsys: pytest.CaptureFixture[str],
     capability: str,
     gap: str,
 ) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
     staged = repo / "change.py"
     staged.write_text("VALUE=1\n", encoding="utf-8")
     assert git_process(repo, "add", "change.py").returncode == 0
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
+    monkeypatch.setattr(hook_runtime, "prewrite_guard", lambda **_kwargs: {"verdict": "pass"})
     if capability == "secrets":
         (repo / ".gitleaks.toml").write_text("title = 'policy'\n", encoding="utf-8")
         which = hook_runtime.shutil.which
@@ -357,7 +381,7 @@ def test_pre_commit_fails_closed_when_a_selected_capability_cannot_prove_clean(
             "which",
             lambda name, **kwargs: None if name == "gitleaks" else which(name, **kwargs),
         )
-    else:
+    elif capability == "format":
         (repo / "ruff.toml").write_text("line-length = 100\n", encoding="utf-8")
         monkeypatch.setattr(
             hook_runtime,
@@ -365,8 +389,9 @@ def test_pre_commit_fails_closed_when_a_selected_capability_cannot_prove_clean(
             lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", "format drift"),
         )
 
-    assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 1
-    assert gap in capsys.readouterr().err
+    assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == int(bool(gap))
+    error = capsys.readouterr().err
+    assert (gap in error) if gap else not error
 
 
 @pytest.mark.parametrize(

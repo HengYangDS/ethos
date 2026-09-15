@@ -46,17 +46,18 @@ def execute_hook(
     """Execute one Git hook without shell-owned policy or PATH-selected ETHOS code."""
     repo = root.resolve()
     try:
-        selected_runtime = current_runtime(Path(git_common_dir(repo)))
-        if name == "commit-msg":
-            reports = (_commit_msg(repo, args),)
-        elif name == "pre-commit":
-            reports = (_pre_commit(repo, selected_runtime=selected_runtime),)
-        elif name == "pre-push":
-            reports = _pre_push(repo, args, stdin)
-        elif name == "reference-transaction":
-            reports = _reference_transaction(repo, args, stdin, selected_runtime=selected_runtime)
+        if name == "reference-transaction":
+            reports = _reference_transaction(repo, args, stdin)
         else:
-            reports = (_blocked(name, "hook_name_invalid"),)
+            selected_runtime = current_runtime(Path(git_common_dir(repo)))
+            if name == "commit-msg":
+                reports = (_commit_msg(repo, args),)
+            elif name == "pre-commit":
+                reports = (_pre_commit(repo, selected_runtime=selected_runtime),)
+            elif name == "pre-push":
+                reports = _pre_push(repo, args, stdin)
+            else:
+                reports = (_blocked(name, "hook_name_invalid"),)
     except (OSError, RuntimeError, TypeError, ValueError) as error:
         reports = (_blocked(name, str(error) or error.__class__.__name__),)
     failed = [report for report in reports if report_verdict(report) != "pass"]
@@ -174,13 +175,13 @@ def _reference_transaction(
     root: Path,
     args: tuple[str, ...],
     stdin: IO[str],
-    *,
-    selected_runtime: SelectedRuntime,
 ) -> tuple[dict[str, object], ...]:
+    """Validate the runtime once when a prepared branch update needs admission."""
     phase = args[0] if args else ""
     if phase not in {"prepared", "committed", "aborted"}:
         return (_passed("reference-transaction", "phase_not_governed"),)
     reports = []
+    selected_runtime: SelectedRuntime | None = None
     for line in stdin:
         fields = line.split()
         if len(fields) != 3:
@@ -191,17 +192,20 @@ def _reference_transaction(
             old_value == new_value and old_value not in _ZERO_OIDS
         ):
             continue
-        report = _reference_transition_report(
+        if phase != "prepared":
+            reports.append(_passed("reference-transaction", f"{phase}_observed"))
+            continue
+        if selected_runtime is None:
+            selected_runtime = current_runtime(Path(git_common_dir(root)))
+        report = _prepared_reference_report(
             root,
-            phase,
             ref_name,
             old_value,
             new_value,
             selected_runtime=selected_runtime,
         )
         if (
-            phase == "prepared"
-            and report_verdict(report) != "pass"
+            report_verdict(report) != "pass"
             and _protected_checkout(root)
             and restore_rejected_checkout_projection(root, target_head=new_value)
         ):
@@ -223,18 +227,15 @@ def _protected_checkout(root: Path) -> bool:
     }
 
 
-def _reference_transition_report(
+def _prepared_reference_report(
     root: Path,
-    phase: str,
     ref_name: str,
     old_value: str,
     new_value: str,
     *,
     selected_runtime: SelectedRuntime,
 ) -> dict[str, object]:
-    if phase in {"committed", "aborted"}:
-        return _passed("reference-transaction", f"{phase}_observed")
-    repair = signature_repair_ref_report(root, ref_name, old_value, new_value, phase=phase)
+    repair = signature_repair_ref_report(root, ref_name, old_value, new_value, phase="prepared")
     if repair is not None:
         return repair
     branch = ref_name.removeprefix("refs/heads/")
@@ -245,20 +246,20 @@ def _reference_transition_report(
     protected = branch == policy.accepted_branch or (
         branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     )
-    if phase == "prepared" and protected:
+    if protected:
         report = _candidate_report(
             root,
             policy.candidate_branch,
             ref_name,
             old_value,
             new_value,
-            phase,
+            "prepared",
             selected_runtime=selected_runtime,
         )
     elif policy.role_for_branch(branch) == ROLE_WORK_LANE:
         report = work_lane_ref_transition_report(
             root=root,
-            phase=phase,
+            phase="prepared",
             ref_name=ref_name,
             old_value=old_value,
             new_value=new_value,
@@ -269,7 +270,7 @@ def _reference_transition_report(
             ref_name=ref_name,
             old_value=old_value,
             new_value=new_value,
-            phase=phase,
+            phase="prepared",
         )
     if policy.role_for_branch(branch) == ROLE_WORK_LANE or protected:
         return report

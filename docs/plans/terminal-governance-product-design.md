@@ -80,6 +80,26 @@ unchanged. Current output roots, immutable dependencies, hosted CI and nonempty
 historical evidence were preserved. This is completed local cleanup, not proof
 of sustained crash recovery or automatic residue prevention.
 
+A deeper recheck removed 1,648 additional orphan bytecode files from still-live
+source directories, totaling 28,637,046 bytes, and 265 now-empty directories.
+The earlier inventory covered retired directory trees, not every stale cache
+entry within retained packages. `orphan-bytecode-cleanup.json` binds each absent
+source, exact cached file, inode, hash and user-visible liveness observation.
+Tracked bytes, refs, worktree registrations and the immutable runtime were
+unchanged. Dependencies, current outputs and hosted checkouts were excluded.
+
+The same-day documentation review confirms five remaining READMEs. The root
+and governance entrypoints serve real navigation. The plans entrypoint merely
+repeats the already-linked sole plan; reference can route its three documents
+from the root. History contains unique Git retrieval instructions that must
+move to the existing provenance owner before its index and duplicated topology
+carrier retire. Source audit still requires history/reference READMEs, while
+stable-path metadata freezes all four nested indexes. Retire those conflicting
+consumers together, not just the files; retain the three decision rationales,
+restore their required numbered identities, and preserve direct links. This is
+the existing documentation-owner closure, not a new roadmap or an assertion
+that the physical tree is complete.
+
 Tracked source still needs semantic restructuring. Direct import/symbol
 observation finds ref CAS, index staging, filesystem compensation and untracked
 tree removal together in `adapters/repo/git_effects.py`; adjacent
@@ -187,7 +207,11 @@ GitHub main `34922092210` completed with failed source verification at
 The failed runtime smoke, download-start readiness and complete acceptance/archive
 journey are separate observations. The exact five-file hosted artifact is retained
 in `validation-results/parent-hosted-failure/`; the original owned pytest root
-was removed. Dev `34922092212` then started independently on the same checkout.
+was removed. Dev `34922092212` completed unsuccessfully at 06:02:53 UTC.
+Its exact artifact `10383381893` is retained with hashes in
+`validation-results/parent-hosted-dev-failure/`. Five runtime fixture smoke
+timeouts and two startup-readiness failures remain distinct from the main
+journey timeout; neither terminal run is evidence of candidate acceptance.
 GitLab main/dev `6724`/`6723` passed, read back at 03:24 UTC. Neither those results
 nor published refs replace the failed GitHub result.
 
@@ -201,6 +225,15 @@ Profiled empty hooks also rehash 9,711 runtime entries; source identity is repea
 derived during fixture setup. These measured costs inform the existing P5 work;
 do not weaken immutable checks, increase parallelism or declare the root cause
 fixed from the test repair alone.
+
+The hook owner now distinguishes prepared admission from result notification.
+Its former eager runtime inventory also ran for empty or irrelevant transactions;
+the repaired path performs it once before a governed prepared update. The
+eight-case notification/no-op RED preceded the repair. The consolidated 44-case
+hook matrix passes, including damaged authority and one-observation batch
+ordering; its test module remains within the unchanged 500-ELOC ceiling.
+This source result does not establish installed-hook latency, full-journey
+recovery or a passing exact proof.
 
 The adopter owner reports public installation of `c03e2091` in all three linked
 worktrees, completed generation cleanup, exact Lease resume from generation 12

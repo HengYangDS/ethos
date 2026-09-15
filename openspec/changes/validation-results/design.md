@@ -48,3 +48,13 @@ the descendant through a loopback handshake before the unchanged timed wait;
 require connection closure afterward. A delayed-start case must pass, while
 terminating only the parent must fail. This corrects the test prerequisite, not
 the production timeout or the required process-group cleanup.
+
+Publication result state must preserve observed progress independently of the
+verdict. If a completed peer precedes a failed observation, the execution owner
+returns partial progress with an unknown verdict, applied and pending peers,
+and the existing fresh-observation continuation. Before any peer is applied,
+an unavailable preflight remains unperformed; an unobserved post-write outcome
+remains unknown rather than confirmed applied. CLI and Attestation consume that
+same result. Retry observes exact refs and recognizes completed peers instead of
+repeating their pushes. No CLI-specific exception or additional state store is
+needed.

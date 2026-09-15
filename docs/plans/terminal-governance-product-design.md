@@ -396,8 +396,8 @@ The packaged verifier bytes match the tested owner, the replaced definitions
 are absent and the temporary installation is removed. `trust-package.log` and
 `trust-package-input.json` retain the exact result; subsequent plan-only edits
 do not change those tested bytes. Exact-commit proof and installed deployment
-remain pending. Large applied repairs and hosted consumption are separate
-open obligations.
+subsequently completed at `8dfde87c2`, as recorded below. Large applied repairs
+and hosted consumption remain separate open obligations.
 
 The next native lifecycle regression proved that archive acceptance was lost
 after any descendant of a repaired tip, including a repeated repair. Both
@@ -413,12 +413,38 @@ rejects recovery and leaves refs unchanged. `history-continuation-red.log` and
 `history-public-reproof.log` retain the contrast. The initial archive admission
 uses explicitly seeded fixture proof; the post-repair proof executes declared
 native checks and binds the new exact HEAD. This is not real-repository history
-correction, accepted deployment or publication.
+correction or publication. The source implementation is now accepted below.
 
-Execution order is: finish and accept commit-integrity; activate it; enable the
-explicit self-repository identity declaration through its fresh supported policy
-boundary; then apply the confirmed historical selection, reprove/rebind, update
-each independent peer by exact old OID, and read back account/signature status.
+The source closure reached accepted commit
+`8dfde87c23287ec876aa784d835fb1c5d2fdbce8`, tree
+`b674ab3430bbce050efd91886f312a6e2043cab0`. All 35 exact-HEAD proof gates passed;
+proof Attestation is
+`4752717e3baa69160f7a7387225cb23bd87348a3b50b8b1890cd20e64e75c4ba`.
+Public candidate and accepted closeout converged dev/main/candidate/work to that
+commit. Runtime `fe3171dce28fa8d015844a8ef404a34b845f079a4760bef975dcd9de91115561`
+was activated from wheel SHA256
+`bb3230f95cb36fea3789848c3e85b74876c899a6afee813ccde79a7e96d54d7d`, with exact
+source/tree identity and all three linked worktrees checked. Public reclamation
+removed predecessor `42e72578...` after its installation process exited.
+The first install rejected stale accepted-checkout Node supply before activation;
+retry used the byte-equal lock-bound lane supply, without weakening validation.
+
+The final merge-DAG regression covers selected ancestry on either side of a
+merge. It compares preserved tree/message/timestamps/unselected headers, rejects
+permuted parent edges, and leaves original objects and refs unchanged. All 11
+history-owner cases passed in `history-merge-acceptance.log`. This tests existing
+behavior; no new production repair is claimed. Source tasks now record the
+verified implementation and package acceptance. Actual historical selection,
+self-repository identity activation, hosted consumption and peer publication
+remain post-install obligations, not falsely completed source tasks.
+
+Execution order is: close the completed commit-integrity Change; repair the
+confirmed generic-adopter admission P0 in a separate bounded Change on the same
+lane; then enable the explicit self-repository identity declaration through its
+fresh supported policy boundary and apply the confirmed historical selection,
+reprove/rebind, update each independent peer by exact old OID, and read back
+account/signature status. Proposal refresh continuation retains its separate
+bounded repair. No new lane or parallel progress carrier is needed.
 Old Attestations keep original subjects; no copied green verdict, mailmap-only
 masking, wildcard author replacement, key registration or permanent bypass is
 an acceptable substitute. Actual history repair is a post-install operation in
@@ -432,8 +458,9 @@ retained in `build/evidence/quality/commit-integrity/`. First-batch source
 including package installation and the historical-repair journey. Native source
 acceptance moved local dev/main/candidate to that object. Runtime
 `42e72578ef179312d51c08b55cc273b06d8923546929ce05263d17661d5a1129`
-is installed and current; its predecessor was reclaimed publicly. The Change
-remains active for unfinished delivery and historical repair.
+was installed at that checkpoint and has now been replaced and reclaimed by
+`fe3171dc...` above. The Change remains active until its source closeout; historical
+application and hosted delivery remain separate obligations.
 
 That batch updates eight Python dependencies and OpenSpec to 1.13.0. The Git
 baseline reader now uses the native carrier table instead of its incomplete
@@ -449,8 +476,8 @@ tests and Ruff/config/shell/CI checks pass. In the pinned Linux ARM64 container,
 both Node versions run native OpenSpec and npm package checks with unchanged
 inputs. The disposable container is gone. The first probe omitted libatomic1,
 already required by bootstrap; its corrected execution is not a product fix or
-full Linux qualification. Second-batch full proof, acceptance, installation and
-remote publication remain pending.
+full Linux qualification. Second-batch full proof, acceptance and installation
+completed at `8dfde87c2`; remote publication remains pending.
 
 The second supply batch also passed fresh offline wheel build/install acceptance
 in the current lane. The tested overlay tree is

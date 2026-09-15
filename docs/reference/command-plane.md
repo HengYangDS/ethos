@@ -82,6 +82,13 @@ unsafe anchors produce `unready` even when both launchers are installed. A
 configured anchor is a prerequisite, not a claim that a particular commit passed
 verification or that the Forge recognizes its signer.
 
+Hosted bootstrap accepts `ETHOS_COMMIT_TRUST_ANCHOR` from the operator-managed
+runner environment, not a candidate-controlled YAML value. It validates that existing file's external location and
+protection, then projects only `gpg.ssh.allowedSignersFile` into the checkout's
+local Git config. It never creates keys, changes identities or downloads trust
+from the candidate. Omitting the binding does not disable required verification;
+the common validator rejects a missing required anchor.
+
 `ethos lane repair-signature --root <accepted-worktree> --expect-head <old-oid>
 --json` observes one exact unsigned accepted commit without creating a Git
 object, moving a ref, changing a worktree or writing an Attestation. Applying

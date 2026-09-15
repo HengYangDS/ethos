@@ -20,7 +20,7 @@ COMMIT_ADMISSION_OWNER = ROOT / "src/ethos/adapters/repo/commit/admission.py"
 
 
 def test_commit_policy_execution_has_one_semantic_owner() -> None:
-    """One adapter owns policy interpretation and introduced-range projection."""
+    """Policy admission is singular; range selection and history traversal differ."""
     subject_owners, gap_owners, range_owners = set(), set(), set()
     for path in (ROOT / "src/ethos").rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -33,7 +33,7 @@ def test_commit_policy_execution_has_one_semantic_owner() -> None:
                     for arg in node.args
                     if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
                 }
-                if {"rev-list", "--reverse"} <= arguments:
+                if {"rev-list", "--reverse", "--not"} <= arguments:
                     range_owners.add(path)
             if (
                 isinstance(node, ast.Constant)
@@ -47,7 +47,8 @@ def test_commit_policy_execution_has_one_semantic_owner() -> None:
                 )
             ):
                 gap_owners.add(path)
-    assert subject_owners == gap_owners == range_owners == {COMMIT_ADMISSION_OWNER}
+    assert subject_owners == gap_owners == {COMMIT_ADMISSION_OWNER}
+    assert range_owners == {ROOT / "src/ethos/adapters/repo/commit/integration.py"}
 
 
 def _launcher(tmp_path: Path) -> Path:

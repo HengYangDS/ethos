@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import shlex
 from typing import TYPE_CHECKING
 
@@ -212,8 +214,26 @@ def _prove_retirement_recovery(
     }
 
 
+def _history_request(repo: Path, old: str) -> tuple[str, ...]:
+    """Prepare the exact optional history request and independently recoverable originals."""
+    request = repo.parent / "repair-corrections.json"
+    bundle = repo.parent / "repair-original.bundle"
+    request.write_text(json.dumps({old: {"resign": True}}), encoding="utf-8")
+    run_git(repo, "bundle", "create", str(bundle), "HEAD")
+    return (
+        "--corrections",
+        str(request),
+        "--corrections-sha256",
+        hashlib.sha256(request.read_bytes()).hexdigest(),
+        "--backup",
+        str(bundle),
+        "--reason",
+        "Verify installed historical repair with recoverable originals",
+    )
+
+
 def prove_signature_repair(
-    python: Path, repo: Path, *, environment: Mapping[str, str]
+    python: Path, repo: Path, *, environment: Mapping[str, str], historical: bool = False
 ) -> dict[str, object]:
     """Exercise installed repair, exact reproof continuation and replay without publication."""
     old = run_git(repo, "rev-parse", "HEAD").stdout.strip()
@@ -229,6 +249,7 @@ def prove_signature_repair(
         "--expect-head",
         old,
         "--json",
+        *(_history_request(repo, old) if historical else ()),
     )
     env = {**environment, "ETHOS_ACTOR": "agent:test:package-only:signature"}
     code, ready, diagnostic = invoke(repo, command, environment=env)
@@ -309,4 +330,5 @@ def prove_signature_repair(
         "proof_subject": attestation["subject"],
         "proof_attestation": attestation["id"],
         "publication_readiness": publication["state"],
+        "historical_selection": historical,
     }

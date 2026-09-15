@@ -340,6 +340,7 @@ def observe_runtime_lifecycle(
             runtime_python,
             repository,
             environment=environment,
+            historical=True,
         ),
         **lane_acceptance.prove_lifecycle(
             runtime_python,

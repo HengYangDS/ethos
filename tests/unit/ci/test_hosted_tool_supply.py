@@ -19,6 +19,9 @@ import pytest
 from filelock import FileLock
 from filelock import Timeout
 
+import tools.ci.toolchain.environment as ci_environment
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 from tools.ci.toolchain.native import download
 from tools.ci.toolchain.native import prepare
 
@@ -26,6 +29,30 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+@pytest.mark.parametrize("case", ["valid", "inside", "unprotected", "missing"])
+def test_ci_trust_projects_only_operator_supplied_protected_anchor(tmp_path, case):
+    repo = init_git_repo(tmp_path / "repo")
+    trust = (repo if case == "inside" else tmp_path) / "trust"
+    trust.mkdir(mode=0o700)
+    anchor = trust / "allowed-signers"
+    anchor.write_text("operator-controlled public trust\n")
+    anchor.chmod(0o666 if case == "unprotected" else 0o600)
+    if case == "missing":
+        anchor.unlink()
+    before = git(repo, "config", "--local", "--list")
+    if case != "valid":
+        with pytest.raises(ValueError, match="git_object_trust_anchor_"):
+            ci_environment.bind_commit_trust(repo, anchor)
+        assert git(repo, "config", "--local", "--list") == before
+    else:
+        ci_environment.bind_commit_trust(repo, anchor)
+        assert git(repo, "config", "--local", "--get", "gpg.ssh.allowedSignersFile") == str(anchor)
+        first = (repo / ".git/config").read_bytes()
+        ci_environment.bind_commit_trust(repo, anchor)
+        assert (repo / ".git/config").read_bytes() == first
+        assert anchor.read_text() == "operator-controlled public trust\n"
 
 
 def _native_supply(

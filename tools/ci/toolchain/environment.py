@@ -7,6 +7,25 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import trust_anchor
+
+
+def bind_commit_trust(root: Path, anchor: Path) -> None:
+    """Project an operator-supplied external trust anchor without inventing signer identity."""
+    resolved, gaps = trust_anchor(root, str(anchor))
+    if gaps:
+        raise ValueError(gaps[0])
+    assert resolved is not None
+    key = "gpg.ssh.allowedSignersFile"
+    current = run_git(root, "config", "--local", "--get", key, check=False)
+    if current.returncode or current.stdout.strip() != str(resolved):
+        run_git(root, "config", "--local", key, str(resolved))
+    observed = run_git(root, "config", "--local", "--get", key).stdout.strip()
+    if observed != str(resolved):
+        message = "ci_commit_trust_projection_failed"
+        raise ValueError(message)
+
 
 @dataclass(frozen=True, slots=True)
 class ProjectRuntime:

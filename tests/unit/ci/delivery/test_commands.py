@@ -45,7 +45,8 @@ def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> No
     assert dirty.dirty_provenance(adopter)["state"] == "clean"
 
 
-def test_signature_acceptance_exercises_the_real_isolated_command_boundary(tmp_path):
+@pytest.mark.parametrize("historical", [False, True])
+def test_signature_acceptance_exercises_the_real_isolated_command_boundary(tmp_path, historical):
     def run(*command: str, cwd: Path | None = None) -> str:
         completed = subprocess.run(
             command,
@@ -64,7 +65,9 @@ def test_signature_acceptance_exercises_the_real_isolated_command_boundary(tmp_p
         run=run,
     )
     fixture.prepare_acceptance_topology(adopter, run=run)
-    observed = lane.prove_signature_repair(Path(sys.executable), adopter, environment={})
+    observed = lane.prove_signature_repair(
+        Path(sys.executable), adopter, environment={}, historical=historical
+    )
     assert observed["state"] == "passed"
     assert observed["head"] != observed["previous_head"]
     assert observed["candidate_unchanged"] is True

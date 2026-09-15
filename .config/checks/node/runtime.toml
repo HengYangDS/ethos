@@ -1,6 +1,6 @@
 schema = "ethos-node-runtime-compatibility-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Latest stable and LTS Node releases accepted by the ETHOS npm launcher."
-default_version = "26.8.1"
-compatibility_versions = ["24.20.0", "26.8.1"]
-archive_sha256 = { "24.20.0" = { linux_arm64 = "5f4ddab610c1ab2016b3c227cebdbf6d9495161487e4739c7b90090595f465f7", linux_x64 = "2f2c0da162318f0de47665410c7c8c2ed3d36c8f3105de4bbc61176c70a7cbf2" }, "26.8.1" = { linux_arm64 = "23c1b4d19e2f12a7d06fe8aa3d6e0e4923cf77a47e13c5ccdf32fadaa33960f2", linux_x64 = "3e301118d7df53d563b7e96c1617545f26e2f76f9724be668d6cab65c15dda5d" } }
+default_version = "26.8.2"
+compatibility_versions = ["24.21.0", "26.8.2"]
+archive_sha256 = { "24.21.0" = { linux_arm64 = "6ad1325edbdb5649c379b75a237147a666c95d4f9ae8d340fef2d1575d289ad2", linux_x64 = "fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6" }, "26.8.2" = { linux_arm64 = "81d8f0fdea9dcd3bfdcfeafc5f8359c151f097e9880b0007c0645ca670d07971", linux_x64 = "40e1d3225c1c9ae9a2671c98ecb9857e4d5555026394f348645676798840d5c5" } }

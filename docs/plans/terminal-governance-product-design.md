@@ -218,6 +218,15 @@ inherently required. Additional identity separation follows actual policy and
 risk, not the mere presence of credentials. The public components are available;
 a complete dependency-update entry and end-to-end conformance are not proved.
 
+The subsequent partial-publication receipt exposed a result-state defect: one
+peer had applied, but unknown evidence for the next selected `preflight_unknown`
+and the CLI summary said `not_performed`. A real two-peer regression reproduced
+that contradiction. The execution owner now gives known progress precedence:
+`partial` with verdict `unknown`, preserving applied/pending peers. CLI and
+Attestation agree; retry records the first peer as `already_applied` and pushes
+only the second. All 22 publication effect/recovery cases pass. The repair is
+not yet accepted or installed; no adopter or production remote was mutated.
+
 The public `hook commit-range` was exercised on exact
 `8f2e829f..c03e2091`: only the two introduced commits were checked and admitted.
 Missing new-ref baselines fail closed; no routine whole-history fallback exists.

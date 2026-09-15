@@ -60,9 +60,22 @@ def test_publish_apply_preflight_unknown_performs_no_push(
     assert {proposal_ref(remote) for remote in remotes.values()} == {""}
 
 
-def test_publish_post_observation_unknown_reports_the_applied_peer(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("failed_remote", "state", "applied", "pending"),
+    [
+        ("origin", "outcome_unknown", [], ["gitlab", "github"]),
+        ("github", "partial", ["gitlab"], ["github"]),
+    ],
+)
+def test_publish_unknown_observation_preserves_exact_effect_progress(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failed_remote: str,
+    state: str,
+    applied: list[str],
+    pending: list[str],
 ) -> None:
+    """Unknown evidence cannot erase a prior applied peer or cause its replay."""
     repo, remotes, head = branch_publication_fixture(tmp_path)
     receipt = branch_publication(repo, head)["data"]["request_receipt"]
     original = publication_execution.git.run_network_git
@@ -80,7 +93,7 @@ def test_publish_post_observation_unknown_reports_the_applied_peer(
             if "origin" in args and completed.returncode == 0:
                 origin_push_applied = True
             return completed
-        if args and args[0] == "ls-remote" and args[1] == "origin" and origin_push_applied:
+        if args and args[0] == "ls-remote" and args[1] == failed_remote and origin_push_applied:
             raise subprocess.TimeoutExpired(
                 ("git", *args),
                 30,
@@ -93,16 +106,35 @@ def test_publish_post_observation_unknown_reports_the_applied_peer(
 
     result = apply_receipt(repo, receipt, head, blocked=True)
 
-    assert (result["verdict"], result["state"]) == ("unknown", "outcome_unknown")
-    assert result["summary"]["remote_push"] == "outcome_unknown"
+    assert (result["verdict"], result["state"]) == ("unknown", state)
+    assert result["summary"]["remote_push"] == state
     assert result["data"]["remote_effect"]["partial_effects"] == {
-        "applied_peers": [],
+        "applied_peers": applied,
         "failed_peer": "",
-        "pending_peers": ["gitlab", "github"],
+        "pending_peers": pending,
     }
     assert result["data"]["remote_effect"]["attempts"][0]["state"] == "applied"
     assert proposal_ref(remotes["gitlab"]) == head
     assert proposal_ref(remotes["github"]) == ""
+    assert "--probe-remote" in result["next_action"]
+    _, attestations = read_attestation_set(repo)
+    recorded = next(
+        item
+        for item in attestations
+        if item.id == result["data"]["remote_effect"]["attestation"]["id"]
+    )
+    assert recorded.verdict == "unknown"
+    assert recorded.payload.body["state"] == state
+
+    monkeypatch.setattr(publication_execution.git, "run_network_git", original)
+    recovered = apply_receipt(repo, receipt, head)
+    assert recovered["state"] == "published"
+    attempts = recovered["data"]["remote_effect"]["attempts"]
+    assert [(item["id"], item["state"]) for item in attempts] == [
+        ("gitlab", "already_applied"),
+        ("github", "applied"),
+    ]
+    assert {proposal_ref(remote) for remote in remotes.values()} == {head}
 
 
 def test_publish_branch_retry_records_one_terminal_attestation_after_interruption(

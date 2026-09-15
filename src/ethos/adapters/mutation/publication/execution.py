@@ -97,9 +97,11 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
                 plan=plan,
                 effect=effect,
                 verdict=verdict,
-                state=("partial" if applied else "preflight_blocked")
-                if verdict == "block"
-                else "preflight_unknown",
+                state="partial"
+                if applied
+                else "preflight_unknown"
+                if verdict == "unknown"
+                else "preflight_blocked",
                 required_gaps=tuple(dict.fromkeys((*authority_gaps, *peer_gaps))),
                 observations=observations,
                 applied=tuple(applied),

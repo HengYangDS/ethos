@@ -37,3 +37,25 @@ of converting every issue into an error or reimplementing native spec semantics.
 
 - **WHEN** a successful native full result declares an empty items collection
 - **THEN** ETHOS accepts the empty validation without inventing an invalid Change.
+
+### Requirement: Publication Results Preserve Observed Partial Effects
+
+ETHOS SHALL retain observed applied peers independently of uncertainty about
+remaining peers. An unknown later observation SHALL preserve partial execution
+in the result, CLI summary and Attestation. Retry SHALL reobserve exact refs and
+avoid pushing an already matching peer again.
+
+#### Scenario: A later peer becomes unobservable
+
+- **WHEN** one peer is confirmed applied and the next peer observation fails
+- **THEN** the verdict remains unknown, progress is partial, and applied and pending peers remain explicit.
+
+#### Scenario: No peer has been applied
+
+- **WHEN** an unavailable preflight prevents every push
+- **THEN** the result reports no performed publication rather than inventing progress.
+
+#### Scenario: A successful push lacks its post-observation
+
+- **WHEN** a push exits successfully but its required remote observation fails
+- **THEN** the result retains the attempt and unknown outcome without claiming confirmed application.

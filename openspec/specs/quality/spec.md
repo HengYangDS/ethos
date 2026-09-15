@@ -1276,3 +1276,103 @@ actual effect or reuse prior authorization.
 - **WHEN** candidate advances after the earlier closeout observation
 - **THEN** fresh effect admission rejects stale coordinates despite any already
   rendered command or bootstrap projection.
+
+### Requirement: Native Validation Outcomes Preserve Failure Meaning
+
+ETHOS SHALL require both successful native validation execution and a readable
+full validation result before accepting it. A failed exit SHALL remain a failure
+without item diagnostics. Any invalid item SHALL remain a failure even when the
+process exits successfully. Malformed consumed fields SHALL prevent acceptance.
+
+#### Scenario: Failed execution has no item-level explanation
+
+- **WHEN** the native validator exits unsuccessfully with empty or missing items
+- **THEN** the public report retains a validation failure and its original result.
+
+#### Scenario: A successful exit contradicts an invalid item
+
+- **WHEN** the native process exits zero but one item has valid set to false
+- **THEN** the public report rejects that item rather than accepting the exit code.
+
+#### Scenario: The reported collection cannot establish item validity
+
+- **WHEN** items or their consumed identity and validity fields are malformed
+- **THEN** the public report identifies unreadable validation rather than omitting them.
+
+### Requirement: Informational Native Findings Remain Informational
+
+ETHOS SHALL preserve successful empty full reports and valid items containing
+informational findings. It SHALL consume the official validity decision instead
+of converting every issue into an error or reimplementing native spec semantics.
+
+#### Scenario: Official validation succeeds with informational findings
+
+- **WHEN** a successful full result contains only valid items with INFO findings
+- **THEN** ETHOS accepts that validation while retaining the original findings.
+
+#### Scenario: Official validation has no items
+
+- **WHEN** a successful native full result declares an empty items collection
+- **THEN** ETHOS accepts the empty validation without inventing an invalid Change.
+
+### Requirement: Publication Results Preserve Observed Partial Effects
+
+ETHOS SHALL retain observed applied peers independently of uncertainty about
+remaining peers. An unknown later observation SHALL preserve partial execution
+in the result, CLI summary and Attestation. Retry SHALL reobserve exact refs and
+avoid pushing an already matching peer again.
+
+#### Scenario: A later peer becomes unobservable
+
+- **WHEN** one peer is confirmed applied and the next peer observation fails
+- **THEN** the verdict remains unknown, progress is partial, and applied and pending peers remain explicit.
+
+#### Scenario: No peer has been applied
+
+- **WHEN** an unavailable preflight prevents every push
+- **THEN** the result reports no performed publication rather than inventing progress.
+
+#### Scenario: A successful push lacks its post-observation
+
+- **WHEN** a push exits successfully but its required remote observation fails
+- **THEN** the result retains the attempt and unknown outcome without claiming confirmed application.
+
+### Requirement: Hook Runtime Validation Follows Effect Admission
+
+ETHOS SHALL fully validate the selected immutable runtime before admitting a
+prepared branch update and reuse that observation only within its invocation.
+Result notifications and transactions without a governed update SHALL not
+inventory the runtime. Malformed input and damaged admission authority SHALL
+remain failures.
+
+#### Scenario: A transaction only reports its outcome
+
+- **WHEN** Git sends committed or aborted notifications, or no governed update
+- **THEN** the hook preserves its protocol result without validating an unused runtime.
+
+#### Scenario: One prepared batch contains multiple governed refs
+
+- **WHEN** a prepared transaction changes multiple branch refs
+- **THEN** one full runtime observation precedes the existing policy decision for each ref.
+
+#### Scenario: Prepared admission selects a damaged runtime
+
+- **WHEN** runtime validation fails before a prepared branch update
+- **THEN** the hook rejects the transaction before executing its ref policy.
+
+### Requirement: Identity Inspection Does Not Require Command Dispatch
+
+ETHOS SHALL resolve and render invoking identity without loading unrelated
+command dispatch. Native version output SHALL preserve human and JSON forms and
+the existing source and runtime validation. Real registration, dispatch and
+identity-observation failures SHALL retain their public error boundaries.
+
+#### Scenario: Only the invoking version is requested
+
+- **WHEN** the native CLI receives the global version flag
+- **THEN** it renders identity without importing the command framework.
+
+#### Scenario: Source observation fails during identity inspection
+
+- **WHEN** identity observation encounters a Git failure or changing source
+- **THEN** the public result preserves the exact error and continuation instead of a traceback or speculative reinstall.

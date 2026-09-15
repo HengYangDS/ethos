@@ -29,8 +29,11 @@ provider projections.
 6. Compare required coverage across product, tests, tools, carriers, packages,
    runtime/resources and provider projections. Inject representative failures
    through real owners; neither counters nor a clean audit prove effectiveness.
-7. Prove the exact gate path with focused scripts first, then run head-bound
-   `ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json`.
+7. Resolve the selected gates' dependency closure before execution. A focused
+   name can select the full test suite. Carry the current worker, shard, root and
+   evidence controls explicitly into every process; inspect the actual child
+   command before treating it as the intended run. Verify focused consumers
+   first, then run one head-bound proof with those same controls.
 8. Close each reproduced failure through the existing owner, a distinguishing
    regression, replacement-path deletion and actual consumer verification.
    Apply the learning and interrupted-execution boundaries in
@@ -48,7 +51,7 @@ uv run --frozen --offline python -m nox -s prose
 ethos prove --gate repository-audit --json
 ethos prove --gate python-types --json
 ethos prove --gate docstrings --json
-# After the Nox `tests` session has produced current coverage evidence:
+# Without --execute this observes readiness; execution follows all dependencies.
 ethos prove --gate unit-architecture --json
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ```

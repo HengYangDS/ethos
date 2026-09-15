@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import shutil
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.openspec.cli as cli
 import ethos.adapters.openspec.governance as governance
+import ethos.adapters.openspec.lifecycle.report as lifecycle_report
 import tests.support.governed_repository as fixture
+from tests.support.ethos_cli_runner import run_ethos
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -53,7 +56,7 @@ def _run_empty(_root, _base, args):
     if args[:1] == ("list",):
         return _receipt(payload={"changes": []})
     if args[:1] == ("validate",):
-        return _receipt(payload={"summary": {"totals": {"failed": 0}}})
+        return _receipt(payload={"items": [], "summary": {"totals": {"failed": 0}}})
     raise AssertionError(args)
 
 
@@ -164,6 +167,66 @@ def test_governance_accepts_an_empty_official_change_list(monkeypatch, tmp_path)
         [],
     )
     assert report["commands"]["status"] == {}
+
+
+def test_public_plan_preserves_native_validation_failure_without_item_diagnostics(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A real governed plan cannot approve an unexplained native validation failure."""
+    workspace = fixture.start_adopted_work_lane(tmp_path)
+    assert run_ethos("plan", "--json", cwd=workspace.worktree)["verdict"] == "pass"
+    original = cli.run_json
+    observed: list[dict[str, object]] = []
+
+    def failed_validation(root, command, args):
+        result = original(root, command, args)
+        if args[:1] == ("validate",):
+            result = {
+                **result,
+                "exit_code": 1,
+                "stderr": "native validation stopped without item diagnostics",
+                "json": {"items": []},
+            }
+            observed.append(result)
+        return result
+
+    monkeypatch.setattr(cli, "run_json", failed_validation)
+    projected = run_ethos("plan", "--json", cwd=workspace.worktree)
+    assert observed
+    assert projected["verdict"] == "block", projected
+    assert "openspec_validate_failed" in projected["required_gaps"]
+
+
+@pytest.mark.parametrize("mode", ["empty", "info", "mixed"])
+def test_locked_native_validation_preserves_empty_and_informational_results(
+    tmp_path: Path, mode: str
+) -> None:
+    """Replay unmodified official output; INFO must not hide or become an error."""
+    root = _repo(tmp_path)
+    if mode != "empty":
+        fixture.write_active_commitment(root)
+        change = root / "openspec/changes/fixture-change"
+        shutil.rmtree(change / "specs")
+        (change / ".openspec.yaml").write_text("schema: spec-driven\nskip_specs: true\n")
+        if mode == "mixed":
+            invalid = root / "openspec/specs/invalid/spec.md"
+            invalid.parent.mkdir()
+            invalid.write_text("# Invalid native specification\n")
+    command = cli.openspec_base_command()
+    assert command is not None
+    result = cli.run_json(root, command, ("validate", "--all", "--strict", "--json"))
+    items = result["json"]["items"]
+    assert result["parse_error"] == ""
+    assert result["exit_code"] == (1 if mode == "mixed" else 0)
+    if mode == "empty":
+        assert items == []
+    else:
+        info = next(item for item in items if item["id"] == "fixture-change")
+        assert info["valid"] is True
+        assert any(issue["level"] == "INFO" for issue in info["issues"])
+    assert lifecycle_report.validation_failures(result["json"]) == (
+        ["openspec_validation_failed:spec:invalid"] if mode == "mixed" else []
+    )
 
 
 def test_governance_observes_archive_effect_separately_from_generation_scope(monkeypatch, tmp_path):

@@ -1,6 +1,10 @@
+"""Native OpenSpec result boundaries and public lifecycle projections."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
+import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -13,6 +17,84 @@ from tests.support.governed_repository import write_test_profile
 
 def _completed(name: str = "change") -> dict[str, object]:
     return {"name": name, "status": "complete", "completedTasks": 1, "totalTasks": 1}
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "payload", "expected"),
+    [
+        (1, {"items": []}, ["openspec_validate_failed"]),
+        (
+            1,
+            {"items": [{"id": "native", "type": "change", "valid": True}]},
+            ["openspec_validate_failed"],
+        ),
+        *(
+            (
+                code,
+                {"items": [{"id": "native", "type": "change", "valid": False}]},
+                ["openspec_validation_failed:change:native"],
+            )
+            for code in (0, 1)
+        ),
+        *(
+            (0, payload, ["openspec_validation_unreadable"])
+            for payload in ({}, {"items": None}, {"items": {}}, {"items": [None]})
+        ),
+        *(
+            (
+                0,
+                {"items": [{"id": "native", "type": "change", "valid": True, **invalid}]},
+                ["openspec_validation_unreadable"],
+            )
+            for invalid in (
+                {"id": ""},
+                {"id": 1},
+                {"type": "other"},
+                {"type": []},
+                {"valid": 1},
+                {"valid": "false"},
+                {"valid": None},
+            )
+        ),
+        (0, {"items": []}, []),
+        (
+            0,
+            {
+                "items": [
+                    {
+                        "id": "native",
+                        "type": "change",
+                        "valid": True,
+                        "issues": [{"level": "INFO", "path": "file", "message": "No delta"}],
+                    }
+                ]
+            },
+            [],
+        ),
+        (
+            0,
+            {
+                "items": [
+                    {"id": "valid", "type": "spec", "valid": True},
+                    {"id": "invalid", "type": "spec", "valid": False},
+                ]
+            },
+            ["openspec_validation_failed:spec:invalid"],
+        ),
+    ],
+)
+def test_validation_results_preserve_execution_and_item_failures(
+    exit_code: int, payload: dict[str, object], expected: list[str]
+) -> None:
+    """Neither process success nor missing diagnostics can erase native failure."""
+    observed = report.openspec_command_gaps(
+        doctor={"exit_code": 0, "json": {"root": {"healthy": True}}, "parse_error": ""},
+        list_result={"exit_code": 0, "json": {"changes": []}, "parse_error": ""},
+        status={},
+        validate={"exit_code": exit_code, "json": payload, "parse_error": ""},
+        selected=None,
+    )
+    assert observed == expected
 
 
 def test_official_rows_selection_and_command_gaps_reject_malformed_authority() -> None:
@@ -41,7 +123,7 @@ def test_official_rows_selection_and_command_gaps_reject_malformed_authority() -
         doctor=result(json={"root": {"healthy": True}}),
         list_result=result(),
         status=result(parse_error="invalid"),
-        validate=result(),
+        validate=result(json={"items": []}),
         selected=None,
     )
     assert gaps == ["openspec_status_json_parse_failed"]

@@ -228,6 +228,11 @@ def commit_payload(root: Path, revision: str) -> bytes:
     raw = _commit_object(root, revision)
     if not raw:
         return b""
+    return unsigned_commit_payload(raw)
+
+
+def unsigned_commit_payload(raw: bytes) -> bytes:
+    """Remove only native signature headers from exact commit object bytes."""
     header, separator, message = raw.partition(b"\n\n")
     if not separator:
         return b""
@@ -518,13 +523,14 @@ def _trust_report(
     }
 
 
-def read_blobs(
+def read_objects(
     repo: Path,
     object_ids: tuple[str, ...],
     *,
-    gap: str = "git_blob_batch_invalid",
+    kind: Literal["blob", "commit"] = "blob",
+    gap: str = "git_object_batch_invalid",
 ) -> tuple[bytes, ...]:
-    """Read exact blobs in one native batch, validating framing and requested identities."""
+    """Read exact typed objects in one native batch with strict frame/identity validation."""
     if not object_ids:
         return ()
     result = run_git(
@@ -543,12 +549,12 @@ def read_blobs(
     try:
         for expected in object_ids:
             header_end = payload.index(b"\n", offset)
-            object_id, kind, raw_size = payload[offset:header_end].decode().split(" ")
+            object_id, actual_kind, raw_size = payload[offset:header_end].decode().split(" ")
             size = int(raw_size)
             content_start, content_end = header_end + 1, header_end + 1 + size
             if not (
                 object_id == expected
-                and kind == "blob"
+                and actual_kind == kind
                 and size >= 0
                 and payload[content_end : content_end + 1] == b"\n"
             ):

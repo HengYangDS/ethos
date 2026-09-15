@@ -287,15 +287,64 @@ Missing new-ref baselines fail closed; no routine whole-history fallback exists.
 Entry guidance must preserve that distinction from explicitly requested history
 or tag audits.
 
-A separate explicit accepted-history metadata audit covers 3,996 commits and
-finds 43 with author or committer email different from today's configuration.
-Difference alone is not wrong authorship. Four specifically identified no-reply
-objects are associated by GitHub with account `Yheng`: one has a locally valid
-SSH signature but hosted `unknown_key`; three are unsigned. Metadata, local
-signer trust, platform account association and transport credentials are separate
-facts. Historical correction remains open; no retired key was registered and no
-history rewritten speculatively. Preserve exact old-object scope and prove the
-chosen correction rather than silently reclassifying those observations.
+The September 15 exact audit at `73def29c` covered 4,010 accepted commits:
+40 require the explicitly authorized attribution correction (four wrong GitHub
+account associations, 19 maintainer placeholders and 17 example addresses).
+Four other metadata differences are not automatically wrong authorship. Recent
+accepted signatures were verified by both peers; that never repaired old objects.
+Exact selection and a 17,870,480-byte self-contained Git bundle are retained in
+`build/evidence/quality/source-delivery-lifecycle/history-repair/preparation.json`.
+The bundle and selection are evidence, not mutation authority. Their old-ref
+snapshot must be refreshed before actual application; no historical refs have
+been rewritten.
+
+The official `commit-integrity` Change owns repair and prevention. Public native
+probes reproduce invalid signature-envelope admission and candidate policy
+self-weakening. Wrong-identity admission separately lacks a tracked constraint;
+it is not evidence that every repository must impose a single author. The new
+candidate compiles optional explicit author/committer declarations, validates
+prospective identity, applies trusted-base and candidate constraints, and invokes
+native verification. It removes the disabled-by-default mutable identity owner.
+Its initial negative matrix and direct consumers pass; this is not yet accepted
+or installed enforcement.
+
+Historical replacement extends the existing repair command and exact Git effect.
+It preserves source/message/time and unselected attribution, maps ordered parents,
+retains originals, distinguishes new repair signatures, and requires completed
+ref-effect evidence before provenance can support archive or publication. Local
+native object, replay and provenance cases pass. The September 16 candidate also
+closes generated parent/tree admission, trusted-base replay, duplicate request
+fields, symlink erasure and damaged-pack acceptance. Native commit-msg/pre-push
+tests distinguish wrong identity, unsigned bypass and successful signed push.
+An interrupted two-object repair resumes without re-signing the completed object;
+same-key no-effect requests reject before creating objects. Reissued source-policy,
+payload, repository and ref coordinates reject. The complete focused consumer
+closure passed 219 cases in 254.83 seconds after provenance/replay tightening.
+Evidence is under `build/evidence/quality/commit-integrity/` in the owned lane.
+Actual multi-thousand-object performance, process-kill recovery, package re-entry,
+full proof, hosted trust setup and independent publication remain acceptance
+obligations. No historical correction is applied. Reuse batch Git reads;
+never multiply complete-history verification at every old Attestation lookup.
+
+Execution order is: finish and accept commit-integrity; activate it; enable the
+explicit self-repository identity declaration through its fresh supported policy
+boundary; then apply the confirmed historical selection, reprove/rebind, update
+each independent peer by exact old OID, and read back account/signature status.
+Old Attestations keep original subjects; no copied green verdict, mailmap-only
+masking, wildcard author replacement, key registration or permanent bypass is
+an acceptable substitute. Actual history repair is a post-install operation in
+this plan, not a source checkbox that prevents installing its own prerequisite.
+
+The preceding typed Change selection repair is now accepted and published as
+`e0ba1e3a466f3ea9198edfbf0592fbd26bbede77`, tree
+`0d91d6a04a6ae3f59d5d5d9a9da5d18ba362cb18`. Prearchive and postarchive full
+proofs passed 35 gates; the postarchive run took 1,554.743 seconds. Runtime
+`3616f0cafe6f37e74309817f1452da396c9aba8d9b1c3513f3af63c166a476a1` was
+installed and both peers' dev/main OIDs read back equal. The lane/ref/Lease
+retired publicly. Fifty-six selected evidence files (1,818,639 bytes) were
+hash-verified at `build/evidence/quality/change-selection/`; runtime/dependency
+scratch was not copied. The adopter received the exact source and public update
+entry; its independent replay remains an adopter-owned observation.
 
 ### Measured Iteration Cost And P5 Order
 

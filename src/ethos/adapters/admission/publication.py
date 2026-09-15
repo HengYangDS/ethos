@@ -9,15 +9,15 @@ from dataclasses import asdict
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.openspec.observation import active_change_names_in_ref
-from ethos.adapters.repo.commit.admission import commit_range_admission_report
+from ethos.adapters.repo.commit.integration import commit_range_admission_report
+from ethos.adapters.repo.commit.signature import completed_signature_repair
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
-from ethos.adapters.repo.git_object import read_blobs
+from ethos.adapters.repo.git_object import read_objects
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
@@ -63,7 +63,7 @@ def _committed_target_policy(root: Path, revision: str) -> tuple[BranchRolePolic
             raise ValueError(message)
         entries[path.decode()] = oid.decode("ascii")
     texts = dict(
-        zip(entries, (b.decode() for b in read_blobs(root, tuple(entries.values()))), strict=True)
+        zip(entries, (b.decode() for b in read_objects(root, tuple(entries.values()))), strict=True)
     )
     workspace = texts.get(_POLICY_PATHS[0], "")
     values = tomllib.loads(workspace)
@@ -347,7 +347,6 @@ def push_admission_report(
             remote_head=remote_head,
         )
     commits = cast("dict[str, object]", observed["commit_policy_admission"])
-    identity = push_identity_policy_report(repo, tuple(string_sequence(commits.get("revisions"))))
     selection = publication_proof_selection(role)
     supplied = options.get("proof_admission")
     proof = (
@@ -365,11 +364,12 @@ def push_admission_report(
         else publication_proof_admission(repo, proof_head, (role,))
     )
     proof_gaps = list(string_sequence(proof.get("required_gaps")))
-    if role == "accepted_root":
+    repaired = commits.get("state") == "repaired_history"
+    if role == "accepted_root" and not repaired:
         proof_gaps = [gap for gap in proof_gaps if gap.startswith("repository_commitment_")]
     topology_gaps = (
         accepted_advance_gaps(repo, policy, old_value=remote_head, new_value=pushed_head)
-        if role == "accepted_root"
+        if role == "accepted_root" and not repaired
         else []
     )
     ref_gaps = list(string_sequence(ref_admission.get("enforcement_gaps")))
@@ -378,7 +378,6 @@ def push_admission_report(
             (
                 *ref_gaps,
                 *string_sequence(observed.get("required_gaps")),
-                *string_sequence(identity.get("required_gaps")),
                 *proof_gaps,
                 *topology_gaps,
                 *closeout_gaps,
@@ -394,13 +393,10 @@ def push_admission_report(
         if commits.get("required_gaps")
         else "publication_intent_not_admitted"
         if observed.get("required_gaps")
-        else "pushed_commit_identity_not_allowed"
-        if gaps
         else "push_admitted"
     )
     verdict = reduce_verdicts(
         report_verdict(observed),
-        report_verdict(identity),
         "block" if ref_gaps or proof_gaps or topology_gaps or closeout_gaps else "pass",
         required_gaps=tuple(gaps),
     )
@@ -416,7 +412,6 @@ def push_admission_report(
         "pushed_head": pushed_head,
         "target_branch": branch,
         "publication_ref_admission": ref_admission,
-        "identity_policy": identity,
         "proof_admission": proof,
         "accepted_closeout_effect": closeout,
         "decision": {"action": "allow" if verdict == "pass" else "block", "reason": reason},
@@ -451,6 +446,21 @@ def _accepted_closeout_baseline(
     except ValueError as error:
         return {}, [str(error)], "", ""
     if closeout is None:
+        repair = completed_signature_repair(repo, new=proof_head)
+        if repair is not None and accepted_ref in cast("Mapping[str, str]", repair["refs"]):
+            return (
+                {
+                    "attestation_id": repair["attestation_id"],
+                    "plan_digest": repair["plan_digest"],
+                    "accepted_ref": accepted_ref,
+                    "accepted_before": repair["old"],
+                    "candidate_head": proof_head,
+                    "operation": "commit.identity-replace",
+                },
+                [],
+                "",
+                "",
+            )
         return {}, ["accepted_closeout_effect_not_attested"], "", ""
     plan, attestation = closeout
     accepted_before = git_effect_from_plan(plan).updates[accepted_ref].expected

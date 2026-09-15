@@ -9,7 +9,7 @@ from pathlib import PurePosixPath
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_object import read_blobs
+from ethos.adapters.repo.git_object import read_objects
 from ethos.contracts.semantic import Attestation
 
 ATTESTATION_SET_REF = "refs/ethos/attestations-set"
@@ -144,7 +144,7 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
     attestations: list[Attestation] = []
     for (_object_id, path), raw in zip(
         files,
-        read_blobs(
+        read_objects(
             repo, tuple(object_id for object_id, _path in files), gap="attestation_set_root_invalid"
         ),
         strict=True,

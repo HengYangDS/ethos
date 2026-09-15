@@ -18,7 +18,7 @@ from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.process import ProcessExecutionError
-from ethos.adapters.repo.commit.admission import commit_range_admission_report
+from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.hook.activation import HookActivationError
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.store.state.schema import state_schema_report

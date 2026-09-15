@@ -8,11 +8,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commit.admission import commit_policy_report
+from ethos.adapters.repo.commit.history import history_repair_coordinates
+from ethos.adapters.repo.commit.history import validate_history_repair
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
+from ethos.adapters.repo.git_effect_attestation import validate as validate_git_effect_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.git_object import equivalent_commit_identity
@@ -25,6 +30,7 @@ from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.repository.policy.commit import commit_policy_from_text
@@ -43,13 +49,15 @@ def _require(condition: object, gap: str) -> None:
         raise ValueError(gap)
 
 
-def signature_coordinates(root: Path, old: str, actor: str, new: str = "") -> dict[str, object]:
+def signature_coordinates(
+    root: Path, old: str, actor: str, new: str = "", *, history: Mapping[str, object] | None = None
+) -> dict[str, object]:
     """Derive allowed refs and identity from an unsigned accepted source, not a receipt."""
     source = observe_commit(root, old)
     _require(source["verdict"] == "pass", "signature_repair_source_unavailable")
     _require(source["object_oid"] == old, "signature_repair_source_not_exact")
     _require(
-        not cast("dict[str, object]", source["signature"])["present"],
+        history is not None or not cast("dict[str, object]", source["signature"])["present"],
         "signature_repair_source_not_unsigned",
     )
     policy_text = committed_file_text(root, old, ".ethos/workspace.toml")
@@ -72,8 +80,27 @@ def signature_coordinates(root: Path, old: str, actor: str, new: str = "") -> di
         refs[f"refs/heads/{policy.release_branch}"] = old
     payload = commit_payload(root, old)
     _require(bool(payload), "signature_repair_payload_unavailable")
+    checked_history = None
+    if history is not None:
+        backup = cast("Mapping[str, str]", history["backup"])
+        checked_history = history_repair_coordinates(
+            root,
+            old,
+            corrections=cast("Mapping[str, object]", history["corrections"]),
+            reason=str(history["reason"]),
+            backup=Path(backup["path"]),
+        )
+        _require(checked_history == history, "history_repair_coordinates_changed")
     if new:
-        _require(equivalent_commit_identity(root, old, new), "signature_repair_payload_changed")
+        if checked_history is not None:
+            validate_history_repair(
+                root,
+                old,
+                new,
+                corrections=cast("Mapping[str, object]", checked_history["corrections"]),
+            )
+        else:
+            _require(equivalent_commit_identity(root, old, new), "signature_repair_payload_changed")
         report = commit_policy_report(root, signing, new, verify_trust=True)
         gaps = cast("list[str]", report["required_gaps"])
         _require(not gaps, gaps[0] if gaps else "")
@@ -82,6 +109,7 @@ def signature_coordinates(root: Path, old: str, actor: str, new: str = "") -> di
         "common_dir": str(git_common_dir(root)),
         "repository": repository_identity(root, tree_ref=old),
         "actor": actor,
+        **({"history": checked_history} if checked_history is not None else {}),
         "old": old,
         "accepted_branch": policy.accepted_branch,
         "policy_sha256": hashlib.sha256(policy_text.encode()).hexdigest(),
@@ -106,7 +134,13 @@ def validate_signature_coordinates(
 ) -> None:
     """Require exact trusted-source coordinates, selected refs and clean worktrees."""
     _require(coordinates.get("actor") == actor, "signature_repair_actor_mismatch")
-    expected = signature_coordinates(root, str(coordinates.get("old", "")), actor, new)
+    expected = signature_coordinates(
+        root,
+        str(coordinates.get("old", "")),
+        actor,
+        new,
+        history=cast("Mapping[str, object] | None", coordinates.get("history")),
+    )
     _require(
         coordinates == expected,
         "signature_repair_coordinates_mismatch",
@@ -166,7 +200,8 @@ def signature_record_coordinates(record: Attestation) -> dict[str, object]:
             "payload_sha256",
             "refs",
             "worktrees",
-        },
+        }
+        | ({"history"} if "history" in coordinates else set()),
         "signature_repair_evidence_invalid",
     )
     coordinates = cast("dict[str, object]", coordinates)
@@ -246,3 +281,111 @@ def observe_signature_effects(
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
         report["observation_error"] = str(error)
     return report
+
+
+def completed_signature_repair(
+    root: Path, *, new: str, attestations: tuple[Attestation, ...] | None = None
+) -> dict[str, object] | None:
+    """Resolve repair provenance only after its exact Git effect was durably observed."""
+    if attestations is None:
+        _, attestations = read_attestation_set(root)
+    results = [
+        item
+        for item in attestations
+        if item.predicate == RESULT and item.payload.body.get("replacement") == new
+    ]
+    if not results:
+        return None
+    _require(len(results) == 1, "signature_repair_evidence_ambiguous")
+    result = results[0]
+    coordinates = signature_record_coordinates(result)
+    _validate_historical_source(root, coordinates)
+    plan = TransitionPlan.model_validate(mutable_json(result.payload.body.get("plan")))
+    effect = git_effect_from_plan(plan)
+    _require(
+        plan.digest == result.plan_digest == result.payload.body.get("plan_digest")
+        and plan.policy.get("transition") == "commit.identity-replace"
+        and plan.policy.get("actor") == coordinates["actor"]
+        and mutable_json(plan.facts.get("values", {}).get("signature_repair", {})) == coordinates
+        and plan.facts.get("values", {}).get("replacement") == new
+        and {ref: update.expected for ref, update in effect.updates.items()} == coordinates["refs"]
+        and {update.desired for update in effect.updates.values()} == {new},
+        "signature_repair_plan_mismatch",
+    )
+    applied = [
+        item
+        for item in attestations
+        if item.predicate == "effect:git-ref-update" and item.plan_digest == plan.digest
+    ]
+    if not applied:
+        return None
+    _require(len(applied) == 1, "signature_repair_evidence_ambiguous")
+    observed = applied[0]
+    _require(plan_from_attestation(observed) == plan, "signature_repair_plan_mismatch")
+    validate_git_effect_attestation(
+        root,
+        effect,
+        observed,
+        issuer=result.verifier,
+        plan=plan,
+        current_postconditions=False,
+    )
+    old = str(coordinates["old"])
+    history = coordinates.get("history")
+    if isinstance(history, dict):
+        mapping = validate_history_repair(
+            root,
+            old,
+            new,
+            corrections=cast("Mapping[str, object]", history["corrections"]),
+        )
+    else:
+        _require(equivalent_commit_identity(root, old, new), "signature_repair_payload_changed")
+        mapping = {old: new}
+    return {
+        "old": old,
+        "new": new,
+        "mapping": mapping,
+        "refs": coordinates["refs"],
+        "attestation_id": observed.id,
+        "plan_digest": plan.digest,
+    }
+
+
+def _validate_historical_source(root: Path, coordinates: Mapping[str, object]) -> None:
+    """Re-derive immutable source obligations; historical records do not choose policy."""
+    old = str(coordinates["old"])
+    policy_text = committed_file_text(root, old, ".ethos/workspace.toml")
+    policy = strict_branch_role_policy_from_text(policy_text)
+    signing = commit_policy_from_text(policy_text)
+    _require(signing is not None and signing.signing_required, "signature_repair_policy_required")
+    required = {f"refs/heads/{policy.accepted_branch}": old}
+    if policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF:
+        required[f"refs/heads/{policy.release_branch}"] = old
+    allowed = {
+        **required,
+        **({f"refs/heads/{policy.candidate_branch}": old} if policy.candidate_branch else {}),
+    }
+    refs = coordinates["refs"]
+    _require(
+        isinstance(refs, dict)
+        and required.items() <= refs.items() <= allowed.items()
+        and coordinates["accepted_branch"] == policy.accepted_branch
+        and coordinates["repository"] == repository_identity(root, tree_ref=old)
+        and coordinates["policy_sha256"] == hashlib.sha256(policy_text.encode()).hexdigest()
+        and coordinates["payload_sha256"] == hashlib.sha256(commit_payload(root, old)).hexdigest(),
+        "signature_repair_source_coordinates_mismatch",
+    )
+
+
+def repaired_ref_provenance(
+    root: Path, *, ref: str, old: str, new: str
+) -> dict[str, object] | None:
+    """Recognize only the exact original-to-replacement ref already locally applied."""
+    if old == new:
+        return None
+    repair = completed_signature_repair(root, new=new)
+    if repair is None:
+        return None
+    refs = cast("Mapping[str, str]", repair["refs"])
+    return repair if refs.get(ref) == old else None

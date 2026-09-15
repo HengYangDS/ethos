@@ -13,15 +13,16 @@ from typing import cast
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.admission import commit_subject_gap
+from ethos.adapters.repo.commit.admission import prospective_identity_gaps
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.git_object import observe_commit
 from ethos.repository.policy.commit import commit_policy_from_text
-from ethos.repository.policy.commit import load_commit_policy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -102,10 +103,19 @@ def create_git_commit(
     runner: Callable[..., Any] = run_git,
 ) -> Any:
     """Create and verify one commit object under repository signing policy."""
-    policy = load_commit_policy(root)
-    if gap := commit_subject_gap(policy, message):
-        raise ValueError(gap)
-    sign = policy is not None and policy.signing_required
+    policies = tuple(
+        dict.fromkeys(
+            policy
+            for revision in (parent, tree)
+            if (policy := commit_policy_for_revision(root, revision)) is not None
+        )
+    )
+    for policy in policies:
+        if gap := commit_subject_gap(policy, message):
+            raise ValueError(gap)
+        if gaps := prospective_identity_gaps(root, policy, environment=dict(environment or {})):
+            raise ValueError(gaps[0])
+    sign = any(policy.signing_required for policy in policies)
     completed = runner(
         root,
         "commit-tree",
@@ -118,14 +128,18 @@ def create_git_commit(
         check=False,
         env=commit_environment(root, environment) if sign else environment,
     )
-    if completed.returncode or not sign:
+    if completed.returncode or not policies:
         return completed
     revision = completed.stdout.strip()
     gaps = (
-        cast(
-            "list[str]",
-            commit_policy_report(root, policy, revision, verify_trust=True)["required_gaps"],
-        )
+        [
+            gap
+            for policy in policies
+            for gap in cast(
+                "list[str]",
+                commit_policy_report(root, policy, revision, verify_trust=True)["required_gaps"],
+            )
+        ]
         if revision
         else ["git_effect_signed_commit_missing"]
     )
@@ -153,28 +167,11 @@ def create_signed_replacement(root: Path, revision: str) -> str:
     if gap := commit_subject_gap(policy, str(source["subject"]), revision=revision):
         raise ValueError(gap)
     payload = commit_payload(root, revision)
-    header, separator, message = payload.partition(b"\n\n")
+    _header, separator, _message = payload.partition(b"\n\n")
     if not separator:
         error = "signature_repair_payload_unavailable"
         raise ValueError(error)
-    armor = _sign_payload(root, payload)
-    signature_header = b"gpgsig-sha256" if len(str(source["object_oid"])) == 64 else b"gpgsig"
-    signed = (
-        header
-        + b"\n"
-        + signature_header
-        + b" "
-        + armor.replace(b"\n", b"\n ")
-        + separator
-        + message
-    )
-    created = run_git(
-        root, "hash-object", "-w", "-t", "commit", "--stdin", stdin=signed, text=False, check=False
-    )
-    if created.returncode:
-        error = "signature_repair_object_failed:" + created.stderr.decode(errors="replace")
-        raise ValueError(error)
-    replacement = created.stdout.decode("ascii").strip()
+    replacement = create_signed_payload(root, payload)
     validation_verdict = "block"
     try:
         gaps = (
@@ -201,6 +198,59 @@ def create_signed_replacement(root: Path, revision: str) -> str:
             },
         )
     return replacement
+
+
+def create_signed_payload(root: Path, payload: bytes) -> str:
+    """Sign exact validated commit payload bytes without moving a reference."""
+    header, separator, message = payload.partition(b"\n\n")
+    if not separator or any(
+        line.startswith((b"gpgsig ", b"gpgsig-sha256 ")) for line in header.split(b"\n")
+    ):
+        error = "signature_repair_payload_invalid"
+        raise ValueError(error)
+    armor = _sign_payload(root, payload)
+    object_format = run_git(root, "rev-parse", "--show-object-format").stdout.strip()
+    signature_header = b"gpgsig-sha256" if object_format == "sha256" else b"gpgsig"
+    signed = (
+        header
+        + b"\n"
+        + signature_header
+        + b" "
+        + armor.replace(b"\n", b"\n ")
+        + separator
+        + message
+    )
+    created = run_git(
+        root,
+        "hash-object",
+        "-w",
+        "-t",
+        "commit",
+        "--stdin",
+        stdin=signed,
+        text=False,
+        check=False,
+    )
+    if created.returncode:
+        error = "signature_repair_object_failed:" + created.stderr.decode(errors="replace")
+        raise ValueError(error)
+    return created.stdout.decode("ascii").strip()
+
+
+def configured_signer_fingerprint(root: Path) -> str:
+    """Observe the selected public-key fingerprint with native OpenSSH, without signing."""
+    commit_environment(root, None)
+    public = run_git(root, "config", "--local", "--get", "user.signingkey").stdout.strip()
+    executable = shutil.which("ssh-keygen")
+    if not executable:
+        gap = "git_effect_signing_program_invalid"
+        raise ValueError(gap)
+    observed = run_command(root, (executable, "-lf", public), timeout=15)
+    fields = observed.stdout.split()
+    if observed.returncode or len(fields) < 2 or not fields[1].startswith("SHA256:"):
+        gap = "git_effect_signing_key_invalid"
+        raise ValueError(gap)
+    return fields[1]
 
 
 def _sign_payload(root: Path, payload: bytes) -> bytes:

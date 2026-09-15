@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,8 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestation_once
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit.creation import create_signed_replacement
+from ethos.adapters.repo.commit.history import history_repair_coordinates
+from ethos.adapters.repo.commit.history import prepare_history_repair
 from ethos.adapters.repo.commit.signature import ATTEMPT
 from ethos.adapters.repo.commit.signature import RESULT
 from ethos.adapters.repo.commit.signature import observe_signature_effects
@@ -103,14 +106,26 @@ def _apply(
     old, actor = str(coordinates["old"]), str(coordinates["actor"])
     try:
         if result is None:
+            history = coordinates.get("history")
             _require(
-                attempt is None or bool(replacement), "signature_repair_signing_outcome_unknown"
+                attempt is None or bool(replacement) or isinstance(history, Mapping),
+                "signature_repair_signing_outcome_unknown",
             )
+            recovering = attempt is not None
             if attempt is None:
                 _require(not replacement, "signature_repair_replacement_without_attempt")
                 attempt = record_attestation_once(root, _record(ATTEMPT, coordinates))
                 validate_signature_coordinates(root, coordinates, actor)
-                replacement = create_signed_replacement(root, old)
+                if not isinstance(history, Mapping):
+                    replacement = create_signed_replacement(root, old)
+            if isinstance(history, Mapping) and not replacement:
+                prepared = prepare_history_repair(
+                    root,
+                    old,
+                    corrections=cast("Mapping[str, object]", history["corrections"]),
+                    recover=recovering,
+                )
+                replacement = str(prepared["replacement"])
             validate_signature_coordinates(root, coordinates, actor, replacement)
             plan = signature_plan(root, coordinates, replacement)
             result = _record(
@@ -169,6 +184,9 @@ def repair_signature(
     apply: bool = False,
     authorized: bool = False,
     replacement: str = "",
+    corrections: Mapping[str, object] | None = None,
+    reason: str = "",
+    backup: Path | None = None,
 ) -> dict[str, object]:
     """Observe, execute or recover one authorized accepted-tip signature repair."""
     root = root.resolve()
@@ -189,15 +207,29 @@ def repair_signature(
             "signature_repair_replacement_mismatch",
         )
         saved = result or attempt
+        history = None
+        if corrections is not None:
+            _require(backup is not None, "history_repair_backup_required")
+            assert backup is not None
+            history = history_repair_coordinates(
+                root,
+                expect_head,
+                corrections=corrections,
+                reason=reason,
+                backup=backup,
+            )
         coordinates = (
             signature_record_coordinates(saved)
             if saved
-            else signature_coordinates(root, expect_head, actor)
+            else signature_coordinates(root, expect_head, actor, history=history)
         )
+        if history is not None:
+            _require(coordinates.get("history") == history, "history_repair_request_changed")
         new = str(result.payload.body["replacement"]) if result else replacement
         validate_signature_coordinates(root, coordinates, actor, new)
         _require(
-            not (attempt and not result and not new), "signature_repair_signing_outcome_unknown"
+            not (attempt and not result and not new and "history" not in coordinates),
+            "signature_repair_signing_outcome_unknown",
         )
         if not apply:
             return {

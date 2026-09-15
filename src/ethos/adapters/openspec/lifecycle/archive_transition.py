@@ -13,8 +13,9 @@ from ethos.adapters.openspec.lifecycle.archive_binding import archive_source_pat
 from ethos.adapters.openspec.lifecycle.archive_binding import archived_change_from_path
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_refresh import RefreshEdge
-from ethos.adapters.openspec.lifecycle.archive_refresh import validated_refresh_edge
+from ethos.adapters.openspec.lifecycle.archive_refresh import refresh_edges
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.commit.signature import completed_signature_repair
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
@@ -72,7 +73,20 @@ def attested_archive_transition(
         if match is not None:
             matches.append(match)
     if not matches:
-        return None
+        repaired = completed_signature_repair(root, new=head, attestations=attestations)
+        if repaired is None:
+            return None
+        previous = attested_archive_transition(root, head=str(repaired["old"]), change=change)
+        if previous is None:
+            return None
+        commitment, authority = previous
+        mapping = repaired["mapping"]
+        assert isinstance(mapping, dict)
+        return commitment, {
+            **authority,
+            "resolved_head": mapping.get(authority.get("resolved_head"), head),
+            "repair_attestation_id": repaired["attestation_id"],
+        }
     nearest = min(match.distance for match in matches)
     selected = [match for match in matches if match.distance == nearest]
     if len(selected) > 1:
@@ -174,7 +188,7 @@ def _resolve_archive_head(
     archive_tree = _object_id(root, f"{archived_head}:{archive_path}")
     if not archive_tree:
         return None
-    edges = _refresh_edges(root, branch=branch, attestations=attestations)
+    edges = refresh_edges(root, branch=branch, attestations=attestations)
     candidates, graph_ambiguous = _archive_refresh_candidates(
         root,
         archived_head=archived_head,
@@ -188,20 +202,6 @@ def _resolve_archive_head(
     nearest = min(candidate[1] for candidate in candidates)
     selected = [candidate for candidate in candidates if candidate[1] == nearest]
     return selected[0] if len(selected) == 1 else None
-
-
-def _refresh_edges(
-    root: Path,
-    *,
-    branch: str,
-    attestations: tuple[Any, ...],
-) -> dict[str, tuple[RefreshEdge, ...]]:
-    grouped: dict[str, list[RefreshEdge]] = {}
-    for attestation in attestations:
-        edge = validated_refresh_edge(root, branch=branch, attestation=attestation)
-        if edge is not None:
-            grouped.setdefault(edge.previous, []).append(edge)
-    return {previous: tuple(values) for previous, values in grouped.items()}
 
 
 def _archive_refresh_candidates(

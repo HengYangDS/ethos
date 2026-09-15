@@ -143,6 +143,7 @@ def publication_ref_transition(
     desired: str,
     zero: str,
     fast_forward: bool,
+    repaired: bool = False,
 ) -> dict[str, object]:
     """Resolve one observed ref into the sole admitted exact-CAS transition."""
     ref_kind = str(admission.get("ref_kind") or "unknown")
@@ -150,7 +151,8 @@ def publication_ref_transition(
     current = observed == desired
     create = observed == zero
     advance = ref_kind == "branch" and fast_forward
-    eligible = admitted and (current or create or advance)
+    replace = ref_kind == "branch" and repaired
+    eligible = admitted and (current or create or advance or replace)
     state = (
         "current"
         if admitted and current
@@ -158,6 +160,8 @@ def publication_ref_transition(
         if admitted and create
         else "advance"
         if admitted and advance
+        else "repair"
+        if admitted and replace
         else "divergent"
         if admitted
         else "unavailable"

@@ -238,6 +238,49 @@ missing success path, bad policy replacement or lifecycle cycles. Translate a
 counterexample into a real public-entry regression. A proof about a model is not
 an implementation proof without a checked correspondence and explicit assumptions.
 
+### Executed CUE Rule Trial
+
+On September 15, the accepted `c03e209118ba72120c58278996fab1a6043bc927`
+source was compared with the already installed CUE 0.17.1 executable. No tool
+installation, dependency change, adopter mutation or production CUE integration
+occurred. The trial consumed the actual three rules in `.ethos/rules.toml`,
+`system/schemas/kernel/rule.schema.json` and the installed strict `Rule` model.
+
+Native `cue def jsonschema+strict:` imported that schema without a handwritten
+CUE copy, using the [official JSON Schema integration][cue-json-schema]. Native
+export exercised twelve cases: the three actual rules, missing
+owner, empty paths, unknown field, invalid severity, Boolean/string/float version,
+numeric owner and omitted default version. All three consumers agreed except
+for `version: 1.0`: JSON Schema accepted it; the strict Python model and imported
+CUE definition rejected it. JSON Schema [defines integral numeric values][json-numeric]
+independently of decimal spelling. This is a real carrier/representation distinction,
+not evidence that CUE has understood the policy or that every rule is equivalent.
+Contradictory severity declarations were rejected in either input order.
+
+Exporting the imported definition back to JSON Schema preserved verdicts across
+these twelve cases. The selected CLI documents JSON Schema output as experimental;
+this small round trip does not qualify every keyword, default, reference, error
+path or supported platform. Both owned scratch directories were removed.
+
+The demonstrated replacement opportunity is the manually repeated structural
+rule contract, not another validator beside the current ones. CUE is a strong
+candidate for composing declaration constraints and rejecting contradictions
+before execution. For an already typed Python wire model, native schema generation
+is a competing lower-cost replacement and must be compared rather than ignored.
+Choose one editable owner per rule family; generated wire schemas and Python
+values are projections, not independently editable policy. Settle the numeric
+carrier distinction explicitly before switching any consumer.
+
+The trial is recorded in the existing ignored quality evidence as
+`build/evidence/quality/validation-results/cue-rule-evaluation.json`: exact source,
+input and binary hashes,
+argv, stdout/stderr, individual verdicts and cleanup readback. Production
+packaging, offline supply, native-platform qualification, error compatibility
+and measured cold/warm cost remain unproved. Prior research prioritized this
+trial; it did not justify indefinite deferral or establish that CUE was already
+an implemented profile compiler. CUE cannot replace fresh authorization,
+effect observation, recovery or accepted OpenSpec intent.
+
 ### Program Meaning Is Not Spelling
 
 The current `python_syntax.py` still constructs a whole-tree string table and
@@ -507,6 +550,8 @@ marketing claims were not used as evidence of comparative performance.
 [xstate]: https://github.com/statelyai/docs/blob/54827bcf6591935ae1dc13484eafca88d3b4cf7a/content/docs/persistence.mdx
 [anyio-mechanism]: https://github.com/agronholm/anyio/blob/4e72d8667818d4a972a549cd910a4e4340c504a0/docs/cancellation.rst
 [cue]: https://github.com/cue-lang/cue/blob/e83d953917a564d12cf9a1cfcac5ecca9e8a711a/README.md
+[cue-json-schema]: https://cuelang.org/docs/concept/how-cue-works-with-json-schema/
+[json-numeric]: https://json-schema.org/understanding-json-schema/reference/numeric
 [cel]: https://github.com/google/cel-spec/blob/ba58ae5007845f3a1279b488cdeb79645ce958bb/README.md
 [jsonschema]: https://github.com/json-schema-org/json-schema-spec/blob/4f56a9900674b27804f0ec32e3b7fdfa4efad695/README.md
 [cedar]: https://github.com/cedar-policy/cedar/blob/2f4019fd645cc8d4a4c0c1f8bd0280c77d754e28/README.md

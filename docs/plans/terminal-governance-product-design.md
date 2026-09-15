@@ -33,44 +33,32 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-Accepted source is `8f2e829fed3877c5375cd8636bea45bee583f6c4`, tree
-`9eae4a9af5b76ab8588601bdc3031ca86c5f8b7c`. Implementation and official
-postarchive proofs each passed 35 gates, with 3,393 tests passed, one skipped,
-and combined line/branch coverage 25,719/27,035, or 95.1322 percent. Public
-candidate integration, accepted closeout, installation, independent peer
-publication and source-lane retirement have executed receipts. This closes
-`projection-assurance`, not the global terminal goal.
+Accepted source is `c03e209118ba72120c58278996fab1a6043bc927`, tree
+`1d2b0bcba0399fa4ebcfc0a3708d16f67aef8ca1`. The `source-observation` Change
+completed implementation and official postarchive proofs: each passed 35 gates,
+with 3,414 tests passed, one skipped, and combined line/branch coverage
+25,742/27,055, or 95.1469 percent. The two exact proof attempts took 2,355.476
+and 2,199.441 seconds. These are individual runs, not a general speed guarantee.
 
-Installed common runtime
-`f64b6bebe3d5f9f23855f27b715cf1be8dcf1b76ca23c839ce5340005310e675` matches that
-source/tree. Its installer removed the previous `2953f877` generation. Both
-independent dev/main pairs read back at the accepted object. Publication used
-existing GitHub maintainer permission to bypass PR and then-pending checks;
-local hooks stayed armed and remote protection settings were unchanged.
-The Work Lane, ref and Lease retired through the public command. Thirty-eight
-selected proof, regression, migration and hosted-failure files were preserved
-with matching hashes under the existing ignored
-`build/evidence/quality/projection-assurance/`. The
-`final-delivery-readback.json` receipt binds those results. Reproducible
-preparation logs, the 469-MiB environment and remaining lane cache were removed.
-One serial successor now carries only official Change `source-observation`.
+Public candidate integration and accepted closeout advanced candidate/dev/main
+to that object. Installed common runtime
+`807cc31c0455e48a3745a8e496363e89d3a005c05d6cb757d4307b9d2baa754b` matches
+its source and tree; the installer removed `f64b6beb`. Independent GitHub and
+GitLab dev/main refs read back at the same object. GitHub used existing
+maintainer permission to bypass PR and then-pending checks; local hooks remained
+armed and protection settings were unchanged. Publication receipt
+`74a1e1107ef7056f790156a8a6894fc15e8f5e9a8fd16bb8228a751eb773f75e` records
+the effect, not hosted CI completion.
 
-The delivered source contract replaces undefined R01–R14/P00–P09 identifiers
-with eight source-referenced acceptance families over all 43 unchanged graph
-propositions. The quality carrier is JSON v4 at the existing owner; the old YAML
-is absent. Declaration validity, source judgment, independent interpretation,
-rendered measurement and owner acceptance remain distinct. Partial/Present views
-preserve the necessary conditions of every relation they express. No qualified
-predecessor prohibits comparison claims, not first-artifact absolute acceptance.
-
-The selected stdlib-only exporter replayed twice with identical output:
-`projection.input/v2`, digest
-`4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8`.
-The renderer owner independently confirmed those bytes, unchanged graph/copy/view
-and numerical floors, and began both consumers' explicit v4 migration. Its
-reported static CLT font/geometry results do not establish browser, Present-mode,
-independent semantic or aesthetic acceptance. ETHOS does not modify the renderers
-or treat a source handoff as diagram acceptance.
+The preceding Work Lane, ref and Lease retired through the public command.
+Only accepted and candidate worktrees remained before this serial successor.
+Fifty-seven selected evidence files, 9,876,319 bytes, were preserved with matching
+hashes in the accepted root's ignored `build/evidence/quality/source-observation/`.
+The 456-MiB environment and remaining disposable lane outputs were removed.
+`preservation.json`, `retirement-apply.json` and `final-delivery-readback.json`
+bind selection, effect and exact absence. Profiles remain only while the existing
+P5 work consumes them; copying all interim artifacts is not the retention policy.
+The sole current authoring lane carries official Change `validation-results`.
 
 One 500-ELOC ceiling applies to every Python file, including tests and surfaces.
 Product and test totals have independent 50,000 ceilings; combined coverage stays
@@ -79,93 +67,148 @@ owns aggregate accounting and [.ethos/rules.toml](../../.ethos/rules.toml) owns
 file limits. Old goal snapshots, 38,300/45,000 totals and role-specific 800 limits
 are superseded. Structural consolidation is not aggregate compression.
 
-### Current Source Observation Repair
+### Delivered Source Observation And Remaining Cost
 
-The parent GitHub main run `34886679269` failed a ten-second runtime-fixture
-smoke and a 300-second closeout case; its dev sibling `34886679448` subsequently
-passed. The failed immutable artifact remains under the preceding batch's
-`parent-hosted-failure/`. A passing sibling does not erase intermittent failure.
+The accepted repair binds source observation to one HEAD and a 30-second total
+Git deadline, preserves native full-overlay semantics and the caller's index,
+and rejects HEAD movement. Narrow closeout projections use existing ref and
+worktree owners rather than collecting unrelated authority. Effect admission
+remains fresh. Typed failures retain command, root, deadline and available
+output instead of recommending a speculative reinstall.
 
-The unchanged closeout case used 20 workspace observations, 27 source identity
-compilations and 1,415 Git calls. Nine RED cases demonstrated mixed HEAD
-coordinates, missing native deadlines and complete workspace collection for
-simple ref/topology projections. The repair uses existing worktree/ref owners
-for these projections, retains effect-time admission, and binds one source
-observation to one HEAD and one total deadline. It keeps native full-overlay
-semantics and temporary-index isolation; copied-index flags and metadata-only
-shortcuts are not accepted freshness evidence.
+The equivalent single-case profile changed from 52.76 to 45.44 seconds, workspace
+observations from 20 to 14, source compilations from 27 to 21, and Git calls from
+1,415 to 1,309. Its distinguishing RED cases, affected 145-case matrix, subsequent
+40-case boundary matrix, package verification and both proofs are preserved.
+These observations do not close fixture/startup, publication or whole-cycle cost.
 
-Two additional public failures showed that a source timeout became a reinstall
-suggestion or escaped version output as an exception. The existing Git failure
-contract now carries argv, root, timeout and partial output through both public
-surfaces. Native process timeout, owned scratch cleanup, source movement, staged
-and unstaged bytes, deletion, mode changes, untracked inputs and index-only flags
-have distinguishing cases. No global transaction/process framework is added.
+The real receipt-bound publication still took roughly ten minutes. A bounded
+native sample observed process creation, polling and Pydantic validation; it
+does not identify a unique cause or establish a deadlock. An unchanged installed
+hook with empty transaction input took 2.63 seconds in one instrumented sample
+while another proof ran. Prior closeout profiling attributes substantial time to
+repeated native calls and fixture setup. The next P5 change must measure actual
+ownership and input reuse before replacing those paths, without weakening fresh
+admission or increasing parallelism. The locked CLI library already has native
+lazy command registration; evaluate it against the existing manual dispatcher
+before adding another loader or runtime.
 
-The affected 145-case matrix passes with unchanged timeout/worker policy,
-including both historical failure cases. A further 40-case source/error matrix
-and eight public inexpensive gates pass. Product/test ELOC is 42,071/45,773,
-within independent ceilings. The equivalent profiled closeout case changed from
-52.76 to 45.44 seconds, complete workspace observations from 20 to 14, source
-compilations from 27 to 21, and Git calls from 1,415 to 1,309. These are single-host
-samples with overlapping cumulative costs, not whole-cycle throughput proof.
-The runtime-smoke flake and broad proof/publication latency remain open until
-repeated actual workloads establish their cause and result.
+### Current Native Validation Result Repair
 
-Receipts are in the owned lane's existing `build/evidence/quality/source-observation/`:
-`observation-red`, `failure-surface-red`, `affected-tests`,
-`final-affected-errors`, `closeout-profile-comparison` and
-`final-public-prerequisites`.
-Native lint, configuration, Markdown and prose pass. The final package-only build
-and lifecycle smoke pass after the CLI flag regression, with owned scratch
-removed. The wheel binds source tree `e89eaa21aac36f63d2c5b56dafc465651d6e86c0`;
-`package-final-readback.json` retains the exact artifact and runtime identity.
-These are implementation observations, not accepted source or a repository proof.
-Finish native/package prerequisites, exact proof and ordinary
-archive/install/publication/retirement before promoting this batch.
+Adopter feedback's claimed INFO-to-ERROR flattening was not reproduced in ETHOS.
+A different concrete defect was reproduced: failed native validation with empty
+items loses its failure, and successful exit with invalid items also passes.
+Sixteen distinguishing RED cases include a real public `plan` incorrectly
+returning PASS after native validation failure. The current unaccepted repair
+uses the existing lifecycle report owner to retain unsuccessful execution,
+strictly consume item identity and Boolean validity, and reject invalid items
+independently of process exit. No alternate OpenSpec parser or result store is
+introduced.
 
-### Hosted Compiler Boundary
+The direct 32-case matrix and 199-case affected consumer suite pass. Unmodified
+locked OpenSpec output for an empty workspace, `skip_specs` INFO, and mixed
+valid/invalid items also passes the intended boundaries. Native results remain
+available in the public report. This establishes those result semantics, not
+all early-sync/removal replay, exact proof, runtime installation or adopter
+availability of this new repair.
 
-Both current GitHub CI attempts failed before tests because the selected Xcode
-license state prevented `grimp` source compilation. The nine native environment
-jobs and CodeQL passed, but source verification was skipped. The installed
-independent Command Line Tools successfully compiled and executed a native C
-probe using only a process-local `DEVELOPER_DIR`; global Xcode selection and
-license state were unchanged.
+Package-only build/install/lifecycle smoke and five installed result-boundary
+cases pass without source fallback. The wheel SHA256 is
+`5c28ae27d8116862406d2e7c08c74a632c72d624b993b521b0c4cb1065cdb11c`, bound
+to overlay tree `461becc2d7d861c5c8ddd245e6b040a439ee253b`; both owned scratch
+roots were removed. This package observation precedes the final source commit
+and cannot substitute for its exact repository proof.
 
-With remote busy=false and no local Runner.Worker, only the ETHOS GitHub runner's
-existing LaunchAgent received that environment binding and was reloaded. Exact
-before/after bytes and preserved fields are recorded in
-`runner-toolchain-repair.json`; credentials and other services were untouched.
-Main run `34905382908`, attempt 2, passed the failed bootstrap and quality job and
-entered exact-HEAD source verification. Dev retry and complete workflow success
-remain unproved; do not duplicate an active run or increase local test concurrency.
+Fourteen selected public native gates pass with no heavy test dependency. Their
+type verdict covers `src`, not the whole repository: the existing Ty adapter maps
+the package root to its source directory. Explicit whole-repository checks of
+both accepted and candidate inputs each report the same 424 diagnostics, 415 in
+tests and nine in tools; the three touched Python files pass their direct check.
+This is an existing coverage gap, not an implemented full-repository type floor.
+The quality owner must close those diagnostic families and consume the complete
+semantic scope without exceptions, weakening or misleading zero-tolerance claims.
+
+A verification attempt selected `generated-artifacts` as a cheap prerequisite
+without inspecting its dependency on `unit-architecture`; an omitted per-process
+worker declaration then selected the default eight workers. The exact owned
+pytest was interrupted, all descendants exited and its basetemp disappeared.
+That attempt is explicitly unproved. The replacement full proof used two workers
+and passed. The existing quality skill now requires transitive gate inspection,
+explicit per-process resource controls and actual child-command readback. Native
+closure/settings replay distinguishes heavy and light selections; this is not
+proof of general agent compliance or a new runtime scheduling mechanism.
+
+### Hosted And Adopter Boundaries
+
+The preceding GitHub main run `34905382908`, attempt 2, completed successfully
+at `8f2e829f` after the ETHOS runner alone was bound to installed Command Line
+Tools with `DEVELOPER_DIR`. Its 3,393 passing tests, one skip and package artifacts
+are preserved. Global Xcode selection, license state, credentials and other
+services were not changed. The old dev run retains its earlier failed attempt.
+
+At the latest recorded observation for `c03e2091`, GitHub main `34922092210`
+was running source verification after quality and nine native environment jobs
+passed; dev `34922092212` was queued. GitLab main/dev pipelines `6724`/`6723`
+were running. Read their exact operations to completion; source publication does
+not certify hosted success and no duplicate heavy retry is required.
+
+The adopter owner reports public installation of `c03e2091` in all three linked
+worktrees, completed generation cleanup, exact Lease resume from generation 12
+to 13 and passing prewrite/full proof. These are attributed adopter observations,
+not ETHOS-local re-execution. The same report identifies empty holder/expiry and
+generation zero in the resume dry-run summary despite correct plan/effect fields;
+reproduce at the Lease projection owner without redefining the successful effect.
+
+The public `hook commit-range` was exercised on exact
+`8f2e829f..c03e2091`: only the two introduced commits were checked and admitted.
+Missing new-ref baselines fail closed; no routine whole-history fallback exists.
+Entry guidance must preserve that distinction from explicitly requested history
+or tag audits.
+
+A separate explicit accepted-history metadata audit covers 3,996 commits and
+finds 43 with author or committer email different from today's configuration.
+Difference alone is not wrong authorship. Four specifically identified no-reply
+objects are associated by GitHub with account `Yheng`: one has a locally valid
+SSH signature but hosted `unknown_key`; three are unsigned. Metadata, local
+signer trust, platform account association and transport credentials are separate
+facts. Historical correction remains open; no retired key was registered and no
+history rewritten speculatively. Preserve exact old-object scope and prove the
+chosen correction rather than silently reclassifying those observations.
+
+### Projection Continuity
+
+The preceding accepted source-assurance repair replaced undefined R01–R14/P00–P09
+with eight source-referenced families over 43 graph propositions. Quality JSON v4
+replaced YAML; declaration validity, source judgment, independent interpretation,
+rendered measurement and owner acceptance remain distinct. Partial/Present views
+retain every necessary condition of their expressed relations. Absence of a
+qualified predecessor prevents comparison claims, not first-artifact acceptance.
+
+The verified `8f2e829f` export digest is
+`4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8`.
+Both renderer owners confirmed the same source and began v4 migration; their
+reported static font/geometry checks do not establish browser, Present-mode,
+independent semantic or aesthetic acceptance. ETHOS does not edit the renderer
+repositories or treat a source handoff as acceptance of their diagrams.
 
 ### Remaining Dependencies And Delivery Order
 
-- Finish `source-observation` through exact proof and ordinary delivery. Keep
-  observed failure causes, projection-only reads and effect-time checks distinct.
-- Read back the current main CI operation before scheduling the dev retry or
-  another local heavy proof. The runner fix must qualify on the actual workload.
-- Continue measured P5 source/fixture/startup and publication reduction. Whole-proof
-  reuse requires complete inputs: source, rules, tools, environment and relevant
-  external facts, with fresh governance, identity and effect checks. Native CPU
-  samples in Pydantic do not by themselves prove a lock deadlock or its absence.
-- The adopter owner updated three roots to accepted `e7eb7c4c` through the public
-  successor installer and reports old-runtime retirement. Generic old-package
-  `current=true` means invoking-package parity, not latest-source discovery.
-  Expose that distinction at the runtime owner, without selector edits or an
-  adopter compatibility carrier.
-- The adopter's early-sync feedback does not reproduce INFO-to-ERROR flattening
-  in the inspected ETHOS reducer: it currently uses official exit status and
-  item validity. Real mixed-severity, malformed/failed reports, canonical early
-  sync and idempotent removal replay still require public tests at the official
-  lifecycle owner. Never remove original delta obligations to suppress warnings.
-- Preserve scoped scanner-supply feedback without making an owner-reported
-  HTTP/1.1 workaround a global transport policy. Historical wrong-email
-  attribution for four commits, tag-admission cause preservation, archive
+- Complete `validation-results` through native consumer checks, exact proof and
+  ordinary delivery; finish actual early-sync/idempotent removal replay at the
+  official lifecycle boundary without erasing delta obligations.
+- Resolve the current hosted operations, then continue measured P5 command,
+  fixture, source and publication reduction. Whole-proof reuse must include
+  source, rules, tools, environment and relevant external facts, with fresh
+  identity and effect admission. Resource defaults and execution discovery must
+  not depend on agents remembering exports from a previous shell invocation.
+- Expose invoking-package parity versus latest accepted-source availability at
+  the runtime owner; `current=true` alone is not latest-version discovery. Retain
+  the newly reported Lease summary discrepancy for an exact public regression.
+- Historical identity correction, tag-admission cause preservation, archive
   postimage/re-entry, exact Lease continuation, general process deadlines,
-  remote-probe classification and strong-kill/resource bounds remain open.
+  remote-probe classification and sustained strong-kill/resource bounds remain
+  separate open obligations. An observed HTTP/1.1 scanner workaround does not
+  become global transport policy.
 - The existing P0–P7 route remains complete: historical intent settlement;
   acceptance/capability/proof-obligation compilation; cooperation, competition,
   exploration and all-drop with composition/recovery; real greenfield and

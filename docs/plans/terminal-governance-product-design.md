@@ -67,6 +67,36 @@ owns aggregate accounting and [.ethos/rules.toml](../../.ethos/rules.toml) owns
 file limits. Old goal snapshots, 38,300/45,000 totals and role-specific 800 limits
 are superseded. Structural consolidation is not aggregate compression.
 
+### Local Residue And Semantic Organization
+
+The September 15 cleanup examined accepted dev, candidate/dev and the sole work
+root. Main points to the accepted object and has no separate checkout. Four
+obsolete empty directories and 310 orphan bytecode files were removed; removing
+those 8,200,387 derived bytes allowed 74 additional obsolete directories to retire.
+The exact dry-run inventory, inode/hash checks, visible-process observation and
+post-removal readback are in `validation-results/local-residue-cleanup.json`.
+Tracked content hashes, refs, worktree registrations and runtime identity stayed
+unchanged. Current output roots, immutable dependencies, hosted CI and nonempty
+historical evidence were preserved. This is completed local cleanup, not proof
+of sustained crash recovery or automatic residue prevention.
+
+Tracked source still needs semantic restructuring. Direct import/symbol
+observation finds ref CAS, index staging, filesystem compensation and untracked
+tree removal together in `adapters/repo/git_effects.py`; adjacent
+`git_effect_*` modules and existing worktree owners split related responsibilities
+across naming axes. `semantic-layout-observation.json` binds those actual callers.
+Separate effect kinds and invariants, then absorb sequencing into their complete
+owners; directory width alone does not justify moving code. Remove old imports
+and facades in the same change and prove caller behavior through public paths.
+
+The [CUE trial](../research/modern-engineering-foundations.md#executed-cue-rule-trial)
+now supplies actual rule-composition and carrier counterexamples. Continue that
+replacement through the existing P2/P5 route after the frozen validation repair:
+one declaration owner, native generated projections, explicit representation
+semantics and deletion of duplicate validators. Neither the twelve-case trial
+nor revised policy prose establishes production adoption. Whole-repository
+structure, type coverage and long-lived resource cleanup remain open.
+
 ### Delivered Source Observation And Remaining Cost
 
 The accepted repair binds source observation to one HEAD and a 30-second total
@@ -149,7 +179,8 @@ services were not changed. The old dev run retains its earlier failed attempt.
 At the latest recorded observation for `c03e2091`, GitHub main `34922092210`
 was running source verification after quality and nine native environment jobs
 passed; dev `34922092212` was queued. GitLab main/dev pipelines `6724`/`6723`
-were running. Read their exact operations to completion; source publication does
+completed successfully, read back at 03:24 UTC in `parent-gitlab-readback.json`.
+Read the GitHub operations to completion; source publication does
 not certify hosted success and no duplicate heavy retry is required.
 
 The adopter owner reports public installation of `c03e2091` in all three linked
@@ -158,6 +189,15 @@ to 13 and passing prewrite/full proof. These are attributed adopter observations
 not ETHOS-local re-execution. The same report identifies empty holder/expiry and
 generation zero in the resume dry-run summary despite correct plan/effect fields;
 reproduce at the Lease projection owner without redefining the successful effect.
+
+Subsequent adopter-owner feedback reports accepted two-peer delivery and another
+signed dependency-update proposal with local proof. These remain attributed
+observations, not ETHOS-side re-execution. A dependency updater produces candidate
+content; reuse the operator-owned lane, exact prewrite, commit-range policy,
+proposal publication and Forge review. No separate updater account or daemon is
+inherently required. Additional identity separation follows actual policy and
+risk, not the mere presence of credentials. The public components are available;
+a complete dependency-update entry and end-to-end conformance are not proved.
 
 The public `hook commit-range` was exercised on exact
 `8f2e829f..c03e2091`: only the two introduced commits were checked and admitted.

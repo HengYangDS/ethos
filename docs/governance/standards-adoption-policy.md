@@ -8,6 +8,11 @@ relations:
 
 # Standards Adoption Policy
 
+Status: canonical adoption policy; individual capabilities require evidence.
+
+Purpose: choose standards that replace complexity without creating another
+semantic authority.
+
 ETHOS adopts mature standards before inventing formats.
 
 Adoption levels:
@@ -24,13 +29,15 @@ Adoption levels:
 Every adapter must declare lifecycle, boundary, input contract, output contract,
 fallback, and exit strategy before it can be treated as product capability.
 
-The first adapter set covers SLSA provenance, in-toto attestations, Sigstore
-signing, SPDX SBOM projection, CDEvents, OpenTelemetry semantic events, Dagger
-runner projection, CUE profile compilation, OPA policy decisions, Temporal
-service runtime, and MCP agent projection.
+These levels classify possible integrations; they do not declare any adapter
+implemented. A capability is available only when its source, public entry point,
+packaged dependencies and conformance evidence establish that claim. An entry
+in this policy or a research recommendation is not an availability receipt.
 
-Status: see front matter.
-
-Purpose: explain the repository truth represented by this ETHOS document.
+The [engineering foundations research](../research/modern-engineering-foundations.md)
+owns comparative observations, including the executed CUE rule trial. Adopt a
+foundation when it replaces an existing responsibility with one authoritative
+owner and preserved semantics. Remove the superseded editable declaration and
+validator in the same migration; retain necessary generated projections.
 
 See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

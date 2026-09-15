@@ -14,6 +14,8 @@ own signing policy. The separate mutable Git identity switch defaults off.
 - Revalidate archived intent, current proof, runtime and independent publications
   after a repair without rewriting historical Attestations.
 - Correct the confirmed historical identities using that public capability.
+- Qualify this repair against the user-authorized current stable supply, keeping
+  lockfiles, package resources and hosted projections bound to the same selection.
 
 ## Capabilities
 

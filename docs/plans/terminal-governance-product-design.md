@@ -369,6 +369,48 @@ masking, wildcard author replacement, key registration or permanent bypass is
 an acceptable substitute. Actual history repair is a post-install operation in
 this plan, not a source checkbox that prevents installing its own prerequisite.
 
+The September 16 stable-supply authorization is applied at this frozen-checkpoint
+boundary, before the next expensive package/full proof. Official registry and
+release observations are retained in `supply-current-registry.json`; native uv
+resolution has a separate dry-run. Selected stable updates must project through
+their existing lock, CI-template, package and runtime owners. A registry's latest
+tag is insufficient: ty and mutmut currently declare beta status, deptry declares
+alpha status, and the newest
+nodejs-wheel-binaries package still embeds Node 24.19.0. These remain explicit
+replacement/qualification gaps, not a claim that all supply is stable/current.
+Eight Python lock entries and OpenSpec 1.13.0 are selected in this batch. The
+native uv prerelease policy is recorded in its existing project wiring so plain
+locked sync cannot silently select a different resolution mode. The latest uv,
+setup Action and Node matrix require one coherent CI projection update; its
+incumbent admission currently omits shell owner inputs. The existing Git object
+reader now uses the native carrier table instead of its three-suffix copy.
+A real public prewrite distinguishes a selected committed shell owner from an
+unselected script despite checkout tampering; 76 admission cases pass. Exact
+hosted patch observation passes under the candidate implementation, but incumbent
+runtime admission remains blocked until this repair is accepted and activated.
+No hosted projection was edited through that rejection.
+The new locked work environment now runs OpenSpec 1.13.0 and all eight selected
+Python updates. Native strict Change validation has no issues; 321 OpenSpec,
+archive, commit, supply, version and public-admission cases pass in 151.57 seconds
+with two workers. Ruff, config, shell, Markdown and dependency checks pass. This
+does not qualify the installed package/runtime, hosted supply or publisher-preview
+replacements. The stable uv/Node/Action projection batch remains pending the
+accepted baseline-reader repair instead of bypassing its incumbent admission.
+
+The architecture adopter's September 16 feedback is a separate P0 audit-coverage
+gap. At accepted `e0ba1e3a`, inline profiles take `adopter_audit`, which checks the
+binding and hardcodes a passing OpenSpec-shape result; registry profiles take the
+deeper audit. Its dev `576f4609` declares only dev protected while effective roles
+also protect main. The release reporter detects this but mixes generic consistency
+with ETHOS-specific package requirements. Extract/reuse the generic invariant at
+its existing owner and consume it in relevant audit and effects independent of
+profile representation. Reproduce rejection/repair through public adopter entry
+points, test policy weakening separately, and qualify the installed runtime.
+The adopter's historical published receipt is attributed evidence, not a current
+publication probe. Do not write its lane, require optional package capabilities,
+or equate status readiness with global quality. This gap is not fixed by the
+commit-integrity trusted-baseline work and does not add another roadmap.
+
 The preceding typed Change selection repair is now accepted and published as
 `e0ba1e3a466f3ea9198edfbf0592fbd26bbede77`, tree
 `0d91d6a04a6ae3f59d5d5d9a9da5d18ba362cb18`. Prearchive and postarchive full

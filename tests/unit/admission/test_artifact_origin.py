@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from difflib import unified_diff
 from typing import TYPE_CHECKING
 
 import pytest
@@ -121,6 +122,59 @@ def test_declared_output_requires_patch_but_its_source_does_not(tmp_path: Path) 
     assert "--patch" in result["next_action"]
     assert root.as_posix() in result["next_action"]
     assert _prewrite(root, ("model.c4",))["verdict"] == "pass"
+
+
+@pytest.mark.parametrize("selected_owner", [True, False])
+def test_public_projection_admission_reads_committed_native_owner(
+    tmp_path: Path, *, selected_owner: bool
+) -> None:
+    """A native script declaration survives snapshotting; an unselected script grants nothing."""
+    root = start_adopted_work_lane(tmp_path).worktree
+    source, output = ".config/ci/templates/hosted/github-actions.yml", ".github/workflows/ci.yml"
+    script = "tools/ci/scripts/bootstrap.sh"
+    original = "jobs:\n  check:\n    steps:\n      - run: ultraviolet --version\n"
+    files = {
+        ".config/checks/ci/templates.toml": (
+            'schema = "ethos-ci-template-consistency-v1"\n[[projection]]\n'
+            'provider = "github"\n'
+            f'template = "{source}"\nprojection = "{output}"\n'
+            f"required_owner_scripts = {json.dumps([script] if selected_owner else [])}\n"
+        ),
+        script: "#!/bin/sh\nultraviolet --version\n",
+        source: original,
+        output: original,
+    }
+    for path, content in files.items():
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content)
+    commit_fixture(root, "declare native projection supply")
+    # The checkout neither replaces committed ownership nor grants absent ownership.
+    (root / script).write_text("#!/bin/sh\nuntrusted_tool --version\n")
+    patch = tmp_path / "projection.patch"
+    desired = original.replace("--version", "--help")
+    patch.write_text(
+        "".join(
+            f"diff --git a/{path} b/{path}\n"
+            + "".join(
+                unified_diff(
+                    original.splitlines(keepends=True),
+                    desired.splitlines(keepends=True),
+                    fromfile=f"a/{path}",
+                    tofile=f"b/{path}",
+                )
+            )
+            for path in (source, output)
+        )
+    )
+    report = _prewrite(root, (source, output), patch)
+    assert report["verdict"] == ("pass" if selected_owner else "block"), report
+    if not selected_owner:
+        assert (
+            "product_reference_not_admitted_at_baseline:executable:ultraviolet"
+            in report["required_gaps"]
+        )
+    assert (root / output).read_text() == original
 
 
 @pytest.mark.parametrize(

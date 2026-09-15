@@ -60,6 +60,27 @@ against a writer sharing the operator's OS identity.
 
 ## Verification
 
+### Supply qualification
+
+The September 16 user authorization includes current stable dependencies. Observe
+official release metadata before selection, regenerate native locks, and project
+the exact uv/container/Node identities into existing hosted templates. Verify
+OpenSpec's native archive behavior, package resources and the commit-admission
+consumers on that resolved supply. Do not change a running consumer's environment.
+Publisher-declared preview tools and stale embedded binaries remain explicit supply
+gaps, not silently accepted stable releases. Their replacement requires its own
+bounded implementation at the existing quality or runtime owner; unrelated
+adopter audit repairs do not enlarge this Change.
+
+The supply projection exposed a prerequisite defect: exact baseline reads omitted
+native shell owner scripts. Use the existing carrier table for machine inputs,
+not another suffix allowlist or a fake uv runtime declaration. Public prewrite
+must admit a tool selected by a committed owner, reject an unselected script,
+and ignore checkout tampering. Publish that repair before applying the affected
+hosted projections through the then-current runtime.
+
+### Commit and recovery acceptance
+
 Valid signed identities pass. Missing/forged/untrusted signatures, wrong identities
 and self-weakened policy reject at the owning boundary. Check ordinary commit,
 index policy, generated commit, bypassed message hook, exact CI range, no-policy

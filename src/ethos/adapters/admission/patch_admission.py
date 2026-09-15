@@ -21,7 +21,6 @@ from ethos.repository.policy.references.observation import deleted_input_gaps
 from ethos.repository.policy.references.observation import product_references_from_files
 
 _UNIFIED_DIFF_HEADER_PART_COUNT = 4
-_OWNER_SUFFIXES = (".json", ".py", ".toml")
 
 
 def patch_admission(
@@ -128,7 +127,10 @@ def _object_files(
     selected = {
         path: oid
         for path, oid in entries.items()
-        if path.endswith(_OWNER_SUFFIXES) or path in extra_paths
+        if path in extra_paths
+        or any(
+            carrier.name != "markdown" and carrier.matches(path) for carrier in REFERENCE_CARRIERS
+        )
     }
     files = _read_text_objects(root, selected)
     producers = projection_relations(files)

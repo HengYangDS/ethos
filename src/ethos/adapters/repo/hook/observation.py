@@ -14,6 +14,7 @@ import ethos.adapters.repo.runtime.authority as runtime_authority
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import configured_commit_trust_anchor
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import HookContract
 from ethos.adapters.repo.hook.binding import hook_launcher
@@ -69,6 +70,7 @@ class CommitPolicyEnforcement(TypedDict):
     push_range_enforcement: str
     required_gaps: list[str]
     next_action: str
+    signature_trust: NotRequired[dict[str, object]]
 
 
 def hook_runtime_binding(
@@ -245,15 +247,36 @@ def commit_policy_enforcement(
     runtime_gaps = tuple(map(str, runtime.get("required_gaps", [])))
     message_gaps = _transport_gaps(runtime_gaps, "commit-msg")
     push_gaps = _transport_gaps(runtime_gaps, "pre-push")
-    gaps = list(dict.fromkeys((*message_gaps, *push_gaps)))
+    anchor, trust_gaps = (
+        configured_commit_trust_anchor(repo) if policy.signing_required else (None, [])
+    )
+    gaps = list(dict.fromkeys((*message_gaps, *push_gaps, *trust_gaps)))
     return {
-        "state": "unarmed" if gaps else "armed",
+        "state": "unarmed" if message_gaps or push_gaps else "unready" if trust_gaps else "armed",
         "declared": True,
         "declaration": policy.projection(),
         "commit_message_transport": "unarmed" if message_gaps else "armed",
         "push_range_enforcement": "unarmed" if push_gaps else "armed",
         "required_gaps": gaps,
-        "next_action": str(runtime.get("next_action") or "") if gaps else "",
+        "signature_trust": {
+            "state": "not_required"
+            if not policy.signing_required
+            else "unready"
+            if trust_gaps
+            else "configured",
+            "anchor": str(anchor or ""),
+            "required_gaps": trust_gaps,
+        },
+        "next_action": (
+            str(runtime.get("next_action") or "")
+            if message_gaps or push_gaps
+            else (
+                f"git -C {shlex.quote(str(repo))} config --local "
+                "gpg.ssh.allowedSignersFile <absolute-protected-anchor>"
+            )
+            if trust_gaps
+            else ""
+        ),
     }
 
 

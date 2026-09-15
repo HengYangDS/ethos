@@ -321,6 +321,15 @@ same-key no-effect requests reject before creating objects. Reissued source-poli
 payload, repository and ref coordinates reject. The complete focused consumer
 closure passed 219 cases in 254.83 seconds after provenance/replay tightening.
 Evidence is under `build/evidence/quality/commit-integrity/` in the owned lane.
+The signed implementation checkpoint was refreshed by public `lane refresh-base`
+onto accepted `e0ba1e3a`, producing `859a47d2d6accc759ce7edfafa5053cee88dff47`;
+Git range-diff preserved the patch and native signature verification passed.
+Discovery now distinguishes installed transports from an unavailable external
+trust anchor; its 83-case regression suite passes. Exact hosted trust deployment
+remains open: the observed GitHub runner checkout has no local allowed-signers
+binding. It must not replace this missing prerequisite with candidate-authored
+trust. Current static type, module-layout, docstring, skill and source budgets
+pass; these are not full proof or installed prevention.
 Actual multi-thousand-object performance, process-kill recovery, package re-entry,
 full proof, hosted trust setup and independent publication remain acceptance
 obligations. No historical correction is applied. Reuse batch Git reads;

@@ -77,6 +77,10 @@ Signature-required admission invokes native Git verification against a protected
 repository-external trust anchor. An SSH signature envelope alone is insufficient.
 CI supplies trust through its operator-owned environment, never candidate-authored
 key material. Identity, signature trust and Forge attribution are separate checks.
+Status distinguishes transport arming from signature-trust readiness: missing or
+unsafe anchors produce `unready` even when both launchers are installed. A
+configured anchor is a prerequisite, not a claim that a particular commit passed
+verification or that the Forge recognizes its signer.
 
 `ethos lane repair-signature --root <accepted-worktree> --expect-head <old-oid>
 --json` observes one exact unsigned accepted commit without creating a Git

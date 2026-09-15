@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -130,19 +131,52 @@ def test_git_deadline_retains_process_evidence_and_never_starts_expired_work(
     assert bool(spawned) == bool(timeout)
 
 
+@pytest.mark.parametrize("startup_delay", [0, 0.75])
 def test_native_git_transport_timeout_kills_and_reaps_the_owned_process(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, startup_delay: float
 ) -> None:
-    """The transport enforces a real process deadline, not only a mocked error."""
+    """An established child is killed and reaped regardless of its startup speed."""
     repo = init_git_repo(tmp_path / "repo")
     monkeypatch.setattr(git_adapter, "git_executable", lambda _env: sys.executable)
-    with pytest.raises(git_adapter.GitExecutionError, match="git_process_timed_out") as failure:
-        git_adapter.run_git(
-            repo,
-            "-c",
-            "import time; print('started', flush=True); time.sleep(30)",
-            timeout=0.5,
+    communicate = subprocess.Popen.communicate
+    connection: socket.socket | None = None
+    late = tmp_path / "late"
+    observed: list[subprocess.Popen] = []
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        listener.settimeout(10)
+        program = (
+            "import pathlib, socket, time; "
+            f"time.sleep({startup_delay}); print('started', flush=True); "
+            f"s = socket.create_connection({listener.getsockname()!r}, timeout=10); "
+            "s.settimeout(None); s.sendall(b'R'); s.recv(1); "
+            f"pathlib.Path({str(late)!r}).write_text('escaped')"
         )
+
+        def communicate_after_readiness(process, input_data=None, timeout=None):
+            nonlocal connection
+            if timeout is not None and connection is None:
+                connection, _ = listener.accept()
+                connection.settimeout(10)
+                assert connection.recv(1) == b"R"
+                observed.append(process)
+            return communicate(process, input_data, timeout=timeout)
+
+        monkeypatch.setattr(subprocess.Popen, "communicate", communicate_after_readiness)
+        try:
+            with pytest.raises(
+                git_adapter.GitExecutionError, match="git_process_timed_out"
+            ) as failure:
+                git_adapter.run_git(repo, "-c", program, timeout=0.5)
+            assert connection is not None
+            assert connection.recv(1) == b""
+            assert observed
+            assert observed[0].returncode is not None
+        finally:
+            if connection is not None:
+                connection.close()
     assert failure.value.command[0] == sys.executable
     assert failure.value.observation["stdout"] == "started\n"
     assert failure.value.observation["timeout_seconds"] == 0.5
+    assert not late.exists()

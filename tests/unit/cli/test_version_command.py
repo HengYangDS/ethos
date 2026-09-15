@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
+
+import pytest
 
 import ethos.surface.cli.version as version_module
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -46,3 +49,30 @@ def test_version_observation_does_not_create_an_undeclared_subcommand() -> None:
     completed = run_ethos_raw("version")
     assert completed.returncode != 0
     assert "ethos 0.2.0-alpha.5 " not in completed.stdout
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_native_version_does_not_require_the_command_framework(*, json_output: bool) -> None:
+    """Loading Cyclopts for identity-only inspection adds an unrelated dependency."""
+    program = (
+        "import importlib.abc, runpy, sys\n"
+        "class UnavailableFramework(importlib.abc.MetaPathFinder):\n"
+        "    def find_spec(self, fullname, path=None, target=None):\n"
+        "        if fullname == 'cyclopts' or fullname.startswith('cyclopts.'):\n"
+        "            raise ImportError('command framework must not load for version')\n"
+        "sys.meta_path.insert(0, UnavailableFramework())\n"
+        f"sys.argv = {['ethos', '--version', *(['--json'] if json_output else [])]!r}\n"
+        "runpy.run_module('ethos.cli', run_name='__main__')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-B", "-I", "-c", program],
+        text=True,
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    if json_output:
+        assert json.loads(result.stdout)["command"] == "version"
+    else:
+        assert result.stdout.startswith("ethos 0.2.0-alpha.5 ")

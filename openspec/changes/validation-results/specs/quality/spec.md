@@ -82,3 +82,20 @@ remain failures.
 
 - **WHEN** runtime validation fails before a prepared branch update
 - **THEN** the hook rejects the transaction before executing its ref policy.
+
+### Requirement: Identity Inspection Does Not Require Command Dispatch
+
+ETHOS SHALL resolve and render invoking identity without loading unrelated
+command dispatch. Native version output SHALL preserve human and JSON forms and
+the existing source and runtime validation. Real registration, dispatch and
+identity-observation failures SHALL retain their public error boundaries.
+
+#### Scenario: Only the invoking version is requested
+
+- **WHEN** the native CLI receives the global version flag
+- **THEN** it renders identity without importing the command framework.
+
+#### Scenario: Source observation fails during identity inspection
+
+- **WHEN** identity observation encounters a Git failure or changing source
+- **THEN** the public result preserves the exact error and continuation instead of a traceback or speculative reinstall.

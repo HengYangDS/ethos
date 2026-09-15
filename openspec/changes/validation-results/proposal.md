@@ -19,6 +19,10 @@ peer progress in the result state. Preserve each result boundary at its owner.
   keep CLI and Attestation projections consistent without replaying applied peers.
 - Validate the immutable hook runtime once at prepared branch admission, not
   again for result notifications or transactions with no governed update.
+- Load command dispatch only when requested; identity-only version inspection
+  retains its native result and error boundaries without the command framework.
+- Establish child readiness before measuring test deadlines, without changing
+  production timeout semantics or removing execution and cleanup assertions.
 - Update the existing terminal plan and quality execution guidance from actual
   delivery, scope and dependency-expansion observations.
 - Record bounded local cleanup and rule-consumer comparison evidence in existing

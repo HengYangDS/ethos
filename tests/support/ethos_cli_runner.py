@@ -13,7 +13,7 @@ from typing import Any
 
 from cyclopts.exceptions import CycloptsError
 
-from ethos.cli import app
+from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 
 if TYPE_CHECKING:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shlex
 import sys
+from importlib import import_module
 from pathlib import Path
 
 from ethos.adapters.process import ProcessExecutionError
@@ -12,13 +13,6 @@ from ethos.adapters.repo.git import repository_root
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
-from ethos.surface.cli.application import app
-from ethos.surface.cli.application import dispatch_arguments
-from ethos.surface.cli.application import load_command_groups
-from ethos.surface.cli.output import emit
-from ethos.surface.cli.output import emit_git_execution_failure
-from ethos.surface.cli.output import emit_invalid_repository_profile
-from ethos.surface.cli.output import emit_process_execution_failure
 from ethos.surface.cli.version import version_text
 
 
@@ -30,16 +24,17 @@ def main() -> None:
         if "--version" in argv:
             sys.stdout.write(f"{version_text()}\n")
             return
-        load_command_groups(argv)
-        app(dispatch_arguments(argv))
+        commands = import_module("ethos.surface.cli.application")
+        commands.load_command_groups(argv)
+        commands.app(commands.dispatch_arguments(argv))
     except GitExecutionError as exc:
-        emit_git_execution_failure(
+        import_module("ethos.surface.cli.output").emit_git_execution_failure(
             command=command,
             error=exc,
             json_output="--json" in argv,
         )
     except ProcessExecutionError as exc:
-        emit_process_execution_failure(
+        import_module("ethos.surface.cli.output").emit_process_execution_failure(
             command=command,
             error=exc,
             json_output="--json" in argv,
@@ -55,7 +50,7 @@ def main() -> None:
 
 def _emit_invalid_profile(command: str, argv: list[str]) -> None:
     """Emit the stable structured invalid-profile result for one public command."""
-    emit_invalid_repository_profile(
+    import_module("ethos.surface.cli.output").emit_invalid_repository_profile(
         command=command,
         json_output="--json" in argv,
         enforce=command == "prove" or (command in {"land", "publish"} and "--apply" in argv),
@@ -77,7 +72,7 @@ def _emit_contract_failure(command: str, argv: list[str], error: Exception) -> N
                 "observed_state": "unavailable",
             }
         data["state_schema"] = schema
-    emit(
+    import_module("ethos.surface.cli.output").emit(
         EthosResult(
             command=command,
             verdict="block",

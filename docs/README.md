@@ -56,10 +56,9 @@ current contracts alone. They do not own current behavior or workflow state.
 - [Proof trust boundary](decisions/proof-trust-boundary.md)
 - [Source-budget non-compensation](decisions/source-budget-non-compensation.md)
 
-Navigation for larger subject areas remains with their genuine directory
-entrypoints: [Governance](governance/README.md), [Plans](plans/README.md),
-[Reference](reference/README.md), and
-[History](history/README.md).
+Additional routes: [Governance](governance/README.md),
+[Reference](reference/README.md), and [History](history/README.md).
+The sole terminal plan is linked directly above; it needs no intermediate index.
 
 Truth state is document metadata, not path topology. Use the explicit
 front matter vocabulary (`state: canonical`, `state: active`, `state: planned`,

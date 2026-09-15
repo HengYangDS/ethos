@@ -15,7 +15,7 @@ dependencies = [
   "pydantic>=2.13.5",
   "pyyaml>=6.0.3",
   "tomli-w>=1.2.0",
-  "uv>=0.12.10",
+  "uv>=0.12.15",
 ]
 
 [project.scripts]
@@ -43,7 +43,7 @@ dev = [
   "shellcheck-py>=0.11.0.1",
   "shfmt-py>=4.2.0",
   "ty>=0.0.78",
-  "uv>=0.12.10",
+  "uv>=0.12.15",
   "yamllint>=1.38.0",
 ]
 

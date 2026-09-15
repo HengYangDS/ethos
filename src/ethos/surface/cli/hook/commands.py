@@ -2,7 +2,6 @@
 
 import pathlib
 import shlex
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated
@@ -22,8 +21,6 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.admission import commit_range_admission_report
 from ethos.adapters.repo.hook.activation import HookActivationError
 from ethos.adapters.repo.hook.activation import install_hook_launchers
-from ethos.adapters.repo.hook.binding import HOOK_NAMES
-from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
@@ -308,18 +305,6 @@ def ref_transaction(
         lambda verdict: "ethos land --closeout" if verdict != "pass" else "",
     )
     emit(result, json_output=json_output, enforce=True)
-
-
-@_app.command(name="run")
-def run_hook(
-    name: str,
-    arguments: Annotated[tuple[str, ...], Parameter(consume_multiple=True)] = (),
-) -> None:
-    """Execute one installed Git hook through the Python semantic owner."""
-    if name not in HOOK_NAMES:
-        raise SystemExit(1)
-    repo = resolve_root(None)
-    raise SystemExit(execute_hook(repo, name, arguments, stdin=sys.stdin))
 
 
 @_app.command

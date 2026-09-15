@@ -12,10 +12,10 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.repo.hook_runtime as hook_runtime
+import ethos.adapters.repo.hook.admission as hook_runtime
 import ethos.adapters.repo.runtime.binding as runtime_binding_module
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.hook_runtime import execute_hook
+from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.contracts.branch.roles import BranchRolePolicy
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import candidate_runtime
@@ -78,7 +78,7 @@ def test_hook_runtime_public_input_matrix(
     assert result == expected
     error = capsys.readouterr().err
     assert (gap in error) if gap else not error
-    assert len(observations) == int(name != "reference-transaction")
+    assert len(observations) == int(name not in {"reference-transaction", "unknown"})
 
 
 def test_hook_execution_observes_the_full_runtime_once(
@@ -458,7 +458,7 @@ def test_execute_hook_converts_runtime_exception_to_json_gap(
         "run_git",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("state unavailable")),
     )
-    assert hook_runtime.execute_hook(tmp_path, "pre-commit", (), stdin=StringIO()) == 1
+    assert execute_hook(tmp_path, "pre-commit", (), stdin=StringIO()) == 1
     assert json.loads(capsys.readouterr().err)["required_gaps"] == ["state unavailable"]
 
 
@@ -469,7 +469,7 @@ def test_candidate_report_rejects_dirty_or_unbound_candidate(
 ) -> None:
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
     candidate_runtime(monkeypatch, tmp_path, status="dirty\n")
-    result = hook_runtime.execute_hook(
+    result = execute_hook(
         tmp_path,
         "reference-transaction",
         ("prepared",),
@@ -504,7 +504,7 @@ def test_candidate_runner_requires_clean_binding_and_real_file(
         "hook_runtime_binding",
         lambda _root, **_kwargs: binding,
     )
-    result = hook_runtime.execute_hook(
+    result = execute_hook(
         tmp_path,
         "reference-transaction",
         ("prepared",),
@@ -524,7 +524,7 @@ def test_reference_transition_policy_failure_is_blocked(
         "resolve_ref_move_policy",
         lambda *_args: (_ for _ in ()).throw(TypeError("bad policy")),
     )
-    result = hook_runtime.execute_hook(
+    result = execute_hook(
         tmp_path,
         "reference-transaction",
         ("prepared",),

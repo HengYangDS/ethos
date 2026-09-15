@@ -96,17 +96,6 @@ def test_ref_transaction_policy_failure_emits_actionable_block(
     assert result.next_action == "ethos land --closeout"
 
 
-def test_run_hook_rejects_unknown_name_before_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        commands,
-        "execute_hook",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("runtime reached")),
-    )
-    with pytest.raises(SystemExit) as error:
-        commands.run_hook("unknown")
-    assert error.value.code == 1
-
-
 def test_hook_install_failure_is_public_block(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

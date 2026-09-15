@@ -38,32 +38,28 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-Accepted source is `c03e209118ba72120c58278996fab1a6043bc927`, tree
-`1d2b0bcba0399fa4ebcfc0a3708d16f67aef8ca1`. The `source-observation` Change
-completed implementation and official postarchive proofs: each passed 35 gates,
-with 3,414 tests passed, one skipped, and combined line/branch coverage
-25,742/27,055, or 95.1469 percent. The two exact proof attempts took 2,355.476
-and 2,199.441 seconds. These are individual runs, not a general speed guarantee.
+The last completed atomic delivery is `validation-results`, accepted at
+`5915126eee525c39a982aa850072517268df21c9`, tree
+`b6857a8a24ff51b9be35648ce74103cb6f2c97f7`. Its prearchive and postarchive
+proofs each passed 35 gates, with 3,453 tests passed and one skipped. Combined
+line/branch coverage is 25,755/27,074, or 95.128167 percent. Those proofs took
+2,244.640 and 2,097.737 seconds; they do not establish acceptable iteration speed.
 
-Public candidate integration and accepted closeout advanced candidate/dev/main
-to that object. Installed common runtime
-`807cc31c0455e48a3745a8e496363e89d3a005c05d6cb757d4307b9d2baa754b` matches
-its source and tree; the installer removed `f64b6beb`. Independent GitHub and
-GitLab dev/main refs read back at the same object. GitHub used existing
-maintainer permission to bypass PR and then-pending checks; local hooks remained
-armed and protection settings were unchanged. Publication receipt
-`74a1e1107ef7056f790156a8a6894fc15e8f5e9a8fd16bb8228a751eb773f75e` records
-the effect, not hosted CI completion.
+Candidate/dev/main and the selected installed runtime agree on that source/tree.
+Runtime `9cbc18b1dd0cceaca00edfe6cabed45fbc86f4afbd1846b847bf980cd73b59a0`
+replaced and reclaimed its predecessor. Both independent peers' dev/main refs
+were read back at the accepted commit. Publication Attestation
+`3ce752031bea245a3d62e1230d349408948363689268d592fb703f6acf65af4d` preserves
+the effect and GitHub's existing maintainer bypass of PR/pending-check rules;
+protection and local hooks were not disabled. Hosted CI remains a separate claim.
 
-The preceding Work Lane, ref and Lease retired through the public command.
-Only accepted and candidate worktrees remained before this serial successor.
-Fifty-seven selected evidence files, 9,876,319 bytes, were preserved with matching
-hashes in the accepted root's ignored `build/evidence/quality/source-observation/`.
-The 456-MiB environment and remaining disposable lane outputs were removed.
-`preservation.json`, `retirement-apply.json` and `final-delivery-readback.json`
-bind selection, effect and exact absence. Profiles remain only while the existing
-P5 work consumes them; copying all interim artifacts is not the retention policy.
-The sole current authoring lane carries official Change `validation-results`.
+The Work Lane, ref and Lease retired through the public command. Its path and
+ref are absent; only accepted and candidate worktrees remained before the serial
+`hook-execution` successor. Forty-one selected evidence files, 8,426,763 bytes,
+were retained with exact hashes under the accepted root's ignored
+`build/evidence/quality/validation-results/`. Preservation and retirement receipts
+bind their consumers and absence checks. Profiles expire after P5 comparison and
+accepted replacement; dependency environments and interim reruns are not retained.
 
 One 500-ELOC ceiling applies to every Python file, including tests and surfaces.
 Product and test totals have independent 50,000 ceilings; combined coverage stays
@@ -156,13 +152,13 @@ admission or increasing parallelism. The locked CLI library already has native
 lazy command registration; evaluate it against the existing manual dispatcher
 before adding another loader or runtime.
 
-### Current Native Validation Result Repair
+### Delivered Native Validation Result Repair
 
 Adopter feedback's claimed INFO-to-ERROR flattening was not reproduced in ETHOS.
 A different concrete defect was reproduced: failed native validation with empty
 items loses its failure, and successful exit with invalid items also passes.
 Sixteen distinguishing RED cases include a real public `plan` incorrectly
-returning PASS after native validation failure. The current unaccepted repair
+returning PASS after native validation failure. The accepted repair
 uses the existing lifecycle report owner to retain unsuccessful execution,
 strictly consume item identity and Boolean validity, and reject invalid items
 independently of process exit. No alternate OpenSpec parser or result store is
@@ -178,8 +174,8 @@ archived delta bytes; both invalid paths preserve the original files. The native
 already-removed warning remains visible and is explained by the observed no-op,
 not suppressed or promoted into an invented error. The existing two consumer
 test modules pass 39 cases; `native-removal-replay.json` and the tracked regression
-bind these observations. Exact repository proof, runtime installation and adopter
-availability of the new result repair remain unproved.
+bind these observations. Exact proof and runtime installation are recorded above;
+an adopter's installed binding and actual result still require its own observation.
 
 Package-only build/install/lifecycle smoke and five installed result-boundary
 cases pass without source fallback. The wheel SHA256 is
@@ -245,8 +241,8 @@ the repaired path performs it once before a governed prepared update. The
 eight-case notification/no-op RED preceded the repair. The consolidated 44-case
 hook matrix passes, including damaged authority and one-observation batch
 ordering; its test module remains within the unchanged 500-ELOC ceiling.
-This source result does not establish installed-hook latency, full-journey
-recovery or a passing exact proof.
+Exact proof and installation are recorded above. Per-invocation installed-hook
+latency and complete recovery remain separate measurements.
 
 The current complete acceptance/delivery/archive journey passes in 60.13 seconds
 without coverage. Its profile still contains 2,075 subprocesses, 1,951 product
@@ -283,7 +279,7 @@ that contradiction. The execution owner now gives known progress precedence:
 `partial` with verdict `unknown`, preserving applied/pending peers. CLI and
 Attestation agree; retry records the first peer as `already_applied` and pushes
 only the second. All 22 publication effect/recovery cases pass. The repair is
-not yet accepted or installed; no adopter or production remote was mutated.
+included in the accepted delivery above; no adopter source was modified.
 
 The public `hook commit-range` was exercised on exact
 `8f2e829f..c03e2091`: only the two introduced commits were checked and admitted.
@@ -300,6 +296,71 @@ signer trust, platform account association and transport credentials are separat
 facts. Historical correction remains open; no retired key was registered and no
 history rewritten speculatively. Preserve exact old-object scope and prove the
 chosen correction rather than silently reclassifying those observations.
+
+### Measured Iteration Cost And P5 Order
+
+The complete cycle, not just pytest duration, owns the optimization target.
+Separate first-failure feedback, verification of affected obligations, frozen
+acceptance proof, installation and publication. The 2,097.737-second postarchive
+proof spent 1,868.414 seconds in pytest. Its 96 cases taking at least ten seconds
+consume 2,254.331 of 3,694.076 cumulative case-seconds across two workers. Those
+cumulative values are not wall time. Keep the two-worker envelope unchanged.
+
+| Boundary | Verified cause or limit | Existing owner and next discriminating result |
+| --- | --- | --- |
+| Native hook startup | One lifecycle has 2,075 subprocesses; notifications imported CLI and admission machinery. | `hook-execution` separates native protocol from fresh admission and deletes the old transport. Same lifecycle and rejection cases must pass with less executed work. |
+| Repository observations | The same journey derives source identity 35 times and workspace state 26 times; 1,951 product Git calls remain. | Git/source/observation owners must share immutable input within a bounded observation and batch native reads; effect-time ref, policy and Lease checks stay fresh. |
+| Fixture construction | Slow lifecycle cases dominate while 2,121 sub-0.1-second cases total only 23.86 seconds. | Reuse immutable fixture supply; construct only the preconditions a test needs. Preserve full native journeys, independent mutable repositories, fault and recovery observations. |
+| Resource supply | A fresh lane installs 71 locked packages offline in 224 ms after an 885-ms editable build; repeated network fetching is not proved by that preparation. | Native supply already has identity checking, a lock and atomic replacement. Measure cache hits, transferred bytes, archive extraction and full input identity across local/CI lifetimes before changing it. |
+| Nox initialization | Every session eagerly resolves Node supply and delivery machinery, including Python-only checks. | Session and supply owners should demand only the selected capability; a missing unrelated tool must not block an independent check. This remains unimplemented. |
+| Proof invalidation | Prearchive and postarchive both reran the full suite; coverage completion currently binds to HEAD. | Reuse only execution evidence with a complete source/test/rule/tool/environment input closure. Reevaluate acceptance, currentness and authorization for the new subject; never relabel an old proof. |
+| Historical working-tree payload | 392 archived Changes contain 2,077 tracked files and 3,583,672 bytes; 255 Changes date from June/July. | Retire archives without live obligations from the checkout after exact Git recovery and consumer verification. Do not rewrite history, select deletion only by age, or copy everything into another history directory. |
+| Publication | The completed receipt-bound run took about twelve minutes; sampling showed child-process waits but did not establish a single cause. | Publication/ref observation owners should batch peer refs and reuse exact local object decoding within an attempt, preserving independent peers, partial progress and fresh CAS admission. |
+| Host scheduling | Hosted proof and local diagnostics can compete for the same workstation. | Observe actual queue, lock, child and CPU pressure; one useful owned workload at a time, no duplicate launches or speculative worker increase. |
+| Failure placement | Patch-only command inference lost an unchanged parent registration and falsely rejected a child edit as a new bare command. | The reference observation owner must resolve the effective full context; including the actually changed root projection admitted this batch, but does not repair that general defect. |
+
+The first bounded repair passes the same complete lifecycle in 43.22 seconds,
+against the retained 60.13-second baseline. Nine Attestation ref updates fall
+from 9.214 to 0.900 cumulative seconds. Source observations and subprocess counts
+are unchanged, so no broader reuse or whole-suite speed claim follows. The
+nine-case unused-admission counterexample failed before repair and passed after;
+the larger consumer matrix exposed a damage probe that no longer changed bytes.
+That probe now proves its mutation before asserting runtime rejection.
+
+Archive retention review found a policy sentence forbidding any archive removal,
+two history-navigation links, and an architecture test that requires an old
+lineage archive merely to exist. Preserve the test's actual minimal-model
+obligations, not that obsolete physical dependency. Before a bounded cleanup,
+reconcile the documentation/format retention owners, verify every deleted blob
+at a reachable prior commit, and replay current proof, archive/reopen and restore
+consumers. Exact dated literals in synthetic tests are not dependencies on real
+history. The inventory is not deletion approval or proof of semantic completeness;
+no archive was deleted in `hook-execution`. Current main specifications, necessary
+decision rationale, and unresolved obligations retain their existing owners.
+
+Continue in this order: close native hook delivery; eliminate redundant bounded
+observations and eager capability preparation; reduce repeated fixture setup;
+then qualify input-complete execution reuse. Each must show unchanged valid and
+invalid outcomes, fewer operations/bytes or less time on the same workload, and
+cold/warm equivalence. Cache deletion may increase computation, never change the
+verdict. Strong interruption, corruption, source/policy/tool drift and concurrent
+writers remain explicit counterexamples, not reasons for permanent false blocks.
+
+External candidate generators stay outside active worktree/common-dir authority.
+Their disposable output is an input to the existing lane acceptance path, not
+permission to mutate or publish. Do not hand destructive generators the active
+workspace or publication credentials. Native generator behavior must be executed
+before claiming hooks are honored; environment clearing or equal UID does not
+establish isolation. Provider-command selection mistakes remain agent execution
+defects, not invented ETHOS product failures.
+
+The native notification comparison used the same interpreter and dependency
+closure, alternating the previous committed owner and candidate three times.
+Median elapsed time fell from 0.486 to 0.036 seconds without CLI dispatch on
+either side. Fifteen protocol/error cases pass; the 187 passing broader cases
+remain evidence for their unchanged consumers. The package-only build/install
+and lifecycle smoke also pass, and their owned work root is absent. These are
+precommit checks, not accepted-source or complete-proof claims.
 
 ### Projection Continuity
 
@@ -319,9 +380,10 @@ repositories or treat a source handoff as acceptance of their diagrams.
 
 ### Remaining Dependencies And Delivery Order
 
-- Complete `validation-results` through native consumer checks, exact proof and
-  ordinary delivery; retain the executed official early-sync/removal regressions
-  without confusing native fixture success with repository or adopter acceptance.
+- `validation-results` is accepted, installed, published and retired locally;
+  retain its distinguishing regressions and observe its independent hosted jobs.
+- Finish the sole `hook-execution` Change through exact proof and delivery, then
+  continue the measured P5 order without accumulating work lanes.
 - Resolve the current hosted operations, then continue measured P5 command,
   fixture, source and publication reduction. Whole-proof reuse must include
   source, rules, tools, environment and relevant external facts, with fresh

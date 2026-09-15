@@ -17,5 +17,5 @@ case "$RUNTIME_DIGEST" in *[!0-9a-f]*|"") exit 1;; esac
 [ "${#RUNTIME_DIGEST}" -eq 64 ] || exit 1
 RUNTIME="$RUNTIME_ROOT/$RUNTIME_DIGEST"
 if [ -L "$RUNTIME" ] || [ ! -d "$RUNTIME" ]; then exit 1; fi
-exec "$RUNTIME/@PYTHON@" -B -I -m ethos.cli hook run @HOOK@ "$@"
+exec "$RUNTIME/@PYTHON@" -B -I -m ethos.adapters.repo.hook.protocol @HOOK@ "$@"
 '''

@@ -1,4 +1,4 @@
-"""Cyclopts command tree and lazy command registration."""
+"""Public command tree; native Git hooks enter their protocol without CLI dispatch."""
 
 from __future__ import annotations
 

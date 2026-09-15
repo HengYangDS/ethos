@@ -7,10 +7,10 @@ import io
 import os
 import platform
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
-import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -229,20 +229,45 @@ def test_native_supply_lock_timeout_preserves_prior_bytes_and_creates_no_scratch
     assert not (tmp_path / "transfer.log").exists()
 
 
-def test_native_supply_timeout_drains_download_descendants_before_cleanup(tmp_path):
-    """Timed-out transport cannot outlive its cache lock or recreate scratch."""
-    ready, late = tmp_path / "ready", tmp_path / "late"
-    child = (
-        "import pathlib, time; "
-        f"pathlib.Path({str(ready)!r}).write_text('ready'); "
-        f"time.sleep(1); pathlib.Path({str(late)!r}).write_text('escaped')"
-    )
-    parent = (
-        "import subprocess, sys, time; "
-        f"subprocess.Popen([sys.executable, '-c', {child!r}]); time.sleep(10)"
-    )
-    with pytest.raises(subprocess.TimeoutExpired):
-        download((sys.executable, "-c", parent), root=tmp_path, timeout=0.5)
-    assert ready.read_text() == "ready"
-    time.sleep(1.1)
+@pytest.mark.parametrize("startup_delay", [0, 0.75])
+def test_native_supply_timeout_drains_download_descendants_before_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, startup_delay: float
+) -> None:
+    """An established descendant cannot survive the transport timeout and write later."""
+    late = tmp_path / "late"
+    native_wait = subprocess.Popen.wait
+    connection: socket.socket | None = None
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        listener.settimeout(10)
+        child = (
+            "import pathlib, socket; "
+            f"s = socket.create_connection({listener.getsockname()!r}, timeout=10); "
+            "s.settimeout(None); s.sendall(b'R'); s.recv(1); "
+            f"pathlib.Path({str(late)!r}).write_text('escaped')"
+        )
+        parent = (
+            "import subprocess, sys, time; "
+            f"time.sleep({startup_delay}); "
+            f"subprocess.Popen([sys.executable, '-c', {child!r}]).wait()"
+        )
+
+        def wait_after_readiness(process, timeout=None):
+            nonlocal connection
+            if timeout is not None and connection is None:
+                connection, _ = listener.accept()
+                connection.settimeout(10)
+                assert connection.recv(1) == b"R"
+            return native_wait(process, timeout=timeout)
+
+        monkeypatch.setattr(subprocess.Popen, "wait", wait_after_readiness)
+        try:
+            with pytest.raises(subprocess.TimeoutExpired):
+                download((sys.executable, "-c", parent), root=tmp_path, timeout=0.5)
+            assert connection is not None
+            assert connection.recv(1) == b""
+        finally:
+            if connection is not None:
+                connection.close()
     assert not late.exists()

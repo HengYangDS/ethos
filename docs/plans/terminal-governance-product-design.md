@@ -182,12 +182,25 @@ Tools with `DEVELOPER_DIR`. Its 3,393 passing tests, one skip and package artifa
 are preserved. Global Xcode selection, license state, credentials and other
 services were not changed. The old dev run retains its earlier failed attempt.
 
-At the latest recorded observation for `c03e2091`, GitHub main `34922092210`
-was running source verification after quality and nine native environment jobs
-passed; dev `34922092212` was queued. GitLab main/dev pipelines `6724`/`6723`
-completed successfully, read back at 03:24 UTC in `parent-gitlab-readback.json`.
-Read the GitHub operations to completion; source publication does
-not certify hosted success and no duplicate heavy retry is required.
+GitHub main `34922092210` completed with failed source verification at
+`c03e2091`: 3,411 passed, three failed and one skipped in 5,814.708 seconds.
+The failed runtime smoke, download-start readiness and complete acceptance/archive
+journey are separate observations. The exact five-file hosted artifact is retained
+in `validation-results/parent-hosted-failure/`; the original owned pytest root
+was removed. Dev `34922092212` then started independently on the same checkout.
+GitLab main/dev `6724`/`6723` passed, read back at 03:24 UTC. Neither those results
+nor published refs replace the failed GitHub result.
+
+The download test assumed child startup within 0.5 seconds. A 0.75-second startup
+delay reproduced its false failure. The repaired test establishes a descendant
+with a loopback handshake, retains the same real timeout, then requires EOF and
+no late write. All 23 native-supply tests pass; a parent-only-kill mutation fails
+at the descendant-exit assertion. The runtime smoke passed a focused coverage run,
+but this does not resolve its hosted timeout or the 300-second full-journey failure.
+Profiled empty hooks also rehash 9,711 runtime entries; source identity is repeatedly
+derived during fixture setup. These measured costs inform the existing P5 work;
+do not weaken immutable checks, increase parallelism or declare the root cause
+fixed from the test repair alone.
 
 The adopter owner reports public installation of `c03e2091` in all three linked
 worktrees, completed generation cleanup, exact Lease resume from generation 12

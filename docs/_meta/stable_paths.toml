@@ -43,11 +43,6 @@ reason = "product governance docs index"
 freeze_level = "hard"
 
 [[stable_path]]
-path = "docs/plans/README.md"
-reason = "product planning docs index"
-freeze_level = "hard"
-
-[[stable_path]]
 path = "docs/history/README.md"
 reason = "common history-docs lane"
 freeze_level = "hard"

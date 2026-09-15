@@ -23,6 +23,11 @@ Contract](../governance/product-design-contract.md#semantic-kernel) remains the
 sole owner of product meaning; this document specifies how implementations,
 projections, and deletions converge on it.
 
+A plan guides work; it does not establish runtime readiness, proof, retirement
+or publication. Those claims require their current authoritative observations.
+Superseded execution detail remains in Git and official OpenSpec history, not
+another current plan corpus.
+
 Broad semantic recovery starts by declaring a finite source boundary in one
 official OpenSpec Change. It preserves distinct obligations rather than message
 count, adjudicates each as accepted, superseded, pending verification, or
@@ -87,14 +92,22 @@ entry within retained packages. `orphan-bytecode-cleanup.json` binds each absent
 source, exact cached file, inode, hash and user-visible liveness observation.
 Tracked bytes, refs, worktree registrations and the immutable runtime were
 unchanged. Dependencies, current outputs and hosted checkouts were excluded.
+A bottom-up empty-directory pass then retired 273 additional empty parent
+directories, mostly the removed package layout. `empty-directory-followup.json`
+retains the exact dry-run and effect; `cleanup-final-readback.json` verifies no
+remaining empty directories in the inspected authored-tree scope and unchanged
+accepted/candidate tracked bytes. This does not inspect protected dependency,
+runtime, generated-output or external trees.
 
-The same-day documentation review confirms five remaining READMEs. The root
-and governance entrypoints serve real navigation. The plans entrypoint merely
-repeats the already-linked sole plan; reference can route its three documents
-from the root. History contains unique Git retrieval instructions that must
-move to the existing provenance owner before its index and duplicated topology
+The same-day documentation review found five READMEs. The root and governance
+entrypoints serve real navigation. The redundant plans entrypoint and its
+stable-path declaration were removed after absorbing its unique guidance into
+this plan's Role section; the documentation root links here directly. Reference
+can route its three documents from the root. History contains unique Git
+retrieval instructions that must move to the existing provenance owner before
+its index and duplicated topology
 carrier retire. Source audit still requires history/reference READMEs, while
-stable-path metadata freezes all four nested indexes. Retire those conflicting
+stable-path metadata freezes those nested indexes. Retire those conflicting
 consumers together, not just the files; retain the three decision rationales,
 restore their required numbered identities, and preserve direct links. This is
 the existing documentation-owner closure, not a new roadmap or an assertion

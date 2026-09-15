@@ -330,6 +330,31 @@ remains open: the observed GitHub runner checkout has no local allowed-signers
 binding. It must not replace this missing prerequisite with candidate-authored
 trust. Current static type, module-layout, docstring, skill and source budgets
 pass; these are not full proof or installed prevention.
+Hosted bootstrap now validates an explicitly supplied external anchor through
+the native trust owner and projects only its Git verification binding; the
+73-case supply/bootstrap/provider suite passes. Both runner configurations now
+reference a byte-equal public-only projection of the existing operator anchor.
+GitLab configuration reload is observed; a non-root isolated container can read
+the exact anchor through its read-only mount. GitHub activation requires an idle
+listener restart; no running job was interrupted and neither hosted execution
+is yet qualified. `runner-trust-deployment.json` holds exact changed fields and
+hashes without credentials. The existing package lifecycle now exercises the
+historical-selection path; both isolated CLI modes pass, while installed-wheel
+qualification remains pending. The attempted workflow-only patch was rejected by the incumbent
+prewrite for an existing `uv` reference; no workflow bytes changed. Supply the
+anchor through runner-owned environment instead of making candidate YAML an
+authority. Keep that prewrite observation defect for its owning convergence,
+without adding a tool to product runtime solely to silence it.
+The dependency-expanded host check passed 3,513 tests and measured 95.11%
+combined coverage, but failed one obsolete file-owner assertion and two recovery
+fixtures that omitted replay admission. Range subtraction and historical DAG
+traversal are different responsibilities; the architecture assertion now retains
+one policy interpreter and one introduced-range owner without conflating them.
+Recovery fixtures explicitly isolate their already-admitted effect boundary.
+All 51 related architecture, recovery and native commit-integrity cases pass.
+This is not current full proof. The prior invocation omitted worker controls and
+ran eight workers; subsequent invocations explicitly use two and inspect the
+declared gate dependency closure before execution.
 Actual multi-thousand-object performance, process-kill recovery, package re-entry,
 full proof, hosted trust setup and independent publication remain acceptance
 obligations. No historical correction is applied. Reuse batch Git reads;

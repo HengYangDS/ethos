@@ -106,6 +106,18 @@ if [[ ! -x "${repo_root}/node_modules/.bin/openspec" ]]; then npm ci --ignore-sc
 "${repo_root}/node_modules/.bin/openspec" --version
 uv sync --locked --group dev
 
+# The runner/operator supplies this protected public anchor outside the checkout.
+# No candidate key discovery, signer generation or user identity mutation occurs.
+if [[ -n ${ETHOS_COMMIT_TRUST_ANCHOR:-} ]]; then
+	"${UV_PROJECT_ENVIRONMENT}/bin/python" -B - "${repo_root}" "${ETHOS_COMMIT_TRUST_ANCHOR}" <<'PY_TRUST'
+import sys
+from pathlib import Path
+from tools.ci.toolchain.environment import bind_commit_trust
+
+bind_commit_trust(Path(sys.argv[1]), Path(sys.argv[2]))
+PY_TRUST
+fi
+
 python_image_available() {
 	"${UV_PROJECT_ENVIRONMENT}/bin/python" -B -I - <<'PY_IMAGE'
 import sys

@@ -471,6 +471,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     heads = iter((HEAD, REBASED, HEAD))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     captured = _stub_refresh_effect(monkeypatch)
+    monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
         refresh,
         "execute_git_effect",
@@ -512,6 +513,7 @@ def test_refresh_public_attachment_failure_is_reported(
     heads = iter((HEAD, REBASED, REBASED))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     _stub_refresh_effect(monkeypatch)
+    monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(refresh, "execute_git_effect", lambda *_args, **_kwargs: SimpleNamespace())
     monkeypatch.setattr(
         refresh,

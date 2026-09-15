@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_object import read_blobs
+from ethos.adapters.repo.git_object import read_objects
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import Projection
 from ethos.repository.policy.projections import projection_effect_gaps
@@ -146,7 +146,7 @@ def _read_text_objects(root: Path, entries: dict[str, str]) -> dict[str, str]:
     return dict(
         zip(
             entries,
-            (blob.decode("utf-8") for blob in read_blobs(root, tuple(entries.values()))),
+            (blob.decode("utf-8") for blob in read_objects(root, tuple(entries.values()))),
             strict=True,
         )
     )

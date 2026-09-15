@@ -69,7 +69,7 @@ def test_creation_obeys_policy_and_rejects_unverified_object_outcomes(
         if case == "unsigned"
         else CommitPolicy(subject_pattern=r"^fix: .+", signing_required=True, signing_format="ssh")
     )
-    monkeypatch.setattr(creation, "load_commit_policy", lambda _root: policy)
+    monkeypatch.setattr(creation, "commit_policy_for_revision", lambda _root, _revision: policy)
     monkeypatch.setattr(
         creation, "_config", lambda *_args: "true" if case == "unsigned" else "false"
     )
@@ -115,7 +115,7 @@ def test_creation_obeys_policy_and_rejects_unverified_object_outcomes(
 
 def test_invalid_subject_never_reaches_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_required=False, signing_format="ssh")
-    monkeypatch.setattr(creation, "load_commit_policy", lambda _root: policy)
+    monkeypatch.setattr(creation, "commit_policy_for_revision", lambda _root, _revision: policy)
     with pytest.raises(ValueError, match="commit_subject_invalid:bootstrap Commitment v2"):
         creation.create_git_commit(
             tmp_path,

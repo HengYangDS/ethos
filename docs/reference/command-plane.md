@@ -62,7 +62,21 @@ current continuation; after an effect, the caller re-observes instead of
 replaying a remembered sequence. `adopt` binds an external repository to the
 same command semantics; it is not a parallel lifecycle.
 
-## Accepted Signature Repair
+## Commit Integrity And Accepted History Repair
+
+The tracked `[commit_policy]` in `.ethos/workspace.toml` owns the subject grammar,
+required signature format and optional exact `author` and `committer` tables
+(`name`, `email`). Undeclared identity constraints impose none on other adopters.
+The common compiler serves commit-msg, generated commits, replay, pre-push and
+`ethos hook commit-range`; there is no separate mutable Git identity policy.
+Prospective checks use the index and parent; generated commits use their exact
+parent and target tree. Introduced objects must satisfy trusted-baseline policy
+as well as candidate constraints. Removing policy cannot waive its own admission.
+
+Signature-required admission invokes native Git verification against a protected,
+repository-external trust anchor. An SSH signature envelope alone is insufficient.
+CI supplies trust through its operator-owned environment, never candidate-authored
+key material. Identity, signature trust and Forge attribution are separate checks.
 
 `ethos lane repair-signature --root <accepted-worktree> --expect-head <old-oid>
 --json` observes one exact unsigned accepted commit without creating a Git
@@ -83,8 +97,30 @@ ref/worktree outcome; lock contention is waiting, not a claimed partial effect.
 
 A successful result gives the exact replacement-bound `ethos prove` command.
 It does not prove the replacement, activate a runtime or publish anything.
-This operation is not a complete-DAG identity rewrite or a general bypass for
-failed admission.
+For historical corrections, supply `--corrections <json> --reason <text>
+--backup <absolute-bundle-path>`. Each exact old OID selects expected and replacement
+author/committer fields, or `resign: true`. Readiness derives affected descendants;
+apply also requires the returned `--corrections-sha256`. Duplicate request fields,
+symlinked backups and changed requests reject. Recovery validation extracts the
+self-contained bundle into an isolated native repository and checks its complete
+object closure. Header validation alone does not establish recoverability.
+
+History replacement preserves trees, messages, times, unselected identities and
+ordered parent relationships. New signatures attest the repair, not original
+authorship. Already-valid same-key re-signing without another change is rejected
+before object creation. Interrupted history signing can re-enter the same request:
+the owner first finds and verifies existing exact signed payloads, then creates
+only missing objects. It does not need another progress database. Ref changes
+still use the existing single Git CAS and require fresh admission.
+
+Archive or publication provenance requires the observed ref effect, reconstructed
+old-policy scope and a validated object mapping. Reissuing internally consistent
+hashes cannot choose a different source policy or arbitrary ref scope. Historical
+evidence does not confer current authorization or replace fresh proof. This is a
+bounded metadata repair, not permission to change product content or bypass
+failed admission. Local records do not establish independence from a writer with
+the same operating-system identity; independent verification requires a separate
+operator-selected trust boundary.
 
 ## Result Envelope
 

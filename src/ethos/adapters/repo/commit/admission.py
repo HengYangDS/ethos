@@ -5,12 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import observe_commit
 from ethos.adapters.repo.git_object import verify_commit_trust
-from ethos.adapters.repo.git_object import zero_oid
-from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
@@ -67,12 +64,37 @@ def commit_message_report(root: Path, message_file: Path) -> dict[str, object]:
         subject = path.read_text(encoding="utf-8").partition("\n")[0]
     except (OSError, UnicodeError):
         return _blocked("commit_message_unreadable")
-    policy = _indexed_commit_policy(root)
+    candidate = _indexed_commit_policy(root)
+    head = peel_commit(root, "HEAD")
+    incumbent = commit_policy_for_revision(root, head) if head else None
+    policies = tuple(dict.fromkeys(policy for policy in (candidate, incumbent) if policy))
+    gaps = []
+    for policy in policies:
+        if gap := commit_subject_gap(policy, subject):
+            gaps.append(gap)
+        gaps.extend(prospective_identity_gaps(root, policy))
+    if gaps:
+        return {**_blocked(gaps[0]), "required_gaps": list(dict.fromkeys(gaps))}
+    return _passed("subject_admitted" if policies else "policy_not_declared")
+
+
+def prospective_identity_gaps(
+    root: Path, policy: CommitPolicy | None, *, environment: dict[str, str] | None = None
+) -> list[str]:
+    """Read effective Git identities at the same environment as commit creation."""
     if policy is None:
-        return _passed("policy_not_declared")
-    if gap := commit_subject_gap(policy, subject):
-        return _blocked(gap)
-    return _passed("subject_admitted")
+        return []
+    identities: dict[str, object] = {}
+    for role in ("author", "committer"):
+        if getattr(policy, role) is None:
+            continue
+        observed = run_git(root, "var", f"GIT_{role.upper()}_IDENT", check=False, env=environment)
+        identity, separator, _time = observed.stdout.strip().rpartition("> ")
+        name, opening, email = identity.rpartition(" <")
+        if observed.returncode or not separator or not opening:
+            return [f"commit_{role}_identity_unavailable"]
+        identities[role] = {"name": name, "email": email}
+    return policy.identity_gaps(identities)
 
 
 def commit_subject_gap(
@@ -94,7 +116,7 @@ def commit_policy_report(
     policy: CommitPolicy | None,
     revision: str = "HEAD",
     *,
-    verify_trust: bool = False,
+    verify_trust: bool = True,
 ) -> dict[str, object]:
     """Observe and admit one object under an explicitly selected authority policy."""
     if policy is None:
@@ -114,15 +136,21 @@ def commit_policy_report(
     gaps = [str(gap) for gap in cast("list[object]", observation.get("required_gaps", []))]
     if not gaps and (gap := commit_subject_gap(policy, subject, revision=object_oid)):
         gaps.append(gap)
+    gaps.extend(policy.identity_gaps(head, revision=object_oid))
     signature = _signature_policy_report(
         policy,
         object_oid,
         cast("dict[str, object]", observation.get("signature", {})),
     )
     gaps.extend(cast("list[str]", signature["required_gaps"]))
-    if verify_trust and policy.signing_required and not gaps:
+    if verify_trust and policy.signing_required and not signature["required_gaps"]:
         trust = verify_commit_trust(root, object_oid)
-        gaps.extend(str(gap) for gap in cast("list[object]", trust.get("required_gaps", [])))
+        trust_gaps = [str(gap) for gap in cast("list[object]", trust.get("required_gaps", []))]
+        signature.update(
+            verification=trust,
+            verification_state="rejected" if trust_gaps else "verified",
+        )
+        gaps.extend(trust_gaps)
     return {
         "verdict": "block" if gaps else "pass",
         "state": str(observation.get("state") or "unknown"),
@@ -130,164 +158,6 @@ def commit_policy_report(
         "signature": signature,
         "required_gaps": gaps,
     }
-
-
-def commit_range_admission_report(
-    root: Path,
-    *,
-    target_ref: str,
-    proposed_head: str,
-    remote_head: str,
-    remote_name: str,
-    trusted_baseline: str = "",
-    trusted_baseline_source: str = "",
-    verify_trust: bool = False,
-) -> dict[str, object]:
-    """Validate the commits introduced by one exact proposed ref update."""
-    repo = root.resolve()
-    native_zero = zero_oid(repo)
-    if proposed_head == native_zero:
-        return _range_report(
-            target_ref=target_ref,
-            proposed_head=proposed_head,
-            remote_head=remote_head,
-            remote_name=remote_name,
-            update_kind="delete",
-            state="no_range",
-        )
-    proposed_commit = _peel_commit(repo, proposed_head)
-    if not proposed_commit:
-        return _range_blocked(
-            target_ref=target_ref,
-            proposed_head=proposed_head,
-            remote_head=remote_head,
-            remote_name=remote_name,
-            update_kind="create" if remote_head == native_zero else "existing",
-            gap=f"commit_range_proposed_unreadable:{proposed_head}",
-        )
-    baseline, baseline_ref, baseline_source, baseline_gap = _baseline(
-        repo,
-        target_ref=target_ref,
-        proposed_commit=proposed_commit,
-        remote_head=remote_head,
-        remote_name=remote_name,
-        trusted_baseline=trusted_baseline,
-        trusted_baseline_source=trusted_baseline_source,
-        native_zero=native_zero,
-    )
-    update_kind = "create" if remote_head == native_zero else "existing"
-    if baseline_gap:
-        return _range_blocked(
-            target_ref=target_ref,
-            proposed_head=proposed_head,
-            remote_head=remote_head,
-            remote_name=remote_name,
-            proposed_commit=proposed_commit,
-            baseline_ref=baseline_ref,
-            baseline_source=baseline_source,
-            update_kind=update_kind,
-            gap=baseline_gap,
-        )
-    try:
-        policy = _committed_policy(repo, proposed_commit)
-    except (TypeError, ValueError) as error:
-        return _range_blocked(
-            target_ref=target_ref,
-            proposed_head=proposed_head,
-            remote_head=remote_head,
-            remote_name=remote_name,
-            proposed_commit=proposed_commit,
-            baseline_commit=baseline,
-            baseline_ref=baseline_ref,
-            baseline_source=baseline_source,
-            update_kind=update_kind,
-            gap=str(error),
-        )
-    revisions = _introduced_commit_revisions(
-        repo,
-        proposed_commit=proposed_commit,
-        baseline_commit=baseline,
-    )
-    if revisions is None:
-        return _range_blocked(
-            target_ref=target_ref,
-            proposed_head=proposed_head,
-            remote_head=remote_head,
-            remote_name=remote_name,
-            proposed_commit=proposed_commit,
-            baseline_commit=baseline,
-            baseline_ref=baseline_ref,
-            baseline_source=baseline_source,
-            update_kind=update_kind,
-            gap=f"commit_range_unreadable:{baseline}:{proposed_commit}",
-        )
-    violations, gaps = _validate_commit_revisions(
-        repo,
-        revisions,
-        policy=policy,
-        verify_trust=verify_trust,
-    )
-    return _range_report(
-        target_ref=target_ref,
-        proposed_head=proposed_head,
-        remote_head=remote_head,
-        remote_name=remote_name,
-        proposed_commit=proposed_commit,
-        baseline_commit=baseline,
-        baseline_ref=baseline_ref,
-        baseline_source=baseline_source,
-        update_kind=update_kind,
-        state="blocked" if gaps else "admitted",
-        policy=policy.projection() if policy else None,
-        revisions=revisions,
-        violations=violations,
-        required_gaps=gaps,
-    )
-
-
-def validate_replayed_commits(
-    root: Path,
-    *,
-    baseline_commit: str,
-    proposed_commit: str,
-    policy: CommitPolicy | None,
-) -> list[str]:
-    """Admit a complete replay under its preselected candidate policy and signer trust."""
-    if policy is None:
-        return []
-    revisions = _introduced_commit_revisions(
-        root, proposed_commit=proposed_commit, baseline_commit=baseline_commit
-    )
-    if revisions is None:
-        return [f"commit_range_unreadable:{baseline_commit}:{proposed_commit}"]
-    _violations, gaps = _validate_commit_revisions(
-        root, revisions, policy=policy, verify_trust=True
-    )
-    return gaps
-
-
-def _validate_commit_revisions(
-    root: Path,
-    revisions: tuple[str, ...],
-    *,
-    policy: CommitPolicy | None,
-    verify_trust: bool = False,
-) -> tuple[list[dict[str, object]], list[str]]:
-    """Validate one already-derived oldest-first commit sequence."""
-    if policy is None:
-        return [], []
-    violations: list[dict[str, object]] = []
-    gaps: list[str] = []
-    for revision in revisions:
-        report = commit_policy_report(root, policy, revision, verify_trust=verify_trust)
-        commit_gaps = cast("list[str]", report["required_gaps"])
-        subject = str(cast("dict[str, object]", report["head"]).get("subject") or "")
-        if commit_gaps:
-            violations.append(
-                {"commit": revision, "subject": subject, "required_gaps": commit_gaps}
-            )
-            gaps.extend(commit_gaps)
-    return violations, gaps
 
 
 def _signature_policy_report(
@@ -321,58 +191,7 @@ def _signature_policy_report(
     }
 
 
-def _baseline(
-    root: Path,
-    *,
-    target_ref: str,
-    proposed_commit: str,
-    remote_head: str,
-    remote_name: str,
-    trusted_baseline: str,
-    trusted_baseline_source: str,
-    native_zero: str,
-) -> tuple[str, str, str, str]:
-    if remote_head != native_zero:
-        baseline = _peel_commit(root, remote_head)
-        return (
-            baseline,
-            "",
-            "remote_head",
-            "" if baseline else f"commit_range_remote_unreadable:{remote_head}",
-        )
-    baseline_ref = trusted_baseline
-    baseline_source = trusted_baseline_source or "explicit_trusted_baseline"
-    policy = load_branch_role_policy(root)
-    branch = target_ref.removeprefix("refs/heads/")
-    if not baseline_ref and branch.startswith(policy.proposal_branch_prefix):
-        baseline_ref = f"refs/remotes/{remote_name}/{policy.accepted_branch}"
-        baseline_source = "declared_remote_accepted_ref"
-    if not baseline_ref:
-        return (
-            "",
-            "",
-            "",
-            f"commit_range_trusted_baseline_required:{target_ref}",
-        )
-    baseline = _peel_commit(root, baseline_ref)
-    if not baseline:
-        return (
-            "",
-            baseline_ref,
-            baseline_source,
-            f"commit_range_trusted_baseline_unreadable:{baseline_ref}",
-        )
-    if not is_ancestor(root, baseline, proposed_commit):
-        return (
-            baseline,
-            baseline_ref,
-            baseline_source,
-            f"commit_range_trusted_baseline_not_ancestor:{baseline}:{proposed_commit}",
-        )
-    return baseline, baseline_ref, baseline_source, ""
-
-
-def _peel_commit(root: Path, revision: str) -> str:
+def peel_commit(root: Path, revision: str) -> str:
     completed = run_git(
         root,
         "rev-parse",
@@ -384,7 +203,8 @@ def _peel_commit(root: Path, revision: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def _committed_policy(root: Path, proposed_commit: str) -> CommitPolicy | None:
+def commit_policy_for_revision(root: Path, proposed_commit: str) -> CommitPolicy | None:
+    """Compile an exact Git-tree policy; absence adds no implicit requirements."""
     listed = run_git(
         root,
         "ls-tree",
@@ -441,93 +261,6 @@ def _blob_text(root: Path, object_id: str, *, gap: str) -> str:
         return completed.stdout.decode("utf-8")
     except UnicodeDecodeError as error:
         raise ValueError(gap) from error
-
-
-def _introduced_commit_revisions(
-    root: Path,
-    *,
-    proposed_commit: str,
-    baseline_commit: str,
-) -> tuple[str, ...] | None:
-    """Return the oldest-first commits newly reachable from one exact baseline."""
-    completed = run_git(
-        root,
-        "rev-list",
-        "--reverse",
-        "--topo-order",
-        proposed_commit,
-        "--not",
-        baseline_commit,
-        check=False,
-        observation=True,
-    )
-    return tuple(completed.stdout.splitlines()) if completed.returncode == 0 else None
-
-
-def _range_blocked(
-    *,
-    target_ref: str,
-    proposed_head: str,
-    remote_head: str,
-    remote_name: str,
-    update_kind: str,
-    gap: str,
-    proposed_commit: str = "",
-    baseline_commit: str = "",
-    baseline_ref: str = "",
-    baseline_source: str = "",
-) -> dict[str, object]:
-    return _range_report(
-        target_ref=target_ref,
-        proposed_head=proposed_head,
-        remote_head=remote_head,
-        remote_name=remote_name,
-        proposed_commit=proposed_commit,
-        baseline_commit=baseline_commit,
-        baseline_ref=baseline_ref,
-        baseline_source=baseline_source,
-        update_kind=update_kind,
-        state="blocked",
-        required_gaps=[gap],
-    )
-
-
-def _range_report(
-    *,
-    target_ref: str,
-    proposed_head: str,
-    remote_head: str,
-    remote_name: str,
-    update_kind: str,
-    state: str,
-    proposed_commit: str = "",
-    baseline_commit: str = "",
-    baseline_ref: str = "",
-    baseline_source: str = "",
-    policy: dict[str, object] | None = None,
-    revisions: tuple[str, ...] = (),
-    violations: list[dict[str, object]] | None = None,
-    required_gaps: list[str] | None = None,
-) -> dict[str, object]:
-    gaps = required_gaps or []
-    return {
-        "verdict": "block" if gaps else "pass",
-        "state": state,
-        "target_ref": target_ref,
-        "remote_name": remote_name,
-        "update_kind": update_kind,
-        "proposed_head": proposed_head,
-        "remote_head": remote_head,
-        "proposed_commit": proposed_commit,
-        "baseline_commit": baseline_commit,
-        "baseline_ref": baseline_ref,
-        "baseline_source": baseline_source,
-        "policy": policy,
-        "revisions": list(revisions),
-        "checked_commit_count": len(revisions),
-        "violations": violations or [],
-        "required_gaps": gaps,
-    }
 
 
 def _passed(state: str) -> dict[str, object]:

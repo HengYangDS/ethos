@@ -28,6 +28,18 @@ class RefreshEdge(NamedTuple):
     attestation_id: str
 
 
+def refresh_edges(
+    root: Path, *, branch: str, attestations: tuple[Any, ...]
+) -> dict[str, tuple[RefreshEdge, ...]]:
+    """Derive the branch's validated adjacency relation from exact refresh evidence."""
+    grouped: dict[str, list[RefreshEdge]] = {}
+    for attestation in attestations:
+        edge = validated_refresh_edge(root, branch=branch, attestation=attestation)
+        if edge is not None:
+            grouped.setdefault(edge.previous, []).append(edge)
+    return {previous: tuple(values) for previous, values in grouped.items()}
+
+
 def validated_refresh_edge(
     root: Path,
     *,

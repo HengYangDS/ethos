@@ -1,4 +1,4 @@
-"""Persistent Commitment and Attestation envelopes plus transient Facts."""
+"""Transient Commitment/Facts and persistent Attestation semantic envelopes."""
 
 from __future__ import annotations
 
@@ -95,7 +95,8 @@ def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     return result
 
 
-def _parse_json(data: str | bytes | bytearray) -> object:
+def parse_semantic_json(data: str | bytes | bytearray) -> object:
+    """Parse semantic input without losing duplicate fields or accepting non-JSON values."""
     return json.loads(
         data,
         object_pairs_hook=_unique_json_object,
@@ -155,7 +156,7 @@ class _CanonicalSemanticModel(_SemanticModel):
         del strict, extra, by_alias, by_name
         try:
             value = cls.model_validate(
-                _parse_json(json_data),
+                parse_semantic_json(json_data),
                 strict=True,
                 extra="forbid",
                 context=context,

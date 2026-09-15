@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import subprocess
 from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 
 import ethos.adapters.repo.commit.admission as admission
+import ethos.adapters.repo.commit.integration as integration
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.repository.policy.commit import CommitPolicy
 from tests.support.governed_repository import git
@@ -51,7 +53,7 @@ def _report(
     remote_name: str = "origin",
     trusted_baseline: str = "",
 ) -> dict[str, object]:
-    return admission.commit_range_admission_report(
+    return integration.commit_range_admission_report(
         repo,
         target_ref=target,
         proposed_head=proposed,
@@ -87,6 +89,7 @@ def test_indexed_policy_projection_matrix(
     records: bytes,
     expected: str | None,
 ) -> None:
+    monkeypatch.setattr(admission, "peel_commit", lambda *_args: "")
     message = tmp_path / "COMMIT_EDITMSG"
     message.write_text("fix: indexed policy\n", encoding="utf-8")
     monkeypatch.setattr(
@@ -219,7 +222,7 @@ def test_new_ref_baseline_matrix(tmp_path: Path, case: str) -> None:
             "missing": "commit_range_trusted_baseline_required:",
             "unreadable": "commit_range_trusted_baseline_unreadable:missing",
         }[case]
-        assert report["required_gaps"][0].startswith(marker)
+        assert cast("list[str]", report["required_gaps"])[0].startswith(marker)
 
 
 @pytest.mark.parametrize("tagged_endpoint", ["baseline", "proposed"])
@@ -275,7 +278,7 @@ def test_tip_policy_projection_matrix(tmp_path: Path, case: str) -> None:
             if case == "malformed"
             else f"commit_policy_projection_unreadable:{proposed}"
         )
-        assert report["required_gaps"][0].startswith(marker)
+        assert cast("list[str]", report["required_gaps"])[0].startswith(marker)
 
 
 def test_invalid_subject_identifies_the_exact_introduced_commit(tmp_path: Path) -> None:
@@ -361,7 +364,7 @@ def test_object_policy_and_optional_trust_matrix(
     assert verified == ([revision] if trust is not None else [])
     if trust is not None:
         assert (
-            admission.validate_replayed_commits(
+            integration.validate_replayed_commits(
                 repo, baseline_commit=baseline, proposed_commit=revision, policy=policy
             )
             == formatted
@@ -376,7 +379,7 @@ def test_object_policy_and_optional_trust_matrix(
             "author": {"name": "Author"},
             "committer": {"name": "Committer"},
         }
-        assert report["signature"]["state"] == state
+        assert cast("dict[str, object]", report["signature"])["state"] == state
 
 
 @pytest.mark.parametrize(
@@ -410,9 +413,9 @@ def test_unreadable_introduced_range_fails_closed(
     repo = init_git_repo(tmp_path / "repo")
     baseline = git(repo, "rev-parse", "HEAD")
     proposed = _commit(repo, "fix: range", "range", policy=_policy_text())
-    run_git = admission.run_git
+    run_git = integration.run_git
     monkeypatch.setattr(
-        admission,
+        integration,
         "run_git",
         lambda root, *args, **kwargs: (
             subprocess.CompletedProcess(args, 1, "", "range unreadable")
@@ -432,7 +435,7 @@ def test_replay_admission_owns_range_and_candidate_policy(tmp_path: Path, case: 
     baseline = git(repo, "rev-parse", "HEAD")
     proposed = _commit(repo, "invalid" if case == "invalid" else "fix: replay", "replay")
     tip = "missing" if case in {"unreadable", "absent"} else proposed
-    gaps = admission.validate_replayed_commits(
+    gaps = integration.validate_replayed_commits(
         repo,
         baseline_commit=baseline,
         proposed_commit=tip,

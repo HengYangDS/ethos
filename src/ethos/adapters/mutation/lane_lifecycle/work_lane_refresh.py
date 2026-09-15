@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.repo.commit.admission import validate_replayed_commits
 from ethos.adapters.repo.commit.creation import commit_environment
+from ethos.adapters.repo.commit.integration import validate_replayed_commits
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_tracked_head

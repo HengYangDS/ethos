@@ -14,6 +14,7 @@ command plane.
 | OpenSpec intent and transformation | official `openspec` CLI | Official command JSON |
 | Governed archive effect | `ethos lane archive-change --change <id> --expect-head <source-head> --json` | Exact source proof and the returned guarded continuation |
 | Detached CI ref observation | `ethos hook ref-update --target-ref <full-ref> --proposed-head <oid> --remote-head <old-oid> --remote <name> --json` | Shared role, introduced-range and intent observation; not repository proof |
+| Historical attribution/signature correction | `ethos lane repair-signature --root <accepted-root> --expect-head <old-oid> --json` | Exact selection, recoverable original bundle, native object validation and selected-ref CAS; see the command reference for historical request fields |
 | Repo-local skills | `skills` proof gate | Proof result |
 
 Repository source, tests, schemas, docs, official OpenSpec, and Attestations
@@ -41,3 +42,11 @@ Treat each peer effect as a new trust boundary. A preflight PASS or earlier peer
 success does not authorize the next effect. Preserve applied peers, report
 UNKNOWN honestly and re-observe current refs before replay; do not repair partial
 publication by reconstructing or re-signing the product object.
+
+For explicitly authorized historical repair, distinguish incorrect attribution
+from an untrusted key or a Forge account association. Use exact original identity
+fields, preserve legitimate authors and verify recovery before applying. Follow
+the public repair continuation; do not substitute mailmap display changes, bulk
+author replacement or hook bypass. Interrupted history signing reuses verified
+native objects; a changed actor, ambiguous object or changed backup is not retry
+permission. Reprove, rebind and observe each peer separately after the local CAS.

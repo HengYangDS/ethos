@@ -24,6 +24,8 @@ The old CLI `hook run` transport and sibling hook module are removed, not aliase
 First deny unused imports in an actual native entry invocation and observe RED.
 Retain real malformed envelopes, damaged-runtime rejection, one-observation batch
 behavior, raw commit rejection and the existing complete lifecycle journey.
+Index-projection cases invoke the installed native Git hook, so removal of an
+interactive CLI transport cannot silently remove their consumer coverage.
 Compare cold and warm invocations under the same environment, not a fixed
 wall-time assertion. The full proof and package activation remain separate claims.
 

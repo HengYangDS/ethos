@@ -8,7 +8,7 @@ from typing import cast
 import pytest
 
 import ethos.adapters.repo.runtime.authority as runtime_authority
-import ethos.cli as cli
+import ethos.surface.cli.application as application
 import ethos.surface.cli.version as version_module
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
@@ -255,7 +255,7 @@ def test_process_execution_failure_emits_structured_json_without_git_classificat
             cause="FileNotFoundError: missing",
         )
 
-    monkeypatch.setattr(cli, "load_command_groups", fail)
+    monkeypatch.setattr(application, "load_command_groups", fail)
     monkeypatch.setattr(sys, "argv", ["ethos", "hook", "install", "--json"])
 
     with pytest.raises(SystemExit, match="1"):
@@ -289,7 +289,11 @@ def test_public_boundary_normalizes_contract_failures_without_traceback(
     def fail(*_args: object, **_kwargs: object) -> None:
         raise error
 
-    monkeypatch.setattr(cli, "load_command_groups" if phase == "registration" else "app", fail)
+    monkeypatch.setattr(
+        application,
+        "load_command_groups" if phase == "registration" else "dispatch_arguments",
+        fail,
+    )
     monkeypatch.setattr(sys, "argv", ["ethos", "status", "--json"])
 
     with pytest.raises(SystemExit, match="1"):

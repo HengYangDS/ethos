@@ -58,6 +58,12 @@ Hidden content and a prior PASS cannot repair an unsupported current claim.
 - Failed or unknown prerequisite results block dependent checks without executing
   them. Independent diagnostics can continue. Package creation depends on passing
   coverage; a successful process cannot substitute for a complete result set.
+- Before selecting a gate as inexpensive, inspect its transitive dependencies in
+  the current registry. A focused selection is not necessarily a small workload.
+  Carry the declared resource envelope into every native process explicitly;
+  separate shell invocations do not inherit an earlier invocation's exports.
+  Read back the actual child command and retain one live operation handle. Never
+  run the same heavy closure twice merely because its top-level gate name differs.
 - Local CI retains the exact command/policy, source overlay, individual results,
   stdout/stderr and a failure receipt. It never claims hosted success or repository
   proof from that fallback receipt. Use exact committed full proof for acceptance.
@@ -127,6 +133,11 @@ After confirmed termination without a complete result, keep the attempt
 unproved, retain its bounded failure evidence, and reclaim only verified owned
 scratch. Never merge incomplete coverage into a new proof or infer success from
 the absence of an error report.
+
+If observed execution exceeds the admitted envelope, interrupt only that exact
+owned attempt, verify descendant exit and scratch cleanup, then rederive the
+correct closure and controls. Do not label an intentionally interrupted attempt
+a product regression or erase its evidence with the replacement run.
 
 `tools/ci/python_test_gate.py` owns test-attempt isolation. Under its existing
 coverage lock, it invalidates the previous completion marker before preparation

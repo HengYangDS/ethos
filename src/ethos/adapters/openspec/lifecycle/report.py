@@ -1,3 +1,5 @@
+"""Preserve official OpenSpec result meaning in lifecycle observations."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -84,17 +86,23 @@ def selection_gaps(rows: list[dict[str, str]], requested: str | None) -> list[st
 
 
 def validation_failures(validate_payload: dict[str, Any]) -> list[str]:
-    """Translate OpenSpec validation JSON into ETHOS gaps."""
-    items = validate_payload.get("items", [])
-    return (
-        [
-            f"openspec_validation_failed:{item.get('type')}:{item.get('id')}"
-            for item in items
-            if isinstance(item, dict) and item.get("valid") is False
-        ]
-        if isinstance(items, list)
-        else ["openspec_validation_unreadable"]
-    )
+    """Read full native items without coercing validity or reinterpreting findings."""
+    items = validate_payload.get("items")
+    if not isinstance(items, list):
+        return ["openspec_validation_unreadable"]
+    gaps: list[str] = []
+    for item in items:
+        if not (
+            isinstance(item, dict)
+            and isinstance(item.get("id"), str)
+            and item["id"].strip()
+            and item.get("type") in ("change", "spec")
+            and isinstance(item.get("valid"), bool)
+        ):
+            gaps.append("openspec_validation_unreadable")
+        elif not item["valid"]:
+            gaps.append(f"openspec_validation_failed:{item['type']}:{item['id']}")
+    return list(dict.fromkeys(gaps))
 
 
 def openspec_root_gaps(openspec_root: Path, official_config: dict[str, Any]) -> list[str]:
@@ -201,8 +209,10 @@ def openspec_command_gaps(
         )
         if blocked
     ]
-    if validate["exit_code"] != 0:
-        gaps.extend(validation_failures(validate["json"]))
+    validation_gaps = validation_failures(validate["json"])
+    if validate["exit_code"] != 0 and not validation_gaps:
+        validation_gaps.append("openspec_validate_failed")
+    gaps.extend(validation_gaps)
     gaps.extend(
         f"openspec_{name}_json_parse_failed"
         for name, result in (("doctor", doctor), ("list", list_result), ("validate", validate))

@@ -229,6 +229,77 @@ def test_locked_native_validation_preserves_empty_and_informational_results(
     )
 
 
+@pytest.mark.parametrize("mode", ["unsynced", "early-synced", "near-miss", "conflict"])
+def test_locked_native_archive_preserves_removal_meaning(tmp_path: Path, mode: str) -> None:
+    """Native removal is idempotent, but misspelled or conflicting intent cannot write."""
+    root = _repo(tmp_path)
+    fixture.write_active_commitment(root)
+    change = root / "openspec/changes/fixture-change"
+    main = root / "openspec/specs/contracts/spec.md"
+    retained = main.read_bytes()
+    legacy = (
+        "\n### Requirement: Legacy capability\n\n"
+        "The system SHALL retain legacy behavior until explicitly retired.\n\n"
+        "#### Scenario: Legacy operation\n\n"
+        "- **WHEN** legacy behavior is requested\n"
+        "- **THEN** the legacy response is available\n"
+    )
+    if mode != "early-synced":
+        main.write_bytes(retained + legacy.encode())
+    delta = change / "specs/contracts/spec.md"
+    content = (
+        "## REMOVED Requirements\n\n### Requirement: Legacy capability\n\n"
+        "**Reason**: The legacy behavior is no longer needed.\n\n"
+        "**Migration**: Use the governed fixture.\n"
+    )
+    if mode == "near-miss":
+        content = content.replace("Legacy capability", "legacy capability")
+    if mode == "conflict":
+        content += (
+            "\n## RENAMED Requirements\n\n"
+            "- FROM: `### Requirement: Legacy capability`\n"
+            "- TO: `### Requirement: Renamed capability`\n"
+        )
+    delta.write_text(content)
+    (change / ".openspec.yaml").write_text("schema: spec-driven\n")
+    tasks = change / "tasks.md"
+    tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
+    before = {
+        p.relative_to(root): p.read_bytes() for p in (root / "openspec").rglob("*") if p.is_file()
+    }
+    command = cli.openspec_base_command()
+    assert command is not None
+    result = cli.run_json(root, command, ("archive", "fixture-change", "--yes", "--json"))
+    assert result["parse_error"] == ""
+    if mode in {"near-miss", "conflict"}:
+        assert result["exit_code"] != 0, result
+        assert change.is_dir()
+        after = {
+            p.relative_to(root): p.read_bytes()
+            for p in (root / "openspec").rglob("*")
+            if p.is_file()
+        }
+        assert after == before
+        return
+    assert result["exit_code"] == 0, result
+    assert not change.exists()
+    archive = result["json"]["archive"]
+    archived = root / "openspec/changes/archive" / archive["archivedAs"]
+    assert (archived / "specs/contracts/spec.md").read_text() == content
+    assert main.read_bytes() == retained
+    assert archive["specsUpdated"] is (mode == "unsynced")
+    assert archive["totals"] == {
+        "added": 0,
+        "modified": 0,
+        "removed": int(mode == "unsynced"),
+        "renamed": 0,
+    }
+    warnings = archive.get("warnings", [])
+    assert bool(warnings) is (mode == "early-synced")
+    if warnings:
+        assert all("already removed" in warning for warning in warnings)
+
+
 def test_governance_observes_archive_effect_separately_from_generation_scope(monkeypatch, tmp_path):
     root = _repo(tmp_path)
     archive_scope = {

@@ -124,6 +124,22 @@ Judge learning by a previously missed fault now rejected, a valid path restored,
 less repeated work, or a retired duplicate, not by added prose or test count.
 When a correction fails twice, revisit the owner and model before another patch.
 
+For slow iteration, profile the complete loop and distinguish resource preparation,
+observation, execution, proof, archive and publication. Count native calls and
+transferred bytes alongside wall time; cumulative parallel durations do not add
+up to wall time. Trace repeated work to its owning input and lifetime before
+adding a cache, increasing concurrency or rebuilding unchanged supply. A cache
+may reuse validated computation, never current authorization. Compare identical
+valid and invalid workloads, plus cold/warm and drift behavior, before claiming
+an improvement. Keep native notifications independent of unused CLI or admission
+initialization. Shared immutable inputs do not imply shared mutable fixture state.
+
+Check changed failure probes themselves: a damaged-byte test must prove that its
+mutation actually changed the selected bytes before asserting rejection. Run the
+new smallest case before expanding the affected matrix; a failure goes back to
+that case, not another unconditional full-suite run. Read archived results only
+for comparison, and retain one current attempt and its actual completion.
+
 ## Interrupted Execution
 
 Observe the original process or tool handle before waiting, recovering or

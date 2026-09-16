@@ -34,10 +34,29 @@ zero or more remote peers. Local-only, either one of GitLab or GitHub, and both
 remotes are first-class topologies. No absent provider is inferred or required.
 The `[publication]` table declares the local repository-native commands;
 `[[publication.peers]]` tables declare each peer's ID, provider, role, Git
-remote, capabilities, and optional CI surface. A CI surface is required only
+remote, capabilities, optional API repository URL (`forge_repository`), and CI
+surface. The API URL preserves its actual HTTP scheme and port independently
+of SSH aliases or transport ports. It contains no credentials. A CI surface is required only
 when that peer declares `ci_cd`. ETHOS validates that declared paths remain
 regular files inside the repository and that local commands are executable; it
 never guesses a provider, remote, or tool layout for an adopter.
+
+Host-private API coordinates may instead live in the existing local Git remote
+configuration key `remote.<name>.forgeRepository`. An explicit repository
+declaration takes precedence; absent either, an HTTP Git URL supplies its native
+repository address. SSH-only transport without API coordinates remains unknown.
+Neither this locator nor native client credentials grant deletion authority.
+
+Retire accepted review projections with `ethos publish --retire --ref
+refs/heads/proposal/<name> --probe-remote --expect-head <HEAD> --json`, then use
+its exact request-receipt action. The same publication owner and pre-push hook
+require local and peer accepted absorption plus no open source-branch review.
+Valid native history-repair evidence can establish exact old-to-replacement
+absorption; patch equivalence cannot. Main release convergence is independent.
+GitHub and GitLab use bounded noninteractive native clients; declared plain Git
+peers have no Forge review system. Failed or unavailable queries remain unknown.
+Each peer is reobserved before exact-old deletion, with partial outcomes and
+already-absent replay recorded by the existing publication Attestation.
 
 Release readiness is proven with:
 

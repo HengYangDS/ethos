@@ -11,6 +11,7 @@ from typing import cast
 
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
 from ethos.adapters.mutation.proof import proof_admission_report
+from ethos.adapters.mutation.publication.retirement import proposal_retirement_report
 from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.commit.signature import completed_signature_repair
@@ -299,6 +300,10 @@ def push_admission_report(
         str(options.get("remote_head") or ""),
         str(options.get("remote_name") or "origin"),
     )
+    if pushed_head in _ZERO_OIDS:
+        return proposal_retirement_report(
+            repo, target_ref=target_ref, old=remote_head, remote=remote_name
+        )
     current_policy = load_branch_role_policy(repo)
     config = release_config(repo)
     topology = publication_topology(repo, config)

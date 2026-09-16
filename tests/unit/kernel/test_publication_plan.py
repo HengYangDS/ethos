@@ -71,6 +71,53 @@ def _publication_source(kind: str = "commit") -> PublicationSource:
     )
 
 
+@pytest.mark.parametrize("width", [40, 64])
+def test_publication_effect_represents_retirement_without_a_second_transaction(width: int) -> None:
+    """An accepted source can authorize exact absence rather than project itself."""
+    source = _publication_source().model_copy(
+        update={"object_oid": "1" * width, "peeled_commit": "1" * width, "tree_oid": "3" * width}
+    )
+    update = PublicationUpdate(
+        target_ref="refs/heads/proposal/finished",
+        expected="2" * width,
+        desired="0" * width,
+    )
+    effect = PublicationEffect.compile(
+        repository_common_dir="/repo/.git",
+        source=source,
+        targets=(PublicationTarget(id="peer", remote="origin", updates=(update,)),),
+    )
+
+    assert effect.operation == "git.ref.compare-and-swap"
+    assert effect.retirement is True
+    assert effect.targets[0].updates[0].deletion is True
+
+
+def test_publication_effect_does_not_mix_retirement_and_projection() -> None:
+    """Different authority obligations cannot hide behind one source projection."""
+    with pytest.raises(ValueError, match="publication_mixed_retirement_projection"):
+        PublicationEffect.compile(
+            repository_common_dir="/repo/.git",
+            source=_publication_source(),
+            targets=(
+                PublicationTarget(
+                    id="peer",
+                    remote="origin",
+                    updates=(
+                        PublicationUpdate(
+                            target_ref="refs/heads/proposal/finished",
+                            expected="2" * 40,
+                            desired="0" * 40,
+                        ),
+                        PublicationUpdate(
+                            target_ref="refs/heads/dev", expected="2" * 40, desired="1" * 40
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+
 @pytest.mark.parametrize(
     ("kind", "updates", "error"),
     [

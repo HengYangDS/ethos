@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import cast
@@ -44,16 +45,15 @@ def _push_remote_ref_set_exact(
     leases = tuple(
         f"--force-with-lease={update.target_ref}:{update.expected}" for update in updates
     )
-    refspecs = tuple(f"{update.desired}:{update.target_ref}" for update in updates)
-    completed = git.run_network_git(
-        root,
-        "push",
-        "--porcelain",
-        "--atomic",
-        *leases,
-        remote,
-        *refspecs,
+    refspecs = tuple(
+        f"{'' if update.deletion else update.desired}:{update.target_ref}" for update in updates
     )
+    try:
+        completed = git.run_network_git(
+            root, "push", "--porcelain", "--atomic", *leases, remote, *refspecs, timeout=120
+        )
+    except (subprocess.TimeoutExpired, git.GitExecutionError) as error:
+        return {"state": "unknown", "exit_code": None, "stdout": "", "stderr": str(error)}
     return {
         "state": "applied" if completed.returncode == 0 else "failed",
         "exit_code": completed.returncode,
@@ -138,7 +138,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
             for target_ref, item in observed_refs.items()
             if item.get("state") == "unavailable"
         )
-        if result["state"] == "applied" and post_observation_gaps:
+        if result["state"] in {"applied", "unknown"} and post_observation_gaps:
             return terminal_publication_result(
                 root=root,
                 plan=plan,
@@ -153,12 +153,14 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
                 attempts=tuple(attempts),
             )
         parity = all(
-            item.get("object_oid") == effect.source.object_oid
-            and item.get("peeled_commit") == effect.source.peeled_commit
-            and item.get("tree_oid") == effect.source.tree_oid
-            for item in observed_refs.values()
+            observed_refs[update.target_ref].get("state") == "absent"
+            if update.deletion
+            else observed_refs[update.target_ref].get("object_oid") == effect.source.object_oid
+            and observed_refs[update.target_ref].get("peeled_commit") == effect.source.peeled_commit
+            and observed_refs[update.target_ref].get("tree_oid") == effect.source.tree_oid
+            for update in target.updates
         )
-        if result["state"] != "applied" or not parity:
+        if not parity:
             gap = f"publication_push_failed:{target.id}:{target.remote}"
             return terminal_publication_result(
                 root=root,

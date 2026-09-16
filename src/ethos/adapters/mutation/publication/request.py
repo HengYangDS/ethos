@@ -37,6 +37,7 @@ def observe_remote_publication_effect(
     target_refs: tuple[str, ...],
     remotes: dict[str, str],
     ref_admissions: dict[str, dict[str, object]],
+    retire: bool = False,
 ) -> tuple[PublicationEffect | None, dict[str, dict[str, object]], tuple[str, ...]]:
     """Observe every declared target before compiling one immutable effect."""
     ref_kinds = {
@@ -146,7 +147,7 @@ def observe_remote_publication_effect(
                 )
                 is not None,
             )
-            if transition["effect_allowed"] is not True:
+            if not retire and transition["effect_allowed"] is not True:
                 gaps.append(
                     f"publication_target_drift:{peer_id}:{target_ref.removeprefix('refs/heads/')}"
                 )
@@ -154,7 +155,7 @@ def observe_remote_publication_effect(
                 PublicationUpdate(
                     target_ref=target_ref,
                     expected=observed,
-                    desired=source.object_oid,
+                    desired=zero if retire else source.object_oid,
                 )
             )
         targets.append(

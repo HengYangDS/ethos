@@ -35,8 +35,6 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import report_verdict
 
-_ZERO_OIDS = {"0" * 40, "0" * 64}
-
 
 def admit_hook(
     root: Path, name: str, args: tuple[str, ...], *, stdin: IO[str]
@@ -159,8 +157,6 @@ def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[s
             reports.append(blocked_report("pre-push", "push_update_invalid"))
             continue
         _local_ref, local_sha, remote_ref, remote_sha = fields
-        if local_sha in _ZERO_OIDS:
-            continue
         reports.append(
             push_admission_report(
                 root=root,

@@ -27,9 +27,10 @@ from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.semantic import canonical_utc_time
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.governed_repository import start_adopted_candidate
 from tests.support.proof import seed_executed_proof
 from tests.support.signature import configure_signer
 from tests.support.signature import killed_signature_repair
@@ -142,19 +143,16 @@ def test_completed_repair_provenance_requires_actual_ref_effect(tmp_path, monkey
     assert mapping[old] == new
 
 
-@pytest.mark.parametrize("continuation", ["immediate", "descendant", "repeated"])
-def test_archive_resolution_follows_only_completed_repair_provenance(
-    tmp_path, monkeypatch, continuation
-):
-    fixture = start_adopted_work_lane(tmp_path)
-    root = fixture.worktree
-    configure_signer(fixture.repository, tmp_path)
-    workspace = root / ".ethos/workspace.toml"
+def _archive_verification_lane(tmp_path):
+    """Prepare native verification at the trusted base before authoring begins."""
+    repo, candidate = start_adopted_candidate(tmp_path)
+    configure_signer(repo, tmp_path)
+    workspace = repo / ".ethos/workspace.toml"
     workspace.write_text(
         workspace.read_text() + '\n[commit_policy]\nsubject_pattern = ".+"\n'
         'signing_required = true\nsigning_format = "ssh"\n'
     )
-    profile = root / ".ethos/profile.toml"
+    profile = repo / ".ethos/profile.toml"
     profile.write_text(
         profile.read_text()
         .replace(
@@ -186,6 +184,30 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
             ),
         )
     )
+    baseline = commit_fixture(repo, "configure archive verification baseline")
+    git(candidate, "reset", "--hard", baseline)
+    root = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--path",
+        str(root),
+        "--holder-ref",
+        "agent:test:case:agent-test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+    commit_active_change(root)
+    return repo, root
+
+
+@pytest.mark.parametrize("continuation", ["immediate", "descendant", "repeated"])
+def test_archive_resolution_follows_only_completed_repair_provenance(
+    tmp_path, monkeypatch, continuation
+):
+    repo, root = _archive_verification_lane(tmp_path)
     (root / "openspec/changes/fixture-change/tasks.md").write_text(
         "- [x] Complete native change.\n"
     )
@@ -206,7 +228,7 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
     old = git(root, "rev-parse", "HEAD")
     expected = load_openspec_commitment(root, tree_ref=old)
     seed_executed_proof(root, old)
-    initial = git(fixture.repository, "rev-parse", "HEAD")
+    initial = git(repo, "rev-parse", "HEAD")
     run_ethos("land", "--apply", "--authorize", "--expect-head", old, "--json", cwd=root)
     run_ethos(
         "land",
@@ -218,9 +240,8 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
         "--candidate-head",
         old,
         "--json",
-        cwd=fixture.repository,
+        cwd=repo,
     )
-    repo = fixture.repository
     bundle = tmp_path / "original.bundle"
     git(repo, "bundle", "create", str(bundle), "refs/heads/dev")
     result = repair.repair_signature(

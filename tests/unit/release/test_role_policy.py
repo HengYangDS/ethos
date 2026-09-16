@@ -86,3 +86,22 @@ def test_pure_role_validation_accepts_equivalent_declaration() -> None:
         '[protected_refs]\nbranches = ["dev", "main"]\ntags = []\n'
     )
     assert configuration.release_role_policy_gaps(config, BranchRolePolicy()) == []
+
+
+@pytest.mark.parametrize("kind", ["dangling", "directory", "invalid_utf8"])
+def test_unreadable_present_release_remains_invalid(tmp_path: Path, kind: str) -> None:
+    """Broken carriers cannot turn required observation into optional absence."""
+    path = tmp_path / ".ethos/release.toml"
+    path.parent.mkdir()
+    if kind == "dangling":
+        path.symlink_to(tmp_path / "missing")
+    elif kind == "directory":
+        path.mkdir()
+    else:
+        path.write_bytes(b"\xff")
+    with pytest.raises(ValueError, match="release_config_invalid"):
+        configuration.release_config(tmp_path)
+    report = configuration.release_role_policy_report(tmp_path)
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["release_config_invalid:.ethos/release.toml"]
+    assert str(path) in report["next_action"]

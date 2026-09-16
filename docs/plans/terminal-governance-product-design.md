@@ -597,6 +597,17 @@ binds source overlay `ffcf629fff91b3eccbccaa71738dd09057992420`; packaged
 declarations and resources match. The owned smoke installation was removed.
 This remains package acceptance, not installed ETHOS repository currentness.
 
+Signed checkpoint `cb88fb41ffc4ad6776c37da6e260664c62da8f86` retains all
+28 implementation paths. Its first full proof blocked: 3,573 tests passed,
+one skipped, and three archived-history cases failed because they replaced
+accepted sample gates during the Change without independent acceptance.
+Five downstream gates were skipped by dependency failure; they did not expose
+five new defects. The fixture now establishes its native verifier policy before
+starting its Work Lane. All 39 history/control cases pass without weakening the
+new protection. Twenty-five release/runtime boundary tests also pass, including
+unreadable policy and missing observation cases. Production code is unchanged
+after that checkpoint; the corrected candidate still requires a fresh full proof.
+
 The September 16 follow-up supply query still finds current numeric releases
 for 27 of 29 direct Python requirements and all five selected npm requirements.
 Newer ty and mutmut versions remain publisher-declared Beta. Embedded Node and

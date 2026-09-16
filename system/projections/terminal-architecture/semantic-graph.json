@@ -179,7 +179,7 @@
     "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
       "authority": "current repository lifecycle, proof, publication, and cleanup semantics",
-      "sha256": "7d59f2ed7b7ba8e0f416008d0a42f5aee0071434a51ae924ee382e424b020d1a"
+      "sha256": "83f67ae337b89eedc0d68400f4f76df456bde0b6eed168b4fa11f947f23db853"
     },
     "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",

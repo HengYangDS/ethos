@@ -38,28 +38,46 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The last completed atomic delivery is `validation-results`, accepted at
-`5915126eee525c39a982aa850072517268df21c9`, tree
-`b6857a8a24ff51b9be35648ce74103cb6f2c97f7`. Its prearchive and postarchive
-proofs each passed 35 gates, with 3,453 tests passed and one skipped. Combined
-line/branch coverage is 25,755/27,074, or 95.128167 percent. Those proofs took
-2,244.640 and 2,097.737 seconds; they do not establish acceptable iteration speed.
+The latest local accepted object is
+`b8ea66d553e5e7257af7216b0b3ada5cda68fab6`, tree
+`f7bce8a99d4eec891534b2fe6a49b6b12eff9672`. The public historical repair
+corrected 40 author fields and 37 committer fields across 40 selected commits;
+2,855 affected objects including descendants preserve trees, messages, dates,
+ordered parents and unselected attribution. Original objects remain recoverable
+in the verified bundle. This is actual local repair, not mailmap masking or a
+permanent restriction on future contributors.
 
-Candidate/dev/main and the selected installed runtime agree on that source/tree.
-Runtime `9cbc18b1dd0cceaca00edfe6cabed45fbc86f4afbd1846b847bf980cd73b59a0`
-replaced and reclaimed its predecessor. Both independent peers' dev/main refs
-were read back at the accepted commit. Publication Attestation
-`3ce752031bea245a3d62e1230d349408948363689268d592fb703f6acf65af4d` preserves
-the effect and GitHub's existing maintainer bypass of PR/pending-check rules;
-protection and local hooks were not disabled. Hosted CI remains a separate claim.
+Installed immutable runtime
+`20d2d3b39ab232abb7d21af288bb056b1d853d8136fa4d7d4d503117c75d2cee` binds
+that source/tree. Its predecessor is reclaimed. Repaired-history full proof
+passed 34 of 35 gates, including 3,659 tests and the coverage floor; only root
+Ruff marker residue failed. Exact cleanup removed those two untracked markers;
+the installed artifact owner then passed. That observation does not transform
+the original BLOCK into a full PASS. The last independently observed peers still
+pointed to `e98daddc1a077f27f8a7873879cb2dd40ddaca20`; replacement publication
+and hosted acceptance require fresh proof and separate readback.
 
-The Work Lane, ref and Lease retired through the public command. Its path and
-ref are absent; only accepted and candidate worktrees remained before the serial
-`hook-execution` successor. Forty-one selected evidence files, 8,426,763 bytes,
-were retained with exact hashes under the accepted root's ignored
-`build/evidence/quality/validation-results/`. Preservation and retirement receipts
-bind their consumers and absence checks. Profiles expire after P5 comparison and
-accepted replacement; dependency environments and interim reruns are not retained.
+The unaccepted `self-identity` restriction misinterpreted historical correction
+as exclusive future contribution and is withdrawn with its compensating observer
+and dependency. Existing subject/signature policy remains unchanged. Current
+source makes post-repair archived-intent lookup bounded: share verification
+inside one observation and avoid decoding unrelated effect plans, without
+retaining authorization or weakening exact validation. Frozen real-history
+readback took 72.026 seconds and nine native regressions passed.
+
+The sole `work/20260915-commit-integrity` lane was reanchored from rejected
+`256cd48ab56f002c9ec971f06710ef9cca4295e9` to the repaired accepted base through
+an exact maintainer recovery plan and the installed Git-effect executor. The
+verified original-history bundle and eight-path content archive preserve recovery;
+all 2,860 source-file hashes and the Lease tuple stayed unchanged. Only that
+work ref and its Attestation set changed; accepted/candidate trees stayed clean.
+Attestation `23dfb4ba4ea48fa37b1f98d33986e68d09e6dafbb776da0ace834f2eef759c7a`
+and `history-lane-reanchor-result.json` record the effect. Fresh public status and
+prewrite both pass. Normal signed commit, exact proof, official archive,
+acceptance/runtime and independent publication are still pending.
+
+Receipts remain under `build/evidence/quality/commit-integrity/` in the sole
+owned lane. Hosted CI and full terminal convergence remain separately unproved.
 
 One 500-ELOC ceiling applies to every Python file, including tests and surfaces.
 Product and test totals have independent 50,000 ceilings; combined coverage stays
@@ -448,13 +466,12 @@ bind that source. The previous runtime was reclaimed through the public owner.
 This is local source/runtime closeout, not remote publication or historical
 identity application.
 
-Execution order is: repair the confirmed generic-adopter admission P0 in official
-`adopter-governance`, a separate bounded Change on the same
-lane; then enable the explicit self-repository identity declaration through its
-fresh supported policy boundary and apply the confirmed historical selection,
-reprove/rebind, update each independent peer by exact old OID, and read back
-account/signature status. Proposal refresh continuation retains its separate
-bounded repair. No new lane or parallel progress carrier is needed.
+The adopter-admission, merge-continuation and bootstrap-isolation source
+closures are delivered. Apply the confirmed historical selection directly with
+the installed public owner, reprove/rebind, update each independent peer by exact
+old OID and read back attribution/signature state. Refresh the backup to the
+actual repair prestate. Do not impose a single-author/committer policy or delay
+repair behind that unauthorized restriction. No new lane or progress carrier.
 Old Attestations keep original subjects; no copied green verdict, mailmap-only
 masking, wildcard author replacement, key registration or permanent bypass is
 an acceptable substitute. Actual history repair is a post-install operation in
@@ -779,9 +796,11 @@ The six-case RED becomes GREEN; removing trust projection in a disposable copied
 script is rejected by the resulting Git-setting assertion. Ambient anchors are
 not consumed and declared anchor bytes are unchanged. The full related 67-case
 suite passes. The behavior test moves beside existing hosted supply/trust tests;
-no second helper module or 500-ELOC exception is introduced. Source proof and
-new hosted validation remain required. Embedded Node/npm freshness and the
-remaining terminal obligations stay open after this bounded CI repair.
+no second helper module or 500-ELOC exception is introduced. Exact prearchive
+`2c5a8677` and postarchive `e98daddc` proof, source acceptance, installation and
+both peer publications are complete as recorded in the current boundary.
+New hosted validation remains a separate requirement. Embedded Node/npm
+freshness and the remaining terminal obligations remain open.
 
 The preceding typed Change selection repair is now accepted and published as
 `e0ba1e3a466f3ea9198edfbf0592fbd26bbede77`, tree
@@ -793,6 +812,66 @@ retired publicly. Fifty-six selected evidence files (1,818,639 bytes) were
 hash-verified at `build/evidence/quality/change-selection/`; runtime/dependency
 scratch was not copied. The adopter received the exact source and public update
 entry; its independent replay remains an adopter-owned observation.
+
+The unaccepted `self-identity` candidate incorrectly converted historical
+correction into permanent contributor restriction. Its native-hook tests proved
+that restriction worked, not that it matched user intent. Full proof also exposed
+product-neutrality conflicts; adding an observer to accommodate the restriction
+was the wrong response. The user correction withdraws both changes. Restore the
+accepted policy/code/tests/dependencies and retain genuine future attribution.
+The existing evidence documents this rejected implementation, not a product
+requirement. Intent alignment must precede strengthening a gate.
+
+### Generic Adopter Recovery Evidence — September 16, 2026
+
+The architecture owner corrected its earlier signature claim: native merge
+recovery succeeded, but commits `e696cebf` and `04047894` were unsigned. Its
+real signed forward change `285199df` subsequently passed 396 tests, native
+proof/land/accepted closeout and dev publication without policy injection,
+empty commits or history replacement. Its latest independent source closure
+reports accepted/candidate/remote dev `623b1ef3`, 400 tests and full remote
+restore. These are attributed adopter-owner execution receipts, not an
+independent replay by this task. The former permanent generic-delivery-deadlock
+claim is withdrawn; historical unsigned objects remain unsigned.
+
+Three distinct owner boundaries remain open:
+
+- Native `commit-tree` does not treat `commit.gpgsign=true` as explicit `-S`.
+  An isolated real Git probe confirmed unsigned output without `-S` and signed
+  output with it. The generated-commit owner currently selects `-S` only from
+  declared policy; this is not evidence that a process dropped the environment.
+  Preserve the difference between mandatory policy and explicit native signing
+  selection. Refresh also explicitly uses `--no-gpg-sign` without policy.
+- Independent local release advancement has no public effect entrypoint in the
+  inspected CLI. Worse, installed `hook ref-transaction` admitted an isolated
+  generic main advance without proof or ref intent. The probe changed no main
+  ref and proves only this public admission omission, not remote bypass.
+  Reuse the existing Git-effect owner for an exact qualified release transition;
+  do not temporarily change branch roles or exploit the permissive branch.
+- The adopter's official archive produced clean `ada18c8` and preserved all five
+  Change files, but strict validation rejects the generated main-spec Purpose
+  placeholder. Both exact-path and valid postimage-patch prewrite remain blocked.
+  Existing validator-named canonical repair still requires an active Change;
+  current resolution consults archived provenance only after that decision.
+  Repair must use completed archive provenance, current coordination and exact
+  proposed output, without reviving active carriers, disabling strict checks or
+  replaying an already-completed archive. Its new exact report names OpenSpec
+  1.13 item `spec/pair-publication`, issue path `overview`, no active Change or
+  Commitment and state `post_archive_closeout`. Resolve that issue to its
+  canonical main-spec path; this remains adopter evidence, not our replay.
+  The pair lane remains `ada18c8` while
+  accepted advances independently; recovery must derive fresh coordinates.
+
+Existing signature repair additionally requires complete old workspace policy,
+which excludes the generic adopter. Improve that capability/diagnostic boundary
+without requiring adopter-only compatibility configuration. Local acceptance
+and optional remote publication remain distinct; future publication requirements
+must not become unconditional restrictions on local-only repositories.
+
+The native release-admission and signing-selection probes, including owned
+scratch absence checks, are in the existing `commit-integrity` evidence root.
+Adopter receipts remain with its sole writer. These findings are not declared
+fixed and do not expand the frozen CI repair or the self-identity Change.
 
 ### Measured Iteration Cost And P5 Order
 
@@ -807,14 +886,46 @@ cumulative values are not wall time. Keep the two-worker envelope unchanged.
 | --- | --- | --- |
 | Native hook startup | One lifecycle has 2,075 subprocesses; notifications imported CLI and admission machinery. | `hook-execution` separates native protocol from fresh admission and deletes the old transport. Same lifecycle and rejection cases must pass with less executed work. |
 | Repository observations | The same journey derives source identity 35 times and workspace state 26 times; 1,951 product Git calls remain. | Git/source/observation owners must share immutable input within a bounded observation and batch native reads; effect-time ref, policy and Lease checks stay fresh. |
-| Fixture construction | Slow lifecycle cases dominate while 2,121 sub-0.1-second cases total only 23.86 seconds. | Reuse immutable fixture supply; construct only the preconditions a test needs. Preserve full native journeys, independent mutable repositories, fault and recovery observations. |
+| Fixture construction | Current JUnit contains 3,660 cases: 2,162 sub-0.1-second cases total 25.08 worker-seconds; 73 cases taking at least ten seconds total 1,483.32 worker-seconds. These sums are not wall-clock proof time. | Reuse immutable fixture supply; construct only the preconditions a test needs. Preserve full native journeys, independent mutable repositories, fault and recovery observations. |
 | Resource supply | A fresh lane installs 71 locked packages offline in 224 ms after an 885-ms editable build; repeated network fetching is not proved by that preparation. | Native supply already has identity checking, a lock and atomic replacement. Measure cache hits, transferred bytes, archive extraction and full input identity across local/CI lifetimes before changing it. |
 | Nox initialization | Every session eagerly resolves Node supply and delivery machinery, including Python-only checks. | Session and supply owners should demand only the selected capability; a missing unrelated tool must not block an independent check. This remains unimplemented. |
+| Archive provenance lookup | After historical repair, the generic reader repeatedly verifies the same 2,855-object mapping across archive candidates; a selected Change reached tests in about 90 seconds instead of spending about 37 minutes in lookup. | The current identity-repair closeout shares validation only inside one observation. Every later invocation revalidates; exact ancestor, archive bytes and effect admission remain mandatory. |
+| Decisive failure placement | The 35-gate scheduler still starts expensive checks after an unrelated required failure. Root-cache drift was reported only after 3,659 tests passed. | Run the existing artifact observation before heavy work and retain its post-run check. Stop unnecessary expensive starts after decisive failure while preserving independent diagnostics and owned cleanup; do not invent data dependencies or weaken evidence. |
 | Proof invalidation | Prearchive and postarchive both reran the full suite; coverage completion currently binds to HEAD. | Reuse only execution evidence with a complete source/test/rule/tool/environment input closure. Reevaluate acceptance, currentness and authorization for the new subject; never relabel an old proof. |
 | Historical working-tree payload | 392 archived Changes contain 2,077 tracked files and 3,583,672 bytes; 255 Changes date from June/July. | Retire archives without live obligations from the checkout after exact Git recovery and consumer verification. Do not rewrite history, select deletion only by age, or copy everything into another history directory. |
 | Publication | The completed receipt-bound run took about twelve minutes; sampling showed child-process waits but did not establish a single cause. | Publication/ref observation owners should batch peer refs and reuse exact local object decoding within an attempt, preserving independent peers, partial progress and fresh CAS admission. |
 | Host scheduling | Hosted proof and local diagnostics can compete for the same workstation. | Observe actual queue, lock, child and CPU pressure; one useful owned workload at a time, no duplicate launches or speculative worker increase. |
 | Failure placement | Patch-only command inference lost an unchanged parent registration and falsely rejected a child edit as a new bare command. | The reference observation owner must resolve the effective full context; including the actually changed root projection admitted this batch, but does not repair that general defect. |
+
+The September 16 identity-repair closeout exposed two multiplicative archive
+lookup costs: repair verification repeated per candidate and full decoding of
+unrelated effect plans inside each candidate search. The current source keeps
+verification within one observation and uses transition labels only to select
+which records require full validation. Labels never admit evidence. Six focused
+cases cover shared verification, fresh changed-input rejection and rejection-only
+filtering; the real signature/archive/proof journey is revalidated separately.
+The candidate reader selected the original `bootstrap-isolation` intent over the
+actual repaired history in 63.65 seconds with one 2,855-object verification,
+versus the earlier approximately 37-minute preflight interrupted before tests.
+This is a bounded reader result, not an installed-runtime or full-proof claim.
+A second exact source-frozen replay completed in 72.026 seconds with one
+verification, unchanged refs and identical selected intent. The source-frozen
+native matrix passed nine cases in 116.24 seconds; all 2,860 source-file hashes
+remained unchanged. Receipts are `archive-observation-final-live.json` and
+`archive-observation-frozen-regression.json` under the existing identity evidence
+root. Source integration, current full proof, installed runtime and publication
+remain incomplete.
+
+One attempted separate observation Change caused ambiguous active intent and
+was rolled back with its exact authored draft retained in existing evidence.
+Post-repair lookup is part of the existing identity closeout; only one active
+Change remains. Do not recreate a second Change while that owner is active.
+One intermediate native run rejected runtime currentness while plan/task files
+were edited concurrently: runtime identity includes the non-ignored overlay,
+not only Python files. The corrective frozen run above preserved every source
+hash. Freeze that full input set during native tests; update task state only
+after the run is terminal. A concurrent documentation edit is not independent
+work when the verifier binds the whole source tree.
 
 The first bounded repair passes the same complete lifecycle in 43.22 seconds,
 against the retained 60.13-second baseline. Nine Attestation ref updates fall
@@ -913,29 +1024,30 @@ repositories or treat a source handoff as acceptance of their diagrams.
 
 ### Remaining Dependencies And Delivery Order
 
-- `validation-results` is accepted, installed, published and retired locally;
-  retain its distinguishing regressions and observe its independent hosted jobs.
-- Finish the sole `hook-execution` Change through exact proof and delivery, then
-  continue the measured P5 order without accumulating work lanes.
-- Resolve the current hosted operations, then continue measured P5 command,
-  fixture, source and publication reduction. Whole-proof reuse must include
-  source, rules, tools, environment and relevant external facts, with fresh
-  identity and effect admission. Resource defaults and execution discovery must
-  not depend on agents remembering exports from a previous shell invocation.
-- Expose invoking-package parity versus latest accepted-source availability at
-  the runtime owner; `current=true` alone is not latest-version discovery. Retain
-  the newly reported Lease summary discrepancy for an exact public regression.
-- Historical identity correction, tag-admission cause preservation, archive
-  postimage/re-entry, exact Lease continuation, general process deadlines,
-  remote-probe classification and sustained strong-kill/resource bounds remain
-  separate open obligations. An observed HTTP/1.1 scanner workaround does not
-  become global transport policy.
-- The existing P0–P7 route remains complete: historical intent settlement;
+- Execute the confirmed historical repair through the installed public owner,
+  followed by exact proof/runtime rebinding and independent peer replacement.
+  Permanent single-contributor restriction is explicitly rejected. Do not
+  substitute capability tests, policy declarations or mailmap for repaired refs.
+- Preserve hosted observations separately from delivered source. The accepted
+  bootstrap fix removes the reproduced fixture leak; new remote runs must prove
+  consumption rather than inheriting local PASS claims.
+- Close the confirmed generic-adopter gaps at their existing owners: postarchive
+  validator-named repair, explicit signing selection for generated commits,
+  signature-repair applicability, and independent release promotion/admission.
+  These are separate bounded repairs, not reasons to suspend identity repair.
+- Continue measured P5 command, fixture, source and publication reduction.
+  Whole-proof reuse includes source, rules, tools, environment and relevant
+  external facts, with fresh identity and effect admission. Resource defaults
+  must not depend on remembering shell exports.
+- Finish runtime latest-source discovery, tag-admission cause preservation,
+  Lease continuation, process deadlines, remote observation and sustained
+  strong-kill/resource bounds through distinguishing public regressions.
+- Retain the complete P0–P7 route: historical intent settlement;
   acceptance/capability/proof-obligation compilation; cooperation, competition,
   exploration and all-drop with composition/recovery; real greenfield and
   brownfield formation/adoption/upgrade/handoff/exit; measured evidence reuse;
   actual-use benefit feedback; interchangeable ecosystem conformance. Physical
-  organization, projections, supply and resource lifecycle are cross-cutting
+  organization, projections, supply and resource lifecycle remain cross-cutting
   obligations, not optional cleanup.
 
 [Modern Engineering Foundations](../research/modern-engineering-foundations.md)

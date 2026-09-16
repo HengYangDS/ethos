@@ -14,8 +14,10 @@ from ethos.adapters.admission.evidence.external import load_independent_verifica
 from ethos.adapters.admission.evidence.external import path_is_within
 from ethos.adapters.admission.evidence.external import verify_independent_receipt_signature
 from ethos.adapters.mutation.proof import proof_for_repository_transition
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import report_verdict
+from ethos.repository.policy.gates import gate_execution_identity
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,11 +34,14 @@ _CONTROL_PREFIXES = (
     "src/ethos/domain/land/",
     "src/ethos/domain/report",
     "src/ethos/domain/source_budget/",
+    "src/ethos/domain/status.py",
     "src/ethos/repository/adoption/",
+    "src/ethos/repository/audit.py",
     "src/ethos/repository/context.py",
     "src/ethos/repository/evidence/",
     "src/ethos/repository/policy/",
     "src/ethos/repository/profile.py",
+    "src/ethos/repository/release/",
     "src/ethos/surface/cli/hook/",
     "src/ethos/surface/cli/root/",
 )
@@ -74,8 +79,36 @@ def control_replacement_report(
         return report
     if not control_paths:
         return report
+    prior = resolve_gate_policy(candidate_root, tree_ref=accepted_head, full=True)
+    proposed = resolve_gate_policy(candidate_root, tree_ref=candidate_head, full=True)
+    changed_obligations = tuple(
+        gate.id
+        for gate in prior.gates
+        if gate.policy == "required"
+        and not any(
+            (
+                gate_execution_identity(gate) == gate_execution_identity(candidate)
+                or (bool(gate.providers) and set(gate.providers) <= set(candidate.providers))
+            )
+            and candidate.policy == "required"
+            and (not gate.trust_bearing or candidate.trust_bearing)
+            and gate.evidence_class == candidate.evidence_class
+            and set(gate.dimensions) <= set(candidate.dimensions)
+            and set(gate.depends_on) <= set(candidate.depends_on)
+            for candidate in proposed.gates
+        )
+    )
+    floor = (
+        {
+            "accepted_policy_digest": prior.digest,
+            "candidate_policy_digest": proposed.digest,
+            "changed_obligations": list(changed_obligations),
+        }
+        if changed_obligations
+        else {}
+    )
     subject, request, gaps = _verification_subject(
-        candidate_root, accepted_head, candidate_head, control_paths
+        candidate_root, accepted_head, candidate_head, control_paths, floor=floor
     )
     report.update(subject=subject, verification_request=request, required_gaps=gaps)
     if gaps:
@@ -85,6 +118,7 @@ def control_replacement_report(
         accepted_head=accepted_head,
         request=request,
         receipt_path=independent_verification_receipt,
+        floor_changed=bool(changed_obligations),
     )
     report["independent_verification"] = verification
     report["required_gaps"] = list(cast("list[str]", verification["required_gaps"]))
@@ -117,6 +151,8 @@ def _verification_subject(
     accepted_head: str,
     candidate_head: str,
     control_paths: tuple[str, ...],
+    *,
+    floor: dict[str, object],
 ) -> tuple[dict[str, object], dict[str, object], list[str]]:
     accepted_tree = git.git_stdout(root, "rev-parse", f"{accepted_head}^{{tree}}")
     candidate_tree = git.git_stdout(root, "rev-parse", f"{candidate_head}^{{tree}}")
@@ -146,6 +182,7 @@ def _verification_subject(
             },
         },
         "control_paths": list(control_paths),
+        **({"verification_floor": floor} if floor else {}),
     }
     request = {
         "remote": git.git_stdout(root, "remote", "get-url", "origin") or "local",
@@ -161,12 +198,19 @@ def _verification_subject(
 
 
 def _verification_report(
-    *, root: Path, accepted_head: str, request: dict[str, object], receipt_path: Path | None
+    *,
+    root: Path,
+    accepted_head: str,
+    request: dict[str, object],
+    receipt_path: Path | None,
+    floor_changed: bool,
 ) -> dict[str, object]:
     prior = independent_verification_policy(root, "control_replacement", tree_ref=accepted_head)
     proposed = independent_verification_policy(root, "control_replacement")
     modes = {"disabled": 0, "optional": 1, "required": 2}
     policy = max((prior, proposed), key=lambda item: modes[item.mode])
+    if floor_changed:
+        policy = policy.model_copy(update={"mode": "required"})
     if receipt_path is None:
         return independent_verification_report(
             root=root,

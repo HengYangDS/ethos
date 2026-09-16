@@ -438,8 +438,18 @@ verified implementation and package acceptance. Actual historical selection,
 self-repository identity activation, hosted consumption and peer publication
 remain post-install obligations, not falsely completed source tasks.
 
-Execution order is: close the completed commit-integrity Change; repair the
-confirmed generic-adopter admission P0 in a separate bounded Change on the same
+The commit-integrity Change is officially archived and accepted as
+`00881b779f23eecd917136c1a5ab87caa477d465`, tree
+`5d85780ffdd173a5ea7fa0455dd5f3b1d7014850`. Postarchive proof passed all 35
+gates; Attestation `e08c80cb14073fec86ea8a92305e1f72361468367026adb3c32c3f25de18ed87`
+and the installed runtime
+`b662db105e51eb108fe3a921c170828c288f03888f273b2f55244fa7839c4abb`
+bind that source. The previous runtime was reclaimed through the public owner.
+This is local source/runtime closeout, not remote publication or historical
+identity application.
+
+Execution order is: repair the confirmed generic-adopter admission P0 in official
+`adopter-governance`, a separate bounded Change on the same
 lane; then enable the explicit self-repository identity declaration through its
 fresh supported policy boundary and apply the confirmed historical selection,
 reprove/rebind, update each independent peer by exact old OID, and read back
@@ -535,6 +545,78 @@ owners must preserve old review objects, prove the bounded replacement relation,
 recheck policy and restrict exact-old CAS to the eligible non-protected proposal.
 Do not prescribe deleting the old ref, another proposal name or unbounded force.
 This continuation repair remains open, separate from inline-audit P0.
+
+The current adopter-governance implementation replaces representation-based
+dispatch with common declaration audit and explicit product conformance. Release
+configuration now owns optional parsing, strict protected-ref fields and
+order-independent role consistency; exact publication-tree readers consume the
+same compiler. Runtime diagnostics consume actual schema provenance and require
+selected execution or a source runner matching its selected build, not merely a
+valid profile. The old schema-path guess and binding-only synthetic pass are
+removed. The changed release, audit and status owners are control surfaces.
+
+Source evidence in `build/evidence/quality/commit-integrity/` includes
+`adopter-release-red.log` (14 failures), `adopter-runtime-red.log` (four
+failures), `adopter-audit-red.log` (11 failures), `adopter-effect-red.log`
+(four failures), and `adopter-floor-red.log` (one failure). Focused repairs passed
+108 owner/consumer cases, 31 audit/control cases and 91 public CLI consumer cases.
+The later exact-tree/control counterexamples passed nine cases; the predecessor
+verification-floor suite passed 24. Counts identify executed scopes, not global
+acceptance. Existing filename-only fixtures now install their required runtime
+rather than rely on the retired profile-based bypass.
+
+Package replay built wheel
+`9c1e403c7aab4af6a3bd7dff5cef46f941c6cf2da6e9aee08682ab67c457f1b1`
+from overlay tree `084a53102e34320a1492d1ee24b0499a7b983fc2` at source parent
+`00881b77`. Four isolated Node adopters used actual installed runtimes, official
+OpenSpec, native npm checks and attempted candidate effects: both valid
+inline/registry variants proved and moved the candidate; both invalid variants
+blocked and left its exact old OID unchanged. Receipts are in
+`adopter-public-replay/`. All four fixture roots are absent. The first harness
+could not import its cleanup owner; the separately recorded cleanup recovered
+that owned root without altering its original observation. No real adopter was
+modified. This proves those packaged transitions, not accepted-source or hosted
+delivery. Final exact proof, archive and installation remain incomplete.
+
+Neighbor regression executed 574 cases: 568 passed and six exposed the same
+ordering defect when both Lease and runtime were invalid. Prewrite now presents
+the current-authority gap first, matching its existing recovery owner, while
+retaining runtime rejection. The 22 affected cases then passed. Two additional
+counterexamples showed that failed common audit still executed proof checks;
+the proof command now returns the owning failure before execution, and all 48
+affected cases pass. These changes require fresh final package/full proof.
+Source tasks end at executable/package acceptance so official archive does not
+depend on a task claiming its own future archive or installation. The mandatory
+delivery sequence remains exact full proof, official archive, postarchive proof,
+accepted closeout and selected-runtime activation with individual observations.
+
+The final source package build and all installed native lifecycle stages passed
+in `adopter-final-package.log`. Wheel
+`a51a351f0db0fccc942774f7f8ca93e233dd175a42a402cee17f8ac7c7bbf3fc`
+binds source overlay `ffcf629fff91b3eccbccaa71738dd09057992420`; packaged
+declarations and resources match. The owned smoke installation was removed.
+This remains package acceptance, not installed ETHOS repository currentness.
+
+The September 16 follow-up supply query still finds current numeric releases
+for 27 of 29 direct Python requirements and all five selected npm requirements.
+Newer ty and mutmut versions remain publisher-declared Beta. Embedded Node and
+npm gaps above remain open; no preview exception or unrelated lock update is
+included in adopter-governance.
+
+The actual architecture adopter also reports a pending history-preserving merge
+between two valid Changes. Its owner has preserved and independently restored
+the merge, index stages and both parent objects; this is forensic recovery, not
+Lease/runtime restoration. Its original lane remains untouched by ETHOS work.
+The current scope owner requires one Change, and refresh implements rebase with
+abort-on-conflict and no merge-aware continuation. Model this in the existing
+refresh/proposal closure: preview combined governance before starting; distinguish
+operation ownership from coexisting Changes; preserve double-parent published
+history, conflict edits, signatures and exact CAS; provide reachable continue or
+rollback without deleting intent or forcing a proposal. A repeated status or a
+known-conflicting rebase is not remediation. Validate a rollback in an isolated
+recovery first, then let the original owner obtain fresh admission and perform
+any real effect. Do not present this open scenario as fixed by the current audit
+and binding changes.
 
 The preceding typed Change selection repair is now accepted and published as
 `e0ba1e3a466f3ea9198edfbf0592fbd26bbede77`, tree

@@ -26,6 +26,8 @@ from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.configuration import release_config
+from ethos.repository.release.configuration import release_config_from_text
+from ethos.repository.release.configuration import release_role_policy_gaps
 from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_ref_role
@@ -38,7 +40,9 @@ _ZERO_OIDS = {"0" * 40, "0" * 64}
 _POLICY_PATHS = (".ethos/workspace.toml", ".ethos/release.toml")
 
 
-def _committed_target_policy(root: Path, revision: str) -> tuple[BranchRolePolicy, tuple[str, ...]]:
+def _committed_target_policy(
+    root: Path, revision: str
+) -> tuple[BranchRolePolicy, tuple[str, ...], list[str]]:
     """Read exact prior declarations without substituting mutable checkout bytes."""
     listed = run_git(
         root,
@@ -72,13 +76,9 @@ def _committed_target_policy(root: Path, revision: str) -> tuple[BranchRolePolic
         if "branch_roles" in values
         else BranchRolePolicy()
     )
-    release = tomllib.loads(texts.get(_POLICY_PATHS[1], ""))
+    release = release_config_from_text(texts.get(_POLICY_PATHS[1], ""))
     protected = release.get("protected_refs", {})
-    tags = protected.get("tags", []) if isinstance(protected, dict) else None
-    if not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags):
-        message = "publication_release_tags_invalid"
-        raise ValueError(message)
-    return policy, tuple(tags)
+    return policy, tuple(protected.get("tags", [])), release_role_policy_gaps(release, policy)
 
 
 def ref_update_admission_report(
@@ -133,10 +133,16 @@ def _ref_update_admission(
     policy_known = False
     if policy_ref:
         try:
-            policy, tags = _committed_target_policy(root, policy_ref)
+            policy, tags, _prior_role_gaps = _committed_target_policy(root, policy_ref)
             policy_known = True
         except (OSError, UnicodeError, ValueError) as error:
             local_gaps.append(f"publication_policy_invalid:{policy_ref}:{error}")
+    if proposed:
+        try:
+            _proposed_policy, _proposed_tags, role_gaps = _committed_target_policy(root, proposed)
+            local_gaps.extend(role_gaps)
+        except (OSError, UnicodeError, ValueError) as error:
+            local_gaps.append(f"publication_policy_invalid:{proposed}:{error}")
     ref_valid = (
         run_git(root, "check-ref-format", target_ref, check=False, observation=True).returncode == 0
     )

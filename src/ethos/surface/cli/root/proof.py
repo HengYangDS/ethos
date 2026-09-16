@@ -345,14 +345,20 @@ def prove(
     if _emit_host_gate_observation(repo=repo, options=options, json_output=json_output):
         return
     current_head, audit, resolution, openspec_lifecycle = _proof_context(repo, options)
-    if resolution.verdict != "pass":
+    if resolution.verdict != "pass" or report_verdict(audit) != "pass":
+        unresolved = resolution.verdict != "pass"
         emit(
             EthosResult(
                 command="prove",
-                verdict=resolution.verdict,
+                verdict=resolution.verdict if unresolved else report_verdict(audit),
                 state="gapped",
-                required_gaps=resolution.required_gaps,
-                next_action=resolution.next_action,
+                required_gaps=resolution.required_gaps
+                if unresolved
+                else tuple(string_sequence(audit.get("required_gaps")))
+                or ("repository_audit_not_passed",),
+                next_action=resolution.next_action
+                if unresolved
+                else str(audit.get("next_action") or "repair the reported repository policy"),
                 user_decision_required=resolution.user_decision_required,
             ),
             json_output=json_output,

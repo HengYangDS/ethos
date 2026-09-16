@@ -500,9 +500,9 @@ def _gaps(
 ) -> list[str]:
     scope_gaps = material_scope.get("required_gaps")
     checks = (
+        str(lease_check["reason"]) if report_verdict(lease_check) != "pass" else "",
         str(runtime_check["reason"]) if report_verdict(runtime_check) != "pass" else "",
         _blocked_path_error(blocked_paths),
-        str(lease_check["reason"]) if report_verdict(lease_check) != "pass" else "",
         str(editor_check["reason"]) if report_verdict(editor_check) != "pass" else "",
         str(patch_admission["reason"]) if report_verdict(patch_admission) != "pass" else "",
         str(scope_gaps[0]) if isinstance(scope_gaps, list) and scope_gaps else "",

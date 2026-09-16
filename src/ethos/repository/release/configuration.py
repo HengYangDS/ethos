@@ -1,3 +1,5 @@
+"""Compile release declarations and separate generic roles from product conformance."""
+
 from __future__ import annotations
 
 import tomllib
@@ -12,6 +14,8 @@ from ethos.repository.release.publication import publication_topology
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.branch.roles import BranchRolePolicy
 
 REQUIRED_RELEASE_FILES = (
     "README.md",
@@ -34,10 +38,68 @@ def _optional_toml(path: Path) -> dict[str, Any] | None:
 
 
 def release_config(root: Path) -> dict[str, Any]:
+    """Read optional release policy without treating invalid input as absence."""
+    gap = "release_config_invalid:.ethos/release.toml"
     path = root / ".ethos" / "release.toml"
-    if not path.exists():
-        return {}
-    return _optional_toml(path) or {}
+    try:
+        source = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        if not path.is_symlink():
+            return {}
+        raise ValueError(gap) from None
+    except (OSError, UnicodeError) as error:
+        raise ValueError(gap) from error
+    return release_config_from_text(source)
+
+
+def release_config_from_text(source: str) -> dict[str, Any]:
+    """Compile the same release declaration from checkout or exact Git bytes."""
+    gap = "release_config_invalid:.ethos/release.toml"
+    try:
+        config = tomllib.loads(source)
+    except tomllib.TOMLDecodeError as error:
+        raise ValueError(gap) from error
+    protected = config.get("protected_refs", {})
+    if not isinstance(protected, dict) or set(protected) - {"branches", "tags"}:
+        raise ValueError(gap)
+    for entries in protected.values():
+        if (
+            not isinstance(entries, list)
+            or any(
+                not isinstance(entry, str) or not entry or entry != entry.strip()
+                for entry in entries
+            )
+            or len(entries) != len(set(entries))
+        ):
+            raise ValueError(gap)
+    return config
+
+
+def release_role_policy_gaps(config: dict[str, Any], policy: BranchRolePolicy) -> list[str]:
+    """Compare declared membership with effective roles without product defaults."""
+    protected = config.get("protected_refs", {})
+    if "branches" in protected and set(protected["branches"]) != set(policy.protected_branches):
+        return ["protected_branches_policy_missing"]
+    return []
+
+
+def release_role_policy_report(root: Path) -> dict[str, Any]:
+    """Observe common release obligations independently of product packaging."""
+    config: dict[str, Any] = {}
+    try:
+        config = release_config(root)
+        gaps = release_role_policy_gaps(config, load_branch_role_policy(root))
+    except (OSError, UnicodeError, ValueError) as error:
+        gaps = [str(error)]
+    return {
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
+        "required_gaps": gaps,
+        "declaration": config,
+        "protected_refs": config.get("protected_refs", {}),
+        "next_action": (
+            f"repair {root / '.ethos/release.toml'} against configured branch roles" if gaps else ""
+        ),
+    }
 
 
 def version_manifest(root: Path) -> dict[str, Any]:
@@ -97,24 +159,20 @@ def _host_profile(config: dict[str, Any]) -> dict[str, Any]:
 
 
 def release_policy_report(root: Path) -> dict[str, Any]:
-    config_path = root / ".ethos" / "release.toml"
-    config = release_config(root)
+    role_report = release_role_policy_report(root)
+    config = role_report["declaration"]
     missing_files = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
     version = version_manifest(root)
     protected_refs = config.get("protected_refs", {})
-    branch_policy = load_branch_role_policy(root)
-    expected_protected_branches = list(branch_policy.protected_branches)
     host_profile = _host_profile(config)
     publication = publication_topology(root, config)
     attestation = config.get("attestation", {})
-    gaps: list[str] = []
+    gaps: list[str] = list(role_report["required_gaps"])
     gaps.extend(f"release_file_missing:{path}" for path in missing_files)
-    if config_path.exists() and _optional_toml(config_path) is None:
-        gaps.append("release_config_invalid:.ethos/release.toml")
     gaps.extend(version["required_gaps"])
     if not version["all_package_versions_match"]:
         gaps.append("package_version_mismatch")
-    if protected_refs.get("branches") != expected_protected_branches:
+    if "branches" not in protected_refs:
         gaps.append("protected_branches_policy_missing")
     if protected_refs.get("tags") != ["v*"]:
         gaps.append("protected_tags_policy_missing")

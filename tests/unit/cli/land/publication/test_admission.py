@@ -13,12 +13,14 @@ import ethos.adapters.mutation.publication.execution as publication_execution
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.mutation.publication.request as publication_request
 import ethos.repository.release.publication as release_publication
+from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.proof import seed_executed_proof
@@ -27,6 +29,36 @@ from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
 from tests.unit.cli.land.publication.support import signed_publication_fixture
+
+
+@pytest.mark.parametrize("valid", [False, True])
+def test_exact_publication_policy_rejects_inconsistent_release_roles(
+    tmp_path: Path, *, valid: bool
+) -> None:
+    """Mutable checkout fixes cannot conceal invalid selected Git-tree policy."""
+    repo = init_git_repo(tmp_path / "roles")
+    before = git(repo, "rev-parse", "HEAD")
+    branches = '["dev", "main"]' if valid else '["dev"]'
+    head = commit_fixture_file(
+        repo,
+        ".ethos/release.toml",
+        f"[protected_refs]\nbranches = {branches}\ntags = []\n",
+        "declare release roles",
+    )
+    (repo / ".ethos/release.toml").write_text(
+        '[protected_refs]\nbranches = ["dev", "main"]\ntags = []\n', encoding="utf-8"
+    )
+    report = ref_update_admission_report(
+        repo,
+        target_ref="refs/heads/dev",
+        proposed_head=head,
+        remote_head=before,
+        remote_name="origin",
+    )
+    assert report["verdict"] == ("pass" if valid else "block"), report
+    if not valid:
+        assert any("protected_branches_policy_missing" in gap for gap in report["required_gaps"])
+    assert git(repo, "rev-parse", "HEAD") == head
 
 
 def test_publish_preserves_source_trust_gap_before_remote_observation(tmp_path: Path) -> None:

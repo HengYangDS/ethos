@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -10,6 +11,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import pytest
+import tomli_w
 
 import ethos.adapters.admission.control.replacement as replacement
 import ethos.adapters.admission.evidence.external as evidence
@@ -351,6 +353,29 @@ def test_candidate_cannot_disable_trusted_predecessor_verification(tmp_path: Pat
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
 
 
+@pytest.mark.parametrize("remove_check", [False, True])
+def test_candidate_cannot_remove_a_prior_gate_without_independent_acceptance(
+    tmp_path: Path, *, remove_check: bool
+) -> None:
+    """A changed proof floor cannot certify its own removal of a required check."""
+    candidate, accepted, _head = _control_change(tmp_path, mode="disabled")
+    profile = candidate / ".ethos/profile.toml"
+    payload = tomllib.loads(profile.read_text())
+    old = payload["proof"]["code_correctness_gates"][0]
+    if remove_check:
+        selected = next(gate for gate in payload["proof"]["gates"] if gate["id"] == old)
+        selected["command"] = ["python", "-c", "print('replacement does not check behavior')"]
+    head = commit_fixture_file(
+        candidate, ".ethos/profile.toml", tomli_w.dumps(payload), "change proof floor"
+    )
+    seed_executed_proof(candidate, head)
+    report = _report(candidate, accepted, head)
+    assert report["verdict"] == ("unknown" if remove_check else "pass"), report
+    if remove_check:
+        assert report["required_gaps"] == ["independent_verification_receipt_required"]
+        assert old in report["subject"]["verification_floor"]["changed_obligations"]
+
+
 @pytest.mark.parametrize(
     "path",
     [
@@ -358,6 +383,9 @@ def test_candidate_cannot_disable_trusted_predecessor_verification(tmp_path: Pat
         "src/ethos/adapters/repo/hook/protocol.py",
         "src/ethos/adapters/repo/hook/admission.py",
         "src/ethos/adapters/repo/git_effects.py",
+        "src/ethos/domain/status.py",
+        "src/ethos/repository/audit.py",
+        "src/ethos/repository/release/configuration.py",
     ],
 )
 def test_runtime_and_effect_owners_require_control_verification(tmp_path: Path, path: str) -> None:

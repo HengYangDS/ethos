@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.repository.audit as repository_audit_module
-from ethos.domain.status import audit_for_root
+from ethos.domain.status import product_audit
 
 if TYPE_CHECKING:
     from ethos.repository.policy.commit import CommitPolicy
@@ -39,7 +39,7 @@ def _passing_commit_observation(
 
 def test_current_repository_audit_proves_complete_semantic_closure() -> None:
     """The accepted candidate tree has no unclassified semantic relation."""
-    report = audit_for_root(ROOT)
+    report = product_audit(ROOT)
     closure = report["semantic_closure"]
 
     assert closure["verdict"] == "pass"

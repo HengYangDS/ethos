@@ -73,8 +73,19 @@ all 2,860 source-file hashes and the Lease tuple stayed unchanged. Only that
 work ref and its Attestation set changed; accepted/candidate trees stayed clean.
 Attestation `23dfb4ba4ea48fa37b1f98d33986e68d09e6dafbb776da0ace834f2eef759c7a`
 and `history-lane-reanchor-result.json` record the effect. Fresh public status and
-prewrite both pass. Normal signed commit, exact proof, official archive,
-acceptance/runtime and independent publication are still pending.
+prewrite both pass. Normal signed commit `22b56e1fb` now preserves that exact repaired parent.
+A subsequent publication preflight proved that the old exact-replacement selector
+cannot recognize its normal descendants. The existing repair owner now selects
+only a completed exact-source/ref repair below the proposed object; the existing
+range validator checks replacement-to-proposed commits under current baseline
+and proposed policies. No history exemption covers a new commit. The 18-case
+native matrix passes, including public range CLI, two independent bare peer
+observations, invalid subject/signature, wrong ref, missing effects, ambiguity
+and revoked trust. A real read-only check against the old peer source admitted
+only the one signed forward commit. Receipts are
+`repair-descendant-regressions-final.json` and
+`repair-descendant-live-admission.json`. Full proof, official archive, acceptance,
+runtime and actual remote publication remain pending.
 
 Receipts remain under `build/evidence/quality/commit-integrity/` in the sole
 owned lane. Hosted CI and full terminal convergence remain separately unproved.
@@ -834,7 +845,7 @@ restore. These are attributed adopter-owner execution receipts, not an
 independent replay by this task. The former permanent generic-delivery-deadlock
 claim is withdrawn; historical unsigned objects remain unsigned.
 
-Three distinct owner boundaries remain open:
+The following distinct owner boundaries remain open:
 
 - Native `commit-tree` does not treat `commit.gpgsign=true` as explicit `-S`.
   An isolated real Git probe confirmed unsigned output without `-S` and signed
@@ -861,6 +872,26 @@ Three distinct owner boundaries remain open:
   canonical main-spec path; this remains adopter evidence, not our replay.
   The pair lane remains `ada18c8` while
   accepted advances independently; recovery must derive fresh coordinates.
+
+- Remote proposal retirement remains absent from the publication effect. The
+  adopter reports three remote tips already ancestral to accepted dev and one
+  `static-publishing` tip only patch-equivalent with an open Change. Local
+  `lane retire absorbed-ref` cannot delete a remote ref; the publication model
+  currently requires every desired ref to equal one nonzero source object.
+  Extend the existing publication owner with accepted absorption, exact remote
+  old OID, zero desired, peer-local atomic CAS, interrupted recovery and terminal
+  absence readback. Proposal retirement follows dev absorption and review closure,
+  not main convergence; patch equivalence alone cannot authorize deletion.
+- Generic local fallback evidence has a producer/consumer mismatch. The latest
+  adopter reports that the exact advertised native verification command passed
+  after its declared bootstrap, but publication still requires the missing
+  `build/evidence/local-ci/fallback.json`. Current ETHOS source reads that fixed
+  receipt while only its self-repository script produces it. Fix execution and
+  evidence ownership at the generic publication boundary; do not require adopters
+  to invent a synthetic receipt or copy ETHOS's state machine. Declare actual
+  preparation prerequisites without assuming accepted worktrees contain supply.
+  This is attributed execution evidence plus source confirmation, not a replay
+  against the adopter or a shipped fix.
 
 Existing signature repair additionally requires complete old workspace policy,
 which excludes the generic adopter. Improve that capability/diagnostic boundary

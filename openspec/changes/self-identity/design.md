@@ -33,9 +33,30 @@ selection, ambiguity and effect validation remain unchanged. This reuses work,
 not permissions, and introduces no process-global or persistent cache.
 Select the declared transition before decoding a complete effect plan. This
 filter can only reject unrelated evidence; every selected archive or refresh
-still passes its full original validation before contributing provenance.
+still passes its full validation before contributing provenance. Signature-only
+repair observation also rechecks current native trust, as full-history repair
+already does; revoked trust cannot retain a successful historical verdict.
 
 Use native Git candidates with one shared repair; observe validation call counts
 and changed-input rejection. Retain the real-signature, official-archive and
-public-proof regression. The lane still has its old base: integration must carry
-only useful delta onto the repaired history, never reconnect old ancestors.
+public-proof regression. The lane is reanchored to repaired accepted through an exact recorded recovery.
+Integration carries only useful delta, never reconnecting old ancestors.
+
+## Publication After Historical Repair
+
+A peer can still hold the exact original endpoint while local accepted has
+advanced normally beyond its verified replacement. The existing provenance
+owner selects one completed repair whose source ref matches that peer and whose
+replacement is a native ancestor of the proposed object. Selection is not
+acceptance: validate the complete repair and its recorded ref effect first.
+
+The existing commit-range owner then checks only replacement-to-proposed commits
+under the repaired baseline and proposed policies. It does not treat new commits
+as repaired history or skip their subject, identity or signature requirements.
+Expose both the historical replacement and the forward integration baseline.
+Exact replacement retains its original report. Wrong source/ref, unrelated
+history, missing evidence and ambiguous repair candidates do not qualify.
+
+Publication still requires the proposed object's own accepted closeout, current
+repository proof, trusted signature and exact remote CAS. A valid ancestor repair
+never grants authority for a later object. No second parser or policy exemption.

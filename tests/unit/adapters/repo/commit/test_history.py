@@ -4,17 +4,25 @@ from __future__ import annotations
 
 import pytest
 
+import ethos.adapters.mutation.accepted.signature as repair
+import ethos.adapters.repo.commit.signature as signature
 import ethos.adapters.repo.trust_anchor.verification as verification
+from ethos.adapters.admission.publication import ref_update_admission_report
+from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
 from ethos.adapters.repo.commit.creation import create_signed_payload
 from ethos.adapters.repo.commit.history import history_repair_coordinates
 from ethos.adapters.repo.commit.history import history_repair_scope
 from ethos.adapters.repo.commit.history import prepare_history_repair
 from ethos.adapters.repo.commit.history import validate_history_repair
+from ethos.adapters.repo.commit.signature import repaired_ref_provenance
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import unsigned_commit_payload
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.signature import configure_signer
+from tests.support.signature import signature_repository
 
 
 def _history(tmp_path):
@@ -44,6 +52,132 @@ def _history(tmp_path):
         }
     }
     return repo, old, selected, before, corrections
+
+
+@pytest.mark.parametrize("case", ["valid", "subject", "unsigned"])
+def test_repaired_history_descendants_keep_forward_commit_admission(tmp_path, case):
+    """Verified old history cannot excuse an invalid later commit or re-scan history."""
+    repo, old, _candidate = signature_repository(tmp_path, coupled=True)
+    bundle = tmp_path / "original.bundle"
+    git(repo, "bundle", "create", str(bundle), "refs/heads/dev")
+    result = repair.repair_signature(
+        root=repo,
+        expect_head=old,
+        corrections={old: {"resign": True}},
+        reason="Correct original signature",
+        backup=bundle,
+        apply=True,
+        authorized=True,
+    )
+    assert result["verdict"] == "pass", result
+    replacement = result["head"]
+    assert isinstance(replacement, str)
+    tree = git(repo, "rev-parse", f"{replacement}^{{tree}}")
+    new = git(
+        repo,
+        "commit-tree",
+        *(("-S",) if case != "unsigned" else ()),
+        tree,
+        "-p",
+        replacement,
+        "-m",
+        "invalid subject" if case == "subject" else "fix: normal forward contribution",
+    )
+    refs = git(repo, "show-ref")
+    observed = ref_update_admission_report(
+        repo,
+        target_ref="refs/heads/dev",
+        proposed_head=new,
+        remote_head=old,
+        remote_name="origin",
+    )
+    admission = observed["commit_policy_admission"]
+    assert isinstance(admission, dict)
+    assert admission["update_kind"] == "repair"
+    assert admission["repair_replacement"] == replacement
+    assert admission["integration_baseline"] == replacement
+    assert admission["revisions"] == [new]
+    assert observed["verdict"] == ("pass" if case == "valid" else "block"), observed
+    if case != "valid":
+        assert {item["commit"] for item in admission["violations"]} == {new}
+    if case == "valid":
+        assert repaired_ref_provenance(repo, ref="refs/heads/main", old=old, new=new)
+        assert repaired_ref_provenance(repo, ref="refs/heads/other", old=old, new=new) is None
+        assert repaired_ref_provenance(repo, ref="refs/heads/dev", old=old + "0", new=new) is None
+        unrelated = git(repo, "commit-tree", "-S", tree, "-p", old, "-m", "fix: unrelated")
+        assert repaired_ref_provenance(repo, ref="refs/heads/dev", old=old, new=unrelated) is None
+    assert git(repo, "show-ref") == refs
+    cli = (run_ethos if case == "valid" else run_ethos_blocked)(
+        "hook",
+        "commit-range",
+        "--target-ref",
+        "refs/heads/dev",
+        "--proposed-head",
+        new,
+        "--remote-head",
+        old,
+        "--remote",
+        "origin",
+        "--json",
+        cwd=repo,
+    )
+    assert cli["verdict"] == observed["verdict"]
+    if case == "valid":
+        assert cli["verdict"] == "pass", cli
+        remotes = {}
+        for peer in ("first", "second"):
+            remote = tmp_path / f"{peer}.git"
+            git(tmp_path, "init", "--bare", str(remote))
+            git(repo, "push", str(remote), f"{old}:refs/heads/dev")
+            remotes[peer] = str(remote)
+        effect, observations, gaps = observe_remote_publication_effect(
+            root=repo,
+            source_ref=new,
+            target_refs=("refs/heads/dev",),
+            remotes=remotes,
+            ref_admissions={
+                "refs/heads/dev": {"ref_kind": "branch", "remote_mutation_allowed": True}
+            },
+        )
+        assert not gaps, gaps
+        assert effect is not None
+        assert effect.source.object_oid == new
+        assert len(effect.targets) == len(observations) == 2
+        assert {
+            (update.expected, update.desired)
+            for target in effect.targets
+            for update in target.updates
+        } == {(old, new)}
+        assert {git(tmp_path / f"{peer}.git", "rev-parse", "dev") for peer in remotes} == {old}
+        assert git(repo, "show-ref") == refs
+
+
+@pytest.mark.parametrize("case", ["missing_effect", "ambiguous", "revoked_trust"])
+def test_repair_descendant_provenance_revalidates_evidence_and_trust(tmp_path, monkeypatch, case):
+    """Prior success is not reusable authority after its selected evidence changes."""
+    repo, old, _candidate = signature_repository(tmp_path, coupled=True)
+    result = repair.repair_signature(root=repo, expect_head=old, apply=True, authorized=True)
+    assert result["verdict"] == "pass", result
+    replacement = result["head"]
+    assert isinstance(replacement, str)
+    tree = git(repo, "rev-parse", f"{replacement}^{{tree}}")
+    new = git(repo, "commit-tree", "-S", tree, "-p", replacement, "-m", "fix: descendant")
+    assert repaired_ref_provenance(repo, ref="refs/heads/dev", old=old, new=new)
+    selected, records = signature.read_attestation_set(repo)
+    if case == "missing_effect":
+        records = tuple(record for record in records if record.predicate != "effect:git-ref-update")
+    elif case == "ambiguous":
+        record = next(record for record in records if record.predicate == signature.RESULT)
+        records = (*records, record)
+    else:
+        anchor = tmp_path / "trust/allowed-signers"
+        anchor.write_text("")
+    monkeypatch.setattr(signature, "read_attestation_set", lambda _root: (selected, records))
+    if case == "missing_effect":
+        assert repaired_ref_provenance(repo, ref="refs/heads/dev", old=old, new=new) is None
+    else:
+        with pytest.raises(ValueError, match="signature_repair_"):
+            repaired_ref_provenance(repo, ref="refs/heads/dev", old=old, new=new)
 
 
 def test_history_repair_preserves_every_unchanged_field_and_parent(tmp_path):

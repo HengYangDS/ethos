@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -14,6 +15,7 @@ from ethos.adapters.repo.commit.history import history_repair_coordinates
 from ethos.adapters.repo.commit.history import validate_history_repair
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
@@ -24,6 +26,7 @@ from ethos.adapters.repo.git_object import equivalent_commit_identity
 from ethos.adapters.repo.git_object import observe_commit
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
 from ethos.adapters.repo.profile import repository_identity
+from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.worktree_effects import raw_worktree_records
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
@@ -36,8 +39,6 @@ from ethos.contracts.value import mutable_json
 from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from ethos.contracts.semantic import Attestation
 
 ATTEMPT = "observation:signature-repair-attempt"
@@ -341,6 +342,10 @@ def completed_signature_repair(
         )
     else:
         _require(equivalent_commit_identity(root, old, new), "signature_repair_payload_changed")
+        _require(
+            verify_commit_trust(root, new)["verdict"] == "pass",
+            "signature_repair_signature_untrusted",
+        )
         mapping = {old: new}
     return {
         "old": old,
@@ -381,11 +386,26 @@ def _validate_historical_source(root: Path, coordinates: Mapping[str, object]) -
 def repaired_ref_provenance(
     root: Path, *, ref: str, old: str, new: str
 ) -> dict[str, object] | None:
-    """Recognize only the exact original-to-replacement ref already locally applied."""
+    """Recognize an exact ref repair beneath the proposed native history."""
     if old == new:
         return None
-    repair = completed_signature_repair(root, new=new)
-    if repair is None:
-        return None
-    refs = cast("Mapping[str, str]", repair["refs"])
-    return repair if refs.get(ref) == old else None
+    _, attestations = read_attestation_set(root)
+    matches = []
+    for record in attestations:
+        if record.predicate != RESULT:
+            continue
+        coordinates = record.payload.body.get("coordinates")
+        refs = coordinates.get("refs") if isinstance(coordinates, Mapping) else None
+        replacement = record.payload.body.get("replacement")
+        if (
+            not isinstance(refs, Mapping)
+            or refs.get(ref) != old
+            or not isinstance(replacement, str)
+            or not is_ancestor(root, replacement, new)
+        ):
+            continue
+        repair = completed_signature_repair(root, new=replacement, attestations=attestations)
+        if repair is not None:
+            matches.append(repair)
+    _require(len(matches) <= 1, "signature_repair_evidence_ambiguous")
+    return matches[0] if matches else None

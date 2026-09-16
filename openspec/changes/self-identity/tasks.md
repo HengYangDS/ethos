@@ -15,3 +15,8 @@
 - [x] 3.1 Reproduce missing repair-descendant provenance and range attribution.
 - [x] 3.2 Compose verified repair and forward range at their existing owners.
 - [x] 3.3 Verify legal signed descendants, illegal ranges and exact source/ref boundaries.
+
+## 4. Close Archive Fixture Consumers
+
+- [x] 4.1 Preserve complete plan headers in the existing archive-graph fixture without weakening assertions.
+- [x] 4.2 Verify every discovered archive lifecycle consumer before freezing exact-HEAD proof.

@@ -370,12 +370,17 @@ def push_admission_report(
         else publication_proof_admission(repo, proof_head, (role,))
     )
     proof_gaps = list(string_sequence(proof.get("required_gaps")))
-    repaired = commits.get("state") == "repaired_history"
+    repaired = commits.get("update_kind") == "repair"
     if role == "accepted_root" and not repaired:
         proof_gaps = [gap for gap in proof_gaps if gap.startswith("repository_commitment_")]
     topology_gaps = (
-        accepted_advance_gaps(repo, policy, old_value=remote_head, new_value=pushed_head)
-        if role == "accepted_root" and not repaired
+        accepted_advance_gaps(
+            repo,
+            policy,
+            old_value=str(commits.get("integration_baseline") or remote_head),
+            new_value=pushed_head,
+        )
+        if role == "accepted_root" and commits.get("state") != "repaired_history"
         else []
     )
     ref_gaps = list(string_sequence(ref_admission.get("enforcement_gaps")))

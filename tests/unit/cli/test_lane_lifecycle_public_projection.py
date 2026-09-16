@@ -1,3 +1,5 @@
+"""Public lifecycle projections preserve native command inputs and boundary reports."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -110,7 +112,9 @@ def test_public_projection_is_structured_and_actionable(
 
     result = results.pop()
     assert (result.command, result.verdict, result.state) == (command, report["verdict"], state)
-    assert result.required_gaps == tuple(report.get("required_gaps", ()))
+    expected_gaps = report.get("required_gaps", ())
+    assert isinstance(expected_gaps, (list, tuple))
+    assert result.required_gaps == tuple(expected_gaps)
     assert result.next_action == action
     assert result.to_dict()["data"] == report
 
@@ -119,7 +123,7 @@ def test_public_projection_accepts_explicit_and_computed_actions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     results = _capture(monkeypatch)
-    report = {
+    report: dict[str, object] = {
         "verdict": "pass",
         "state": "planned",
         "next_action": "apply exact owner plan",
@@ -130,8 +134,9 @@ def test_public_projection_accepts_explicit_and_computed_actions(
     assert results[0].next_action == "apply exact owner plan"
 
 
+@pytest.mark.parametrize("strategy", ["rebase", "merge"])
 def test_public_lifecycle_commands_forward_exact_reports(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, strategy: str
 ) -> None:
     captured: list[tuple[str, dict[str, object], bool]] = []
     monkeypatch.setattr(lifecycle, "resolve_root", lambda _root: tmp_path)
@@ -157,37 +162,70 @@ def test_public_lifecycle_commands_forward_exact_reports(
 
     lifecycle.candidate(root=tmp_path, path=str(tmp_path / "candidate"))
     lifecycle.candidate(root=tmp_path, refresh_from_accepted=True, apply=True, authorize=True)
-    lifecycle.start(
-        "example",
-        SimpleNamespace(
-            root=tmp_path,
-            path=None,
-            holder_ref="agent:test:case:owner",
-            apply=True,
-            command="lane start",
-            json_output=True,
-        ),
+
+    def execute(arguments: list[str]) -> None:
+        with pytest.raises(SystemExit) as exited:
+            lifecycle.lane_app(arguments)
+        assert exited.value.code == 0
+
+    execute(
+        [
+            "start",
+            "example",
+            "--root",
+            str(tmp_path),
+            "--holder-ref",
+            "agent:test:case:owner",
+            "--apply",
+            "--json",
+        ]
     )
-    lifecycle.lane_refresh_base(
-        SimpleNamespace(
-            root=tmp_path,
-            apply=True,
-            authorize=True,
-            expect_head="a" * 40,
-            command="lane refresh-base",
-            json_output=True,
-        )
-    )
-    lifecycle.lane_archive_change(
-        SimpleNamespace(
-            root=tmp_path,
-            change="example",
-            expect_head="a" * 40,
-            subject="chore(openspec): archive example",
-            apply=True,
-            command="lane archive-change",
-            json_output=True,
-        )
+    arguments = [
+        "refresh-base",
+        "--root",
+        str(tmp_path),
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        "a" * 40,
+        "--json",
+    ]
+    if strategy == "merge":
+        arguments += [
+            "--strategy",
+            "merge",
+            "--mode",
+            "abort",
+            "--expect-state",
+            "b" * 64,
+            "--subject",
+            "chore: recover exact merge",
+        ]
+    execute(arguments)
+    assert captured[-1][1]["call"] == {
+        "root": tmp_path,
+        "apply": True,
+        "authorized": True,
+        "expect_head": "a" * 40,
+        "strategy": strategy,
+        "mode": "abort" if strategy == "merge" else "inspect",
+        "expect_state": "b" * 64 if strategy == "merge" else None,
+        "subject": "chore: recover exact merge" if strategy == "merge" else None,
+    }
+    execute(
+        [
+            "archive-change",
+            "--root",
+            str(tmp_path),
+            "--change",
+            "example",
+            "--expect-head",
+            "a" * 40,
+            "--subject",
+            "chore(openspec): archive example",
+            "--apply",
+            "--json",
+        ]
     )
 
     assert [item[0] for item in captured] == [
@@ -231,7 +269,9 @@ def test_public_prewrite_command_preserves_invalid_tokens_and_patch_input(
     assert captured["paths"] == [tmp_path / "README.md", Path("bad path")]
     assert captured["editor_root"] == tmp_path
     assert captured["patch"] == "diff --git a/a b/a\n"
-    assert captured["report"]["path_count"] == 2
+    report = captured["report"]
+    assert isinstance(report, dict)
+    assert report["path_count"] == 2
 
 
 def test_commit_signer_command_forwards_exact_authority_coordinates(

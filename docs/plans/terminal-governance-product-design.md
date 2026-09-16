@@ -947,6 +947,19 @@ remained unchanged. Receipts are `archive-observation-final-live.json` and
 root. Source integration, current full proof, installed runtime and publication
 remain incomplete.
 
+The first full proof at `86cfa658` passed 3,648 tests but failed 23 scenarios in
+one omitted archive-graph fixture: it mocked plan decoding without carrying
+`payload.plan.policy`. Two fixture assignments now preserve that real input;
+all original direct/refresh/chain/ambiguity/damage assertions remain unchanged.
+The 50-case fixture matrix passes; the full discovered seven-file archive
+consumer suite subsequently passed 172 cases in 68.80 seconds with owned scratch
+removed. This exposed an execution selection error:
+consumer discovery stopped at nearby directories instead of traversing the whole
+test tree. `CONTRIBUTING.md` now owns closure-first selection, inexpensive
+prechecks and a single frozen full proof rather than duplicate aggregate runs.
+The failed Attestation remains BLOCK; downstream skipped gates are not separate
+root causes. The corrective full proof is required before acceptance.
+
 One attempted separate observation Change caused ambiguous active intent and
 was rolled back with its exact authored draft retained in existing evidence.
 Post-repair lookup is part of the existing identity closeout; only one active

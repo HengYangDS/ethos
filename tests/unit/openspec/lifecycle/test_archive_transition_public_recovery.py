@@ -203,6 +203,7 @@ def archive_graph(tmp_path, monkeypatch):
             digest=name,
             prior_attestations={},
         )
+        item.payload = SimpleNamespace(body={"plan": {"policy": plans[name].policy}})
         effects[name] = SimpleNamespace(
             updates={f"refs/heads/{branch}": SimpleNamespace(desired=head)}
         )
@@ -228,6 +229,7 @@ def archive_graph(tmp_path, monkeypatch):
             issued_at=datetime(2026, 9, 1, tzinfo=UTC),
         )
         plans[name].policy = {"transition": "lane.refresh", "execution_branch": branch}
+        item.payload.body["plan"]["policy"] = plans[name].policy
         plans[name].commitment = None
         plans[name].prior_attestations = {"rebase": rebase.model_dump(mode="json")}
         effects[name] = SimpleNamespace(

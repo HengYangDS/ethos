@@ -36,7 +36,13 @@ def repo(tmp_path: Path) -> Path:
         ("pre-commit", (), "", 0, ""),
         ("unknown", (), "", 1, "hook_name_invalid"),
         ("pre-push", ("origin",), "invalid\n", 1, "push_update_invalid"),
-        ("pre-push", ("origin",), f"refs/heads/x {'0' * 40} refs/heads/x {'a' * 40}\n", 0, ""),
+        (
+            "pre-push",
+            ("origin",),
+            f"refs/heads/x {'0' * 40} refs/heads/x {'a' * 40}\n",
+            1,
+            "proposal_retirement_accepted_missing",
+        ),
         ("reference-transaction", ("unknown",), "", 0, ""),
         ("reference-transaction", ("prepared",), "", 0, ""),
         ("reference-transaction", ("prepared",), "invalid\n", 1, "ref_update_invalid"),
@@ -309,48 +315,6 @@ def test_hook_execution_rejects_a_noncanonical_current_selector(
 
     assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 1
     assert "hook_runtime_current_invalid" in capsys.readouterr().err
-
-
-def test_pre_push_evaluates_every_non_delete_update_and_blocks_the_batch(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    calls: list[dict[str, object]] = []
-    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-
-    def admit(**kwargs: object) -> dict[str, object]:
-        calls.append(kwargs)
-        blocked = kwargs["target_ref"] == "refs/heads/rejected"
-        return {
-            "verdict": "block" if blocked else "pass",
-            "state": "blocked" if blocked else "admitted",
-            "required_gaps": ["commit_subject_invalid:rejected"] if blocked else [],
-        }
-
-    monkeypatch.setattr(hook_runtime, "push_admission_report", admit)
-    zero = "0" * 40
-    updates = "".join(
-        (
-            f"refs/heads/first {'a' * 40} refs/heads/first {'1' * 40}\n",
-            f"refs/heads/deleted {zero} refs/heads/deleted {'2' * 40}\n",
-            f"refs/heads/rejected {'b' * 40} refs/heads/rejected {'3' * 40}\n",
-            f"refs/tags/v1 {'c' * 40} refs/tags/v1 {'4' * 40}\n",
-        )
-    )
-
-    result = execute_hook(tmp_path, "pre-push", ("gitlab",), stdin=StringIO(updates))
-
-    assert result == 1
-    assert [(call["target_ref"], call["remote_head"], call["remote_name"]) for call in calls] == [
-        ("refs/heads/first", "1" * 40, "gitlab"),
-        ("refs/heads/rejected", "3" * 40, "gitlab"),
-        ("refs/tags/v1", "4" * 40, "gitlab"),
-    ]
-    assert all("reconciliation" not in call for call in calls)
-    assert json.loads(capsys.readouterr().err)["required_gaps"] == [
-        "commit_subject_invalid:rejected"
-    ]
 
 
 @pytest.mark.parametrize(

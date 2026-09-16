@@ -6,6 +6,7 @@ from io import StringIO
 from pathlib import Path
 
 import ethos.adapters.mutation.accepted.signature as repair
+import ethos.adapters.repo.commit.signature as signature_observation
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
@@ -18,7 +19,81 @@ from tests.support.governed_repository import write_script_gate_policy
 from tests.support.proof import seed_executed_proof
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.signature import signature_repository
+from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.support import apply_receipt
+
+
+def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(tmp_path: Path):
+    """An unchanged proposal ref can still name a verified accepted contribution."""
+    repo, old, _candidate = signature_repository(tmp_path, coupled=True)
+    git(repo, "branch", "proposal/old-signature", old)
+    bundle = tmp_path / "original.bundle"
+    git(repo, "bundle", "create", str(bundle), "refs/heads/dev")
+    result = repair.repair_signature(
+        root=repo,
+        expect_head=old,
+        corrections={old: {"resign": True}},
+        reason="Correct historical signature",
+        backup=bundle,
+        apply=True,
+        authorized=True,
+    )
+    assert result["verdict"] == "pass", result
+    replacement = str(result["head"])
+    assert git(repo, "rev-parse", "proposal/old-signature") == old
+    relation = signature_observation.repaired_object_provenance(repo, old=old, new=replacement)
+    assert relation is not None
+    assert relation["mapping"][old] == replacement
+    assert relation["attestation_id"]
+
+    previous, records = read_attestation_set(repo)
+    git(repo, "update-ref", "-d", ATTESTATION_SET_REF, previous)
+    changed = record_attestations(
+        repo,
+        tuple(item for item in records if item.predicate != "effect:commit-signature"),
+    )
+    try:
+        assert (
+            signature_observation.repaired_object_provenance(repo, old=old, new=replacement) is None
+        )
+    finally:
+        git(repo, "update-ref", ATTESTATION_SET_REF, previous, changed["root"])
+
+    write_publication_topology(repo)
+    release = repo / ".ethos/release.toml"
+    release.write_text(
+        release.read_text()
+        .replace('provider = "gitlab"', 'provider = "git"')
+        .replace('provider = "github"', 'provider = "git"')
+    )
+    git(repo, "add", "-A")
+    git(repo, "commit", "-S", "-m", "fix: declare Git publication")
+    accepted = git(repo, "rev-parse", "HEAD")
+    peers = []
+    for name in ("origin", "github"):
+        peer = tmp_path / f"{name}.git"
+        git(tmp_path, "init", "--bare", str(peer))
+        git(repo, "remote", "add", name, str(peer))
+        git(repo, "push", name, "HEAD:refs/heads/dev", f"{old}:{PROPOSAL_REF}")
+        peers.append(peer)
+    preview = run_ethos(
+        "publish",
+        "--retire",
+        "--ref",
+        PROPOSAL_REF,
+        "--probe-remote",
+        "--expect-head",
+        accepted,
+        "--json",
+        cwd=repo,
+    )
+    assert {
+        report["contribution"]["state"] for report in preview["data"]["push_admission"].values()
+    } == {"repaired"}
+    assert apply_receipt(repo, preview["data"]["request_receipt"], accepted)["state"] == "retired"
+    assert {
+        git(peer, "for-each-ref", "--format=%(objectname)", PROPOSAL_REF) for peer in peers
+    } == {""}
 
 
 def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_path: Path) -> None:

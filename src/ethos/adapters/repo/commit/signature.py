@@ -409,3 +409,23 @@ def repaired_ref_provenance(
             matches.append(repair)
     _require(len(matches) <= 1, "signature_repair_evidence_ambiguous")
     return matches[0] if matches else None
+
+
+def repaired_object_provenance(root: Path, *, old: str, new: str) -> dict[str, object] | None:
+    """Resolve one exact old object through verified repair beneath accepted history."""
+    _, attestations = read_attestation_set(root)
+    matches = []
+    for record in attestations:
+        replacement = record.payload.body.get("replacement")
+        if (
+            record.predicate != RESULT
+            or not isinstance(replacement, str)
+            or not is_ancestor(root, replacement, new)
+        ):
+            continue
+        repair = completed_signature_repair(root, new=replacement, attestations=attestations)
+        mapping = repair.get("mapping") if repair else None
+        if isinstance(mapping, Mapping) and old in mapping:
+            matches.append(repair)
+    _require(len(matches) <= 1, "signature_repair_evidence_ambiguous")
+    return matches[0] if matches else None

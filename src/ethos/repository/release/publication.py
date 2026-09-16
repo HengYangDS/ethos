@@ -11,6 +11,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 from typing import cast
+from urllib.parse import urlsplit
 
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_OTHER
@@ -22,7 +23,9 @@ _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _LOCAL_FIELDS = ("local_verification_command", "local_installation_command")
 _DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, "peers"))
-_PEER_FIELDS = frozenset(("id", "provider", "role", "git_remote", "capabilities", "ci_surface"))
+_PEER_FIELDS = frozenset(
+    ("id", "provider", "role", "git_remote", "capabilities", "ci_surface", "forge_repository")
+)
 _REQUIRED_CAPABILITIES = frozenset(("repository", "publication"))
 _ALLOWED_CAPABILITIES = frozenset((*_REQUIRED_CAPABILITIES, "ci_cd"))
 _PROPOSAL_REF = "proposal_ref"
@@ -214,7 +217,28 @@ def _compile_peer(root: Path, raw: object, *, index: int) -> tuple[dict[str, obj
         "ci_surface": ci_surface,
         "capabilities": capabilities,
     }
+    if "forge_repository" in raw:
+        target = raw["forge_repository"]
+        if not isinstance(target, str) or not _forge_repository_valid(target):
+            return {}, [f"publication_topology_peer_forge_repository_invalid:{peer_id}"]
+        peer["forge_repository"] = target
     return peer, _peer_gaps(root, peer)
+
+
+def _forge_repository_valid(value: str) -> bool:
+    """Admit explicit API repository coordinates without embedded credentials."""
+    try:
+        url = urlsplit(value)
+        return (
+            value == value.strip()
+            and url.scheme in {"http", "https"}
+            and bool(url.hostname)
+            and url.port != 0
+            and not (url.username or url.password or url.query or url.fragment)
+            and len(tuple(filter(None, url.path.split("/")))) >= 2
+        )
+    except ValueError:
+        return False
 
 
 def _peer_gaps(root: Path, peer: Mapping[str, object]) -> list[str]:

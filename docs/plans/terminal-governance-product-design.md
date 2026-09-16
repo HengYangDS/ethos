@@ -39,13 +39,15 @@ are then deleted.
 ## Current Convergence Boundary
 
 The September 17 accepted readback is
-`363f2eef528b0b639fd6c7df95493cb45147dfd4`, tree
-`11c35abfa99d940bdf9ac0ac292cad2f1f212190`. The immutable runtime
-`8622132542e630354a04ae323dd6683ca91ab37d5f7b5fc3649365c0853ca14e`
-matches that source/tree. Publication-repair archive, all 35 exact gates, native
-acceptance and activation passed: 3,678 tests, one skip and 95.103545 percent
-combined coverage. Attestation:
-`d0f9deb43265c7c419b39b3cf10dd642a9c6b0c14cd5f4c4336e195a6baeec98`.
+`7f4e071ff1e183e4ee8dc707985d1a795ac18564`, tree
+`eb6ce2606fc6055445d10dc5b02d04f4e5524d24`. The immutable runtime
+`7c80455172d8dffeb0c64aa5191d2168f9cb6342609beec882ba08ce745f98fa`
+matches that source/tree. Intent-selection archive, all 35 exact gates, native
+candidate/accepted CAS and activation passed: 3,689 tests, one skip and
+95.135533 percent combined coverage. Postarchive proof Attestation:
+`15ec53cea2e7ee8949511e277effc2bdf7734662d6efa64174459dd30c2396bc`.
+The previous unreferenced runtime and owned pytest root were removed by their
+native owners; exact delivery readback remains in the current receipt root.
 
 Historical correction changed 40 author fields and 37 committer fields across
 40 selected commits; 2,855 affected objects preserve trees, messages, dates,
@@ -63,22 +65,32 @@ repair. Do not merge erroneous history back, bypass hooks, change protections
 implicitly or retry unchanged rejection. Hosted acceptance is unproved.
 
 The sole owned `work/20260915-commit-integrity` lane now carries the bounded
-`intent-selection` Change. Finish inherited-archive selection, exact prewrite
-path attribution and lane-specific proof admission before remote proposal
-retirement. The latter consumes dev absorption and review closure, not main
-convergence, through the existing publication effect owner. Post-archive
-validation-repair scope and generic local-verification receipt ownership follow.
-No adopter compatibility carrier or adopter source mutation is required.
+`proposal-retirement` Change. Inherited-archive selection, exact prewrite path
+attribution and lane-specific proof admission are accepted. Remote proposal
+retirement consumes dev absorption and review closure, not main convergence,
+through the existing publication effect owner. Exact ancestry or a completed,
+validated native history-repair mapping preserves contribution identity; bare
+patch equivalence is insufficient. Native pre-push must consume deletion tuples,
+not silently skip them. The current implementation passes 146 final focused
+checks, all ten selected cheap public gates, native format/import/prose checks
+and source typing. Prior broader consumers passed 195 cases with two obsolete
+hook expectations; their corrected 44-case module subsequently passed. Exact
+source proof, archive, accepted installation and real-adopter retirement remain
+open; official Change tasks own source progress. Postarchive validation-repair scope and generic
+local-verification receipt ownership follow. No adopter compatibility carrier
+or adopter source mutation is required.
 
 Advance measured P5 work at these existing owners without interrupting the
-current closure. The accepted proof took 2,006.184 seconds; its JUnit reports
-1,758.866 seconds in pytest. Six lifecycle modules account for 36.07 percent of
+current closure. The latest accepted proof took 1,992.409 seconds; its JUnit reports
+1,680.200 seconds in pytest. Six lifecycle modules account for 36.07 percent of
 summed case time, not wall time. The installed-product smoke takes roughly three
 minutes; most other checks are seconds. These measurements displace the older
 56-percent hotspot estimate, not the need for complete verification.
 
 First reduce failure latency with the smallest distinguishing test and cheap
-dependency-resolved checks. Run broader consumers only after that test passes;
+dependency-resolved checks. The generated-artifacts gate depends on the full
+unit-architecture suite and is not a cheap preliminary check. Resolve gate
+dependencies before invocation; a gate name does not establish its cost. Run broader consumers only after that test passes;
 freeze every source input before the necessary full proof. Then optimize the
 measured repeated boundaries: a read-only exact accepted proof query made four
 policy resolutions, two for each floor; cold profiling located most time in
@@ -94,9 +106,9 @@ resolutions become two, with fresh queries still rebuilding both. The same
 accepted Attestation was returned without gaps; one unprofiled observation fell
 from 5.964 to 4.880 seconds, not a controlled benchmark or full-cycle guarantee.
 The final 87-case proof/source/selection matrix passes, including actual
-prearchive, postarchive and new-lane proof on one inherited source. Ten cheap
-public host gates and native format/import/prose checks pass. These do not imply
-this Change's exact full proof, installation or acceptance.
+prearchive, postarchive and new-lane proof on one inherited source. Its
+source and postarchive exact full proofs, installation and acceptance are now
+complete; these do not imply proposal-retirement or global product completion.
 
 Existing receipts under `build/evidence/quality/commit-integrity/` own the raw
 observations, including `intent-selection-proof-query-profile.txt`. Current

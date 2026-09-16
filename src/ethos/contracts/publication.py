@@ -65,6 +65,11 @@ class PublicationUpdate(BaseModel):
     expected: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     desired: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
 
+    @property
+    def deletion(self) -> bool:
+        """Identify Git's native absent-object postcondition."""
+        return self.desired == "0" * len(self.expected)
+
 
 class PublicationTarget(BaseModel):
     """One peer-local atomic transaction containing one or more ref updates."""
@@ -103,7 +108,12 @@ class PublicationEffect(BaseModel):
             message = "publication_target_duplicate"
             raise ValueError(message)
         updates = tuple(update for target in self.targets for update in target.updates)
-        if any(update.desired != self.source.object_oid for update in updates):
+        if len({update.deletion for update in updates}) != 1:
+            message = "publication_mixed_retirement_projection"
+            raise ValueError(message)
+        if any(
+            not update.deletion and update.desired != self.source.object_oid for update in updates
+        ):
             message = "publication_target_source_mismatch"
             raise ValueError(message)
         ref_kinds = {
@@ -114,6 +124,11 @@ class PublicationEffect(BaseModel):
             message = "publication_target_source_kind_mismatch"
             raise ValueError(message)
         return self
+
+    @property
+    def retirement(self) -> bool:
+        """Derive retirement from exact updates, without another persisted mode."""
+        return all(update.deletion for target in self.targets for update in target.updates)
 
     def digest(self) -> str:
         """Return the canonical identity of this exact peer-local CAS effect."""

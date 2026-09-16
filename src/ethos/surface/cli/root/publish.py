@@ -19,6 +19,7 @@ from ethos.adapters.mutation.publication.request import load_remote_publication_
 from ethos.adapters.mutation.publication.request import observe_publication_request
 from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
 from ethos.adapters.mutation.publication.request import persist_remote_publication_request
+from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.publication import PublicationEffect
@@ -50,6 +51,7 @@ class _PublishOptions:
     target_refs: Annotated[tuple[str, ...], Parameter(name="--ref")] = ()
     receipt: Annotated[str | None, Parameter(name="--receipt")] = None
     receipt_sha256: Annotated[str | None, Parameter(name="--receipt-sha256")] = None
+    retire: bool = False
 
 
 _DEFAULT_PUBLISH_OPTIONS = _PublishOptions()
@@ -78,6 +80,7 @@ def _publication_admission_gaps(
     observations: Mapping[str, Mapping[str, object]],
     effect_gaps: tuple[str, ...],
     proof_admission: Mapping[str, object],
+    retire: bool = False,
 ) -> tuple[tuple[str, ...], dict[str, dict[str, object]]]:
     reports: dict[str, dict[str, object]] = {}
     for peer_id, remote in remotes.items():
@@ -93,7 +96,7 @@ def _publication_admission_gaps(
             reports[f"{peer_id}:{target_ref}"] = push_admission_report(
                 root=repo,
                 target_ref=target_ref,
-                pushed_head=current_head,
+                pushed_head=zero_oid(repo) if retire else current_head,
                 remote_head=object_oid,
                 remote_name=remote,
                 proof_admission=proof_admission,
@@ -174,6 +177,7 @@ def _publication_effect_observation(
         target_refs=target_refs,
         remotes=remotes,
         ref_admissions=ref_admissions,
+        retire=options.retire,
     )
     admission_gaps, reports = _publication_admission_gaps(
         repo=repo,
@@ -183,6 +187,7 @@ def _publication_effect_observation(
         observations=observations,
         effect_gaps=effect_gaps,
         proof_admission=proof_admission,
+        retire=options.retire,
     )
     effect_verdict: Verdict = (
         "block"
@@ -217,6 +222,7 @@ def _publish_projection(
         plan, effect, target_refs, gaps = observe_publication_request(
             repo, str(request["path"]), str(request["sha256"])
         )
+    retirement = effect.retirement if effect is not None else options.retire
     projection_verdict: Verdict = "block" if gaps else "pass"
     context = observe_publication(
         repo,
@@ -258,7 +264,7 @@ def _publish_projection(
             plan = compile_remote_publication_request(root=repo, effect=effect, proof=proof)
             gaps.extend(plan.required_gaps)
             projection_verdict = reduce_verdicts(projection_verdict, plan.verdict)
-            if plan.verdict == "pass":
+            if plan.verdict == "pass" and projection_verdict == "pass":
                 request = persist_remote_publication_request(repo, plan)
 
     if effect is not None and effect.source.peeled_commit != current_head:
@@ -287,28 +293,41 @@ def _publish_projection(
         else target_refs
     )
     state = (
-        "published"
+        ("retired" if retirement else "published")
         if options.apply and verdict == "pass"
         else str(execution.get("state") or "not_applied")
         if options.apply and execution.get("state") != "not_applied"
-        else "ready_to_publish"
+        else ("ready_to_retire" if retirement else "ready_to_publish")
         if verdict == "pass"
         else "observation_unknown"
         if verdict == "unknown"
         else "blocked"
     )
-    proof_next_action = str(context.proof_admission.get("next_action") or "")
+    retirement_next_action = (
+        next(
+            (
+                str(report["next_action"])
+                for report in push_admission.values()
+                if report_verdict(report) != "pass" and report.get("next_action")
+            ),
+            "",
+        )
+        if retirement
+        else ""
+    )
     next_action = (
         f"ethos publish --receipt {request['path']} --receipt-sha256 {request['sha256']} "
         f"--apply --authorize --expect-head {current_head} --json"
         if not options.apply and verdict == "pass"
         else ""
         if options.apply and verdict == "pass"
-        else proof_next_action
+        else retirement_next_action
+        or str(context.proof_admission.get("next_action") or "")
         or " ".join(
             (
                 "ethos",
                 "publish",
+                *(("--retire",) if retirement else ()),
                 *(item for target_ref in target_refs for item in ("--ref", target_ref)),
                 "--probe-remote",
                 "--expect-head",
@@ -357,7 +376,7 @@ def _publish_projection(
                 "source_head": current_head,
                 "remote_push": (
                     "applied"
-                    if state == "published"
+                    if state in {"published", "retired"}
                     else state
                     if state in {"partial", "outcome_unknown"}
                     else "not_performed"

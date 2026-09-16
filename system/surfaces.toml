@@ -6,7 +6,7 @@
 schema = "system/schemas/contracts/surfaces.schema.json"
 
 [runtime]
-executables = ["git", "lsof", "ps", "ssh-keygen"]
+executables = ["git", "lsof", "ps", "ssh-keygen", "gh", "glab"]
 inputs = [
   "DOCKER_HOST",
   "ETHOS_ACTOR",

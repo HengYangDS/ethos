@@ -12,6 +12,7 @@ from pydantic import ValidationError
 import ethos.adapters.openspec.commitment as compilation
 from ethos.adapters.openspec.commitment import commitment_from_projection
 from ethos.contracts.semantic import Commitment
+from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -327,6 +328,7 @@ def test_commitment_compilation_fails_closed_on_incomplete_official_projection(
 def test_load_commitment_selects_one_active_change_and_checks_digest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    tmp_path = init_git_repo(tmp_path / "repo")
     projection = {
         "id": "minimal-authority",
         "deltas": [
@@ -356,7 +358,7 @@ def test_load_commitment_selects_one_active_change_and_checks_digest(
             {
                 "exit_code": 0,
                 "parse_error": "",
-                "json": {"changes": [{"name": "minimal-authority"}]},
+                "json": {"changes": [{"name": "minimal-authority", "status": "in-progress"}]},
             }
             if args[0] == "list"
             else {"exit_code": 0, "parse_error": "", "json": projection}
@@ -377,6 +379,7 @@ def test_load_commitment_selects_one_active_change_and_checks_digest(
 def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_complete(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    tmp_path = init_git_repo(tmp_path / "repo")
     change_root = _materialize_spec_free_change(
         tmp_path,
         tasks="- [ ] Refresh and prove the package.\n",
@@ -442,6 +445,8 @@ def test_load_commitment_rejects_missing_or_ambiguous_authority(
     change_id: str | None,
     error: str,
 ) -> None:
+    tmp_path = init_git_repo(tmp_path / "repo")
+
     @contextmanager
     def selected_projection(_repo: Path, _tree_ref: str | None):
         yield tmp_path
@@ -459,7 +464,7 @@ def test_load_commitment_rejects_missing_or_ambiguous_authority(
         lambda *_a, **_k: {
             "exit_code": 0,
             "parse_error": "",
-            "json": {"changes": [{"name": name} for name in changes]},
+            "json": {"changes": [{"name": name, "status": "in-progress"} for name in changes]},
         },
     )
     monkeypatch.setattr(compilation, "_archived_commitment", lambda *_a, **_k: None)

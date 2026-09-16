@@ -718,6 +718,36 @@ owned installation scratch was removed. This is precommit acceptance, not
 accepted runtime delivery. Exact frozen proof, official archive, acceptance and
 installation remain required.
 
+The first exact proof at `d91e82b6` blocked after 1,604.976 seconds of pytest:
+3,621 passed, four failed and one skipped. Three Commitment fixtures lacked the
+newly required native Git prestate; one CLI fixture fabricated incomplete
+options instead of parsing the real command. The repaired fixtures establish
+real Git history and consume native CLI defaults and explicit merge arguments;
+the focused 45-case set passes. Downstream proof gates did not execute after
+that failure. Its measured combined coverage was 26,990/28,455 (94.851520%),
+below the unchanged 95% requirement; it is not a passing proof.
+
+Additional native recovery counterexamples exercise missing or ambiguous
+preparation, changed request identity, unacknowledged rollback, missing CAS
+evidence, and edits between CAS and metadata cleanup. They exposed a real
+descriptor leak when `MERGE_HEAD` is a directory: stream construction failed
+before the descriptor's cleanup owner existed. A distinguishing RED test
+reproduced the leak; the existing observation function now closes its descriptor
+in one unconditional lifetime boundary. The nine observation cases and the
+complete 111-case affected suite pass, alongside seven public host gates and
+direct Ruff/type checks. Focused coverage is separate diagnostic evidence,
+never combined into the repository proof. Failed full-proof JUnit/coverage
+bytes and RED/GREEN outputs remain under the same `commit-integrity` evidence
+root. These results still require a new frozen proof and installed acceptance.
+The owned full-test basetemp was observed absent after the failed run.
+Offline package build and all nine independent lifecycle stages then passed
+with wheel `6e26af22ee264112845740e2af947f282dc473f19b8c99c93b42e1e78e325f2c`,
+source overlay `fa575955460f96e643339f169fea639da214ab04`. The owned smoke root
+is absent. Six further public preview cases distinguish protected roots,
+missing candidate, absent or existing native operations, invalid intent and an
+already-current base without mutating those observations. These regressions
+extend acceptance, not product scope; whole-source coverage is still pending.
+
 The preceding typed Change selection repair is now accepted and published as
 `e0ba1e3a466f3ea9198edfbf0592fbd26bbede77`, tree
 `0d91d6a04a6ae3f59d5d5d9a9da5d18ba362cb18`. Prearchive and postarchive full

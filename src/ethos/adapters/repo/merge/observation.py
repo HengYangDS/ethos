@@ -38,19 +38,22 @@ def metadata_bytes(path: Path) -> bytes | None:
         )
     except FileNotFoundError:
         return None
-    with os.fdopen(descriptor, "rb") as stream:
-        before = os.fstat(stream.fileno())
+    try:
+        before = os.fstat(descriptor)
         if not S_ISREG(before.st_mode):
             message = "merge_metadata_unsafe"
             raise ValueError(message)
-        content = stream.read()
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            content = stream.read()
         identity = _content_identity(before)
-        if identity != _content_identity(
-            os.fstat(stream.fileno())
-        ) or identity != _content_identity(path.stat(follow_symlinks=False)):
+        if identity != _content_identity(os.fstat(descriptor)) or identity != _content_identity(
+            path.stat(follow_symlinks=False)
+        ):
             message = "merge_metadata_changed"
             raise ValueError(message)
         return content
+    finally:
+        os.close(descriptor)
 
 
 def _content_identity(observed: os.stat_result) -> tuple[int, ...]:

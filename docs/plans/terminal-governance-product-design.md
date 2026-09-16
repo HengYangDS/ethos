@@ -606,13 +606,37 @@ five new defects. The fixture now establishes its native verifier policy before
 starting its Work Lane. All 39 history/control cases pass without weakening the
 new protection. Twenty-five release/runtime boundary tests also pass, including
 unreadable policy and missing observation cases. Production code is unchanged
-after that checkpoint; the corrected candidate still requires a fresh full proof.
+after that checkpoint. The corrected candidate `c46d1d6d` and official archive
+`0e5e8ddad0e092dbaa6e6ff16f5dfdd1ecc5e891`, tree
+`d2622c361c80a5a999a686bb42e6fdc867401a1d`, each passed all 35 full-proof gates.
+The postarchive proof records 3,580 passed tests, one skipped, and 95.115347%
+combined coverage. Local accepted refs and installed runtime
+`835761c8a3b03bb4effa22f5edfc90749c28ebe943f239e980fdb790631b5566`
+bind that source; its wheel digest is
+`261374b7b0b6d6006dbf4718ac2d6b4bf358831150189f6550f1f79b88f3bde6`.
+These results do not establish remote publication.
 
 The September 16 follow-up supply query still finds current numeric releases
 for 27 of 29 direct Python requirements and all five selected npm requirements.
 Newer ty and mutmut versions remain publisher-declared Beta. Embedded Node and
 npm gaps above remain open; no preview exception or unrelated lock update is
 included in adopter-governance.
+
+The subsequent user-authorized `stable-supply` Change selects newly published
+filelock 3.32.7 and virtualenv 21.7.10. Native lock dry-run and actual lock diff
+identify exactly those two updates; frozen offline synchronization succeeded.
+The existing 128 locking, supply, audit and runtime regressions pass in 36.14
+seconds with two workers, including creation and execution of an isolated
+virtualenv. Its owned temporary root was removed. Ruff, native configuration and
+dependency hygiene checks pass. Source evidence is retained as
+`stable-supply-{registry,lock,sync,focused,static}.*` in the existing
+`build/evidence/quality/commit-integrity/` directory. Offline wheel build and all
+package-only lifecycle stages pass in `stable-supply-package.log`, using wheel
+`69e32f00f2c4c8b86d967d4837043d9edcf71483074afba1988f0ff6ade2f3b5`.
+Exact lifecycle proof remains required before this candidate replaces the
+installed predecessor.
+Publisher preview status and embedded Node/npm gaps remain separate closures;
+this two-package refresh does not claim the entire supply chain is current.
 
 The actual architecture adopter also reports a pending history-preserving merge
 between two valid Changes. Its owner has preserved and independently restored
@@ -628,6 +652,19 @@ known-conflicting rebase is not remediation. Validate a rollback in an isolated
 recovery first, then let the original owner obtain fresh admission and perform
 any real effect. Do not present this open scenario as fixed by the current audit
 and binding changes.
+
+The adopter owner has now installed the delivered `0e5e8dda` wheel through public
+hook installation. Its preservation receipt reports unchanged refs, all indexes
+and 5,945 worktree files, merge metadata, Lease rows/schema and unrelated config;
+this task read back that receipt. The owner also reports the same pending-merge
+and Change-attribution gaps on the new installed runtime, not merely the older
+runtime. This confirms installation as a separate delivered outcome without
+claiming original-lane recovery or full adopter proof. The repair must reconcile
+base/ours/theirs attribution and current operation state, preserve legitimate
+coexisting Changes and intentional release roles, and expose an actionable
+supported recovery or explicit unsupported boundary. Path prewrite never grants
+Git merge authority; browser authentication and an adopter's raw-SHA inventory
+mistake are not ETHOS product defects. Original-lane effects stay with its owner.
 
 The preceding typed Change selection repair is now accepted and published as
 `e0ba1e3a466f3ea9198edfbf0592fbd26bbede77`, tree

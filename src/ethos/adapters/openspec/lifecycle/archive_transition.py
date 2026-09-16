@@ -12,6 +12,7 @@ from ethos.adapters.openspec.lifecycle.archive_binding import archive_root_from_
 from ethos.adapters.openspec.lifecycle.archive_binding import archive_source_path
 from ethos.adapters.openspec.lifecycle.archive_binding import archived_change_from_path
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
+from ethos.adapters.openspec.lifecycle.archive_provenance import declares_transition
 from ethos.adapters.openspec.lifecycle.archive_provenance import resolve_archive_head
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import current_tree
@@ -60,6 +61,7 @@ def attested_archive_transition(
     except ValueError:
         return None
     matches: list[AttestedArchive] = []
+    repairs: dict[str, dict[str, object] | None] = {}
     for attestation in attestations:
         match = _attested_archive(
             root,
@@ -67,6 +69,7 @@ def attested_archive_transition(
             change=change,
             attestation=attestation,
             attestations=attestations,
+            repairs=repairs,
         )
         if match is not None:
             matches.append(match)
@@ -88,9 +91,12 @@ def _attested_archive(
     change: str | None,
     attestation: Any,
     attestations: tuple[Any, ...],
+    repairs: dict[str, dict[str, object] | None],
 ) -> AttestedArchive | None:
     """Validate one archive effect as a current-history intent source."""
-    if attestation.predicate != "effect:git-ref-update":
+    if attestation.predicate != "effect:git-ref-update" or not declares_transition(
+        attestation, "openspec.archive"
+    ):
         return None
     try:
         plan = plan_from_attestation(attestation)
@@ -117,6 +123,7 @@ def _attested_archive(
             branch=branch,
             archive_path=archive_path,
             attestations=attestations,
+            repairs=repairs,
         )
         if (
             not branch

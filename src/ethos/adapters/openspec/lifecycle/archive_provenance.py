@@ -33,6 +33,13 @@ class ArchiveEdge(NamedTuple):
     kind: str
 
 
+def declares_transition(attestation: Any, transition: str) -> bool:
+    """Select candidate evidence cheaply; only full validation can accept it."""
+    plan = attestation.payload.body.get("plan")
+    policy = plan.get("policy") if isinstance(plan, Mapping) else None
+    return isinstance(policy, Mapping) and policy.get("transition") == transition
+
+
 def resolve_archive_head(
     root: Path,
     *,
@@ -41,6 +48,7 @@ def resolve_archive_head(
     branch: str,
     archive_path: str,
     attestations: tuple[Any, ...],
+    repairs: dict[str, dict[str, object] | None],
 ) -> tuple[str, int, tuple[ArchiveEdge, ...]] | None:
     """Find one exact preserved archive through refresh, repair and later descendants."""
     direct = _ancestor_distance(root, archived_head, current_head)
@@ -50,7 +58,6 @@ def resolve_archive_head(
     if not archive_tree:
         return None
     edges = refresh_edges(root, branch=branch, attestations=attestations)
-    repairs: dict[str, dict[str, object] | None] = {}
     candidates: list[tuple[str, int, tuple[ArchiveEdge, ...]]] = []
     pending: list[tuple[str, tuple[ArchiveEdge, ...], frozenset[str]]] = [
         (archived_head, (), frozenset({archived_head}))
@@ -86,7 +93,7 @@ def _repair_edges(
     attestations: tuple[Any, ...],
     cache: dict[str, dict[str, object] | None],
 ) -> tuple[ArchiveEdge, ...]:
-    """Derive only relevant repair mappings once per resolution, never from a digest alone."""
+    """Verify each relevant repair once in this observation, never from a digest alone."""
     edges = []
     for attestation in attestations:
         if attestation.predicate != RESULT:
@@ -148,7 +155,10 @@ def validated_refresh_edge(
 ) -> ArchiveEdge | None:
     """Decode one refresh edge only when both Git and native evidence validate."""
     try:
-        _require(valid=attestation.predicate == "effect:git-ref-update")
+        _require(
+            valid=attestation.predicate == "effect:git-ref-update"
+            and declares_transition(attestation, "lane.refresh")
+        )
         plan = plan_from_attestation(attestation)
         _require(valid=plan.policy.get("transition") == "lane.refresh")
         _require(valid=plan.policy.get("execution_branch") == branch)

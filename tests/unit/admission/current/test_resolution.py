@@ -22,6 +22,38 @@ from tests.unit.admission.current.support import resolve_report
 ACTIVE_SPEC = "openspec/changes/repair-change/specs/repository-governance/spec.md"
 
 
+@pytest.mark.parametrize("changed", [False, True])
+def test_prewrite_resolves_requested_paths_instead_of_workspace_diff(monkeypatch, changed):
+    """Prewrite attributes the proposed effect, even before those files are dirty."""
+    paths = ("src/example.py", "openspec/changes/example/tasks.md")
+    commitment = commitment_fixture(id="change:example")
+
+    def observe(_root, **kwargs):
+        assert kwargs["changed_paths"] == paths
+        return official_report(change="example", commitment=commitment.model_dump(mode="json")) | {
+            "verdict": "pass"
+        }
+
+    monkeypatch.setattr(resolution_adapter, "openspec_governance_report", observe)
+    monkeypatch.setattr(
+        resolution_adapter,
+        "change_scope_paths_from_status",
+        lambda *_args: pytest.fail("exact prewrite must not expand to unrelated dirty paths"),
+    )
+    resolution = resolve_current_resolution(
+        ROOT,
+        status={"role": "work_lane", "head": HEAD, "changed_paths": ["unrelated.py"]},
+        authority=authority(),
+        changed=changed,
+        prewrite_paths=paths,
+    )
+    assert resolution.verdict == "pass"
+    assert resolution.scope.paths == paths
+    assert resolution.scope_report()["covered_paths"] == [
+        {"path": path, "changes": ["example"]} for path in paths
+    ]
+
+
 def test_current_resolution_preserves_the_first_authority_gap() -> None:
     resolution = resolve_current_resolution(
         ROOT,

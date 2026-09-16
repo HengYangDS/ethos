@@ -4601,3 +4601,45 @@ remote CAS remain independent requirements.
   evidence is missing, or multiple repair candidates remain ambiguous
 - **THEN** that request is not admitted as a repaired-history publication
 - **AND** no remote or local ref is changed by the observation
+
+#### Scenario: Accepted publication consumes the verified forward baseline
+
+- **WHEN** public pre-push or publication evaluates accepted descendants after
+  a verified repair of the peer's exact old object
+- **THEN** the accepted topology check evaluates forward ancestry from the
+  verified replacement while still requiring the current candidate head
+- **AND** proposed-object proof and its accepted effect remain required
+- **AND** each peer applies only its observed old-to-proposed ref transaction
+
+#### Scenario: Repaired ancestry cannot excuse missing current acceptance
+
+- **WHEN** the repair relation is valid but current proof, accepted effect or
+  candidate equality is absent
+- **THEN** publication is rejected without changing either peer
+
+### Requirement: Native hook decisions preserve JSON evidence
+
+ETHOS SHALL emit a JSON-native rejection for failed native Git hook admission,
+preserving valid nested immutable evidence, required gaps and continuation.
+Invalid evidence values SHALL produce a stable blocked transport result rather
+than a traceback or fabricated success. Successful native hooks SHALL retain
+quiet zero-exit behavior.
+
+#### Scenario: Rejected report contains immutable proof values
+
+- **WHEN** pre-push rejects or cannot determine admission and carries nested
+  immutable Attestation or Commitment mappings and ordered collections
+- **THEN** stderr contains one valid JSON report with the original verdict,
+  required gaps, evidence and next action
+- **AND** the original immutable values remain unchanged
+
+#### Scenario: Evidence cannot be represented as JSON
+
+- **WHEN** a failed hook report contains unsupported or nonfinite values
+- **THEN** the hook exits nonzero with `hook_report_not_json_native` JSON
+- **AND** no Python traceback replaces the machine-readable result
+
+#### Scenario: A notification needs no admission
+
+- **WHEN** Git reports an irrelevant or completed notification
+- **THEN** the hook does not initialize policy or CLI machinery for serialization

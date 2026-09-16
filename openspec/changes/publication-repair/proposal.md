@@ -13,6 +13,9 @@ accepted-ref boundary. The existing obligations must compose consistently.
 - Record the late-boundary counterexample in the existing terminal plan and
   preserve the failed preview as evidence instead of retrying it unchanged.
 
+- Preserve nested immutable evidence when serializing native hook rejection,
+  retaining the decision without a traceback or eager policy startup.
+
 ## Capabilities
 
 ### New Capabilities

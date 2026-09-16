@@ -5,10 +5,14 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from io import StringIO
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.repo.hook.admission as hook_admission
+from ethos.adapters.repo.hook.protocol import execute_hook
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 
 if TYPE_CHECKING:
@@ -150,3 +154,56 @@ def test_native_entrypoint_rejects_an_unavailable_repository(tmp_path: Path) -> 
     assert failure["hook"] == "reference-transaction"
     assert failure["verdict"] == "block"
     assert failure["required_gaps"]
+
+
+@pytest.mark.parametrize("verdict", ["pass", "block", "unknown"])
+def test_hook_projects_nested_immutable_evidence_without_changing_the_verdict(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    verdict: str,
+) -> None:
+    """A transport projects immutable proof data; it does not decide admission."""
+    commitment = MappingProxyType(
+        {"schema_version": 3, "id": "change:publication", "acceptance": ("exact signed source",)}
+    )
+    report = {
+        "verdict": verdict,
+        "required_gaps": () if verdict == "pass" else ("accepted_closeout_effect_not_attested",),
+        "proof_admission": MappingProxyType({"attestation": {"commitment": commitment}}),
+        "next_action": "ethos land --json",
+    }
+    monkeypatch.setattr(hook_admission, "admit_hook", lambda *_args, **_kwargs: (report,))
+    result = execute_hook(tmp_path, "pre-push", ("origin",), stdin=StringIO())
+    captured = capsys.readouterr()
+    assert result == int(verdict != "pass")
+    assert captured.out == ""
+    if verdict == "pass":
+        assert captured.err == ""
+    else:
+        observed = json.loads(captured.err)
+        assert observed["verdict"] == verdict
+        assert observed["required_gaps"] == ["accepted_closeout_effect_not_attested"]
+        assert observed["next_action"] == "ethos land --json"
+        assert observed["proof_admission"]["attestation"]["commitment"] == {
+            "schema_version": 3,
+            "id": "change:publication",
+            "acceptance": ["exact signed source"],
+        }
+    assert report["proof_admission"]["attestation"]["commitment"] is commitment
+
+
+@pytest.mark.parametrize("invalid", [object(), float("nan"), {"unserializable"}])
+def test_hook_serialization_failure_is_a_machine_readable_block(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    invalid: object,
+) -> None:
+    """Unexpected evidence values never escape the hook as a Python traceback."""
+    report = {"verdict": "block", "required_gaps": ["original_gap"], "evidence": invalid}
+    monkeypatch.setattr(hook_admission, "admit_hook", lambda *_args, **_kwargs: (report,))
+    assert execute_hook(tmp_path, "pre-push", ("origin",), stdin=StringIO()) == 1
+    result = json.loads(capsys.readouterr().err)
+    assert result["verdict"] == "block"
+    assert result["required_gaps"] == ["hook_report_not_json_native"]

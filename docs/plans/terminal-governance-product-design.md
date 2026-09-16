@@ -906,6 +906,28 @@ fixed and do not expand the frozen CI repair or the self-identity Change.
 
 ### Measured Iteration Cost And P5 Order
 
+Accepted `2b262ef4` and installed runtime `fbf563128a84b13db3e3fc77c66b447675db3a71d576eb57c0b172e4da93c983`
+now pass full proof (35 gates; 3,672 tests passed, one skipped; 95.1029 percent
+combined coverage). Current peer preview also passes all four dev/main
+admissions. Receipt-bound apply then fails at GitLab's protected non-fast-forward
+policy, before any peer succeeds; GitHub is pending. The repaired old history is
+not a native ancestor of this source. Do not relabel the operation as fast-forward,
+remove its exact expected-old constraint, merge erroneous old history back, or
+change provider protections as automatic recovery. This external projection
+boundary does not invalidate installed source or authorize adopter mutations.
+Native GitLab API readback uses the existing configured HTTP authority through
+`GITLAB_HOST`, not a port-bearing `--hostname` rejected by the installed CLI.
+
+The publication Change remains active for one reproduced native transport gap:
+JSON encoding rejected nested immutable Commitment mappings outside the hook's
+exception boundary. The existing value projection now preserves them; invalid
+values return a stable blocked report. Five counterexamples fail before repair;
+21 protocol cases pass after it, including lazy notification imports. The final
+200-case native consumer matrix passes in 88.31 seconds, including real pre-push
+rejections with retained proof evidence and independent required gaps; nine cheap
+checks pass and scratch is removed. Serialization success does not demonstrate
+that a rejected operation should be admitted. Exact proof remains required.
+
 The bounded publication consumer repair now reproduces the real pre-push
 failure, then passes receipt-bound application and exact dev/main readback on
 two isolated peers. Removing only the proposed proof or accepted effect, or

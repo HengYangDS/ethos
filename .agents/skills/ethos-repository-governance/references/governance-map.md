@@ -11,6 +11,7 @@ command plane.
 | Focused capability proof | `ethos prove --execute --gate <gate-id> --json` | Executed gate result |
 | Full local proof | `ethos prove --execute --full --expect-head <exact-head> --json` | Current object-bound proof result |
 | Work Lane write admission | `ethos lane prewrite ... --json` | Current lane decision |
+| Native merge recovery                       | `ethos lane refresh-base --strategy merge --json`                                                                    | Native parents, conflicts and exact-state continuation; see the command reference                                                                    |
 | OpenSpec intent and transformation | official `openspec` CLI | Official command JSON |
 | Governed archive effect | `ethos lane archive-change --change <id> --expect-head <source-head> --json` | Exact source proof and the returned guarded continuation |
 | Detached CI ref observation | `ethos hook ref-update --target-ref <full-ref> --proposed-head <oid> --remote-head <old-oid> --remote <name> --json` | Shared role, introduced-range and intent observation; not repository proof |
@@ -50,3 +51,12 @@ the public repair continuation; do not substitute mailmap display changes, bulk
 author replacement or hook bypass. Interrupted history signing reuses verified
 native objects; a changed actor, ambiguous object or changed backup is not retry
 permission. Reprove, rebind and observe each peer separately after the local CAS.
+
+For a pending native merge, use its operation-aware reader rather than rebase,
+raw commit or reset-hard. Preserve incoming Change progress; new local intent
+can make attribution ambiguous. Continue only an admitted, resolved staged
+index. Abort preserves unique affected bytes before native rollback. After a
+lost acknowledgement retain the exact request and inspect/replay its result;
+fresh authority is still required. Do not treat preserved JSON, a lock or a
+fixture GREEN as proof of installed recovery or permission to change a foreign
+lane. Unsupported native state remains an explicit recovery boundary.

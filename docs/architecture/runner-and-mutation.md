@@ -86,6 +86,11 @@ conflicting facts block before any ref, worktree, or SQLite effect. `ethos lane
 refresh-base` replays a stale lane onto the configured candidate
 branch. It creates ordinary new local commits when Git requires them; it never
 reconstructs an existing product object merely to change identity or signature.
+History-preserving integration uses `refresh-base --strategy merge`; its
+operation-aware preview, continue and preserved abort are described in the
+[command reference](../reference/command-plane.md#native-merge-continuation).
+Native parent provenance selects lane intent without consuming another Change's
+progress. A pending merge is not a dirty-rebase recovery instruction.
 `ethos land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work
 Lane HEAD. `ethos lane retire superseded` may retire one clean ownerless source
@@ -98,7 +103,7 @@ an exact live-Lease CAS: a missing Lease blocks and never masquerades as replay.
 `ethos lane archive-change` closes the lifecycle edge that cannot be split
 between an external archive process and a later Git commit. It requires the
 same-holder Lease and proof for the pre-archive HEAD, runs official OpenSpec
-`1.12.0`, admits only its exact rename/spec delta, commits through ordinary
+from the package-bound supply, admits only its exact rename/spec delta, commits through ordinary
 hooks, and attests the post-state. The archived HEAD remains plan/proof/land
 capable because acceptance is compiled from its exact official projection.
 Unbound Work Lane refs are observations only. Status preserves their exact ref,

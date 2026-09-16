@@ -7,6 +7,7 @@ from typing import Any
 from typing import NamedTuple
 
 import ethos.adapters.openspec.lifecycle.scope as scope
+from ethos.adapters.openspec.selection import selected_change
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
@@ -59,30 +60,6 @@ def official_change_rows(list_payload: dict[str, Any]) -> list[dict[str, str]] |
             return None
         rows.append({"name": name, "status": str(status)})
     return rows
-
-
-def selected_change(rows: list[dict[str, str]], requested: str | None) -> str | None:
-    """Select one explicit or unambiguous unarchived OpenSpec change."""
-    names = {item["name"] for item in rows}
-    if requested is not None:
-        return requested if requested in names else None
-    active = [item["name"] for item in rows if item["status"] in _ACTIVE_STATUSES]
-    if len(active) == 1:
-        return active[0]
-    unarchived = [item["name"] for item in rows]
-    return unarchived[0] if not active and len(unarchived) == 1 else None
-
-
-def selection_gaps(rows: list[dict[str, str]], requested: str | None) -> list[str]:
-    selected = selected_change(rows, requested)
-    if selected is not None:
-        return []
-    names = [item["name"] for item in rows]
-    if requested is not None:
-        return [f"openspec_requested_change_missing:{requested}"]
-    if len(names) > 1:
-        return [f"openspec_active_change_ambiguous:{','.join(names)}"]
-    return ["openspec_active_change_missing"] if not names else []
 
 
 def validation_failures(validate_payload: dict[str, Any]) -> list[str]:
@@ -289,8 +266,8 @@ def lifecycle_report(
         lifecycle.pop("enabled")
         return {"required_gaps": [], **lifecycle}
     rows = official_change_rows(list_payload) or []
-    names = [request.change] if request.change else [item["name"] for item in rows]
-    unarchived_names = tuple(item["name"] for item in rows)
+    selected = selected_change(rows, request.change, root=root)
+    names = [selected] if selected else []
     changes, required_gaps = [], []
     for name in names:
         status = status_payload or {}
@@ -305,7 +282,7 @@ def lifecycle_report(
         changes.append(change)
         required_gaps.extend(gaps)
     binding = scope.material_change_scope_report(
-        root, changed_paths=request.changed_paths, active_change_names=unarchived_names
+        root, changed_paths=request.changed_paths, active_change_names=tuple(names)
     )
     required_gaps.extend(string_sequence(binding.get("required_gaps")))
     return {

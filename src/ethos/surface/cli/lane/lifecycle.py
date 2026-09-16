@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 from typing import ClassVar
+from typing import Literal
 from typing import cast
 
 from cyclopts import App
@@ -22,6 +23,7 @@ from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstra
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import (
     refresh_candidate_from_accepted,
 )
+from ethos.adapters.mutation.lane_lifecycle.merge import MergeMode
 from ethos.adapters.mutation.lane_lifecycle.start import start_work_lane
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh import refresh_work_lane_base
 from ethos.adapters.mutation.worktree.detached_cleanup import housekeeping_worktrees
@@ -64,6 +66,10 @@ class _RefreshBase(AppliedLaneCommandOptions):
     command = "lane refresh-base"
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
+    strategy: Literal["rebase", "merge"] = "rebase"
+    mode: MergeMode = "inspect"
+    expect_state: str | None = None
+    subject: str | None = None
 
 
 class _Start(AppliedLaneCommandOptions):
@@ -306,6 +312,10 @@ def lane_refresh_base(
         apply=options.apply,
         authorized=options.authorize,
         expect_head=options.expect_head,
+        strategy=options.strategy,
+        mode=options.mode,
+        expect_state=options.expect_state,
+        subject=options.subject,
     )
     project_lane_result(
         options.command,

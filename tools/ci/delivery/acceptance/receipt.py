@@ -20,6 +20,7 @@ REQUIRED_LIFECYCLE_STAGES = frozenset(
         "retirement_recovery",
         "successor_activation",
         "signature_repair",
+        "native_merge",
     }
 )
 

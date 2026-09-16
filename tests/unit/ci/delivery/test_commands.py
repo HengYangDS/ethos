@@ -15,6 +15,7 @@ from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
+from tools.ci.delivery.acceptance.receipt import REQUIRED_LIFECYCLE_STAGES
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -151,6 +152,11 @@ def test_lane_lifecycle_reuses_the_public_started_lane_for_recovery() -> None:
 
     assert callable(prove_lifecycle), "lane acceptance has no single public lifecycle owner"
     assert not hasattr(fixture, "seed_retirement_lease")
+
+
+def test_package_lifecycle_requires_native_merge_acceptance() -> None:
+    """Fixture-only GREEN cannot satisfy installed merge continuation acceptance."""
+    assert "native_merge" in REQUIRED_LIFECYCLE_STAGES
 
 
 def test_installed_sdk_check_observes_without_mutating_or_authoring_intent(

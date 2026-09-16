@@ -58,6 +58,7 @@ import tests.support.governed_repository as fixture
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
 from ethos.adapters.openspec.profile import active_change_progress_report
+from ethos.adapters.openspec.selection import selected_change
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import official_config_report
 from tests.support.semantic import commitment_fixture
@@ -135,7 +136,7 @@ def test_package_projection_claim_matrices():
     for claim, changes, selected, expected in MATRIX["selection"]:
         rows = life.official_change_rows({"changes": changes})
         assert rows is not None, claim
-        assert life.selected_change(rows, selected) == expected, claim
+        assert selected_change(rows, selected) == expected, claim
 
 
 @pytest.mark.parametrize("marker", ["-", "*", "+", "1.", ""])

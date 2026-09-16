@@ -38,6 +38,7 @@ _LIFECYCLE_STAGES = {
     "retirement_recovery",
     "successor_activation",
     "signature_repair",
+    "native_merge",
 }
 
 
@@ -381,6 +382,7 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
             or {
                 "lane_bootstrap": {"state": "passed"},
                 "retirement_recovery": {"state": "passed"},
+                "native_merge": {"state": "passed"},
             }
         ),
     )

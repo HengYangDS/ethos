@@ -6,8 +6,11 @@ import os
 import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Literal
 from typing import cast
 
+from ethos.adapters.mutation.lane_lifecycle.merge import MergeMode
+from ethos.adapters.mutation.lane_lifecycle.merge import merge_work_lane
 from ethos.adapters.repo.commit.creation import commit_environment
 from ethos.adapters.repo.commit.integration import validate_replayed_commits
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
@@ -19,6 +22,7 @@ from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.merge.observation import pending_merge_heads
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
@@ -77,7 +81,21 @@ def refresh_work_lane_base(
     apply: bool = False,
     authorized: bool = False,
     expect_head: str | None = None,
+    strategy: Literal["rebase", "merge"] = "rebase",
+    mode: MergeMode = "inspect",
+    expect_state: str | None = None,
+    subject: str | None = None,
 ) -> dict[str, object]:
+    if strategy == "merge":
+        return merge_work_lane(
+            root=root,
+            mode=mode,
+            apply=apply,
+            authorized=authorized,
+            expect_head=expect_head,
+            expect_state=expect_state,
+            subject=subject,
+        )
     policy = load_branch_role_policy(root)
     status = workspace_status(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
@@ -99,6 +117,18 @@ def refresh_work_lane_base(
                 apply=apply,
             )
     context = (branch, policy.candidate_branch, candidate_head, candidate_path)
+
+    if status.get("dirty") and pending_merge_heads(root):
+        return _report(
+            context,
+            current_head,
+            "blocked",
+            ["merge_in_progress"],
+            next_action=(
+                "ethos lane refresh-base --strategy merge "
+                f"--root {shlex.quote(root.resolve().as_posix())} --json"
+            ),
+        )
 
     gaps = [
         gap

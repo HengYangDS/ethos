@@ -715,8 +715,7 @@ lifecycle stages, including preserved abort and signed two-parent continuation,
 with wheel `57584d3b9a6ed2d7bed5bd7579be20d6fff623e162b7a26fb4c10bd913705b48`.
 Its source overlay tree is `42cb574551cb78cc50a8929c39c29f1e41f5c1ec` and its
 owned installation scratch was removed. This is precommit acceptance, not
-accepted runtime delivery. Exact frozen proof, official archive, acceptance and
-installation remain required.
+accepted runtime delivery. Subsequent exact delivery is recorded below.
 
 The first exact proof at `d91e82b6` blocked after 1,604.976 seconds of pytest:
 3,621 passed, four failed and one skipped. Three Commitment fixtures lacked the
@@ -738,7 +737,7 @@ complete 111-case affected suite pass, alongside seven public host gates and
 direct Ruff/type checks. Focused coverage is separate diagnostic evidence,
 never combined into the repository proof. Failed full-proof JUnit/coverage
 bytes and RED/GREEN outputs remain under the same `commit-integrity` evidence
-root. These results still require a new frozen proof and installed acceptance.
+root. These observations precede the exact delivery recorded below.
 The owned full-test basetemp was observed absent after the failed run.
 Offline package build and all nine independent lifecycle stages then passed
 with wheel `6e26af22ee264112845740e2af947f282dc473f19b8c99c93b42e1e78e325f2c`,
@@ -746,7 +745,43 @@ source overlay `fa575955460f96e643339f169fea639da214ab04`. The owned smoke root
 is absent. Six further public preview cases distinguish protected roots,
 missing candidate, absent or existing native operations, invalid intent and an
 already-current base without mutating those observations. These regressions
-extend acceptance, not product scope; whole-source coverage is still pending.
+extend acceptance, not product scope.
+
+The corrected source `3e36b7a7` and official archive `e3db04ba880817a39f69f2a39df84718c6ffe93d`
+each passed all 35 full-proof gates, with 3,656 tests passed, one skipped and
+27,055/28,457 combined coverage (95.073268%). Postarchive Attestation
+`c6264d67481566aa7571146bb8e9a644cb2c70fb2af505927999174acfb97c2d` binds the
+archived source, whose tree is `e2c4d6f078871b0abefb90d3994eda97cb09a19c`.
+The five archived Change files match their former active bytes. Public candidate
+and accepted CAS completed; dev/main/candidate and both independent peers'
+dev/main were read back at the same OID. Installed runtime
+`6de3ac3bf486c4a58c5d2f9e36c286b7f12cf1882455b5713e14900c41cdbcf9` binds wheel
+`c3657eac98e62721ab37f66511a501b923fb505232a018bdbae337bafc889008`; installed
+status passes and the previous generation is absent. Test and package scratch
+roots were removed. The adopter owner received the installed identity and native
+merge entrypoint; its original-lane recovery is not an ETHOS-owned completion
+claim. The sole implementation lane is reused for the next bounded correction,
+not duplicated. Receipts remain in the existing `commit-integrity` directory.
+
+GitHub main run 35065495044 failed at accepted `a2fc4e69`: 3,577 tests passed,
+three failed and one skipped. Its artifact 10436860356 was SHA-256 verified
+before extraction, and all five extracted files were hash-read back under
+`github-main-a2fc4e69/`. All failures were the bootstrap platform fixture
+inheriting the operator's trust-anchor environment while substituting an
+interpreter that cannot execute that branch. An isolated three-platform/image
+comparison reproduced failure with inherited input and success with an explicit
+fixture environment. This does not invalidate production trust projection.
+
+The official `bootstrap-isolation` Change repairs that fixture at the hosted
+supply test owner. It preserves the fake external package managers, but uses
+real Git and the actual trust-binding Python for explicitly supplied anchors.
+The six-case RED becomes GREEN; removing trust projection in a disposable copied
+script is rejected by the resulting Git-setting assertion. Ambient anchors are
+not consumed and declared anchor bytes are unchanged. The full related 67-case
+suite passes. The behavior test moves beside existing hosted supply/trust tests;
+no second helper module or 500-ELOC exception is introduced. Source proof and
+new hosted validation remain required. Embedded Node/npm freshness and the
+remaining terminal obligations stay open after this bounded CI repair.
 
 The preceding typed Change selection repair is now accepted and published as
 `e0ba1e3a466f3ea9198edfbf0592fbd26bbede77`, tree

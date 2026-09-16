@@ -6,6 +6,7 @@ import hashlib
 import io
 import os
 import platform
+import shlex
 import shutil
 import socket
 import subprocess
@@ -53,6 +54,134 @@ def test_ci_trust_projects_only_operator_supplied_protected_anchor(tmp_path, cas
         ci_environment.bind_commit_trust(repo, anchor)
         assert (repo / ".git/config").read_bytes() == first
         assert anchor.read_text() == "operator-controlled public trust\n"
+
+
+@pytest.mark.parametrize("anchor_state", ["absent", "declared"])
+@pytest.mark.parametrize(
+    ("system", "image_state", "expected_apt", "install_state"),
+    [
+        (
+            "Linux",
+            "available",
+            ["update", "install -y --no-install-recommends procps lsof util-linux"],
+            "not-required",
+        ),
+        ("Darwin", "missing", None, "required"),
+        ("Darwin", "available", None, "not-required"),
+    ],
+)
+def test_python_bootstrap_supplies_platform_prerequisites(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    anchor_state: str,
+    system: str,
+    image_state: str,
+    expected_apt: list[str] | None,
+    install_state: str,
+) -> None:
+    def write_executable(path: Path, body: str) -> None:
+        path.write_text(body, encoding="utf-8")
+        path.chmod(0o755)
+
+    monkeypatch.setenv("ETHOS_COMMIT_TRUST_ANCHOR", str(tmp_path / "ambient-unknown-anchor"))
+    repo = init_git_repo(tmp_path / "repo")
+    script_dir = repo / "tools/ci/scripts"
+    script_dir.mkdir(parents=True)
+    shutil.copy2(ROOT / "tools/ci/scripts/bootstrap-python.sh", script_dir)
+    write_executable(
+        script_dir / "with-python-runtime.sh",
+        '#!/bin/sh\n[ "$1" != -- ] || shift\nexec "$@"\n',
+    )
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    apt_log = tmp_path / "apt-get.log"
+    uv_log = tmp_path / "uv.log"
+    native_image = tmp_path / "native-image"
+    commands = {
+        "uname": f"#!/bin/sh\nprintf '{system}\\n'\n",
+        "uv": (
+            "#!/bin/sh\n"
+            f"printf '%s\\n' \"$*\" >>'{uv_log}'\n"
+            "if [ \"$1\" = --version ]; then printf 'uv 0.12.10\\n'; exit 0; fi\n"
+            "if [ \"$1\" = run ]; then cat >/dev/null; printf '0.12.10\\n'; exit 0; fi\n"
+            "if [ \"$1 $2 $3 $4\" = 'python install --no-bin 3.14.7' ]; then "
+            f": >'{native_image}'; exit 0; fi\n"
+            '[ "$1" = sync ] && exit 0\n'
+            "exit 2\n"
+        ),
+        "npx": "#!/bin/sh\nexit 0\n",
+        "apt-get": f"#!/bin/sh\nprintf '%s\\n' \"$*\" >>'{apt_log}'\n",
+    }
+    if system == "Linux":
+        commands |= {
+            "ssh-keygen": "#!/bin/sh\nexit 0\n",
+            "ldconfig": "#!/bin/sh\nprintf 'libatomic.so.1\\n'\n",
+        }
+    for name, body in commands.items():
+        write_executable(fake_bin / name, body)
+    for name in ("awk", "cat", "dirname", "grep", "git"):
+        executable = shutil.which(name)
+        assert executable is not None, name
+        (fake_bin / name).symlink_to(executable)
+    openspec = repo / "node_modules/.bin/openspec"
+    openspec.parent.mkdir(parents=True)
+    write_executable(openspec, "#!/bin/sh\nprintf '1.12.0\\n'")
+    (repo / ".venv/bin").mkdir(parents=True)
+    write_executable(
+        repo / ".venv/bin/python",
+        "#!/bin/sh\n"
+        f'[ "$1 $2" != "-B -" ] || exec {shlex.quote(sys.executable)} "$@"\n'
+        'case "$*" in\n'
+        "  *platform.python_version*) printf '3.14.7\\n'; exit 0 ;;\n"
+        "  '-B -I -') cat >/dev/null\n"
+        f"    [ '{image_state}' = available ] || [ -f '{native_image}' ]\n"
+        "    exit $? ;;\n"
+        "esac\n"
+        "exit 2\n",
+    )
+    (repo / "pyproject.toml").write_text(
+        '[dependency-groups]\ndev = ["uv>=0.12.10"]\n', encoding="utf-8"
+    )
+    environment = {
+        "PATH": str(fake_bin),
+        "PYTHONPATH": str(ROOT),
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_TERMINAL_PROMPT": "0",
+    }
+    anchor = tmp_path / "trust/allowed-signers"
+    anchor.parent.mkdir(mode=0o700)
+    anchor.write_text("fixture-controlled public trust\n")
+    anchor.chmod(0o600)
+    if anchor_state == "declared":
+        environment["ETHOS_COMMIT_TRUST_ANCHOR"] = str(anchor)
+
+    result = subprocess.run(
+        ("/bin/bash", str(script_dir / "bootstrap-python.sh")),
+        cwd=repo,
+        env=environment,
+        stdin=subprocess.DEVNULL,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    settings = git(repo, "config", "--local", "--list")
+    assert (f"gpg.ssh.allowedsignersfile={anchor}" in settings) == (anchor_state == "declared")
+    assert "ambient-unknown-anchor" not in settings
+    assert anchor.read_text() == "fixture-controlled public trust\n"
+    observed_apt = apt_log.read_text(encoding="utf-8").splitlines() if apt_log.exists() else None
+    assert observed_apt == expected_apt
+    observed_uv = uv_log.read_text(encoding="utf-8").splitlines()
+    if install_state == "required":
+        assert observed_uv.index("sync --locked --group dev") < observed_uv.index(
+            "python install --no-bin 3.14.7"
+        )
+        assert native_image.is_file()
+    else:
+        assert not any(command.startswith("python install ") for command in observed_uv)
 
 
 def _native_supply(

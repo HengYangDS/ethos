@@ -90,3 +90,11 @@ def test_source_runner_matching_selected_build_remains_usable(tmp_path: Path) ->
         binding.hook_runtime_binding(root),
         binding.invoking_build_identity(),
     )
+
+
+def test_missing_runtime_observation_remains_unknown() -> None:
+    """A missing observation is neither matched nor an ordinary mismatch."""
+    assert binding.runtime_binding_check({}) == {
+        "verdict": "unknown",
+        "reason": "runtime_binding_unavailable",
+    }

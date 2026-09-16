@@ -19,9 +19,9 @@ from ethos.adapters.openspec.lifecycle.report import openspec_root_gaps
 from ethos.adapters.openspec.lifecycle.report import openspec_status_result
 from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
-from ethos.adapters.openspec.lifecycle.report import selected_change
-from ethos.adapters.openspec.lifecycle.report import selection_gaps
 from ethos.adapters.openspec.observation import governed_branch_intent_report
+from ethos.adapters.openspec.selection import selected_change
+from ethos.adapters.openspec.selection import selection_gaps
 from ethos.adapters.repo.git import current_branch as git_current_branch
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
@@ -189,7 +189,7 @@ def _openspec_governance_report(
         )
     list_result = openspec_cli.run_json(root, base_command, ("list", "--json"))
     rows = official_change_rows(list_result["json"])
-    current_change = selected_change(rows, request.change) if rows is not None else None
+    current_change = selected_change(rows, request.change, root=root) if rows is not None else None
     status = openspec_status_result(
         root,
         base_command,
@@ -203,7 +203,7 @@ def _openspec_governance_report(
             requested_change=request.change,
             completion_artifacts=artifact_output_paths(root, status.get("json", {})),
         )
-        if rows == []
+        if rows is not None and current_change is None
         else None
     )
     archived_change = (
@@ -249,9 +249,15 @@ def _openspec_governance_report(
         required_gaps.extend(openspec_cli.status_contract_gaps(status["json"]))
         required_gaps.extend(openspec_cli.instructions_contract_gaps("apply", apply["json"]))
         required_gaps.extend(openspec_cli.instructions_contract_gaps("archive", archive["json"]))
-    if archive_scope is None and (rows is None or rows or request.change is not None):
+    if (
+        current_change is None
+        and archive_scope is None
+        and (rows is None or rows or request.change is not None)
+    ):
         required_gaps.extend(
-            ["openspec_list_unreadable"] if rows is None else selection_gaps(rows, request.change)
+            ["openspec_list_unreadable"]
+            if rows is None
+            else selection_gaps(rows, request.change, root=root)
         )
     lifecycle_payload = (
         {
@@ -263,7 +269,7 @@ def _openspec_governance_report(
         if archive_scope is not None
         else lifecycle_report(
             root,
-            request=request,
+            request=request._replace(change=current_change),
             list_payload=list_result["json"],
             status_payload=status.get("json", {}),
             apply_payload=apply.get("json", {}),

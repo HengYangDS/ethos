@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
+from ethos.adapters.openspec.selection import selected_change
+from ethos.adapters.openspec.selection import selection_gaps
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.semantic import Commitment
@@ -227,15 +229,6 @@ def _requirement_acceptance(change: str, spec: str, requirement: object) -> tupl
     )
 
 
-def _listed_change_names(payload: object) -> tuple[str, ...]:
-    rows = payload.get("changes") if isinstance(payload, dict) else None
-    if not isinstance(rows, list):
-        return ()
-    return tuple(
-        name for row in rows if isinstance(row, dict) and (name := str(row.get("name") or ""))
-    )
-
-
 def _accepted_commitment(
     commitment: Commitment,
     *,
@@ -280,9 +273,13 @@ def load_openspec_commitment(
     with _openspec_projection(repo, tree_ref) as projection:
         if change_id is None:
             listed = openspec_cli.run_json(projection, command, ("list", "--json"))
-            names = _listed_change_names(listed.get("json"))
+            rows = listed.get("json", {}).get("changes", [])
+            selected = selected_change(rows, None, root=repo, tree_ref=tree_ref)
+            gaps = (
+                selection_gaps(rows, None, root=repo, tree_ref=tree_ref) if selected is None else []
+            )
             if (
-                not names
+                gaps == ["openspec_active_change_missing"]
                 and (
                     archived := _archived_commitment(
                         repo,
@@ -294,13 +291,9 @@ def load_openspec_commitment(
                 is not None
             ):
                 return archived
-            if len(names) != 1:
-                raise ValueError(
-                    "openspec_active_change_missing"
-                    if not names
-                    else f"openspec_active_change_ambiguous:{','.join(names)}"
-                )
-            change_id = names[0]
+            if selected is None:
+                raise ValueError(gaps[0])
+            change_id = selected
         if logical_change_identifier_issue(change_id):
             msg = "openspec_change_required"
             raise ValueError(msg)

@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import shlex
+import subprocess
+import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -16,15 +21,91 @@ from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
 from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
+from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.governed_repository import write_active_commitment
+from tests.support.runtime_scenarios import git_process
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     import pytest
 
 HOLDER = "agent:test:case:agent-test"
+
+
+def native_merge_fixture(tmp_path: Path, *, pending: bool = True) -> Path:
+    """Create independently authored Changes with real native conflict stages."""
+    repo, candidate = start_adopted_candidate(tmp_path)
+    work = create_change_source_lane(
+        repo, tmp_path / "work", change_id="publication", holder_ref=HOLDER
+    )
+    (work / "README.md").write_text("# Lane contribution\n")
+    commit_fixture(work, "feat: author publication")
+    write_active_commitment(candidate, change_id="static-delivery")
+    (candidate / "README.md").write_text("# Incoming contribution\n")
+    commit_fixture(candidate, "feat: author static delivery")
+    if pending:
+        incoming = git(candidate, "rev-parse", "HEAD")
+        result = git_process(work, "merge", "--no-ff", "--no-commit", incoming)
+        assert result.returncode == 1, result.stderr
+        assert git(work, "rev-parse", "MERGE_HEAD") == incoming
+        assert git(work, "diff", "--name-only", "--diff-filter=U") == "README.md"
+    return work
+
+
+def killed_merge_effect(work: Path, preview: dict[str, object]) -> None:
+    """Kill a real public-command child after CAS or abort, before acknowledgement."""
+    marker = work.parent / "merge-effect-ready"
+    command = shlex.split(str(preview["next_action"]))[1:]
+    script = """
+import json, sys
+from pathlib import Path
+import ethos.adapters.repo.merge.effect as effect
+from ethos.surface.cli.application import app, load_command_groups
+marker, command = Path(sys.argv[1]), json.loads(sys.argv[2])
+continuing = command[command.index('--mode')+1] == 'continue'
+original = effect.execute_git_effect if continuing else effect.run_git
+def paused(*args, **kwargs):
+    result = original(*args, **kwargs)
+    if continuing or args[1:3] == ('merge', '--abort'):
+        marker.write_text('native-effect-completed')
+        sys.stdin.read(1)
+    return result
+if continuing:
+    effect.execute_git_effect = paused
+else:
+    effect.run_git = paused
+load_command_groups(command)
+app(command)
+"""
+    with (
+        (work.parent / "merge-child.log").open("w+") as output,
+        subprocess.Popen(
+            [sys.executable, "-B", "-I", "-c", script, str(marker), json.dumps(command)],
+            cwd=work,
+            stdin=subprocess.PIPE,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+        ) as child,
+    ):
+        try:
+            deadline = time.monotonic() + 45
+            while not marker.exists() and child.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.02)
+            output.seek(0)
+            assert marker.exists(), output.read()
+            assert child.poll() is None
+        finally:
+            if child.poll() is None:
+                child.kill()
+            child.communicate(timeout=10)
+    assert child.returncode != 0
+
+
 OUTCOME_FIELDS = (
     "effect_state",
     "compensation_state",

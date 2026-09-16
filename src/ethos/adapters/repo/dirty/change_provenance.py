@@ -51,6 +51,22 @@ def working_overlay_sha256(root: Path) -> str:
     )
 
 
+def untracked_content_sha256(root: Path) -> str:
+    """Bind untracked content independently of a native tracked-tree transition."""
+    arguments = ("ls-files", "--others", "--exclude-standard", "-z")
+    inventory = run_git(root, *arguments, text=False, observation=True).stdout
+    parts = _working_content_parts(root, b"", inventory)
+    repeated = run_git(root, *arguments, text=False, observation=True).stdout
+    if repeated != inventory or parts != _working_content_parts(root, b"", repeated):
+        message = "untracked_content_snapshot_drift"
+        raise ValueError(message)
+    digest = hashlib.sha256()
+    for part in parts:
+        digest.update(len(part).to_bytes(8, "big"))
+        digest.update(part)
+    return digest.hexdigest()
+
+
 def _working_content_sha256(root: Path, *, baseline: str | None, drift_gap: str) -> str:
     first_patch, first_inventory = _working_content_snapshot(root, baseline=baseline)
     first = _working_content_parts(root, first_patch, first_inventory)

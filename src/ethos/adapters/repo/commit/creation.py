@@ -99,6 +99,7 @@ def create_git_commit(
     tree: str,
     parent: str,
     message: str,
+    additional_parents: tuple[str, ...] = (),
     environment: Mapping[str, str] | None = None,
     runner: Callable[..., Any] = run_git,
 ) -> Any:
@@ -106,7 +107,7 @@ def create_git_commit(
     policies = tuple(
         dict.fromkeys(
             policy
-            for revision in (parent, tree)
+            for revision in (parent, *additional_parents, tree)
             if (policy := commit_policy_for_revision(root, revision)) is not None
         )
     )
@@ -123,6 +124,7 @@ def create_git_commit(
         tree,
         "-p",
         parent,
+        *(argument for revision in additional_parents for argument in ("-p", revision)),
         "-m",
         message,
         check=False,

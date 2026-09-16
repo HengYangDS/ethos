@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +23,7 @@ from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
+from ethos.adapters.repo.merge.observation import pending_merge_heads
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.status.bindings import branch_bindings
 from ethos.adapters.repo.status.bindings import closeout_support
@@ -82,6 +84,15 @@ def landing_readiness(
             "blocked",
             ["candidate_worktree_missing"],
             "create or repair the configured candidate worktree",
+        )
+    elif pending_merge_heads(root):
+        result = (
+            "blocked",
+            ["merge_in_progress"],
+            (
+                "ethos lane refresh-base --strategy merge "
+                f"--root {shlex.quote(str(root.resolve()))} --json"
+            ),
         )
     elif head and candidate_head and not is_ancestor(root, candidate_head, head):
         result = (
@@ -279,7 +290,7 @@ def _stage_gates(
     is_work_lane = role == ROLE_WORK_LANE
     authoring = is_work_lane and authority.get("verdict") == "pass"
     landing_gaps = tuple(map(str, cast("list[object]", landing_readiness.get("required_gaps", []))))
-    stale = "candidate_base_stale" in landing_gaps
+    stale = bool(landing_gaps)
     integration = bool(closeout_support.get("supported")) and not stale
     next_action = (
         str(landing_readiness.get("next_action") or "ethos lane refresh-base --json")

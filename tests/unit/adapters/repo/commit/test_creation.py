@@ -141,6 +141,25 @@ def _signature_repository(tmp_path: Path, object_format: str) -> Path:
 
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_merge_creation_signs_both_native_parents(tmp_path: Path, object_format: str) -> None:
+    """The shared creator verifies a native signed multi-parent object without moving refs."""
+    repo = _signature_repository(tmp_path, object_format)
+    head, earlier = git(repo, "rev-parse", "HEAD"), git(repo, "rev-parse", "HEAD^")
+    created = creation.create_git_commit(
+        repo,
+        tree=git(repo, "rev-parse", "HEAD^{tree}"),
+        parent=head,
+        additional_parents=(earlier,),
+        message="fix: preserve both parents",
+    )
+    assert created.returncode == 0, created.stderr
+    oid = created.stdout.strip()
+    assert git(repo, "rev-list", "--parents", "-n", "1", oid).split()[1:] == [head, earlier]
+    assert verify_commit_trust(repo, oid)["verdict"] == "pass"
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
 @pytest.mark.parametrize("parent_count", [0, 1, 2])
 def test_signed_replacement_preserves_native_payload_without_ref_mutation(
     tmp_path: Path, object_format: str, parent_count: int

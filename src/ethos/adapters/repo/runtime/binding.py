@@ -15,6 +15,7 @@ from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.repository.policy.schema import schema_source_root
 
 if TYPE_CHECKING:
+    from ethos.adapters.repo.hook.observation import HookRuntimeBinding
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
 
@@ -39,15 +40,17 @@ def runtime_binding(
     root: Path,
     *,
     selected_runtime: SelectedRuntime | None = None,
+    hook_binding: HookRuntimeBinding | None = None,
 ) -> dict[str, object]:
-    """Expose runner/schema/audit binding for agent- and human-friendly diagnosis."""
+    """Project runner/schema binding, reusing only the caller's current hook observation."""
     audit_root = root.resolve()
     runner_module_path = Path(ethos.__file__).resolve()
     source_root = runner_source_root(runner_module_path)
     schema_root = schema_source_root()
     runner_matches_audit_root = source_root == audit_root
     schema_matches_audit_root = schema_root == audit_root / "system/schemas"
-    hook_binding = hook_runtime_binding(audit_root, selected_runtime=selected_runtime)
+    if hook_binding is None:
+        hook_binding = hook_runtime_binding(audit_root, selected_runtime=selected_runtime)
     runner_matches_common_runtime = (
         not hook_binding["required_gaps"]
         and bool(hook_binding["python"])

@@ -13,6 +13,7 @@ from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from tools.ci.delivery.acceptance.invocation import invoke
+from tools.ci.delivery.acceptance.merge import prove_native_merge
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -105,6 +106,7 @@ def prove_lifecycle(
             "runtime_command": expected_command,
             "prewrite_gap": str(prewrite_gaps[0]) if isinstance(prewrite_gaps, list) else "",
         },
+        "native_merge": prove_native_merge(python, repo, environment=environment),
         "retirement_recovery": _prove_retirement_recovery(
             python,
             repo,

@@ -62,6 +62,42 @@ current continuation; after an effect, the caller re-observes instead of
 replaying a remembered sequence. `adopt` binds an external repository to the
 same command semantics; it is not a parallel lifecycle.
 
+## Native Merge Continuation
+
+`ethos lane refresh-base --strategy merge --json` observes one native merge or
+prepares a merge from the configured candidate. The default strategy remains
+rebase for unpublished replay; a pending merge instead routes to its own reader.
+`--mode start|continue|abort` selects one effect. Preview returns an exact apply
+command binding HEAD, parents, index, tracked and untracked content, runtime and
+Lease generation. Apply requires `--authorize`; a preview is not permission.
+
+Resolve reported conflicts, admit their exact paths and stage the accepted
+resolution before requesting `--mode continue`. The shared commit-policy owner
+checks both parents and the proposed tree. A common Git CAS advances only the
+lane; cleanup follows it. Proof, candidate integration and accepted closeout
+remain separate obligations. Coexisting official Changes retain separate task
+states; ambiguous contributions require explicit resolution, not fabricated
+completion of incoming intent. Continue rejects edits to incoming Change
+artifacts. Archiving the local Change retains its archive attribution instead
+of selecting an unchanged incoming Change merely because it is still active.
+
+`--mode abort` does not depend on candidate-ref existence or valid Change
+compilation. It first retains affected files, modes, stages and native metadata
+in content-addressed Git-private recovery material, then invokes native abort.
+Native refusal does not justify reset-hard: failure JSON retains before/after
+observations, stderr and recovery coordinates. The material is not an automatic
+in-place restoration command or a reusable authority grant. Retain unique work
+until its recovery or absorption is verified; repeated exact attempts reuse
+the same content-addressed material rather than copying the repository.
+
+After lost acknowledgement, retry the same exact request: current authority and
+state are checked before recognizing an existing result or finishing its native
+projection. The ref effect does not authorize cleanup: Lease/runtime are checked
+again after CAS. Changed observations reject; unproven effects remain UNKNOWN.
+The worktree lock coordinates cooperating writers; it does not isolate arbitrary
+same-user processes. Autostash, competing native operations and unsupported
+multiple merge parents report a boundary instead of guessing recovery.
+
 ## Commit Integrity And Accepted History Repair
 
 The tracked `[commit_policy]` in `.ethos/workspace.toml` owns the subject grammar,

@@ -144,7 +144,7 @@
     "runner_mutation": {
       "path": "docs/architecture/runner-and-mutation.md",
       "authority": "current runner, Work Lane, closeout, verifier and peer mutation boundaries",
-      "sha256": "9eaa32d7ebab62f5db76702d11b94dfb0425b3fc8614ea60bd8948483ed55d3d"
+      "sha256": "cca4f3db21732d4a20df64fae9f5f233771ed4956fe40f763824dacafe6983ad"
     },
     "local_state": {
       "path": "docs/architecture/local-state.md",
@@ -1481,7 +1481,7 @@
       "evidence": [
         "runner_mutation"
       ],
-      "semantics": "A remaining Work Lane whose expected candidate base no longer equals the advanced candidate HEAD; it must refresh its base and re-prove before another integration attempt."
+      "semantics": "A Work Lane must reconcile an advanced candidate base and re-prove before integration. Unpublished replay and native history-preserving merge use the same refresh boundary; pending merges have exact-state continuation or preserved rollback."
     },
     "lane_retirement": {
       "kind": "recovery",

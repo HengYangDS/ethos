@@ -633,8 +633,22 @@ dependency hygiene checks pass. Source evidence is retained as
 `build/evidence/quality/commit-integrity/` directory. Offline wheel build and all
 package-only lifecycle stages pass in `stable-supply-package.log`, using wheel
 `69e32f00f2c4c8b86d967d4837043d9edcf71483074afba1988f0ff6ade2f3b5`.
-Exact lifecycle proof remains required before this candidate replaces the
-installed predecessor.
+Implementation `53ce60b4` and official archive/accepted `a2fc4e69` subsequently
+passed prearchive and postarchive full proof, each with 35 gates. Postarchive
+Attestation `7ba4be3f39f11a0664d7d956dc80c30290ac3293a4829526f382ecc861f54896`
+binds 3,580 passed tests, one skip and 95.11534712444492% combined coverage.
+Installed runtime `cc68412d` binds that accepted source/tree and wheel
+`45985ec852f0519aec903e27c7d42af650741b1545655226ee44a06250f5585b`.
+Public installation reclaimed the previous generation and passed installed
+status. On September 16 at 14:50 +08:00, the public publication owner also
+completed and re-observed both independent peers: GitHub and GitLab dev/main all
+resolve to `a2fc4e69c3af237d66699ea04ec01c53bebdb410`, with OpenSpec 1.13.0.
+The exact request used per-peer atomic CAS from `e0ba1e3a`; no uncommitted merge
+source was published. Evidence is `stable-supply-peer-pair-{plan,effect,readback}.json`.
+GitHub ETHOS CI was running/queued at the readback; GitLab pipeline observation
+is unconfirmed. Source projection is complete, not hosted-CI completion.
+The late publication was a sequencing failure: accepted, independently provable
+changes must not wait for a later unrelated Change to close before publication.
 Publisher preview status and embedded Node/npm gaps remain separate closures;
 this two-package refresh does not claim the entire supply chain is current.
 
@@ -665,6 +679,44 @@ coexisting Changes and intentional release roles, and expose an actionable
 supported recovery or explicit unsupported boundary. Path prewrite never grants
 Git merge authority; browser authentication and an adopter's raw-SHA inventory
 mistake are not ETHOS product defects. Original-lane effects stay with its owner.
+
+Official Change `merge-continuation` implements this bounded repair in the
+existing authoring lane. Public fixtures now distinguish uncommitted competing
+intent, native pending operations and ignored-file checkout collisions; native
+Git's no-overwrite-ignore option alone did not protect the reproduced ort merge.
+The owner therefore checks incoming tracked-tree collisions before checkout.
+Real child termination after CAS and after abort recovers without replaying the
+effect. Signed two-parent creation passes native SHA-1/SHA-256 verification.
+Recovery material reconstructs conflict stages, executable modes and distinct
+staged/working bytes; native refusal retains its exact failure and recovery path.
+Evidence lives in `merge-{safety,checkout,recovery-native}*.log` under the existing
+quality evidence directory. These are source-fixture results, not accepted or
+installed merge support. Remaining closure is adversarial/neighbor verification,
+public package execution, exact proof, official archive and runtime readback;
+only then may the adopter owner rebind and recover its original lane. The
+first package-only pass exercised nine required stages including merge on an
+independently installed runtime (`merge-package-third.log`); it exposed and
+removed two harness assumptions: ambient Git templates and using a different
+repository's runtime after activation. Later terminal-state review also caught
+and repaired incoming-task modification, postarchive selection and authority
+loss between CAS and cleanup. These later source edits invalidate reuse of the
+earlier package result for delivery; re-run the package stage in exact proof.
+
+The source fixture profile found redundant runtime observations inside one
+admission: one abort journey read hook state 22 times and computed source
+identity 30 times. Sharing the fresh hook observation inside that admission
+reduces these to 8 and 16, while retaining all seven authority checks. Measured
+single-test time changed from 16.44 to 9.24 seconds; this is not a global speed
+guarantee. All 172 neighbor tests subsequently passed in 160.35 seconds with two
+workers. The earlier 360-second runs timed out and do not count as acceptance.
+Seven current host gates plus Ruff, formatting, types, Markdown, prose and
+configuration checks pass. The final offline package run also passed all nine
+lifecycle stages, including preserved abort and signed two-parent continuation,
+with wheel `57584d3b9a6ed2d7bed5bd7579be20d6fff623e162b7a26fb4c10bd913705b48`.
+Its source overlay tree is `42cb574551cb78cc50a8929c39c29f1e41f5c1ec` and its
+owned installation scratch was removed. This is precommit acceptance, not
+accepted runtime delivery. Exact frozen proof, official archive, acceptance and
+installation remain required.
 
 The preceding typed Change selection repair is now accepted and published as
 `e0ba1e3a466f3ea9198edfbf0592fbd26bbede77`, tree

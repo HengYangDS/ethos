@@ -70,21 +70,22 @@ def commit_range_admission_report(
         return report(state="blocked", required_gaps=[gap])
     report = partial(report, baseline_commit=baseline)
     repair = repaired_ref_provenance(repo, ref=target_ref, old=baseline, new=proposed_commit)
-    if repair is not None:
+    if repair is not None and repair["new"] == proposed_commit:
         revisions = tuple(cast("Mapping[str, str]", repair["mapping"]).values())
         return {
             **report(state="repaired_history", update_kind="repair", revisions=revisions),
             "repair_attestation": repair["attestation_id"],
             "signature_verification": "verified_native",
         }
+    integration_baseline = str(repair["new"]) if repair is not None else baseline
     revisions = _introduced_commit_revisions(
-        repo, proposed_commit=proposed_commit, baseline_commit=baseline
+        repo, proposed_commit=proposed_commit, baseline_commit=integration_baseline
     )
     if revisions is None:
         gap = f"commit_range_unreadable:{baseline}:{proposed_commit}"
     try:
         candidate = commit_policy_for_revision(repo, proposed_commit)
-        incumbent = commit_policy_for_revision(repo, baseline)
+        incumbent = commit_policy_for_revision(repo, integration_baseline)
     except (TypeError, ValueError) as error:
         gap = str(error)
         candidate = incumbent = None
@@ -108,12 +109,19 @@ def commit_range_admission_report(
         required_gaps=gaps,
     )
     result["policy_sources"] = {
-        baseline: incumbent.projection() if incumbent else None,
+        integration_baseline: incumbent.projection() if incumbent else None,
         proposed_commit: candidate.projection() if candidate else None,
     }
     result["signature_verification"] = (
         "required_native" if any(policy.signing_required for policy in policies) else "not_required"
     )
+    if repair is not None:
+        result.update(
+            update_kind="repair",
+            repair_attestation=repair["attestation_id"],
+            repair_replacement=repair["new"],
+            integration_baseline=integration_baseline,
+        )
     return result
 
 

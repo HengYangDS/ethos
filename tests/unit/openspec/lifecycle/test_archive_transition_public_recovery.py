@@ -14,6 +14,7 @@ import ethos.adapters.openspec.lifecycle.archive_transition as archive
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.repository.profile import INVALID_PROFILE_ERROR
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
 
@@ -443,9 +444,7 @@ def native_archive(tmp_path):
         path = repo / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"source artifact: {relative}\n")
-    git(repo, "add", "--all")
-    git(repo, "commit", "-m", "declare archive source")
-    head = git(repo, "rev-parse", "HEAD")
+    head = commit_fixture(repo, "declare archive source")
     return repo, head
 
 
@@ -504,8 +503,7 @@ def test_committed_archive_selection_binds_current_git_diff(native_archive, monk
     target = repo / ARCHIVE
     target.parent.mkdir(parents=True)
     (repo / ACTIVE).rename(target)
-    git(repo, "add", "--all")
-    git(repo, "commit", "-m", "archive exact source")
+    commit_fixture(repo, "archive exact source")
     if mode == "missing_parent":
         native = archive.git_stdout
         monkeypatch.setattr(

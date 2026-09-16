@@ -38,57 +38,70 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The latest local accepted object is
-`b8ea66d553e5e7257af7216b0b3ada5cda68fab6`, tree
-`f7bce8a99d4eec891534b2fe6a49b6b12eff9672`. The public historical repair
-corrected 40 author fields and 37 committer fields across 40 selected commits;
-2,855 affected objects including descendants preserve trees, messages, dates,
-ordered parents and unselected attribution. Original objects remain recoverable
-in the verified bundle. This is actual local repair, not mailmap masking or a
-permanent restriction on future contributors.
+The September 17 accepted readback is
+`363f2eef528b0b639fd6c7df95493cb45147dfd4`, tree
+`11c35abfa99d940bdf9ac0ac292cad2f1f212190`. The immutable runtime
+`8622132542e630354a04ae323dd6683ca91ab37d5f7b5fc3649365c0853ca14e`
+matches that source/tree. Publication-repair archive, all 35 exact gates, native
+acceptance and activation passed: 3,678 tests, one skip and 95.103545 percent
+combined coverage. Attestation:
+`d0f9deb43265c7c419b39b3cf10dd642a9c6b0c14cd5f4c4336e195a6baeec98`.
 
-Installed immutable runtime
-`20d2d3b39ab232abb7d21af288bb056b1d853d8136fa4d7d4d503117c75d2cee` binds
-that source/tree. Its predecessor is reclaimed. Repaired-history full proof
-passed 34 of 35 gates, including 3,659 tests and the coverage floor; only root
-Ruff marker residue failed. Exact cleanup removed those two untracked markers;
-the installed artifact owner then passed. That observation does not transform
-the original BLOCK into a full PASS. The last independently observed peers still
-pointed to `e98daddc1a077f27f8a7873879cb2dd40ddaca20`; replacement publication
-and hosted acceptance require fresh proof and separate readback.
+Historical correction changed 40 author fields and 37 committer fields across
+40 selected commits; 2,855 affected objects preserve trees, messages, dates,
+ordered parents and unselected attribution. Verified recovery preserves the
+originals. The withdrawn single-author restriction is not a future contribution
+policy. Publication now recognizes repaired descendants while validating new
+commits, exact candidate equality, accepted effect and each peer CAS separately.
+Nested native hook reports serialize without weakening their rejection verdict.
 
-The unaccepted `self-identity` restriction misinterpreted historical correction
-as exclusive future contribution and is withdrawn with its compensating observer
-and dependency. Existing subject/signature policy remains unchanged. Current
-source makes post-repair archived-intent lookup bounded: share verification
-inside one observation and avoid decoding unrelated effect plans, without
-retaining authorization or weakening exact validation. Frozen real-history
-readback took 72.026 seconds and nine native regressions passed.
+Remote publication remains separate: the September 17 03:33 +08 readback found
+both peers at `e98daddc1a077f27f8a7873879cb2dd40ddaca20`. GitLab rejected the
+required non-fast-forward replacement under its protected-branch policy; no
+peer was updated. Ordinary push cannot restore ancestry removed by identity
+repair. Do not merge erroneous history back, bypass hooks, change protections
+implicitly or retry unchanged rejection. Hosted acceptance is unproved.
 
-The sole `work/20260915-commit-integrity` lane was reanchored from rejected
-`256cd48ab56f002c9ec971f06710ef9cca4295e9` to the repaired accepted base through
-an exact maintainer recovery plan and the installed Git-effect executor. The
-verified original-history bundle and eight-path content archive preserve recovery;
-all 2,860 source-file hashes and the Lease tuple stayed unchanged. Only that
-work ref and its Attestation set changed; accepted/candidate trees stayed clean.
-Attestation `23dfb4ba4ea48fa37b1f98d33986e68d09e6dafbb776da0ace834f2eef759c7a`
-and `history-lane-reanchor-result.json` record the effect. Fresh public status and
-prewrite both pass. Normal signed commit `22b56e1fb` now preserves that exact repaired parent.
-A subsequent publication preflight proved that the old exact-replacement selector
-cannot recognize its normal descendants. The existing repair owner now selects
-only a completed exact-source/ref repair below the proposed object; the existing
-range validator checks replacement-to-proposed commits under current baseline
-and proposed policies. No history exemption covers a new commit. The 18-case
-native matrix passes, including public range CLI, two independent bare peer
-observations, invalid subject/signature, wrong ref, missing effects, ambiguity
-and revoked trust. A real read-only check against the old peer source admitted
-only the one signed forward commit. Receipts are
-`repair-descendant-regressions-final.json` and
-`repair-descendant-live-admission.json`. Full proof, official archive, acceptance,
-runtime and actual remote publication remain pending.
+The sole owned `work/20260915-commit-integrity` lane now carries the bounded
+`intent-selection` Change. Finish inherited-archive selection, exact prewrite
+path attribution and lane-specific proof admission before remote proposal
+retirement. The latter consumes dev absorption and review closure, not main
+convergence, through the existing publication effect owner. Post-archive
+validation-repair scope and generic local-verification receipt ownership follow.
+No adopter compatibility carrier or adopter source mutation is required.
 
-Receipts remain under `build/evidence/quality/commit-integrity/` in the sole
-owned lane. Hosted CI and full terminal convergence remain separately unproved.
+Advance measured P5 work at these existing owners without interrupting the
+current closure. The accepted proof took 2,006.184 seconds; its JUnit reports
+1,758.866 seconds in pytest. Six lifecycle modules account for 36.07 percent of
+summed case time, not wall time. The installed-product smoke takes roughly three
+minutes; most other checks are seconds. These measurements displace the older
+56-percent hotspot estimate, not the need for complete verification.
+
+First reduce failure latency with the smallest distinguishing test and cheap
+dependency-resolved checks. Run broader consumers only after that test passes;
+freeze every source input before the necessary full proof. Then optimize the
+measured repeated boundaries: a read-only exact accepted proof query made four
+policy resolutions, two for each floor; cold profiling located most time in
+canonical validation of the complete Attestation set. Preserve current membership
+and corruption detection while removing redundant decoding/serialization at their
+owner. Measure cold, warm and cache-cleared equality, actual calls/bytes and
+resource bounds; a cache or faster fixture alone is not product acceptance.
+Do not increase workers, relax coverage, skip related consumers or claim the
+full iteration cycle is already accelerated.
+
+The current proof query now compiles each floor once per invocation: four policy
+resolutions become two, with fresh queries still rebuilding both. The same
+accepted Attestation was returned without gaps; one unprofiled observation fell
+from 5.964 to 4.880 seconds, not a controlled benchmark or full-cycle guarantee.
+The final 87-case proof/source/selection matrix passes, including actual
+prearchive, postarchive and new-lane proof on one inherited source. Ten cheap
+public host gates and native format/import/prose checks pass. These do not imply
+this Change's exact full proof, installation or acceptance.
+
+Existing receipts under `build/evidence/quality/commit-integrity/` own the raw
+observations, including `intent-selection-proof-query-profile.txt`. Current
+Change tasks own implementation progress. Full terminal convergence remains
+open across the P0–P7 route below.
 
 One 500-ELOC ceiling applies to every Python file, including tests and surfaces.
 Product and test totals have independent 50,000 ceilings; combined coverage stays

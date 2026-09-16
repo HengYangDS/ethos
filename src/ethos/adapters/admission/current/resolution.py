@@ -267,7 +267,9 @@ def resolve_current_resolution(
     )
     if resolved is not None:
         return resolved
-    observed_paths = change_scope_paths_from_status(root, status) if changed else ()
+    observed_paths = prewrite_paths or (
+        change_scope_paths_from_status(root, status) if changed else ()
+    )
     official = openspec_governance_report(
         root,
         change=change,

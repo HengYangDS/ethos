@@ -104,6 +104,48 @@ def test_repository_transition_rejects_acceptance_not_bound_to_source(tmp_path, 
     assert gaps == ["proof_source_intent_mismatch"]
 
 
+def test_repository_proof_cannot_replace_lane_generation_proof(tmp_path):
+    """Repository evidence remains reusable without becoming authoring authority."""
+    fixture = start_adopted_work_lane(tmp_path)
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    source = current_proof_plan(fixture.worktree, expected_head=head)
+    values = mutable_json(source.facts["values"])
+    values.pop("lease_generation")
+    facts = Facts.model_validate(
+        dict(source.facts) | {"values": values, "observed_at": datetime.now(UTC)}
+    )
+    repository_plan = compile_plan(
+        Commitment.model_validate(mutable_json(source.commitment)),
+        facts,
+        source.nodes,
+        policy=mutable_json(source.policy),
+    )
+    record = _issue(fixture.worktree, head, plan=repository_plan)
+    persist_proof_attestation(fixture.worktree, record)
+    assert proof_gaps(fixture.worktree, head) == ["proof_lane_mismatch"]
+    selected, gaps = proof_module.proof_for_repository_transition(fixture.worktree, head)
+    assert gaps == []
+    assert selected == record
+
+
+def test_proof_query_compiles_each_exact_source_policy_once(tmp_path, monkeypatch):
+    """Share immutable policy work within a query, never across fresh queries."""
+    repo, head = proof_repository(tmp_path / "repo")
+    record = _issue(repo, head)
+    persist_proof_attestation(repo, record)
+    resolve = proof_admission.resolve_gate_policy
+    calls = []
+
+    def measured(root, **kwargs):
+        calls.append((kwargs.get("tree_ref"), kwargs.get("full", False)))
+        return resolve(root, **kwargs)
+
+    monkeypatch.setattr(proof_admission, "resolve_gate_policy", measured)
+    for attempt in range(2):
+        assert proof_gaps(repo, head) == []
+        assert calls == [(head, True), (head, False)] * (attempt + 1)
+
+
 def _archive_bound_work_proof(
     tmp_path: Path, *, omit: bool = False
 ) -> tuple[WorkLaneFixture, str, Attestation]:

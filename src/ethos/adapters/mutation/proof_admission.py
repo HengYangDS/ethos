@@ -16,9 +16,12 @@ from ethos.adapters.openspec.lifecycle.archive_transition import attested_archiv
 from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.proof.plan import archive_scope_gaps
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import canonical_json_digest
@@ -29,6 +32,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.contracts.semantic import Attestation
+    from ethos.repository.policy.gates import ResolvedGatePolicy
 
 
 _BINDINGS = (
@@ -67,6 +71,10 @@ def _admitted_proofs(
     matching, gaps = _selected_candidates(root, head)
     if gaps:
         return (), gaps
+    canonical_policies = (
+        ("full", resolve_gate_policy(root, tree_ref=head, full=True)),
+        ("default", resolve_gate_policy(root, tree_ref=head)),
+    )
     evaluated = tuple(
         (
             item,
@@ -75,6 +83,7 @@ def _admitted_proofs(
                 head,
                 store,
                 item,
+                canonical_policies=canonical_policies,
                 repository_transition=repository_transition,
             ),
         )
@@ -91,10 +100,7 @@ def _admitted_proofs(
         )
         for floor in ("full", "default")
     }
-    full_required = (
-        resolve_gate_policy(root, tree_ref=head, full=True).digest
-        != resolve_gate_policy(root, tree_ref=head).digest
-    )
+    full_required = canonical_policies[0][1].digest != canonical_policies[1][1].digest
     valid = (
         valid_by_floor["full"]
         if full_required
@@ -228,12 +234,31 @@ def _assertion_digest(attestation: Attestation) -> str:
     )
 
 
+def _lane_proof_gaps(root: Path, facts: Mapping[str, object]) -> list[str]:
+    """Match authoring evidence to its lane and independently current Lease."""
+    values = facts.get("values")
+    generation = values.get("lease_generation") if isinstance(values, Mapping) else None
+    branch = current_branch(root)
+    if load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE and (
+        not isinstance(generation, Mapping) or generation.get("lane_ref") != branch
+    ):
+        return ["proof_lane_mismatch"]
+    if isinstance(generation, Mapping):
+        current_lease = leases_by_branch(root).get(str(generation.get("lane_ref") or ""), {})
+        if current_lease.get("lease_state") != "valid" or mutable_json(generation) != mutable_json(
+            lease_generation(current_lease)
+        ):
+            return ["proof_lease_generation_stale"]
+    return []
+
+
 def _candidate_evaluation(
     root: Path,
     head: str,
     store: Path,
     attestation: Attestation,
     *,
+    canonical_policies: tuple[tuple[str, ResolvedGatePolicy], ...],
     repository_transition: bool,
 ) -> tuple[str, list[str]]:
     if attestation.subject != f"git:commit:{head}":
@@ -250,16 +275,8 @@ def _candidate_evaluation(
         else ""
     ]
     gaps = [gap for gap in gaps if gap]
-    values = plan.facts.get("values")
-    fact_values = values if isinstance(values, Mapping) else {}
-    generation = fact_values.get("lease_generation")
-    if isinstance(generation, Mapping) and not repository_transition:
-        branch = str(generation.get("lane_ref") or "")
-        current_lease = leases_by_branch(root).get(branch, {})
-        if current_lease.get("lease_state") != "valid" or mutable_json(generation) != mutable_json(
-            lease_generation(current_lease)
-        ):
-            gaps.append("proof_lease_generation_stale")
+    if not repository_transition:
+        gaps.extend(_lane_proof_gaps(root, plan.facts))
     if gaps:
         return "", gaps
     gaps.extend(archive_scope_gaps(plan.facts, plan.prior_attestations))
@@ -272,10 +289,6 @@ def _candidate_evaluation(
         gaps = _source_intent_gaps(root, head, attestation)
     if gaps or checks is None:
         return "", gaps
-    canonical_policies = (
-        ("full", resolve_gate_policy(root, tree_ref=head, full=True)),
-        ("default", resolve_gate_policy(root, tree_ref=head)),
-    )
     floor = next(
         (
             name

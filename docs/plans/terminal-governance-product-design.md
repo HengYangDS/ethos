@@ -906,6 +906,51 @@ fixed and do not expand the frozen CI repair or the self-identity Change.
 
 ### Measured Iteration Cost And P5 Order
 
+The bounded publication consumer repair now reproduces the real pre-push
+failure, then passes receipt-bound application and exact dev/main readback on
+two isolated peers. Removing only the proposed proof or accepted effect, or
+advancing candidate beyond the proposed head, still blocks. The 12-file native
+consumer suite passes 214 cases in 469.70 seconds with two workers; owned
+scratch was removed. Ten inexpensive diagnostics pass, and the existing artifact
+observer independently passes. These are candidate checks, not accepted proof.
+
+One diagnostic selection mistakenly included `generated-artifacts`, whose
+registered dependency starts the full test suite. The owned unintended run was
+interrupted after 575 passing cases; its BLOCK and cleanup remain recorded.
+Before future prechecks, inspect the resolved dependency graph and invoke the
+same read-only artifact observer for early diagnosis. The final post-test gate
+retains its real dependencies. Mutable JUnit/coverage output from that interrupted
+run is not accepted evidence; the prior 35-gate proof remains immutable in the
+Git-private artifact referenced by its Attestation. Use existing running receipts
+and selected result fields, not repeated broad polling or full JSON dumps.
+
+The current architecture adopter also confirms the active-intent defect on
+accepted `4f6998ff`: pair-publication is shadowed by archived static-publishing
+in prewrite and explicit-change proof, and a prior lane's proof carries stale
+Lease generation. The next selection repair must cover prewrite, plan/prove
+explicit selection and current lane-generation binding together, retaining
+same-lane archived ownership without imposing it on a new owned lane.
+
+The accepted `4f6998ff` closure passed all 35 gates and installed runtime
+`8bfe95b1c48fc8bcfda39a6b90d419904230a936d40cb5175f6e8e2b35740954`.
+Its 1,930.257-second postarchive proof spent 1,701.696 seconds in pytest
+(88.16 percent); installation smoke took about three minutes. Existing
+`self-identity-iteration-cost-observation.json` binds the JUnit and proof inputs.
+No unchanged full proof was repeated while accepting and installing this source.
+
+Actual two-peer publication then found an omitted consumer: commit-range admits
+five signed descendants from the verified replacement, while the accepted-ref
+consumer recognizes only the direct-repair terminal state and rejects the old
+peer OID as non-fast-forward. The 271.784-second preview changed neither peer.
+`publication-repair` now closes this public-boundary mismatch before retrying
+publication; its tests must traverse public pre-push and receipt-bound effects,
+not stop at range admission or remote observation. Repair classification cannot
+bypass current proof, accepted effect or candidate equality. Both peers still
+hold `e98daddc` at this observation; local acceptance is not remote completion.
+The original failed preview and native signature-verification process sample are
+retained in the existing identity evidence root. Typed-Change selection and
+proposal retirement remain the next adopter blockers, not part of this patch.
+
 The complete cycle, not just pytest duration, owns the optimization target.
 Separate first-failure feedback, verification of affected obligations, frozen
 acceptance proof, installation and publication. The 2,097.737-second postarchive

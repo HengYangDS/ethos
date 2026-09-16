@@ -8,3 +8,9 @@
 
 - [x] 2.1 Audit sibling consumers and update the existing terminal plan with the demonstrated gap.
 - [x] 2.2 Pass focused native regressions and inexpensive quality checks before freezing proof.
+
+## 3. Preserve Native Hook Decisions
+
+- [x] 3.1 Reproduce rejected native hook reports with nested immutable evidence.
+- [x] 3.2 Reuse the JSON projection owner and reject invalid output without traceback.
+- [x] 3.3 Verify native transport, lightweight notifications and publication consumers.

@@ -1,11 +1,15 @@
 """Publish accepted forward work after exact historical identity replacement."""
 
+import json
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 
 import ethos.adapters.mutation.accepted.signature as repair
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.hook.protocol import execute_hook
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
@@ -131,6 +135,16 @@ def _require_independent_admission(
             blocked = run_ethos_blocked(*command, cwd=repo)
             assert gap in blocked["required_gaps"], blocked
             assert blocked["data"]["commit_policy_admission"]["update_kind"] == "repair"
+            stream = StringIO()
+            with redirect_stderr(stream):
+                code = execute_hook(
+                    repo,
+                    "pre-push",
+                    ("origin",),
+                    stdin=StringIO(f"refs/heads/dev {head} refs/heads/dev {old}\n"),
+                )
+            assert code == 1
+            assert gap in json.loads(stream.getvalue())["required_gaps"]
         finally:
             git(repo, "update-ref", ATTESTATION_SET_REF, selected, str(subset["root"]))
     git(candidate, "commit", "--allow-empty", "-S", "-m", "fix: later candidate")

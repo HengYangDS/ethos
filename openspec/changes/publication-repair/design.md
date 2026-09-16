@@ -41,3 +41,19 @@ Prove and accept the fix through the existing lane, install the exact accepted
 runtime, derive a fresh two-peer request, apply its exact CAS, and independently
 read back each peer. Retain failed attempts and repair recovery bytes. Do not
 retry the unchanged blocked preview or relabel its verdict.
+
+## Native Hook Output Boundary
+
+The same publication path also emits rejected reports containing frozen
+Commitment mappings. Its direct JSON encoder raised outside the exception
+boundary and hid the intended rejection. Reuse `contracts.value.mutable_json`
+only when JSON encounters a non-native value, retain the original report, and
+reject nonfinite or unsupported values with `hook_report_not_json_native`.
+Do not stringify arbitrary evidence or introduce another recursive converter.
+Native no-admission notifications still avoid loading Pydantic and CLI code;
+the existing import-blocking subprocess regressions remain required.
+
+A serialization repair does not approve a rejected signed fast-forward. Source
+signature, source ancestry, accepted effect, proof and provider permissions
+remain distinct. Current remote history repair is a real non-fast-forward from
+its old OID and cannot be made fast-forward by changing push flags.

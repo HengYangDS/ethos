@@ -32,7 +32,16 @@ def execute_hook(root: Path, name: str, args: tuple[str, ...], *, stdin: IO[str]
         reports = (blocked_report(name, str(error) or error.__class__.__name__),)
     failed = next((report for report in reports if report_verdict(report) != "pass"), None)
     if failed is not None:
-        sys.stderr.write(json.dumps(failed, sort_keys=True) + "\n")
+        try:
+            output = json.dumps(
+                failed,
+                sort_keys=True,
+                allow_nan=False,
+                default=lambda value: import_module("ethos.contracts.value").mutable_json(value),
+            )
+        except (TypeError, ValueError, RecursionError):
+            output = json.dumps(blocked_report(name, "hook_report_not_json_native"), sort_keys=True)
+        sys.stderr.write(output + "\n")
         return 1
     return 0
 

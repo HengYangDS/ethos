@@ -9,6 +9,7 @@ from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.verdict import observation_verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.context import repository_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
@@ -17,6 +18,7 @@ from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
+from ethos.repository.release.configuration import release_role_policy_report
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
 CommitPolicyObserver = Callable[[Path, CommitPolicy], dict[str, object]]
@@ -143,6 +145,43 @@ def _commit_policy_report(
         "required_gaps": [
             str(gap) for gap in cast("list[object]", observed.get("required_gaps", []))
         ],
+    }
+
+
+def governance_audit(
+    root: Path,
+    *,
+    openspec: dict[str, object],
+    commit_policy_observer: CommitPolicyObserver,
+) -> dict[str, object]:
+    """Compose applicable repository obligations without product-layout requirements."""
+    reports = {
+        "adopter": inspect_adopter(root),
+        "openspec": openspec,
+        "commit_policy": _commit_policy_report(root, commit_policy_observer),
+        "release_policy": release_role_policy_report(root),
+    }
+    gaps = list(
+        dict.fromkeys(
+            str(gap)
+            for report in reports.values()
+            for gap in cast("list[object]", report.get("required_gaps", []))
+        )
+    )
+    return {
+        "verdict": reduce_verdicts(*(report_verdict(report) for report in reports.values())),
+        "mode": "repository",
+        "governance_context": repository_context(root),
+        **reports,
+        "required_gaps": gaps,
+        "next_action": next(
+            (
+                str(report["next_action"])
+                for report in reports.values()
+                if report_verdict(report) != "pass" and report.get("next_action")
+            ),
+            "repair the reported repository policy" if gaps else "",
+        ),
     }
 
 

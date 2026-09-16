@@ -13,7 +13,8 @@ or evaluates its explicit profile and adapter boundaries.
 ## Workflow
 
 1. Treat the governed subject as one Git repository; one typed profile binds its
-   facts and proof depth without changing command semantics.
+   facts and proof depth without changing command semantics. Inline and registry
+   gates carry the same common obligations, not different repository types.
 2. Preview `uv run ethos adopt --root <repo> --json` only for an unadopted
    repository. Review the profile and official OpenSpec config; preserve its
    existing layout. Follow the current result rather than a fixed pipeline.
@@ -25,6 +26,11 @@ or evaluates its explicit profile and adapter boundaries.
 5. Distinguish binding, readiness and executed proof. A completed observation
    needs no repeated read; binding alone certifies neither historical commits
    nor full scaffold, migration, uninstall or crash-atomic file updates.
+6. Invoke the selected package runtime for installed-product checks. Read actual
+   runner/schema provenance; do not add ETHOS schemas or change gate storage to
+   work around a binding failure. Verify proposed release roles against their
+   configured policy, and preserve the accepted verification floor when replacing
+   checks. Product conformance is explicitly selected, never inferred from a name.
 
 ## Evidence
 

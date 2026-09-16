@@ -154,6 +154,27 @@ declaration contracts reject missing, duplicate, mismatched, cyclic, or incomple
 descriptors before planning; ETHOS never guesses a command or accepts an unverified
 proof-run ID.
 
+Gate storage does not select repository type. Common governance evaluates actual
+OpenSpec observations, optional commit policy and declared release-role consistency
+for both inline and registry profiles. Missing optional policy adds no product
+constraint; malformed present policy blocks. Protected branches are compared as
+membership against configured roles, independently of their ordering. Exact Git
+publication policy uses the same compiler as checkout audit.
+
+The generic `repository-audit` provider does not require ETHOS documentation,
+schemas, Python packaging or release conventions. ETHOS explicitly composes its
+own conformance provider in `product-boundary`. Replacing or removing an accepted
+required check requires the existing independent-verification boundary; a proposed
+weaker gate cannot certify that replacement itself. Keeping a gate descriptor
+does not alone establish independent trust in its changed implementation.
+
+Runtime admission distinguishes the audited repository, executing source or
+selected package, and the actual runner-owned schema tree. An adopter schema
+lookalike neither changes schema selection nor proves runner identity. A selected
+package need not be a source checkout; an external source runner must match its
+selected build. Lease ownership, runtime currentness, proof and exact-effect
+permission remain independent conditions.
+
 ## Validation
 
 A repository profile validator must fail closed when:

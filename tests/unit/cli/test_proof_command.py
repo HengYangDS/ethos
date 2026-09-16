@@ -114,12 +114,13 @@ def _arrange(
     plan=None,
     checks: tuple[dict[str, object], ...] = (),
     runs_ok: bool = True,
+    audit=None,
 ):
     emitted = []
     repo = tmp_path / "repo"
     repo.mkdir()
     selected_plan = plan or _plan()
-    audit = {
+    audit = audit or {
         "verdict": "pass",
         "mode": "repository",
         "governance_context": {"contract": "governed_repository"},
@@ -160,6 +161,28 @@ def _arrange(
     )
     monkeypatch.setattr(proof_cli, "emit", lambda result, **_kwargs: emitted.append(result))
     return repo, emitted
+
+
+@pytest.mark.parametrize("verdict", ["block", "unknown"])
+def test_invalid_common_audit_stops_before_check_execution(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, verdict: str
+) -> None:
+    """Known governance failure prevents spending work or minting proof first."""
+    audit = {
+        "verdict": verdict,
+        "required_gaps": ["protected_branches_policy_missing"],
+        "next_action": "repair declared protected roles",
+    }
+    repo, emitted = _arrange(monkeypatch, tmp_path, audit=audit)
+
+    def unexpected(**_kwargs):
+        pytest.fail("checks must not execute after failed common admission")
+
+    monkeypatch.setattr(proof_cli, "run_plan_checks", unexpected)
+    proof_cli.prove(_options(execute=True), root=repo, json_output=True)
+    assert emitted[-1].verdict == verdict
+    assert emitted[-1].required_gaps == ("protected_branches_policy_missing",)
+    assert emitted[-1].next_action == "repair declared protected roles"
 
 
 @pytest.mark.parametrize(

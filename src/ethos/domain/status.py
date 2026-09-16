@@ -1,53 +1,46 @@
-"""Repository audit dispatch for product and adopter profiles."""
+"""Compose common governance and explicitly invoked product conformance."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import cast
 
 import ethos.repository.audit as repository_audit_module
+from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.observation import openspec_shape_report
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.git import git_files
-from ethos.repository.adoption.fleet import inspect_adopter
-from ethos.repository.context import repository_context
-from ethos.repository.profile import profile_gate_registry
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 def audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
-    """Dispatch from the profile's declared audit capability."""
-    if profile_gate_registry(root):
-        reporter = openspec_governance_report if openspec_mode == "deep" else None
-        return repository_audit_module.repository_audit(
-            root,
-            openspec_mode=openspec_mode,
-            openspec_reporter=reporter,
-            tracked_documents=tuple(git_files(root, "*.md")),
-            openspec_shape=openspec_shape_report(root),
-            commit_policy_observer=commit_policy_report,
+    """Evaluate common obligations independently of proof-gate representation."""
+    openspec = (
+        (
+            openspec_governance_report(root)
+            if openspec_mode == "deep"
+            else openspec_shape_report(root)
         )
-    return adopter_audit(root)
+        if openspec_profile_enabled(root)
+        else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
+    )
+    return repository_audit_module.governance_audit(
+        root,
+        openspec=openspec,
+        commit_policy_observer=commit_policy_report,
+    )
 
 
-def adopter_audit(root: Path) -> dict[str, object]:
-    """Validate only the one adopter binding; capabilities remain explicit opt-ins."""
-    adopter = inspect_adopter(root)
-    gaps = list(cast("list[str]", adopter["required_gaps"]))
-    capabilities = cast("dict[str, dict[str, bool]]", adopter["adopter"])["capabilities"]
-    return {
-        "verdict": "pass" if not gaps else "block",
-        "mode": "repository",
-        "governance_context": repository_context(root),
-        "required_gaps": gaps,
-        "adopter": adopter,
-        "openspec": {
-            "verdict": "pass",
-            "mode": "adopter-shape",
-            "configured": bool(capabilities["openspec"]),
-            "required_gaps": [],
-        },
-    }
+def product_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
+    """Execute explicitly selected ETHOS product conformance, never infer identity."""
+    reporter = openspec_governance_report if openspec_mode == "deep" else None
+    return repository_audit_module.repository_audit(
+        root,
+        openspec_mode=openspec_mode,
+        openspec_reporter=reporter,
+        tracked_documents=tuple(git_files(root, "*.md")),
+        openspec_shape=openspec_shape_report(root),
+        commit_policy_observer=commit_policy_report,
+    )

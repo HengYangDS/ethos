@@ -78,7 +78,7 @@ version_source = "product"
 [[gates]]
 id = "product-boundary"
 kind = "governance"
-providers = ["ethos.repository.policy.boundary.product:product_boundary_report"]
+providers = ["ethos.repository.policy.boundary.product:product_boundary_report", "ethos.domain.status:product_audit"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"

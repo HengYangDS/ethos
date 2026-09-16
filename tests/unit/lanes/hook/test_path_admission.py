@@ -15,6 +15,7 @@ from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.lane_scenarios import leased_worktree
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -26,6 +27,7 @@ def actor(monkeypatch: pytest.MonkeyPatch) -> None:
 def worktree(tmp_path: Path) -> Path:
     repo = init_git_repo(tmp_path / "repo")
     commit_active_change(repo)
+    install_fixture_hook_runtime(repo)
     return leased_worktree(repo, tmp_path / "repo-work-feature")
 
 
@@ -106,9 +108,8 @@ def test_ignored_path_matrix(worktree: Path, case: tuple[str, str, str, str, str
 def test_editor_binding_matrix(
     worktree: Path, monkeypatch: pytest.MonkeyPatch, mismatch: str
 ) -> None:
-    profile = worktree / ".ethos/profile.toml"
-    profile.write_text(profile.read_text() + '\n[proof]\ngate_registry = "system/gates.toml"\n')
     binding = admission_prewrite.runtime_binding(worktree)
+    binding["state"] = "external_current_runner"
     for component in ("runner", "schema"):
         matches = component != mismatch
         binding[f"{component}_matches_audit_root"] = matches
@@ -217,6 +218,7 @@ def _lane(tmp: Path, imports: tuple[str, ...]) -> Path:
     )
     (repo / "module.py").write_text("VALUE = 1\n")
     commit_active_change(repo)
+    install_fixture_hook_runtime(repo)
     return leased_worktree(repo, tmp / "repo-work-feature")
 
 

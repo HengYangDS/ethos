@@ -1,3 +1,5 @@
+"""Observe execution authority and actual schema provenance for tracked writes."""
+
 from __future__ import annotations
 
 import subprocess
@@ -9,8 +11,8 @@ import ethos
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
-from ethos.repository.profile import load_repository_profile
-from ethos.repository.profile import profile_gate_registry
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.repository.policy.schema import schema_source_root
 
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
@@ -33,20 +35,6 @@ def runner_source_root(module_path: Path) -> Path:
     return module_path.parent
 
 
-def _schema_source_root(audit_root: Path, runner_root: Path) -> Path:
-    """Best-effort source root for workspace-status contract validation.
-
-    Product checkouts normally validate against their own tracked schemas. Adopters
-    without a complete product schema set fall back to the runner's packaged
-    contract source. Keep this read-model lightweight and side-effect free; exact
-    schema diagnostics remain owned by the schema validator.
-    """
-    local = audit_root / "system" / "schemas" / "kernel" / "workspace-status.schema.json"
-    if local.exists():
-        return audit_root
-    return runner_root
-
-
 def runtime_binding(
     root: Path,
     *,
@@ -56,37 +44,50 @@ def runtime_binding(
     audit_root = root.resolve()
     runner_module_path = Path(ethos.__file__).resolve()
     source_root = runner_source_root(runner_module_path)
-    schema_source_root = _schema_source_root(audit_root, source_root).resolve()
+    schema_root = schema_source_root()
     runner_matches_audit_root = source_root == audit_root
-    schema_matches_audit_root = schema_source_root == audit_root
+    schema_matches_audit_root = schema_root == audit_root / "system/schemas"
     hook_binding = hook_runtime_binding(audit_root, selected_runtime=selected_runtime)
     runner_matches_common_runtime = (
         not hook_binding["required_gaps"]
-        and Path(hook_binding["python"]).resolve() == Path(sys.executable).resolve()
+        and bool(hook_binding["python"])
+        and Path(hook_binding["python"]).absolute() == Path(sys.executable).absolute()
     )
-    declared_external_runner = (
-        not runner_matches_audit_root and load_repository_profile(audit_root).state == "valid"
-    )
+    declared_external_runner = False
+    if (
+        not runner_matches_audit_root
+        and not runner_matches_common_runtime
+        and not hook_binding["required_gaps"]
+        and schema_root == source_root / "system/schemas"
+    ):
+        identity = invoking_build_identity()
+        declared_external_runner = identity.source_commit == hook_binding.get(
+            "source_commit"
+        ) and identity.source_tree == hook_binding.get("source_tree")
     advisory_gaps: list[str] = []
-    if not runner_matches_audit_root and not declared_external_runner:
+    if not runner_matches_audit_root and not (
+        declared_external_runner or runner_matches_common_runtime
+    ):
         advisory_gaps.append("workspace_status_runner_source_differs_from_audit_root")
-    if not schema_matches_audit_root and not declared_external_runner:
+    if not schema_matches_audit_root and not (
+        declared_external_runner or runner_matches_common_runtime
+    ):
         advisory_gaps.append("workspace_status_schema_source_differs_from_audit_root")
     state = (
         "bound_to_audit_root"
         if runner_matches_audit_root and schema_matches_audit_root
         else "bound_to_common_runtime"
-        if runner_matches_common_runtime and schema_matches_audit_root
+        if runner_matches_common_runtime
         else "external_declared_runner"
         if declared_external_runner
         else "external_current_runner"
     )
     next_action = (
-        "runner, schema, and audit root are aligned"
+        "runner and its schema source are bound to this repository"
         if state in {"bound_to_audit_root", "bound_to_common_runtime"}
         else (
-            "declared external runner is active; use a checkout-bound runner "
-            "when changing command or schema surfaces"
+            "source runner matches the selected runtime build; "
+            "use the selected package for installed-product verification"
         )
         if state == "external_declared_runner"
         else (
@@ -100,7 +101,7 @@ def runtime_binding(
         "audit_root": audit_root.as_posix(),
         "runner_module_path": runner_module_path.as_posix(),
         "runner_source_root": source_root.as_posix(),
-        "schema_source_root": schema_source_root.as_posix(),
+        "schema_source_root": schema_root.as_posix(),
         "runner_matches_audit_root": runner_matches_audit_root,
         "schema_matches_audit_root": schema_matches_audit_root,
         "advisory_gaps": advisory_gaps,
@@ -116,18 +117,20 @@ def runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
     audit = str(binding.get("audit_root") or "")
     runner = str(binding.get("runner_source_root") or "")
     schema = str(binding.get("schema_source_root") or "")
-    required = bool(audit and profile_gate_registry(Path(audit)))
     runner_matches = binding.get("runner_matches_audit_root") is True
     schema_matches = binding.get("schema_matches_audit_root") is True
     common_runtime = binding.get("state") == "bound_to_common_runtime"
-    matched = not required or (schema_matches and (runner_matches or common_runtime))
+    selected_source = binding.get("state") == "external_declared_runner"
+    matched = bool(audit) and (
+        (runner_matches and schema_matches) or common_runtime or selected_source
+    )
     return {
         "verdict": "pass" if matched else "block",
         "reason": "matched" if matched else "root_binding_mismatch",
         "audit_root": audit,
         "runner_source_root": runner,
         "schema_source_root": schema,
-        "checkout_binding_required": required,
+        "checkout_binding_required": not (common_runtime or selected_source),
         "runner_matches_audit_root": runner_matches,
         "schema_matches_audit_root": schema_matches,
         "runner_matches_common_runtime": common_runtime,

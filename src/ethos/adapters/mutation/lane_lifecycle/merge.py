@@ -222,9 +222,10 @@ def _stage_admission(root: Path) -> dict[str, object]:
         staged=True,
         require_workspace=True,
     )
-    if admission["verdict"] != "pass":
+    official = string_mapping(admission["openspec"])
+    if official.get("verdict") == "pass" and admission["verdict"] != "pass":
         _fail(next(iter(string_sequence(admission["required_gaps"])), "merge_scope_unavailable"))
-    return string_mapping(admission["openspec"])
+    return official
 
 
 def _admit_mode(context: _MergeContext, mode: MergeMode) -> None:

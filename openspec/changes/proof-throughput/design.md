@@ -533,6 +533,50 @@ the runtime-provenance and merge repairs in a package, not the subsequent
 publication repair or a complete repository proof. Evidence is
 `throughput-install-after-observation{,-acceptance}.json`.
 
+### Consolidated Proof And Concurrency Findings
+
+The exact `5d674a26a30f6ab1b9826090e06a29ed6c4085e8` full run blocked in
+1,812.287 seconds. Pytest took 1,766.742 seconds: 3,770 passed, one failed and
+one skipped. The test gate took 1,784.845 seconds including its orchestration;
+these nested times are not additive. Combined line/branch coverage was
+95.062400 percent. Twenty-nine prerequisite gates passed; the failed test
+blocked coverage admission and all five dependent gates. The owned basetemp
+was removed. The separate diagnostic preflight took 27.760 seconds and is not
+included. Exact gate timing, module totals, failure, coverage and input hashes
+are in `throughput-consolidated-breakdown.json` under the existing evidence root.
+
+The failure exposed diagnostic precedence after observation reuse: missing
+official tasks produced a repair-scope path gap before the original intent
+failure. Merge now leaves invalid official intent to its existing decision
+owner before interpreting derivative path coverage. It still rejects failed
+staged admission for valid intent and preserves runtime, Lease and effect
+checks. The unchanged public regression and all 55 merge/effect/continuation
+cases pass in 108.75 seconds; their owned fixture root is removed. This focused
+result is not a replacement full proof.
+
+The SCC startup failure was recorded with two workers, not a demonstrated
+high-worker cause. The prior two/four/eight-worker comparison did not reproduce
+it. Native hook sampling showed `dyld` before Python, but did not identify its
+operating-system cause. Reducing worker count is not a proven repair.
+
+A separate isolated native probe of `ethos.adapters.process.run_command`
+demonstrated that its three-second timeout killed the direct child while an
+already-started descendant survived with parent PID 1. Exact diagnostic output
+is `throughput-process-descendant-probe.json`; the owned descendant was stopped
+and its temporary root removed. This is an executed process-ownership gap, not
+proof that it caused historical pytest failures. Timeout, worker loss, inherited
+pipes and cleanup must be addressed at the process owner and its test-gate
+consumer. Native process groups alone do not guarantee cleanup after the
+supervising worker itself is killed; platform containment and recovery need
+their own falsifying tests. Do not label a POSIX-only timeout patch as complete
+cross-platform supervision or add retries to hide residual processes.
+
+The full run still exceeds 600 seconds. Prioritize the remaining repeated
+native observation work and the established process-lifetime gap; retain the
+same correctness bar and distinguish worker scheduling from actual subprocess
+fan-out. Neither reduced call counts nor a larger worker setting proves the
+end-to-end target.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

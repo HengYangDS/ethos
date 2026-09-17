@@ -62,7 +62,8 @@ def install_hook_launchers(
     source_python = python or Path(sys.executable)
     if not source_python.is_absolute() or not source_python.is_file():
         _fail("hook_runtime_python_invalid")
-    expected_build, build_source = expected_runtime_build(repo)
+    expected = expected_runtime_build(repo)
+    expected_build, build_source = expected.identity, expected.source
     runtime = runtime_materialization.materialize_runtime(
         repo, source_python, expected_build=expected_build, build_source=build_source
     )
@@ -275,7 +276,7 @@ def _activate_common_runtime(
         if observation := binding.get("contract_observation"):
             raise HookActivationError(reason, observation)
         _fail(reason)
-    if expected_runtime_build(repo)[0] != expected_build:
+    if expected_runtime_build(repo).identity != expected_build:
         _fail("hook_runtime_expected_build_stale")
     return binding
 

@@ -63,10 +63,15 @@ def runtime_binding(
         and not hook_binding["required_gaps"]
         and schema_root == source_root / "system/schemas"
     ):
-        identity = invoking_build_identity()
-        declared_external_runner = identity.source_commit == hook_binding.get(
-            "source_commit"
-        ) and identity.source_tree == hook_binding.get("source_tree")
+        if hook_binding.get("invoking_source_root") == source_root.as_posix():
+            source = hook_binding["expected_source_commit"], hook_binding["expected_source_tree"]
+        else:
+            identity = invoking_build_identity()
+            source = identity.source_commit, identity.source_tree
+        declared_external_runner = source == (
+            hook_binding.get("source_commit"),
+            hook_binding.get("source_tree"),
+        )
     advisory_gaps: list[str] = []
     if not runner_matches_audit_root and not (
         declared_external_runner or runner_matches_common_runtime

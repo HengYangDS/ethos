@@ -53,7 +53,7 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
     package = b"ethos fixture wheel\n"
     wheel_sha256 = hashlib.sha256(package).hexdigest()
     wheel = common / "ethos/packages" / wheel_sha256 / "ethos-fixture.whl"
-    build = expected_runtime_build(root)[0]
+    build = expected_runtime_build(root).identity
     environment = observe_runtime_environment(REPOSITORY_ROOT, Path(sys.executable))
     try:
         create_fixture_python(staging / "python", shared_executable=_GOVERNANCE_PYTHON)

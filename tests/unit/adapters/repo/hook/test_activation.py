@@ -17,6 +17,7 @@ import ethos.surface.cli.hook.commands as hook_commands
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
+from ethos.adapters.repo.runtime.authority import RuntimeBuild
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.repository.release.identity import BuildIdentity
@@ -213,7 +214,7 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
     monkeypatch.setattr(
         hook_activation,
         "expected_runtime_build",
-        lambda _root: (selected.build, None),
+        lambda _root: RuntimeBuild(selected.build, None),
     )
     monkeypatch.setattr(
         runtime_materialization,
@@ -345,7 +346,7 @@ def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
 
     def select_source(root: Path):
         source_selections.append(root)
-        return accepted_identity, None
+        return RuntimeBuild(accepted_identity, None)
 
     def materialize(
         _root: Path,
@@ -411,7 +412,7 @@ def test_hook_activation_compensates_when_expected_build_drifts_during_effect(
     monkeypatch.setattr(
         hook_activation,
         "expected_runtime_build",
-        lambda _root: (next(observations), None),
+        lambda _root: RuntimeBuild(next(observations), None),
     )
 
     with pytest.raises(ValueError, match="hook_runtime_expected_build_stale"):
@@ -434,7 +435,7 @@ def test_hook_runtime_rejects_a_symlinked_ethos_root_before_writing(tmp_path: Pa
         runtime_materialization.materialize_runtime(
             repo,
             Path(sys.executable),
-            expected_build=expected_runtime_build(repo)[0],
+            expected_build=expected_runtime_build(repo).identity,
         )
 
     assert not tuple(external.iterdir())

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import NamedTuple
 
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
@@ -19,6 +20,14 @@ from ethos.repository.release.identity import packaged_build_identity
 from ethos.repository.release.identity import product_version_from_text
 
 
+class RuntimeBuild(NamedTuple):
+    """One build observation and whether it includes the invoking source overlay."""
+
+    identity: BuildIdentity
+    source: Path | None
+    invoking: bool = False
+
+
 def runtime_build_identity(source: Path, *, include_overlay: bool = True) -> BuildIdentity:
     """Resolve one checkout or installed package to its canonical build identity."""
     if (source / "VERSION").is_file():
@@ -32,7 +41,7 @@ def invoking_build_identity() -> BuildIdentity:
     return runtime_build_identity(source)
 
 
-def expected_runtime_build(root: Path) -> tuple[BuildIdentity, Path | None]:
+def expected_runtime_build(root: Path) -> RuntimeBuild:
     """Return the accepted self-hosted build or the invoking package build."""
     package_source = Path(__file__).resolve().parents[5]
     source_authority = (
@@ -44,24 +53,26 @@ def expected_runtime_build(root: Path) -> tuple[BuildIdentity, Path | None]:
         repo = repository_root(root)
         profile = load_repository_profile(repo).declaration
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError):
-        return runtime_build_identity(package_source), source_authority
+        return RuntimeBuild(runtime_build_identity(package_source), source_authority, invoking=True)
     if profile is None or profile.profile_id != "ethos":
-        return runtime_build_identity(package_source), source_authority
+        return RuntimeBuild(runtime_build_identity(package_source), source_authority, invoking=True)
     policy = load_branch_role_policy(repo)
     commit = ref_head(repo, policy.accepted_branch)
     tree = current_tree(repo, commit)
     if accepted_version_migration_pending(repo, accepted_commit=commit):
-        return runtime_build_identity(package_source, include_overlay=False), source_authority
+        return RuntimeBuild(
+            runtime_build_identity(package_source, include_overlay=False), source_authority
+        )
     version = run_git(repo, "show", f"{commit}:VERSION", text=False).stdout.decode("ascii")
     identity = build_identity(
         product=product_version_from_text(version), source_commit=commit, source_tree=tree
     )
-    return identity, _accepted_worktree(repo, policy.accepted_branch)
+    return RuntimeBuild(identity, _accepted_worktree(repo, policy.accepted_branch))
 
 
 def expected_runtime_source(root: Path) -> tuple[str, str]:
     """Return the exact source coordinates of the accepted runtime authority."""
-    identity, _source = expected_runtime_build(root)
+    identity = expected_runtime_build(root).identity
     return identity.source_commit, identity.source_tree
 
 

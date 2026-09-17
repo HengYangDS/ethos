@@ -56,7 +56,9 @@ def test_self_hosted_expectation_binds_accepted_objects_not_checkout_overlay(tmp
         with pytest.raises(ValueError, match="product_version_invalid"):
             authority.expected_runtime_build(lane)
         return
-    identity, source_root = authority.expected_runtime_build(lane)
+    observed = authority.expected_runtime_build(lane)
+    identity, source_root = observed.identity, observed.source
+    assert observed.invoking is False
     assert (identity, source_root) == (expected, (lane if mode == "detached" else repo).resolve())
     assert before == (git(repo, "status", "--porcelain"), (repo / ".git/index").read_bytes())
 
@@ -74,7 +76,9 @@ def test_version_migration_uses_exact_invoking_lane(
     commit_fixture(lane, "version migration")
     (lane / "README.md").write_text("staged postimage\n")
     git(lane, "add", "README.md")
-    identity, source_root = authority.expected_runtime_build(lane)
+    observed = authority.expected_runtime_build(lane)
+    identity, source_root = observed.identity, observed.source
+    assert observed.invoking is False
     assert authority.expected_runtime_source(lane) == identity[2:4]
     assert (identity, source_root) == (
         runtime_build(git(lane, "rev-parse", "HEAD"), git(lane, "rev-parse", "HEAD^{tree}")),
@@ -91,8 +95,6 @@ def test_runtime_authority_fallback_matrix(monkeypatch: pytest.MonkeyPatch, tmp_
         authority, "repository_root", lambda _root: (_ for _ in ()).throw(ValueError())
     )
     monkeypatch.setattr(authority, "runtime_build_identity", lambda _root: packaged)
-    assert authority.expected_runtime_build(tmp_path)[0] == packaged
-    assert authority.expected_runtime_source(tmp_path) == (
-        packaged.source_commit,
-        packaged.source_tree,
-    )
+    observed = authority.expected_runtime_build(tmp_path)
+    assert (observed.identity, observed.invoking) == (packaged, True)
+    assert authority.expected_runtime_source(tmp_path) == packaged[2:4]

@@ -436,6 +436,48 @@ two/four/eight-worker and cold/warm verification is required before claiming
 concurrency stability. No retry, exclusion, longer deadline or disabled hook
 substitutes for closing the observed mechanism.
 
+### Invoking Build Identity Is Observed Once Per Admission
+
+The expected-build owner now returns one typed observation in place of its
+anonymous identity/source pair. Its provenance distinguishes a current invoking
+overlay from accepted Git objects and the legacy committed-source migration.
+That distinction is necessary even when their paths or digests happen to match.
+Hook observation exposes the invoking source only for the first case; runner
+binding reuses its source coordinates only for that exact source root. Accepted,
+explicitly supplied and foreign-source expectations still observe the actual
+invoking build independently. No persistent cache, schema authority or effect
+permission is added. Activation and direct readers consume the same named fields.
+
+The native regression failed before repair with two identical source builds
+inside one binding query. It now observes one, including when the caller supplies
+the current hook observation, and a separate query constructs a fresh identity.
+Counterexamples reject treating equal accepted/supplied coordinates or a foreign
+source as invoking provenance. Existing self-hosted and pre-VERSION migration
+cases keep overlay exclusion, exact accepted objects and unmodified caller index.
+The 134-case runtime/hook/activation matrix passes in 47.75 seconds; 116 direct
+binding, status, merge and invalid-profile consumers pass in 93.16 seconds, both
+with two workers. Four fixture-consolidation follow-ups pass in 2.68 seconds.
+
+An alternating old/new/new/old consumer comparison on one native fixture retains
+identical complete binding projections. Each query uses 15/10/10/15 subprocesses
+and takes 0.385/0.211/0.213/0.418 seconds. Fixture construction is outside those
+query timers; cleanup is verified. Both consumers use the new producer, isolating
+the duplicate consumer work. Raw evidence is
+`throughput-invoking-identity-comparison.json`.
+
+The covered public merge workload reduces source builds from 24 to thirteen
+and subprocesses from 757 to 702. Inclusive source-build time falls from 4.175
+to 2.342 seconds; total sample time rises from 12.59 to 13.90 seconds, with native
+merge time rising from 1.32 to 3.56 seconds. This sample proves reduced work, not
+whole-command improvement or resolution of the independent startup delay.
+`throughput-hotspot-merge-invoking-identity.{json,pstats}` retains both limits.
+
+No previous tuple-consumer compatibility path remains. Equivalent policy
+fixtures now share the expected-build setup and use native boolean values
+instead of an extra string-to-boolean translation. The 50,000-test ceiling,
+500-per-file limits and 95-percent combined coverage requirement are unchanged.
+Complete proof, installed acceptance and the 600-second target remain open.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

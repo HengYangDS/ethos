@@ -12,6 +12,7 @@ from pydantic import ValidationError
 import ethos.adapters.openspec.commitment as compilation
 from ethos.adapters.openspec.commitment import commitment_from_projection
 from ethos.contracts.semantic import Commitment
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import commitment_fixture
 
@@ -177,6 +178,20 @@ def test_native_rename_rejects_incomplete_or_ambiguous_relation(rename: object) 
         commitment_from_projection("native-supply", projection)
 
 
+def _spec_free_status(change: str, *, complete: bool = True, spec_state: str = "skipped"):
+    """Build the same official artifact graph for valid and invalid state cases."""
+    return {
+        "changeName": change,
+        "isComplete": complete,
+        "artifacts": [
+            {"id": "proposal", "status": "done", "requires": []},
+            {"id": "specs", "status": spec_state, "requires": ["proposal"]},
+            {"id": "design", "status": "done", "requires": ["proposal"]},
+            {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
+        ],
+    }
+
+
 def test_official_spec_free_projection_compiles_minimal_commitment() -> None:
     projection = {
         "id": "dependency-refresh",
@@ -188,16 +203,7 @@ def test_official_spec_free_projection_compiles_minimal_commitment() -> None:
             }
         ],
     }
-    status = {
-        "changeName": "dependency-refresh",
-        "isComplete": True,
-        "artifacts": [
-            {"id": "proposal", "status": "done", "requires": []},
-            {"id": "specs", "status": "skipped", "requires": ["proposal"]},
-            {"id": "design", "status": "done", "requires": ["proposal"]},
-            {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
-        ],
-    }
+    status = _spec_free_status("dependency-refresh")
     artifact_digests = {
         name: hashlib.sha256(name.encode()).hexdigest()
         for name in ("metadata", "proposal", "design", "tasks")
@@ -227,34 +233,11 @@ def test_official_spec_free_projection_compiles_minimal_commitment() -> None:
     )
 
 
-@pytest.mark.parametrize(
-    "status",
-    [
-        {
-            "changeName": "minimal-authority",
-            "isComplete": True,
-            "artifacts": [
-                {"id": "proposal", "status": "done", "requires": []},
-                {"id": "specs", "status": "done", "requires": ["proposal"]},
-                {"id": "design", "status": "done", "requires": ["proposal"]},
-                {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
-            ],
-        },
-        {
-            "changeName": "minimal-authority",
-            "isComplete": False,
-            "artifacts": [
-                {"id": "proposal", "status": "done", "requires": []},
-                {"id": "specs", "status": "skipped", "requires": ["proposal"]},
-                {"id": "design", "status": "done", "requires": ["proposal"]},
-                {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
-            ],
-        },
-    ],
-)
+@pytest.mark.parametrize(("complete", "spec_state"), [(True, "done"), (False, "skipped")])
 def test_zero_requirement_projection_requires_valid_official_spec_free_planning_graph(
-    status: dict[str, object],
+    *, complete: bool, spec_state: str
 ) -> None:
+    status = _spec_free_status("minimal-authority", complete=complete, spec_state=spec_state)
     projection = {
         "id": "minimal-authority",
         "deltas": [
@@ -418,6 +401,16 @@ def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_comp
 
     assert progressed == planned
     assert all(args[:2] != ("instructions", "apply") for args in calls)
+    head = commit_fixture(tmp_path, "declare spec-free acceptance")
+    assert (
+        compilation.load_openspec_commitment(tmp_path, tree_ref=head, official_status={}) == planned
+    )
+    before = len(calls)
+    with pytest.raises(ValueError, match="openspec_acceptance_missing"):
+        compilation.load_openspec_commitment(
+            tmp_path, change_id="dependency-refresh", official_status={}
+        )
+    assert not any(args[0] == "status" for args in calls[before:])
 
 
 @pytest.mark.parametrize(

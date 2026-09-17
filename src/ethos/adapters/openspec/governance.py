@@ -281,7 +281,12 @@ def _openspec_governance_report(
     contract = None
     if current_change:
         try:
-            contract = load_openspec_commitment(root, change_id=current_change)
+            contract = load_openspec_commitment(
+                root,
+                change_id=current_change,
+                official_command=base_command,
+                official_status=status.get("json"),
+            )
         except ValueError:
             required_gaps.append(f"commitment_invalid:{current_change}")
         else:

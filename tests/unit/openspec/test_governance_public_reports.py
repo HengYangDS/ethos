@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -334,8 +335,9 @@ def test_governance_observes_archive_effect_separately_from_generation_scope(mon
 
 
 @pytest.mark.parametrize("missing_source", [False, True])
+@pytest.mark.parametrize("spec_free", [False, True])
 def test_governance_keeps_completed_unarchived_change_as_current_intent(
-    monkeypatch, tmp_path, missing_source
+    monkeypatch, tmp_path, missing_source, spec_free
 ):
     """Current completed intent needs every document selected by the official reader."""
     root = _repo(tmp_path)
@@ -343,9 +345,15 @@ def test_governance_keeps_completed_unarchived_change_as_current_intent(
     fixture.write_active_commitment(root, change_id="complete")
     tasks = root / "openspec/changes/complete/tasks.md"
     tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
+    if spec_free:
+        shutil.rmtree(tasks.parent / "specs")
+        (tasks.parent / ".openspec.yaml").write_text("schema: spec-driven\nskip_specs: true\n")
     original = cli.run_json
+    verified, calls = Mock(wraps=cli.openspec_base_command), []
+    monkeypatch.setattr(cli, "openspec_base_command", verified)
 
     def observe(repo, command, args):
+        calls.append(args)
         result = original(repo, command, args)
         if missing_source and args[:2] == ("instructions", "apply"):
             result["json"]["contextFiles"]["proposal"] = [str(root / "missing-proposal.md")]
@@ -353,6 +361,8 @@ def test_governance_keeps_completed_unarchived_change_as_current_intent(
 
     monkeypatch.setattr(cli, "run_json", observe)
     report = governance.openspec_governance_report(root, lifecycle=True)
+    verified.assert_called_once()
+    assert calls.count(("status", "--change", "complete", "--json")) == 1
     assert report["verdict"] == ("block" if missing_source else "pass")
     assert bool(report["required_gaps"]) is missing_source
     assert report["intent_context"]["source_state"] == (

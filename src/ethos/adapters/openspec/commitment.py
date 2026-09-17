@@ -277,12 +277,14 @@ def load_openspec_commitment(
     tree_ref: str | None = None,
     expected_digest: str | None = None,
     attestations: tuple[Attestation, ...] | None = None,
+    official_command: tuple[str, ...] | None = None,
+    official_status: object = None,
 ) -> Commitment:
     """Compile exact official intent, sharing only a caller's current evidence observation."""
     if not openspec_profile_enabled(repo, tree_ref=tree_ref):
         msg = "openspec_profile_not_enabled"
         raise ValueError(msg)
-    command = openspec_cli.openspec_base_command()
+    command = official_command or openspec_cli.openspec_base_command()
     if command is None:
         msg = "openspec_official_cli_missing"
         raise ValueError(msg)
@@ -340,21 +342,35 @@ def load_openspec_commitment(
                 return archived
             msg = f"openspec_show_failed:{change_id}"
             raise ValueError(msg)
-        commitment = _projected_commitment(projection, command, change_id, result.get("json"))
+        commitment = _projected_commitment(
+            projection,
+            command,
+            change_id,
+            result.get("json"),
+            status=official_status if tree_ref is None else None,
+        )
     return _accepted_commitment(commitment, expected_digest=expected_digest)
 
 
 def _projected_commitment(
-    projection: Path, command: tuple[str, ...], change: str, payload: object
+    projection: Path,
+    command: tuple[str, ...],
+    change: str,
+    payload: object,
+    *,
+    status: object = None,
 ) -> Commitment:
     """Read additional official artifact inputs only for a spec-free Change."""
     deltas = payload.get("deltas") if isinstance(payload, dict) else None
     if not _spec_free_deltas(deltas):
         return commitment_from_projection(change, payload)
-    status = openspec_cli.run_json(projection, command, ("status", "--change", change, "--json"))
+    if status is None:
+        status = openspec_cli.run_json(
+            projection, command, ("status", "--change", change, "--json")
+        ).get("json")
     return commitment_from_projection(
         change,
         payload,
-        status=status.get("json"),
+        status=status,
         artifact_digests=_spec_free_artifact_digests(projection, change),
     )

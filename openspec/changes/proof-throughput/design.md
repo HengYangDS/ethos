@@ -307,6 +307,54 @@ postconditions, subprocess counts, elapsed time and owned-resource cleanup.
 Use distinguishing counterexamples for stale inputs, mutation during reads,
 corruption and isolation. Repeat representative cases before another full run.
 
+### Current Critical Path And Observation Reuse
+
+The latest executed command has a disjoint wall-time decomposition: pytest
+1,569.575 seconds; the enclosing test gate's preparation, reporting and cleanup
+17.410 seconds; work outside that gate 27.276 seconds. The last category includes
+17.455 seconds before the test gate in the measured gate graph and 9.821 seconds
+outside that graph interval. Those 9.821 seconds lack finer instrumentation and
+must not be assigned to a guessed owner. Five dependent gates did not execute.
+
+Concurrent prerequisite timings rank product-boundary at 12.237 seconds,
+architecture-projection at 12.124, source-budget at 10.076 and module-layout at
+8.391; every other executed non-test gate took less than four seconds. Their
+overlap means summing them would inflate total cost. The existing machine
+breakdown retains all 35 gate results, including null timings for blocked gates.
+Even deleting all work outside pytest could not meet 600 seconds: test work
+alone needs a further reduction of more than 61.8 percent, before allowing for
+the required installed acceptance and other gates. Small lint changes are not
+the critical path.
+
+Latest summed case time is 3,110.649 seconds. CLI consumes 1,243.938; lanes
+627.477; adapters 392.697; mutation 279.302; kernel 195.957; admission 185.889;
+CI 90.009; all remaining families 95.380. These are disjoint concurrent case
+sums, not CPU utilization or wall-time phases. Native land, closeout, release,
+merge and history paths therefore remain the primary shared-owner targets.
+
+OpenSpec governance now passes its already verified command and observed
+official status to Commitment compilation. Spec-free compilation no longer
+rereads that status; direct compilation still observes it, and exact-tree
+compilation discards a supplied working-tree status. Malformed supplied status
+is rejected rather than replaced by an optimistic reread. No persistent cache,
+new parser or reusable permission is introduced.
+
+The distinguishing native regression first observed two official command
+resolutions instead of one; the repaired required-spec/spec-free and missing
+context matrix passes. Ninety-eight linked compilation, governance, merge
+selection and continuation tests pass with two workers in 128.93 seconds, with
+owned temporary root removal. Product and test budgets remain 45,326 and 50,000.
+
+The same covered public merge representative reduces Node calls from 40 to 36
+and subprocesses from 811 to 807. Elapsed time is 16.77 seconds before versus
+18.37 afterward: this sample proves less work, not a wall-time improvement.
+Both preserve parents and untracked content and clean their owned roots.
+`throughput-hotspot-merge-observation-reuse.{json,pstats}` retains the new
+observation without overwriting the baseline. Higher-priority remaining
+duplication is the complete governance read in merge admission followed by
+another in staged prewrite, plus repeated invoking source-identity construction.
+Remove duplicate consumers within one observation, never effect-time rechecks.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

@@ -12,6 +12,7 @@
 - [x] Record exact full-run timing and repair optional-timing and retired-reader consumers.
 - [x] Reuse one official command and status observation in current intent compilation.
 - [x] Remove duplicate merge governance observation through exact staged admission.
+- [x] Compare identical native boundary cases at two, four and eight workers without retries.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

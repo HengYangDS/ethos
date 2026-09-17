@@ -256,6 +256,7 @@ def resolve_current_resolution(
     changed: bool = True,
     prewrite_paths: tuple[str, ...] = (),
     intent_tree_ref: str | None = None,
+    require_workspace: bool = False,
 ) -> CurrentResolution:
     """Resolve current authority, official intent, paths, gap, and action once."""
     resolved = _resolve_without_workspace_intent(
@@ -275,7 +276,7 @@ def resolve_current_resolution(
         change=change,
         lifecycle=True,
         changed_paths=observed_paths,
-        require_workspace=False,
+        require_workspace=require_workspace,
     )
     official_verdict = report_verdict(official)
     official_gaps = tuple(string_sequence(official.get("required_gaps")))

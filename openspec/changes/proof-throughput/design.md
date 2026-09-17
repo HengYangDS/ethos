@@ -350,10 +350,47 @@ and subprocesses from 811 to 807. Elapsed time is 16.77 seconds before versus
 18.37 afterward: this sample proves less work, not a wall-time improvement.
 Both preserve parents and untracked content and clean their owned roots.
 `throughput-hotspot-merge-observation-reuse.{json,pstats}` retains the new
-observation without overwriting the baseline. Higher-priority remaining
-duplication is the complete governance read in merge admission followed by
-another in staged prewrite, plus repeated invoking source-identity construction.
-Remove duplicate consumers within one observation, never effect-time rechecks.
+observation without overwriting the baseline. The next repair below removes
+the complete governance read in merge admission followed by another in staged
+prewrite. Repeated invoking source-identity construction remains open. Remove
+duplicate consumers within one observation, never effect-time rechecks.
+
+### Merge Admission Consumes Its Staged Intent Observation
+
+Staged prewrite already resolves official intent together with exact paths,
+runtime, Lease and artifact effects. It now exposes that same official report;
+merge continue consumes it instead of independently reading the workspace first.
+The existing resolver accepts the official reader's workspace requirement,
+preserving merge's stricter requirement without changing ordinary prewrite.
+Scope admission alone is insufficient: a permitted repair can still have an
+invalid official intent report, which merge must reject. The selected Change
+comes from the report, not an occasionally empty material-path attribution.
+Incoming Change preservation and every separate effect recheck remain intact.
+
+A real public preview, continue and repeat previously made four governance
+observations. The regression now requires exactly two: one for preview and one
+for effect admission. The repeated completed effect does not reread intent.
+The 159-case intent, prewrite, merge and recovery matrix passes in 117.54 seconds
+with two workers. Twenty-eight hook and Git-admission consumers pass in 24.84
+seconds. Two targeted follow-ups cover the typed failure projection and shared
+archive-authority fixture. Unknown intent and repair-versus-acceptance verdicts
+remain distinguishable. All owned temporary roots were removed.
+
+The same covered native merge sample now makes 757 subprocess calls and eighteen
+Node calls, versus 807 and thirty-six after the preceding compilation repair.
+Complete official governance observations fall from four to two. Measured
+elapsed time is 12.59 seconds versus 18.37 in the preceding sample and 16.77 in
+the earlier baseline; only the deterministic work-count reduction is attributed
+to this patch. These samples include fixture setup and cleanup, but do not
+establish complete-proof speed or a cold/warm distribution.
+
+`throughput-hotspot-merge-staged-observation.{json,pstats}` retains the result.
+Source identity still builds 24 times, taking 4.18 inclusive seconds in that
+sample. It is now the next measured shared-owner target: expected runtime
+identity and invoking runner identity must retain explicit provenance before
+sharing work. Matching digests alone cannot establish that the same source
+was observed. The current budget is 45,344 product / 49,987 test ELOC. Reusing
+the identical authority fixture removed duplication instead of raising limits.
 
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and

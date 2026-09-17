@@ -198,6 +198,7 @@ def test_prewrite_projects_unknown_openspec_scope_fail_closed(
             commitment=None,
             scope=CurrentScope(()),
             required_gaps=("carrier_unreadable",),
+            openspec={"verdict": "unknown", "required_gaps": ["carrier_unreadable"]},
         ),
     )
 
@@ -211,13 +212,12 @@ def test_prewrite_projects_unknown_openspec_scope_fail_closed(
     gaps = report["required_gaps"]
     assert isinstance(gaps, list)
     assert gaps == ["carrier_unreadable"]
+    assert report["openspec"] == {"verdict": "unknown", "required_gaps": gaps}
 
 
-def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _bind_common(monkeypatch, tmp_path)
-    authority = CurrentAuthority(
+def _current_authority() -> CurrentAuthority:
+    """Use identical valid authority for current intent and bootstrap scope cases."""
+    return CurrentAuthority(
         verdict="pass",
         reason="matched",
         branch="work/example",
@@ -231,6 +231,13 @@ def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
         current_head="a" * 40,
         current_tree="b" * 40,
     )
+
+
+def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _bind_common(monkeypatch, tmp_path)
+    authority = _current_authority()
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
     monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
     monkeypatch.setattr(
@@ -274,25 +281,13 @@ def test_prewrite_passes_exact_requested_paths_to_current_resolution(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _bind_common(monkeypatch, tmp_path)
-    authority = CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch="work/example",
-        actor="agent:test:case:owner",
-        lease={
-            "lane_ref": "work/example",
-            "holder_ref": "agent:test:case:owner",
-            "generation": 1,
-            "expires_at": "2099-01-01T00:00:00+00:00",
-        },
-        current_head="a" * 40,
-        current_tree="b" * 40,
-    )
+    authority = _current_authority()
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
     monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
     observed: list[tuple[str, ...]] = []
 
     def resolve(*_args, **kwargs):
+        assert kwargs["require_workspace"] is True
         requested = tuple(kwargs["prewrite_paths"])
         observed.append(requested)
         return CurrentResolution(
@@ -317,6 +312,7 @@ def test_prewrite_passes_exact_requested_paths_to_current_resolution(
                 },
             ),
             next_action="openspec instructions proposal --change example --json",
+            openspec={"verdict": "block", "change": "example", "required_gaps": ["incomplete"]},
         )
 
     monkeypatch.setattr(prewrite, "resolve_current_resolution", resolve)
@@ -329,6 +325,7 @@ def test_prewrite_passes_exact_requested_paths_to_current_resolution(
         root=tmp_path,
         paths=[tmp_path / path for path in paths],
         editor_root=tmp_path,
+        require_workspace=True,
     )
 
     assert report["verdict"] == "pass"
@@ -336,6 +333,7 @@ def test_prewrite_passes_exact_requested_paths_to_current_resolution(
     scope = report["material_scope"]
     assert isinstance(scope, dict)
     assert scope["state"] == "official_change_bootstrap"
+    assert report["openspec"]["verdict"] == "block"  # Repair admission is not valid intent.
 
 
 def test_prewrite_reuses_exact_archive_generation_binding(
@@ -343,21 +341,7 @@ def test_prewrite_reuses_exact_archive_generation_binding(
 ) -> None:
     _bind_common(monkeypatch, tmp_path)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    lease: dict[str, object] = {
-        "lane_ref": "work/example",
-        "holder_ref": "agent:test:case:owner",
-        "generation": 1,
-        "expires_at": "2099-01-01T00:00:00+00:00",
-    }
-    authority = CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch="work/example",
-        actor="agent:test:case:owner",
-        lease=lease,
-        current_head="a" * 40,
-        current_tree="b" * 40,
-    )
+    authority = _current_authority()
     monkeypatch.setattr(
         prewrite,
         "observe_current_authority",

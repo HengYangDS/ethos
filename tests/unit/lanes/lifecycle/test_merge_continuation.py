@@ -8,10 +8,12 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from filelock import FileLock
 
+import ethos.adapters.admission.current.resolution as resolution_owner
 import ethos.adapters.mutation.lane_lifecycle.merge as merge_admission
 import ethos.adapters.repo.merge.effect as merge_effect
 import ethos.adapters.repo.runtime.binding as runtime_binding_owner
@@ -65,12 +67,15 @@ def test_public_merge_abort_preserves_conflict_edits_and_native_state(tmp_path):
     assert again["data"]["state"] == "merge_aborted"
 
 
-def test_public_merge_continue_preserves_both_parents_and_untracked_work(tmp_path):
+def test_public_merge_continue_preserves_both_parents_and_untracked_work(tmp_path, monkeypatch):
     work = native_merge_fixture(tmp_path)
     ours, theirs = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "MERGE_HEAD")
     (work / "README.md").write_text("# Accepted combined resolution\n")
     git(work, "add", "README.md")
     (work / "personal.txt").write_text("not part of commit\n")
+    official = Mock(wraps=merge_admission.openspec_governance_report)
+    monkeypatch.setattr(merge_admission, "openspec_governance_report", official)
+    monkeypatch.setattr(resolution_owner, "openspec_governance_report", official)
     preview = _preview(work, "continue")
     assert preview["verdict"] == "pass", preview
     result = _apply(work, preview)
@@ -81,6 +86,7 @@ def test_public_merge_continue_preserves_both_parents_and_untracked_work(tmp_pat
     assert git(work, "show", "HEAD:README.md") == "# Accepted combined resolution"
     assert (work / "personal.txt").read_text() == "not part of commit\n"
     assert _apply(work, preview)["verdict"] == "pass"
+    assert official.call_count == 2  # Preview and effect each observe once; replay has no effect.
 
 
 def test_public_merge_preparation_is_explicit_and_conflicts_remain_recoverable(tmp_path):

@@ -577,6 +577,38 @@ same correctness bar and distinguish worker scheduling from actual subprocess
 fan-out. Neither reduced call counts nor a larger worker setting proves the
 end-to-end target.
 
+### Command Interruption Boundary
+
+The existing process owner now creates one POSIX process group per synchronous
+command and terminates that group when communication raises, including timeout
+and caller cancellation. It waits for its direct child and preserves the original
+exception, timeout output and native checked-exit behavior. No extra supervisor
+process, retry or timeout increase is introduced. Windows execution retains its
+existing native behavior; Windows Job Object containment, supervisor-loss recovery
+and deliberately detached descendants remain unimplemented boundaries.
+
+All four native socket-readiness counterexamples failed before the repair:
+timeout/cancellation crossed with inherited/closed output pipes left a descendant
+connection open. The first repaired run exposed a test-cleanup mistake: shutdown
+of an already-disconnected socket masked successful EOF observation. Closing the
+owned socket fixes that test cleanup without changing its assertion. The final
+173-case process, Git, runtime-source and hook consumer run passes in 46.21 seconds,
+including original timeout-output preservation, text/byte stdin, environment
+filtering and nonzero-exit evidence. Its owned temporary root is removed.
+
+The file-reference matrix now declares its 34 named payload cases once instead
+of repeating their names in a separate parametrization. All prior payload cases
+remain; native environment cases replace duplicated mocks. Product/test ELOC
+are 45,399/50,000 with unchanged limits. The native two/four/eight worker acceptance
+and complete proof are not implied by this focused result.
+
+The alternating before/after/after/before sample executes sixty native Git
+version commands per variant. Elapsed seconds are 0.288/0.270/0.303/0.319 with
+identical outputs. This warm microbenchmark shows no obvious startup penalty;
+it does not establish complete-proof improvement. Exact source hash and timings
+are in `throughput-process-group-overhead.json`. The original RED, failed test
+cleanup, consumer GREEN and quality results remain in the existing evidence root.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

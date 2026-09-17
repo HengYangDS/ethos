@@ -11,7 +11,9 @@ from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
 from dataclasses import dataclass
+from dataclasses import replace
 from graphlib import TopologicalSorter
+from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
@@ -40,6 +42,8 @@ class ActionRunResult:
     stdout: str = ""
     stderr: str = ""
     diagnostics: tuple[dict[str, Any], ...] = ()
+    started_after_seconds: float | None = None
+    duration_seconds: float | None = None
 
 
 def classify_action_result(
@@ -175,6 +179,7 @@ def run_gate_graph(
     results: dict[str, ActionRunResult] = {}
     running = {}
     limit = capacity if parallel else 1
+    epoch = monotonic()
 
     with ThreadPoolExecutor(max_workers=limit) as executor:
         while graph.is_active():
@@ -187,12 +192,14 @@ def run_gate_graph(
             for node in selected:
                 ready.remove(node.id)
                 if not parallel or node.id in writers or isinstance(runner, DryRunRunner):
-                    results[node.id] = _run_ready_gate(runner, node, gates[node.id], results, root)
+                    results[node.id] = _run_ready_gate(
+                        runner, node, gates[node.id], results, root, epoch
+                    )
                     graph.done(node.id)
                 else:
                     running[
                         executor.submit(
-                            _run_ready_gate, runner, node, gates[node.id], results, root
+                            _run_ready_gate, runner, node, gates[node.id], results, root, epoch
                         )
                     ] = node.id
             if selected:
@@ -212,6 +219,7 @@ def _run_ready_gate(
     gate: Gate,
     results: Mapping[str, ActionRunResult],
     root: Path,
+    epoch: float,
 ) -> ActionRunResult:
     """Execute only when every settled prerequisite carries successful evidence."""
     gaps = [
@@ -227,7 +235,15 @@ def _run_ready_gate(
             None,
             diagnostics=({"kind": "gate_dependency", "required_gaps": gaps},),
         )
-    return runner.run(node, gate, root=root)
+    started = monotonic()
+    result = runner.run(node, gate, root=root)
+    return (
+        result
+        if isinstance(runner, DryRunRunner)
+        else replace(
+            result, started_after_seconds=started - epoch, duration_seconds=monotonic() - started
+        )
+    )
 
 
 def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:

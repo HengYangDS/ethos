@@ -118,6 +118,8 @@ def _host_gate_observation(
                 "exit_code": result.exit_code,
                 "verdict": result.verdict,
                 "diagnostics": list(result.diagnostics),
+                "started_after_seconds": result.started_after_seconds,
+                "duration_seconds": result.duration_seconds,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
             }
@@ -235,6 +237,8 @@ def run_plan_checks(
                 "evidence_class": gate.evidence_class,
                 "trust_bearing": gate.trust_bearing,
                 "diagnostics": list(run_result.diagnostics),
+                "started_after_seconds": run_result.started_after_seconds,
+                "duration_seconds": run_result.duration_seconds,
             }
         )
     if execute:
@@ -262,6 +266,8 @@ def _check_summaries(checks: list[dict[str, object]]) -> list[dict[str, object]]
             "evidence_class": check["evidence_class"],
             "trust_bearing": check["trust_bearing"],
             "diagnostic_count": len(cast("list[object]", check["diagnostics"])),
+            "started_after_seconds": check["started_after_seconds"],
+            "duration_seconds": check["duration_seconds"],
         }
         for check in checks
     ]

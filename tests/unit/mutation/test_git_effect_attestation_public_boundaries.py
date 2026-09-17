@@ -4,6 +4,7 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -16,7 +17,6 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
 from tests.support.git_effect import ISSUER as EFFECT_ISSUER
 from tests.support.git_effect import fixture
@@ -90,12 +90,6 @@ def _record(
     )
 
 
-def _reissue(value: Attestation, **updates: object) -> Attestation:
-    payload = value.model_dump(mode="python", exclude={"id", *updates})
-    payload.update(updates)
-    return Attestation.issue(payload)
-
-
 def test_git_effect_attestation_binds_exact_plan_effect_and_observations(tmp_path: Path) -> None:
     repo, effect, plan, before, after = _case(tmp_path)
     record = _record(effect, plan, before, after)
@@ -150,7 +144,7 @@ def test_git_effect_attestation_rejects_invalid_observation(tmp_path, monkeypatc
     if mode in {"missing_time", "invalid_time"}:
         body = dict(record.payload.body)
         body["observed_at"] = {} if mode == "missing_time" else {"after": "invalid"}
-        record = _reissue(record, payload={"kind": record.payload.kind, "body": body})
+        record = reissue_attestation(record, payload={"kind": record.payload.kind, "body": body})
     elif mode == "effect":
         effect = effect.model_copy(update={"assertions": {"refs/heads/other": before["head"]}})
     elif mode == "postobserve":
@@ -176,7 +170,9 @@ def test_attestation_parsing_rejects_malformed_projection(tmp_path, monkeypatch,
     _repo, effect, plan, before, after = _case(tmp_path)
     record = _record(effect, plan, before, after)
     if mode == "plan":
-        record = _reissue(record, payload={"kind": record.payload.kind, "body": {"plan": {}}})
+        record = reissue_attestation(
+            record, payload={"kind": record.payload.kind, "body": {"plan": {}}}
+        )
     else:
         monkeypatch.setattr(attest, "mutable_json", lambda _value: ())
     with pytest.raises(
@@ -240,9 +236,9 @@ def test_accepted_closeout_selects_only_valid_exact_candidate_effect(tmp_path, m
     )
     record = _record(effect, plan, before, after)
     if mode == "predicate":
-        record = _reissue(record, predicate="proof:execution")
+        record = reissue_attestation(record, predicate="proof:execution")
     elif mode in {"plan", "invalid"}:
-        record = _reissue(
+        record = reissue_attestation(
             record,
             payload={
                 "kind": record.payload.kind,
@@ -264,6 +260,9 @@ def test_accepted_closeout_selects_only_valid_exact_candidate_effect(tmp_path, m
     else:
         record_attestations(repo, (record,))
 
+    validated = Mock(wraps=attest.validate)
+    monkeypatch.setattr(attest, "validate", validated)
+
     def select():
         return attest.accepted_closeout_attestation(
             repo,
@@ -280,6 +279,8 @@ def test_accepted_closeout_selects_only_valid_exact_candidate_effect(tmp_path, m
             select()
     else:
         assert select() == ((plan, record) if mode == "exact" else None)
+    if mode in {"predicate", "plan", "transition", "ref", "head", "assertion"}:
+        validated.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -291,14 +292,14 @@ def test_recovery_selection_binds_valid_current_effect(tmp_path, monkeypatch, mo
     desired = next(iter(effect.updates.values())).desired
     git(repo, "update-ref", "refs/heads/dev", desired, before["head"])
     if mode == "invalid":
-        record = _reissue(record, facts_digest="e" * 64)
+        record = reissue_attestation(record, facts_digest="e" * 64)
 
     def read(_root):
         if mode == "store":
             message = "unreadable store"
             raise ValueError(message)
         return {}, (record, record) if mode == "ambiguous" else (
-            _reissue(record, predicate="proof:other"),
+            reissue_attestation(record, predicate="proof:other"),
             record,
         )
 
@@ -334,7 +335,7 @@ def test_attestation_record_store_preserves_exact_identity(tmp_path, monkeypatch
         assert attest.records(repo, plan, record) == attest.records(repo, plan) == (record,)
         return
     if mode == "collision":
-        record_attestations(repo, (_reissue(record, verifier="agent:test:other"),))
+        record_attestations(repo, (reissue_attestation(record, verifier="agent:test:other"),))
     else:
 
         def refuse(*_args):

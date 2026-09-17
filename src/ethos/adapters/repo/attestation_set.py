@@ -31,16 +31,6 @@ def _attestation_member_path(identity: str) -> str:
 
 
 def _selected_root(repo: Path) -> str:
-    repository = run_git(
-        repo,
-        "rev-parse",
-        "--git-dir",
-        check=False,
-        observation=True,
-    )
-    if repository.returncode != 0:
-        message = "attestation_set_repository_invalid"
-        raise ValueError(message)
     symbolic = run_git(
         repo,
         "symbolic-ref",
@@ -53,20 +43,12 @@ def _selected_root(repo: Path) -> str:
         message = "attestation_set_ref_symbolic"
         raise ValueError(message)
     if symbolic.returncode != 1:
-        message = "attestation_set_ref_invalid"
-        raise ValueError(message)
-    existence = run_git(
-        repo,
-        "show-ref",
-        "--exists",
-        ATTESTATION_SET_REF,
-        check=False,
-        observation=True,
-    )
-    if existence.returncode == 2:
-        return ""
-    if existence.returncode != 0:
-        message = "attestation_set_ref_invalid"
+        repository = run_git(repo, "rev-parse", "--git-dir", check=False, observation=True)
+        message = (
+            "attestation_set_repository_invalid"
+            if repository.returncode
+            else "attestation_set_ref_invalid"
+        )
         raise ValueError(message)
     observed = run_git(
         repo,
@@ -79,6 +61,11 @@ def _selected_root(repo: Path) -> str:
     )
     if observed.returncode == 0:
         return observed.stdout.strip()
+    existence = run_git(
+        repo, "show-ref", "--exists", ATTESTATION_SET_REF, check=False, observation=True
+    )
+    if existence.returncode == 2:
+        return ""
     message = "attestation_set_ref_invalid"
     raise ValueError(message)
 

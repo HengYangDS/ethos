@@ -80,8 +80,17 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
         ):
             raise TypeError(message)
         normalized_diagnostics = [dict(item) for item in diagnostics if isinstance(item, Mapping)]
+        timing = {
+            name: raw[name] for name in ("started_after_seconds", "duration_seconds") if name in raw
+        }
+        if any(
+            value is not None and (type(value) not in (int, float) or not 0 <= value < float("inf"))
+            for value in timing.values()
+        ):
+            raise ValueError(message)
         normalized.append(
             {
+                **timing,
                 "action_id": action_id,
                 "command": list(canonical_gate_command(tuple(str(token) for token in command))),
                 "exit_code": exit_code,

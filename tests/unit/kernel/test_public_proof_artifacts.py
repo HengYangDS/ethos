@@ -14,42 +14,39 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.proof import issue_conformant_proof
+from tests.support.semantic import reissue_attestation
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.contracts.semantic import Attestation
-
-
-def _reissue(record: Attestation, **updates: object) -> Attestation:
-    body = updates.pop("body", None)
-    payload = record.model_dump(mode="python", exclude={"id"})
-    if body is not None:
-        payload["payload"] = {"kind": record.payload.kind, "body": body}
-    return type(record).issue(payload | updates)
-
 
 @pytest.mark.parametrize(
-    ("shape", "error"),
+    ("checks", "error"),
     [
-        ("none", "proof_attestation_checks_required"),
-        ("empty", "proof_attestation_checks_required"),
-        ("item", "proof_attestation_check_invalid"),
-        ("diagnostics", "proof_attestation_check_invalid:gate"),
-        ("duplicate", "proof_attestation_check_duplicate"),
+        (None, "proof_attestation_checks_required"),
+        ([], "proof_attestation_checks_required"),
+        (["invalid"], "proof_attestation_check_invalid"),
     ],
 )
-def test_proof_check_envelope_fails_closed(shape, error):
-    check = {"action_id": "gate", "command": ["true"], "verdict": "pass", "exit_code": 0}
-    checks = {
-        "none": None,
-        "empty": [],
-        "item": ["invalid"],
-        "diagnostics": [check | {"diagnostics": [{1: "invalid"}]}],
-        "duplicate": [check, check],
-    }
+def test_proof_check_envelope_fails_closed(checks, error):
     with pytest.raises((TypeError, ValueError), match=error):
-        proof_artifacts.normalize_checks(checks[shape], allow_empty=False)
+        proof_artifacts.normalize_checks(checks, allow_empty=False)
+
+
+@pytest.mark.parametrize("seconds", [None, 0.0, 1.25, -1, True, float("inf"), "slow"])
+def test_proof_timing_survives_normalization_without_admitting_invalid_values(seconds):
+    check = {"action_id": "gate", "command": ["true"], "verdict": "pass", "exit_code": 0}
+    timing = {"started_after_seconds": seconds, "duration_seconds": seconds}
+    if seconds is None or (type(seconds) is float and 0 <= seconds < float("inf")):
+        normalized = proof_artifacts.normalize_checks((check | timing,))[0]
+        assert {name: normalized[name] for name in timing} == timing
+    else:
+        with pytest.raises(ValueError, match="proof_attestation_check_invalid"):
+            proof_artifacts.normalize_checks((check | timing,))
+    with pytest.raises(TypeError, match="proof_attestation_check_invalid:gate"):
+        proof_artifacts.normalize_checks((check | {"diagnostics": [{1: "invalid"}]},))
+    with pytest.raises(ValueError, match="proof_attestation_check_duplicate"):
+        proof_artifacts.normalize_checks((check, check))
 
 
 @pytest.mark.parametrize(
@@ -79,7 +76,7 @@ def test_public_proof_artifact_binding_fails_closed(
         path.unlink()
     elif mutation == "size":
         descriptor["size_bytes"] = path.stat().st_size + 1
-        forged = _reissue(record, body=record.payload.body | {"artifact": descriptor})
+        forged = reissue_attestation(record, body=record.payload.body | {"artifact": descriptor})
     else:
         document = json.loads(path.read_text())
         payload = (
@@ -90,7 +87,7 @@ def test_public_proof_artifact_binding_fails_closed(
             path=f"artifacts/{digest}.json", sha256=f"sha256:{digest}", size_bytes=len(payload)
         )
         (store / descriptor["path"]).write_bytes(payload)
-        forged = _reissue(
+        forged = reissue_attestation(
             record,
             body=record.payload.body | {"artifact": descriptor},
             evidence_refs=(f"sha256:{digest}",),
@@ -119,5 +116,5 @@ def test_poisoned_local_attestation_copy_cannot_block_selected_set(
     assert poison.read_text(encoding="utf-8") == "{}"
     for updates in ({"predicate": "experiment:observed"}, {"subject": "repository:other"}):
         with pytest.raises(ValueError, match="proof_attestation_binding_missing"):
-            persist_proof_attestation(candidate, _reissue(record, **updates))
+            persist_proof_attestation(candidate, reissue_attestation(record, **updates))
     assert read_attestation_set(candidate)[1] == (record,)

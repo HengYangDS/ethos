@@ -61,6 +61,7 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
     }
     assert payload["data"]["host_probe"]["satisfies_repository_proof"] is False
     assert payload["data"]["checks"][0]["action_id"] == "python-types"
+    assert payload["data"]["checks"][0]["duration_seconds"] >= 0
     if verdict == "block":
         report = json.loads(payload["data"]["checks"][0]["stdout"])
         assert report["providers"][0]["report"]["stderr"] == "exact-provider-error"

@@ -448,12 +448,15 @@ def test_closeout_projection_does_not_collect_unrelated_workspace_authority(
 
     if projection == "candidate":
         monkeypatch.setattr(land_commands, "workspace_status", reject_full_observation)
+        monkeypatch.setattr(workspace, "workspace_status_observation", reject_full_observation)
         initial = _closeout(repo)
         assert initial["data"]["closeout_resolution"]["coordinates"]["candidate_head"] == proposed
         later = commit_fixture_file(candidate, "later.txt", "later\n", "advance candidate")
         changed = _closeout(repo)
         assert changed["data"]["closeout_resolution"]["coordinates"]["candidate_head"] == later
         assert git(repo, "rev-parse", "HEAD") == accepted
+        (candidate / "untracked.txt").touch()
+        assert "candidate_worktree_dirty" in _closeout(repo)["required_gaps"]
         return
     monkeypatch.setattr(workspace, "workspace_status_observation", reject_full_observation)
     if projection == "command":

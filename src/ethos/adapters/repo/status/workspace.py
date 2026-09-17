@@ -136,6 +136,18 @@ def workspace_status(
     )[0]
 
 
+def integration_coordinates(root: Path, *, policy: BranchRolePolicy) -> dict[str, object]:
+    """Observe integration refs and linked paths without unrelated runtime or Lease reads."""
+    branch = current_branch(root) or "detached"
+    worktrees = worktree_records(root, current_path=root.resolve(), policy=policy)
+    return {
+        "branch": branch,
+        "role": policy.role_for_branch(branch),
+        "candidate": _candidate_status(root, worktrees, policy=policy),
+        "worktrees": worktrees,
+    }
+
+
 def workspace_status_observation(
     root: Path,
     *,
@@ -156,14 +168,11 @@ def workspace_status_observation(
         )
     provenance = dirty_provenance(root)
     paths = tuple(str(item["path"]) for item in cast("list[dict[str, str]]", provenance["entries"]))
-    branch, head, policy = (
-        current_branch(root) or "detached",
-        _safe_ref(root, "HEAD"),
-        load_branch_role_policy(repo),
-    )
-    role = policy.role_for_branch(branch)
-    worktrees = worktree_records(root, current_path=repo, policy=policy)
-    candidate = _candidate_status(root, worktrees, policy=policy)
+    head, policy = _safe_ref(root, "HEAD"), load_branch_role_policy(repo)
+    topology = integration_coordinates(repo, policy=policy)
+    branch, role = str(topology["branch"]), str(topology["role"])
+    worktrees = cast("list[dict[str, str]]", topology["worktrees"])
+    candidate = cast("dict[str, object]", topology["candidate"])
     leases = leases_by_branch(repo)
     authority = resolve_current_authority(
         root=repo,

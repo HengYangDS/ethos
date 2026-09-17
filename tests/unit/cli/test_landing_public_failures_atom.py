@@ -44,8 +44,8 @@ def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tu
     )
     monkeypatch.setattr(
         landing,
-        "workspace_status",
-        lambda *_args, **_kwargs: {"branch": "work/example"},
+        "current_branch",
+        lambda *_args: "work/example",
     )
     monkeypatch.setattr(landing, "leases_by_branch", lambda _root: {"work/example": {}})
     monkeypatch.setattr(
@@ -218,7 +218,7 @@ def test_candidate_to_accepted_stops_at_decision_and_reobservation_drift(
     )
     monkeypatch.setattr(
         landing,
-        "workspace_status",
+        "integration_coordinates",
         lambda *_args, **_kwargs: {"candidate": {"head": "changed"}},
     )
     report = landing.apply_candidate_to_accepted(

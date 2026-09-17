@@ -109,6 +109,32 @@ consolidation: 119 fewer calls, or 7.4 percent. Wall times were 36.36, 17.13 and
 wall-time differences to the patch or extrapolating them to the full suite.
 Both updated cases passed and their owned temporary roots were removed.
 
+Integration observers now consume the existing Git topology and dirty-state
+owners directly instead of collecting a complete workspace report to discard
+its runtime and Lease observations. The public workspace report consumes the
+same extracted topology owner. Closeout still reads fresh role, dirty state,
+candidate refs, ancestry and proof; mutation and hooks still enforce exact
+effect admission. A public closeout counterexample rejects any full workspace
+read and checks subsequent candidate movement and untracked content.
+
+The same release profile now uses 1,362 subprocess calls, ten source-identity
+constructions and one complete workspace observation, versus 1,491, twenty and
+six respectively before this repair. The sample passed in 15.47 seconds;
+only the reduced work counts are attributed to the change. Seventy-two related
+land, closeout, release, status and failure-boundary tests passed in 583.80
+seconds with one worker. This serial regression is not the two-worker throughput
+acceptance. Its owned temporary root was removed.
+
+Index-copy experiments are rejected for implementation: after establishing
+non-racy file timestamps, changing `.gitattributes` let a copied/reset index
+retain CRLF bytes while fresh source observation correctly normalized LF.
+Clearing assume-unchanged and skip-worktree alone is therefore insufficient.
+Native index-output also locks the live index and requires same-filesystem
+rename, unlike the current isolated observer. No index cache, external symlink,
+filesystem-monitor weakening or permissive source-currentness fallback is
+introduced. Reduce redundant consumers before optimizing the remaining exact
+observation algorithm.
+
 ## Validation
 
 Compare the same workload before and after each repair: outcome, source/ref

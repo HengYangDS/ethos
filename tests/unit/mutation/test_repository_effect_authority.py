@@ -51,8 +51,8 @@ def test_candidate_plan_compiles_active_openspec_acceptance(
     monkeypatch.setattr(landing, "proof_attestation", lambda *_args: _Proof())
     monkeypatch.setattr(
         landing,
-        "workspace_status",
-        lambda *_args, **_kwargs: {"branch": "work/change"},
+        "current_branch",
+        lambda *_args: "work/change",
     )
     monkeypatch.setattr(landing, "leases_by_branch", lambda _root: {"work/change": {}})
 

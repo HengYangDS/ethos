@@ -14,16 +14,17 @@ from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.commitment import load_openspec_commitment
-from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
 from ethos.adapters.repo.git import committed_file_text
+from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import BranchRolePolicy
@@ -198,7 +199,7 @@ def _candidate_plan(root: Path, *, status=None):
             ),
             None,
         )
-    branch = str(workspace_status(root, include_foreign_path_scope=False)["branch"])
+    branch = current_branch(root)
     lease = leases_by_branch(root).get(branch, {})
     authority = load_openspec_commitment(root, tree_ref=current_head)
     if proof.commitment_digest != authority.digest():
@@ -371,7 +372,7 @@ def apply_candidate_to_accepted(
             "required_gaps": list(decision.required_gaps),
             "remediation": remediation.remediation_for_gaps(decision.required_gaps),
         }
-    status = workspace_status(root)
+    status = integration_coordinates(root, policy=policy)
     candidate = cast("dict[str, object]", status["candidate"])
     observed_candidate_head = str(candidate["head"])
     if candidate_head is not None and observed_candidate_head != candidate_head:
@@ -387,7 +388,7 @@ def apply_candidate_to_accepted(
     if (
         candidate_head == current_head
         and policy.release_mirror != RELEASE_MIRROR_ACCEPTED_FF
-        and not workspace_status(root)["dirty"]
+        and not has_changed_paths(root)
     ):
         return {
             **accepted.accepted_payload(policy, current_head),
@@ -431,8 +432,7 @@ def _default_accepted_transition_policy(root: Path, head: str) -> BranchRolePoli
 def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
-    supplied_status = status is not None
-    status = status if status is not None else workspace_status(root)
+    status = status if status is not None else integration_coordinates(root, policy=policy)
     candidate = cast("dict[str, object]", status["candidate"])
 
     def fail(gaps: list[str], **extra: object) -> dict[str, object]:
@@ -443,12 +443,7 @@ def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:
     if not candidate["worktree_exists"]:
         return fail(["candidate_worktree_missing"])
     candidate_path = Path(str(candidate["worktree_path"]))
-    candidate_dirty = (
-        dirty_provenance(candidate_path)["dirty"]
-        if supplied_status
-        else workspace_status(candidate_path)["dirty"]
-    )
-    if candidate_dirty:
+    if has_changed_paths(candidate_path):
         return fail(
             ["candidate_worktree_dirty"],
             path=candidate_path.as_posix(),

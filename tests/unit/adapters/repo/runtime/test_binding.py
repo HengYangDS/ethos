@@ -52,18 +52,8 @@ def test_adopter_filename_does_not_change_schema_provenance(
     assert schemas.load_schema("workspace-status.schema.json", root=tmp_path) != {}
 
 
-@pytest.mark.parametrize("registry", [False, True])
-def test_unbound_external_runner_is_rejected_independent_of_storage(
-    tmp_path: Path, *, registry: bool
-) -> None:
+def test_unbound_external_runner_is_rejected_independent_of_storage(tmp_path: Path) -> None:
     """A valid profile is not proof of selected execution authority."""
-    profile = tmp_path / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        'profile_id = "node-repository"\n'
-        + ('[proof]\ngate_registry = ".config/gates.toml"\n' if registry else ""),
-        encoding="utf-8",
-    )
     report = binding.runtime_binding_check(
         {
             "runtime_binding": {

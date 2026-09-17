@@ -8,6 +8,7 @@ from datetime import UTC
 from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -38,7 +39,7 @@ from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import write_active_commitment
 from tests.support.literal_cases import literal_case
 from tests.support.proof import assert_selected_proof
-from tests.support.proof import conformant_proof_check
+from tests.support.proof import conformant_proof_checks
 from tests.support.proof import current_proof_plan
 from tests.support.proof import issue_conformant_proof
 from tests.support.proof import proof_repository
@@ -265,7 +266,7 @@ def test_unknown_proof_payload_kind_cannot_authorize(tmp_path: Path) -> None:
 def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_path: Path) -> None:
     repo, head = proof_repository(tmp_path / "repo")
     plan = current_proof_plan(repo, expected_head=head)
-    checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes)
+    checks = conformant_proof_checks(plan)
     valid = _issue(repo, head, plan=plan, checks=checks)
 
     plan_payload = plan.model_dump(mode="json")
@@ -363,10 +364,13 @@ def test_proof_issuance_reuses_the_plan_commitment_without_rereading_exact_head(
     head = commit_fixture(repo, "freeze proof intent")
     plan = current_proof_plan(repo, expected_head=head)
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
+    observed = Mock(wraps=proof_module.resolve_gate_policy)
+    monkeypatch.setattr(proof_module, "resolve_gate_policy", observed)
 
     attestation = issue_conformant_proof(repo, head, plan=plan)
 
     assert attestation.commitment_digest == plan.inputs.commitment
+    assert observed.call_count == 1
 
 
 @pytest.mark.parametrize(
@@ -388,9 +392,7 @@ def test_proof_issuance_payload_is_a_closed_contract(tmp_path, updates, error):
     plan = current_proof_plan(repo, expected_head=head)
     payload = {
         "plan": plan,
-        "checks": tuple(
-            conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes
-        ),
+        "checks": conformant_proof_checks(plan),
         "verdict": "pass",
         "issuer": "agent:test:case:proof",
         "scope": "repository",
@@ -403,7 +405,7 @@ def test_proof_issuance_payload_is_a_closed_contract(tmp_path, updates, error):
 def test_proof_issuance_rejects_nonadmitted_plan_and_result_drift(tmp_path: Path) -> None:
     repo, head = proof_repository(tmp_path / "repo")
     admitted = current_proof_plan(repo, expected_head=head)
-    checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in admitted.nodes)
+    checks = conformant_proof_checks(admitted)
     blocked = compile_plan(
         Commitment.model_validate(dict(admitted.commitment)),
         Facts.model_validate(admitted.facts | {"observed_at": datetime.now(UTC)}),

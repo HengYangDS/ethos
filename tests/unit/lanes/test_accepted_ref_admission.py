@@ -171,10 +171,7 @@ class State:
             policy=dict(base.policy),
             prior_attestations=dict(base.prior_attestations),
         )
-        checks = tuple(
-            proof_fixture.conformant_proof_check(gate, self.repo, tree_ref=head)
-            for gate in proof.resolve_gate_policy(self.repo, tree_ref=head).gate_ids
-        )
+        checks = proof_fixture.conformant_proof_checks(plan)
         proof.persist_proof_attestation(
             self.repo,
             proof.issue_proof_attestation(

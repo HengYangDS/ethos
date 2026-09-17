@@ -17,6 +17,7 @@ from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from tests.support.governed_repository import prepared_work_lane
+from tests.support.proof import seed_executed_proof
 
 
 def test_generic_work_lane_fixture_uses_a_minimal_valid_hook_runtime(tmp_path, monkeypatch):
@@ -45,6 +46,12 @@ def test_generic_work_lane_fixture_uses_a_minimal_valid_hook_runtime(tmp_path, m
     assert all("/ethos/runtime/" not in str(call.args[0][0]) for call in starts.call_args_list)
     assert len(files) <= 6
     assert payload_bytes < 1_000_000
+    config = (common / "config").read_bytes()
+    work_config = Path(fixtures.git(fixture.worktree, "rev-parse", "--git-path", "config.worktree"))
+    assert not work_config.exists()
+    seed_executed_proof(fixture.worktree, fixtures.git(fixture.worktree, "rev-parse", "HEAD"))
+    assert (common / "config").read_bytes() == config
+    assert not work_config.exists()
     sibling = prepared_work_lane(tmp_path / "sibling", holder_ref="agent:test:case:sibling")
     assert git_common_dir(sibling.worktree) != git_common_dir(fixture.worktree)
     (fixture.worktree / "README.md").write_text("unique source work\n")

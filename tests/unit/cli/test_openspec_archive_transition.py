@@ -45,6 +45,50 @@ def _avoid_unrelated_runtime_materialization(monkeypatch: pytest.MonkeyPatch) ->
     )
 
 
+def test_public_prewrite_repairs_canonical_output_after_native_archive(monkeypatch, tmp_path):
+    """An archived Change remains a repair source, not reusable write permission."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    root = lifecycle.worktree
+    delta = lifecycle.active / "specs/contracts/spec.md"
+    new_delta = lifecycle.active / "specs/new-capability/spec.md"
+    new_delta.parent.mkdir()
+    delta.rename(new_delta)
+    commit_fixture(root, "declare a new canonical capability")
+    monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
+    seed_executed_proof(root, lifecycle.head)
+    archived = lifecycle.apply_archive()
+    assert archived["state"] == "repair_required"
+    assert archived["effect_state"] == "committed"
+    path = "openspec/specs/new-capability/spec.md"
+    assert "TBD" in (root / path).read_text(encoding="utf-8")
+    assert not lifecycle.active.exists()
+    arguments = (path, "--editor-root", str(root), "--require-editor-root", "--json")
+    for command in (("lane", "prewrite"), ("hook", "admit", "pre-tool")):
+        result = run_ethos(*command, *arguments, cwd=root)
+        assert result["verdict"] == "pass", result
+        admission = result["data"] if command[0] == "lane" else result["data"]["admission"]
+        assert admission["material_scope"]["authorized_paths"] == [path]
+    mixed = run_ethos_blocked("lane", "prewrite", "README.md", *arguments, cwd=root)
+    assert mixed["verdict"] == "block"
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
+    stale = run_ethos_blocked("lane", "prewrite", *arguments, cwd=root)
+    assert any("lease_holder_mismatch" in gap for gap in stale["required_gaps"])
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    canonical = root / path
+    canonical.write_text(
+        canonical.read_text(encoding="utf-8").replace(
+            "TBD - created by archiving change fixture-change. Update Purpose after archive.",
+            "Exercise a newly archived capability through exact canonical repair admission.",
+        ),
+        encoding="utf-8",
+    )
+    assert "TBD" not in canonical.read_text(encoding="utf-8")
+    commit_fixture(root, "repair canonical purpose")
+    repaired = run_ethos("lane", "prewrite", *arguments, cwd=root)
+    assert repaired["verdict"] == "pass"
+    assert repaired["data"]["material_scope"]["state"] == "archive_attested"
+
+
 def _stage_exact_archive(lifecycle: OpenSpecLifecycle) -> str:
     archive_path = "openspec/changes/archive/2026-08-04-fixture-change"
     target = lifecycle.worktree / archive_path

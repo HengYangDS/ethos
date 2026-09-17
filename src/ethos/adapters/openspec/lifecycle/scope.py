@@ -107,12 +107,15 @@ def official_validation_repair_scope_report(
     official: dict[str, object],
     official_artifact_paths: tuple[str, ...],
     requested_paths: tuple[str, ...],
+    archived: tuple[Commitment, dict[str, object]] | None = None,
 ) -> dict[str, object]:
     """Admit exact official files named by current strict validation failures."""
     paths = tuple(dict.fromkeys(filter(None, requested_paths)))
     if not paths or not _official_observation_available(official):
         return {}
-    change = str(official.get("change") or "")
+    change = str(official.get("change") or "") or (
+        archived[0].id.removeprefix("change:") if archived else ""
+    )
     if logical_change_identifier_issue(change):
         return {}
     state = "canonical_spec_repair"
@@ -121,6 +124,8 @@ def official_validation_repair_scope_report(
         if _canonical_spec_repair_context_valid(official, change=change)
         else ()
     )
+    if not repair_paths and archived is not None:
+        repair_paths = _archived_canonical_repair_paths(root, official, change, archived)
     if not repair_paths:
         state = "official_change_validation_repair"
         repair_paths = _active_change_validation_repair_paths(
@@ -138,7 +143,11 @@ def official_validation_repair_scope_report(
         paths,
         (),
         paths,
-        changes=[{"name": change, "path": active_change_root(change)}],
+        changes=[
+            {"name": change, "source": "archive_commit"}
+            if archived is not None
+            else {"name": change, "path": active_change_root(change)}
+        ],
         covered=[{"path": path, "changes": [change]} for path in covered],
         uncovered=list(uncovered),
         state=state,
@@ -147,6 +156,40 @@ def official_validation_repair_scope_report(
     report["authorized_paths"] = list(repair_paths)
     report["next_action"] = "openspec validate --all --strict --json"
     return report
+
+
+def _archived_canonical_repair_paths(
+    root: Path,
+    official: dict[str, object],
+    change: str,
+    archived: tuple[Commitment, dict[str, object]],
+) -> tuple[str, ...]:
+    """Bind structured canonical failures to the verified archive's exact outputs."""
+    commitment, source = archived
+    gaps = string_sequence(official.get("required_gaps"))
+    paths = _canonical_spec_repair_paths(official)
+    commands = official.get("commands")
+    validate = commands.get("validate") if isinstance(commands, dict) else None
+    if (
+        commitment.id != f"change:{change}"
+        or not gaps
+        or any(not gap.startswith("openspec_validation_failed:spec:") for gap in gaps)
+        or len(paths) != len(set(gaps))
+        or not isinstance(validate, dict)
+        or validate.get("exit_code") != 1
+        or validate.get("parse_error")
+    ):
+        return ()
+    for path in paths:
+        capability = path.removeprefix("openspec/specs/").removesuffix("/spec.md")
+        item = _selected_failed_validation_item(official, kind="spec", identifier=capability)
+        if (
+            path not in string_sequence(source.get("authorized_paths"))
+            or not _is_regular_file(root / path)
+            or not _strict_blocking_issue_paths(item)
+        ):
+            return ()
+    return paths
 
 
 def _active_change_validation_repair_paths(
@@ -159,7 +202,7 @@ def _active_change_validation_repair_paths(
     """Resolve strict-blocking issue paths to unique existing official outputs."""
     if not _active_change_validation_repair_context_valid(official, change=change):
         return ()
-    item = _selected_failed_change_validation_item(official, change=change)
+    item = _selected_failed_validation_item(official, kind="change", identifier=change)
     issue_paths = _strict_blocking_issue_paths(item)
     if issue_paths is None:
         return ()
@@ -175,10 +218,10 @@ def _active_change_validation_repair_paths(
     return _resolved_issue_repairs(change_root, issue_paths, outputs)
 
 
-def _selected_failed_change_validation_item(
-    official: dict[str, object], *, change: str
+def _selected_failed_validation_item(
+    official: dict[str, object], *, kind: str, identifier: str
 ) -> dict[str, object] | None:
-    """Return the one invalid validator item for the selected active Change."""
+    """Return the unique invalid official item for one semantic identity."""
     commands = official.get("commands")
     validate = commands.get("validate") if isinstance(commands, dict) else None
     payload = validate.get("json") if isinstance(validate, dict) else None
@@ -189,7 +232,7 @@ def _selected_failed_change_validation_item(
         item
         for item in items
         if isinstance(item, dict)
-        if item.get("type") == "change" and item.get("id") == change and item.get("valid") is False
+        if item.get("type") == kind and item.get("id") == identifier and item.get("valid") is False
     ]
     return matching[0] if len(matching) == 1 else None
 

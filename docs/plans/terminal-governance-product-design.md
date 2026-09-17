@@ -38,16 +38,18 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 17 accepted readback is
-`7f4e071ff1e183e4ee8dc707985d1a795ac18564`, tree
-`eb6ce2606fc6055445d10dc5b02d04f4e5524d24`. The immutable runtime
-`7c80455172d8dffeb0c64aa5191d2168f9cb6342609beec882ba08ce745f98fa`
-matches that source/tree. Intent-selection archive, all 35 exact gates, native
-candidate/accepted CAS and activation passed: 3,689 tests, one skip and
-95.135533 percent combined coverage. Postarchive proof Attestation:
-`15ec53cea2e7ee8949511e277effc2bdf7734662d6efa64174459dd30c2396bc`.
-The previous unreferenced runtime and owned pytest root were removed by their
-native owners; exact delivery readback remains in the current receipt root.
+The September 17 09:10 +08 accepted readback is
+`64a00011f28d0feed31e950aff61f8a2613a20c7`, tree
+`f551899008a0a9dbcdf92c08afac3486fa6fff0f`. Immutable runtime
+`3dd4698fbbca45ddc116efe87aa6ee79b4a2cb75aff601e3f2c9f96b6d71eec9`
+matches that source/tree. Proposal-retirement source and postarchive proof,
+native candidate/accepted CAS and activation passed: 35 gates, 3,724 passed,
+one skip and 95.116522 percent combined coverage. Postarchive Attestation:
+`044032a2e3889b321777dec81a01f74ee0eae04f4719a283308438a85a60b094`.
+The native installer removed the superseded runtime; owned pytest and installed
+smoke scratch roots are absent. Three registered worktrees were exact-equal and
+clean before the next Change. Delivery evidence is
+`proposal-retirement-delivery-readback.json` in the existing receipt root.
 
 Historical correction changed 40 author fields and 37 committer fields across
 40 selected commits; 2,855 affected objects preserve trees, messages, dates,
@@ -64,26 +66,45 @@ peer was updated. Ordinary push cannot restore ancestry removed by identity
 repair. Do not merge erroneous history back, bypass hooks, change protections
 implicitly or retry unchanged rejection. Hosted acceptance is unproved.
 
-The sole owned `work/20260915-commit-integrity` lane now carries the bounded
-`proposal-retirement` Change. Inherited-archive selection, exact prewrite path
-attribution and lane-specific proof admission are accepted. Remote proposal
-retirement consumes dev absorption and review closure, not main convergence,
-through the existing publication effect owner. Exact ancestry or a completed,
-validated native history-repair mapping preserves contribution identity; bare
-patch equivalence is insufficient. Native pre-push must consume deletion tuples,
-not silently skip them. The current implementation passes 146 final focused
-checks, all ten selected cheap public gates, native format/import/prose checks
-and source typing. Prior broader consumers passed 195 cases with two obsolete
-hook expectations; their corrected 44-case module subsequently passed. Exact
-source proof, archive, accepted installation and real-adopter retirement remain
-open; official Change tasks own source progress. Postarchive validation-repair scope and generic
-local-verification receipt ownership follow. No adopter compatibility carrier
-or adopter source mutation is required.
+The sole owned `work/20260915-commit-integrity` lane now carries
+`postarchive-repair`. Inherited-archive selection, exact prewrite attribution,
+lane-specific proof and proposal retirement are accepted. Retirement consumes
+dev absorption and review closure independently of main; native pre-push no
+longer skips deletion tuples. Ancestry and completed validated history-repair
+mapping are admitted, not bare patch equivalence.
+
+The architecture adopter reports three proposals retired with absence readback
+and effect `6f2fe10429dcca5d5fdb3e89a36edab963c2ea5b73e51245069594b04885f301`.
+This is attributed execution, not our remote replay. Its fourth old contribution
+belongs to verified native `lane.refresh`, not the separate two-object signature
+repair. The existing refresh validator accepts effect `e275b86a`; the old
+proposal is ancestral to its input and the output is ancestral to accepted dev.
+Publication does not yet consume that provenance. Verify contribution preservation
+at the existing owner before admitting deletion; keep the remaining ref until
+then. This bounded consumer gap follows the current canonical-repair closure.
+
+Canonical repair currently requires an active Commitment before considering
+archive evidence. The isolated current-resolution counterexample distinguishes
+active success from archived rejection without consulting available provenance.
+The current Change composes verified archive evidence with exact structured
+canonical failures, current coordination and postimage admission. Generic local-
+verification receipt ownership remains a separate next closure. No adopter
+compatibility carrier or adopter source mutation is required.
+
+The current repair has a real public counterexample: official archive commits
+the new canonical specification but reports `repair_required`; the original
+resolver then rejects its exact prewrite path. The repaired public path admits
+that path through both lane and pre-tool surfaces, rejects mixed paths and a
+foreign holder, and returns to ordinary archived-source scope after Purpose
+repair. The original-source replay fails for the expected validation gap;
+151 affected tests and ten cheap public gates pass. Native format, import and
+prose checks pass. These are source-level observations, not accepted runtime
+delivery. The existing `postarchive-repair-*` receipts retain the evidence.
 
 Advance measured P5 work at these existing owners without interrupting the
-current closure. The latest accepted proof took 1,992.409 seconds; its JUnit reports
-1,680.200 seconds in pytest. Six lifecycle modules account for 36.07 percent of
-summed case time, not wall time. The installed-product smoke takes roughly three
+current closure. The latest accepted proof took 2,025.539 seconds; its JUnit reports
+1,730.900 seconds in pytest. The preceding intent-selection measurement attributed 36.07 percent of
+summed case time to six lifecycle modules, not wall time. The installed-product smoke takes roughly three
 minutes; most other checks are seconds. These measurements displace the older
 56-percent hotspot estimate, not the need for complete verification.
 
@@ -898,15 +919,11 @@ The following distinct owner boundaries remain open:
   The pair lane remains `ada18c8` while
   accepted advances independently; recovery must derive fresh coordinates.
 
-- Remote proposal retirement remains absent from the publication effect. The
-  adopter reports three remote tips already ancestral to accepted dev and one
-  `static-publishing` tip only patch-equivalent with an open Change. Local
-  `lane retire absorbed-ref` cannot delete a remote ref; the publication model
-  currently requires every desired ref to equal one nonzero source object.
-  Extend the existing publication owner with accepted absorption, exact remote
-  old OID, zero desired, peer-local atomic CAS, interrupted recovery and terminal
-  absence readback. Proposal retirement follows dev absorption and review closure,
-  not main convergence; patch equivalence alone cannot authorize deletion.
+- Remote proposal retirement is accepted at `64a00011` for exact ancestry and
+  validated history-repair contribution mappings. Three real adopter proposals
+  have attributed terminal absence evidence. Its remaining replayed contribution
+  requires the existing refresh evidence consumer described in the current
+  boundary; the prior signature-repair explanation is disproved.
 - Generic local fallback evidence has a producer/consumer mismatch. The latest
   adopter reports that the exact advertised native verification command passed
   after its declared bootstrap, but publication still requires the missing
@@ -1160,8 +1177,8 @@ repositories or treat a source handoff as acceptance of their diagrams.
 
 ### Remaining Dependencies And Delivery Order
 
-- Execute the confirmed historical repair through the installed public owner,
-  followed by exact proof/runtime rebinding and independent peer replacement.
+- Historical repair and local proof/runtime rebinding are complete; finish
+  independent peer replacement through the bounded publication owner.
   Permanent single-contributor restriction is explicitly rejected. Do not
   substitute capability tests, policy declarations or mailmap for repaired refs.
 - Preserve hosted observations separately from delivered source. The accepted
@@ -1349,11 +1366,11 @@ narrow the global principles they illustrate.
 | Existing obligation | Current evidence boundary | Owner and remaining exit condition |
 | --- | --- | --- |
 | Intent fidelity and historical guidance | Available input has informed the contract and this route; complete recovery is not proved. | Existing Feedback Intent Preservation and P1/P2: settle each distinct in-scope obligation, retain unresolved source gaps, and reject the mandatory-winner mistranslation through the full acceptance path. |
-| Lane absorption and housekeeping | Historical and source-delivery lanes are retired; one serial Attestation repair lane is active. Unique-content dispositions remain in [Transition Source Absorption](#transition-source-absorption), and exact retirement receipts remain separate evidence. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
+| Lane absorption and housekeeping | Historical and source-delivery lanes are retired; the sole owned lane is reused for bounded repairs. Unique-content dispositions remain in [Transition Source Absorption](#transition-source-absorption), and exact retirement receipts remain separate evidence. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
 | Artifact, policy and admission correctness | Artifact-origin repair and source-delivery lifecycle are accepted; attributed adopter replay clears the prior active-Change integration cycle. | Existing admission owners still owe tag cause preservation and malformed archive postimage/re-entry; exact new evidence is required for each. |
 | Quality and full-cycle speed | ELOC coercion and path-response defects reproduced and repaired; coverage of all quality obligations is not established. | Existing quality owners and P5: finish semantic size consolidation, docstring/type/format scope, distinguishing failures, evidence reuse and actual first-failure/closeout measurements. |
 | Runtime, supply and temporary resources | The latest focused scratch roots were removed; sustained crash/kill boundedness and all-current supply are not proved. | Existing runtime/resource owners: verify package identity, migration/rollback, live-consumer-safe reclamation and sustained quantity/byte/inode budgets. |
-| Local and independent remote workflow | Accepted `7a268f313` is equal on both peers; current tip signatures verify and both peers' dev/main CI succeeded. The new repair is unaccepted; historical attribution remains unresolved. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
+| Local and independent remote workflow | Historical identity correction is locally accepted. Earlier peer/CI success at `7a268f313` is historical; replacement of current repaired history remains blocked by protected non-fast-forward policy. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
 | Agent guidance and enforceable behavior | Hooks, runtime and skills exist; registration alone does not prove host coverage or agent adherence. | Existing Hook And Extension Boundaries: context selection, capability discovery, fresh effect admission, bounded failures and measurable recovery without vendor/model binding. |
 | Document and physical semantic structure | Current registry and contracts exist; all placement, naming, source/projection and legacy cleanup obligations remain separately auditable. | Existing docs, module-layout and projection owners: preserve distinct design/plan/decision/task/evidence roles, remove redundant entities and prove consumer closure. |
 | OpenSpec and OKF customization | Official extension surfaces have been inspected; no custom schema or OKF adapter has been adopted. | Existing P1/P2/P7: native config first, justified schema only after semantic preservation tests, interoperable exchange without a second intent store or lifecycle. |

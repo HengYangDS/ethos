@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 import pytest
 
+import ethos.adapters.admission.current.resolution as resolution_adapter
 from tests.support.semantic import commitment_fixture
 from tests.unit.admission.current.support import official_artifact
 from tests.unit.admission.current.support import official_report
@@ -336,3 +337,68 @@ def test_current_resolution_requires_valid_change_contract_for_canonical_repair(
     resolution = resolve_report(monkeypatch, report, paths=paths)
     assert resolution.verdict == "block"
     assert not resolution.scope.material_scope.get("authorized_paths")
+
+
+@pytest.mark.parametrize(
+    "mode",
+    ["valid", "missing", "unrelated", "mixed", "other-gap", "info", "wrong-change", "missing-file"],
+)
+def test_archived_canonical_repair_uses_verified_source_without_masking_proof(
+    monkeypatch, tmp_path, mode
+):
+    path = "openspec/specs/distribution/spec.md"
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_text("## Purpose\n\nTBD\n", encoding="utf-8")
+    if mode == "missing-file":
+        target.unlink()
+    report = official_report(
+        change="repair-spec",
+        commitment={},
+        gaps=("openspec_validation_failed:spec:distribution",),
+        validate_payload={
+            "items": [
+                {
+                    "id": "distribution",
+                    "type": "spec",
+                    "valid": False,
+                    "issues": [
+                        {"level": "INFO" if mode == "info" else "ERROR", "path": "overview"}
+                    ],
+                }
+            ]
+        },
+    )
+    _corrupt_report_coordinate(report, ("lifecycle", "changes"), [])
+    if mode == "other-gap":
+        report["required_gaps"] = [
+            "openspec_validation_failed:spec:distribution",
+            "openspec_doctor_unhealthy",
+        ]
+    source = (
+        None
+        if mode == "missing"
+        else (
+            commitment_fixture(
+                id="change:other" if mode == "wrong-change" else "change:repair-spec"
+            ),
+            {"authorized_paths": [] if mode == "unrelated" else [path]},
+        )
+    )
+    calls = []
+
+    def recover(*_args, **kwargs):
+        calls.append(kwargs)
+        return source
+
+    monkeypatch.setattr(resolution_adapter, "attested_archive_transition", recover)
+    paths = (path, "src/unrelated.py") if mode == "mixed" else (path,)
+    result = resolve_report(monkeypatch, report, root=tmp_path, paths=paths)
+    assert result.verdict == ("pass" if mode == "valid" else "block")
+    if mode == "valid":
+        assert len(calls) == 1
+        assert result.scope_report(paths)["authorized_paths"] == [path]
+        assert result.next_action == "openspec validate --all --strict --json"
+    ordinary = resolve_report(monkeypatch, report, root=tmp_path)
+    assert ordinary.verdict == "block"
+    assert "openspec_validation_failed:spec:distribution" in ordinary.required_gaps

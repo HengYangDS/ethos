@@ -289,6 +289,22 @@ def resolve_current_resolution(
     commands = official.get("commands")
     status_result = commands.get("status") if isinstance(commands, dict) else None
     status_payload = status_result.get("json") if isinstance(status_result, dict) else None
+    archive_closeout = official_verdict == "pass" or official_gaps == (
+        "openspec_active_change_missing",
+    )
+    archived = (
+        attested_archive_transition(root, head=str(status.get("head") or ""), change=change)
+        if not projected
+        and (
+            archive_closeout
+            or (
+                prewrite_paths
+                and official_gaps
+                and all(gap.startswith("openspec_validation_failed:spec:") for gap in official_gaps)
+            )
+        )
+        else None
+    )
     repair_scope = official_validation_repair_scope_report(
         root=root,
         official=official,
@@ -297,6 +313,7 @@ def resolve_current_resolution(
             status_payload if isinstance(status_payload, dict) else {},
         ),
         requested_paths=prewrite_paths,
+        archived=archived,
     )
     bootstrap_scope = (
         {}
@@ -323,16 +340,7 @@ def resolve_current_resolution(
             required_gaps=prewrite_gaps,
             next_action=str(prewrite_scope.get("next_action") or ""),
         )
-    archived = (
-        attested_archive_transition(
-            root,
-            head=str(status.get("head") or ""),
-            change=change,
-        )
-        if not projected
-        and (official_verdict == "pass" or official_gaps == ("openspec_active_change_missing",))
-        else None
-    )
+    archived = archived if archive_closeout else None
     repository_resolution = _repository_resolution_without_active_intent(
         status=status,
         authority=authority,

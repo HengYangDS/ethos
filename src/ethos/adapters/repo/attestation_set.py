@@ -104,20 +104,6 @@ def _tree_entries(repo: Path, root: str) -> tuple[tuple[str, str, str, str], ...
 def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[Attestation, ...]]:
     if not root:
         return {}, ()
-    tree_result = run_git(
-        repo,
-        "rev-parse",
-        f"{root}^{{commit}}^{{tree}}",
-        check=False,
-        observation=True,
-    )
-    if tree_result.returncode != 0:
-        message = "attestation_set_root_invalid"
-        raise ValueError(message)
-    tree = tree_result.stdout.strip()
-    if root != _root_identity(repo, tree, write=False):
-        message = "attestation_set_root_invalid"
-        raise ValueError(message)
     tree_paths: set[str] = set()
     files: list[tuple[str, str]] = []
     for mode, kind, object_id, path in _tree_entries(repo, root):
@@ -127,15 +113,22 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
         else:
             _require_entry(valid=mode == "100644" and kind == "blob")
             files.append((object_id, path))
+    raw_root, *raw_members = read_objects(
+        repo,
+        (root, *(object_id for object_id, _path in files)),
+        kind=("commit", *("blob" for _ in files)),
+        gap="attestation_set_root_invalid",
+    )
+    tree_bytes = raw_root[5 : 5 + len(root)]
+    _require_entry(
+        valid=len(tree_bytes) == len(root) and not set(tree_bytes) - set(b"0123456789abcdef")
+    )
+    tree = tree_bytes.decode("ascii")
+    _require_entry(valid=raw_root == _root_payload(tree))
+    _require_entry(valid=root == _root_identity(repo, tree, write=False))
     members: dict[str, bytes] = {}
     attestations: list[Attestation] = []
-    for (_object_id, path), raw in zip(
-        files,
-        read_objects(
-            repo, tuple(object_id for object_id, _path in files), gap="attestation_set_root_invalid"
-        ),
-        strict=True,
-    ):
+    for (_object_id, path), raw in zip(files, raw_members, strict=True):
         try:
             attestation = (
                 _validated_member(raw)
@@ -210,10 +203,14 @@ def _write_tree(repo: Path, members: dict[str, bytes], *, observed: str = "") ->
         return run_git(repo, "write-tree", env=environment).stdout.strip()
 
 
-def _root_identity(repo: Path, tree: str, *, write: bool) -> str:
-    payload = (
+def _root_payload(tree: str) -> bytes:
+    """Own the exact canonical root bytes for both reading and writing."""
+    return (
         f"tree {tree}\nauthor {_AUTHOR}\ncommitter {_AUTHOR}\nencoding UTF-8\n\n{_COMMIT_MESSAGE}"
     ).encode()
+
+
+def _root_identity(repo: Path, tree: str, *, write: bool) -> str:
     arguments = ["hash-object", "-t", "commit"]
     if write:
         arguments.append("-w")
@@ -222,7 +219,7 @@ def _root_identity(repo: Path, tree: str, *, write: bool) -> str:
         run_git(
             repo,
             *arguments,
-            stdin=payload,
+            stdin=_root_payload(tree),
             text=False,
         )
         .stdout.decode()

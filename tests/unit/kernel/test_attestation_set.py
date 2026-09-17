@@ -84,19 +84,29 @@ def test_attestation_set_union_is_order_independent_idempotent_and_hash_sharded(
     )
 
 
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
 def test_attestation_set_read_uses_constant_git_processes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, object_format: str
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo", object_format=object_format)
     attestations = tuple(_attestation(ordinal) for ordinal in range(24))
     attestation_set.record_attestations(repo, attestations)
     counted_run_git = Mock(wraps=attestation_set.run_git)
     monkeypatch.setattr(attestation_set, "run_git", counted_run_git)
+    monkeypatch.setattr(git_object, "run_git", counted_run_git)
+    with pytest.raises(ValueError, match="git_object_batch_invalid"):
+        git_object.read_objects(repo, ("0" * 40,), kind=())
 
     assert attestation_set.read_attestation_set(repo)[1] == tuple(
         sorted(attestations, key=lambda item: item.id)
     )
-    assert counted_run_git.call_count <= 5
+    assert [call.args[1] for call in counted_run_git.call_args_list] == [
+        "symbolic-ref",
+        "show-ref",
+        "ls-tree",
+        "cat-file",
+        "hash-object",
+    ]
 
 
 def test_attestation_set_ignores_workspace_history_and_needs_no_directory(tmp_path: Path) -> None:
@@ -218,52 +228,55 @@ def test_attestation_set_empty_and_invalid_ref_observations_fail_closed(
     assert git(repo, "rev-parse", attestation_set.ATTESTATION_SET_REF) == existing
 
 
+@pytest.mark.parametrize("warm", [False, True])
 @pytest.mark.parametrize(
-    ("command", "stdout"),
+    "fault",
     [
-        ("ls-tree", b"not-a-tree-record\0"),
-        ("cat-file", b"not-a-batch-header\n"),
+        "tree-malformed",
+        "batch-malformed",
+        "tree-failed",
+        "batch-failed",
+        "root-kind",
+        "root-metadata",
+        "root-digest",
+        "member-kind",
     ],
 )
-def test_attestation_set_rejects_malformed_git_protocol_output(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    command: str,
-    stdout: bytes,
-) -> None:
+def test_attestation_set_rejects_failed_or_corrupt_current_reads(
+    tmp_path, monkeypatch, fault, warm
+):
+    """Warm pure validation never hides failed reads or corrupt typed object frames."""
     repo = init_git_repo(tmp_path / "repo")
     record = _attestation(9)
-    attestation_set.record_attestations(repo, (record,))
+    selected = attestation_set.record_attestations(repo, (record,))["root"]
+    if warm:
+        assert attestation_set.read_attestation_set(repo) == (selected, (record,))
     original = attestation_set.run_git
+    command = "ls-tree" if fault.startswith("tree-") else "cat-file"
 
-    def malformed(root: Path, *args: str, **kwargs):
-        if args and args[0] == command:
-            return CompletedProcess(args, 0, stdout=stdout, stderr=b"")
-        return original(root, *args, **kwargs)
+    def observe(root, *args, **kwargs):
+        result = original(root, *args, **kwargs)
+        if args[0] != command:
+            return result
+        if fault.endswith("failed"):
+            return CompletedProcess(args, 1, stdout=b"", stderr=b"failed")
+        output = result.stdout
+        if fault.endswith("malformed"):
+            output = b"not-a-native-record"
+        elif fault == "root-kind":
+            output = output.replace(b" commit ", b" blob ", 1)
+        elif fault == "member-kind":
+            output = output.replace(b" blob ", b" commit ", 1)
+        elif fault == "root-metadata":
+            output = output.replace(b"author ETHOS", b"author Other", 1)
+        else:
+            tree = git(repo, "rev-parse", f"{selected}^{{tree}}").encode()
+            output = output.replace(b"tree " + tree, b"tree " + b"0" * len(tree), 1)
+        return CompletedProcess(args, 0, stdout=output, stderr=b"")
 
     monkeypatch.setattr(
-        git_object if command == "cat-file" else attestation_set, "run_git", malformed
+        git_object if command == "cat-file" else attestation_set, "run_git", observe
     )
-    with pytest.raises(ValueError, match="attestation_set_root_invalid"):
-        attestation_set.read_attestation_set(repo)
-
-
-@pytest.mark.parametrize("command", ["ls-tree", "cat-file"])
-def test_attestation_set_rejects_failed_git_protocol_reads(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    attestation_set.record_attestations(repo, (_attestation(10),))
-    original = attestation_set.run_git
-
-    def failed(root: Path, *args: str, **kwargs):
-        if args and args[0] == command:
-            stdout = b"" if kwargs.get("text") is False else ""
-            stderr = b"failed" if kwargs.get("text") is False else "failed"
-            return CompletedProcess(args, 1, stdout=stdout, stderr=stderr)
-        return original(root, *args, **kwargs)
-
-    monkeypatch.setattr(git_object if command == "cat-file" else attestation_set, "run_git", failed)
     with pytest.raises(ValueError, match="attestation_set_root_invalid"):
         attestation_set.read_attestation_set(repo)
 
@@ -468,27 +481,6 @@ def test_attestation_set_growth_materializes_only_new_member_bytes(
     attestation_set.record_attestations(repo, (new,))
     assert materialized_bytes == len(new.canonical_json().encode())
     assert len(attestation_set.read_attestation_set(repo)[1]) == 25
-
-
-@pytest.mark.parametrize("command", ["ls-tree", "cat-file"])
-def test_attestation_set_warm_validation_does_not_hide_read_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
-) -> None:
-    """Cached pure values cannot substitute for a failed current object observation."""
-    repo = init_git_repo(tmp_path / "repo")
-    one = _attestation(3_003)
-    attestation_set.record_attestations(repo, (one,))
-    assert attestation_set.read_attestation_set(repo)[1] == (one,)
-    original = attestation_set.run_git
-
-    def failed(root: Path, *args: str, **kwargs):
-        if args[0] == command:
-            return CompletedProcess(args, 1, stdout=b"", stderr=b"unavailable")
-        return original(root, *args, **kwargs)
-
-    monkeypatch.setattr(git_object if command == "cat-file" else attestation_set, "run_git", failed)
-    with pytest.raises(ValueError, match="attestation_set_root_invalid"):
-        attestation_set.read_attestation_set(repo)
 
 
 @pytest.mark.parametrize("command", ["read-tree", "hash-object", "update-index", "write-tree"])

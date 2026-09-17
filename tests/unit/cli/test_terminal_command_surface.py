@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 from typing import cast
 from typing import get_type_hints
+from unittest.mock import patch
 
 import pytest
 
+import tests.support.ethos_cli_runner as cli_runner
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
@@ -30,6 +34,31 @@ RETIRED_ROOT_COMMANDS = cast(
     "tuple[str, ...]",
     literal_case("cli.test_terminal_command_surface:assign:RETIRED_ROOT_COMMANDS:1"),
 )
+
+
+@pytest.mark.parametrize("failure", [None, SystemExit, RuntimeError])
+def test_inprocess_command_restores_environment_on_every_exit(tmp_path, monkeypatch, failure):
+    """A command must not leak added, changed or removed variables to its next caller."""
+    before, previous_cwd = dict(os.environ), Path.cwd()
+
+    def command(*_args, **_kwargs):
+        os.environ["ETHOS_TEST_COMMAND_RESIDUE"] = "new"
+        os.environ["ETHOS_ACTOR"] = "changed"
+        os.environ.pop("PATH", None)
+        if failure:
+            raise failure(2)
+
+    monkeypatch.setattr(cli_runner, "app", command)
+    with patch.dict(os.environ):
+        if failure is RuntimeError:
+            with pytest.raises(RuntimeError):
+                run_ethos_raw("status", "--json", cwd=tmp_path)
+        else:
+            assert run_ethos_raw("status", "--json", cwd=tmp_path).returncode == (
+                2 if failure else 0
+            )
+        assert dict(os.environ) == before
+        assert Path.cwd() == previous_cwd
 
 
 def test_registered_command_roots_are_exactly_the_terminal_surface() -> None:

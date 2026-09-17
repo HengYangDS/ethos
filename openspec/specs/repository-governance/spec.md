@@ -4735,3 +4735,15 @@ active Change presence, or a historical authoring Lease.
 - **WHEN** the existing publication command projects commits or annotated tags
 - **THEN** target updates still match the exact trusted source object
 - **AND** retirement mode cannot delete protected, candidate, or tag resources
+
+#### Scenario: Verified native refresh preserves the accepted contribution
+
+- **GIVEN** validated native refresh evidence binds the old contribution, candidate
+  and refreshed output, and the proposal is contained in the old input history
+- **WHEN** isolated native composition reproduces the exact output tree and the
+  output is absorbed by local and peer accepted dev
+- **THEN** public retirement consumes that relationship without recreating an
+  active historical Change, Lease or old branch
+- **AND** current closed-review, exact peer identity and fresh CAS checks still apply
+- **AND** missing, invalid, ambiguous or nonconserving evidence does not authorize
+  deletion, while unavailable required observations remain explicit

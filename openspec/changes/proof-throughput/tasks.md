@@ -6,6 +6,8 @@
 - [x] Remove irrelevant effect validation and redundant successful-ref probes.
 - [x] Replace full workspace reads with shared exact integration and dirty facts.
 - [x] Remove absent archived-Change projection work while preserving active reopen precedence.
+- [x] Decompose complete installed acceptance and compare covered native hotspots.
+- [x] Remove per-file directory-prefix reconstruction without caching integrity verdicts.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

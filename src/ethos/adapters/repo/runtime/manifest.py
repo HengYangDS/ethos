@@ -108,11 +108,12 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
     records: dict[str, str] = {}
     for parent, directories, files in os.walk(runtime, followlinks=False):
         base = Path(parent)
+        relative_parts = base.relative_to(runtime).parts
         directories.sort()
         files.sort()
         for name in (*directories, *files):
             path = base / name
-            relative = path.relative_to(runtime).as_posix()
+            relative = "/".join((*relative_parts, name))
             if "__pycache__" in path.parts or path.suffix == ".pyc":
                 _raise_manifest_invalid()
             if runtime_filesystem.is_junction(path):

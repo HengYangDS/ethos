@@ -23,6 +23,7 @@
 - [x] Observe each peer ref set once and preserve native failure, recovery and CAS boundaries.
 - [x] Scope effect-time destination admission to its peer while retaining fresh common proof and source.
 - [x] Route command gates through the process owner and verify native cancellation and failure reporting.
+- [x] Distinguish process creation from communication and cleanup failures at the process owner.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.

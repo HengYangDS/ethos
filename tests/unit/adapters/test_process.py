@@ -163,26 +163,29 @@ def test_posix_process_listing_resolves_native_ps_outside_ambient_path(
     assert observed == {"name": "ps", "path": os.defpath}
 
 
-def test_process_creation_failure_preserves_exact_execution_evidence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    command = ((tmp_path / "tool").as_posix(), "--inspect")
-    monkeypatch.setattr(
-        process_adapter,
-        "_execute_command",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(FileNotFoundError(2, "missing")),
+@pytest.mark.parametrize("phase", ["spawn", "communication"])
+def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, phase):
+    """Only failure before successful creation is a process-creation error."""
+    failure = OSError(5, "boundary probe")
+    target, attribute = (
+        (subprocess, "Popen") if phase == "spawn" else (subprocess.Popen, "communicate")
     )
-
-    with pytest.raises(process_adapter.ProcessExecutionError) as failure:
+    monkeypatch.setattr(target, attribute, lambda *_a, **_kw: (_ for _ in ()).throw(failure))
+    command = (sys.executable, "-c", "pass")
+    with pytest.raises(
+        process_adapter.ProcessExecutionError if phase == "spawn" else OSError
+    ) as caught:
         process_adapter.run_command(tmp_path, command)
-
-    assert failure.value.evidence() == {
-        "code": "process_creation_failed",
-        "reason": "operating_system_rejected_process_creation",
-        "command": list(command),
-        "cwd": tmp_path.resolve().as_posix(),
-        "cause": "FileNotFoundError: [Errno 2] missing",
-    }
+    if phase == "communication":
+        assert caught.value is failure
+    else:
+        assert caught.value.evidence() == {
+            "code": "process_creation_failed",
+            "reason": "operating_system_rejected_process_creation",
+            "command": list(command),
+            "cwd": tmp_path.resolve().as_posix(),
+            "cause": "OSError: [Errno 5] boundary probe",
+        }
 
 
 @pytest.mark.parametrize("mode", ["key", "prefix", "isolated"])

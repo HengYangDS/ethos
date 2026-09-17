@@ -64,7 +64,7 @@ class State:
         repo, candidate = fx.start_adopted_candidate(tmp)
         self.repo, self.v = candidate, {"base": fx.git(repo, "rev-parse", "dev"), "zero": "c" * 40}
         if mode == "offtrain":
-            fixture = fx.start_adopted_work_lane(tmp / "offtrain")
+            fixture = fx.prepared_work_lane(tmp / "offtrain")
             self.repo, self.v = (
                 fixture.worktree,
                 {"base": fx.git(fixture.repository, "rev-parse", "dev")},
@@ -74,7 +74,7 @@ class State:
         elif mode == "profile":
             (candidate / ".ethos/workspace.toml").unlink()
         elif mode == "fixture":
-            fixture = fx.start_adopted_work_lane(tmp / "fixture")
+            fixture = fx.prepared_work_lane(tmp / "fixture")
             head = fx.commit_fixture_file(
                 fixture.candidate, "CANDIDATE.md", "candidate\n", "candidate"
             )

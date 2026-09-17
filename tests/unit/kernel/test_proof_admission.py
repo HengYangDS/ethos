@@ -26,7 +26,7 @@ from ethos.contracts.value import mutable_json
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
-from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.literal_cases import literal_case
 from tests.support.proof import assert_selected_proof
 from tests.support.proof import current_proof_plan
@@ -89,7 +89,7 @@ def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, g
 @pytest.mark.parametrize("omit", [False, True])
 def test_repository_transition_rejects_acceptance_not_bound_to_source(tmp_path, omit):
     """Correct object hashes and green checks cannot validate invented intent."""
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     head = git(fixture.worktree, "rev-parse", "HEAD")
     source = current_proof_plan(fixture.worktree, expected_head=head)
     forged = compile_plan(
@@ -105,7 +105,7 @@ def test_repository_transition_rejects_acceptance_not_bound_to_source(tmp_path, 
 
 def test_repository_proof_cannot_replace_lane_generation_proof(tmp_path):
     """Repository evidence remains reusable without becoming authoring authority."""
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     head = git(fixture.worktree, "rev-parse", "HEAD")
     source = current_proof_plan(fixture.worktree, expected_head=head)
     values = mutable_json(source.facts["values"])
@@ -140,7 +140,7 @@ def _archive_bound_work_proof(
     tmp_path: Path, *, omit: bool = False
 ) -> tuple[WorkLaneFixture, str, Attestation]:
     """Produce actual archive evidence rather than a synthetic archive-shaped claim."""
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     head = commit_fixture_file(
         fixture.worktree,
         "openspec/changes/fixture-change/tasks.md",
@@ -202,7 +202,7 @@ def test_repository_transition_accepts_exact_active_intent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Pending delivery does not invalidate proved source acceptance."""
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
     proof = _issue(fixture.worktree, head)
     persist_proof_attestation(fixture.worktree, proof)

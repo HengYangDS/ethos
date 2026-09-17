@@ -16,7 +16,7 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_openspec_baseline
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.proof import seed_executed_proof
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ def test_same_name_archived_change_keeps_its_exact_acceptance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, consumer: str, *, existing_capability: bool
 ) -> None:
     """A real official archive cannot let a same-name spec shadow Change evidence."""
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
     change = "contracts" if existing_capability else "new-capability"
     active = root / "openspec/changes" / change

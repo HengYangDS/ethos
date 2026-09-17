@@ -335,7 +335,9 @@ def test_pre_commit_requires_only_selected_capabilities_to_prove_clean(
     staged.write_text("VALUE=1\n", encoding="utf-8")
     assert git_process(repo, "add", "change.py").returncode == 0
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-    monkeypatch.setattr(hook_runtime, "prewrite_guard", lambda **_kwargs: {"verdict": "pass"})
+    monkeypatch.setattr(
+        "ethos.adapters.admission.prewrite.prewrite_guard", lambda **_kwargs: {"verdict": "pass"}
+    )
     if capability == "secrets":
         (repo / ".gitleaks.toml").write_text("title = 'policy'\n", encoding="utf-8")
         which = hook_runtime.shutil.which
@@ -386,8 +388,7 @@ def test_reference_transaction_dispatch_preserves_role_and_phase_semantics(
         lambda **_kwargs: {"verdict": "pass", "state": "work-prepared", "required_gaps": []},
     )
     monkeypatch.setattr(
-        hook_runtime,
-        "ref_move_admission_report",
+        "ethos.adapters.admission.git_admission.ref_move_admission_report",
         lambda **_kwargs: {
             "verdict": "block" if decision == "block" else "pass",
             "state": f"topic-{phase}" if decision == "allow" else "topic-blocked",

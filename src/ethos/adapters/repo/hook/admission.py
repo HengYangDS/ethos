@@ -6,13 +6,10 @@ import json
 import os
 import shutil
 import sys
+from importlib import import_module
 from pathlib import Path
 from typing import IO
 
-from ethos.adapters.admission.git_admission import ref_move_admission_report
-from ethos.adapters.admission.prewrite import has_invalid_path_token_character
-from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
@@ -79,13 +76,14 @@ def _pre_commit(root: Path, *, selected_runtime: SelectedRuntime) -> dict[str, o
         return passed_report("pre-commit", "no_staged_paths")
     _scan_staged_secrets(root)
     _check_staged_python_format(root, staged)
+    prewrite = import_module("ethos.adapters.admission.prewrite")
     paths = tuple(
         (root / path).as_posix()
-        if not Path(path).is_absolute() and not has_invalid_path_token_character(path)
+        if not Path(path).is_absolute() and not prewrite.has_invalid_path_token_character(path)
         else path
         for path in staged
     )
-    return prewrite_guard(
+    return prewrite.prewrite_guard(
         root=root,
         paths=[Path(path) for path in paths],
         editor_root=root,
@@ -158,7 +156,7 @@ def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[s
             continue
         _local_ref, local_sha, remote_ref, remote_sha = fields
         reports.append(
-            push_admission_report(
+            import_module("ethos.adapters.admission.publication").push_admission_report(
                 root=root,
                 target_ref=remote_ref,
                 pushed_head=local_sha,
@@ -217,7 +215,7 @@ def _prepared_reference_report(
             new_value=new_value,
         )
     else:
-        report = ref_move_admission_report(
+        report = import_module("ethos.adapters.admission.git_admission").ref_move_admission_report(
             root=root,
             ref_name=ref_name,
             old_value=old_value,

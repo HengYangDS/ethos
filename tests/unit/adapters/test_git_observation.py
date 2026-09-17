@@ -6,13 +6,18 @@ import sys
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.git as git_adapter
+import ethos.adapters.repo.git_object as objects
 from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_observation import observe_git_effect
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -23,9 +28,8 @@ def _completed(returncode: int, stdout: bytes = b"") -> subprocess.CompletedProc
     return subprocess.CompletedProcess((), returncode, stdout, b"")
 
 
-def test_ref_progress_projects_reflog_advances_without_persisting_metrics(
-    tmp_path: Path,
-) -> None:
+def test_ref_progress_retains_native_history_and_missing_ref(tmp_path):
+    """Native reflog observations distinguish advances from an unavailable ref."""
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     git(repo, "branch", "candidate/dev", head)
@@ -33,42 +37,66 @@ def test_ref_progress_projects_reflog_advances_without_persisting_metrics(
     second = commit_fixture_file(repo, "second.txt", "second\n", "second")
     git(repo, "update-ref", "-m", "first", "refs/heads/candidate/dev", first, head)
     git(repo, "update-ref", "-m", "second", "refs/heads/candidate/dev", second, first)
-
-    observed = ref_progress(
-        repo,
+    observed = ref_progress(repo, "candidate/dev", observed_at=datetime.now(UTC))
+    assert (observed["observation"], observed["ref"], observed["advance_count"]) == (
+        "git_reflog",
         "candidate/dev",
-        observed_at=datetime.now(UTC),
+        2,
     )
-
-    assert observed["observation"] == "git_reflog"
-    assert observed["ref"] == "candidate/dev"
-    assert observed["advance_count"] == 2
-    assert observed["interval_seconds"] >= 0
-    assert observed["latest_interval_seconds"] >= 0
-    assert observed["latest_advance_age_seconds"] >= 0
-    assert observed["advances_per_hour"] >= 0
-    assert "history" not in observed
-    assert "recorded_at" not in observed
-
-
-def test_ref_progress_preserves_unknown_when_reflog_is_unavailable(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-
-    observed = ref_progress(
-        repo,
-        "candidate/missing",
-        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
+    intervals = (
+        "interval_seconds",
+        "latest_interval_seconds",
+        "latest_advance_age_seconds",
+        "advances_per_hour",
     )
-
+    assert all(observed[key] >= 0 for key in intervals)
+    assert not {"history", "recorded_at"} & observed.keys()
+    observed = ref_progress(repo, "candidate/missing", observed_at=datetime(2026, 8, 6, tzinfo=UTC))
     assert observed == {
         "observation": "git_reflog",
         "ref": "candidate/missing",
         "advance_count": 0,
-        "interval_seconds": None,
-        "latest_interval_seconds": None,
-        "latest_advance_age_seconds": None,
-        "advances_per_hour": None,
+        **dict.fromkeys(intervals),
     }
+
+
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_batched_effect_observation_preserves_native_queries(tmp_path, monkeypatch, object_format):
+    """One fresh batch handles duplicate, missing and native-width refs without caching."""
+    repo = init_git_repo(tmp_path / "repo", object_format=object_format)
+    head = git(repo, "rev-parse", "HEAD")
+    missing = "refs/heads/next"
+    effect = GitEffect(updates={missing: GitRefUpdate(expected="0" * len(head), desired=head)})
+    calls = Mock(wraps=objects.run_git)
+    monkeypatch.setattr(objects, "run_git", calls)
+    assert observe_git_effect(repo, effect)["refs"] == {missing: "0" * len(head)}
+    assert calls.call_count == 2
+    git(repo, "update-ref", missing, head)
+    assert objects.resolve_revisions(repo, (missing, missing, "HEAD")) == {
+        missing: head,
+        "HEAD": head,
+    }
+    assert calls.call_count == 3
+    assert objects.resolve_revisions(repo, ()) == {}
+    (repo / ".git" / missing).write_text("a" * len(head) + "\n")
+    with pytest.raises(ValueError, match="git_revision_batch_invalid"):
+        objects.resolve_revisions(repo, (missing,))
+    for code, output in (
+        (1, ""),
+        (0, ""),
+        (0, f"{head} commit 1\n"),
+        (0, "not-oid commit 0\n"),
+        (0, f"{head} unknown 0\n"),
+    ):
+        monkeypatch.setattr(
+            objects,
+            "run_git",
+            lambda *_a, output=output, code=code, **_kw: completed(stdout=output, returncode=code),
+        )
+        with pytest.raises(ValueError, match="git_revision_batch_invalid"):
+            objects.resolve_revisions(repo, ("HEAD",))
+    with pytest.raises(ValueError, match="git_revision_batch_invalid"):
+        objects.resolve_revisions(repo, ("HEAD\nother",))
 
 
 def test_run_git_resolves_git_from_the_execution_environment_not_import_time(
@@ -91,25 +119,15 @@ def test_run_git_resolves_git_from_the_execution_environment_not_import_time(
     )
 
 
-def test_run_git_fails_closed_when_effective_path_has_no_git(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_git_distinguishes_missing_executable_and_working_directory(tmp_path, monkeypatch):
+    """Unavailable executable and working directory retain distinct native failures."""
     repo = init_git_repo(tmp_path / "repo")
+    with pytest.raises(ValueError, match=r"^git_process_spawn_failed$") as error:
+        run_git(repo / "missing", "rev-parse", "HEAD")
+    assert getattr(error.value, "reason", "") == "working_directory_unavailable"
     monkeypatch.setenv("PATH", str(tmp_path / "empty-bin"))
-
     with pytest.raises(ValueError, match=r"^git_executable_unavailable$"):
         run_git(repo, "rev-parse", "HEAD")
-
-
-def test_run_git_distinguishes_an_invalid_working_directory(
-    tmp_path: Path,
-) -> None:
-    missing = tmp_path / "missing"
-
-    with pytest.raises(ValueError, match=r"^git_process_spawn_failed$") as error:
-        run_git(missing, "rev-parse", "HEAD")
-
-    assert getattr(error.value, "reason", "") == "working_directory_unavailable"
 
 
 def test_run_git_preserves_explicit_commit_identity_without_overriding_local_config(
@@ -128,11 +146,9 @@ def test_run_git_preserves_explicit_commit_identity_without_overriding_local_con
 
     assert run_git(repo, "config", "user.name").stdout.strip() == "Canonical User"
     assert run_git(repo, "config", "user.email").stdout.strip() == "canonical@example.invalid"
-    assert run_git(repo, "show", "-s", "--format=%an <%ae>").stdout.strip() == (
-        "Hosted Actor <hosted@example.invalid>"
-    )
-    assert run_git(repo, "show", "-s", "--format=%cn <%ce>").stdout.strip() == (
-        "Hosted Actor <hosted@example.invalid>"
+    assert (
+        run_git(repo, "show", "-s", "--format=%an <%ae>%n%cn <%ce>").stdout.splitlines()
+        == ["Hosted Actor <hosted@example.invalid>"] * 2
     )
 
 

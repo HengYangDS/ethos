@@ -14,7 +14,6 @@ from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git_effect_attestation import records
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.contracts.plan import GitEffect
-from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
@@ -23,8 +22,6 @@ from tests.support.git_effect import fixture
 from tests.support.git_effect import plan
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import write_test_profile
 from tests.support.literal_cases import literal_case
 from tests.support.semantic import commitment_fixture
 from tests.support.semantic import reissue_attestation
@@ -36,18 +33,12 @@ ISSUER = "agent:test:attestation"
 
 
 def _case(tmp_path: Path, *, transition="git.ref.compare-and-swap"):
-    repo = init_git_repo(tmp_path / "repo")
-    write_test_profile(repo)
-    git(repo, "add", ".ethos/profile.toml")
-    git(repo, "commit", "-m", "declare repository identity")
-    old = git(repo, "rev-parse", "HEAD")
-    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    case = fixture(tmp_path)
+    repo, old, new = case.repo, case.old, case.new
     assertions = {"refs/heads/candidate/dev": new} if transition == "candidate.accept" else {}
     for ref, head in assertions.items():
         git(repo, "update-ref", ref, head)
-    effect = GitEffect(
-        updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)}, assertions=assertions
-    )
+    effect = case.effect.model_copy(update={"assertions": assertions})
     observed = datetime.now(UTC) - timedelta(seconds=2)
     facts = Facts(
         repository="repository:repo",
@@ -148,21 +139,15 @@ def test_git_effect_attestation_rejects_invalid_observation(tmp_path, monkeypatc
     elif mode == "effect":
         effect = effect.model_copy(update={"assertions": {"refs/heads/other": before["head"]}})
     elif mode == "postobserve":
-        original, calls = attest.resolve_git_effect_repository, []
 
-        def observe(*args, **kwargs):
-            calls.append(args)
-            if len(calls) > 1:
-                message = "repository_observation_unavailable"
-                raise ValueError(message)
-            return original(*args, **kwargs)
+        def unavailable(*_args, **_kwargs):
+            message = "git_revision_batch_invalid"
+            raise ValueError(message)
 
-        monkeypatch.setattr(attest, "resolve_git_effect_repository", observe)
+        monkeypatch.setattr(attest, "resolve_revisions", unavailable)
     git(repo, "update-ref", "refs/heads/dev", after["head"], before["head"])
     with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
         attest.validate(repo, effect, record, issuer=ISSUER, plan=plan)
-    if mode == "postobserve":
-        assert len(calls) == 2
 
 
 @pytest.mark.parametrize("mode", ["plan", "statement"])

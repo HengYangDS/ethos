@@ -17,6 +17,7 @@
 - [x] Share exact proof selection within each publication admission while rechecking every effect.
 - [x] Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] Terminate owned POSIX command groups on timeout and cancellation with native regressions.
+- [x] Isolate import-time environment testing and verify the same cases at two, four and eight workers.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.

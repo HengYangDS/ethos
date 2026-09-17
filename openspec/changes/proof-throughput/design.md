@@ -609,6 +609,38 @@ it does not establish complete-proof improvement. Exact source hash and timings
 are in `throughput-process-group-overhead.json`. The original RED, failed test
 cleanup, consumer GREEN and quality results remain in the existing evidence root.
 
+### Scheduling-Dependent Module Identity Pollution
+
+The four-worker replay at `ccf1276c199b914b0e393f431927961448b33079`
+produced two failures among the same 173 selected cases. Both timeout tests
+raised `GitExecutionError`, but their expected class was no longer the same
+object: the execution-environment test reloaded the shared Git module after
+other tests had imported its exception class. A serial ordered three-case
+reproduction produced the same two failures. This is test-process pollution,
+not evidence of CPU pressure or a pytest scheduling defect.
+
+The import-time PATH test now imports in a fresh child with an empty PATH,
+then supplies the selected Git directory and performs the native query.
+It no longer reloads a shared module. Two synthetic result classes reuse the
+existing completed-process fixture instead; no exception assertion, timeout,
+test obligation or source budget is weakened. The ordered reproduction now
+passes all three cases. A scoped audit found no other module reload in tests.
+
+The same 173-case process/Git/runtime/hook workload then passes at two, four
+and eight workers in 20.225, 11.895 and 9.908 seconds respectively. All runs use
+the declared thread timeout, work stealing and no retries; their owned roots
+are removed. Coverage is disabled equally for this diagnostic, host caches
+are not cleared, and order is not counterbalanced. This is a bounded isolation
+and scaling result, not full proof or resolution of every historical failure.
+`throughput-reload-fixed-concurrency.json` binds HEAD, patch, commands and JUnit
+hashes; the failed four-worker run and ordered RED remain preserved.
+
+Separately, `throughput-worker-loss-probe.json` reproduces a real xdist worker
+crash followed by a surviving command descendant. The probe releases its own
+control socket and removes its temporary root afterward. The command-group
+fix does not address this supervisor-loss boundary; controller-owned recovery
+and native Windows qualification remain required before claiming closure.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

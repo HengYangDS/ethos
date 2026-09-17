@@ -205,7 +205,7 @@ def test_hook_runtime_manifest_rejects_every_binding_drift(
         runtime_materialization.materialize_runtime(
             repo,
             Path(sys.executable),
-            expected_build=expected_runtime_build(repo)[0],
+            expected_build=expected_runtime_build(repo).identity,
         )
 
 

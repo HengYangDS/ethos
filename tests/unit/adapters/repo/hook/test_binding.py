@@ -10,7 +10,6 @@ import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Literal
 from typing import cast
 
 import pytest
@@ -100,35 +99,26 @@ def test_declared_policy_reports_each_missing_transport(tmp_path: Path, launcher
 @pytest.mark.parametrize(
     ("policy", "state", "declared", "message", "push"),
     [
-        (_POLICY, "armed", "true", "armed", "armed"),
-        (None, "not_declared", "false", "not_required", "not_required"),
-        (
-            (
-                '[commit_policy]\nsubject_pattern = "["\n'
-                'signing_required = false\nsigning_format = "ssh"\n'
-            ),
-            "invalid",
-            "invalid",
-            "unknown",
-            "unknown",
-        ),
+        (_POLICY, "armed", True, "armed", "armed"),
+        (None, "not_declared", False, "not_required", "not_required"),
+        (_POLICY.replace('"fix: .+"', '"["'), "invalid", None, "unknown", "unknown"),
     ],
 )
 def test_commit_policy_capability_state_matrix(
     tmp_path: Path,
     policy: str | None,
     state: str,
-    declared: Literal["true", "false", "invalid"],
     message: str,
     push: str,
+    *,
+    declared: bool | None,
 ) -> None:
     repo, _generation = _fixture(tmp_path, policy=policy)
 
     projected, capability = _capability(repo)
 
     assert capability["state"] == state
-    expected_declared = {"true": True, "false": False, "invalid": None}[declared]
-    assert capability["declared"] is expected_declared
+    assert capability["declared"] is declared
     assert capability["commit_message_transport"] == message
     assert capability["push_range_enforcement"] == push
     if state == "invalid":
@@ -162,16 +152,20 @@ def test_armed_transport_does_not_claim_signature_trust_is_ready(tmp_path: Path)
     assert "gpg.ssh.allowedSignersFile" in capability["next_action"]
 
 
+def _advance_expected_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Advance the same accepted source expectation for readiness and transport tests."""
+    expected = runtime_authority.RuntimeBuild(
+        runtime_build("c" * 40, "d" * 40), tmp_path / "accepted"
+    )
+    monkeypatch.setattr(runtime_authority, "expected_runtime_build", lambda _repo: expected)
+
+
 def test_stale_runtime_unarms_both_policy_transports(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, _generation = _fixture(tmp_path, policy=_POLICY)
-    monkeypatch.setattr(
-        runtime_authority,
-        "expected_runtime_build",
-        lambda _repo: (runtime_build("c" * 40, "d" * 40), tmp_path / "accepted"),
-    )
+    _advance_expected_build(monkeypatch, tmp_path)
 
     projected, capability = _capability(repo)
 
@@ -200,11 +194,7 @@ def test_status_preserves_runtime_readiness_without_commit_policy(
     if adopted:
         write_test_profile(repo)
     if condition == "stale":
-        monkeypatch.setattr(
-            runtime_authority,
-            "expected_runtime_build",
-            lambda _repo: (runtime_build("c" * 40, "d" * 40), tmp_path / "accepted"),
-        )
+        _advance_expected_build(monkeypatch, tmp_path)
     elif condition == "missing-launcher":
         (generation / "pre-commit").unlink()
     elif condition == "damaged-selector":
@@ -281,11 +271,7 @@ def test_adopted_status_moves_from_ready_to_stale_without_policy(
     before, policy = _capability(repo)
     assert (before["verdict"], before["required_gaps"], before["next_action"]) == ("pass", [], "")
     assert policy["state"] == "not_declared"
-    monkeypatch.setattr(
-        runtime_authority,
-        "expected_runtime_build",
-        lambda _repo: (runtime_build("c" * 40, "d" * 40), tmp_path / "accepted"),
-    )
+    _advance_expected_build(monkeypatch, tmp_path)
 
     after, _policy = _capability(repo)
 

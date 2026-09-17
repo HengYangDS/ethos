@@ -46,6 +46,7 @@ class HookRuntimeBinding(TypedDict):
     source_tree: str
     expected_source_commit: str
     expected_source_tree: str
+    invoking_source_root: NotRequired[str]
     current: bool
     state: str
     target_current: bool
@@ -94,9 +95,9 @@ def hook_runtime_binding(
         and not configured.is_symlink()
         and _valid_digest(configured.name)
     )
-    expected_build_identity, build_source, expected_build_gap = _expected_build(
-        repo, expected_build
-    )
+    expected, expected_build_gap = _expected_build(repo, expected_build)
+    expected_build_identity = expected.identity if expected is not None else None
+    build_source = expected.source if expected is not None else None
     expected_source_identity = _expected_source(repo, expected_build_identity)
     if selected_runtime is None:
         selected, selection_gap = _selected_runtime(common)
@@ -164,6 +165,11 @@ def hook_runtime_binding(
         "source_tree": selected.build.source_tree if selected else "",
         "expected_source_commit": expected_source_identity[0] if expected_source_identity else "",
         "expected_source_tree": expected_source_identity[1] if expected_source_identity else "",
+        **(
+            {"invoking_source_root": build_source.as_posix()}
+            if expected is not None and expected.invoking and build_source is not None
+            else {}
+        ),
         "current": not gaps,
         "state": "unknown"
         if observation
@@ -434,19 +440,19 @@ def _repair_action(
 def _expected_build(
     repo: Path,
     selected: BuildIdentity | None,
-) -> tuple[BuildIdentity | None, Path | None, str]:
+) -> tuple[runtime_authority.RuntimeBuild | None, str]:
     if selected is not None:
-        return selected, None, ""
+        return runtime_authority.RuntimeBuild(selected, None), ""
     try:
-        identity, source = runtime_authority.expected_runtime_build(repo)
+        expected = runtime_authority.expected_runtime_build(repo)
     except GitExecutionError:
         raise
     except (OSError, RuntimeError, ValueError):
         if runtime_authority.accepted_version_migration_pending(repo):
-            return None, None, ""
-        return None, None, "runtime_expected_build_unavailable"
+            return None, ""
+        return None, "runtime_expected_build_unavailable"
     else:
-        return identity, source, ""
+        return expected, ""
 
 
 def _expected_source(repo: Path, selected: BuildIdentity | None) -> tuple[str, str] | None:

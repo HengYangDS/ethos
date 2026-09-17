@@ -7,11 +7,14 @@ from datetime import datetime
 from datetime import timedelta
 from functools import partial
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
+from unittest.mock import call
 
 import pytest
 
 import ethos.adapters.mutation.proof as proof_module
 import ethos.adapters.mutation.proof_admission as proof_admission
+import ethos.adapters.openspec.lifecycle.archive_transition as archive
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.contracts.plan import compile_plan
@@ -95,13 +98,9 @@ def test_repository_transition_rejects_acceptance_not_bound_to_source(tmp_path, 
         source.nodes,
         policy=dict(source.policy),
     )
-    record = _issue(fixture.worktree, head, plan=forged)
-    persist_proof_attestation(fixture.worktree, record)
-
-    selected, gaps = proof_module.proof_for_repository_transition(fixture.worktree, head)
-
-    assert selected is None
-    assert gaps == ["proof_source_intent_mismatch"]
+    persist_proof_attestation(fixture.worktree, _issue(fixture.worktree, head, plan=forged))
+    observed = proof_module.proof_for_repository_transition(fixture.worktree, head)
+    assert observed == (None, ["proof_source_intent_mismatch"])
 
 
 def test_repository_proof_cannot_replace_lane_generation_proof(tmp_path):
@@ -123,27 +122,21 @@ def test_repository_proof_cannot_replace_lane_generation_proof(tmp_path):
     record = _issue(fixture.worktree, head, plan=repository_plan)
     persist_proof_attestation(fixture.worktree, record)
     assert proof_gaps(fixture.worktree, head) == ["proof_lane_mismatch"]
-    selected, gaps = proof_module.proof_for_repository_transition(fixture.worktree, head)
-    assert gaps == []
-    assert selected == record
+    assert proof_module.proof_for_repository_transition(fixture.worktree, head) == (record, [])
 
 
 def test_proof_query_compiles_each_exact_source_policy_once(tmp_path, monkeypatch):
     """Share immutable policy work within a query, never across fresh queries."""
     repo, head = proof_repository(tmp_path / "repo")
-    record = _issue(repo, head)
-    persist_proof_attestation(repo, record)
-    resolve = proof_admission.resolve_gate_policy
-    calls = []
-
-    def measured(root, **kwargs):
-        calls.append((kwargs.get("tree_ref"), kwargs.get("full", False)))
-        return resolve(root, **kwargs)
-
+    persist_proof_attestation(repo, _issue(repo, head))
+    measured = Mock(wraps=proof_admission.resolve_gate_policy)
     monkeypatch.setattr(proof_admission, "resolve_gate_policy", measured)
     for attempt in range(2):
         assert proof_gaps(repo, head) == []
-        assert calls == [(head, True), (head, False)] * (attempt + 1)
+        assert measured.call_args_list == [
+            call(repo, tree_ref=head, full=True),
+            call(repo, tree_ref=head),
+        ] * (attempt + 1)
 
 
 def _archive_bound_work_proof(
@@ -188,24 +181,24 @@ def _archive_bound_work_proof(
     return fixture, head, proof
 
 
-def test_repository_transition_uses_archive_proof_after_lease_retirement(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    fixture, head, proof = _archive_bound_work_proof(tmp_path)
+@pytest.mark.parametrize("omit", [False, True])
+def test_repository_transition_observes_one_fresh_archive_proof_set(tmp_path, monkeypatch, omit):
+    """Each query uses one current set; archive withdrawal never reuses prior authority."""
+    fixture, head, proof = _archive_bound_work_proof(tmp_path, omit=omit)
     monkeypatch.setattr(proof_admission, "leases_by_branch", lambda _root: {})
+    observed = Mock(wraps=proof_admission.read_attestation_set)
+    monkeypatch.setattr(proof_admission, "read_attestation_set", observed)
+    monkeypatch.setattr(archive, "read_attestation_set", lambda _r: pytest.fail("second set read"))
+    for attempt in (1, 2):
+        selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
+        assert (selected, gaps) == (
+            (None, ["proof_source_intent_mismatch"]) if omit else (proof, [])
+        )
+        assert observed.call_count == attempt
+    observed.return_value = ("new selection", (proof,))
     selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
-    assert selected == proof
-    assert gaps == []
-
-
-def test_repository_transition_rejects_omitted_archived_intent(tmp_path: Path) -> None:
-    """Archive absence is not permission to discard accepted source meaning."""
-    fixture, head, _proof = _archive_bound_work_proof(tmp_path, omit=True)
-
-    selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
-
-    assert selected is None
-    assert gaps == ["proof_source_intent_mismatch"]
+    assert (selected == proof and not gaps) if omit else (selected is None and gaps)
+    assert observed.call_count == 3
 
 
 def test_repository_transition_accepts_exact_active_intent(
@@ -219,10 +212,7 @@ def test_repository_transition_accepts_exact_active_intent(
     git(fixture.candidate, "reset", "--hard", head)
     monkeypatch.setattr(proof_admission, "leases_by_branch", lambda _root: {})
 
-    selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
-
-    assert selected == proof
-    assert gaps == []
+    assert proof_module.proof_for_repository_transition(fixture.candidate, head) == (proof, [])
 
 
 def test_repository_transition_rejects_conflicting_archive_proofs(
@@ -239,10 +229,8 @@ def test_repository_transition_rejects_conflicting_archive_proofs(
         ),
     )
 
-    selected, gaps = proof_module.proof_for_repository_transition(fixture.candidate, head)
-
-    assert selected is None
-    assert gaps == ["contradiction"]
+    observed = proof_module.proof_for_repository_transition(fixture.candidate, head)
+    assert observed == (None, ["contradiction"])
 
 
 def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(tmp_path: Path) -> None:

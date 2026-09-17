@@ -25,6 +25,8 @@ from ethos.repository.profile import load_repository_profile
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from ethos.contracts.semantic import Attestation
+
 
 _TASK_CHECKBOX = re.compile(rb"(?m)^([ \t]*[-*+]\s+)\[[ xX]\]")
 
@@ -248,6 +250,7 @@ def _archived_commitment(
     change_id: str | None,
     expected_digest: str | None,
     require_absent: bool = False,
+    attestations: tuple[Attestation, ...] | None = None,
 ) -> Commitment | None:
     if tree_ref is None:
         return None
@@ -259,7 +262,9 @@ def _archived_commitment(
         )
         if active.returncode or active.stdout:
             return None
-    archived = attested_archive_transition(repo, head=tree_ref, change=change_id)
+    archived = attested_archive_transition(
+        repo, head=tree_ref, change=change_id, attestations=attestations
+    )
     if archived is None:
         return None
     return _accepted_commitment(archived[0], expected_digest=expected_digest)
@@ -271,8 +276,9 @@ def load_openspec_commitment(
     change_id: str | None = None,
     tree_ref: str | None = None,
     expected_digest: str | None = None,
+    attestations: tuple[Attestation, ...] | None = None,
 ) -> Commitment:
-    """Compile one active Change from the official OpenSpec JSON projection."""
+    """Compile exact official intent, sharing only a caller's current evidence observation."""
     if not openspec_profile_enabled(repo, tree_ref=tree_ref):
         msg = "openspec_profile_not_enabled"
         raise ValueError(msg)
@@ -287,6 +293,7 @@ def load_openspec_commitment(
             change_id=change_id,
             expected_digest=expected_digest,
             require_absent=True,
+            attestations=attestations,
         )
     ) is not None:
         return archived
@@ -306,6 +313,7 @@ def load_openspec_commitment(
                         tree_ref=tree_ref,
                         change_id=None,
                         expected_digest=expected_digest,
+                        attestations=attestations,
                     )
                 )
                 is not None
@@ -326,6 +334,7 @@ def load_openspec_commitment(
                 tree_ref=tree_ref,
                 change_id=change_id,
                 expected_digest=expected_digest,
+                attestations=attestations,
             )
             if archived is not None:
                 return archived

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import pytest
 
@@ -16,23 +16,33 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-@pytest.mark.parametrize("missing", [False, True])
+@pytest.mark.parametrize("boundary", ["nonzero", "missing", "denied"])
 def test_command_runner_surfaces_missing_command_and_nonzero_exit(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, missing: bool
+    tmp_path: Path, boundary: str
 ) -> None:
-    gate = Gate(id="gate", kind="test", command=("missing-tool", "--check"))
+    command = {
+        "missing": (str(tmp_path / "missing-tool"),),
+        "denied": (str(tmp_path),),
+        "nonzero": (
+            sys.executable,
+            "-c",
+            "import sys; print('output'); print('failure',file=sys.stderr); sys.exit(7)",
+        ),
+    }[boundary]
+    gate = Gate(id="gate", kind="test", command=command)
     node = PlanNode(id=gate.id, kind="check", command=gate_runner.gate_execution_identity(gate))
-    run = Mock(
-        return_value=SimpleNamespace(returncode=7, stdout="partial output", stderr="quality failed")
-    )
-    run.side_effect = FileNotFoundError(2, "missing", "missing-tool") if missing else None
-    monkeypatch.setattr(gate_runner.subprocess, "run", run)
+    if boundary == "denied":
+        with pytest.raises(gate_runner.ProcessExecutionError) as failure:
+            gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
+        assert isinstance(failure.value.__cause__, PermissionError)
+        return
     result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
-    assert (result.verdict, result.exit_code) == ("block", 127 if missing else 7)
-    if missing:
-        assert result.diagnostics[0]["required_gaps"] == ["missing_command:missing-tool"]
+    assert (result.verdict, result.exit_code) == ("block", 127 if boundary == "missing" else 7)
+    if boundary == "missing":
+        assert result.diagnostics[0]["required_gaps"] == [f"missing_command:{command[0]}"]
+        assert result.diagnostics[0]["cwd"] == str(tmp_path)
     else:
-        assert (result.stdout, result.stderr) == ("partial output", "quality failed")
+        assert (result.stdout, result.stderr) == ("output\n", "failure\n")
 
 
 @pytest.mark.parametrize(

@@ -751,6 +751,44 @@ admission check, so reduced work counts are stronger evidence than that timing.
 These sections perform no remote writes and exclude fixture preparation.
 The public effect tests separately verify real writes and partial recovery.
 
+### Gate Process Ownership
+
+Command gates now use the existing process executor instead of a parallel raw
+subprocess path. The same socket-based native regression covers direct-command
+timeout, direct cancellation and gate cancellation, each with inherited or closed
+output pipes. Both new gate cases first failed because descendants kept their
+sockets after cancellation. An earlier probe had an invalid canonical command
+identity and did not reach execution; only the corrected admitted probe is RED
+evidence. No new process framework or timeout setting is introduced.
+
+Missing commands retain exit 127 and their exact command/root diagnostics.
+Other process-creation failures retain structured evidence and are not mislabeled
+as missing executables. Real native missing, permission-denied and nonzero-exit
+cases replace the old raw-subprocess mock. Provider result cases share one
+matrix while retaining success, failure, warning, informational and missing-verdict
+assertions. Product/test ELOC is 45,403/49,992; type and size/budget gates pass.
+
+The same 111 process/gate/architecture consumers pass at two, four and eight
+workers in 5.93, 5.36 and 5.32 seconds, respectively. Wrapper times including
+cleanup are 6.44, 5.88 and 5.85 seconds. All use the declared thread timeout,
+no retries and equal no-coverage diagnostic settings. The two-worker sample
+briefly overlaps a read-only quality check; these are correctness/scaling
+observations, not a controlled speedup claim. Another 47 public proof-command
+consumers pass in 14.58 seconds, or 15.03 including cleanup. Every owned test
+root is removed. Receipts use the `throughput-gate-process-` prefix in the
+existing evidence root.
+
+This repair requires a living caller. The separate
+`throughput-worker-loss-same-group-current.json` probe at `7b5ad8964` proves
+that a descendant survives real xdist worker loss even without creating a
+nested process group; the older probe also exercises group escape. The installed
+pytest-timeout thread handler calls `os._exit(1)`, which cannot run caller
+cleanup. Switching timeout modes, restarting workers or adding retries is not
+a containment repair. Recovery must have a surviving lifetime owner and cover
+worker loss, nested descendants and platform boundaries without per-command
+supervisor startup or unsafe PID/name scans. This remains an open acceptance
+obligation, not a result of the passing cancellation cases.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

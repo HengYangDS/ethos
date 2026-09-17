@@ -12,6 +12,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.process as process_adapter
+from ethos.adapters.gates.runner import LocalGateRunner
+from ethos.contracts.gates import Gate
+from ethos.contracts.plan import PlanNode
+from ethos.repository.policy.gates import gate_execution_identity
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -219,7 +223,7 @@ def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
-@pytest.mark.parametrize("failure", ["timeout", "cancel"])
+@pytest.mark.parametrize("failure", ["timeout", "cancel", "gate-cancel"])
 @pytest.mark.parametrize("inherit_pipes", [False, True])
 def test_command_failure_closes_owned_descendants(tmp_path, monkeypatch, failure, inherit_pipes):
     """A ready descendant cannot retain its socket after the command is interrupted."""
@@ -246,15 +250,24 @@ def test_command_failure_closes_owned_descendants(tmp_path, monkeypatch, failure
                 connection, _ = listener.accept()
                 connection.settimeout(2)
                 assert connection.recv(1) == b"R"
-                if failure == "cancel":
+                if failure != "timeout":
                     raise KeyboardInterrupt
             return communicate(process, *args, **kwargs)
 
         monkeypatch.setattr(subprocess.Popen, "communicate", after_ready)
+
+        def execute():
+            command = (sys.executable, "-c", parent)
+            if failure != "gate-cancel":
+                return process_adapter.run_command(tmp_path, command, timeout=0.2)
+            gate = Gate(id="probe", kind="test", command=command)
+            node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
+            return LocalGateRunner().run(node, gate, root=tmp_path)
+
         try:
-            error = KeyboardInterrupt if failure == "cancel" else subprocess.TimeoutExpired
+            error = subprocess.TimeoutExpired if failure == "timeout" else KeyboardInterrupt
             with pytest.raises(error) as raised:
-                process_adapter.run_command(tmp_path, (sys.executable, "-c", parent), timeout=0.2)
+                execute()
             if failure == "timeout":
                 assert raised.value.output == b"started\n"
             assert connection is not None

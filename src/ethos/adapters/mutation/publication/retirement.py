@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 
 import ethos.adapters.process as process
 from ethos.adapters.mutation.publication.observation import observe_remote_ref
+from ethos.adapters.repo.commit.rewrite import refreshed_object_provenance
 from ethos.adapters.repo.commit.signature import repaired_object_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_head
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 
 
 def _accepted_contribution(root: Path, old: str, accepted: str) -> dict[str, object]:
-    """Require ancestry or a validated native history-repair relation, never patch-id."""
+    """Require ancestry or conserved native rewrite provenance, never patch-id."""
     if is_ancestor(root, old, accepted):
         return {"state": "ancestor", "old": old, "replacement": old}
     repair = repaired_object_provenance(root, old=old, new=accepted)
@@ -43,7 +44,10 @@ def _accepted_contribution(root: Path, old: str, accepted: str) -> dict[str, obj
             "replacement": mapping[old],
             "attestation_id": repair["attestation_id"],
         }
-    return {"state": "not_absorbed", "old": old}
+    return refreshed_object_provenance(root, old=old, new=accepted) or {
+        "state": "not_absorbed",
+        "old": old,
+    }
 
 
 def observe_proposal_review(
@@ -195,6 +199,13 @@ def _retirement_observations(
         else _accepted_contribution(root, old, accepted)
     )
     result: dict[str, object] = {"accepted": accepted, "contribution": contribution}
+    conservation = contribution.get("conservation")
+    if isinstance(conservation, dict) and conservation.get("verdict") == "unknown":
+        return {
+            **result,
+            "verdict": "unknown",
+            "required_gaps": ["proposal_retirement_conservation_unknown"],
+        }
     if contribution["state"] == "not_absorbed":
         return {**result, "verdict": "block", "required_gaps": ["proposal_retirement_not_accepted"]}
     peer = observe_remote_ref(root, remote, f"refs/heads/{accepted_branch}")

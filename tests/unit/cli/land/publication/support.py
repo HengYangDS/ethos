@@ -21,6 +21,19 @@ PROPOSAL = "terminal-convergence"
 PROPOSAL_REF = f"refs/heads/proposal/{PROPOSAL}"
 
 
+def publication_peers(repo: Path, root: Path, *refs: str, object_format: str = "sha1"):
+    """Create two independent native peers with the caller's exact initial refs."""
+    peers = {}
+    for peer_id, remote in (("gitlab", "origin"), ("github", "github")):
+        target = root / f"{peer_id}.git"
+        git(root, "init", "--bare", f"--object-format={object_format}", str(target))
+        git(repo, "remote", "add", remote, str(target))
+        if refs:
+            git(repo, "push", remote, *refs)
+        peers[peer_id] = target
+    return peers
+
+
 def branch_publication_fixture(
     tmp_path: Path,
     *,
@@ -40,13 +53,7 @@ def branch_publication_fixture(
         git(repo, "checkout", source_branch)
     if proof:
         seed_executed_proof(repo, head)
-    remotes: dict[str, Path] = {}
-    for peer_id, remote in (("gitlab", "origin"), ("github", "github")):
-        target = tmp_path / f"{peer_id}.git"
-        git(tmp_path, "init", "--bare", f"--object-format={object_format}", target.as_posix())
-        git(repo, "remote", "add", remote, target.as_posix())
-        git(repo, "push", remote, "HEAD:refs/heads/dev")
-        remotes[peer_id] = target
+    remotes = publication_peers(repo, tmp_path, "HEAD:refs/heads/dev", object_format=object_format)
     return repo, remotes, head
 
 
@@ -142,12 +149,7 @@ def signed_publication_fixture(
     apply_accepted_closeout(repo, accepted_before, commit)
     git(repo, "tag", "-s", "-m", "release v1.2.3", "v1.2.3")
     tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
-    remotes: dict[str, Path] = {}
-    for peer_id, remote in (("gitlab", "origin"), ("github", "github")):
-        target = tmp_path / f"publication-{peer_id}.git"
-        git(tmp_path, "init", "--bare", target.as_posix())
-        git(repo, "remote", "add", remote, target.as_posix())
-        remotes[peer_id] = target
+    remotes = publication_peers(repo, tmp_path)
     return (
         repo,
         remotes,

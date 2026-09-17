@@ -10,15 +10,24 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as refresh_effect
 import ethos.adapters.mutation.publication.execution as publication_execution
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.mutation.publication.retirement as retirement
+import ethos.adapters.repo.commit.rewrite as rewrite
+from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.hook.protocol import execute_hook
+from ethos.contracts.semantic import Attestation
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.support import apply_receipt
+from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import git
 from tests.unit.cli.land.publication.support import proposal_ref
@@ -27,7 +36,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1"):
+def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1", refreshed: bool = False):
     """Give plain Git peers accepted content without a Forge review system."""
     repo, peers, proposal = branch_publication_fixture(
         tmp_path, source_branch="dev", proof=False, object_format=object_format
@@ -42,28 +51,62 @@ def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1"):
     git(repo, "add", ".ethos/release.toml")
     git(repo, "commit", "-m", "chore: declare plain Git peers")
     accepted = git(repo, "rev-parse", "HEAD")
+    if refreshed:
+        candidate, work = tmp_path / "candidate", tmp_path / "work"
+        git(repo, "worktree", "add", "-b", "candidate/dev", str(candidate), accepted)
+        install_fixture_hook_runtime(repo)
+        run_ethos(
+            "lane",
+            "start",
+            "replayed",
+            "--path",
+            str(work),
+            "--holder-ref",
+            "agent:test:case:agent-test",
+            "--apply",
+            "--json",
+            cwd=repo,
+        )
+        git(work, "mv", "proposal.txt", "renamed.txt")
+        (work / "contribution.bin").write_bytes(b"\x00preserved contribution\xff")
+        git(work, "add", "-A")
+        git(work, "commit", "-m", "feat: preserve renamed and binary contribution")
+        proposal = git(work, "rev-parse", "HEAD")
+        (candidate / "candidate.txt").write_text("independent candidate change\n")
+        git(candidate, "add", "-A")
+        git(candidate, "commit", "-m", "feat: advance candidate")
+        result = run_ethos(
+            "lane",
+            "refresh-base",
+            "--apply",
+            "--authorize",
+            "--expect-head",
+            proposal,
+            "--json",
+            cwd=work,
+        )
+        assert result["state"] == "base_refreshed"
+        accepted = git(work, "rev-parse", "HEAD")
+        git(repo, "reset", "--hard", accepted)
+        git(repo, "commit", "--allow-empty", "-S", "-m", "chore: accept refreshed contribution")
+        accepted = git(repo, "rev-parse", "HEAD")
     for remote in ("origin", "github"):
         git(repo, "push", remote, "HEAD:refs/heads/dev", f"{proposal}:{PROPOSAL_REF}")
     return repo, peers, proposal, accepted
 
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+@pytest.mark.parametrize("refreshed", [False, True])
 def test_public_retirement_after_dev_absorption_does_not_wait_for_main(
-    tmp_path: Path, object_format: str
+    tmp_path: Path, monkeypatch, object_format: str, *, refreshed: bool
 ) -> None:
     """Reject the old nonzero-only effect model through the real public CLI."""
-    repo, peers, proposal, accepted = retirement_fixture(tmp_path, object_format=object_format)
-    preview = run_ethos(
-        "publish",
-        "--retire",
-        "--ref",
-        PROPOSAL_REF,
-        "--probe-remote",
-        "--expect-head",
-        accepted,
-        "--json",
-        cwd=repo,
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    repo, peers, proposal, accepted = retirement_fixture(
+        tmp_path, object_format=object_format, refreshed=refreshed
     )
+    main = git(repo, "rev-parse", "main")
+    preview = branch_publication(repo, accepted, "--retire")
     assert preview["state"] == "ready_to_retire"
     assert {proposal_ref(peer) for peer in peers.values()} == {proposal}
 
@@ -72,7 +115,7 @@ def test_public_retirement_after_dev_absorption_does_not_wait_for_main(
     assert applied["state"] == "retired"
     assert {proposal_ref(peer) for peer in peers.values()} == {""}
     assert git(repo, "rev-parse", "dev") == accepted
-    assert git(repo, "rev-parse", "main") == proposal
+    assert git(repo, "rev-parse", "main") == main
     replay = apply_receipt(repo, preview["data"]["request_receipt"], accepted)
     assert replay["state"] == "retired"
     assert {item["state"] for item in replay["data"]["remote_effect"]["attempts"]} == {
@@ -86,18 +129,8 @@ def test_public_retirement_after_dev_absorption_does_not_wait_for_main(
 def test_retirement_never_deletes_an_integration_or_release_resource(tmp_path: Path, target: str):
     """Explicit retirement cannot reclassify protected/candidate roles as proposals."""
     repo, peers, proposal, accepted = retirement_fixture(tmp_path)
-    report = run_ethos_blocked(
-        "publish",
-        "--retire",
-        "--ref",
-        target,
-        "--probe-remote",
-        "--expect-head",
-        accepted,
-        "--apply",
-        "--authorize",
-        "--json",
-        cwd=repo,
+    report = branch_publication(
+        repo, accepted, "--retire", "--apply", "--authorize", target_ref=target, blocked=True
     )
     assert report["verdict"] == "block"
     assert report["state"] != "retired"
@@ -108,17 +141,7 @@ def test_retirement_never_deletes_an_integration_or_release_resource(tmp_path: P
 def test_retirement_rechecks_peer_absorption_between_preview_and_effect(tmp_path: Path):
     """A successful preview is not reusable authorization after peer accepted drift."""
     repo, peers, proposal, accepted = retirement_fixture(tmp_path)
-    preview = run_ethos(
-        "publish",
-        "--retire",
-        "--ref",
-        PROPOSAL_REF,
-        "--probe-remote",
-        "--expect-head",
-        accepted,
-        "--json",
-        cwd=repo,
-    )
+    preview = branch_publication(repo, accepted, "--retire")
     parent = git(repo, "rev-parse", f"{proposal}^")
     git(peers["github"], "update-ref", "refs/heads/dev", parent, accepted)
     blocked = apply_receipt(repo, preview["data"]["request_receipt"], accepted, blocked=True)
@@ -159,17 +182,7 @@ def test_retirement_recovers_partial_effects_without_redeleting_completed_peers(
 ):
     """Actual bare-ref results, not transport exit alone, govern interrupted deletion."""
     repo, peers, proposal, accepted = retirement_fixture(tmp_path)
-    preview = run_ethos(
-        "publish",
-        "--retire",
-        "--ref",
-        PROPOSAL_REF,
-        "--probe-remote",
-        "--expect-head",
-        accepted,
-        "--json",
-        cwd=repo,
-    )
+    preview = branch_publication(repo, accepted, "--retire")
     receipt = preview["data"]["request_receipt"]
     native = publication_execution.git.run_network_git
     unavailable = False
@@ -210,17 +223,7 @@ def test_retirement_preserves_unknown_review_in_public_preview(tmp_path: Path, m
         return native(root, remote, ref)
 
     monkeypatch.setattr(retirement, "observe_remote_ref", observe)
-    result = run_ethos(
-        "publish",
-        "--retire",
-        "--ref",
-        PROPOSAL_REF,
-        "--probe-remote",
-        "--expect-head",
-        accepted,
-        "--json",
-        cwd=repo,
-    )
+    result = branch_publication(repo, accepted, "--retire")
     assert result["verdict"] == "unknown"
     assert result["state"] == "observation_unknown"
     assert "--retire" in result["next_action"]
@@ -246,16 +249,78 @@ def test_native_pre_push_consumes_deletions_instead_of_skipping_them(tmp_path: P
         "proposal_retirement_target_not_proposal" in json.loads(output.getvalue())["required_gaps"]
     )
     assert {proposal_ref(peer) for peer in peers.values()} == {proposal}
-    preview = run_ethos(
-        "publish",
-        "--retire",
-        "--ref",
-        PROPOSAL_REF,
-        "--probe-remote",
-        "--expect-head",
-        accepted,
-        "--json",
-        cwd=repo,
-    )
+    preview = branch_publication(repo, accepted, "--retire")
     assert apply_receipt(repo, preview["data"]["request_receipt"], accepted)["state"] == "retired"
     assert {proposal_ref(peer) for peer in peers.values()} == {""}
+
+
+@pytest.mark.parametrize(
+    "fault", ["missing", "invalid", "native_timeout", "nonconserving", "ambiguous"]
+)
+def test_refreshed_retirement_requires_current_complete_evidence(tmp_path, monkeypatch, fault):
+    """Exact bytes without valid provenance, or unavailable computation, grant no deletion."""
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    replay = refresh_effect.run_git
+
+    def rebase(root, *args, **kwargs):
+        completed = replay(root, *args, **kwargs)
+        if fault == "nonconserving" and args[:2] == ("-c", "rebase.updateRefs=false"):
+            git(root, "reset", "--hard", "candidate/dev")
+        return completed
+
+    monkeypatch.setattr(refresh_effect, "run_git", rebase)
+    repo, peers, proposal, accepted = retirement_fixture(tmp_path, refreshed=True)
+    selected, records = read_attestation_set(repo)
+    refresh = next(r for r in records if rewrite.declares_transition(r, "lane.refresh"))
+    if fault == "ambiguous":
+        monkeypatch.setattr(
+            rewrite, "read_attestation_set", lambda _root: (selected, (*records, refresh))
+        )
+    native = rewrite.run_command
+    temporary = set()
+
+    def run(root, command, **kwargs):
+        temporary.add(root)
+        if fault == "native_timeout" and command[1] == "merge-tree":
+            raise subprocess.TimeoutExpired(command, 30)
+        return native(root, command, **kwargs)
+
+    monkeypatch.setattr(rewrite, "run_command", run)
+    if fault in {"missing", "invalid"}:
+        retained = tuple(r for r in records if r is not refresh)
+        if fault == "invalid":
+            data = refresh.model_dump(mode="json", exclude={"id"})
+            data["payload"]["body"]["plan"]["policy"]["execution_branch"] = "work/unrelated"
+            retained += (Attestation.issue(data),)
+        git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)
+        record_attestations(repo, retained)
+    report = branch_publication(repo, accepted, "--retire", blocked=fault != "native_timeout")
+    assert report["verdict"] == ("unknown" if fault == "native_timeout" else "block")
+    if fault == "nonconserving":
+        assert {
+            v["contribution"]["conservation"]["reason"]
+            for v in report["data"]["push_admission"].values()
+        } == {"native_composition_mismatch"}
+    assert {proposal_ref(peer) for peer in peers.values()} == {proposal}
+    assert bool(temporary) == (fault in {"native_timeout", "nonconserving"})
+    assert all(not path.exists() for path in temporary)
+
+
+@pytest.mark.parametrize("observation", ["conflict", "missing", "unrelated"])
+def test_native_composition_preserves_unresolved_boundaries(tmp_path, observation):
+    """Real native conflicts and unavailable input histories cannot certify conservation."""
+    repo = init_git_repo(tmp_path / "native")
+    base = git(repo, "rev-parse", "HEAD")
+    old = commit_fixture_file(repo, "value.txt", "old\n", "old value")
+    git(repo, "checkout", "--detach", base)
+    candidate = commit_fixture_file(repo, "value.txt", "candidate\n", "candidate value")
+    if observation == "missing":
+        candidate = "f" * len(candidate)
+    if observation == "unrelated":
+        candidate = git(repo, "commit-tree", f"{candidate}^{{tree}}", "-m", "unrelated")
+    before = git(repo, "show-ref")
+    result = rewrite.observe_refresh_conservation(
+        repo, rewrite.RewriteEdge(old, old, "", "refresh", candidate)
+    )
+    assert result["verdict"] == ("block" if observation == "conflict" else "unknown")
+    assert git(repo, "show-ref") == before

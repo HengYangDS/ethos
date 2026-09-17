@@ -38,18 +38,18 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 17 09:10 +08 accepted readback is
-`64a00011f28d0feed31e950aff61f8a2613a20c7`, tree
-`f551899008a0a9dbcdf92c08afac3486fa6fff0f`. Immutable runtime
-`3dd4698fbbca45ddc116efe87aa6ee79b4a2cb75aff601e3f2c9f96b6d71eec9`
-matches that source/tree. Proposal-retirement source and postarchive proof,
-native candidate/accepted CAS and activation passed: 35 gates, 3,724 passed,
-one skip and 95.116522 percent combined coverage. Postarchive Attestation:
-`044032a2e3889b321777dec81a01f74ee0eae04f4719a283308438a85a60b094`.
-The native installer removed the superseded runtime; owned pytest and installed
-smoke scratch roots are absent. Three registered worktrees were exact-equal and
-clean before the next Change. Delivery evidence is
-`proposal-retirement-delivery-readback.json` in the existing receipt root.
+The September 17 10:49 +08 accepted readback is
+`0d115856803c6af64c86fd693bb8d218900c46c9`, tree
+`21b4b652a8e6e88a193ec03573d097e7178bdc2d`. Immutable runtime
+`e20acd3ce329b3fbc70cfc1fb4b082286a340cb2d694b1471ec4da3d265066d1`
+matches that source/tree. Canonical postarchive repair completed both exact
+full proofs, native candidate/accepted CAS and activation: 35 gates, 3,733
+passed, one skip and 95.120934 percent combined coverage. Postarchive proof:
+`6adb5936bd79a59e472f85a5073c79b25d36896003894d76228b5232de659827`.
+The installer removed the superseded runtime; owned pytest and installation
+scratch roots are absent. Dev, main, candidate and work refs were exact-equal;
+all three registered worktrees were clean before the next Change. Evidence:
+`postarchive-repair-delivery-readback.json` in the existing receipt root.
 
 Historical correction changed 40 author fields and 37 committer fields across
 40 selected commits; 2,855 affected objects preserve trees, messages, dates,
@@ -67,43 +67,53 @@ repair. Do not merge erroneous history back, bypass hooks, change protections
 implicitly or retry unchanged rejection. Hosted acceptance is unproved.
 
 The sole owned `work/20260915-commit-integrity` lane now carries
-`postarchive-repair`. Inherited-archive selection, exact prewrite attribution,
+`refresh-retirement`. Inherited-archive selection, exact prewrite attribution,
 lane-specific proof and proposal retirement are accepted. Retirement consumes
 dev absorption and review closure independently of main; native pre-push no
 longer skips deletion tuples. Ancestry and completed validated history-repair
 mapping are admitted, not bare patch equivalence.
 
-The architecture adopter reports three proposals retired with absence readback
-and effect `6f2fe10429dcca5d5fdb3e89a36edab963c2ea5b73e51245069594b04885f301`.
-This is attributed execution, not our remote replay. Its fourth old contribution
-belongs to verified native `lane.refresh`, not the separate two-object signature
-repair. The existing refresh validator accepts effect `e275b86a`; the old
-proposal is ancestral to its input and the output is ancestral to accepted dev.
-Publication does not yet consume that provenance. Verify contribution preservation
-at the existing owner before admitting deletion; keep the remaining ref until
-then. This bounded consumer gap follows the current canonical-repair closure.
+The architecture adopter reports accepted `b7d8290bd3cdc242d9cb0e86683b5b635c2754a7`,
+exact proof `52f847b1d165524d0eff5e2b029379ac08ad28368a010a130aa23fef4365b594`,
+source publication, fresh-clone checks and native authoring-lane retirement.
+These are attributed task observations, not an independent replay. Preserve its
+legacy dirty/foreign roots. Its remote-only `proposal/static-publishing` still
+names `048b18ed`; completed native refresh `e275b86a` carries the old contribution
+to an accepted replacement. It is not the separate signature-repair mapping.
 
-Canonical repair currently requires an active Commitment before considering
-archive evidence. The isolated current-resolution counterexample distinguishes
-active success from archived rejection without consulting available provenance.
-The current Change composes verified archive evidence with exact structured
-canonical failures, current coordination and postimage admission. Generic local-
-verification receipt ownership remains a separate next closure. No adopter
-compatibility carrier or adopter source mutation is required.
+The bounded current Change moves existing refresh validation to the Git commit
+provenance owner and makes publication consume the same relation. Retirement
+also verifies exact output-tree agreement with isolated native composition of
+candidate and old contribution. Historical evidence never grants current deletion
+authority. Peer absorption, review closure, exact remote OID, fresh per-effect
+admission and CAS remain independent. Archive retains exact archived-tree
+preservation. No local proposal ref or historical authoring Lease is required.
 
-The current repair has a real public counterexample: official archive commits
-the new canonical specification but reports `repair_required`; the original
-resolver then rejects its exact prewrite path. The repaired public path admits
-that path through both lane and pre-tool surfaces, rejects mixed paths and a
-foreign holder, and returns to ordinary archived-source scope after Purpose
-repair. The original-source replay fails for the expected validation gap;
-151 affected tests and ten cheap public gates pass. Native format, import and
-prose checks pass. These are source-level observations, not accepted runtime
-delivery. The existing `postarchive-repair-*` receipts retain the evidence.
+The actual public retirement counterexample now passes in SHA-1 and SHA-256;
+missing/invalid evidence, ambiguity, lost content, native timeout, conflict and
+unavailable history retain their blocking or unknown boundary. Eight targeted
+boundary cases, 125 affected publication/refresh cases and 47 additional archive
+consumer cases pass. Ten cheap public gates, native formatting/import/prose and
+all 12 official strict items pass without warnings. A read-only observer on
+adopter accepted `b7d8290` validates refresh `e275b86a` and reproduces output tree
+`a6da4de83dff894c52c0977c305a4bd775849f0e`; adopter HEAD, refs and dirty bytes
+remain unchanged. This is not adopter mutation admission or accepted runtime
+delivery. Exact full proof, native closeout and runtime activation remain required.
+Repeated native publication fixture setup is consolidated without deleting
+unique cases; product/test ELOC remain below their independent 50,000 ceilings.
+
+Canonical postarchive repair is delivered, not pending: it derives only the
+structured validator-named path from verified archive output, then still applies
+current coordination and postimage admission. It rejects mixed paths and foreign
+holders and restores ordinary archived-source scope after repair. The predecessor
+Purpose deadlock must not remain a current action elsewhere in this plan.
+Generic local-verification receipt ownership and explicit independent main/tag
+promotion remain subsequent separate closures. No adopter compatibility carrier
+or adopter source mutation is required.
 
 Advance measured P5 work at these existing owners without interrupting the
-current closure. The latest accepted proof took 2,025.539 seconds; its JUnit reports
-1,730.900 seconds in pytest. The preceding intent-selection measurement attributed 36.07 percent of
+current closure. The latest accepted proof took 2,087.626 seconds; its JUnit reports
+1,814.155 seconds in pytest. The preceding intent-selection measurement attributed 36.07 percent of
 summed case time to six lifecycle modules, not wall time. The installed-product smoke takes roughly three
 minutes; most other checks are seconds. These measurements displace the older
 56-percent hotspot estimate, not the need for complete verification.
@@ -6515,12 +6525,13 @@ The amended source then completed archive, current proof, acceptance, immutable
 activation, publication and exact lane retirement at `7a268f313`; the current
 boundary above owns follow-up order. These completed effects are not pending tasks.
 
-Two distinct recovery gaps remain subsequent bounded work, not hidden additions
-to this Change. Workstation's archive preview passed before an invalid Purpose
-was committed at `62fb3e0f`; its exact repair prewrite then required the removed
-active carrier. Validate the complete official postimage before effect and derive
-repair from attested outcome plus current authority. AIGW's expired Lease reader
-omits exact coordinates and reacquire can point back to the same blocked action.
+The invalid-Purpose recovery gap observed at `62fb3e0f` is now resolved by
+accepted `0d115856`: exact validator-named repair consumes verified archive
+output plus current authority, without recreating active intent. Complete
+postimage validation before committing an archive is a separate prevention
+obligation. The earlier expired-Lease feedback reported missing coordinates and
+a reacquire continuation pointing back to the same blocked action; its current
+status must be reobserved before implementation or completion claims.
 Same-holder expiry should derive resume with the exact tuple; missing coordination
 uses reacquire. Foreign ownership retains explicit handoff/authorization. The
 live lane-start positional reproduction also confirms that help and accepted

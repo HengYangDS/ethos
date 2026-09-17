@@ -21,6 +21,8 @@ from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.signature import signature_repository
 from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.support import apply_receipt
+from tests.unit.cli.land.publication.support import branch_publication
+from tests.unit.cli.land.publication.support import publication_peers
 
 
 def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(tmp_path: Path):
@@ -69,24 +71,10 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
     git(repo, "add", "-A")
     git(repo, "commit", "-S", "-m", "fix: declare Git publication")
     accepted = git(repo, "rev-parse", "HEAD")
-    peers = []
-    for name in ("origin", "github"):
-        peer = tmp_path / f"{name}.git"
-        git(tmp_path, "init", "--bare", str(peer))
-        git(repo, "remote", "add", name, str(peer))
-        git(repo, "push", name, "HEAD:refs/heads/dev", f"{old}:{PROPOSAL_REF}")
-        peers.append(peer)
-    preview = run_ethos(
-        "publish",
-        "--retire",
-        "--ref",
-        PROPOSAL_REF,
-        "--probe-remote",
-        "--expect-head",
-        accepted,
-        "--json",
-        cwd=repo,
-    )
+    peers = publication_peers(
+        repo, tmp_path, "HEAD:refs/heads/dev", f"{old}:{PROPOSAL_REF}"
+    ).values()
+    preview = branch_publication(repo, accepted, "--retire")
     assert {
         report["contribution"]["state"] for report in preview["data"]["push_admission"].values()
     } == {"repaired"}
@@ -134,13 +122,9 @@ def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_pa
         cwd=repo,
     )
     assert accepted["verdict"] == "pass", accepted
-    peers = []
-    for name in ("origin", "github"):
-        remote = tmp_path / f"{name}.git"
-        git(tmp_path, "init", "--bare", str(remote))
-        git(repo, "remote", "add", name, str(remote))
-        git(repo, "push", name, f"{old}:refs/heads/dev", f"{old}:refs/heads/main")
-        peers.append(remote)
+    peers = publication_peers(
+        repo, tmp_path, f"{old}:refs/heads/dev", f"{old}:refs/heads/main"
+    ).values()
     report = run_ethos(
         "hook",
         "pre-push",

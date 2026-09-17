@@ -11,6 +11,7 @@ import pytest
 
 import ethos.adapters.openspec.lifecycle.archive_provenance as provenance
 import ethos.adapters.openspec.lifecycle.archive_transition as archive
+import ethos.adapters.repo.commit.rewrite as rewrite
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -251,15 +252,13 @@ def archive_graph(tmp_path, monkeypatch):
         distance = distances.get(previous)
         return SimpleNamespace(returncode=0 if distance is not None else 1, stdout=str(distance))
 
-    for module in (archive, provenance):
+    for module in (archive, rewrite):
         monkeypatch.setattr(module, "plan_from_attestation", lambda item: plans[item.id])
         monkeypatch.setattr(module, "git_effect_from_plan", lambda plan: effects[plan.digest])
         monkeypatch.setattr(module, "validate_git_effect_attestation", validate)
     monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ({}, tuple(items)))
     monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
-    monkeypatch.setattr(
-        provenance, "repository_identity", lambda *_args, **_kwargs: "repository:test"
-    )
+    monkeypatch.setattr(rewrite, "repository_identity", lambda *_args, **_kwargs: "repository:test")
     monkeypatch.setattr(provenance, "run_git", ancestry)
     monkeypatch.setattr(provenance, "ref_head", lambda _root, spec: objects.get(spec, ""))
     return SimpleNamespace(

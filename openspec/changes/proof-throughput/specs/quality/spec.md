@@ -34,3 +34,25 @@ not the verdict or selected effect.
   changes, including paths with index optimization flags
 - **THEN** optimized observation preserves the native effective tree
 - **AND** the caller's index and unrelated resources remain unchanged
+
+### Requirement: Interrupted commands retain effect and process ownership boundaries
+
+A synchronous command interrupted while its caller remains alive SHALL stop its
+owned descendants before reporting completed cleanup. The original failure and
+available output SHALL remain observable. Process-group control SHALL identify
+its platform and containment limits; it SHALL NOT imply recovery after loss of
+the supervisor or containment of deliberately detached processes.
+
+#### Scenario: POSIX command timeout or caller cancellation
+
+- **WHEN** a running command has a ready descendant in its owned process group
+- **AND** its caller observes a timeout or cancellation
+- **THEN** the group is terminated without signalling the caller's group
+- **AND** inherited output pipes do not leave the descendant running
+- **AND** the original exception and captured timeout output remain available
+
+#### Scenario: A test supervisor is killed
+
+- **WHEN** a worker exits without executing its cleanup
+- **THEN** a passing direct-command timeout test does not prove worker recovery
+- **AND** native supervisor-loss and platform acceptance remain required

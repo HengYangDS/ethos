@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+import socket
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -15,63 +17,12 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-@pytest.mark.parametrize(
-    "fault",
-    [
-        "valid",
-        "fd-gone",
-        "process-gone",
-        "permission",
-        "unclassified",
-        "unknown-source",
-        "invalid-gone-fd",
-        "orphan-gone",
-        "non-darwin-gone",
-        "named-live-file",
-        "unix-inode",
-        "unix-empty-inode",
-        "unix-negative-inode",
-        "unix-duplicate-inode",
-        "unix-orphan",
-        "regular-inode-only",
-        "directory-inode-only",
-        "unknown-inode-only",
-        "empty",
-        "truncated",
-        "duplicate",
-        "pid",
-        "nofd",
-        "type",
-        "inode",
-        "field",
-        "empty-fd",
-        "empty-type",
-        "orphan",
-        "negative-inode",
-        "status",
-        "stderr",
-        "timeout",
-        "missing",
-    ],
-)
-def test_native_file_references_are_bounded_and_incomplete_observation_fails_closed(
-    tmp_path, monkeypatch, fault
-):
-    executable = tmp_path / "lsof"
-    executable.write_text("native observer\n")
-    observed = []
-    monkeypatch.setenv("PATH", str(tmp_path / "ambient"))
-
-    def resolve(name, *, path):
-        observed.append((name, path))
-        return None if fault == "missing" else str(executable)
-
-    monkeypatch.setattr(process_adapter.shutil, "which", resolve)
-    monkeypatch.setattr(sys, "platform", "linux" if fault == "non-darwin-gone" else "darwin")
+def _file_reference_payloads():
+    """Declare each observed file-reference counterexample once."""
     payload = b"p12\0\nfcwd\0tDIR\0D0x10\0i31\0\nf3\0tREG\0D0x20\0i31\0\nf4\0tIPv4\0\n"
     absent = b"f5\0nsocket: FD unavailable\0\n"
     unix = b"f6\0tunix\0i50690625\0ntype=STREAM\0\n"
-    payload = {
+    return {
         "unix-inode": payload + unix,
         "unix-empty-inode": payload + unix.replace(b"i50690625", b"i"),
         "unix-negative-inode": payload + unix.replace(b"i50690625", b"i-1"),
@@ -101,7 +52,29 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         "empty-type": payload.replace(b"tDIR\0", b"t\0"),
         "orphan": payload.removeprefix(b"p12\0\n"),
         "negative-inode": payload.replace(b"i31\0", b"i-1\0", 1),
-    }.get(fault, payload)
+        **dict.fromkeys(("valid", "status", "stderr", "timeout", "missing"), payload),
+    }
+
+
+_FILE_REFERENCE_PAYLOADS = _file_reference_payloads()
+
+
+@pytest.mark.parametrize("fault", _FILE_REFERENCE_PAYLOADS)
+def test_native_file_references_are_bounded_and_incomplete_observation_fails_closed(
+    tmp_path, monkeypatch, fault
+):
+    executable = tmp_path / "lsof"
+    executable.write_text("native observer\n")
+    observed = []
+    monkeypatch.setenv("PATH", str(tmp_path / "ambient"))
+
+    def resolve(name, *, path):
+        observed.append((name, path))
+        return None if fault == "missing" else str(executable)
+
+    monkeypatch.setattr(process_adapter.shutil, "which", resolve)
+    monkeypatch.setattr(sys, "platform", "linux" if fault == "non-darwin-gone" else "darwin")
+    payload = _FILE_REFERENCE_PAYLOADS[fault]
 
     def capture(root, command, **kwargs):
         assert root == tmp_path
@@ -191,8 +164,8 @@ def test_process_creation_failure_preserves_exact_execution_evidence(
 ) -> None:
     command = ((tmp_path / "tool").as_posix(), "--inspect")
     monkeypatch.setattr(
-        process_adapter.subprocess,
-        "run",
+        process_adapter,
+        "_execute_command",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(FileNotFoundError(2, "missing")),
     )
 
@@ -208,55 +181,84 @@ def test_process_creation_failure_preserves_exact_execution_evidence(
     }
 
 
-def test_run_command_removes_only_explicit_inherited_environment_keys(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    observed: dict[str, str] = {}
-    monkeypatch.setenv("PSModulePath", "pwsh-modules")
-    monkeypatch.setenv("ETHOS_PRESERVED", "inherited")
-    monkeypatch.setenv("GIT_PRESERVED", "provider-neutral")
-
-    def capture_run(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        environment = kwargs["env"]
-        assert isinstance(environment, dict)
-        observed.update(environment)
-        return subprocess.CompletedProcess(("tool",), 0, "", "")
-
-    monkeypatch.setattr(process_adapter.subprocess, "run", capture_run)
-
-    process_adapter.run_command(
+@pytest.mark.parametrize("mode", ["key", "prefix", "isolated"])
+def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
+    """Native children consume exactly the selected environment and input."""
+    environment = {"PSModulePath": "pwsh", "ETHOS_PRESERVED": "inherited", "GIT_PRESERVED": "git"}
+    for key, value in environment.items():
+        monkeypatch.setenv(key, value)
+    body = (
+        "import json,os,sys; print(json.dumps(dict(os.environ))); "
+        "sys.stderr.write(sys.stdin.read()); sys.exit(int(sys.argv[1]))"
+    )
+    textual = mode != "prefix"
+    result = process_adapter.run_command(
         tmp_path,
-        ("tool",),
+        (sys.executable, "-c", body, "0"),
+        text=textual,
+        check=True,
+        timeout=10,
         env={"ETHOS_ADDED": "explicit"},
-        remove_env=("PSModulePath",),
+        inherit_environment=mode != "isolated",
+        remove_env=("psmodulepath",) if mode == "key" else (),
+        remove_env_prefixes=("git_",) if mode == "prefix" else (),
+        stdin="input" if textual else b"input",
     )
+    observed = json.loads(result.stdout)
+    assert result.stderr == ("input" if textual else b"input")
+    expected = {} if mode == "isolated" else environment.copy()
+    if mode != "isolated":
+        del expected["PSModulePath" if mode == "key" else "GIT_PRESERVED"]
+    expected["ETHOS_ADDED"] = "explicit"
+    assert {k: observed[k] for k in (*environment, "ETHOS_ADDED") if k in observed} == expected
+    with pytest.raises(subprocess.CalledProcessError) as failure:
+        process_adapter.run_command(tmp_path, (sys.executable, "-c", body, "7"), check=True)
+    assert failure.value.returncode == 7
+    assert failure.value.stderr == ""
+    assert json.loads(failure.value.stdout)["ETHOS_PRESERVED"] == "inherited"
 
-    assert "PSModulePath" not in observed
-    assert observed["ETHOS_PRESERVED"] == "inherited"
-    assert observed["GIT_PRESERVED"] == "provider-neutral"
-    assert observed["ETHOS_ADDED"] == "explicit"
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
+@pytest.mark.parametrize("failure", ["timeout", "cancel"])
+@pytest.mark.parametrize("inherit_pipes", [False, True])
+def test_command_failure_closes_owned_descendants(tmp_path, monkeypatch, failure, inherit_pipes):
+    """A ready descendant cannot retain its socket after the command is interrupted."""
+    communicate = subprocess.Popen.communicate
+    connection = None
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        listener.settimeout(10)
+        child = (
+            f"import socket; s=socket.create_connection({listener.getsockname()!r},timeout=10); "
+            "s.settimeout(None); s.sendall(b'R'); s.recv(1)"
+        )
+        parent = (
+            "import subprocess,sys; print('started',flush=True); "
+            f"subprocess.Popen([sys.executable,'-c',{child!r}],"
+            f"stdout={None if inherit_pipes else subprocess.DEVNULL},"
+            f"stderr={None if inherit_pipes else subprocess.DEVNULL}).wait()"
+        )
 
-def test_run_command_removes_explicit_environment_prefixes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    observed: dict[str, str] = {}
-    monkeypatch.setenv("GIT_DIR", "/tmp/foreign.git")
-    monkeypatch.setenv("ETHOS_PRESERVED", "inherited")
+        def after_ready(process, *args, **kwargs):
+            nonlocal connection
+            if connection is None:
+                connection, _ = listener.accept()
+                connection.settimeout(2)
+                assert connection.recv(1) == b"R"
+                if failure == "cancel":
+                    raise KeyboardInterrupt
+            return communicate(process, *args, **kwargs)
 
-    def capture_run(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        environment = kwargs["env"]
-        assert isinstance(environment, dict)
-        observed.update(environment)
-        return subprocess.CompletedProcess(("tool",), 0, "", "")
-
-    monkeypatch.setattr(process_adapter.subprocess, "run", capture_run)
-
-    process_adapter.run_command(
-        tmp_path,
-        ("tool",),
-        remove_env_prefixes=("GIT_",),
-    )
-
-    assert "GIT_DIR" not in observed
-    assert observed["ETHOS_PRESERVED"] == "inherited"
+        monkeypatch.setattr(subprocess.Popen, "communicate", after_ready)
+        try:
+            error = KeyboardInterrupt if failure == "cancel" else subprocess.TimeoutExpired
+            with pytest.raises(error) as raised:
+                process_adapter.run_command(tmp_path, (sys.executable, "-c", parent), timeout=0.2)
+            if failure == "timeout":
+                assert raised.value.output == b"started\n"
+            assert connection is not None
+            assert connection.recv(1) == b""
+        finally:
+            if connection is not None:
+                connection.close()

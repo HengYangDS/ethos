@@ -16,7 +16,8 @@
 - [x] Reuse current invoking source identity with explicit provenance, not digest coincidence.
 - [x] Share exact proof selection within each publication admission while rechecking every effect.
 - [x] Measure consolidated full proof and repair merge intent diagnostic precedence.
-- [ ] Close owned descendant cleanup on timeout and worker loss with native regressions.
+- [x] Terminate owned POSIX command groups on timeout and cancellation with native regressions.
+- [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

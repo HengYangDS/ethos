@@ -5,8 +5,10 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -196,16 +198,14 @@ def run_command(
             effective_env.pop(key)
     effective_env.update(env or {})
     try:
-        return subprocess.run(
+        return _execute_command(
             command,
             cwd=resolved_root,
             check=check,
             text=text,
-            capture_output=True,
             env=effective_env,
             input=stdin,
             timeout=timeout,
-            shell=False,
         )
     except OSError as error:
         raise ProcessExecutionError(
@@ -215,3 +215,31 @@ def run_command(
             cwd=resolved_root.as_posix(),
             cause=f"{error.__class__.__name__}: {error}",
         ) from error
+
+
+def _execute_command(
+    command: tuple[str, ...], *, check: bool, timeout: float | None, **kwargs: Any
+) -> subprocess.CompletedProcess[Any]:
+    """Retain native results while interrupting the command's owned POSIX process group."""
+    if os.name != "posix":
+        return subprocess.run(command, check=check, timeout=timeout, capture_output=True, **kwargs)
+    stdin = kwargs.pop("input")
+    with subprocess.Popen(
+        command,
+        stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        process_group=0,
+        **kwargs,
+    ) as process:
+        try:
+            stdout, stderr = process.communicate(stdin, timeout=timeout)
+        except BaseException:
+            with suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+            raise
+        result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+        if check:
+            result.check_returncode()
+        return result

@@ -662,6 +662,38 @@ to 17 and profile reads from two to one. Policy digests, nodes, source bindings
 and gaps are identical. `throughput-policy-pair-comparison.json` retains the
 source hash and measurements; this is not complete-proof timing.
 
+### In-Process Command Isolation
+
+The shared CLI test runner restored existing environment values but retained
+variables introduced by a command. Native in-process invocations reproduced the
+leak on normal return, `SystemExit` and an uncaught exception. These are isolated
+harness counterexamples, not evidence that every historical worker failure has
+this cause. Their three RED failures and focused GREEN results are retained in
+`throughput-cli-isolation-{red,green}`.
+
+The runner now uses standard-library environment and working-directory contexts
+to restore the caller on every exit. One pure indexed Git-overlay projection
+replaces separate mutation and restoration helpers. The fast in-process path
+remains; this isolation is for sequential calls in each worker, not concurrent
+thread calls that change process-global state. The final four-module consumer
+matrix passes 88 cases at two, four and eight workers in 46.95, 27.78 and 23.67
+seconds including command setup and cleanup. It uses the configured thread
+timeout with no retries, and removes every owned root. Coverage is disabled
+equally for these diagnostic runs; host caches are not reset and the four-worker
+run overlaps a 1.96-second static gate, so these are not controlled speedup
+estimates. Source budget, file size and product typing pass at 45,415 product
+and 50,000 test ELOC. No full-proof or worker-loss completion is implied.
+
+The refreshed covered native publication profile at `0a359fb27` passes in 38.49
+seconds including profiler overhead and temporary-root cleanup. It observes
+1,942 direct launches through `Popen`, including 42 Node commands. The existing
+process owner accounts for 34.65 inclusive seconds, so its nested consumers must
+not be added to that value. This diagnostic replaces the old `subprocess.run`
+counter, which misses the new process-group executor. It supports eliminating
+repeated native observation before increasing workers; it is not a whole-suite
+speedup. `throughput-hotspot-publication-popen-current.{json,pstats}` contains
+the exact source binding, counts and call graph.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

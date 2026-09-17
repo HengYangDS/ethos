@@ -19,6 +19,7 @@
 - [x] Terminate owned POSIX command groups on timeout and cancellation with native regressions.
 - [x] Isolate import-time environment testing and verify the same cases at two, four and eight workers.
 - [x] Observe shared full/default proof-policy inputs once per fresh admission.
+- [x] Restore in-process command environment on every exit and verify two/four/eight-worker consumers.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.

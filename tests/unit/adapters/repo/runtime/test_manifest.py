@@ -93,7 +93,6 @@ def test_governance_fixture_reuses_owned_binary_but_not_environment(
 
     first.unlink()
     assert second.read_bytes() == original
-    assert shared.read_bytes() == original
     assert shared.stat().st_mode & 0o222 == 0
     remove_generated_path(second.parent.parent)
     assert shared.read_bytes() == original
@@ -101,15 +100,26 @@ def test_governance_fixture_reuses_owned_binary_but_not_environment(
     assert shared.stat().st_nlink == 1
 
 
-def test_runtime_inventory_hashes_actual_bytes_without_location_aliases(tmp_path: Path) -> None:
-    first = tmp_path / "first"
-    second = tmp_path / "second"
-    for runtime in (first, second):
+def test_runtime_inventory_hashes_actual_bytes_without_location_aliases(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Construct child names once while preserving bytes and internal link identities."""
+    relative_to, observed, inventories = Path.relative_to, [], []
+
+    def observe(path, *args, **kwargs):
+        observed.append(path)
+        return relative_to(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "relative_to", observe)
+    for runtime in (tmp_path / "first", tmp_path / "second"):
         script = runtime / "python/bin/ethos"
         script.parent.mkdir(parents=True)
         script.write_text(f"#!{runtime}/python/bin/python\n", encoding="utf-8")
-
-    assert runtime_file_inventory(first) != runtime_file_inventory(second)
+        (runtime / "link").symlink_to(Path("python/bin/ethos"))
+        inventories.append(runtime_file_inventory(runtime))
+        assert inventories[-1].keys() == {"link", "python/bin/ethos"}
+        assert observed.count(script) == 1  # Only the link's resolved-target containment check.
+    assert inventories[0] != inventories[1]
 
 
 def test_runtime_identity_distinguishes_canonical_architectures() -> None:
@@ -251,14 +261,3 @@ def test_runtime_inventory_rejects_bytecode_and_cache_residue(tmp_path: Path) ->
 
     with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
         runtime_file_inventory(runtime)
-
-
-def test_runtime_inventory_hashes_an_internal_relative_symlink(tmp_path: Path) -> None:
-    runtime = tmp_path / "runtime"
-    runtime.mkdir()
-    (runtime / "target").write_text("owned\n", encoding="utf-8")
-    (runtime / "link").symlink_to(Path("target"))
-
-    inventory = runtime_file_inventory(runtime)
-
-    assert inventory.keys() == {"link", "target"}

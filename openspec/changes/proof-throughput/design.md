@@ -155,6 +155,77 @@ their owned temporary root was removed.
 
 ## Validation
 
+### Current Cost Attribution
+
+The September 17 refresh at `590ff2cfa` ran the same native release workload
+without coverage, with coverage twice, then without coverage. Elapsed times
+were 13.90, 14.65, 14.44 and 13.47 seconds; all outcomes passed with 1,362 child
+calls and owned roots removed. The approximately six-percent coverage overhead
+in this sample does not explain the complete-proof bottleneck. It is not a
+whole-suite estimate or permission to turn coverage off.
+
+The baseline's slowest historical-repair case now passes with coverage in 32.93
+seconds. Its 2,525 product Git calls, 51 Node calls and nineteen source-identity
+constructions dominate Python computation. Inclusive costs include 7.02 seconds
+in update-ref and its hooks, 5.79 in Node, 3.57 in rev-parse and 3.24 in source
+identity; nested spans must not be added together. Evidence is retained as
+`throughput-hotspot-history-repeated.{json,pstats}`.
+
+Fresh offline wheel construction and the complete isolated installed acceptance
+passed in 173.53 seconds on that source. The following exclusive accounting is
+derived from nested monotonic spans, not rounded Nox summaries. It does not
+overwrite the historical full-proof remainder or constitute full proof itself.
+
+| Installed acceptance phase | Exclusive seconds |
+| --- | ---: |
+| Native merge preparation, conflict, abort, replay and signed continue | 70.399 |
+| Other lane bootstrap, rejected prewrite and retirement recovery | 19.972 |
+| Historical signature repair and reproof | 17.289 |
+| First runtime activation | 13.739 |
+| Successor runtime activation | 12.675 |
+| Relocation and runtime repair | 12.531 |
+| Installed CLI, SDK and OpenSpec checks | 5.812 |
+| Initial locked dependency and wheel installation | 5.808 |
+| Host-independent command-plane checks | 5.457 |
+| Both owned-tree cleanup stages | 4.010 |
+| Candidate topology preparation | 1.899 |
+| Adopter preparation | 1.382 |
+| Immutable version check | 1.056 |
+| Fresh wheel build | 0.703 |
+| Other measured setup, validation and orchestration | 0.653 |
+| Unattributed inter-span time | 0.142 |
+
+`throughput-install-timeline-bound.json` retains every phase and child-command
+span; its acceptance receipt records every required lifecycle stage. The entire
+temporary tree, including the candidate wheel, was removed. Initial dependency
+copying accounts for 4.65 seconds within installation, not the dominant cost.
+An initial diagnostic runner failed to import `tools` because its script root
+was the evidence directory. That failed receipt and cleanup remain preserved;
+the successful runner binds the repository import root explicitly.
+
+### Runtime Inventory Reduction
+
+The shared runtime inventory owner repeatedly reconstructed the same directory
+prefix for every child. A real installed runtime with 9,722 inventory entries
+made 11,430 full relative-path computations. The owner now computes each walked
+directory prefix once and composes its child names, reducing those calls to
+1,708. Byte hashing, modes, junction rejection and exact internal-symlink
+containment checks are unchanged. No file digest or verdict cache is added.
+
+The alternating before/after/after/before measurements were 0.900, 0.555, 0.537
+and 0.665 seconds, with exactly identical inventory mappings in all runs.
+These are warm-filesystem measurements, not cold full-proof savings. Paired
+profiles attribute relative-path cost of 0.630 seconds before and 0.090 after.
+The distinguishing regression failed on the old owner; 53 inventory, selection
+and materialization cases passed with two workers in 15.06 seconds. Internal
+relative-link and location-sensitive byte assertions were consolidated rather
+than removed. Product/test ELOC remain 45,289/50,000 with unchanged limits.
+
+Next prioritize observation/compilation repeated inside one admission and the
+installed native merge path. Preserve independent effects and their fresh
+checks; do not collapse separate admissions or replace native journeys with
+mocked success. Full-suite phase timing after these changes remains unmeasured.
+
 Compare the same workload before and after each repair: outcome, source/ref
 postconditions, subprocess counts, elapsed time and owned-resource cleanup.
 Use distinguishing counterexamples for stale inputs, mutation during reads,

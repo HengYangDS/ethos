@@ -62,6 +62,37 @@ current continuation; after an effect, the caller re-observes instead of
 replaying a remembered sequence. `adopt` binds an external repository to the
 same command semantics; it is not a parallel lifecycle.
 
+## Accepted Release Selection
+
+`ethos land --release --expect-head <accepted-head> --release-head <old-main>
+--json` previews selection of the exact current accepted source for an
+independent release branch. Add `--tag v<version>` for a declared signed
+annotated tag. Only `--apply --authorize` permits the effect. A coupled
+accepted mirror instead follows its existing accepted-closeout operation.
+
+Selection requires a clean accepted checkout, accepted-effect evidence, current
+repository proof, trusted source and safe linked release worktrees. Committed
+VERSION, package.json or static pyproject version supplies the native release
+identity; malformed or conflicting values fail closed. No duplicate VERSION
+file is required. One native Git transaction checks accepted and changes the
+release/tag refs together. Linked checkout synchronization is a subsequent,
+explicitly observed effect, not part of Git's ref atomicity.
+
+Interrupted requests retain exact signed objects and the existing TransitionPlan
+in Git-private request storage. Recovery rechecks current source, proof, actor,
+policy and refs. A process lock serializes cooperating release writers, not
+arbitrary same-user processes. Unknown signing outcome never triggers blind
+resigning; the returned inspection command exposes the retained native object
+store. Completed plan persistence makes its staging store disposable. Exact
+inverse ref intents permit compensation; arbitrary rollback does not.
+
+Delivery of verified accepted source is not another contribution integration.
+Publication checks its source, target policy, accepted effect and current proof
+without reclassifying accepted ancestors as new contributions. This does not
+certify historical signatures or pre-adoption compliance. Independent peers
+receive the same selected objects through `ethos publish`; local selection is
+not remote publication, a Forge Release, deployment or actual user benefit.
+
 ## Native Merge Continuation
 
 `ethos lane refresh-base --strategy merge --json` observes one native merge or

@@ -38,78 +38,72 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 17 10:49 +08 accepted readback is
-`0d115856803c6af64c86fd693bb8d218900c46c9`, tree
-`21b4b652a8e6e88a193ec03573d097e7178bdc2d`. Immutable runtime
-`e20acd3ce329b3fbc70cfc1fb4b082286a340cb2d694b1471ec4da3d265066d1`
-matches that source/tree. Canonical postarchive repair completed both exact
-full proofs, native candidate/accepted CAS and activation: 35 gates, 3,733
-passed, one skip and 95.120934 percent combined coverage. Postarchive proof:
-`6adb5936bd79a59e472f85a5073c79b25d36896003894d76228b5232de659827`.
-The installer removed the superseded runtime; owned pytest and installation
-scratch roots are absent. Dev, main, candidate and work refs were exact-equal;
-all three registered worktrees were clean before the next Change. Evidence:
-`postarchive-repair-delivery-readback.json` in the existing receipt root.
+The September 17 13:09 +08 accepted source is
+`40bc6ff4ac022d73c274ec1b28b3be33bce60c52`, tree
+`429d38e18f42c829eb6b42a2fe6853aa5e518332`. Immutable runtime
+`7a5c0b580ca2601ba1945211f12cea22298c63ccd7faccc7d909a0a49e2017eb`
+matches that source/tree. Refresh-aware retirement passed source and postarchive
+full proofs, native candidate/accepted CAS and activation. Postarchive proof
+`926c0dbc032052fcd7995111191f5146426e0778fca3e0d3f78fb776edb523c6`
+passed 35 gates with 3,743 tests, one skip and 95.10 percent combined coverage.
+Native publication observed both peers' dev/main at that source. The previous
+self runtime and owned test/install scratch were removed. The sole coordinated
+work lane is reused for the next Change.
 
-Historical correction changed 40 author fields and 37 committer fields across
-40 selected commits; 2,855 affected objects preserve trees, messages, dates,
-ordered parents and unselected attribution. Verified recovery preserves the
-originals. The withdrawn single-author restriction is not a future contribution
-policy. Publication now recognizes repaired descendants while validating new
-commits, exact candidate equality, accepted effect and each peer CAS separately.
-Nested native hook reports serialize without weakening their rejection verdict.
+Historical correction is delivered: 40 selected author fields and 37 committer
+fields were repaired without changing other source content, messages, dates or
+ordered parents. Both peers received corrected history at `0d115856` before
+this successor. All 40 selected commits plus that HEAD were checked individually
+against GitHub and GitLab identity/signature APIs. GitLab's temporary maintainer
+force-push window was restored exactly; GitHub rules were unchanged. Native
+reconciliation observed both peers already applied after transport timeout,
+without repeating the push. Verified recovery material remains preserved.
+No permanent single-author restriction was introduced.
 
-Remote publication remains separate: the September 17 03:33 +08 readback found
-both peers at `e98daddc1a077f27f8a7873879cb2dd40ddaca20`. GitLab rejected the
-required non-fast-forward replacement under its protected-branch policy; no
-peer was updated. Ordinary push cannot restore ancestry removed by identity
-repair. Do not merge erroneous history back, bypass hooks, change protections
-implicitly or retry unchanged rejection. Hosted acceptance is unproved.
+The architecture owner reports native installation from `40bc6ff4`, successful
+receipt-bound retirement and API/ls-remote absence of the old proposal. Its
+accepted source is `3963abbf931484b170996e538dce58d945981e8e`.
+These attributed observations close the reported refresh-retirement blocker,
+not an independent adopter replay by this task. ETHOS implementation did not
+modify adopter repositories.
 
-The sole owned `work/20260915-commit-integrity` lane now carries
-`refresh-retirement`. Inherited-archive selection, exact prewrite attribution,
-lane-specific proof and proposal retirement are accepted. Retirement consumes
-dev absorption and review closure independently of main; native pre-push no
-longer skips deletion tuples. Ancestry and completed validated history-repair
-mapping are admitted, not bare patch equivalence.
+The current official Change is `release-promotion`: explicit accepted-to-independent
+main and signed tags through existing land/ref owners, native version identity
+and verified accepted-content reuse. Delivery is not another contribution
+integration. Missing effect/proof, stale coordinates and arbitrary unaccepted
+source remain rejected. No duplicate VERSION or new lifecycle is introduced.
 
-The architecture adopter reports accepted `b7d8290bd3cdc242d9cb0e86683b5b635c2754a7`,
-exact proof `52f847b1d165524d0eff5e2b029379ac08ad28368a010a130aa23fef4365b594`,
-source publication, fresh-clone checks and native authoring-lane retirement.
-These are attributed task observations, not an independent replay. Preserve its
-legacy dirty/foreign roots. Its remote-only `proposal/static-publishing` still
-names `048b18ed`; completed native refresh `e275b86a` carries the old contribution
-to an accepted replacement. It is not the separate signature-repair mapping.
+The September 17 implementation has passed 62 targeted release/publication and
+shared native-kill recovery cases. The eleven inexpensive dependency-resolved
+checks passed, including strict OpenSpec with no warnings. Signing ACK loss,
+exact inverse compensation, actor-bound replay, native tag identity and honest
+accepted-content reporting are covered; this is not committed full proof or
+installed-product acceptance. Native signed-object, timeout and kill fixtures
+now share their existing owners. Current product/test ELOC are 45,246/50,000;
+no budget or coverage floor changed. Freeze inputs before exact full proof.
 
-The bounded current Change moves existing refresh validation to the Git commit
-provenance owner and makes publication consume the same relation. Retirement
-also verifies exact output-tree agreement with isolated native composition of
-candidate and old contribution. Historical evidence never grants current deletion
-authority. Peer absorption, review closure, exact remote OID, fresh per-effect
-admission and CAS remain independent. Archive retains exact archived-tree
-preservation. No local proposal ref or historical authoring Lease is required.
+Current peer CI observations differ. GitLab pipelines 7109/7110 passed for
+`40bc6ff4`. GitHub run 35184595384 has successful quality/source verification
+and macOS/Linux conformance, but Windows Python 3.12/3.13/3.14 conformance
+failed. Job 105083827365 identifies `merge_metadata_changed` while starting
+the package-only native merge; missing smoke upload is its downstream symptom.
+The readback and native job log are in the existing commit-integrity evidence
+root. Repair native metadata observation at its owner in the next bounded
+closure and rerun the real Windows path; do not call this platform accepted.
 
-The actual public retirement counterexample now passes in SHA-1 and SHA-256;
-missing/invalid evidence, ambiguity, lost content, native timeout, conflict and
-unavailable history retain their blocking or unknown boundary. Eight targeted
-boundary cases, 125 affected publication/refresh cases and 47 additional archive
-consumer cases pass. Ten cheap public gates, native formatting/import/prose and
-all 12 official strict items pass without warnings. A read-only observer on
-adopter accepted `b7d8290` validates refresh `e275b86a` and reproduces output tree
-`a6da4de83dff894c52c0977c305a4bd775849f0e`; adopter HEAD, refs and dirty bytes
-remain unchanged. This is not adopter mutation admission or accepted runtime
-delivery. Exact full proof, native closeout and runtime activation remain required.
-Repeated native publication fixture setup is consolidated without deleting
-unique cases; product/test ELOC remain below their independent 50,000 ceilings.
+Hosted history-repair reconstruction is a separate verified gap. The first
+corrected-history GitLab push lacked the old object in its cold checkout.
+An isolated public CLI probe showed that old objects alone still rescan
+historical subjects; adding original native repair evidence restores the
+forward-only range. Cases and cleanup are in `hosted-history-materials-probe.json`.
+Repair provider input materialization/evidence transport at existing owners;
+never substitute HEAD, skip policy or introduce a grandfather list. New
+forward-push CI does not retroactively prove this exceptional transition.
 
-Canonical postarchive repair is delivered, not pending: it derives only the
-structured validator-named path from verified archive output, then still applies
-current coordination and postimage admission. It rejects mixed paths and foreign
-holders and restores ordinary archived-source scope after repair. The predecessor
-Purpose deadlock must not remain a current action elsewhere in this plan.
-Generic local-verification receipt ownership and explicit independent main/tag
-promotion remain subsequent separate closures. No adopter compatibility carrier
-or adopter source mutation is required.
+Canonical postarchive repair and refresh-aware retirement are accepted. Generic
+local-verification receipt ownership, cold-CI materials and independent release
+selection remain separate obligations. Existing commit-integrity receipts hold
+execution evidence; plan prose is not proof or a runtime status database.
 
 Advance measured P5 work at these existing owners without interrupting the
 current closure. The latest accepted proof took 2,087.626 seconds; its JUnit reports

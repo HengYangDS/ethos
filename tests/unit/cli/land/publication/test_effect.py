@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.mutation.publication.attestation as publication_attestation
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
@@ -31,16 +32,7 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
     repo, remotes, commit, tag, tree, fingerprint, anchor_sha256 = signed_publication_fixture(
         tmp_path
     )
-    dry_run = run_ethos(
-        "publish",
-        "--ref",
-        "refs/tags/v1.2.3",
-        "--probe-remote",
-        "--expect-head",
-        commit,
-        "--json",
-        cwd=repo,
-    )
+    dry_run = branch_publication(repo, commit, target_ref="refs/tags/v1.2.3")
     assert dry_run["data"]["remote_effect"]["source"] == {
         "kind": "annotated-tag",
         "object_oid": tag,
@@ -48,7 +40,7 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
         "tree_oid": tree,
         "signature": {
             "verdict": "pass",
-            "principal": "test@example.com",
+            "principal": "test@example.invalid",
             "fingerprint": fingerprint,
             "trust_anchor_sha256": anchor_sha256,
             "verifier": "git verify-tag",
@@ -58,13 +50,13 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
     assert {
         report["commit_policy_admission"]["baseline_source"]
         for report in dry_run["data"]["push_admission"].values()
-    } == {"accepted_closeout_effect"}
+    } == {"accepted_effect"}
     receipt = dry_run["data"]["request_receipt"]
     anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
     trust = anchor.read_text()
     anchor.write_text("")
     blocked = apply_receipt(repo, receipt, commit, blocked=True)
-    assert blocked["required_gaps"] == ["publication_source_signature_drift"]
+    assert blocked["required_gaps"] == ["commit_signature_untrusted"]
     assert {proposal_ref(remote) for remote in remotes.values()} == {""}
     anchor.write_text(trust)
     assert apply_receipt(repo, receipt, commit)["state"] == "published"
@@ -82,8 +74,7 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
         tmp_path, source_branch="work/review", proof=False
     )
     write_active_commitment(repo, change_id="review-work")
-    commit_fixture(repo, "declare unfinished review")
-    head = git(repo, "rev-parse", "HEAD")
+    head = commit_fixture(repo, "declare unfinished review")
     install_fixture_hook_runtime(repo)
 
     report = run_ethos(
@@ -108,11 +99,28 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
     assert "- [ ]" in (repo / "openspec/changes/review-work/tasks.md").read_text()
 
 
+@pytest.mark.parametrize(
+    ("object_format", "peer_ids", "interrupted"),
+    [("sha1", ("gitlab", "github"), False), ("sha256", ("gitlab",), True)],
+)
 def test_publish_branch_dry_run_and_apply_share_one_plan_and_attestation(
     tmp_path: Path,
+    object_format: str,
+    peer_ids: tuple[str, ...],
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    interrupted: bool,
 ) -> None:
-    repo, remotes, head = branch_publication_fixture(tmp_path)
+    repo, remotes, head = branch_publication_fixture(
+        tmp_path, object_format=object_format, peer_ids=peer_ids
+    )
     dry_run = branch_publication(repo, head)
+    effect = dry_run["data"]["remote_effect"]
+    assert len(effect["source"]["object_oid"]) == (40 if object_format == "sha1" else 64)
+    assert {target["id"] for target in effect["targets"]} == set(peer_ids)
+    assert {update["expected"] for target in effect["targets"] for update in target["updates"]} == {
+        "0" * len(head)
+    }
     receipt = dry_run["data"]["request_receipt"]
     assert Path(receipt["path"]).parent == local_state_root(repo) / "requests" / "publication"
     plan = TransitionPlan.model_validate_json(Path(receipt["path"]).read_bytes())
@@ -123,33 +131,33 @@ def test_publish_branch_dry_run_and_apply_share_one_plan_and_attestation(
     )
     assert {proposal_ref(remote) for remote in remotes.values()} == {""}
 
-    direct = branch_publication(repo, head, "--apply", "--authorize")
-    assert direct["data"]["transition_plan"] == dry_run["data"]["transition_plan"]
-    for remote in remotes.values():
-        git(remote, "update-ref", "-d", PROPOSAL_REF)
+    if interrupted:
 
+        def fail_record(*_args):
+            message = "interrupted"
+            raise RuntimeError(message)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(publication_attestation, "record_attestations", fail_record)
+            with pytest.raises(RuntimeError, match="interrupted"):
+                apply_receipt(repo, receipt, head)
+    else:
+        direct = branch_publication(repo, head, "--apply", "--authorize")
+        assert direct["data"]["transition_plan"] == dry_run["data"]["transition_plan"]
+    assert {proposal_ref(remotes[peer]) for peer in peer_ids} == {head}
     applied = apply_receipt(repo, receipt, head)
     set_root, selected = read_attestation_set(repo)
-    attestation = next(item for item in selected if item.predicate == "publication:remote-effect")
+    effects = [item for item in selected if item.predicate == "publication:remote-effect"]
+    attestation = effects[0]
     assert applied["state"] == "published"
     assert applied["data"]["remote_effect"]["attestation"]["set_root"] == set_root
     assert mutable_json(attestation.payload.body["plan"]) == applied["data"]["transition_plan"]
-    assert {proposal_ref(remote) for remote in remotes.values()} == {head}
-
-
-def test_publish_branch_preflights_all_peers_and_retry_converges(tmp_path: Path) -> None:
-    repo, remotes, head = branch_publication_fixture(tmp_path)
-    receipt = branch_publication(repo, head)["data"]["request_receipt"]
-    hook = remotes["github"] / "hooks/pre-receive"
-    hook.parent.mkdir(parents=True, exist_ok=True)
-    hook.write_text("#!/bin/sh\nexit 1\n")
-    hook.chmod(0o755)
-    failed = apply_receipt(repo, receipt, head, blocked=True)
-    assert failed["data"]["remote_effect"]["partial_effects"]["applied_peers"] == ["gitlab"]
-    hook.unlink()
-    recovered = apply_receipt(repo, receipt, head)
-    assert recovered["data"]["remote_effect"]["attempts"][0]["state"] == "already_applied"
-    assert proposal_ref(remotes["github"]) == head
+    assert len(effects) == (1 if interrupted else 2)
+    assert all(item.payload.body["state"] == "applied" for item in effects)
+    assert all(
+        item["state"] == "already_applied" for item in applied["data"]["remote_effect"]["attempts"]
+    )
+    assert {proposal_ref(remotes[peer]) for peer in peer_ids} == {head}
 
 
 @pytest.mark.parametrize("active_change", [False, True])
@@ -166,27 +174,18 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     apply_accepted_closeout(repo, old, head)
     git(repo, "update-ref", "refs/heads/main", head)
 
-    dry_run = run_ethos(
-        "publish",
-        "--ref",
-        "refs/heads/main",
-        "--ref",
-        "refs/heads/dev",
-        "--probe-remote",
-        "--expect-head",
-        head,
-        "--json",
-        cwd=repo,
+    dry_run = branch_publication(
+        repo, head, "--ref", "refs/heads/dev", target_ref="refs/heads/main"
     )
     receipt = dry_run["data"]["request_receipt"]
     targets = dry_run["data"]["remote_effect"]["targets"]
     reports = dry_run["data"]["push_admission"]
     main_reports = [report for key, report in reports.items() if key.endswith(":refs/heads/main")]
     assert {report["commit_policy_admission"]["baseline_source"] for report in main_reports} == {
-        "accepted_closeout_effect"
+        "accepted_effect"
     }
     assert {report["commit_policy_admission"]["baseline_commit"] for report in main_reports} == {
-        old
+        head
     }
     assert {target["id"] for target in targets} == {"gitlab", "github"}
     assert all(
@@ -215,39 +214,9 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     hook.unlink()
     recovered = apply_receipt(repo, receipt, head)
     assert recovered["state"] == "published"
+    assert recovered["data"]["remote_effect"]["attempts"][0]["state"] == "already_applied"
     for remote in remotes.values():
         assert git(remote, "rev-parse", "refs/heads/dev") == head
         assert git(remote, "rev-parse", "refs/heads/main") == head
         if active_change:
             assert "- [ ]" in git(remote, "show", f"{head}:openspec/changes/delivery-work/tasks.md")
-
-
-def test_publish_sha256_ref_creation_uses_native_exact_cas(tmp_path: Path) -> None:
-    repo, remotes, head = branch_publication_fixture(tmp_path, object_format="sha256")
-
-    dry_run = branch_publication(repo, head)
-
-    effect = dry_run["data"]["remote_effect"]
-    assert len(effect["source"]["object_oid"]) == 64
-    assert {update["expected"] for target in effect["targets"] for update in target["updates"]} == {
-        "0" * 64
-    }
-    receipt = dry_run["data"]["request_receipt"]
-
-    applied = apply_receipt(repo, receipt, head)
-
-    assert applied["state"] == "published"
-    assert {proposal_ref(remote) for remote in remotes.values()} == {head}
-
-
-def test_publish_branch_supports_one_declared_gitlab_peer(tmp_path: Path) -> None:
-    repo, remotes, _head = branch_publication_fixture(tmp_path)
-    release = repo / ".ethos/release.toml"
-    parts = release.read_text(encoding="utf-8").split("[[publication.peers]]", 2)
-    release.write_text(parts[0] + "[[publication.peers]]" + parts[1], encoding="utf-8")
-    head = commit_fixture(repo, "declare GitLab-only publication")
-    seed_executed_proof(repo, head)
-    request = branch_publication(repo, head)["data"]["request_receipt"]
-    payload = apply_receipt(repo, request, head)
-    assert [target["id"] for target in payload["data"]["remote_effect"]["targets"]] == ["gitlab"]
-    assert proposal_ref(remotes["gitlab"]) == head

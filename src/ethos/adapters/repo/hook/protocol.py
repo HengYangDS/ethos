@@ -61,7 +61,7 @@ def _reference_transaction(
             reports.append(blocked_report("reference-transaction", "ref_update_invalid"))
             continue
         old_value, new_value, ref_name = fields
-        if not ref_name.startswith("refs/heads/") or (
+        if not ref_name.startswith(("refs/heads/", "refs/tags/")) or (
             old_value == new_value and old_value not in _ZERO_OIDS
         ):
             continue

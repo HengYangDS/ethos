@@ -15,6 +15,7 @@ from ethos.adapters.repo.git_object import GitObjectKind
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.profile import repository_identity
+from ethos.adapters.repo.release import committed_release_version
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
@@ -67,26 +68,8 @@ def observe_remote_publication_effect(
     signature = source_observation.get("signature")
     if not isinstance(signature, dict):
         return None, {}, (f"publication_source_signature_untrusted:{source_ref}",)
-    version_observation = (
-        git.run_git(
-            root,
-            "show",
-            f"{source_observation['peeled_commit']}:VERSION",
-            check=False,
-            observation=True,
-        )
-        if kind == "annotated-tag"
-        else None
-    )
-    if version_gaps := publication_source_version_gaps(
-        source_ref=source_ref,
-        annotated_tag=kind == "annotated-tag",
-        version_text=(
-            version_observation.stdout
-            if version_observation is not None and version_observation.returncode == 0
-            else None
-        ),
-    ):
+    version_gaps = _version_gaps(root, source_ref, kind, str(source_observation["peeled_commit"]))
+    if version_gaps:
         return None, {}, version_gaps
     source = PublicationSource.model_validate(
         {
@@ -276,3 +259,16 @@ def observe_publication_request(
         dict.fromkeys(update.target_ref for target in effect.targets for update in target.updates)
     )
     return plan, effect, refs, []
+
+
+def _version_gaps(root: Path, source_ref: str, kind: GitObjectKind, head: str) -> tuple[str, ...]:
+    """Observe native version once for tag publication, not ordinary branch delivery."""
+    if kind != "annotated-tag":
+        return ()
+    try:
+        text = committed_release_version(root, head)["version"] + "\n"
+    except ValueError as error:
+        return (str(error),)
+    return publication_source_version_gaps(
+        source_ref=source_ref, annotated_tag=True, version_text=text
+    )

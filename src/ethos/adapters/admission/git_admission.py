@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Literal
 from typing import cast
 
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.ref_intent import claim_ref_intent
+from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
 from ethos.adapters.admission.ref_move_policy import prepared_ref_intent_gaps
 from ethos.adapters.admission.ref_move_policy import ref_transition_operation
@@ -16,9 +18,13 @@ from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.git import ref_head
+from ethos.adapters.repo.release import declared_release_tag
+from ethos.adapters.repo.release import release_ref_subject
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
@@ -169,27 +175,9 @@ def ref_move_admission_report(
     mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     operation = ref_transition_operation(repo, policy, ref_name, old_value, new_value)
     if phase in {"committed", "aborted"} and operation:
-        intent = claim_ref_intent(
-            root=repo,
-            ref_name=ref_name,
-            update=GitRefUpdate(expected=old_value, desired=new_value),
-            operation=operation,
-            phase=phase,
-        )
-        gap = str(intent["gap"] or "")
-        base["decision"] = {"action": "allow", "reason": f"ref_intent_{phase}"}
-        return (
-            _verdict(
-                base,
-                "block",
-                "repair_required" if phase == "committed" else "blocked",
-                "block",
-                f"ref_intent_{phase}_failed",
-                [gap],
-            )
-            if gap
-            else base
-        )
+        return _terminal_ref_report(repo, base, ref_name, old_value, new_value, phase, operation)
+    if operation in {"release.promote", "release.tag"}:
+        return _release_move_report(repo, base, ref_name, old_value, new_value, operation)
     if mirror or branch == policy.accepted_branch:
         gaps = [
             *accepted_advance_gaps(repo, policy, old_value=old_value, new_value=new_value),
@@ -215,21 +203,9 @@ def ref_move_admission_report(
             else "accepted_ref_move_bypasses_candidate_train"
         )
     elif branch == policy.candidate_branch:
-        gaps = (
-            []
-            if is_ancestor(repo, new_value, policy.accepted_branch)
-            else proof_gaps(repo, new_value)
+        gaps = _candidate_move_gaps(
+            repo, ref_name, old_value, new_value, operation, policy.accepted_branch
         )
-        if not gaps:
-            gaps.extend(
-                prepared_ref_intent_gaps(
-                    repo=repo,
-                    ref_name=ref_name,
-                    update=GitRefUpdate(expected=old_value, desired=new_value),
-                    operation=operation,
-                    missing_gap="candidate_ref_move_no_ref_intent",
-                )
-            )
         reason = "protected_ref_move_not_proven"
     elif operation == "lane.retire":
         gaps = prepared_ref_intent_gaps(
@@ -242,7 +218,7 @@ def ref_move_admission_report(
         reason = "retirement_ref_move_not_admitted"
     else:
         gaps, reason = [], "ref_move_admitted"
-    return _verdict(base, "block", "blocked", "block", reason, gaps) if gaps else base
+    return _ref_result(base, reason, gaps)
 
 
 def _prewrite_report(
@@ -320,3 +296,103 @@ def _verdict(
     )
     base["required_gaps"] = required
     return base
+
+
+def _release_move_gaps(repo: Path, ref: str, old: str, new: str, operation: str) -> list[str]:
+    """Conjoin accepted source, current proof and exact executor intent."""
+    reversing = (
+        new in _ZERO_OIDS
+        if operation == "release.tag"
+        else is_ancestor(repo, new, old) and new != old
+    )
+    forward = None
+    try:
+        if reversing:
+            head = release_ref_subject(repo, ref=ref, old=new, new=old)
+            forward = committed_ref_intent(
+                root=repo, operation=operation, desired=old, ref_name=ref
+            )
+            if forward.get("gap") or forward.get("old_value") != new:
+                return ["release_compensation_forward_intent_missing"]
+        else:
+            head = release_ref_subject(repo, ref=ref, old=old, new=new)
+    except (OSError, TypeError, ValueError) as error:
+        return [str(error)]
+    gaps = proof_gaps(repo, head)
+    if gaps:
+        return gaps
+    intent = claim_ref_intent(
+        root=repo,
+        ref_name=ref,
+        update=GitRefUpdate(expected=old, desired=new),
+        operation=operation,
+        phase="prepared",
+        plan_digest=str(forward["plan_digest"]) if forward else None,
+    )
+    gap = str(intent.get("gap") or "")
+    return ["release_ref_move_no_ref_intent" if gap == "ref_intent_missing" else gap] if gap else []
+
+
+def _release_move_report(
+    repo: Path, base: dict[str, object], ref: str, old: str, new: str, operation: str
+) -> dict[str, object]:
+    if operation == "release.tag":
+        policy = load_branch_role_policy(repo)
+        if not declared_release_tag(repo, ref_head(repo, policy.accepted_branch), ref):
+            return base
+    gaps = _release_move_gaps(repo, ref, old, new, operation)
+    return (
+        _verdict(base, "block", "blocked", "block", "release_ref_move_not_admitted", gaps)
+        if gaps
+        else base
+    )
+
+
+def _terminal_ref_report(
+    repo: Path,
+    base: dict[str, object],
+    ref: str,
+    old: str,
+    new: str,
+    phase: str,
+    operation: str,
+) -> dict[str, object]:
+    """Observe the terminal native intent without duplicating subject admission."""
+    intent = claim_ref_intent(
+        root=repo,
+        ref_name=ref,
+        update=GitRefUpdate(expected=old, desired=new),
+        operation=operation,
+        phase=cast('Literal["committed", "aborted"]', phase),
+    )
+    gap = str(intent["gap"] or "")
+    base["decision"] = {"action": "allow", "reason": f"ref_intent_{phase}"}
+    return (
+        _verdict(
+            base,
+            "block",
+            "repair_required" if phase == "committed" else "blocked",
+            "block",
+            f"ref_intent_{phase}_failed",
+            [gap],
+        )
+        if gap
+        else base
+    )
+
+
+def _ref_result(base: dict[str, object], reason: str, gaps: list[str]) -> dict[str, object]:
+    return _verdict(base, "block", "blocked", "block", reason, gaps) if gaps else base
+
+
+def _candidate_move_gaps(
+    repo: Path, ref: str, old: str, new: str, operation: str, accepted: str
+) -> list[str]:
+    gaps = [] if is_ancestor(repo, new, accepted) else proof_gaps(repo, new)
+    return gaps or prepared_ref_intent_gaps(
+        repo=repo,
+        ref_name=ref,
+        update=GitRefUpdate(expected=old, desired=new),
+        operation=operation,
+        missing_gap="candidate_ref_move_no_ref_intent",
+    )

@@ -464,7 +464,7 @@ branch as ready for another closeout mutation.
 ### Requirement: OpenSpec Lifecycle Contract Review
 
 ETHOS SHALL compose official OpenSpec validation with one transient Commitment
-compiled from each selected active Change. Official proposal, specs, design,
+compiled from each selected official Change snapshot. Official proposal, specs, design,
 tasks, metadata, configuration, and exact repairs named by current structured
 official validation failures are the sole tracked intent and lifecycle
 carriers; no `commitment.toml`, `scope.toml`, local template, or Change README is
@@ -491,6 +491,7 @@ required.
 - **WHEN** the current Work Lane requests prewrite for exactly
   `openspec/specs/<capability>/spec.md`
 - **THEN** ETHOS admits that exact repair path under the selected active Change
+  or its verified archived source
 - **AND** unrelated canonical specifications and all non-specification paths
   remain blocked
 - **AND** malformed or ambiguous capability identifiers grant no authority
@@ -513,6 +514,20 @@ required.
 - **AND** an `INFO` issue grants no repair authority
 - **AND** the repair authority disappears when fresh strict validation no longer
   reports the matching issue.
+
+#### Scenario: Official archive leaves a canonical validation failure
+
+- **GIVEN** no active Change remains and exact completed archive evidence
+  identifies the selected Change and its canonical specification output
+- **AND** current official strict validation reports a blocking structured
+  issue for that canonical specification
+- **WHEN** the currently coordinated Work Lane requests that exact repair path
+- **THEN** prewrite and host admission permit only the validator-named repair
+- **AND** current runtime, actor, Lease and supplied postimage checks still apply
+- **AND** missing or mismatched archive evidence, unrelated validation failures
+  and additional requested paths do not acquire repair permission
+- **AND** the repaired source requires fresh strict validation and proof without
+  recreating the active Change or repeating its completed archive effect
 
 ### Requirement: Reference Adopter Parity Closure
 ETHOS SHALL prove reference adopter parity through generic profile and shadow

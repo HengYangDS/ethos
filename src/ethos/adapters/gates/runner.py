@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_head
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.verdict import Verdict
@@ -119,21 +121,17 @@ class LocalGateRunner:
             return _run_providers(node, gate, root)
         command = gate.command
         try:
-            completed = subprocess.run(
-                list(command),
-                cwd=root,
-                text=True,
-                capture_output=True,
-                check=False,
-            )
-        except FileNotFoundError as exc:
-            missing = str(exc.filename or command[0])
+            completed = run_command(root, command)
+        except ProcessExecutionError as exc:
+            if not isinstance(exc.__cause__, FileNotFoundError):
+                raise
+            missing = str(exc.__cause__.filename or command[0])
             return ActionRunResult(
                 action_id=node.id,
                 command=node.command,
                 verdict="block",
                 exit_code=127,
-                stderr=str(exc),
+                stderr=str(exc.__cause__),
                 diagnostics=(
                     {
                         "kind": "command_not_found",

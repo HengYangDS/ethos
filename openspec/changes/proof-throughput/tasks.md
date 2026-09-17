@@ -26,6 +26,7 @@
 - [x] Distinguish process creation from communication and cleanup failures at the process owner.
 - [x] Batch canonical set roots with members while retaining native identity and typed-frame checks.
 - [x] Resolve exited-group cancellation races without suppressing live-group cleanup failures.
+- [x] Batch effect revision observation and remove duplicate immutable validation while preserving missing-object distinctions.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.

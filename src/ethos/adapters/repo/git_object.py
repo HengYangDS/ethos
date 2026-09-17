@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
@@ -14,6 +16,10 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.adapters.repo.trust_anchor.verification import configured_commit_trust_anchor
 from ethos.adapters.repo.trust_anchor.verification import verify_git_object_trust
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 
 GitObjectKind = Literal["commit", "annotated-tag"]
 
@@ -431,3 +437,53 @@ def read_objects(
     if offset != len(payload) or len(blobs) != len(object_ids):
         raise ValueError(gap)
     return tuple(blobs)
+
+
+def resolve_revisions(
+    repo: Path, revisions: tuple[str, ...], *, environment: Mapping[str, str] | None = None
+) -> dict[str, str]:
+    """Resolve one ordered native batch, separating missing objects from failed observation."""
+    queries = tuple(dict.fromkeys(revisions))
+    gap = "git_revision_batch_invalid"
+    if any(any(character.isspace() or character == "\0" for character in item) for item in queries):
+        raise ValueError(gap)
+    if not queries:
+        return {}
+    result = run_git(
+        repo,
+        "cat-file",
+        "--batch-check=%(objectname) %(objecttype) %(rest)",
+        stdin="".join(f"{revision} {index}\n" for index, revision in enumerate(queries)),
+        check=False,
+        env=environment,
+    )
+    rows = result.stdout.splitlines()
+    if result.returncode or len(rows) != len(queries):
+        raise ValueError(gap)
+    resolved = {}
+    for index, (revision, row) in enumerate(zip(queries, rows, strict=True)):
+        if row == f"{revision} missing":
+            absent = run_git(
+                repo,
+                "rev-parse",
+                "--verify",
+                "--quiet",
+                "--end-of-options",
+                revision,
+                check=False,
+                env=environment,
+            )
+            if absent.returncode != 1 or absent.stdout or absent.stderr:
+                raise ValueError(gap)
+            resolved[revision] = ""
+            continue
+        fields = row.split(" ")
+        if (
+            len(fields) != 3
+            or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", fields[0])
+            or fields[1] not in {"commit", "tree", "tag", "blob"}
+            or fields[2] != str(index)
+        ):
+            raise ValueError(gap)
+        resolved[revision] = fields[0]
+    return resolved

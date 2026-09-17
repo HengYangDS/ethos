@@ -10,9 +10,8 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
+from ethos.adapters.repo.git_object import resolve_revisions
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
@@ -214,9 +213,7 @@ def validate(
         evidence,
         observed_at,
         _object_mapping(statement.get("freshness")),
-        plan=plan,
         environment=environment,
-        allow_absent_prestate=plan.policy.get("repository_prestate") == "absent",
     ):
         raise ValueError(_CONTENT_MISMATCH)
 
@@ -404,7 +401,6 @@ def records(
         existing = _matching_plan_attestations(root, plan.digest)
         if not existing:
             return ()
-        plan_from_attestation(existing[0])
         if git_effect_from_plan(plan_from_attestation(existing[0])) != effect:
             message = "git_effect_attestation_collision"
             raise ValueError(message)
@@ -434,15 +430,9 @@ def _matches(
     observed_at: dict[str, object],
     freshness: dict[str, object],
     *,
-    plan: TransitionPlan,
     environment: Mapping[str, str] | None = None,
-    allow_absent_prestate: bool = False,
 ) -> bool:
     repository, state, before, after = evidence
-    current_refs = {
-        name: ref_head(root, name, update.desired, environment=environment)
-        for name, update in effect.updates.items()
-    }
     expected_before = {ref: update.expected for ref, update in effect.updates.items()}
     desired = {ref: update.desired for ref, update in effect.updates.items()}
     if state == "recovered":
@@ -459,37 +449,30 @@ def _matches(
     except ValueError:
         return False
     current_head = current_tracked_head(root)
+    tree_refs = tuple(
+        f"{head}^{{tree}}"
+        for head in (before.get("head") or "", after.get("head") or "", current_head)
+    )
     try:
-        repository_matches = (
-            repository == str(plan.facts.get("repository") or "")
-            if state == "recovered"
-            else repository
-            == resolve_git_effect_repository(
-                root,
-                effect,
-                before,
-                environment=environment,
-                allow_absent_prestate=allow_absent_prestate,
-            )
-        )
+        selected = resolve_revisions(root, (*effect.updates, *tree_refs), environment=environment)
     except ValueError:
         return False
+    current_refs = {
+        name: selected[name] or "0" * len(update.desired) for name, update in effect.updates.items()
+    }
     return bool(
-        repository_matches
-        and current_refs == desired
+        current_refs == desired
         and before.get("refs") == expected_before
         and before.get("assertions") == effect.assertions
-        and before.get("tree")
-        == current_tree(root, str(before.get("head") or ""), environment=environment)
+        and before.get("tree") == selected[tree_refs[0]]
         and after.get("refs") == desired
-        and after.get("tree")
-        == current_tree(root, str(after.get("head") or ""), environment=environment)
+        and after.get("tree") == selected[tree_refs[1]]
         and (
             current_head == after.get("head")
             or (
                 state == "applied"
                 and before.get("head") == current_head
-                and current_tree(root, current_head, environment=environment) == before.get("tree")
+                and selected[tree_refs[2]] == before.get("tree")
             )
         )
         and freshness

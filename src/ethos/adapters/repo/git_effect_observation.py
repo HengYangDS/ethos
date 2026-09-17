@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import resolve_revisions
 from ethos.adapters.repo.profile import repository_identity
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
@@ -36,17 +36,18 @@ def observe_git_effect(
 ) -> dict[str, object]:
     """Capture the exact Git facts before or after one effect."""
     head = current_tracked_head(root)
+    selected = resolve_revisions(
+        root, (f"{head}^{{tree}}", *effect.updates, *effect.assertions), environment=environment
+    )
     return {
         "observed_at": canonical_utc_time(datetime.now(UTC)),
         "head": head,
-        "tree": current_tree(root, head, environment=environment),
+        "tree": selected[f"{head}^{{tree}}"],
         "refs": {
-            name: ref_head(root, name, update.expected, environment=environment)
+            name: selected[name] or "0" * len(update.expected)
             for name, update in effect.updates.items()
         },
-        "assertions": {
-            name: ref_head(root, name, environment=environment) for name in effect.assertions
-        },
+        "assertions": {name: selected[name] for name in effect.assertions},
     }
 
 

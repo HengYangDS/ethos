@@ -98,19 +98,12 @@ def test_exact_multiref_cas_attestation_recognition_and_cleanup(
     assert not list(ref_intent_dir(case.repo).glob("*.json"))
 
 
-def test_empty_effect_issuer_is_rejected_before_ref_mutation(tmp_path: Path) -> None:
-    case = fixture(tmp_path)
-
-    reject(
-        "git_effect_issuer_invalid",
-        lambda: execute_git_effect(case.repo, plan(case.repo, case.effect), issuer=""),
-    )
-
-    assert git(case.repo, "rev-parse", "dev") == case.old
-    assert not list(ref_intent_dir(case.repo).glob("*.json"))
-
-
-def test_effect_issuer_must_match_the_actor_bound_by_the_plan(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("issuer", "gap"),
+    [("", "git_effect_issuer_invalid"), ("agent:test:other", "git_effect_issuer_mismatch")],
+)
+def test_effect_issuer_matches_exact_plan_before_ref_mutation(tmp_path, issuer, gap):
+    """Missing or mismatched issuers preserve refs and create no intent."""
     case = fixture(tmp_path)
     carried = plan(
         case.repo,
@@ -121,12 +114,7 @@ def test_effect_issuer_must_match_the_actor_bound_by_the_plan(tmp_path: Path) ->
             "effect_digest": case.effect.digest(),
         },
     )
-
-    reject(
-        "git_effect_issuer_mismatch",
-        lambda: execute_git_effect(case.repo, carried, issuer="agent:test:case:other"),
-    )
-
+    reject(gap, lambda: execute_git_effect(case.repo, carried, issuer=issuer))
     assert git(case.repo, "rev-parse", "dev") == case.old
     assert not list(ref_intent_dir(case.repo).glob("*.json"))
 

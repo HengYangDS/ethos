@@ -923,3 +923,58 @@ its own process death. The prior same-group survivor probe remains valid
 counterevidence. Next repairs must preserve a surviving lifetime owner, nested
 command boundaries and healthy concurrent work; no global process scan or
 permanent serial test policy substitutes for that guarantee.
+
+
+### Batched Native Effect Observation
+
+The Git object owner now resolves each invocation's ordered revision set with
+native `cat-file --batch-check`; effect observation and Attestation validation
+consume that one result. Queries are deduplicated within the invocation, not
+cached across effects. Response cardinality, type, OID spelling and ordinal
+binding are validated; transport failure is not interpreted as absence. The
+HEAD read remains explicit, and this batch is not an atomic Git snapshot.
+
+Attestation validation resolves the exact immutable repository identity once
+instead of repeating the same resolver inside its postcondition check. It still
+checks current refs, trees, time, canonical evidence and authority separately.
+The records reader no longer parses the same carried plan twice. Native CAS,
+recovery and compensation remain at their existing owners.
+
+The first reduced-work counterexample failed on per-ref observation. The native
+comparison in `throughput-batch-facts-native-comparison.json` uses 32 updates and
+one assertion, ten reads, and before/after/after/before ordering. Both SHA-1 and
+SHA-256 need 350/20/20/350 Git starts; each result is identical after removing
+its observation timestamp. Wall times are 1.632/0.102/0.109/1.466 seconds and
+1.481/0.104/0.113/1.423 seconds. Fixture preparation is excluded and shared host
+caches remain; this is not a full-proof speedup.
+
+Native review exposed an important distinction: `cat-file` reports missing both
+for an absent ref and for a ref whose object is gone. Both hash-format regressions
+failed before repair. A missing batch row now requires exact `rev-parse` absence;
+a dangling ref or unavailable observation blocks. This extra diagnostic is paid
+only for missing rows, not every successful read. The 152-case final focused
+suite passes in 10.72 seconds and six public closeout/signed-release cases pass
+in 59.56 seconds, with owned roots removed.
+
+Before the missing-row refinement, 190 focused cases passed in 15.64 seconds;
+121 shared land, closeout, release and historical/signature-repair cases passed
+in 381.69 seconds. The final missing-row refinement was verified through the
+focused matrix and public consumers, not by relabeling the earlier source patch.
+The old postobserve test injected failure only on a redundant second repository
+read; it now injects unavailable current revision observation. Duplicate fixture
+setup was consolidated with unchanged assertions and native effects. Product
+and test ELOC are 45,447 and 50,000; size, type and source-budget gates pass.
+
+The representative covered land profile reduces product process/Git calls from
+885/849 to 856/820. Its elapsed time is 18.90 seconds versus the earlier 16.48;
+this run overlapped another test batch and cannot support a speedup claim.
+Do not sum these timings or confuse all captured subprocess calls with product
+calls. The trace and raw counters are in `throughput-hotspot-land-batched-facts`.
+
+A separate installed-wheel feasibility probe at `94e3ebffa` passes the same land
+case in 14.06 seconds after a 1.29-second offline build. Its children still use
+source-bound fixtures, coverage was disabled, and no matched control was run;
+it does not justify whole-suite migration or a source-currentness cache.
+`throughput-packaged-hotspot.json` binds the wheel to exact source/tree. The
+owned wheel/install tree was removed. The 600-second complete-proof goal and
+surviving-worker resource ownership remain open.

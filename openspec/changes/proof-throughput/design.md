@@ -789,6 +789,45 @@ worker loss, nested descendants and platform boundaries without per-command
 supervisor startup or unsafe PID/name scans. This remains an open acceptance
 obligation, not a result of the passing cancellation cases.
 
+### Surviving Owner And Failure Phases
+
+The isolated six-case `throughput-worker-owner-native-experiment.json` tests
+an execution owner outside a crashing caller. Both explicit exit and SIGKILL
+close same-group descendants and nested commands created through that owner,
+without disturbing a concurrent healthy command. A descendant creating an
+unregistered group survives in both cases. This is a throwaway feasibility
+experiment, not installed containment, a trusted RPC protocol or product repair.
+All experiment roots were removed. Owner death, native Windows containment,
+unregistered escape and production I/O remain unproved.
+
+Native macOS `NOTE_TRACK` registration returns errno 45, while ordinary fork/exit
+notification works; it cannot supply inherited descendant tracking here.
+Source inspection found process-wrap uses Unix process groups, running-process's
+contained-spawn path also uses per-command Unix groups, pyreap adds a Python
+watcher per command, and processkit's reviewed supervisor owns restart/backoff.
+None of these inspected paths demonstrates the complete missing guarantee.
+No dependency or persistent broker was installed. The existing evidence root
+retains upstream source and command receipts under `throughput-supervision-`.
+
+The prototype's cost comparison failed before producing timings: signaling an
+unreaped, already-exited group returns PermissionError on this host. This is
+also reproducible through the product when cancellation follows that exit.
+Previously the outer OSError catch falsely labeled it process creation failure.
+The existing executor now wraps only Popen creation; communication and cleanup
+retain their actual errors and exception context. It shares one Popen lifetime
+across platforms, including the standard Windows timeout-output drain, instead
+of hiding Windows creation inside a second subprocess.run path. No permission
+error is ignored, and the unresolved cleanup race is not claimed fixed.
+
+The creation/communication distinguishing test failed before repair and passes
+afterward. The same 279 process, Git, runtime, hook, gate and public proof cases
+pass at two/four/eight workers in 33.30/18.78/13.50 seconds, with observed wrapper
+times of 33.68/19.17/13.89 seconds. All roots were removed, source stayed frozen,
+and JUnit hashes and commands are in `throughput-process-phase-concurrency.json`.
+These equal no-coverage runs use the default thread timeout without retries;
+native Windows execution and full proof are not covered. Product/test ELOC is
+45,404/49,996; type, size and source-budget gates pass.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

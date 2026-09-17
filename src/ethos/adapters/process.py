@@ -197,46 +197,47 @@ def run_command(
         if folded in removed or folded.startswith(removed_prefixes):
             effective_env.pop(key)
     effective_env.update(env or {})
+    return _execute_command(
+        command,
+        cwd=resolved_root,
+        check=check,
+        text=text,
+        env=effective_env,
+        input=stdin,
+        timeout=timeout,
+    )
+
+
+def _execute_command(
+    command: tuple[str, ...], *, check: bool, timeout: float | None, **kwargs: Any
+) -> subprocess.CompletedProcess[Any]:
+    """Separate creation failures from communication and owned-process cleanup."""
+    stdin = kwargs.pop("input")
     try:
-        return _execute_command(
+        process = subprocess.Popen(
             command,
-            cwd=resolved_root,
-            check=check,
-            text=text,
-            env=effective_env,
-            input=stdin,
-            timeout=timeout,
+            stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            **({"process_group": 0} if os.name == "posix" else {}),
+            **kwargs,
         )
     except OSError as error:
         raise ProcessExecutionError(
             PROCESS_CREATION_FAILED,
             reason="operating_system_rejected_process_creation",
             command=command,
-            cwd=resolved_root.as_posix(),
+            cwd=kwargs["cwd"].as_posix(),
             cause=f"{error.__class__.__name__}: {error}",
         ) from error
-
-
-def _execute_command(
-    command: tuple[str, ...], *, check: bool, timeout: float | None, **kwargs: Any
-) -> subprocess.CompletedProcess[Any]:
-    """Retain native results while interrupting the command's owned POSIX process group."""
-    if os.name != "posix":
-        return subprocess.run(command, check=check, timeout=timeout, capture_output=True, **kwargs)
-    stdin = kwargs.pop("input")
-    with subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        process_group=0,
-        **kwargs,
-    ) as process:
+    with process:
         try:
             stdout, stderr = process.communicate(stdin, timeout=timeout)
-        except BaseException:
+        except BaseException as error:
             with suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
+                os.killpg(process.pid, signal.SIGKILL) if os.name == "posix" else process.kill()
+            if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
+                error.stdout, error.stderr = process.communicate()
             process.wait()
             raise
         result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)

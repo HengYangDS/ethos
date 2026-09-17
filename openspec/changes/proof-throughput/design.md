@@ -224,7 +224,8 @@ than removed. Product/test ELOC remain 45,289/50,000 with unchanged limits.
 Next prioritize observation/compilation repeated inside one admission and the
 installed native merge path. Preserve independent effects and their fresh
 checks; do not collapse separate admissions or replace native journeys with
-mocked success. Full-suite phase timing after these changes remains unmeasured.
+mocked success. Successful complete-proof timing after these changes remains
+unmeasured.
 
 The rebuilt `2853c397d` wheel passed the same complete isolated installed
 acceptance in 170.14 seconds, including preparation and cleanup. Native merge
@@ -256,6 +257,50 @@ returned the same exact proof with 25/19/19/25 subprocesses and elapsed times of
 set observation, not freshness or validation bypasses. The owned fixture was
 removed; `throughput-proof-snapshot-comparison.json` retains the raw comparison.
 This query improvement does not demonstrate complete-proof throughput.
+
+### Exact Full-Run Findings And Consumer Repair
+
+The frozen `9e536969b` full run completed in 1,614.26 seconds and failed:
+3,751 tests passed, fourteen failed and one skipped. Pytest took 1,569.575 seconds
+(26 minutes 10 seconds), versus 1,925.089 seconds in the earlier successful
+baseline. That is an observed 18.5-percent pytest reduction, not complete-proof
+acceptance: coverage-floor, generated-artifacts, build, installed acceptance
+and SBOM were correctly dependency-blocked after the test failure. Twenty-nine
+other gates passed. The separate preceding diagnostic preflight took 17.38
+seconds and is not included in the full command timer.
+
+The content-bound timing artifact now distinguishes dependency-blocked gates
+from executed checks. Unit-architecture's outer gate took 1,586.98 seconds;
+pytest and its parent preparation/reporting differ by 17.41 seconds. The full
+command's remaining 27.28 seconds includes prior gates and orchestration.
+Concurrent gate durations are not added to that elapsed time. Raw JUnit records
+21,933/22,807 covered lines and 5,968/6,562 covered branches: 95.0015 percent
+combined. The coverage floor was not executed after failure; these raw counts
+are not a passing proof. Owned pytest basetemp was removed automatically.
+
+All fourteen failures were omitted migration consumers, not performance-budget
+failures: thirteen compact-proof cases indexed optional timing fields and one
+candidate test mocked the retired full dirty-provenance reader. The compact
+projection now treats absent timing as unknown, preserving its optional artifact
+contract; the candidate test consumes the current boolean dirty owner. It still
+tests both dirty and stale-ancestor rejection. Sixty-nine proof-command, timing,
+host-proof and candidate-boundary cases pass after repair in 14.81 seconds with
+two workers. Ruff, formatting, types and unchanged source limits pass.
+
+This exposed a concrete failure-left omission: producer timing and topology
+changes had not replayed every direct CLI contract consumer. For the next
+verification, the existing proof-command, remaining-landing-branches, timing
+artifact and graph-runner tests are the focused consumer closure before any
+full run. Do not fix missing optional fields by changing every old producer or
+revive a deleted observation owner merely to satisfy an obsolete mock.
+
+The complete per-gate and module breakdown, failed case identities and evidence
+hashes are in `throughput-current-breakdown.json`. Current summed module time is
+264.13 seconds for land, 169.55 for merge continuation, 152.78 for closeout,
+150.22 for release and 145.59 for historical repair. These concurrent case sums
+keep the priority on shared native observation and compilation. Full proof and
+the 600-second requirement remain open; do not count the blocked package stages
+as an improvement.
 
 Compare the same workload before and after each repair: outcome, source/ref
 postconditions, subprocess counts, elapsed time and owned-resource cleanup.

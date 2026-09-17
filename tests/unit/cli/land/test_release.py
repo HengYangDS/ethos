@@ -1,0 +1,255 @@
+"""Native accepted release selection preserves source, trust and exact ref effects."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from filelock import FileLock
+
+import ethos.adapters.mutation.accepted.release as release_owner
+import ethos.adapters.repo.commit.creation as signing_owner
+import ethos.adapters.repo.git_effect_attestation as effect_attestation
+from ethos.adapters.admission.git_admission import ref_move_admission_report
+from ethos.adapters.admission.publication import push_admission_report
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git_object import observe_git_object
+from ethos.adapters.repo.release import committed_release_version
+from ethos.adapters.repo.release import release_ref_subject
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.subprocesses import kill_after_marker
+from tests.unit.cli.land.publication.support import accepted_release_fixture
+from tests.unit.cli.land.publication.support import publication_peers
+
+
+def release_cli(
+    repo: Path, head: str, old: str, *args: str, tag: str = "v1.2.3", blocked: bool = False
+):
+    """Invoke the public release surface with exact fixture coordinates."""
+    runner = run_ethos_blocked if blocked else run_ethos
+    return runner(
+        "land",
+        "--release",
+        "--expect-head",
+        head,
+        "--release-head",
+        old,
+        "--tag",
+        tag,
+        *args,
+        "--json",
+        cwd=repo,
+    )
+
+
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_public_release_preserves_native_package_and_signed_tag(
+    tmp_path: Path, object_format: str
+) -> None:
+    repo, main, old, head = accepted_release_fixture(tmp_path, object_format)
+    for ref, previous, gaps in (
+        ("refs/heads/main", old, ["release_ref_move_no_ref_intent"]),
+        ("refs/tags/experiment", "0" * len(head), []),
+    ):
+        report = ref_move_admission_report(
+            root=repo, ref_name=ref, old_value=previous, new_value=head
+        )
+        assert report["required_gaps"] == gaps
+        assert report["verdict"] == ("block" if gaps else "pass")
+    refs = git(repo, "show-ref")
+    preview = release_cli(repo, head, old)
+    assert preview["verdict"] == "pass", preview
+    assert git(repo, "show-ref") == refs
+    applied = release_cli(repo, head, old, "--apply", "--authorize")
+    assert applied["verdict"] == "pass", applied
+    assert git(repo, "rev-parse", "main") == head
+    assert git(main, "status", "--porcelain") == ""
+    tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
+    verified = observe_git_object(repo, tag, "annotated-tag")
+    assert verified["peeled_commit"] == head
+    assert verified["signature"]["verdict"] == "pass"
+    with pytest.raises(ValueError, match="release_tag_name_mismatch"):
+        release_ref_subject(repo, ref="refs/tags/v9.9.9", old="0" * len(head), new=tag)
+    assert not (repo / "VERSION").exists()
+    repeated = release_cli(repo, head, old, "--apply", "--authorize")
+    assert repeated["verdict"] == "pass", repeated
+    assert git(repo, "rev-parse", "refs/tags/v1.2.3") == tag
+
+    publication_peers(repo, tmp_path, f"{old}:refs/heads/main", object_format=object_format)
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/main",
+        pushed_head=head,
+        remote_head=old,
+        remote_name="origin",
+    )
+    assert report["verdict"] == "pass", report
+    assert report["commit_policy_admission"]["state"] == "accepted_content"
+    assert report["commit_policy_admission"]["checked_commit_count"] == 0
+    assert report["commit_policy_admission"]["remote_head"] == old
+    assert report["commit_policy_admission"]["baseline_ref"] == "refs/heads/dev"
+    assert report["accepted_closeout_effect"]
+
+
+@pytest.mark.parametrize("boundary", ["plan-store", "ref-ack", "before-cas", "attestation"])
+def test_release_faults_preserve_objects_and_recover_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
+) -> None:
+    """Real effects, compensation and actor fences share one recoverable request."""
+    repo, main, old, head = accepted_release_fixture(tmp_path)
+    request = {
+        "root": repo,
+        "head": head,
+        "previous": old,
+        "tag": "" if boundary == "before-cas" else "v1.2.3",
+        "apply": True,
+        "authorized": True,
+    }
+    refs, signatures, attempted = git(repo, "show-ref"), [], []
+    native = signing_owner.run_git
+
+    def observe_signing(root, *args, **kwargs):
+        if args[:2] == ("tag", "-s"):
+            signatures.append(args)
+        return native(root, *args, **kwargs)
+
+    monkeypatch.setattr(signing_owner, "run_git", observe_signing)
+    owner, name = (
+        (effect_attestation, "records")
+        if boundary == "attestation"
+        else (
+            release_owner,
+            "write_content_addressed" if boundary == "plan-store" else "execute_git_effect",
+        )
+    )
+    effect = getattr(owner, name)
+
+    def lose_ack(*args, **kwargs):
+        if boundary == "attestation" and len(args) <= 2:
+            return effect(*args, **kwargs)
+        attempted.append(True)
+        if boundary == "ref-ack":
+            effect(*args, **kwargs)
+        message = "injected acknowledgement loss"
+        raise OSError(message)
+
+    with monkeypatch.context() as scope:
+        scope.setattr(owner, name, lose_ack)
+        interrupted = release_owner.promote_release(**request)
+    assert interrupted["verdict"] == "unknown", interrupted
+    assert attempted == [True]
+    if boundary != "ref-ack":
+        assert git(repo, "show-ref") == refs
+    if boundary == "before-cas":
+        with monkeypatch.context() as scope:
+            scope.setenv("ETHOS_ACTOR", "agent:test:case:another")
+            rejected = release_owner.promote_release(**request)
+        assert rejected["verdict"] == "block", rejected
+        assert rejected["required_gaps"] == ["release_request_actor_mismatch"]
+        assert git(repo, "show-ref") == refs
+    restored = release_owner.promote_release(**request)
+    assert restored["verdict"] == "pass", restored
+    assert len(signatures) == (0 if boundary == "before-cas" else 1)
+    assert git(repo, "rev-parse", "main") == head
+    assert git(main, "status", "--porcelain") == ""
+    assert not list((Path(git_common_dir(repo)) / "ethos/requests/release").glob("*.signing"))
+
+
+def test_release_lock_contention_is_bounded_and_does_not_sign(tmp_path: Path) -> None:
+    """A held owner lock returns a waiting receipt rather than duplicate effects."""
+    repo, _main, old, head = accepted_release_fixture(tmp_path)
+    store = Path(git_common_dir(repo)) / "ethos/requests/release"
+    store.mkdir(parents=True)
+    with FileLock(store / ".lock", timeout=0, preserve_lock_file=True):
+        result = release_owner.promote_release(
+            root=repo, head=head, previous=old, tag="v1.2.3", apply=True, authorized=True
+        )
+    assert result["state"] == "waiting", result
+    assert result["required_gaps"] == ["release_in_progress"]
+    assert not list(store.glob("*.signing"))
+    assert git(repo, "rev-parse", "main") == old
+
+
+@pytest.mark.parametrize("boundary", ["tag-object", "ref-cas"])
+def test_killed_release_recovers_exact_native_objects(tmp_path: Path, boundary: str) -> None:
+    """Kill the writer after native success but before its caller gets the result."""
+    repo, main, old, head = accepted_release_fixture(tmp_path)
+    marker = tmp_path / "effect-ready"
+    script = """
+import sys
+from pathlib import Path
+from tests.support.subprocesses import pause_after_effect
+import ethos.adapters.mutation.accepted.release as release
+import ethos.adapters.repo.git_effects as effects
+repo, old, head, boundary, marker = sys.argv[1:]
+owner, name = ((release, 'create_signed_tag') if boundary == 'tag-object'
+               else (effects, '_run_effect_program'))
+pause_after_effect(owner, name, Path(marker))
+print(release.promote_release(root=Path(repo),head=head,previous=old,tag='v1.2.3',apply=True,authorized=True),flush=True)
+"""
+    kill_after_marker(
+        repo, script, (str(repo), old, head, boundary, str(marker)), marker, timeout=30
+    )
+    before = (
+        marker.read_text()
+        if boundary == "tag-object"
+        else git(repo, "rev-parse", "refs/tags/v1.2.3")
+    )
+    result = release_cli(repo, head, old, "--apply", "--authorize")
+    assert result["verdict"] == "pass", result
+    assert git(repo, "rev-parse", "refs/tags/v1.2.3") == before
+    assert git(main, "status", "--porcelain") == ""
+    assert not list((Path(git_common_dir(repo)) / "ethos/requests/release").glob("*.signing"))
+
+
+@pytest.mark.parametrize("gap", ["authorization", "dirty", "source", "main", "tag", "proof"])
+def test_release_public_rejection_preserves_all_refs(tmp_path: Path, gap: str) -> None:
+    """Each independent precondition fails before signing or moving any source."""
+    repo, main, old, head = accepted_release_fixture(tmp_path)
+    if gap == "dirty":
+        (main / "untracked").write_text("preserve me")
+    if gap == "proof":
+        git(repo, "update-ref", "-d", "refs/ethos/attestations-set")
+    refs = git(repo, "show-ref")
+    result = release_cli(
+        repo,
+        old if gap == "source" else head,
+        "1" * 40 if gap == "main" else old,
+        "--apply",
+        *(("--authorize",) if gap != "authorization" else ()),
+        tag="v9.9.9" if gap == "tag" else "v1.2.3",
+        blocked=True,
+    )
+    assert result["required_gaps"], result
+    assert git(repo, "show-ref") == refs
+
+
+@pytest.mark.parametrize(
+    ("path", "content", "gap"),
+    [
+        ("package.json", '{"version":"1.2.3"}', ""),
+        ("pyproject.toml", '[project]\nversion="1.2.3"\n', ""),
+        (
+            "pyproject.toml",
+            '[project]\nversion="1.2.3"\ndynamic=["version"]\n',
+            "release_version_source_invalid",
+        ),
+        ("package.json", '{"version":3}', "release_version_source_invalid"),
+        ("package.json", "[]", "release_version_source_invalid"),
+    ],
+)
+def test_native_version_sources_are_explicit(
+    tmp_path: Path, path: str, content: str, gap: str
+) -> None:
+    repo = init_git_repo(tmp_path / "version")
+    (repo / path).write_text(content)
+    git(repo, "add", path)
+    git(repo, "commit", "-m", "version fixture")
+    if gap:
+        with pytest.raises(ValueError, match=gap):
+            committed_release_version(repo, "HEAD")
+    else:
+        assert committed_release_version(repo, "HEAD") == {"version": "1.2.3", "source": path}

@@ -64,7 +64,6 @@ def _protocol(root: Path, phase: str, body: str) -> subprocess.CompletedProcess[
         ("committed", f"{'a' * 40} {'b' * 40} refs/heads/dev\n"),
         ("aborted", f"{'a' * 40} {'b' * 40} refs/heads/dev\n"),
         ("prepared", f"{'a' * 40} {'b' * 40} refs/ethos/attestations-set\n"),
-        ("prepared", f"{'a' * 40} {'b' * 40} refs/tags/v1\n"),
         ("prepared", f"{'a' * 40} {'a' * 40} refs/heads/dev\n"),
         ("prepared", ""),
     ],
@@ -250,3 +249,9 @@ def test_pre_push_evaluates_every_update_and_blocks_the_batch(
     assert json.loads(capsys.readouterr().err)["required_gaps"] == [
         "commit_subject_invalid:rejected"
     ]
+
+
+def test_tag_ref_movement_requires_admission(tmp_path: Path) -> None:
+    result = _protocol(tmp_path, "prepared", f"{'0' * 40} {'b' * 40} refs/tags/v1\n")
+    assert result.returncode == 1
+    assert "unused authority initialized" in result.stderr

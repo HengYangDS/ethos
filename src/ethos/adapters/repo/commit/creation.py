@@ -298,3 +298,62 @@ def _sign_payload(root: Path, payload: bytes) -> bytes:
             error = "signature_repair_signing_failed:" + result.stderr.decode(errors="replace")
             raise ValueError(error)
         return material.with_suffix(".sig").read_bytes().replace(b"\r\n", b"\n").rstrip(b"\n")
+
+
+def create_signed_tag(root: Path, *, name: str, head: str, staging: Path) -> str:
+    """Prepare one recoverable native tag without moving refs in the source repository.
+
+    The caller holds the request lock and retains this owned object store until
+    the exact effect plan is durable. An interrupted signer is never replayed.
+    """
+    if run_git(root, "check-ref-format", f"refs/tags/{name}", check=False).returncode:
+        message = "release_tag_name_invalid"
+        raise ValueError(message)
+    environment = commit_environment(root, None)
+    object_format = run_git(root, "rev-parse", "--show-object-format").stdout.strip()
+    objects = run_git(
+        root, "rev-parse", "--path-format=absolute", "--git-path", "objects"
+    ).stdout.strip()
+    if staging.is_symlink():
+        message = "release_signing_path_unsafe"
+        raise ValueError(message)
+    if not staging.exists():
+        staging.mkdir(mode=0o700)
+    run_git(staging, "init", "--bare", "--template=", f"--object-format={object_format}")
+    (staging / "objects/info/alternates").write_text(objects + "\n", encoding="utf-8")
+    selected = run_git(staging, "rev-parse", "--verify", f"refs/tags/{name}", check=False)
+    if selected.returncode:
+        attempt = staging / "signing"
+        if attempt.exists():
+            message = "release_tag_signing_outcome_unknown"
+            raise ValueError(message)
+        tagger = run_git(root, "var", "GIT_COMMITTER_IDENT").stdout.strip()
+        identity, timestamp, timezone = tagger.rsplit(" ", 2)
+        user_name, user_email = identity.rsplit(" <", 1)
+        for key, value in (("user.name", user_name), ("user.email", user_email.removesuffix(">"))):
+            run_git(staging, "config", key, value)
+        with attempt.open("x") as stream:
+            stream.write(tagger + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        completed = run_git(
+            staging,
+            "tag",
+            "-s",
+            "-m",
+            f"Release {name}",
+            name,
+            head,
+            env={**environment, "GIT_COMMITTER_DATE": f"{timestamp} {timezone}"},
+            check=False,
+            timeout=30,
+        )
+        if completed.returncode:
+            raise ValueError("release_tag_signing_failed:" + completed.stderr.strip())
+    oid = run_git(staging, "rev-parse", f"refs/tags/{name}").stdout.strip()
+    raw = run_git(staging, "cat-file", "tag", oid, text=False).stdout
+    written = run_git(root, "hash-object", "-w", "-t", "tag", "--stdin", stdin=raw, text=False)
+    if written.stdout.decode().strip() != oid:
+        message = "release_tag_object_identity_mismatch"
+        raise ValueError(message)
+    return oid

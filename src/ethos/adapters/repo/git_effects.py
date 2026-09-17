@@ -476,7 +476,9 @@ def _ref_operation(plan: TransitionPlan, ref_name: str, update: GitRefUpdate) ->
     operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
     release_ref = f"refs/heads/{plan.policy.get('release_branch') or ''}"
     return (
-        "commit.identity-replace"
+        "release.tag"
+        if operation == "release.promote" and ref_name.startswith("refs/tags/")
+        else "commit.identity-replace"
         if operation == "commit.identity-replace"
         else "release.mirror"
         if operation == "candidate.accept" and ref_name == release_ref

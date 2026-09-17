@@ -89,7 +89,11 @@ def ref_transition_operation(
     branch = ref_name.removeprefix("refs/heads/")
     mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     return (
-        "release.mirror"
+        "release.tag"
+        if ref_name.startswith("refs/tags/")
+        else "release.promote"
+        if branch == policy.release_branch and not mirror
+        else "release.mirror"
         if mirror
         else "candidate.accept"
         if branch == policy.accepted_branch

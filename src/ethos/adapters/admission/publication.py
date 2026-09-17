@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
 from ethos.adapters.repo.git_object import read_objects
+from ethos.adapters.repo.release import accepted_delivery_report
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
@@ -113,17 +114,28 @@ def _ref_update_admission(
     trusted_baseline: str = "",
     trusted_baseline_source: str = "",
     accepted_policy_ref: str = "",
+    accepted_content: bool = False,
 ) -> tuple[dict[str, object], BranchRolePolicy]:
     """Observe destination role, introduced commits and exact OpenSpec tree obligations."""
-    commits = commit_range_admission_report(
-        root,
-        target_ref=target_ref,
-        proposed_head=proposed_head,
-        remote_head=remote_head,
-        remote_name=remote_name,
-        trusted_baseline=trusted_baseline,
-        trusted_baseline_source=trusted_baseline_source,
-    )
+    if accepted_content:
+        commits = accepted_delivery_report(
+            root,
+            head=accepted_policy_ref,
+            proposed=proposed_head,
+            target=target_ref,
+            remote_head=remote_head,
+            remote=remote_name,
+        )
+    else:
+        commits = commit_range_admission_report(
+            root,
+            target_ref=target_ref,
+            proposed_head=proposed_head,
+            remote_head=remote_head,
+            remote_name=remote_name,
+            trusted_baseline=trusted_baseline,
+            trusted_baseline_source=trusted_baseline_source,
+        )
     local_gaps: list[str] = []
     proposed = str(commits.get("proposed_commit") or "")
     policy_ref = str(commits.get("baseline_commit") or "")
@@ -330,6 +342,10 @@ def push_admission_report(
         proof_head=proof_head,
         remote_head=remote_head,
     )
+    accepted_content = False
+    if str(preliminary["role"]) in {"release_root", "release_publication"} and closeout:
+        accepted_proof = publication_proof_admission(repo, proof_head, (str(preliminary["role"]),))
+        accepted_content = accepted_proof["verdict"] == "pass" and not closeout_gaps
     observed, policy = _ref_update_admission(
         repo,
         target_ref=target_ref,
@@ -339,6 +355,7 @@ def push_admission_report(
         trusted_baseline=baseline,
         trusted_baseline_source=baseline_source,
         accepted_policy_ref=proof_head if closeout else "",
+        accepted_content=accepted_content,
     )
     role = str(observed["role"])
     ref_admission = publication_ref_admission(
@@ -446,9 +463,17 @@ def _accepted_closeout_baseline(
     remote_head: str,
 ) -> tuple[dict[str, object], list[str], str, str]:
     """Bind protected publication to its accepted effect and initial-range baseline."""
-    required = branch == policy.accepted_branch or (
-        remote_head in _ZERO_OIDS and publication_proof_selection(role) == "repository_transition"
+    release = role in {"release_root", "release_publication"}
+    required = (
+        branch == policy.accepted_branch
+        or release
+        or (
+            remote_head in _ZERO_OIDS
+            and publication_proof_selection(role) == "repository_transition"
+        )
     )
+    if release and git_stdout(repo, "rev-parse", policy.accepted_branch) != proof_head:
+        return {}, ["release_source_not_current_accepted"], "", ""
     if not required:
         return {}, [], "", ""
     accepted_ref = f"refs/heads/{policy.accepted_branch}"

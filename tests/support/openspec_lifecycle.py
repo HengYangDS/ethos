@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import json
 import shlex
-import subprocess
-import sys
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -30,6 +27,7 @@ from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
 from tests.support.runtime_scenarios import git_process
 from tests.support.semantic import commitment_fixture
+from tests.support.subprocesses import kill_after_marker
 
 if TYPE_CHECKING:
     import pytest
@@ -64,46 +62,17 @@ def killed_merge_effect(work: Path, preview: dict[str, object]) -> None:
     script = """
 import json, sys
 from pathlib import Path
+from tests.support.subprocesses import pause_after_effect
 import ethos.adapters.repo.merge.effect as effect
 from ethos.surface.cli.application import app, load_command_groups
 marker, command = Path(sys.argv[1]), json.loads(sys.argv[2])
 continuing = command[command.index('--mode')+1] == 'continue'
-original = effect.execute_git_effect if continuing else effect.run_git
-def paused(*args, **kwargs):
-    result = original(*args, **kwargs)
-    if continuing or args[1:3] == ('merge', '--abort'):
-        marker.write_text('native-effect-completed')
-        sys.stdin.read(1)
-    return result
-if continuing:
-    effect.execute_git_effect = paused
-else:
-    effect.run_git = paused
+pause_after_effect(effect, 'execute_git_effect' if continuing else 'run_git', marker,
+                   matches=lambda *args: continuing or args[1:3] == ('merge', '--abort'))
 load_command_groups(command)
 app(command)
 """
-    with (
-        (work.parent / "merge-child.log").open("w+") as output,
-        subprocess.Popen(
-            [sys.executable, "-B", "-I", "-c", script, str(marker), json.dumps(command)],
-            cwd=work,
-            stdin=subprocess.PIPE,
-            stdout=output,
-            stderr=subprocess.STDOUT,
-        ) as child,
-    ):
-        try:
-            deadline = time.monotonic() + 45
-            while not marker.exists() and child.poll() is None and time.monotonic() < deadline:
-                time.sleep(0.02)
-            output.seek(0)
-            assert marker.exists(), output.read()
-            assert child.poll() is None
-        finally:
-            if child.poll() is None:
-                child.kill()
-            child.communicate(timeout=10)
-    assert child.returncode != 0
+    kill_after_marker(work, script, (str(marker), json.dumps(command)), marker)
 
 
 OUTCOME_FIELDS = (

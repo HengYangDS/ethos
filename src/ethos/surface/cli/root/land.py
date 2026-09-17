@@ -4,11 +4,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
+from typing import cast
 
 from cyclopts import Parameter
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.admission.control.replacement import control_replacement_report
+from ethos.adapters.mutation.accepted.release import promote_release
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
@@ -53,6 +55,9 @@ class _LandOptions:
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     candidate_head: Annotated[str | None, Parameter(name="--candidate-head")] = None
     closeout: bool = False
+    release: bool = False
+    release_head: Annotated[str, Parameter(name="--release-head")] = ""
+    tag: str = ""
     independent_verification_receipt: Annotated[
         Path | None, Parameter(name="--independent-verification-receipt")
     ] = None
@@ -441,6 +446,38 @@ def land(
     if profile.state == "invalid":
         emit_invalid_repository_profile(
             command="land",
+            json_output=json_output,
+            enforce=options.apply,
+        )
+        return
+    if options.release:
+        report = (
+            {
+                "verdict": "block",
+                "state": "blocked",
+                "required_gaps": ["release_options_conflict"],
+                "next_action": "",
+                "data": {},
+            }
+            if options.closeout or options.candidate_head
+            else promote_release(
+                repo,
+                head=options.expect_head or "",
+                previous=options.release_head,
+                tag=options.tag,
+                apply=options.apply,
+                authorized=options.authorize,
+            )
+        )
+        emit(
+            EthosResult(
+                command="land",
+                verdict=cast("Verdict", report["verdict"]),
+                state=str(report["state"]),
+                required_gaps=tuple(string_sequence(report["required_gaps"])),
+                next_action=str(report["next_action"]),
+                data=cast("dict[str, object]", report["data"]),
+            ),
             json_output=json_output,
             enforce=options.apply,
         )

@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.mutation.publication.attestation as publication_attestation
 import ethos.adapters.mutation.publication.execution as publication_execution
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.mutation.publication.request as publication_request
 import ethos.adapters.openspec.observation as openspec_observation
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.publication import publication_effect_from_plan
 from ethos.contracts.value import mutable_json
@@ -26,38 +26,37 @@ from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
+from tests.unit.cli.land.publication.support import unavailable_remote
 
 
-def test_publish_apply_preflight_unknown_performs_no_push(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("apply", [False, True])
+def test_unavailable_remote_preserves_unknown_without_false_divergence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, apply: bool
 ) -> None:
-    repo, remotes, head = branch_publication_fixture(tmp_path)
-    receipt = branch_publication(repo, head)["data"]["request_receipt"]
-    monkeypatch.setattr(
-        publication_observation,
-        "observe_remote_ref",
-        lambda _root, remote, ref: {
-            "kind": "git_remote_ref_observation",
-            "remote": remote,
-            "ref": ref,
-            "state": "unavailable",
-            "reason": "timeout",
-            "object_oid": "",
-            "peeled_commit": "",
-            "tree_oid": "",
-            "command": ["git", "ls-remote", remote, ref],
-            "cwd": repo.resolve().as_posix(),
-            "timeout_seconds": 30,
-            "stderr": "transport stalled",
-        },
+    """Preview and replay preserve the unavailable fact, never a fictitious conflict."""
+    repo, remotes, head = branch_publication_fixture(
+        tmp_path, source_branch="dev" if not apply else "candidate/dev"
     )
-
-    result = apply_receipt(repo, receipt, head, blocked=True)
-
-    assert (result["verdict"], result["state"]) == ("unknown", "preflight_unknown")
+    receipt = branch_publication(repo, head)["data"]["request_receipt"] if apply else {}
+    monkeypatch.setattr(publication_observation, "observe_remote_ref", unavailable_remote)
+    result = (
+        apply_receipt(repo, receipt, head, blocked=True)
+        if apply
+        else branch_publication(repo, head, target_ref="refs/heads/dev")
+    )
+    assert result["verdict"] == "unknown"
     assert result["summary"]["remote_push"] == "not_performed"
     assert result["missing_facts_or_evidence"] == result["required_gaps"]
     assert {proposal_ref(remote) for remote in remotes.values()} == {""}
+    if apply:
+        assert result["state"] == "preflight_unknown"
+    else:
+        assert result["required_gaps"] == [
+            f"publication_remote_observation_unavailable:{peer}:{remote}:refs/heads/dev"
+            for peer, remote in (("gitlab", "origin"), ("github", "github"))
+        ]
+        assert result["data"]["push_admission"] == {}
+        assert not any("non_fast_forward" in gap for gap in result["required_gaps"])
 
 
 @pytest.mark.parametrize(
@@ -137,48 +136,6 @@ def test_publish_unknown_observation_preserves_exact_effect_progress(
     assert {proposal_ref(remote) for remote in remotes.values()} == {head}
 
 
-def test_publish_branch_retry_records_one_terminal_attestation_after_interruption(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A retry records the one terminal effect after remote refs already moved."""
-    repo, remotes, head = branch_publication_fixture(tmp_path)
-    receipt = branch_publication(repo, head)["data"]["request_receipt"]
-
-    with monkeypatch.context() as interrupted:
-        interrupted.setattr(
-            publication_attestation,
-            "record_attestations",
-            lambda _root, _attestation: (_ for _ in ()).throw(RuntimeError("interrupted")),
-        )
-        with pytest.raises(RuntimeError, match="interrupted"):
-            apply_receipt(repo, receipt, head)
-
-    assert {proposal_ref(remote) for remote in remotes.values()} == {head}
-
-    recovered = apply_receipt(repo, receipt, head)
-    root, attestations = read_attestation_set(repo)
-    remote_effects = [
-        attestation
-        for attestation in attestations
-        if attestation.predicate == "publication:remote-effect"
-    ]
-
-    assert recovered["state"] == "published"
-    assert root == git(repo, "rev-parse", "refs/ethos/attestations-set")
-    assert recovered["data"]["remote_effect"]["attempts"] == [
-        {
-            "id": peer,
-            "remote": remote,
-            "state": "already_applied",
-            "exit_code": 0,
-            "stderr": "",
-        }
-        for peer, remote in (("gitlab", "origin"), ("github", "github"))
-    ]
-    assert len(remote_effects) == 1
-    assert remote_effects[0].payload.body["state"] == "applied"
-
-
 def test_publish_branch_receipt_rejects_remote_drift_before_any_push(tmp_path: Path) -> None:
     repo, remotes, head = branch_publication_fixture(tmp_path)
     receipt = branch_publication(repo, head)["data"]["request_receipt"]
@@ -191,46 +148,34 @@ def test_publish_branch_receipt_rejects_remote_drift_before_any_push(tmp_path: P
     assert (proposal_ref(remotes["gitlab"]), proposal_ref(remotes["github"])) == (drift, "")
 
 
-def test_publish_branch_receipt_rejects_selected_proof_drift_before_any_push(
-    tmp_path: Path,
-) -> None:
-    repo, remotes, head = branch_publication_fixture(tmp_path)
-    for remote in remotes.values():
-        git(remote, "update-ref", "refs/heads/main", head)
-    receipt = branch_publication(repo, head, target_ref="refs/heads/main")["data"][
-        "request_receipt"
-    ]
-    selected = git(repo, "rev-parse", "--verify", "refs/ethos/attestations-set")
-    git(repo, "update-ref", "-d", "refs/ethos/attestations-set", selected)
-    seed_executed_proof(repo, head)
-
-    blocked = apply_receipt(repo, receipt, head, blocked=True)
-
-    assert blocked["required_gaps"] == ["publication_proof_drift"]
-    assert {proposal_ref(remote) for remote in remotes.values()} == {""}
-
-
-def test_replay_cannot_weaken_proof_selection_with_self_consistent_receipt_hash(tmp_path: Path):
-    """A caller-controlled review label cannot override a release destination."""
-    repo, remotes, head = branch_publication_fixture(tmp_path)
-    for remote in remotes.values():
+@pytest.mark.parametrize("changed", ["proof", "selection"])
+def test_release_receipt_requires_original_proof_and_role(tmp_path: Path, changed: str) -> None:
+    """Neither proof replacement nor self-consistent relabeling grants release permission."""
+    repo, peers, head = branch_publication_fixture(tmp_path, accepted=True)
+    for remote in peers.values():
         git(remote, "update-ref", "refs/heads/main", head)
     report = branch_publication(repo, head, target_ref="refs/heads/main")
-    original = TransitionPlan.model_validate(report["data"]["transition_plan"])
-    proof = mutable_json(original.prior_attestations["proof"])
-    assert isinstance(proof, dict)
-    proof["selection"] = "review_object"
-    changed = publication_request.compile_remote_publication_request(
-        root=repo,
-        effect=publication_effect_from_plan(original),
-        proof=proof,
-    )
-    receipt = publication_request.persist_remote_publication_request(repo, changed)
-
+    receipt = report["data"]["request_receipt"]
+    if changed == "proof":
+        selected, previous = read_attestation_set(repo)
+        git(repo, "update-ref", "-d", "refs/ethos/attestations-set", selected)
+        record_attestations(
+            repo, tuple(item for item in previous if item.predicate != "proof:execution")
+        )
+        seed_executed_proof(repo, head)
+    else:
+        original = TransitionPlan.model_validate(report["data"]["transition_plan"])
+        proof = {**mutable_json(original.prior_attestations["proof"]), "selection": "review_object"}
+        changed_plan = publication_request.compile_remote_publication_request(
+            root=repo, effect=publication_effect_from_plan(original), proof=proof
+        )
+        receipt = publication_request.persist_remote_publication_request(repo, changed_plan)
     blocked = apply_receipt(repo, receipt, head, blocked=True)
-
-    assert blocked["required_gaps"] == ["publication_proof_selection_mismatch"]
+    assert blocked["required_gaps"] == [
+        "publication_proof_drift" if changed == "proof" else "publication_proof_selection_mismatch"
+    ]
     assert blocked["data"]["remote_effect"]["attempts"] == []
+    assert {proposal_ref(remote) for remote in peers.values()} == {""}
 
 
 @pytest.mark.parametrize("changed_fact", ["trust", "proof", "policy"])
@@ -240,7 +185,9 @@ def test_publication_rechecks_authority_between_independent_peer_effects(
     changed_fact: str,
 ) -> None:
     """A first peer's success cannot authorize another effect after required facts change."""
-    repo, remotes, head = branch_publication_fixture(tmp_path, proof=changed_fact == "proof")
+    repo, remotes, head = branch_publication_fixture(
+        tmp_path, proof=changed_fact == "proof", accepted=changed_fact == "proof"
+    )
     target = "refs/heads/main" if changed_fact == "proof" else PROPOSAL_REF
     if changed_fact == "proof":
         for remote in remotes.values():

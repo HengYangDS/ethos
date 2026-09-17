@@ -18,7 +18,7 @@ from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.runtime_scenarios import git_process
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ def _prewrite(root: Path, paths: tuple[str, ...], patch: Path | None = None):
 
 @pytest.mark.parametrize("suffix", ["json", "xml", "html"])
 def test_authored_format_is_not_generation_evidence(tmp_path: Path, suffix: str) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     relative = f".config/native/settings.{suffix}"
     path = fixture.worktree / relative
     path.parent.mkdir(parents=True)
@@ -67,7 +67,7 @@ def test_authored_deletion_checks_surviving_native_input(
     *,
     update_consumer: bool,
 ) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
     relative = ".config/native/settings.json"
     config = root / relative
@@ -105,7 +105,7 @@ def test_authored_deletion_checks_surviving_native_input(
 
 
 def test_declared_output_requires_patch_but_its_source_does_not(tmp_path: Path) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
     declaration = root / ".config/checks/architecture/projection.toml"
     declaration.parent.mkdir(parents=True)
@@ -129,7 +129,7 @@ def test_public_projection_admission_reads_committed_native_owner(
     tmp_path: Path, *, selected_owner: bool
 ) -> None:
     """A native script declaration survives snapshotting; an unselected script grants nothing."""
-    root = start_adopted_work_lane(tmp_path).worktree
+    root = prepared_work_lane(tmp_path).worktree
     source, output = ".config/ci/templates/hosted/github-actions.yml", ".github/workflows/ci.yml"
     script = "tools/ci/scripts/bootstrap.sh"
     original = "jobs:\n  check:\n    steps:\n      - run: ultraviolet --version\n"
@@ -277,7 +277,7 @@ def test_deleted_input_observation_distinguishes_effects(
 
 
 def test_path_only_admission_cannot_erase_a_committed_producer(tmp_path: Path) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
     declaration = root / ".config/checks/architecture/projection.toml"
     declaration.parent.mkdir(parents=True)
@@ -316,7 +316,7 @@ def test_repeated_native_ignore_inputs_are_not_last_value_only() -> None:
 
 @pytest.mark.parametrize("declaration", ["schema='unknown'", "projection='not-a-list'"])
 def test_invalid_projection_ownership_is_unknown(tmp_path: Path, declaration: str) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
     path = root / ".config/checks/architecture/projection.toml"
     path.parent.mkdir(parents=True)
@@ -329,7 +329,7 @@ def test_invalid_projection_ownership_is_unknown(tmp_path: Path, declaration: st
 
 def test_exact_patch_repairs_uncommitted_invalid_projection_declaration(tmp_path: Path) -> None:
     """Unknown current syntax permits a validated repair, not unrestricted authoring."""
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
     relative = ".config/checks/architecture/projection.toml"
     declaration = root / relative
@@ -354,7 +354,7 @@ def test_exact_patch_repairs_uncommitted_invalid_projection_declaration(tmp_path
 
 
 def test_deleted_input_dynamic_path_is_public_unknown(tmp_path: Path) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
     path = root / "config.json"
     path.write_text("{}\n")
@@ -387,7 +387,7 @@ def test_precommit_validates_index_projection_not_working_copy(
     *,
     staged_valid: bool,
 ) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
     declaration = root / ".config/checks/architecture/projection.toml"
     declaration.parent.mkdir(parents=True)

@@ -6,20 +6,25 @@ import hashlib
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
-import ethos.adapters.repo.hook.observation as observation
+import tests.support.governed_repository as fixtures
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.governed_repository import prepared_work_lane
 
 
-def test_generic_work_lane_fixture_uses_a_minimal_valid_hook_runtime(tmp_path: Path) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+def test_generic_work_lane_fixture_uses_a_minimal_valid_hook_runtime(tmp_path, monkeypatch):
+    """Generic state setup does not rerun the unrelated public start workflow."""
+    monkeypatch.setattr(
+        fixtures, "run_ethos", lambda *_a, **_kw: pytest.fail("redundant lane start")
+    )
+    fixture = prepared_work_lane(tmp_path)
     common = Path(git_common_dir(fixture.repository))
     selected = current_runtime(common)
     files = tuple(path for path in selected.root.rglob("*") if path.is_file())
@@ -34,9 +39,20 @@ def test_generic_work_lane_fixture_uses_a_minimal_valid_hook_runtime(tmp_path: P
     payload_bytes = sum(path.stat().st_size for path in files if path != selected.python)
 
     assert leases_by_branch(fixture.worktree)["work/feature"]["lease_state"] == "valid"
+    starts = Mock(wraps=subprocess.Popen)
+    monkeypatch.setattr(subprocess, "Popen", starts)
     assert hook_runtime_binding(fixture.worktree)["required_gaps"] == []
+    assert all("/ethos/runtime/" not in str(call.args[0][0]) for call in starts.call_args_list)
     assert len(files) <= 6
     assert payload_bytes < 1_000_000
+    sibling = prepared_work_lane(tmp_path / "sibling", holder_ref="agent:test:case:sibling")
+    assert git_common_dir(sibling.worktree) != git_common_dir(fixture.worktree)
+    (fixture.worktree / "README.md").write_text("unique source work\n")
+    assert (sibling.worktree / "README.md").read_text() == "# sample\n"
+    assert (
+        leases_by_branch(sibling.worktree)["work/feature"]["holder_ref"]
+        == "agent:test:case:sibling"
+    )
 
 
 def test_runtime_mutation_fixture_observes_native_prerequisites_before_return(
@@ -83,22 +99,3 @@ def test_runtime_fixture_rejects_failed_module_before_activation(
 
     runtime_root = tmp_path / "repo/.git/ethos/runtime"
     assert not any(path.is_dir() for path in runtime_root.iterdir())
-
-
-def test_matching_selected_hook_contract_does_not_start_a_child(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Same immutable declaration inputs must not pay an unrelated startup boundary."""
-    fixture = start_adopted_work_lane(tmp_path)
-    execute = subprocess.run
-    calls = []
-
-    def observed(*args, **kwargs):
-        if args and "/ethos/runtime/" in str(args[0][0]):
-            calls.append(args)
-        return execute(*args, **kwargs)
-
-    monkeypatch.setattr(subprocess, "run", observed)
-    binding = observation.hook_runtime_binding(fixture.worktree)
-    assert binding["required_gaps"] == []
-    assert calls == []

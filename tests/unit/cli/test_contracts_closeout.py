@@ -24,7 +24,7 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.lane_scenarios import add_candidate_worktree
 from tests.support.proof import seed_executed_proof
 
@@ -66,7 +66,7 @@ def _archived_candidate(
     *,
     prepare: Callable[[Path], None] | None = None,
 ) -> tuple[Path, Path, str, str]:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     accepted_head = git(fixture.repository, "rev-parse", "HEAD")
     commit_fixture_file(fixture.worktree, "README.md", "# candidate change\n", "candidate change")
     if prepare is not None:
@@ -109,7 +109,7 @@ def test_source_acceptance_preserves_pending_delivery_until_official_archive(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """One Change survives real Git integration, later delivery and archive."""
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     tasks = "openspec/changes/fixture-change/tasks.md"
     pending = "- [ ] Observe delivered source after accepted integration\n"
@@ -416,7 +416,7 @@ def test_land_closeout_observes_completed_active_openspec_change(
     tmp_path: Path, monkeypatch
 ) -> None:
     """Completed native intent stays valid until its deliberate archive effect."""
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     head = commit_fixture_file(
         fixture.worktree,

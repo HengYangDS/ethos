@@ -24,8 +24,8 @@ from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import lane_start_arguments
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import start_adopted_candidate
-from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.literal_cases import literal_case
 from tests.support.proof import seed_executed_proof
 
@@ -68,7 +68,7 @@ def _land(root: Path, head: str | None = None, *, blocked: bool = False) -> dict
 
 
 def _proved_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, full: bool = False):
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
     head = _archive(monkeypatch, fixture.worktree, full=full)
     seed_executed_proof(fixture.worktree, head, full=full)
@@ -89,7 +89,7 @@ def _assert_dirty_land_is_blocked(tmp_path: Path) -> None:
 
 
 def _assert_completed_change_is_observed(tmp_path: Path) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     commit_fixture_file(
         fixture.worktree,
         "openspec/changes/fixture-change/tasks.md",
@@ -195,7 +195,7 @@ def test_land_readiness_claim_matrix(
     if claim == LAND_CASES[1]:
         _assert_completed_change_is_observed(tmp_path)
         return
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     if claim == LAND_CASES[2]:
         commit_fixture_file(fixture.candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     if claim == LAND_CASES[8]:
@@ -269,7 +269,7 @@ REFRESH_CASES = literal_case("cli.test_contracts_land:assign:REFRESH_CASES:2")
 def test_refresh_base_claim_matrix(
     claim: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     if claim == REFRESH_CASES[0]:
         generation = leases_by_branch(fixture.worktree)["work/feature"]["generation"]
@@ -482,7 +482,7 @@ def test_closeout_policy_claim_matrix(
     claim: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     if claim == CLOSEOUT_CASES[0]:
-        _assert_first_cas_uses_accepted_policy(start_adopted_work_lane(tmp_path), monkeypatch)
+        _assert_first_cas_uses_accepted_policy(prepared_work_lane(tmp_path), monkeypatch)
         return
     repo, candidate = start_adopted_candidate(tmp_path)
     _assert_declared_closeout_policy(claim, repo, candidate, monkeypatch)

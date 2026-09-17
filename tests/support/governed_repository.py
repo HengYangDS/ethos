@@ -45,31 +45,21 @@ def start_adopted_candidate(tmp_path: Path) -> tuple[Path, Path]:
     return repo, candidate
 
 
-def start_adopted_work_lane(
+def prepared_work_lane(
     tmp_path: Path,
     *,
     name: str = "feature",
     holder_ref: str = "agent:test:case:agent-test",
 ) -> WorkLaneFixture:
-    """Create a generic adopted repository, candidate worktree, and owned lane."""
+    """Prepare isolated native state; public start is exercised by its own acceptance."""
     repo, candidate = start_adopted_candidate(tmp_path)
-    worktree = tmp_path / f"repo-work-{name}"
-    arguments = (
-        "lane",
-        "start",
-        name,
-        "--root",
-        repo.as_posix(),
-        "--path",
-        worktree.as_posix(),
-        "--holder-ref",
-        holder_ref,
-        "--apply",
-        "--json",
+    worktree = create_change_source_lane(
+        repo,
+        tmp_path / f"repo-work-{name}",
+        branch=f"work/{name}",
+        holder_ref=holder_ref,
+        base_ref="candidate/dev",
     )
-    run_ethos(*arguments, cwd=repo)
-    _write_active_change_carrier(worktree, change_id="fixture-change")
-    commit_fixture(worktree, "declare fixture-change")
     return WorkLaneFixture(repo, candidate, worktree)
 
 
@@ -185,9 +175,10 @@ def create_change_source_lane(
     branch: str = "work/change-source",
     change_id: str = "fixture-change",
     holder_ref: str = "agent:test:case:source",
+    base_ref: str | None = None,
 ) -> Path:
-    """Create one clean linked Work Lane carrying one active Change."""
-    base_branch = load_branch_role_policy(repo).accepted_branch
+    """Create isolated native lane state from the selected base and active Change."""
+    base_branch = base_ref or load_branch_role_policy(repo).accepted_branch
     git(repo, "worktree", "add", "-b", branch, path.as_posix(), base_branch)
     _write_active_change_carrier(path, change_id=change_id)
     commit_fixture(path, f"declare {change_id}")

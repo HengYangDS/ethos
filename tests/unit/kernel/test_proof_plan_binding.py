@@ -33,8 +33,8 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import start_adopted_candidate
-from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
 from tests.support.literal_cases import literal_case
 from tests.support.proof import assert_selected_proof
@@ -437,7 +437,7 @@ def test_proof_issuance_rejects_nonadmitted_plan_and_result_drift(tmp_path: Path
 @pytest.fixture
 def work_proof(tmp_path, monkeypatch):
     holder = "agent:test:case:proof-holder"
-    root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
+    root = prepared_work_lane(tmp_path, holder_ref=holder).worktree
     head = git(root, "rev-parse", "HEAD")
     lease = dict(proof_module.leases_by_branch(root)["work/feature"])
     monkeypatch.setenv("ETHOS_ACTOR", holder)

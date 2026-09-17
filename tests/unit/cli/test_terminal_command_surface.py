@@ -21,8 +21,8 @@ from ethos.surface.cli.lane.lease import TakeoverOptions
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import start_adopted_candidate
-from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.literal_cases import literal_case
 from tests.support.semantic import attestation_fixture
 
@@ -101,7 +101,7 @@ def test_takeover_runtime_annotations_are_fully_resolvable() -> None:
 def test_readers_end_observation_or_select_a_real_boundary(tmp_path, condition) -> None:
     """Changing the reader fallback to self-observation must fail this public test."""
     if condition == "foreign":
-        repo, candidate, _worktree = start_adopted_work_lane(tmp_path)
+        repo, candidate, _worktree = prepared_work_lane(tmp_path)
     else:
         repo, candidate = start_adopted_candidate(tmp_path)
     if condition == "candidate":
@@ -129,7 +129,7 @@ def test_readers_end_observation_or_select_a_real_boundary(tmp_path, condition) 
 
 
 def test_retired_inbox_attestations_cannot_select_coordination_state(tmp_path) -> None:
-    fixture = start_adopted_work_lane(
+    fixture = prepared_work_lane(
         tmp_path / "retired-inbox-state",
         name="retired-inbox-state",
         holder_ref="agent:test:case:owner",
@@ -255,7 +255,7 @@ def test_archive_change_rejects_the_retired_history_rebuild_option() -> None:
 
 
 def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) -> None:
-    _repo, candidate, worktree = start_adopted_work_lane(tmp_path)
+    _repo, candidate, worktree = prepared_work_lane(tmp_path)
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
     completed = run_ethos_raw("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
@@ -283,7 +283,7 @@ def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) 
 def test_lane_status_exposes_observations_without_closeout_residue_plane(
     tmp_path,
 ) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path)
     payload = run_ethos(
         "lane",
         "status",

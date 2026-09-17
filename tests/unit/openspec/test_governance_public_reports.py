@@ -174,7 +174,7 @@ def test_public_plan_preserves_native_validation_failure_without_item_diagnostic
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """A real governed plan cannot approve an unexplained native validation failure."""
-    workspace = fixture.start_adopted_work_lane(tmp_path)
+    workspace = fixture.prepared_work_lane(tmp_path)
     assert run_ethos("plan", "--json", cwd=workspace.worktree)["verdict"] == "pass"
     original = cli.run_json
     observed: list[dict[str, object]] = []

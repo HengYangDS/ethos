@@ -22,8 +22,8 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import start_adopted_candidate
-from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
 from tests.support.runtime_scenarios import git_process
 from tests.support.semantic import commitment_fixture
@@ -173,7 +173,7 @@ def completed_lifecycle(
     holder: str = HOLDER,
 ) -> OpenSpecLifecycle:
     """Create one completed lane and admit its exact HEAD for archive proof."""
-    fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
+    fixture = prepared_work_lane(tmp_path, holder_ref=holder)
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     tasks = fixture.worktree / "openspec/changes/fixture-change/tasks.md"
     completed = tasks.read_text(encoding="utf-8").replace("- [ ]", "- [x]")

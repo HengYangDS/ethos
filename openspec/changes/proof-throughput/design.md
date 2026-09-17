@@ -978,3 +978,44 @@ it does not justify whole-suite migration or a source-currentness cache.
 `throughput-packaged-hotspot.json` binds the wheel to exact source/tree. The
 owned wheel/install tree was removed. The 600-second complete-proof goal and
 surviving-worker resource ownership remain open.
+
+
+### Prepare State Without Repeating An Unrelated Workflow
+
+The current profile spends approximately 0.04 seconds initializing the basic
+repository but about four seconds executing `lane start` during preparation.
+Most generic land/proof/archive fixtures require native current state, not a
+repeated test of lane creation. The shared fixture is now `prepared_work_lane`:
+it reuses native repository/candidate setup and `create_change_source_lane`,
+selects candidate/dev explicitly, creates independent Git metadata/worktrees,
+and acquires a real Lease through the existing owner. No mutable repository,
+ref, Lease, receipt, verdict or source identity is shared or cached.
+
+Public start is still exercised directly by its dedicated boundary tests, the
+existing CLI start-to-dirty-land case and installed package lifecycle acceptance.
+Generic preparation does not claim start Attestations exist. Consumers retain
+their original proof, archive, integration, recovery and policy assertions. The
+renamed fixture has no compatibility alias. One explicit base input extends the
+existing lane-state fixture instead of adding another preparation implementation.
+
+The distinguishing RED forbids invoking the CLI during generic state setup.
+GREEN verifies the minimal current runtime, a real Lease and sibling isolation
+across Git common directories, worktree bytes and holders. The duplicate hook
+check is folded into this fixture contract and observes actual `Popen` starts,
+not the superseded `subprocess.run` interception. Thirty-two fixture/start
+boundary cases pass in 15.69 seconds; 272 direct consumers and archive/start
+cases pass with two workers in 337.98 seconds, 339.95 including owned cleanup.
+The tree remains frozen and every owned temporary root is removed.
+
+`throughput-fixture-comparison.json` compares the same land-policy case in
+before/after/after/before order. Product Git starts are 821/682/682/821; Node
+starts stay at 36. Times are 21.32/16.92/15.87/16.43 seconds. The repeat controls
+show host variability, so no fixed wall-time gain or whole-suite reduction is
+claimed. This diagnostic disables coverage equally and substitutes only the
+old fixture for its control; tested product behavior is unchanged.
+
+Source budget, types and size pass at 45,447 product and 49,992 test ELOC.
+The next exact-source complete proof must establish the unchanged 95-percent
+combined coverage floor and complete elapsed time. Removing incidental repeated
+coverage is not permission to omit a required behavior. The 600-second target,
+worker-loss containment and accepted/runtime/publication closure remain open.

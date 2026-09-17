@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import tests.support.runtime_scenarios as runtime_scenarios
@@ -25,18 +26,18 @@ from tests.support.runtime_scenarios import runtime_executable
 from tools.ci.python_test_gate import remove_generated_path
 
 
-@pytest.mark.parametrize("source", ["current", "alternate"])
+@pytest.mark.parametrize("source", ["current", "alternate", "package"])
 def test_fixture_python_is_bounded_and_executes_selected_source(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str
 ) -> None:
     runtime = tmp_path / "python"
-    source_root = Path.cwd()
-    if source == "alternate":
-        source_root = tmp_path / "selected-source"
-        module = source_root / "src/ethos/__init__.py"
+    module = Path(ethos.__file__).resolve()
+    if source != "current":
+        module = tmp_path / source / ("src" if source == "alternate" else "site-packages")
+        module /= "ethos/__init__.py"
         module.parent.mkdir(parents=True)
         module.write_text('"""Selected fixture source, not the parent environment."""\n')
-        monkeypatch.setattr(runtime_scenarios, "REPOSITORY_ROOT", source_root)
+        monkeypatch.setattr(ethos, "__file__", str(module))
 
     create_fixture_python(runtime)
 
@@ -60,7 +61,7 @@ def test_fixture_python_is_bounded_and_executes_selected_source(
     assert completed.returncode == 0, completed.stderr
     observed = json.loads(completed.stdout)
     assert Path(observed["prefix"]).resolve() == runtime.resolve()
-    assert Path(observed["source"]).resolve() == source_root / "src/ethos/__init__.py"
+    assert Path(observed["source"]).resolve() == module
     assert not Path(observed["nox"]).resolve().is_relative_to(runtime.resolve())
 
 

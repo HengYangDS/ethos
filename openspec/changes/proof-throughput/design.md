@@ -392,6 +392,50 @@ sharing work. Matching digests alone cannot establish that the same source
 was observed. The current budget is 45,344 product / 49,987 test ELOC. Reusing
 the identical authority fixture removed duplication instead of raising limits.
 
+### Concurrency Is A Diagnostic Axis, Not A Correctness Workaround
+
+On September 17, frozen source `bb8cc9441` ran the same 52 hook-binding,
+native-supply and public-merge cases with two, four and eight workers. All three
+runs passed without retries; source stayed clean and every owned fixture root
+was removed. `parallel-boundary-comparison.json` records exact commands, JUnit
+hashes, failures and cleanup. Coverage was disabled equally for this diagnostic;
+it is not complete proof or coverage acceptance. Fixture roots were fresh, but
+host/tool caches were not cleared and order was not counterbalanced.
+
+| Workers | Whole invocation seconds | Summed case seconds | Cases passed |
+| --- | ---: | ---: | ---: |
+| 2 | 31.159 | 50.470 | 52 |
+| 4 | 23.475 | 58.809 | 52 |
+| 8 | 22.479 | 76.563 | 52 |
+
+The sample does not reproduce a high-concurrency failure. Four to eight workers
+saves only about one second while aggregate case duration grows; that suggests
+interference or duplicated setup, not a demonstrated OS cause. The SCC supply
+case grows from 3.847 to 9.906 seconds, but that is the whole case, not one
+ten-second child timeout. Do not infer a deadline violation from those numbers.
+
+Historical raw evidence distinguishes native startup from test assertions.
+`native-hook-first-start.sample` observes a delayed child entirely in
+`_dyld_start`, before Python; `integrity-retry-failures.json` preserves an SCC
+fixture executable timeout. Their precise OS cause and dependence on worker
+count remain unproved. Matching source/tree and empty output do not identify
+a Python race, OOM, security daemon or deadlock. Existing per-worker read-only
+binary supply removes repeated copies without sharing mutable repository state;
+it is not proof that all native startup failures are repaired.
+
+The permanent acceptance criterion is correct outcomes and bounded resource
+ownership across supported concurrency, not a universal two-worker cap.
+Keep the two-worker full-proof baseline unchanged while diagnosing the failed
+boundary with native process-start/ready/exit spans, exact resource identity and
+lock-owner observations. Isolate mutable fixtures by run, worker and test;
+share only immutable prepared supply. Use explicit readiness instead of sleep,
+short critical sections and owned process-group cleanup. Limit only a measured
+scarce resource when necessary, not all tests. Preserve intentional same-resource
+race tests; scheduling them away would erase the obligation. Repeated bounded
+two/four/eight-worker and cold/warm verification is required before claiming
+concurrency stability. No retry, exclusion, longer deadline or disabled hook
+substitutes for closing the observed mechanism.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

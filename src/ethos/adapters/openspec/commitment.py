@@ -17,6 +17,7 @@ from ethos.adapters.openspec.selection import selection_gaps
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.semantic import Commitment
+from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -246,9 +247,18 @@ def _archived_commitment(
     tree_ref: str | None,
     change_id: str | None,
     expected_digest: str | None,
+    require_absent: bool = False,
 ) -> Commitment | None:
     if tree_ref is None:
         return None
+    if require_absent:
+        if change_id is None or logical_change_identifier_issue(change_id):
+            return None
+        active = run_git(
+            repo, "ls-tree", "-z", tree_ref, "--", active_change_root(change_id), check=False
+        )
+        if active.returncode or active.stdout:
+            return None
     archived = attested_archive_transition(repo, head=tree_ref, change=change_id)
     if archived is None:
         return None
@@ -270,6 +280,16 @@ def load_openspec_commitment(
     if command is None:
         msg = "openspec_official_cli_missing"
         raise ValueError(msg)
+    if (
+        archived := _archived_commitment(
+            repo,
+            tree_ref=tree_ref,
+            change_id=change_id,
+            expected_digest=expected_digest,
+            require_absent=True,
+        )
+    ) is not None:
+        return archived
     with _openspec_projection(repo, tree_ref) as projection:
         if change_id is None:
             listed = openspec_cli.run_json(projection, command, ("list", "--json"))
@@ -311,20 +331,21 @@ def load_openspec_commitment(
                 return archived
             msg = f"openspec_show_failed:{change_id}"
             raise ValueError(msg)
-        payload = result.get("json")
-        deltas = payload.get("deltas") if isinstance(payload, dict) else None
-        if _spec_free_deltas(deltas):
-            status = openspec_cli.run_json(
-                projection,
-                command,
-                ("status", "--change", change_id, "--json"),
-            )
-            commitment = commitment_from_projection(
-                change_id,
-                payload,
-                status=status.get("json"),
-                artifact_digests=_spec_free_artifact_digests(projection, change_id),
-            )
-        else:
-            commitment = commitment_from_projection(change_id, payload)
+        commitment = _projected_commitment(projection, command, change_id, result.get("json"))
     return _accepted_commitment(commitment, expected_digest=expected_digest)
+
+
+def _projected_commitment(
+    projection: Path, command: tuple[str, ...], change: str, payload: object
+) -> Commitment:
+    """Read additional official artifact inputs only for a spec-free Change."""
+    deltas = payload.get("deltas") if isinstance(payload, dict) else None
+    if not _spec_free_deltas(deltas):
+        return commitment_from_projection(change, payload)
+    status = openspec_cli.run_json(projection, command, ("status", "--change", change, "--json"))
+    return commitment_from_projection(
+        change,
+        payload,
+        status=status.get("json"),
+        artifact_digests=_spec_free_artifact_digests(projection, change),
+    )

@@ -135,6 +135,24 @@ filesystem-monitor weakening or permissive source-currentness fallback is
 introduced. Reduce redundant consumers before optimizing the remaining exact
 observation algorithm.
 
+Explicit archived-Change compilation now checks active-carrier absence in the
+selected exact tree before preparing an official OpenSpec checkout. Only an
+absent carrier can select the existing fully validated archive Attestation;
+restoring the same-name active Change still selects its official projection.
+The official CLI availability check and expected Commitment digest remain
+mandatory. No archived-directory scan or alternate parser is introduced.
+
+An alternating before/after/after/before comparison on one real archived fixture
+returned the identical Commitment digest. Per lookup, subprocesses fell from
+17 to 14 and elapsed time from 0.340 seconds to approximately 0.199 seconds
+(41.4 percent). It removes an inevitable failing official show plus read-tree
+and checkout-index, not their authorization checks. The comparison includes
+fixture cleanup but its lookup timings exclude fixture preparation; this is
+not a complete-proof speedup. Raw observations are in
+`throughput-archive-comparison.json`. Fifty-nine linked compilation, provenance,
+selection and proof-admission tests passed with two workers in 80.62 seconds;
+their owned temporary root was removed.
+
 ## Validation
 
 Compare the same workload before and after each repair: outcome, source/ref

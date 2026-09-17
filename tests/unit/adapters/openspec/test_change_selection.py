@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 @pytest.mark.parametrize("consumer", ["compilation", "accepted-closeout"])
 @pytest.mark.parametrize("existing_capability", [False, True])
 def test_same_name_archived_change_keeps_its_exact_acceptance(
-    tmp_path: Path, consumer: str, *, existing_capability: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, consumer: str, *, existing_capability: bool
 ) -> None:
     """A real official archive cannot let a same-name spec shadow Change evidence."""
     fixture = start_adopted_work_lane(tmp_path)
@@ -76,14 +77,21 @@ def test_same_name_archived_change_keeps_its_exact_acceptance(
     assert typed["exit_code"] != 0
 
     if consumer == "compilation":
+        projection = Mock(wraps=official.run_json)
+        monkeypatch.setattr(official, "run_json", projection)
         restored = load_openspec_commitment(
             root, change_id=change, tree_ref=archived_head, expected_digest=expected.digest()
         )
         assert restored == expected
+        projection.assert_not_called()
         with pytest.raises(ValueError, match="commitment_digest_mismatch"):
             load_openspec_commitment(
                 root, change_id=change, tree_ref=archived_head, expected_digest="f" * 64
             )
+        git(root, "checkout", head, "--", f"openspec/changes/{change}")
+        reopened = commit_fixture(root, "reopen same-name Change")
+        assert load_openspec_commitment(root, change_id=change, tree_ref=reopened) == expected
+        assert projection.call_args.args[2][:1] == ("show",)
         return
 
     seed_executed_proof(root, archived_head)
@@ -140,7 +148,9 @@ def test_invalid_successful_change_projection_cannot_fall_back_to_history(
 
     monkeypatch.setattr(official, "run_json", show)
     monkeypatch.setattr(
-        compilation, "_archived_commitment", lambda *_a, **_k: pytest.fail("hid invalid intent")
+        compilation,
+        "attested_archive_transition",
+        lambda *_a, **_k: pytest.fail("hid invalid intent"),
     )
     with pytest.raises((TypeError, ValueError), match=gap):
         load_openspec_commitment(root, change_id="contracts")

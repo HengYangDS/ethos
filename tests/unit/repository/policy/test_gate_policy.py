@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.repository.policy.gates import canonical_gate_command
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
@@ -16,25 +17,26 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path: Path) -> None:
+@pytest.mark.parametrize("floor", ["full", "default"])
+def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path, floor) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    write_script_gate_policy(repo)
-    first = resolve_gate_policy(repo, tree_ref=commit_fixture(repo, "policy"))
-    assert tuple(node.id for node in first.nodes) == ("check", "publish")
+    write_script_gate_policy(repo, full=True)
+    first = dict(resolve_proof_policies(repo, tree_ref=commit_fixture(repo, "policy")))[floor]
+    assert first.gate_ids == (("check", "publish") if floor == "full" else ("check",))
     assert first.gaps == ()
 
     registry = repo / "system/gates.toml"
     registry.write_text(registry.read_text().replace("tools/check.sh", "tools/check-v2.sh"))
     (repo / "tools/check-v2.sh").write_text("#!/bin/sh\nexit 0\n")
-    changed = resolve_gate_policy(repo, tree_ref=commit_fixture(repo, "command"))
+    changed = dict(resolve_proof_policies(repo, tree_ref=commit_fixture(repo, "command")))[floor]
     assert changed.digest != first.digest
 
     (repo / "tools/check-v2.sh").unlink()
     missing = commit_fixture(repo, "missing")
     (repo / "tools/check-v2.sh").write_text("#!/bin/sh\nexit 0\n")
-    assert resolve_gate_policy(repo, tree_ref=missing).gaps == (
-        "gate_policy_source_missing:check:tools/check-v2.sh",
-    )
+    selected = dict(resolve_proof_policies(repo, tree_ref=missing))[floor]
+    assert selected == resolve_gate_policy(repo, tree_ref=missing, full=floor == "full")
+    assert selected.gaps == ("gate_policy_source_missing:check:tools/check-v2.sh",)
 
 
 def test_nox_gate_binds_repository_sources_and_requires_runtime(tmp_path: Path) -> None:

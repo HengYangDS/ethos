@@ -23,8 +23,24 @@ def resolve_gate_policy(
     full: bool = False,
 ) -> ResolvedGatePolicy:
     """Observe repository materials and compile one content-bound gate policy."""
+    return _resolve_policies(root, tree_ref, gate_ids, (full,))[0]
+
+
+def resolve_proof_policies(
+    root: Path, *, tree_ref: str
+) -> tuple[tuple[str, ResolvedGatePolicy], ...]:
+    """Compile both proof floors from one fresh observation of their combined inputs."""
+    return tuple(
+        zip(("full", "default"), _resolve_policies(root, tree_ref, (), (True, False)), strict=True)
+    )
+
+
+def _resolve_policies(
+    root: Path | None, tree_ref: str | None, gate_ids: tuple[str, ...], floors: tuple[bool, ...]
+) -> tuple[ResolvedGatePolicy, ...]:
+    """Share material observation only within this requested policy compilation."""
     if root is None:
-        return compile_gate_policy(gate_ids=gate_ids, full=full)
+        return tuple(compile_gate_policy(gate_ids=gate_ids, full=full) for full in floors)
     profile = (
         load_committed_repository_profile(root, tree_ref)
         if tree_ref is not None
@@ -34,24 +50,33 @@ def resolve_gate_policy(
         profile.declaration.proof.gate_registry if profile.declaration is not None else None
     )
     registry_source = _material(root, tree_ref, registry_path) if registry_path else None
-    initial = compile_gate_policy(
-        profile=profile,
-        gate_registry_source=registry_source,
-        repository_python=_repository_python(root),
-        gate_ids=gate_ids,
-        full=full,
+    python = _repository_python(root)
+    initial = tuple(
+        compile_gate_policy(
+            profile=profile,
+            gate_registry_source=registry_source,
+            repository_python=python,
+            gate_ids=gate_ids,
+            full=full,
+        )
+        for full in floors
     )
     materials = {
         relative: _material(root, tree_ref, relative)
-        for relative in source_paths_for_gates(initial.gates)
+        for relative in source_paths_for_gates(
+            tuple(gate for policy in initial for gate in policy.gates)
+        )
     }
-    return compile_gate_policy(
-        profile=profile,
-        gate_registry_source=registry_source,
-        source_materials=materials,
-        repository_python=_repository_python(root),
-        gate_ids=gate_ids,
-        full=full,
+    return tuple(
+        compile_gate_policy(
+            profile=profile,
+            gate_registry_source=registry_source,
+            source_materials=materials,
+            repository_python=python,
+            gate_ids=gate_ids,
+            full=full,
+        )
+        for full in floors
     )
 
 

@@ -15,7 +15,7 @@ from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -75,10 +75,7 @@ def _admitted_proofs(
     matching, gaps = _selected_candidates(head, attestations)
     if gaps:
         return (), gaps
-    canonical_policies = (
-        ("full", resolve_gate_policy(root, tree_ref=head, full=True)),
-        ("default", resolve_gate_policy(root, tree_ref=head)),
-    )
+    canonical_policies = resolve_proof_policies(root, tree_ref=head)
     evaluated = tuple(
         (
             item,

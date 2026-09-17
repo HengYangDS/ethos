@@ -10,6 +10,7 @@ from typing import cast
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.repo.git as git
 from ethos.adapters.admission.publication import push_admission_report
+from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.publication.attestation import terminal_publication_result
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.contracts.publication import PublicationEffect
@@ -88,7 +89,9 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
     for index, target in enumerate(effect.targets):
         observations[target.id] = _observe_peer(root, target)
         peer_verdict, peer_gaps = _peer_admission(target, observations[target.id])
-        authority_verdict, authority_gaps = _publication_authority(root, plan=plan, effect=effect)
+        authority_verdict, authority_gaps = _publication_authority(
+            root, plan=plan, effect=effect, target=target
+        )
         verdict = reduce_verdicts(peer_verdict, authority_verdict)
         if verdict != "pass":
             return terminal_publication_result(
@@ -223,19 +226,24 @@ def _peer_admission(
 
 
 def _publication_authority(
-    root: Path, *, plan: TransitionPlan, effect: PublicationEffect
+    root: Path,
+    *,
+    plan: TransitionPlan,
+    effect: PublicationEffect,
+    target: PublicationTarget | None = None,
 ) -> tuple[Verdict, tuple[str, ...]]:
-    """Observe source trust and all destination obligations at the effect boundary."""
+    """Preflight every destination, then recheck one peer and the bound common proof."""
     admissions = []
     proof: object = None
-    for target in effect.targets:
-        for update in target.updates:
+    retain_bound_proof = target is not None and bool(plan.prior_attestations.get("proof"))
+    for peer in (target,) if target is not None else effect.targets:
+        for update in peer.updates:
             report = push_admission_report(
                 root=root,
                 target_ref=update.target_ref,
                 pushed_head=update.desired,
                 remote_head=update.expected,
-                remote_name=target.remote,
+                remote_name=peer.remote,
                 proof_admission=proof,
             )
             admissions.append(report)
@@ -245,7 +253,13 @@ def _publication_authority(
                 and observed.get("selection") == "repository_transition"
             ):
                 proof = observed
-    proof_gaps = _proof_drift_gaps(plan=plan, admissions=tuple(admissions), proof=proof)
+    if retain_bound_proof and proof is None:
+        proof = proof_admission_report(
+            root, effect.source.peeled_commit, repository_transition=True
+        )
+    proof_gaps = _proof_drift_gaps(
+        plan=plan, admissions=tuple(admissions), proof=proof, retain_bound_proof=retain_bound_proof
+    )
     source_gaps = _source_drift_gaps(
         effect.source,
         observe_git_object(root, effect.source.object_oid, effect.source.kind),
@@ -271,10 +285,13 @@ def _proof_drift_gaps(
     plan: TransitionPlan,
     admissions: tuple[dict[str, object], ...],
     proof: object,
+    retain_bound_proof: bool = False,
 ) -> tuple[str, ...]:
     """Re-select and compare the exact proof bound into the request."""
     roles = {str(report["role"]) for report in admissions}
-    required = any(publication_proof_selection(role) != "review_object" for role in roles)
+    required = retain_bound_proof or any(
+        publication_proof_selection(role) != "review_object" for role in roles
+    )
     carried = plan.prior_attestations.get("proof")
     if not required:
         return (

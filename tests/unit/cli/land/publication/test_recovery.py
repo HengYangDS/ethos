@@ -86,19 +86,13 @@ def test_publish_unknown_observation_preserves_exact_effect_progress(
 
     def run_network_git(root, *args, **options):
         nonlocal origin_push_applied
-        if args and args[0] == "push":
-            completed = original(root, *args, **options)
-            if "origin" in args and completed.returncode == 0:
-                origin_push_applied = True
-            return completed
+        error = "post-write observation stalled"
         if args and args[0] == "ls-remote" and args[1] == failed_remote and origin_push_applied:
-            raise subprocess.TimeoutExpired(
-                ("git", *args),
-                30,
-                output="",
-                stderr="post-write observation stalled",
-            )
-        return original(root, *args, **options)
+            raise subprocess.TimeoutExpired(("git", *args), 30, output="", stderr=error)
+        completed = original(root, *args, **options)
+        if args[0] == "push" and "origin" in args and completed.returncode == 0:
+            origin_push_applied = True
+        return completed
 
     monkeypatch.setattr(publication_execution.git, "run_network_git", run_network_git)
 
@@ -116,11 +110,8 @@ def test_publish_unknown_observation_preserves_exact_effect_progress(
     assert proposal_ref(remotes["github"]) == ""
     assert "--probe-remote" in result["next_action"]
     _, attestations = read_attestation_set(repo)
-    recorded = next(
-        item
-        for item in attestations
-        if item.id == result["data"]["remote_effect"]["attestation"]["id"]
-    )
+    identity = result["data"]["remote_effect"]["attestation"]["id"]
+    recorded = next(item for item in attestations if item.id == identity)
     assert recorded.verdict == "unknown"
     assert recorded.payload.body["state"] == state
 
@@ -177,57 +168,80 @@ def test_release_receipt_requires_original_proof_and_role(tmp_path: Path, change
     assert {proposal_ref(remote) for remote in peers.values()} == {""}
 
 
-@pytest.mark.parametrize("changed_fact", ["trust", "proof", "policy"])
+@pytest.mark.parametrize("case", ["trust", "proof", "policy", "peer", "mixed", "mixed-proof"])
 def test_publication_rechecks_authority_between_independent_peer_effects(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    changed_fact: str,
-) -> None:
-    """A first peer's success cannot authorize another effect after required facts change."""
-    repo, remotes, head = branch_publication_fixture(
-        tmp_path, proof=changed_fact == "proof", accepted=changed_fact == "proof"
+    tmp_path, monkeypatch, case
+):
+    """Each peer retains fresh proof, trust, policy and ref checks without global re-admission."""
+    accepted = case in {"proof", "mixed", "mixed-proof"}
+    repo, remotes, head = branch_publication_fixture(tmp_path, proof=accepted, accepted=accepted)
+    main, baseline = "refs/heads/main", git(repo, "rev-parse", f"{head}^")
+    target = main if accepted else PROPOSAL_REF
+    peer_target = PROPOSAL_REF if case.startswith("mixed") else target
+    if case == "peer":
+        git(remotes["github"], "update-ref", target, head)
+    report = branch_publication(
+        repo,
+        head,
+        *(("--ref", PROPOSAL_REF) if case.startswith("mixed") else ()),
+        target_ref=target,
     )
-    target = "refs/heads/main" if changed_fact == "proof" else PROPOSAL_REF
-    if changed_fact == "proof":
-        for remote in remotes.values():
-            git(remote, "update-ref", target, git(repo, "rev-parse", f"{head}^"))
-    receipt = branch_publication(repo, head, target_ref=target)["data"]["request_receipt"]
-    previous = git(remotes["github"], "for-each-ref", "--format=%(objectname)", target)
-    anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-    original = publication_observation.observe_remote_refs
-    mutated = False
+    receipt = report["data"]["request_receipt"]
+    if case.startswith("mixed"):
+        plan = TransitionPlan.model_validate(report["data"]["transition_plan"])
+        effect = publication_effect_from_plan(plan)
+        peers = tuple(
+            peer.model_copy(update={"updates": (peer.updates[i],)})
+            for i, peer in enumerate(effect.targets)
+        )
+        plan = publication_request.compile_remote_publication_request(
+            root=repo,
+            effect=effect.model_copy(update={"targets": peers}),
+            proof=mutable_json(plan.prior_attestations["proof"]),
+        )
+        receipt = publication_request.persist_remote_publication_request(repo, plan)
+    previous = git(remotes["github"], "for-each-ref", "--format=%(objectname)", peer_target)
+    original, mutated = publication_observation.observe_remote_refs, False
 
-    def observe(root: Path, remote: str, refs: tuple[str, ...]):
+    def observe(root, remote, refs):
         nonlocal mutated
         result = original(root, remote, refs)
         if remote == "origin" and result[target].get("object_oid") == head and not mutated:
-            if changed_fact == "trust":
-                anchor.write_text("")
-            elif changed_fact == "proof":
+            if case == "trust":
+                Path(
+                    git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile")
+                ).write_text("")
+            elif case in {"proof", "mixed-proof"}:
                 git(repo, "update-ref", "-d", "refs/ethos/attestations-set")
-            else:
+            elif case == "policy":
                 declaration = repo / ".ethos/release.toml"
                 declaration.write_text(
                     declaration.read_text().rsplit("[[publication.peers]]", 1)[0]
                 )
+            elif case == "peer":
+                git(remotes["github"], "update-ref", target, baseline, head)
             mutated = True
         return result
 
     monkeypatch.setattr(publication_observation, "observe_remote_refs", observe)
-
-    blocked = apply_receipt(repo, receipt, head, blocked=True)
-
-    assert blocked["state"] == "partial"
+    success = case == "mixed"
+    result = apply_receipt(repo, receipt, head, blocked=not success)
     expected = {
         "trust": "publication_source_signature_drift",
         "proof": "proof_not_proven",
         "policy": "publication_remote_target_unknown:github",
+        "peer": f"publication_target_drift:github:proposal/{PROPOSAL}",
+        "mixed-proof": "proof_not_proven",
     }
-    assert expected[changed_fact] in blocked["required_gaps"]
+    assert mutated
+    assert result["state"] == ("published" if success else "partial")
+    assert expected[case] in result["required_gaps"] if not success else not result["required_gaps"]
     assert git(remotes["gitlab"], "for-each-ref", "--format=%(objectname)", target) == head
-    assert git(remotes["github"], "for-each-ref", "--format=%(objectname)", target) == previous
-    assert len(blocked["data"]["remote_effect"]["attempts"]) == 1
-    assert blocked["summary"]["remote_push"] == "partial"
+    assert git(remotes["github"], "for-each-ref", "--format=%(objectname)", peer_target) == (
+        {"mixed": head, "peer": baseline}.get(case, previous)
+    )
+    assert len(result["data"]["remote_effect"]["attempts"]) == (2 if success else 1)
+    assert result["summary"]["remote_push"] == ("applied" if success else "partial")
 
 
 @pytest.mark.parametrize("operation", ["pre-push", "dry-run", "apply"])
@@ -271,32 +285,3 @@ def test_publication_keeps_unavailable_intent_observation_unknown(
         for gap in report["missing_facts_or_evidence"]
     )
     assert {proposal_ref(remote) for remote in remotes.values()} == {""}
-
-
-def test_publication_reobserves_an_already_matching_peer_after_another_effect(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A preflight match does not prove a peer still matches after another write."""
-    repo, remotes, head = branch_publication_fixture(tmp_path, proof=False)
-    baseline = git(repo, "rev-parse", f"{head}^")
-    git(remotes["github"], "update-ref", PROPOSAL_REF, head)
-    receipt = branch_publication(repo, head)["data"]["request_receipt"]
-    original = publication_observation.observe_remote_refs
-    changed = False
-
-    def observe(root: Path, remote: str, refs: tuple[str, ...]):
-        nonlocal changed
-        result = original(root, remote, refs)
-        if remote == "origin" and result[PROPOSAL_REF].get("object_oid") == head and not changed:
-            git(remotes["github"], "update-ref", PROPOSAL_REF, baseline, head)
-            changed = True
-        return result
-
-    monkeypatch.setattr(publication_observation, "observe_remote_refs", observe)
-
-    report = apply_receipt(repo, receipt, head, blocked=True)
-
-    assert report["state"] == "partial"
-    assert report["required_gaps"] == [f"publication_target_drift:github:proposal/{PROPOSAL}"]
-    assert (proposal_ref(remotes["gitlab"]), proposal_ref(remotes["github"])) == (head, baseline)
-    assert len(report["data"]["remote_effect"]["attempts"]) == 1

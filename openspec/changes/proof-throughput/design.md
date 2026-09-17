@@ -641,6 +641,27 @@ control socket and removes its temporary root afterward. The command-group
 fix does not address this supervisor-loss boundary; controller-owned recovery
 and native Windows qualification remain required before claiming closure.
 
+### Shared Proof-Floor Inputs
+
+Proof admission now asks the existing gate-policy owner for full and default
+policies together. It observes the profile, registry, selected interpreter and
+union of required source materials once, then compiles each floor independently.
+Single-policy queries use that same owner. No persistent cache, skipped source
+binding or reuse across effect admissions is introduced.
+
+The existing proof-query regression failed with two profile reads and now
+requires one per query, including the next fresh query. Both floors retain
+distinct gate membership and reject missing committed source even when that
+file exists in the working tree. All 92 policy, proof, adopter, CLI and
+publication-admission cases pass in 72.48 seconds; their owned root is removed.
+Product/test ELOC are 45,415/49,999, with unchanged limits.
+
+On the same exact repository commit, alternating before/after/after/before
+measurements take 0.211/0.103/0.103/0.194 seconds. Material reads fall from 32
+to 17 and profile reads from two to one. Policy digests, nodes, source bindings
+and gaps are identical. `throughput-policy-pair-comparison.json` retains the
+source hash and measurements; this is not complete-proof timing.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

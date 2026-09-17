@@ -8,13 +8,13 @@ from datetime import timedelta
 from functools import partial
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
-from unittest.mock import call
 
 import pytest
 
 import ethos.adapters.mutation.proof as proof_module
 import ethos.adapters.mutation.proof_admission as proof_admission
 import ethos.adapters.openspec.lifecycle.archive_transition as archive
+import ethos.adapters.repo.gate_policy as gate_policy
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.contracts.plan import compile_plan
@@ -129,14 +129,11 @@ def test_proof_query_compiles_each_exact_source_policy_once(tmp_path, monkeypatc
     """Share immutable policy work within a query, never across fresh queries."""
     repo, head = proof_repository(tmp_path / "repo")
     persist_proof_attestation(repo, _issue(repo, head))
-    measured = Mock(wraps=proof_admission.resolve_gate_policy)
-    monkeypatch.setattr(proof_admission, "resolve_gate_policy", measured)
+    measured = Mock(wraps=gate_policy.load_committed_repository_profile)
+    monkeypatch.setattr(gate_policy, "load_committed_repository_profile", measured)
     for attempt in range(2):
         assert proof_gaps(repo, head) == []
-        assert measured.call_args_list == [
-            call(repo, tree_ref=head, full=True),
-            call(repo, tree_ref=head),
-        ] * (attempt + 1)
+        assert measured.call_count == attempt + 1
 
 
 def _archive_bound_work_proof(

@@ -31,36 +31,34 @@ def repo(tmp_path: Path) -> Path:
 
 
 @pytest.mark.parametrize(
-    ("name", "arguments", "stdin", "expected", "gap"),
+    ("name", "arguments", "stdin", "gap"),
     [
-        ("pre-commit", (), "", 0, ""),
-        ("unknown", (), "", 1, "hook_name_invalid"),
-        ("pre-push", ("origin",), "invalid\n", 1, "push_update_invalid"),
+        ("pre-commit", (), "", ""),
+        ("unknown", (), "", "hook_name_invalid"),
+        ("pre-push", ("origin",), "invalid\n", "push_update_invalid"),
         (
             "pre-push",
             ("origin",),
             f"refs/heads/x {'0' * 40} refs/heads/x {'a' * 40}\n",
-            1,
             "proposal_retirement_accepted_missing",
         ),
-        ("reference-transaction", ("unknown",), "", 0, ""),
-        ("reference-transaction", ("prepared",), "", 0, ""),
-        ("reference-transaction", ("prepared",), "invalid\n", 1, "ref_update_invalid"),
+        ("reference-transaction", ("unknown",), "", ""),
+        ("reference-transaction", ("prepared",), "", ""),
+        ("reference-transaction", ("prepared",), "invalid\n", "ref_update_invalid"),
         *[
-            ("reference-transaction", (phase,), f"{'a' * 40} {'b' * 40} {ref}\n", 0, "")
-            for phase, ref in (
-                ("preparing", "refs/heads/dev"),
-                ("committed", "refs/heads/dev"),
-                ("aborted", "refs/heads/dev"),
-                ("prepared", "refs/tags/v1"),
-                ("prepared", "refs/ethos/attestations-set"),
+            ("reference-transaction", (phase,), f"{'a' * 40} {'b' * 40} {ref}\n", gap)
+            for phase, ref, gap in (
+                ("preparing", "refs/heads/dev", ""),
+                ("committed", "refs/heads/dev", ""),
+                ("aborted", "refs/heads/dev", ""),
+                ("prepared", "refs/tags/v1", "ref_move_policy_unavailable"),
+                ("prepared", "refs/ethos/attestations-set", ""),
             )
         ],
         (
             "reference-transaction",
             ("prepared",),
             f"{'a' * 40} {'a' * 40} refs/heads/dev\n",
-            0,
             "",
         ),
     ],
@@ -72,7 +70,6 @@ def test_hook_runtime_public_input_matrix(
     name: str,
     arguments: tuple[str, ...],
     stdin: str,
-    expected: int,
     gap: str,
 ) -> None:
     """Every Git protocol envelope either dispatches once or fails closed."""
@@ -81,10 +78,12 @@ def test_hook_runtime_public_input_matrix(
 
     result = execute_hook(repo, name, arguments, stdin=StringIO(stdin))
 
-    assert result == expected
+    assert result == int(bool(gap))
     error = capsys.readouterr().err
     assert (gap in error) if gap else not error
-    assert len(observations) == int(name not in {"reference-transaction", "unknown"})
+    assert len(observations) == int(
+        name not in {"reference-transaction", "unknown"} or "refs/tags/" in stdin
+    )
 
 
 def test_hook_execution_observes_the_full_runtime_once(

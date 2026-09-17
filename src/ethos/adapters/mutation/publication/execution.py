@@ -197,12 +197,9 @@ def _observe_peer(root: Path, target: PublicationTarget) -> dict[str, object]:
         "kind": "git_remote_transaction_observation",
         "remote": target.remote,
         "state": "observed",
-        "refs": {
-            update.target_ref: publication_observation.observe_remote_ref(
-                root, target.remote, update.target_ref
-            )
-            for update in target.updates
-        },
+        "refs": publication_observation.observe_remote_refs(
+            root, target.remote, tuple(update.target_ref for update in target.updates)
+        ),
     }
 
 

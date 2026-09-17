@@ -694,6 +694,35 @@ repeated native observation before increasing workers; it is not a whole-suite
 speedup. `throughput-hotspot-publication-popen-current.{json,pstats}` contains
 the exact source binding, counts and call graph.
 
+### Peer-Set Observation
+
+Publication requests and effects now read a peer's requested refs through one
+bounded native `ls-remote` call. The single-ref consumer uses the same observer.
+Present, absent, peeled-tag and unavailable results remain per-ref projections;
+the native advertisement is not claimed as an atomic snapshot. Each subsequent
+effect and recovery still re-observes the peer and applies exact CAS.
+
+The public two-peer/two-ref regression failed because preview made four
+advertisements instead of two. Its repaired path retains atomic per-peer
+publication, failed-peer isolation, recovery and fresh proof selection. All 79
+publication cases pass with two workers in 164.28 seconds; the wrapper including
+cleanup takes 165.58 seconds. This focused run excludes coverage and is not full
+proof. Native transport fault injection replaces a copied unavailable-report
+fixture, preserving timeout details and extending coverage to duplicate, extra,
+malformed and orphan-peel responses. Product ELOC falls by 27 to 45,388; test
+ELOC remains 50,000. Ruff, format, type, file-size and source-budget checks pass.
+
+`throughput-remote-batch-comparison-verified.json` compares identical native
+repositories in before/after/after/before order. Fourteen refs, including an
+annotated tag and absent branch, produce equal complete observations for SHA-1
+and SHA-256. Direct Git launches fall from 41 to three and advertisements from
+14 to one. SHA-1 samples take 0.254/0.018/0.018/0.268 seconds; SHA-256 samples
+take 0.288/0.024/0.023/0.290 seconds. These are local-peer observation timings,
+excluding fixture preparation, not WAN or whole-proof measurements. The first
+comparison script accidentally created a SHA-1 source for its SHA-256 peer;
+the native format probe identified that fixture error, and the final comparison
+explicitly binds both formats. All temporary roots are removed.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

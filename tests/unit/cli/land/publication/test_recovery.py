@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -26,7 +27,6 @@ from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
-from tests.unit.cli.land.publication.support import unavailable_remote
 
 
 @pytest.mark.parametrize("apply", [False, True])
@@ -38,7 +38,11 @@ def test_unavailable_remote_preserves_unknown_without_false_divergence(
         tmp_path, source_branch="dev" if not apply else "candidate/dev"
     )
     receipt = branch_publication(repo, head)["data"]["request_receipt"] if apply else {}
-    monkeypatch.setattr(publication_observation, "observe_remote_ref", unavailable_remote)
+    monkeypatch.setattr(
+        publication_execution.git,
+        "run_network_git",
+        Mock(side_effect=subprocess.TimeoutExpired(("git", "ls-remote"), 30)),
+    )
     result = (
         apply_receipt(repo, receipt, head, blocked=True)
         if apply
@@ -80,15 +84,10 @@ def test_publish_unknown_observation_preserves_exact_effect_progress(
     original = publication_execution.git.run_network_git
     origin_push_applied = False
 
-    def run_network_git(
-        root: Path,
-        *args: str,
-        check: bool = False,
-        timeout: float | None = None,
-    ) -> subprocess.CompletedProcess[str]:
+    def run_network_git(root, *args, **options):
         nonlocal origin_push_applied
         if args and args[0] == "push":
-            completed = original(root, *args, check=check, timeout=timeout)
+            completed = original(root, *args, **options)
             if "origin" in args and completed.returncode == 0:
                 origin_push_applied = True
             return completed
@@ -99,7 +98,7 @@ def test_publish_unknown_observation_preserves_exact_effect_progress(
                 output="",
                 stderr="post-write observation stalled",
             )
-        return original(root, *args, check=check, timeout=timeout)
+        return original(root, *args, **options)
 
     monkeypatch.setattr(publication_execution.git, "run_network_git", run_network_git)
 
@@ -195,13 +194,13 @@ def test_publication_rechecks_authority_between_independent_peer_effects(
     receipt = branch_publication(repo, head, target_ref=target)["data"]["request_receipt"]
     previous = git(remotes["github"], "for-each-ref", "--format=%(objectname)", target)
     anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-    original = publication_observation.observe_remote_ref
+    original = publication_observation.observe_remote_refs
     mutated = False
 
-    def observe(root: Path, remote: str, ref: str):
+    def observe(root: Path, remote: str, refs: tuple[str, ...]):
         nonlocal mutated
-        result = original(root, remote, ref)
-        if remote == "origin" and result.get("object_oid") == head and not mutated:
+        result = original(root, remote, refs)
+        if remote == "origin" and result[target].get("object_oid") == head and not mutated:
             if changed_fact == "trust":
                 anchor.write_text("")
             elif changed_fact == "proof":
@@ -214,7 +213,7 @@ def test_publication_rechecks_authority_between_independent_peer_effects(
             mutated = True
         return result
 
-    monkeypatch.setattr(publication_observation, "observe_remote_ref", observe)
+    monkeypatch.setattr(publication_observation, "observe_remote_refs", observe)
 
     blocked = apply_receipt(repo, receipt, head, blocked=True)
 
@@ -282,18 +281,18 @@ def test_publication_reobserves_an_already_matching_peer_after_another_effect(
     baseline = git(repo, "rev-parse", f"{head}^")
     git(remotes["github"], "update-ref", PROPOSAL_REF, head)
     receipt = branch_publication(repo, head)["data"]["request_receipt"]
-    original = publication_observation.observe_remote_ref
+    original = publication_observation.observe_remote_refs
     changed = False
 
-    def observe(root: Path, remote: str, ref: str):
+    def observe(root: Path, remote: str, refs: tuple[str, ...]):
         nonlocal changed
-        result = original(root, remote, ref)
-        if remote == "origin" and result.get("object_oid") == head and not changed:
+        result = original(root, remote, refs)
+        if remote == "origin" and result[PROPOSAL_REF].get("object_oid") == head and not changed:
             git(remotes["github"], "update-ref", PROPOSAL_REF, baseline, head)
             changed = True
         return result
 
-    monkeypatch.setattr(publication_observation, "observe_remote_ref", observe)
+    monkeypatch.setattr(publication_observation, "observe_remote_refs", observe)
 
     report = apply_receipt(repo, receipt, head, blocked=True)
 

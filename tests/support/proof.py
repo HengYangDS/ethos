@@ -15,11 +15,8 @@ from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import record_attestations
-from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status_observation
-from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -29,6 +26,7 @@ from tests.support.governed_repository import write_active_commitment
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
 
 
@@ -46,7 +44,7 @@ def issue_conformant_proof(
     """Issue one proof Attestation from the repository's exact declared policy."""
     plan = plan or current_proof_plan(repo, expected_head=head, full=full)
     if checks is None:
-        checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes)
+        checks = conformant_proof_checks(plan)
     return issue_proof_attestation(
         repo,
         {
@@ -99,12 +97,8 @@ def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
     branch = git(repo, "branch", "--show-current")
     holder = str(leases_by_branch(repo).get(branch, {}).get("holder_ref") or "")
     original = os.environ.get("ETHOS_ACTOR")
-    hooks_path = git(repo, "config", "--get", "core.hooksPath")
-    installed_hooks = not hook_runtime_binding(repo)["required_gaps"]
     if holder:
         os.environ["ETHOS_ACTOR"] = holder
-    if installed_hooks:
-        git(repo, "config", "--worktree", "core.hooksPath", ".git/test-hooks")
     try:
         persist_proof_attestation(
             repo,
@@ -116,36 +110,29 @@ def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
             ),
         )
     finally:
-        if installed_hooks:
-            git(repo, "config", "--worktree", "core.hooksPath", hooks_path)
         if original is None:
             os.environ.pop("ETHOS_ACTOR", None)
         else:
             os.environ["ETHOS_ACTOR"] = original
 
 
-def conformant_proof_check(gate_id: str, root: Path, *, tree_ref: str) -> dict[str, object]:
-    """Build one terminal check result matching one committed gate policy identity."""
-    gate = resolve_gate_policy(root, tree_ref=tree_ref, gate_ids=(gate_id,)).registry.get(gate_id)
-    if gate is None:
-        command: tuple[str, ...] = ("pytest",)
-        trust_bearing = True
-        evidence_class = "test"
-    else:
-        command = gate_execution_identity(gate)
-        trust_bearing = gate.trust_bearing
-        evidence_class = gate.evidence_class
-    return {
-        "action_id": gate_id,
-        "command": list(command),
-        "exit_code": 0,
-        "stdout": "",
-        "stderr": "",
-        "verdict": "pass",
-        "evidence_class": evidence_class,
-        "trust_bearing": trust_bearing,
-        "diagnostics": [],
-    }
+def conformant_proof_checks(plan: TransitionPlan) -> tuple[dict[str, object], ...]:
+    """Project synthetic checks from the plan; issuance independently admits its policy."""
+    gates = {gate["id"]: gate for gate in plan.policy["gates"]}
+    return tuple(
+        {
+            "action_id": node.id,
+            "command": list(node.command),
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "verdict": "pass",
+            "evidence_class": gates[node.id]["evidence_class"],
+            "trust_bearing": gates[node.id]["trust_bearing"],
+            "diagnostics": [],
+        }
+        for node in plan.nodes
+    )
 
 
 def proof_repository(path: Path) -> tuple[Path, str]:

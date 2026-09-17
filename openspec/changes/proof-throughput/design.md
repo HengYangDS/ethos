@@ -82,6 +82,18 @@ cleanup. Import-only ABBA observes 617 to 437 loaded modules and approximately
 0.155 to 0.113 seconds inside the import; these are startup measurements, not a
 full-proof speedup. The existing evidence root uses `throughput-hook-boundary-`.
 
+Proof-fixture preparation unnecessarily rewrote `core.hooksPath` and left a
+new worktree-local configuration file. Native Attestation-set updates already
+have a no-admission hook path, so the fixture now preserves configured hooks
+and exact config-file presence. Its synthetic check results project the carried
+plan instead of re-reading policy per gate; production issuance still performs
+its independent current-policy check. RED observes config residue and three
+policy reads; GREEN preserves config and requires exactly one issuance read.
+All 286 direct proof, source, integration, archive, publication and history-repair
+consumers pass in 641.57 seconds, 646.14 including cleanup, with two workers.
+This is a no-coverage consumer run, not a full proof or controlled speedup.
+Receipts use `throughput-proof-fixture-` and `throughput-proof-checks-`.
+
 ### Original Baseline
 
 The exact source proof at `26405d4d8f57d48f6d6a1603d738b06a688fcd7f`

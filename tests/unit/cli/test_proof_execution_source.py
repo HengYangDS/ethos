@@ -27,7 +27,7 @@ from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.proof import conformant_proof_check
+from tests.support.proof import conformant_proof_checks
 from tests.support.proof import current_proof_plan
 from tests.support.proof import issue_conformant_proof
 
@@ -161,9 +161,7 @@ def test_direct_proof_boundary_rechecks_current_source(
     plan = current_proof_plan(root, expected_head=head)
     payload = {
         "plan": plan,
-        "checks": tuple(
-            conformant_proof_check(node.id, root, tree_ref=head) for node in plan.nodes
-        ),
+        "checks": conformant_proof_checks(plan),
         "verdict": "pass",
         "issuer": "agent:test:source-binding",
         "scope": "repository",

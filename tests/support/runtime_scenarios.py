@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos
 import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.hook.admission as hook_runtime
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
@@ -101,7 +102,7 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
 
 
 def create_fixture_python(target: Path, *, shared_executable: Path | None = None) -> None:
-    """Bind a native fixture prefix to the selected source and shared dependencies."""
+    """Bind fixture children to the invoking candidate and shared dependencies."""
     scripts = target / ("Scripts" if os.name == "nt" else "bin")
     scripts.mkdir(parents=True)
     source_python = Path(sys.executable).absolute()
@@ -127,11 +128,12 @@ def create_fixture_python(target: Path, *, shared_executable: Path | None = None
     site_packages = target / relative_site
     source_site = Path(sys.prefix) / relative_site
     site_packages.mkdir(parents=True, exist_ok=True)
+    candidate = Path(ethos.__file__).resolve().parent
     (site_packages / "ethos-fixture.pth").write_text(
-        f"{(REPOSITORY_ROOT / 'src').as_posix()}\n{source_site.resolve().as_posix()}\n",
+        f"{candidate.parent.as_posix()}\n{source_site.resolve().as_posix()}\n",
         encoding="utf-8",
     )
-    declaration = REPOSITORY_ROOT / "src/ethos/adapters/repo/hook/binding.toml"
+    declaration = candidate / "adapters/repo/hook/binding.toml"
     if declaration.is_file():
         destination = site_packages / "ethos/adapters/repo/hook/binding.toml"
         destination.parent.mkdir(parents=True, exist_ok=True)

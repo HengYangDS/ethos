@@ -32,6 +32,47 @@ only measured throughput improvements and their correctness boundaries.
 
 ## Measured Baseline And Priority
 
+### Execution Boundaries
+
+Throughput and parallel safety share a structural requirement: ownership and
+reuse follow semantic inputs and lifetimes, not test names or process count.
+The existing owners retain four distinct boundaries:
+
+| Boundary | Owner responsibility | Acceptance |
+| --- | --- | --- |
+| Candidate | Build one exact candidate; its consumers and native children execute that identity. Mutable-source tests retain source mode. | Reject mixed source/package execution; include build and preparation in timings. |
+| Observation | Resolve relevant facts once within an explicit observation; reuse only unchanged immutable computation. | Fresh authorization, refs, Lease, trust and source at each effect; cache removal cannot alter verdict. |
+| Test | Prepare independent real prerequisites for the tested obligation. Exercise full journeys where composition is the obligation. | Preserve each original behavioral claim; no shared mutable repo, hidden mocks or dropped coverage. |
+| Resource lifetime | The owner outlives fallible workers and owns admission, cancellation, descendant cleanup and temporary roots. | Worker loss, nested effects and owner loss are separate fault cases; unknown containment is not success. |
+
+Current native profiling at `ad33fdc15` finds 682 product Git and 36 Node
+invocations in one closeout-policy case, including ten source-build observations.
+These are measured calls, not proof that all are redundant. The existing gate
+and process owners must reduce work before widening concurrency. Neither a
+global Git cache, permanent serialization nor a new workflow framework resolves
+these boundaries. Framework adoption requires demonstrated replacement of
+existing complexity and the same fault/authority contracts.
+
+The bounded source/package ABBA experiment uses independent mutable fixtures,
+one offline-built exact wheel and actual native child import readback. Source
+runs take 13.11/12.58 seconds; package runs 11.35/11.26, with Git calls reduced
+from 682 to 627. Build/install costs another 0.96 seconds. All four cases pass,
+but these no-coverage samples do not predict full-suite performance. The first
+probe incorrectly read staging paths after rename and is retained as an invalid
+experiment, not a product failure.
+
+The experiment exposed a real fixture identity leak: installed-parent tests
+still pointed native children at the test checkout. The shared fixture now
+derives code and hook declarations from the invoking `ethos` package. Native
+RED distinguishes current source, alternate source and installed layout; 182
+runtime/hook consumers pass at two/four/eight workers in 67.04/33.47/24.26 seconds
+including cleanup. The experimental path override is not product code.
+Receipts use `throughput-pinned-candidate-` and `throughput-candidate-identity-`
+in the existing evidence root. Full-suite package migration, coverage mapping,
+surviving-owner containment and complete proof remain unverified.
+
+### Original Baseline
+
 The exact source proof at `26405d4d8f57d48f6d6a1603d738b06a688fcd7f`
 passed 35 gates. `throughput-baseline-breakdown.json` contains all 35 gate
 observations, every test module, source hashes and the profile comparisons.

@@ -389,10 +389,13 @@ def read_objects(
     repo: Path,
     object_ids: tuple[str, ...],
     *,
-    kind: Literal["blob", "commit"] = "blob",
+    kind: Literal["blob", "commit"] | tuple[Literal["blob", "commit"], ...] = "blob",
     gap: str = "git_object_batch_invalid",
 ) -> tuple[bytes, ...]:
     """Read exact typed objects in one native batch with strict frame/identity validation."""
+    kinds = (kind,) * len(object_ids) if isinstance(kind, str) else kind
+    if len(kinds) != len(object_ids):
+        raise ValueError(gap)
     if not object_ids:
         return ()
     result = run_git(
@@ -409,14 +412,14 @@ def read_objects(
     payload, offset = result.stdout, 0
     blobs: list[bytes] = []
     try:
-        for expected in object_ids:
+        for expected, expected_kind in zip(object_ids, kinds, strict=True):
             header_end = payload.index(b"\n", offset)
             object_id, actual_kind, raw_size = payload[offset:header_end].decode().split(" ")
             size = int(raw_size)
             content_start, content_end = header_end + 1, header_end + 1 + size
             if not (
                 object_id == expected
-                and actual_kind == kind
+                and actual_kind == expected_kind
                 and size >= 0
                 and payload[content_end : content_end + 1] == b"\n"
             ):

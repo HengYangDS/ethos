@@ -24,6 +24,7 @@
 - [x] Scope effect-time destination admission to its peer while retaining fresh common proof and source.
 - [x] Route command gates through the process owner and verify native cancellation and failure reporting.
 - [x] Distinguish process creation from communication and cleanup failures at the process owner.
+- [x] Batch canonical set roots with members while retaining native identity and typed-frame checks.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.

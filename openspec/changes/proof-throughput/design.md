@@ -828,6 +828,31 @@ These equal no-coverage runs use the default thread timeout without retries;
 native Windows execution and full proof are not covered. Product/test ELOC is
 45,404/49,996; type, size and source-budget gates pass.
 
+### Typed Attestation Set Read
+
+The existing native object reader now accepts an exact per-object type vector.
+Attestation selection batches the root commit with its member blobs, validates
+the complete canonical root bytes, and retains Git's root-identity hash check.
+This removes a redundant revision-to-tree process without introducing a Git
+hash implementation, persistent cache or second object parser. Each read still
+observes the selected ref and validates membership; CAS semantics are unchanged.
+
+Both native hash formats first failed the reduced-work assertion. The repaired
+38-case set suite passes, including cold/warm transport faults, root metadata
+and digest corruption, root/member kind substitution and mismatched type counts.
+One matrix replaces three repeated protocol-test setups. The 284-case shared
+consumer closure passes with two workers in 353.88 seconds, or 356.82 including
+wrapper cleanup. This focused no-coverage run is not complete proof.
+
+`throughput-set-batch-comparison.json` compares identical 24-member native sets
+in before/after/after/before order. Ten reads use 60/50/50/60 Git starts in both
+formats. SHA-1 timings are 0.340/0.278/0.301/0.332 seconds; SHA-256 timings are
+0.343/0.268/0.267/0.330 seconds. Results and original indexes remain identical;
+temporary roots are removed. Fixture preparation is excluded. The first
+comparison lacked the required evidence binding and failed before measurement;
+the corrected fixture, not that failure, supplies the comparison. Product/test
+ELOC is 45,401/49,996, with type, size and source-budget gates passing.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

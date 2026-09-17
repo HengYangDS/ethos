@@ -9,12 +9,15 @@ from typing import cast
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.status.bindings import has_changed_paths
+from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from ethos.contracts.verdict import Verdict
@@ -86,7 +89,7 @@ def _closeout_candidate_gaps(
     if not candidate["worktree_exists"]:
         return ["candidate_worktree_missing"]
     candidate_path = Path(str(candidate["worktree_path"]))
-    if workspace_status(candidate_path)["dirty"]:
+    if has_changed_paths(candidate_path):
         return ["candidate_worktree_dirty"]
     candidate_head = str(candidate.get("head") or "")
     if not is_ancestor(root, current_head, candidate_head):
@@ -177,7 +180,8 @@ def evaluate_closeout_mutation(
     current_head: str,
 ) -> AdmissionDecision:
     """Admit accepted-root closeout from current candidate facts."""
-    status = workspace_status(root)
+    status = integration_coordinates(root, policy=load_branch_role_policy(root))
+    dirty = has_changed_paths(root)
     candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate.get("head") or "")
     gaps = request_gaps(
@@ -191,7 +195,7 @@ def evaluate_closeout_mutation(
         ["accepted_root_required"]
         if role != ROLE_ACCEPTED_ROOT
         else ["accepted_root_dirty"]
-        if status["dirty"]
+        if dirty
         else []
     )
     gaps.extend(
@@ -210,7 +214,7 @@ def evaluate_closeout_mutation(
         "head": current_head,
         "candidate_head": candidate_head,
         "role": role,
-        "dirty": bool(status["dirty"]),
+        "dirty": dirty,
         "apply": apply,
         "confirmation_present": authorized,
         "expect_head": expect_head or "",

@@ -723,6 +723,34 @@ comparison script accidentally created a SHA-1 source for its SHA-256 peer;
 the native format probe identified that fixture error, and the final comparison
 explicitly binds both formats. All temporary roots are removed.
 
+### Peer-Local Effect Admission
+
+Publication retains a complete preflight before the first effect. Each later
+peer boundary now admits only that peer's destinations, while freshly checking
+the common source and the request-bound proof. A review-only peer in a mixed
+request still revalidates the accepted proof; narrowing the destination set
+does not downgrade the request. No proof, source-trust or CAS result is reused
+across effects.
+
+The native two-peer/two-ref regression first failed with twelve destination
+admissions instead of eight. It now observes four initial admissions and two
+at each peer boundary, including recovery. Existing proof-selection counts are
+unchanged. The combined fault matrix preserves trust, proof, policy and already
+matching-peer drift cases, and adds mixed-request success and proof-loss cases.
+All 81 publication tests pass in 173.53 seconds with two workers, or 175.29
+seconds including wrapper preparation and cleanup. This is focused diagnostic
+testing without coverage, not complete proof. Source budget, file-size, typing,
+Ruff and format pass at 45,405 product and 49,999 test ELOC.
+
+`throughput-peer-authority-comparison.json` repeats the same native request in
+full/full/full versus full/peer/peer admission sequences, alternating before,
+after, after, before. All three verdicts remain pass. Destination admissions
+fall from twelve to eight and direct Git launches from 453 to 325. Timings are
+2.604/1.825/1.819/2.497 seconds; the first sample overlaps the read-only write
+admission check, so reduced work counts are stronger evidence than that timing.
+These sections perform no remote writes and exclude fixture preparation.
+The public effect tests separately verify real writes and partial recovery.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

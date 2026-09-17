@@ -9,6 +9,7 @@ import pytest
 
 import ethos.adapters.mutation.proof as proof_owner
 import ethos.adapters.mutation.publication.attestation as publication_attestation
+import ethos.adapters.mutation.publication.execution as publication_execution
 import ethos.adapters.mutation.publication.observation as publication_observation
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
@@ -208,7 +209,10 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     )
     hook.chmod(0o755)
 
+    admissions = Mock(wraps=publication_execution.push_admission_report)
+    monkeypatch.setattr(publication_execution, "push_admission_report", admissions)
     blocked = apply_receipt(repo, receipt, head, blocked=True)
+    assert admissions.call_count == 8  # Four preflight refs, then two per peer.
     assert proof_reads.call_count == 5  # One CLI observation, preflight and two peer boundaries.
     assert blocked["data"]["remote_effect"]["partial_effects"] == {
         "applied_peers": ["gitlab"],
@@ -220,6 +224,7 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
 
     hook.unlink()
     recovered = apply_receipt(repo, receipt, head)
+    assert admissions.call_count == 16  # Recovery repeats only its current boundaries.
     assert proof_reads.call_count == 9  # Recovery must freshly observe the same boundaries.
     assert recovered["state"] == "published"
     assert recovered["data"]["remote_effect"]["attempts"][0]["state"] == "already_applied"

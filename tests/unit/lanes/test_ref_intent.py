@@ -14,11 +14,11 @@ from threading import Event
 from threading import Thread
 from threading import current_thread
 from typing import Literal
+from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.repo.git_effect_attestation
-import ethos.adapters.repo.git_effects
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import committed_ref_intent
@@ -26,13 +26,11 @@ from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git_effects import execute_git_effect
-from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Facts
-from ethos.contracts.semantic import canonical_json_digest
-from tests.support.semantic import attestation_fixture
-from tests.support.semantic import commitment_fixture
+from tests.support.git_effect import ISSUER
+from tests.support.git_effect import fixture
+from tests.support.git_effect import proof_plan
+from tests.support.governed_repository import git
 
 
 def _oid(label: str) -> str:
@@ -89,46 +87,6 @@ def _expire(root: Path, nonce: object, value: str | None = None) -> None:
     else:
         stored["expires_at"] = value
     path.write_text(json.dumps(stored), encoding="utf-8")
-
-
-def _proof():
-    issued = datetime(2026, 8, 1, tzinfo=UTC)
-    policy = {
-        "operation": "git.ref.compare-and-swap",
-        "effect_digest": GitEffect(updates={"refs/heads/dev": _update()}).digest(),
-    }
-    return attestation_fixture(
-        predicate="proof:execution",
-        verifier="agent:test:case:ref-effect",
-        subject=f"git:commit:{_oid('new')}",
-        issued_at=issued,
-        valid_from=issued,
-        payload_kind="proof:execution",
-        payload_body={"head": _oid("new")},
-        commitment_digest="a" * 64,
-        policy_digest=canonical_json_digest(policy),
-    )
-
-
-def _effect_plan(proof):
-    old, new = _oid("old"), _oid("new")
-    effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
-    return compile_git_effect_plan(
-        commitment_fixture(id="commitment:test:ref-effect", acceptance=("acceptance:fixture",)),
-        Facts(
-            repository="repository:test",
-            head=old,
-            tree=old,
-            observed_at=datetime(2026, 8, 1, tzinfo=UTC),
-            values={"refs": {"refs/heads/dev": old}, "assertions": {}},
-        ),
-        prior_attestations={"proof": proof.model_dump(mode="json")},
-        policy={
-            "operation": "git.ref.compare-and-swap",
-            "effect_digest": effect.digest(),
-        },
-        effect=effect,
-    )
 
 
 def test_intent_persists_only_exact_operation_transition_and_recovery(tmp_path: Path) -> None:
@@ -324,18 +282,22 @@ def test_intent_path_is_linked_worktree_safe(tmp_path: Path) -> None:
 def test_git_effect_does_not_reread_proof_store_before_intent_or_cas(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    case = fixture(tmp_path)
+    plan = proof_plan(case)
+    git(case.repo, "checkout", "--detach", case.new)
+    refs = git(case.repo, "for-each-ref")
+    records = Mock(wraps=ethos.adapters.repo.git_effect_attestation.records)
     monkeypatch.setattr(
         ethos.adapters.repo.git_effect_attestation,
         "records",
-        lambda *_args, **_kwargs: (),
-    )
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effects,
-        "current_tracked_head",
-        lambda _root: _oid("stale"),
+        records,
     )
 
     with pytest.raises(ValueError, match="git_effect_plan_prestate_stale"):
-        execute_git_effect(tmp_path, _effect_plan(_proof()), issuer="agent:test:case:ref-effect")
+        execute_git_effect(case.repo, plan, issuer=ISSUER)
 
-    assert not ref_intent_dir(tmp_path).exists()
+    records.assert_called_once_with(case.repo, plan, environment=None)
+    assert git(case.repo, "rev-parse", "HEAD") == case.new
+    assert git(case.repo, "for-each-ref") == refs
+    assert git(case.repo, "status", "--porcelain") == ""
+    assert not ref_intent_dir(case.repo).exists()

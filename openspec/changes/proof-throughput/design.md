@@ -1019,3 +1019,22 @@ The next exact-source complete proof must establish the unchanged 95-percent
 combined coverage floor and complete elapsed time. Removing incidental repeated
 coverage is not permission to omit a required behavior. The 600-second target,
 worker-loss containment and accepted/runtime/publication closure remain open.
+
+The subsequent exact `cc659470` full proof took 1,481.429 seconds and blocked:
+3,798 tests passed, one failed and one skipped. Pytest took 1,438.862 seconds;
+coverage, generated artifacts, build, installed acceptance and SBOM did not run
+after the unit failure. This is not a complete-proof speedup measurement.
+The owned pytest root was removed. The stale-effect test also fails with no
+parallel workers: its synthetic plan lacked a native Git repository and patched
+a symbol outside the actual observation path. Native batching therefore rejected
+invalid revision input before reaching the intended stale-plan boundary.
+
+The repair reuses the existing native Git-effect fixture, detaches HEAD after
+planning without advancing the target ref, and observes the real recovery reader.
+It requires one read, exact stale rejection, unchanged HEAD/refs/worktree and no
+intent residue. Duplicate synthetic plan/proof builders are removed; production
+admission and recovery ordering are unchanged. The module passes all 16 cases;
+238 sibling ref-intent, Git-effect and process cases pass at two/four/eight workers
+in 17.96/10.88/7.76 seconds including cleanup. These equal no-coverage diagnostics
+neither change timeouts nor retry workers. Receipts use `throughput-ref-intent-`
+under the existing evidence root. Full-proof acceptance remains unverified.

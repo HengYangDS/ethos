@@ -28,6 +28,7 @@
 - [x] Resolve exited-group cancellation races without suppressing live-group cleanup failures.
 - [x] Batch effect revision observation and remove duplicate immutable validation while preserving missing-object distinctions.
 - [x] Prepare independent native fixture state without repeating unrelated start workflows, retaining dedicated end-to-end coverage.
+- [x] Replace synthetic stale-effect setup with native prerequisites and assert one recovery read, unchanged refs and no intent residue.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.

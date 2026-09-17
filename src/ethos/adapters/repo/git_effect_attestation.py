@@ -221,6 +221,13 @@ def validate(
         raise ValueError(_CONTENT_MISMATCH)
 
 
+def declares_transition(attestation: Attestation, transition: str) -> bool:
+    """Select relevant historical effects; only full validation can accept them."""
+    plan = attestation.payload.body.get("plan")
+    policy = plan.get("policy") if isinstance(plan, Mapping) else None
+    return isinstance(policy, Mapping) and policy.get("transition") == transition
+
+
 def plan_from_attestation(attestation: Attestation) -> TransitionPlan:
     """Return the exact TransitionPlan carried by one Git effect Attestation."""
     statement = _statement(attestation)

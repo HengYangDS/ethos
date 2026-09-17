@@ -8,6 +8,7 @@ import pytest
 
 import ethos.adapters.openspec.lifecycle.archive_provenance as provenance
 import ethos.adapters.openspec.lifecycle.archive_transition as archive
+import ethos.adapters.repo.commit.rewrite as rewrite
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -130,14 +131,12 @@ def test_archive_readers_decode_only_relevant_effect_plans(tmp_path, monkeypatch
         message = "invalid selected plan"
         raise ValueError(message)
 
-    owner = archive if reader == "archive" else provenance
+    owner = archive if reader == "archive" else rewrite
     monkeypatch.setattr(owner, "plan_from_attestation", invalid_plan)
     if reader == "archive":
         monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ("selected", (record,)))
         result = archive.attested_archive_transition(tmp_path, head="head")
     else:
-        result = provenance.validated_refresh_edge(
-            tmp_path, branch="work/fixture", attestation=record
-        )
+        result = rewrite.validated_refresh_edge(tmp_path, branch="work/fixture", attestation=record)
     assert result is None
     assert decoded == ([record] if relevant else [])

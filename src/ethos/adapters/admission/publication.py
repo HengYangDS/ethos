@@ -280,6 +280,8 @@ def publication_proof_admission(
     root: Path,
     head: str,
     roles: tuple[str, ...],
+    *,
+    observed: object = None,
 ) -> dict[str, object]:
     """Select the strongest actual target obligation without inventing review proof."""
     selections = {publication_proof_selection(role) for role in roles}
@@ -292,11 +294,15 @@ def publication_proof_admission(
             "required_gaps": [],
             "next_action": "",
         }
-    return proof_admission_report(
-        root,
-        head,
-        repository_transition="repository_transition" in selections,
-    )
+    repository_transition = "repository_transition" in selections
+    selection = "repository_transition" if repository_transition else "current_commitment"
+    if isinstance(observed, Mapping) and observed.get("selection") == selection:
+        attestation = observed.get("attestation")
+        if observed.get("verdict") != "pass" or (
+            isinstance(attestation, Mapping) and attestation.get("commit") == head
+        ):
+            return dict(observed)
+    return proof_admission_report(root, head, repository_transition=repository_transition)
 
 
 def push_admission_report(
@@ -343,9 +349,12 @@ def push_admission_report(
         remote_head=remote_head,
     )
     accepted_content = False
+    observed_proof = options.get("proof_admission")
     if str(preliminary["role"]) in {"release_root", "release_publication"} and closeout:
-        accepted_proof = publication_proof_admission(repo, proof_head, (str(preliminary["role"]),))
-        accepted_content = accepted_proof["verdict"] == "pass" and not closeout_gaps
+        observed_proof = publication_proof_admission(
+            repo, proof_head, (str(preliminary["role"]),), observed=observed_proof
+        )
+        accepted_content = observed_proof["verdict"] == "pass" and not closeout_gaps
     observed, policy = _ref_update_admission(
         repo,
         target_ref=target_ref,
@@ -375,8 +384,6 @@ def push_admission_report(
             remote_head=remote_head,
         )
     commits = cast("dict[str, object]", observed["commit_policy_admission"])
-    selection = publication_proof_selection(role)
-    supplied = options.get("proof_admission")
     proof = (
         {
             "verdict": "block",
@@ -387,9 +394,7 @@ def push_admission_report(
             "next_action": "",
         }
         if ref_admission["enforcement_gaps"]
-        else dict(supplied)
-        if isinstance(supplied, Mapping) and supplied.get("selection") == selection
-        else publication_proof_admission(repo, proof_head, (role,))
+        else publication_proof_admission(repo, proof_head, (role,), observed=observed_proof)
     )
     proof_gaps = list(string_sequence(proof.get("required_gaps")))
     repaired = commits.get("update_kind") == "repair"

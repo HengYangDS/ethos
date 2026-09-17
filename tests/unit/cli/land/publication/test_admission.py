@@ -12,11 +12,13 @@ import ethos.adapters.mutation.proof as proof_adapter
 import ethos.adapters.mutation.publication.execution as publication_execution
 import ethos.adapters.mutation.publication.request as publication_request
 import ethos.repository.release.publication as release_publication
+from ethos.adapters.admission.publication import publication_proof_admission
 from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.value import mutable_json
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -189,29 +191,23 @@ def test_publication_remote_failure_matrix(
     for path, digest, error in failures:
         with pytest.raises(ValueError, match=error):
             publication_request.load_remote_publication_request(repo, str(path), digest)
-    corrupt = store / f"{'2' * 64}.json"
-    corrupt.write_text("not the digest")
-    with pytest.raises(ValueError, match="sha256_mismatch"):
-        publication_request.load_remote_publication_request(repo, str(corrupt), "2" * 64)
     invalid = b"not-json"
-    digest = hashlib.sha256(invalid).hexdigest()
-    (store / f"{digest}.json").write_bytes(invalid)
-    with pytest.raises(ValueError, match="receipt_invalid"):
-        publication_request.load_remote_publication_request(
-            repo, str(store / f"{digest}.json"), digest
-        )
+    for digest, error in (
+        ("2" * 64, "sha256_mismatch"),
+        (hashlib.sha256(invalid).hexdigest(), "receipt_invalid"),
+    ):
+        path = store / f"{digest}.json"
+        path.write_bytes(invalid)
+        with pytest.raises(ValueError, match=error):
+            publication_request.load_remote_publication_request(repo, str(path), digest)
 
 
 @pytest.mark.parametrize(
     ("case", "name", "gap"),
     [
-        (
-            "lightweight",
-            "lightweight",
-            "publication_source_not_annotated_tag:refs/tags/lightweight",
-        ),
-        ("trust", "v1.2.3", "publication_source_signature_untrusted:refs/tags/v1.2.3"),
-        ("version", "v9.9.9", "publication_source_version_mismatch:v9.9.9!=v1.2.3"),
+        ("lightweight", "lightweight", "not_annotated_tag:refs/tags/lightweight"),
+        ("trust", "v1.2.3", "signature_untrusted:refs/tags/v1.2.3"),
+        ("version", "v9.9.9", "version_mismatch:v9.9.9!=v1.2.3"),
     ],
 )
 def test_publication_rejects_invalid_release_objects(
@@ -232,9 +228,7 @@ def test_publication_rejects_invalid_release_objects(
         remotes={"gitlab": "origin"},
         ref_admissions={},
     )
-    assert effect is None
-    assert observations == {}
-    assert gaps == (gap,)
+    assert (effect, observations, gaps) == (None, {}, (f"publication_source_{gap}",))
 
 
 def test_publish_uses_git_ref_grammar_as_the_positive_name_authority(
@@ -310,14 +304,16 @@ def test_publication_and_pre_push_share_exact_proof_and_continuation(
     if proven:
         plan = TransitionPlan.model_validate(payload["data"]["transition_plan"])
         proof = plan.prior_attestations["proof"]
+        observed = payload["data"]["proof_admission"]
+        wrong_head = {**observed, "attestation": {**proof, "commit": "0" * 40}}
+        actual = publication_proof_admission(repo, head, ("release_root",), observed=wrong_head)
+        assert mutable_json(actual) == observed
         assert {report["proof_admission"]["attestation"]["id"] for report in reports.values()} == {
             proof["id"]
         }
-        assert proof["commit"] == head
-        assert proof["tree"] == git(repo, "rev-parse", f"{head}^{{tree}}")
-        assert proof["verdict"] == "pass"
-        assert proof["policy_digest"]
-        assert proof["gate_ids"]
+        tree = git(repo, "rev-parse", f"{head}^{{tree}}")
+        assert (proof["commit"], proof["tree"], proof["verdict"]) == (head, tree, "pass")
+        assert all(proof[key] for key in ("policy_digest", "gate_ids"))
         action = ""
     else:
         action = runtime_command(

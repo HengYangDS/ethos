@@ -10,7 +10,6 @@ from typing import cast
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.repo.git as git
 from ethos.adapters.admission.publication import push_admission_report
-from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.publication.attestation import terminal_publication_result
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.contracts.publication import PublicationEffect
@@ -230,18 +229,26 @@ def _publication_authority(
     root: Path, *, plan: TransitionPlan, effect: PublicationEffect
 ) -> tuple[Verdict, tuple[str, ...]]:
     """Observe source trust and all destination obligations at the effect boundary."""
-    admissions = tuple(
-        push_admission_report(
-            root=root,
-            target_ref=update.target_ref,
-            pushed_head=update.desired,
-            remote_head=update.expected,
-            remote_name=target.remote,
-        )
-        for target in effect.targets
-        for update in target.updates
-    )
-    proof_gaps = _proof_drift_gaps(root, plan=plan, effect=effect, admissions=admissions)
+    admissions = []
+    proof: object = None
+    for target in effect.targets:
+        for update in target.updates:
+            report = push_admission_report(
+                root=root,
+                target_ref=update.target_ref,
+                pushed_head=update.desired,
+                remote_head=update.expected,
+                remote_name=target.remote,
+                proof_admission=proof,
+            )
+            admissions.append(report)
+            observed = report.get("proof_admission")
+            if (
+                isinstance(observed, Mapping)
+                and observed.get("selection") == "repository_transition"
+            ):
+                proof = observed
+    proof_gaps = _proof_drift_gaps(plan=plan, admissions=tuple(admissions), proof=proof)
     source_gaps = _source_drift_gaps(
         effect.source,
         observe_git_object(root, effect.source.object_oid, effect.source.kind),
@@ -263,11 +270,10 @@ def _publication_authority(
 
 
 def _proof_drift_gaps(
-    root: Path,
     *,
     plan: TransitionPlan,
-    effect: PublicationEffect,
     admissions: tuple[dict[str, object], ...],
+    proof: object,
 ) -> tuple[str, ...]:
     """Re-select and compare the exact proof bound into the request."""
     roles = {str(report["role"]) for report in admissions}
@@ -284,20 +290,19 @@ def _proof_drift_gaps(
     selection = "repository_transition"
     if carried.get("selection") != selection:
         return ("publication_proof_selection_mismatch",)
-    report = proof_admission_report(
-        root,
-        effect.source.peeled_commit,
-        repository_transition=selection == "repository_transition",
-    )
-    raw_gaps = report.get("required_gaps")
+    if not isinstance(proof, Mapping):
+        return ("publication_proof_binding_missing",)
+    raw_gaps = proof.get("required_gaps")
     gaps = tuple(str(gap) for gap in raw_gaps) if isinstance(raw_gaps, (list, tuple)) else ()
     if gaps:
         return gaps
-    current = report.get("attestation")
-    if not isinstance(current, Mapping):
-        return ("publication_proof_binding_missing",)
+    current = proof.get("attestation")
     return (
-        () if {**current, "selection": selection} == dict(carried) else ("publication_proof_drift",)
+        ("publication_proof_binding_missing",)
+        if not isinstance(current, Mapping)
+        else ()
+        if {**current, "selection": selection} == dict(carried)
+        else ("publication_proof_drift",)
     )
 
 

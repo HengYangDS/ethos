@@ -478,6 +478,61 @@ instead of an extra string-to-boolean translation. The 50,000-test ceiling,
 500-per-file limits and 95-percent combined coverage requirement are unchanged.
 Complete proof, installed acceptance and the 600-second target remain open.
 
+### Share Proof Selection Within Each Publication Admission
+
+The covered multi-ref publication and recovery path at `c3332a715` made 51
+repository-proof selections, costing 16.812 inclusive seconds out of 41.191
+seconds. Each effect admission repeated the same proof across four peer/ref
+reports, release-content classification and final receipt comparison. Six
+separate admission boundaries remain necessary; seven selections within each
+boundary were not.
+
+The existing publication-proof owner now reuses a supplied current observation
+only for the required selection; a successful observation must also name the
+exact commit. Review-only roles still require no proof. Release classification
+and final push admission consume the same selection. Publication execution
+shares that result across refs within one authority observation and compares it
+with the carried request, deleting the independent final proof reread. The
+observation is discarded at the boundary: preflight, each peer effect and each
+new command select fresh evidence. Destination role, introduced commit range,
+accepted closeout, source trust and remote CAS checks remain separate.
+
+The public regression first failed with seven proof selections in one authority
+observation. It now verifies one selection for dry-run and four more for each
+apply or recovery command: CLI observation, preflight and both peer boundaries.
+Both active-intent and no-active-intent variants pass. Removing proof after the first
+peer still blocks the second; proof replacement, selection drift, unavailable
+observations, same-head wrong proof, review-only publication and history repair
+retain their existing counterexamples. A wrong-commit supplied proof is freshly
+selected rather than reused.
+
+The 80-case publication replay initially had 79 passes and one new comparison
+failure: the test compared an internal tuple with its JSON list projection.
+The assertion now uses the existing JSON normalizer; all seventeen admission
+cases pass. Six affected public effect/projection cases and three final
+assertion-consolidation cases pass after the budget cleanup. No test obligation
+or production verdict was changed to accommodate that test representation error.
+The type gate and 500-per-file limits pass; product/test ELOC are 45,373/49,999.
+
+The same covered public workload now makes thirteen repository-proof selections,
+1,955 subprocess calls and 42 Node calls, versus 51, 2,641 and 118 before.
+Observed elapsed time falls from 41.191 to 30.755 seconds, a 25.3-percent sample
+reduction. Inclusive proof-selection cost is 4.345 seconds. All six effect
+admission boundaries still execute; they fall from 19.823 to 8.135 inclusive
+seconds. Native push time increases in this sample, so work-count reduction is
+the reliable attribution, not a whole-suite timing extrapolation. Raw profiles
+are `throughput-hotspot-publication-{multi-ref,shared-proof}.{json,pstats}`.
+All owned fixture roots were removed; no real repository peers were mutated.
+
+Separately, the exact committed `c3332a715` wheel passed the complete isolated
+installed acceptance in 166.322 seconds, including wheel construction and
+cleanup, versus 170.141 seconds in the earlier measured sample. Native merge
+still takes 64.358 seconds and remains dominant there. The source, wheel and
+successor runtime match; the temporary root and wheel are removed. This verifies
+the runtime-provenance and merge repairs in a package, not the subsequent
+publication repair or a complete repository proof. Evidence is
+`throughput-install-after-observation{,-acceptance}.json`.
+
 Final performance acceptance measures complete proof on the same workstation
 with two workers and the declared locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
+import ethos.adapters.mutation.proof as proof_owner
 import ethos.adapters.mutation.publication.attestation as publication_attestation
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
@@ -162,7 +164,7 @@ def test_publish_branch_dry_run_and_apply_share_one_plan_and_attestation(
 
 @pytest.mark.parametrize("active_change", [False, True])
 def test_publish_applies_each_peers_multi_ref_set_atomically(
-    tmp_path: Path, *, active_change: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, active_change: bool
 ) -> None:
     """Incomplete delivery intent does not split source or peer acceptance."""
     repo, remotes, old = branch_publication_fixture(tmp_path)
@@ -173,19 +175,20 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     seed_executed_proof(repo, head)
     apply_accepted_closeout(repo, old, head)
     git(repo, "update-ref", "refs/heads/main", head)
-
+    proof_reads = Mock(wraps=proof_owner.proof_for_repository_transition)
+    monkeypatch.setattr(proof_owner, "proof_for_repository_transition", proof_reads)
     dry_run = branch_publication(
         repo, head, "--ref", "refs/heads/dev", target_ref="refs/heads/main"
     )
+    assert proof_reads.call_count == 1
     receipt = dry_run["data"]["request_receipt"]
     targets = dry_run["data"]["remote_effect"]["targets"]
     reports = dry_run["data"]["push_admission"]
-    main_reports = [report for key, report in reports.items() if key.endswith(":refs/heads/main")]
-    assert {report["commit_policy_admission"]["baseline_source"] for report in main_reports} == {
-        "accepted_effect"
-    }
-    assert {report["commit_policy_admission"]["baseline_commit"] for report in main_reports} == {
-        head
+    main_reports = [
+        r["commit_policy_admission"] for k, r in reports.items() if k.endswith(":refs/heads/main")
+    ]
+    assert {(r["baseline_source"], r["baseline_commit"]) for r in main_reports} == {
+        ("accepted_effect", head)
     }
     assert {target["id"] for target in targets} == {"gitlab", "github"}
     assert all(
@@ -203,6 +206,7 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     hook.chmod(0o755)
 
     blocked = apply_receipt(repo, receipt, head, blocked=True)
+    assert proof_reads.call_count == 5  # One CLI observation, preflight and two peer boundaries.
     assert blocked["data"]["remote_effect"]["partial_effects"] == {
         "applied_peers": ["gitlab"],
         "failed_peer": "github",
@@ -213,10 +217,10 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
 
     hook.unlink()
     recovered = apply_receipt(repo, receipt, head)
+    assert proof_reads.call_count == 9  # Recovery must freshly observe the same boundaries.
     assert recovered["state"] == "published"
     assert recovered["data"]["remote_effect"]["attempts"][0]["state"] == "already_applied"
     for remote in remotes.values():
-        assert git(remote, "rev-parse", "refs/heads/dev") == head
-        assert git(remote, "rev-parse", "refs/heads/main") == head
+        assert git(remote, "rev-parse", "refs/heads/dev", "refs/heads/main").split() == [head, head]
         if active_change:
             assert "- [ ]" in git(remote, "show", f"{head}:openspec/changes/delivery-work/tasks.md")

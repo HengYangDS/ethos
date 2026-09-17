@@ -68,7 +68,11 @@ def _admitted_proofs(
     repository_transition: bool,
     store: Path,
 ) -> tuple[tuple[Attestation, ...], list[str]]:
-    matching, gaps = _selected_candidates(root, head)
+    try:
+        _selected_root, attestations = read_attestation_set(root)
+    except ValueError as error:
+        return (), [str(error)]
+    matching, gaps = _selected_candidates(head, attestations)
     if gaps:
         return (), gaps
     canonical_policies = (
@@ -85,6 +89,7 @@ def _admitted_proofs(
                 item,
                 canonical_policies=canonical_policies,
                 repository_transition=repository_transition,
+                attestations=attestations,
             ),
         )
         for item in matching
@@ -124,13 +129,9 @@ def _admitted_proofs(
 
 
 def _selected_candidates(
-    root: Path,
     head: str,
+    attestations: tuple[Attestation, ...],
 ) -> tuple[tuple[Attestation, ...], list[str]]:
-    try:
-        _selected_root, attestations = read_attestation_set(root)
-    except ValueError as error:
-        return (), [str(error)]
     candidates = tuple(
         item
         for item in attestations
@@ -193,7 +194,9 @@ def _bindings(attestation: Attestation) -> tuple[str, ...]:
     return tuple(getattr(attestation, name) for name in _BINDINGS)
 
 
-def _source_intent_gaps(root: Path, head: str, attestation: Attestation) -> list[str]:
+def _source_intent_gaps(
+    root: Path, head: str, attestation: Attestation, attestations: tuple[Attestation, ...]
+) -> list[str]:
     """Match carried acceptance to official meaning at the exact source object."""
     try:
         plan = plan_from_statement(attestation)
@@ -205,7 +208,7 @@ def _source_intent_gaps(root: Path, head: str, attestation: Attestation) -> list
             if gaps:
                 return gaps
             intent_present = bool(observed["changes"]) or (
-                attested_archive_transition(root, head=head) is not None
+                attested_archive_transition(root, head=head, attestations=attestations) is not None
             )
             return ["proof_source_intent_mismatch"] if intent_present else []
         carried = Commitment.model_validate(mutable_json(plan.commitment))
@@ -213,6 +216,7 @@ def _source_intent_gaps(root: Path, head: str, attestation: Attestation) -> list
             root,
             tree_ref=head,
             change_id=carried.id.removeprefix("change:"),
+            attestations=attestations,
         )
     except (TypeError, ValueError) as error:
         return [f"proof_source_intent_unavailable:{error}"]
@@ -260,6 +264,7 @@ def _candidate_evaluation(
     *,
     canonical_policies: tuple[tuple[str, ResolvedGatePolicy], ...],
     repository_transition: bool,
+    attestations: tuple[Attestation, ...],
 ) -> tuple[str, list[str]]:
     if attestation.subject != f"git:commit:{head}":
         return "", ["proof_attestation_head_mismatch"]
@@ -286,7 +291,7 @@ def _candidate_evaluation(
     if checks is not None and not gaps:
         gaps = proof_statement_gaps(attestation, checks)
     if not gaps and checks is not None and repository_transition:
-        gaps = _source_intent_gaps(root, head, attestation)
+        gaps = _source_intent_gaps(root, head, attestation, attestations)
     if gaps or checks is None:
         return "", gaps
     floor = next(

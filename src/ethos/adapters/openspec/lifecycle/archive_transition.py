@@ -31,6 +31,8 @@ from ethos.repository.profile import load_repository_profile
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.semantic import Attestation
+
 
 class ArchivePostimage(NamedTuple):
     """One exact official archive post-image observed from the worktree."""
@@ -54,12 +56,14 @@ def attested_archive_transition(
     *,
     head: str,
     change: str | None = None,
+    attestations: tuple[Attestation, ...] | None = None,
 ) -> tuple[Commitment, dict[str, object]] | None:
-    """Recover archived intent only from its exact Git-effect Attestation."""
-    try:
-        _identity, attestations = read_attestation_set(root)
-    except ValueError:
-        return None
+    """Validate archived intent in one fresh or caller-observed exact evidence set."""
+    if attestations is None:
+        try:
+            _identity, attestations = read_attestation_set(root)
+        except ValueError:
+            return None
     matches: list[AttestedArchive] = []
     repairs: dict[str, dict[str, object] | None] = {}
     for attestation in attestations:

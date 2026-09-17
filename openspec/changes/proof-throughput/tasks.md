@@ -8,6 +8,7 @@
 - [x] Remove absent archived-Change projection work while preserving active reopen precedence.
 - [x] Decompose complete installed acceptance and compare covered native hotspots.
 - [x] Remove per-file directory-prefix reconstruction without caching integrity verdicts.
+- [x] Share one fresh canonical evidence set between proof selection and archive validation.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

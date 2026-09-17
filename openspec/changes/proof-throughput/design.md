@@ -226,6 +226,37 @@ installed native merge path. Preserve independent effects and their fresh
 checks; do not collapse separate admissions or replace native journeys with
 mocked success. Full-suite phase timing after these changes remains unmeasured.
 
+The rebuilt `2853c397d` wheel passed the same complete isolated installed
+acceptance in 170.14 seconds, including preparation and cleanup. Native merge
+took 66.55 seconds. The 3.39-second total reduction is one before/after sample,
+not a controlled claim that inventory alone explains the difference. Both runs
+retain every lifecycle obligation. Raw spans and the package acceptance receipt
+are in `throughput-install-after-inventory*`.
+
+### One Evidence Observation Per Proof Query
+
+Proof selection and archive-source validation now consume the same freshly read
+canonical Attestation tuple. The proof owner reads once and passes it explicitly
+through Commitment compilation to the archive owner; independent archive callers
+still read their own current set. None means unobserved, while an empty tuple is
+an observed empty set. No persistent cache, second selector or implicit global
+context is introduced. Each subsequent proof query rereads the selected set.
+
+The native archived-proof regression fails on the former second read. It now
+verifies repeated fresh queries, retired authoring Lease, omitted intent and
+withdrawn archive evidence; the latter cannot reuse a prior source acceptance.
+The 116-case linked proof, compilation, archive and recovery matrix passed with
+two workers in 141.64 seconds. Four follow-up cases verified equivalent
+assertion consolidation. A budget check rejected 50,004 test ELOC; equivalent
+assertions were consolidated to 49,998 without changing the 50,000 limit.
+
+On one real archived fixture, alternating before/after/after/before proof queries
+returned the same exact proof with 25/19/19/25 subprocesses and elapsed times of
+0.262/0.227/0.235/0.270 seconds. The removed six calls are the duplicate canonical
+set observation, not freshness or validation bypasses. The owned fixture was
+removed; `throughput-proof-snapshot-comparison.json` retains the raw comparison.
+This query improvement does not demonstrate complete-proof throughput.
+
 Compare the same workload before and after each repair: outcome, source/ref
 postconditions, subprocess counts, elapsed time and owned-resource cleanup.
 Use distinguishing counterexamples for stale inputs, mutation during reads,

@@ -79,8 +79,23 @@ checks passed, including strict OpenSpec with no warnings. Signing ACK loss,
 exact inverse compensation, actor-bound replay, native tag identity and honest
 accepted-content reporting are covered; this is not committed full proof or
 installed-product acceptance. Native signed-object, timeout and kill fixtures
-now share their existing owners. Current product/test ELOC are 45,246/50,000;
-no budget or coverage floor changed. Freeze inputs before exact full proof.
+now share their existing owners. Committed product/test ELOC are 45,246/50,000;
+no budget or coverage floor changed.
+
+Exact source proof at `46015a513f3868369a4cf120adda98765bc650af` failed after
+1,923.14 seconds: 3,759 passed, two failed and one skipped. The protected-tag
+hook fixture retained a pre-enforcement expectation; the native supply fixture's
+shell executable timed out during version observation. Dependent coverage,
+build and installation gates did not execute. Owned basetemp was removed.
+The corrected hook matrix rejects the tag without policy and observes runtime
+once. It derives exit status from the expected gap instead of duplicating both
+columns. All 98 hook/protocol/supply cases pass in 48.17 seconds; the unchanged
+supply case takes 3.76 seconds. This does not identify or fix the earlier startup
+timeout. Eleven affected public gates pass; product/test ELOC are 45,246/49,999.
+The failed proof and JUnit/coverage outputs remain preserved by exact source.
+Another frozen full proof is required; no archive, acceptance or publication
+occurred. Preserve the timeout as an unresolved P5 observation, without raising
+deadlines, retrying individual failed cases inside proof or weakening admission.
 
 Current peer CI observations differ. GitLab pipelines 7109/7110 passed for
 `40bc6ff4`. GitHub run 35184595384 has successful quality/source verification
@@ -88,8 +103,11 @@ and macOS/Linux conformance, but Windows Python 3.12/3.13/3.14 conformance
 failed. Job 105083827365 identifies `merge_metadata_changed` while starting
 the package-only native merge; missing smoke upload is its downstream symptom.
 The readback and native job log are in the existing commit-integrity evidence
-root. Repair native metadata observation at its owner in the next bounded
-closure and rerun the real Windows path; do not call this platform accepted.
+root. Fixed CPython 3.12.12/3.14.7 sources show path stat copies birthtime into
+ctime while fstat retains change time. The isolated stable-representation probe
+reproduces rejection without file mutation; it is not native Windows acceptance.
+Repair comparisons at the metadata owner in the next bounded closure, retaining
+same-channel drift and file-identity checks, then rerun the real Windows path.
 
 Hosted history-repair reconstruction is a separate verified gap. The first
 corrected-history GitLab push lacked the old object in its cold checkout.

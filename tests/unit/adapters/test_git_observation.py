@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import importlib
 import os
 import subprocess
+import sys
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +16,7 @@ from ethos.adapters.repo.git import run_git
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.subprocesses import completed
 
 
 def _completed(returncode: int, stdout: bytes = b"") -> subprocess.CompletedProcess[bytes]:
@@ -71,20 +72,23 @@ def test_ref_progress_preserves_unknown_when_reflog_is_unavailable(tmp_path: Pat
 
 
 def test_run_git_resolves_git_from_the_execution_environment_not_import_time(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
+    """Import under an empty PATH without replacing classes held by other tests."""
     repo = init_git_repo(tmp_path / "repo")
     git = git_adapter.shutil.which("git")
     assert git is not None
-    git_directory = str(Path(git).resolve().parent)
-
-    monkeypatch.setenv("PATH", "")
-    importlib.reload(git_adapter)
-    monkeypatch.setenv("PATH", git_directory)
-
-    completed = git_adapter.run_git(repo, "rev-parse", "HEAD")
-
-    assert completed.returncode == 0
+    script = (
+        "import os,sys; from pathlib import Path; os.environ['PATH']=''; "
+        "from ethos.adapters.repo.git import run_git; os.environ['PATH']=sys.argv[1]; "
+        "assert run_git(Path(sys.argv[2]),'rev-parse','HEAD').returncode == 0"
+    )
+    process_adapter.run_command(
+        repo,
+        (sys.executable, "-B", "-c", script, str(Path(git).resolve().parent), str(repo)),
+        check=True,
+        timeout=10,
+    )
 
 
 def test_run_git_fails_closed_when_effective_path_has_no_git(
@@ -165,10 +169,7 @@ def test_run_git_preserves_one_complete_inherited_indexed_config_overlay(
     monkeypatch.setattr(
         process_adapter,
         "run_command",
-        lambda _root, command, **kwargs: (
-            observed.update(command=command, **kwargs)
-            or type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
-        ),
+        lambda _root, command, **kwargs: observed.update(command=command, **kwargs) or completed(),
     )
 
     run_git(repo, "status", env=explicit)
@@ -233,10 +234,7 @@ def test_network_git_preserves_effective_global_credentials(
     monkeypatch.setattr(
         process_adapter,
         "run_command",
-        lambda _root, command, **kwargs: (
-            observed.update(command=command, **kwargs)
-            or type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
-        ),
+        lambda _root, command, **kwargs: observed.update(command=command, **kwargs) or completed(),
     )
 
     git_adapter.run_network_git(init_git_repo(tmp_path / "repo"), "ls-remote", "origin")

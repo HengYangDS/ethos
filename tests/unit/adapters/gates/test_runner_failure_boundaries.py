@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -15,38 +16,23 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _command_case() -> tuple[PlanNode, Gate]:
-    gate = Gate(id="gate", kind="test", command=("missing-tool", "--check"))
-    return (
-        PlanNode(id="gate", kind="check", command=gate_runner.gate_execution_identity(gate)),
-        gate,
-    )
-
-
+@pytest.mark.parametrize("missing", [False, True])
 def test_command_runner_surfaces_missing_command_and_nonzero_exit(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, missing: bool
 ) -> None:
-    node, gate = _command_case()
-    monkeypatch.setattr(
-        gate_runner.subprocess,
-        "run",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            FileNotFoundError(2, "missing", "missing-tool")
-        ),
+    gate = Gate(id="gate", kind="test", command=("missing-tool", "--check"))
+    node = PlanNode(id=gate.id, kind="check", command=gate_runner.gate_execution_identity(gate))
+    run = Mock(
+        return_value=SimpleNamespace(returncode=7, stdout="partial output", stderr="quality failed")
     )
-    missing = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
-    assert (missing.verdict, missing.exit_code) == ("block", 127)
-    assert missing.diagnostics[0]["required_gaps"] == ["missing_command:missing-tool"]
-
-    monkeypatch.setattr(
-        gate_runner.subprocess,
-        "run",
-        lambda *_args, **_kwargs: SimpleNamespace(
-            returncode=7, stdout="partial output", stderr="quality failed"
-        ),
-    )
-    failed = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
-    assert (failed.verdict, failed.exit_code, failed.stderr) == ("block", 7, "quality failed")
+    run.side_effect = FileNotFoundError(2, "missing", "missing-tool") if missing else None
+    monkeypatch.setattr(gate_runner.subprocess, "run", run)
+    result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
+    assert (result.verdict, result.exit_code) == ("block", 127 if missing else 7)
+    if missing:
+        assert result.diagnostics[0]["required_gaps"] == ["missing_command:missing-tool"]
+    else:
+        assert (result.stdout, result.stderr) == ("partial output", "quality failed")
 
 
 @pytest.mark.parametrize(
@@ -202,16 +188,20 @@ def test_failed_dependency_never_executes_delivery(tmp_path, prerequisite, exit_
         capacity=2,
         parallel=False,
     )
-    assert executed == (
-        []
-        if planned
-        else ["coverage", "delivery", "diagnostic"]
-        if expected == ("pass", 0)
-        else ["coverage", "diagnostic"]
-    )
+    assert executed == [
+        node.id
+        for node in nodes
+        if not planned and (node.id != "delivery" or expected == ("pass", 0))
+    ]
     assert {result.action_id for result in results} == {node.id for node in nodes}
     blocked = next(result for result in results if result.action_id == "delivery")
     assert (blocked.verdict, blocked.exit_code) == expected
+    for result in results:
+        if planned or (result.exit_code is None and result.action_id == "delivery"):
+            assert result.started_after_seconds is result.duration_seconds is None
+        else:
+            assert result.started_after_seconds >= 0
+            assert result.duration_seconds >= 0
     assert (
         not blocked.diagnostics
         if expected[0] != "block"

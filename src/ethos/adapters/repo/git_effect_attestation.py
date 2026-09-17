@@ -317,6 +317,13 @@ def accepted_closeout_attestation(
             plan = plan_from_attestation(attestation)
             effect = git_effect_from_plan(plan)
             update = effect.updates.get(accepted_ref)
+            if (
+                plan.policy.get("transition") != "candidate.accept"
+                or update is None
+                or update.desired != candidate_head
+                or effect.assertions.get(candidate_ref) != candidate_head
+            ):
+                continue
             validate(
                 root,
                 effect,
@@ -327,13 +334,7 @@ def accepted_closeout_attestation(
             )
         except ValueError:
             continue
-        if (
-            plan.policy.get("transition") == "candidate.accept"
-            and update is not None
-            and update.desired == candidate_head
-            and effect.assertions.get(candidate_ref) == candidate_head
-        ):
-            matches.append((plan, attestation))
+        matches.append((plan, attestation))
     if len(matches) > 1:
         message = "accepted_closeout_effect_ambiguous"
         raise ValueError(message)

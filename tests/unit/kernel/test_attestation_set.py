@@ -96,7 +96,7 @@ def test_attestation_set_read_uses_constant_git_processes(
     assert attestation_set.read_attestation_set(repo)[1] == tuple(
         sorted(attestations, key=lambda item: item.id)
     )
-    assert counted_run_git.call_count <= 8
+    assert counted_run_git.call_count <= 5
 
 
 def test_attestation_set_ignores_workspace_history_and_needs_no_directory(tmp_path: Path) -> None:
@@ -187,15 +187,15 @@ def test_attestation_set_rejects_malformed_carriers_and_honors_object_format(
 def test_attestation_set_empty_and_invalid_ref_observations_fail_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    with pytest.raises(ValueError, match="attestation_set_repository_invalid"):
+        attestation_set.read_attestation_set(tmp_path)
     repo = init_git_repo(tmp_path / "repo")
     assert attestation_set.read_attestation_set(repo) == ("", ())
 
     original = attestation_set.run_git
     existing = str(attestation_set.record_attestations(repo, (_attestation(15),))["root"])
     cases = (
-        (("rev-parse", "--git-dir"), 1, "attestation_set_repository_invalid"),
         (("symbolic-ref", "--quiet"), 2, "attestation_set_ref_invalid"),
-        (("show-ref", "--exists"), 1, "attestation_set_ref_invalid"),
         (("show-ref", "--verify"), 1, "attestation_set_ref_invalid"),
     )
     for prefix, returncode, gap in cases:

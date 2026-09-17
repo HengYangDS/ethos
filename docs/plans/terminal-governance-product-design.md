@@ -123,12 +123,47 @@ local-verification receipt ownership, cold-CI materials and independent release
 selection remain separate obligations. Existing commit-integrity receipts hold
 execution evidence; plan prose is not proof or a runtime status database.
 
-Advance measured P5 work at these existing owners without interrupting the
-current closure. The latest accepted proof took 2,087.626 seconds; its JUnit reports
-1,814.155 seconds in pytest. The preceding intent-selection measurement attributed 36.07 percent of
-summed case time to six lifecycle modules, not wall time. The installed-product smoke takes roughly three
-minutes; most other checks are seconds. These measurements displace the older
-56-percent hotspot estimate, not the need for complete verification.
+The September 17 throughput requirement promotes P5 onto the immediate critical
+path: complete proof must reach at most 600 seconds on this workstation with
+two workers, unchanged gates and at least 95-percent combined coverage. This
+includes command preparation and cleanup, not just cached or selected tests.
+Report cold computation and warm runs separately; disclose external provisioning
+outside the command. Do not raise concurrency or hide prework to meet the target.
+
+The complete source proof at `26405d4d8` passed all 35 gates in 2,171.66 seconds:
+3,761 tests passed and one skipped. Pytest took 1,925.09 seconds (88.6 percent),
+leaving 246.57 seconds for all other stages. Nox reports approximately three
+minutes for installed-product acceptance, but no exact phase timeline exists
+yet. The ten slowest modules contribute 1,835.55 seconds of summed case time;
+this concurrent total is not wall time or an additive saving estimate.
+
+One release-path cProfile sample found 1,610 subprocess calls, including 536
+rev-parse calls, twenty source-identity rebuilds, and five update-ref calls
+totalling 16.98 seconds including hooks. Fixture creation took 24.46 seconds of
+the 36.31-second profiled case. A separate Git Trace2 sample attributed 19.03
+seconds to an initial preparing hook; ordinary protocol-import probes completed
+within a one-second observation window. Startup delay is not yet causally
+resolved. These profiles include instrumentation cost and cannot be extrapolated
+as full-suite savings. Immutable evidence remains in the existing evidence root.
+
+The official `proof-throughput` Change first addresses the shared native
+observation and startup paths used by slow lifecycle cases, then installed
+acceptance and measured duplicate work across gates. Reuse pure computation
+only under exact inputs; retain fresh effect-time ref, Lease and trust checks.
+Its design owns the measured layer/family/module breakdown and priority order;
+raw observations remain in `throughput-baseline-breakdown.json` under the
+existing ignored evidence root. CLI, lane and mutation cases account for 74.1
+percent of summed test time. The two-worker occupancy ratio is 98.9 percent,
+so reduced work per case takes priority over scheduling changes. The first two
+repairs reduce one representative native release from 1,610 to 1,491 subprocess
+calls without caching mutable authority. Gate timing now follows existing
+results into CLI and proof artifacts; legacy unmeasured phases remain unknown.
+Neither these work reductions nor variable single-case elapsed times satisfy
+the ten-minute full-proof criterion. Resolve source observation and native
+startup, then measure installed acceptance before the next full timed run.
+Release promotion was officially archived at `21ac0cd4` with source proof and
+zero warnings; its postarchive proof, acceptance, runtime activation and peer
+publication remain outstanding. Do not report that capability delivered yet.
 
 First reduce failure latency with the smallest distinguishing test and cheap
 dependency-resolved checks. The generated-artifacts gate depends on the full

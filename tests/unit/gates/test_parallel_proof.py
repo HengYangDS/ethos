@@ -125,6 +125,9 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
 
     assert passed is True
     assert [check["action_id"] for check in checks] == ["a", "b"]
+    for check in checks:
+        assert check["started_after_seconds"] >= 0
+        assert check["duration_seconds"] >= 0
 
 
 def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> None:

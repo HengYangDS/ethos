@@ -104,13 +104,13 @@ def test_candidate_base_report_blocks_dirty_and_non_ancestor_candidate(
     }
     monkeypatch.setattr(landing, "load_branch_role_policy", lambda _root: BranchRolePolicy())
     monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: _git("candidate"))
-    monkeypatch.setattr(landing, "dirty_provenance", lambda _root: {"dirty": True})
+    monkeypatch.setattr(landing, "has_changed_paths", lambda _root: True)
 
     assert landing.candidate_base_report(root=tmp_path, status=status)["required_gaps"] == [
         "candidate_worktree_dirty"
     ]
 
-    monkeypatch.setattr(landing, "dirty_provenance", lambda _root: {"dirty": False})
+    monkeypatch.setattr(landing, "has_changed_paths", lambda _root: False)
     monkeypatch.setattr(landing, "is_ancestor", lambda *_a: False)
     assert landing.candidate_base_report(root=tmp_path, status=status)["required_gaps"] == [
         "candidate_base_stale"

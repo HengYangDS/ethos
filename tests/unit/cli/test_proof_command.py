@@ -453,6 +453,8 @@ def test_compact_and_detailed_proof_preserve_the_same_observed_meaning(
         assert compact.data[key] == detailed.data[key], key
     assert detailed.data["expected_head"]["current"] == "a" * 40
     assert detailed.data["checks"][0]["action_id"] == "gate"
+    assert compact.data["checks"][0]["duration_seconds"] is None
+    assert compact.data["checks"][0]["started_after_seconds"] is None
     assert "transition_plan" not in compact.data
     assert detailed.data["transition_plan"]["facts"]["head"] == "a" * 40
 

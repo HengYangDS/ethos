@@ -266,8 +266,8 @@ def _check_summaries(checks: list[dict[str, object]]) -> list[dict[str, object]]
             "evidence_class": check["evidence_class"],
             "trust_bearing": check["trust_bearing"],
             "diagnostic_count": len(cast("list[object]", check["diagnostics"])),
-            "started_after_seconds": check["started_after_seconds"],
-            "duration_seconds": check["duration_seconds"],
+            "started_after_seconds": check.get("started_after_seconds"),
+            "duration_seconds": check.get("duration_seconds"),
         }
         for check in checks
     ]

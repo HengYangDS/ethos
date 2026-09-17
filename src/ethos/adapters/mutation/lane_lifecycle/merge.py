@@ -33,6 +33,7 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 
 MergeMode = Literal["inspect", "start", "continue", "abort"]
@@ -211,7 +212,7 @@ def _result(observed: MergeObservation, result: dict[str, object]) -> dict[str, 
     )
 
 
-def _stage_admission(root: Path) -> None:
+def _stage_admission(root: Path) -> dict[str, object]:
     paths = run_git(root, "diff", "--cached", "--name-only", "-z", observation=True).stdout
     admission = prewrite_guard(
         root=root,
@@ -219,22 +220,33 @@ def _stage_admission(root: Path) -> None:
         editor_root=root,
         require_editor_root=True,
         staged=True,
+        require_workspace=True,
     )
     if admission["verdict"] != "pass":
         _fail(next(iter(string_sequence(admission["required_gaps"])), "merge_scope_unavailable"))
+    return string_mapping(admission["openspec"])
 
 
 def _admit_mode(context: _MergeContext, mode: MergeMode) -> None:
     if gaps := _mode_gaps(context.root, context.observed, mode, context.incoming):
         _fail(gaps[0])
     if mode != "abort":
-        official = openspec_governance_report(context.root, lifecycle=True)
-        if official["verdict"] != "pass":
-            _fail(str(official["required_gaps"][0]))
-    if mode == "continue":
-        if gaps := incoming_change_gaps(context.root, str(official["change"]), context.incoming):
-            _fail(gaps[0])
-        _stage_admission(context.root)
+        official = (
+            _stage_admission(context.root)
+            if mode == "continue"
+            else openspec_governance_report(context.root, lifecycle=True)
+        )
+        if official.get("verdict") != "pass":
+            _fail(
+                next(
+                    iter(string_sequence(official.get("required_gaps"))),
+                    "openspec_scope_unavailable",
+                )
+            )
+    if mode == "continue" and (
+        gaps := incoming_change_gaps(context.root, str(official.get("change")), context.incoming)
+    ):
+        _fail(gaps[0])
 
 
 def _preview(context: _MergeContext, mode: MergeMode, message: str) -> dict[str, object]:

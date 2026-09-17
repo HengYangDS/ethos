@@ -56,6 +56,7 @@ def prewrite_guard(
     patch: str = "",
     staged: bool = False,
     selected_runtime: SelectedRuntime | None = None,
+    require_workspace: bool = False,
 ) -> dict[str, object]:
     status = _prewrite_status(root, selected_runtime=selected_runtime)
     status_role, status_branch = str(status["role"]), str(status["branch"])
@@ -80,6 +81,7 @@ def prewrite_guard(
     )
     lease = current_authority.projection()
     profile_enabled = openspec_profile_enabled(root)
+    official: dict[str, object] = {"verdict": "pass", "change": None, "required_gaps": []}
     authority = lease
     if profile_enabled:
         resolution = resolve_current_resolution(
@@ -92,7 +94,9 @@ def prewrite_guard(
             authority=current_authority,
             changed=False,
             prewrite_paths=requested,
+            require_workspace=require_workspace,
         )
+        official = resolution.openspec
         scope = resolution.scope_report(requested)
         if resolution.verdict != "pass":
             scope.update(
@@ -175,6 +179,7 @@ def prewrite_guard(
         "editor_root": editor,
         "patch_admission": patch_report,
         "material_scope": scope,
+        "openspec": official,
         "paths": checked,
         "blocked_paths": blocked,
         "request_binding": decision.subject.model_dump(mode="json"),

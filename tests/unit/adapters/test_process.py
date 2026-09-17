@@ -7,7 +7,6 @@ import os
 import socket
 import subprocess
 import sys
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -16,9 +15,6 @@ from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _file_reference_payloads():
@@ -109,74 +105,69 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
     assert str(tmp_path / "ambient") not in observed[0][1]
 
 
-def test_windows_powershell_is_resolved_from_the_native_system_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    executable = tmp_path / "System32/WindowsPowerShell/v1.0/powershell.exe"
-    executable.parent.mkdir(parents=True)
-    executable.write_text("native\n", encoding="utf-8")
+@pytest.mark.parametrize("platform", ["posix", "windows"])
+def test_process_observer_resolves_native_authority(tmp_path, monkeypatch, platform):
+    """Native observer selection is independent of an ambient executable path."""
+    relative = (
+        "System32/WindowsPowerShell/v1.0/powershell.exe" if platform == "windows" else "bin/ps"
+    )
+    native = tmp_path / relative
+    native.parent.mkdir(parents=True)
+    native.write_text("native\n", encoding="utf-8")
     monkeypatch.setenv("SYSTEMROOT", tmp_path.as_posix())
     monkeypatch.setenv("PATH", (tmp_path / "ambient").as_posix())
+    observed = []
 
-    assert process_adapter.windows_powershell() == executable.resolve().as_posix()
-
-
-def test_windows_powershell_rejects_missing_native_authority(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv("SYSTEMROOT", raising=False)
-
-    with pytest.raises(process_adapter.ProcessExecutionError) as failure:
-        process_adapter.windows_powershell()
-
-    assert failure.value.evidence() == {
-        "code": "native_windows_powershell_unavailable",
-        "reason": "system_root_missing",
-        "command": [],
-        "cwd": "",
-        "cause": "",
-    }
-
-
-def test_posix_process_listing_resolves_native_ps_outside_ambient_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    native = tmp_path / "native/ps"
-    native.parent.mkdir()
-    native.write_text("native\n", encoding="utf-8")
-    native.chmod(0o755)
-    observed: dict[str, str] = {}
-    monkeypatch.setenv("PATH", (tmp_path / "ambient").as_posix())
-
-    def resolve(name: str, *, path: str) -> str:
-        observed.update(name=name, path=path)
+    def resolve(name, *, path):
+        observed.append((name, path))
         return native.as_posix()
 
     monkeypatch.setattr(process_adapter.shutil, "which", resolve)
+    if platform == "windows":
+        assert process_adapter.windows_powershell() == native.resolve().as_posix()
+        assert observed == []
+        monkeypatch.delenv("SYSTEMROOT")
+        with pytest.raises(process_adapter.ProcessExecutionError) as caught:
+            process_adapter.windows_powershell()
+        assert caught.value.evidence() == {
+            "code": "native_windows_powershell_unavailable",
+            "reason": "system_root_missing",
+            "command": [],
+            "cwd": "",
+            "cause": "",
+        }
+    else:
+        assert process_adapter.process_listing_command(platform_name=platform) == (
+            native.resolve().as_posix(),
+            "-axww",
+            "-o",
+            "command=",
+        )
+        assert observed == [("ps", os.defpath)]
 
-    assert process_adapter.process_listing_command(platform_name="posix") == (
-        native.resolve().as_posix(),
-        "-axww",
-        "-o",
-        "command=",
-    )
-    assert observed == {"name": "ps", "path": os.defpath}
 
-
-@pytest.mark.parametrize("phase", ["spawn", "communication"])
+@pytest.mark.parametrize("phase", ["spawn", "communication", "completed"])
 def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, phase):
     """Only failure before successful creation is a process-creation error."""
     failure = OSError(5, "boundary probe")
     target, attribute = (
         (subprocess, "Popen") if phase == "spawn" else (subprocess.Popen, "communicate")
     )
-    monkeypatch.setattr(target, attribute, lambda *_a, **_kw: (_ for _ in ()).throw(failure))
+
+    def reject(*args, **_kwargs):
+        if phase == "completed":
+            if not hasattr(os, "waitid"):
+                pytest.skip("Native unreaped child observation requires waitid")
+            os.waitid(os.P_PID, args[0].pid, os.WEXITED | os.WNOWAIT)
+        raise failure
+
+    monkeypatch.setattr(target, attribute, reject)
     command = (sys.executable, "-c", "pass")
     with pytest.raises(
         process_adapter.ProcessExecutionError if phase == "spawn" else OSError
     ) as caught:
         process_adapter.run_command(tmp_path, command)
-    if phase == "communication":
+    if phase != "spawn":
         assert caught.value is failure
     else:
         assert caught.value.evidence() == {
@@ -227,8 +218,12 @@ def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
 @pytest.mark.parametrize("failure", ["timeout", "cancel", "gate-cancel"])
-@pytest.mark.parametrize("inherit_pipes", [False, True])
-def test_command_failure_closes_owned_descendants(tmp_path, monkeypatch, failure, inherit_pipes):
+@pytest.mark.parametrize(
+    ("parent_exited", "inherit_pipes"), [(False, False), (False, True), (True, True)]
+)
+def test_command_failure_closes_owned_descendants(
+    tmp_path, monkeypatch, failure, inherit_pipes, parent_exited
+):
     """A ready descendant cannot retain its socket after the command is interrupted."""
     communicate = subprocess.Popen.communicate
     connection = None
@@ -244,7 +239,8 @@ def test_command_failure_closes_owned_descendants(tmp_path, monkeypatch, failure
             "import subprocess,sys; print('started',flush=True); "
             f"subprocess.Popen([sys.executable,'-c',{child!r}],"
             f"stdout={None if inherit_pipes else subprocess.DEVNULL},"
-            f"stderr={None if inherit_pipes else subprocess.DEVNULL}).wait()"
+            f"stderr={None if inherit_pipes else subprocess.DEVNULL})"
+            + ("" if parent_exited else ".wait()")
         )
 
         def after_ready(process, *args, **kwargs):
@@ -253,6 +249,8 @@ def test_command_failure_closes_owned_descendants(tmp_path, monkeypatch, failure
                 connection, _ = listener.accept()
                 connection.settimeout(2)
                 assert connection.recv(1) == b"R"
+                if parent_exited:
+                    os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
                 if failure != "timeout":
                     raise KeyboardInterrupt
             return communicate(process, *args, **kwargs)

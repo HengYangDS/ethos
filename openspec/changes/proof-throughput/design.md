@@ -859,3 +859,67 @@ cleanup, retain all gates and at least 95-percent combined line/branch coverage,
 and report cold-computation and warm results separately. Initial installation
 or network acquisition not included by the command must be disclosed separately.
 The target is at most 600 seconds; partial speedups do not satisfy it.
+
+
+### Exact Full-Proof Readback And Cancellation Race
+
+The immutable `2acfe4a080d6c1c6f82b692d0a54144f87e179f9` proof passes all 35
+gates with 3,797 passed and one skipped case. Combined line/branch coverage is
+95.085528 percent. Complete elapsed time is 1,840.895 seconds, plus a separate
+26.174-second preflight. The 600-second target remains unmet. Exact wall
+accounting, artifact hashes and the case ranking are in
+`throughput-post-batch-breakdown.json`; this unchanged proof was not rerun.
+
+| Exclusive phase | Seconds |
+| --- | ---: |
+| Pytest | 1,622.028 |
+| Installed acceptance | 165.104 |
+| Test setup, reporting and cleanup | 18.597 |
+| Prerequisite critical path | 17.246 |
+| Outside the gate graph | 12.891 |
+| Coverage and artifact processing | 1.081 |
+| Build | 1.427 |
+| SBOM | 2.522 |
+
+A native land-policy case still makes 885 product subprocess calls, including
+849 Git calls, thirteen source observations and 36 Node calls. Repeated native
+work, not worker count alone, remains the primary optimization target. Native
+Node compile-cache and alternative spawn experiments did not justify adoption;
+`throughput-node-compile-cache-probe.json` and
+`throughput-posix-spawn-comparison.json` retain their costs and limitations.
+
+A real unreaped child establishes the cancellation-race counterexample:
+communication raises the selected error after the child exits; group signaling
+returns PermissionError and masks that error. The native kernel source snapshot
+in `parallel-xnu-signal-official-source.stdout.log` excludes zombies from the
+group callback and explains this observed boundary; upstream main is not proof
+of the exact installed kernel implementation.
+
+The existing process owner now resolves this exceptional path by polling/reaping
+its exact child and observing group absence. A live child or a still-existing
+or unobservable group retains the cleanup failure. Group absence alone permits
+the original exception to propagate. No permission suppression, signal retry,
+PID scan, timeout increase or new supervisor is introduced. Ordinary execution
+adds no native call. Native regressions also cover an exited group leader with
+a living descendant, so skipping cleanup after parent exit is not a solution.
+
+`parallel-cleanup-race-red-corrected` fails only the intended error-identity
+assertion before repair. The first test expansion also assumed a timeout after
+both parent exit and output-pipe closure; that invalid fixture expectation was
+removed rather than changing command semantics. Three observer tests share one
+native-selection fixture while retaining each authority assertion; budgets stay
+at 45,412 product and 50,000 test ELOC, without weakened thresholds.
+
+`parallel-cleanup-concurrency.json` binds the source patch, exact commands and
+JUnit hashes. The same 282 process/Git/runtime/hook/gate/public-proof cases pass
+with two, four and eight workers in 35.98, 20.21 and 14.78 seconds including
+owned-root cleanup. Source is frozen throughout, all temporary roots disappear,
+and no worker restart or retry is used. These no-coverage diagnostic runs retain
+host caches and are not counterbalanced; they are not full-proof or native
+Windows qualification. Type, size and source-budget gates pass separately.
+
+Worker hard-exit containment remains open: caller-side cleanup cannot survive
+its own process death. The prior same-group survivor probe remains valid
+counterevidence. Next repairs must preserve a surviving lifetime owner, nested
+command boundaries and healthy concurrent work; no global process scan or
+permanent serial test policy substitutes for that guarantee.

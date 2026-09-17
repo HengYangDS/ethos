@@ -234,8 +234,7 @@ def _execute_command(
         try:
             stdout, stderr = process.communicate(stdin, timeout=timeout)
         except BaseException as error:
-            with suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL) if os.name == "posix" else process.kill()
+            _terminate_command(process)
             if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
                 error.stdout, error.stderr = process.communicate()
             process.wait()
@@ -244,3 +243,20 @@ def _execute_command(
         if check:
             result.check_returncode()
         return result
+
+
+def _terminate_command(process: subprocess.Popen[Any]) -> None:
+    """Terminate owned processes; only observed group absence resolves a kill race."""
+    with suppress(ProcessLookupError):
+        if os.name != "posix":
+            process.kill()
+            return
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except PermissionError:
+            if process.poll() is None:
+                raise
+            # An unreaped exited leader can leave an unsignalable group on Darwin.
+            # Reaping is insufficient: surviving members must not be ignored.
+            os.killpg(process.pid, 0)
+            raise

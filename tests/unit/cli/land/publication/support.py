@@ -158,21 +158,3 @@ def signed_publication_fixture(
         configured_signer_fingerprint(repo),
         hashlib.sha256(anchor.read_bytes()).hexdigest(),
     )
-
-
-def unavailable_remote(root: Path, remote: str, ref: str) -> dict[str, object]:
-    """One explicit unavailable external observation for publication fault tests."""
-    return {
-        "kind": "git_remote_ref_observation",
-        "remote": remote,
-        "ref": ref,
-        "state": "unavailable",
-        "reason": "timeout",
-        "object_oid": "",
-        "peeled_commit": "",
-        "tree_oid": "",
-        "command": ["git", "ls-remote", remote, ref],
-        "cwd": root.resolve().as_posix(),
-        "timeout_seconds": 30,
-        "stderr": "transport stalled",
-    }

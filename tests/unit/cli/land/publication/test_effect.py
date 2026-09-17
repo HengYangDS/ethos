@@ -9,6 +9,7 @@ import pytest
 
 import ethos.adapters.mutation.proof as proof_owner
 import ethos.adapters.mutation.publication.attestation as publication_attestation
+import ethos.adapters.mutation.publication.observation as publication_observation
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
@@ -134,13 +135,9 @@ def test_publish_branch_dry_run_and_apply_share_one_plan_and_attestation(
     assert {proposal_ref(remote) for remote in remotes.values()} == {""}
 
     if interrupted:
-
-        def fail_record(*_args):
-            message = "interrupted"
-            raise RuntimeError(message)
-
+        failure = Mock(side_effect=RuntimeError("interrupted"))
         with monkeypatch.context() as patch:
-            patch.setattr(publication_attestation, "record_attestations", fail_record)
+            patch.setattr(publication_attestation, "record_attestations", failure)
             with pytest.raises(RuntimeError, match="interrupted"):
                 apply_receipt(repo, receipt, head)
     else:
@@ -177,10 +174,16 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     git(repo, "update-ref", "refs/heads/main", head)
     proof_reads = Mock(wraps=proof_owner.proof_for_repository_transition)
     monkeypatch.setattr(proof_owner, "proof_for_repository_transition", proof_reads)
+    network = Mock(wraps=publication_observation.git.run_network_git)
+    monkeypatch.setattr(publication_observation.git, "run_network_git", network)
     dry_run = branch_publication(
         repo, head, "--ref", "refs/heads/dev", target_ref="refs/heads/main"
     )
     assert proof_reads.call_count == 1
+    assert [call.args[1:] for call in network.call_args_list if call.args[1] == "ls-remote"] == [
+        ("ls-remote", remote, "refs/heads/main", "refs/heads/dev")
+        for remote in ("origin", "github")
+    ]
     receipt = dry_run["data"]["request_receipt"]
     targets = dry_run["data"]["remote_effect"]["targets"]
     reports = dry_run["data"]["push_admission"]

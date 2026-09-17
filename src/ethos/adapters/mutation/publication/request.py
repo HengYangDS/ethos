@@ -92,10 +92,7 @@ def observe_remote_publication_effect(
     targets: list[PublicationTarget] = []
     gaps: list[str] = []
     for peer_id, remote in remotes.items():
-        ref_observations = {
-            target_ref: publication_observation.observe_remote_ref(root, remote, target_ref)
-            for target_ref in target_refs
-        }
+        ref_observations = publication_observation.observe_remote_refs(root, remote, target_refs)
         unavailable = any(
             str(observation.get("state") or "unavailable") == "unavailable"
             for observation in ref_observations.values()

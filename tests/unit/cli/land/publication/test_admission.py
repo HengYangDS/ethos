@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import subprocess
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -26,7 +27,6 @@ from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
 from tests.unit.cli.land.publication.support import signed_publication_fixture
-from tests.unit.cli.land.publication.support import unavailable_remote
 
 
 @pytest.mark.parametrize("valid", [False, True])
@@ -88,33 +88,28 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         "capabilities": ["repository", "publication"],
     }
     (tmp_path / "folder").mkdir()
-
-    def case(gap: str, **updates: object) -> tuple[dict[str, object], str]:
-        return {**local, **updates}, gap
-
-    cases = [
-        case("declaration_invalid", peers={}),
-        case("peer_declaration_invalid", peers=[{**peer, "extra": 1}]),
-        case("peer_declaration_invalid", peers=[{**peer, "id": 1}]),
-        case("peer_declaration_invalid", peers=[{**peer, "capabilities": [1]}]),
-        case("peer_declaration_invalid", peers=[{**peer, "ci_surface": 1}]),
-        case("git_remote_invalid", peers=[{**peer, "git_remote": "../x"}]),
-        case("capabilities_invalid", peers=[{**peer, "capabilities": []}]),
-        case(
-            "ci_surface_missing", peers=[{**peer, "capabilities": [*peer["capabilities"], "ci_cd"]}]
-        ),
-        case("ci_surface_without_capability", peers=[{**peer, "ci_surface": "ci.yml"}]),
-        *(
-            case(gap, local_verification_command=value, peers=[])
-            for value, gap in (
-                ("", "command_missing"),
-                ("'", "command_invalid"),
-                ('""', "command_not_regular"),
-                ("/bin/sh", "command_path_escape"),
-                ("folder", "command_not_regular"),
-            )
-        ),
-    ]
+    cases = [({**local, "peers": {}}, "declaration_invalid")]
+    for field, value, gap in (
+        ("extra", 1, "peer_declaration_invalid"),
+        ("id", 1, "peer_declaration_invalid"),
+        ("capabilities", [1], "peer_declaration_invalid"),
+        ("ci_surface", 1, "peer_declaration_invalid"),
+        ("git_remote", "../x", "git_remote_invalid"),
+        ("capabilities", [], "capabilities_invalid"),
+        ("capabilities", [*peer["capabilities"], "ci_cd"], "ci_surface_missing"),
+        ("ci_surface", "ci.yml", "ci_surface_without_capability"),
+    ):
+        cases.append(({**local, "peers": [{**peer, field: value}]}, gap))
+    cases.extend(
+        ({**local, "local_verification_command": value, "peers": []}, gap)
+        for value, gap in (
+            ("", "command_missing"),
+            ("'", "command_invalid"),
+            ('""', "command_not_regular"),
+            ("/bin/sh", "command_path_escape"),
+            ("folder", "command_not_regular"),
+        )
+    )
     for declaration, gap in cases:
         topology = release_publication.publication_topology(tmp_path, {"publication": declaration})
         assert isinstance(topology["required_gaps"], list)
@@ -123,12 +118,11 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         source_ref="refs/tags/v1", annotated_tag=True, version_text=None
     ) == ("publication_source_version_invalid:v1",)
     topology = {"required_gaps": [], "remotes": [{"id": "gitlab", "git_remote": "origin"}]}
-    admissions = (
+    for ref, remote, gap in (
         ("invalid", "origin", "ref_unavailable"),
         ("refs/heads/dev", "", "name_missing"),
         ("refs/heads/dev", "other", "target_unknown"),
-    )
-    for ref, remote, gap in admissions:
+    ):
         admission = release_publication.publication_ref_admission(
             topology,
             policy=load_branch_role_policy(Path.cwd()),
@@ -140,57 +134,67 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         assert any(gap in item for item in admission["enforcement_gaps"])
 
 
-@pytest.mark.parametrize("timeout", [False, True])
-def test_publication_remote_failure_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, timeout: bool
-) -> None:
+def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """One peer advertisement preserves every ref and failed receipt boundary."""
     repo, _peers, head = branch_publication_fixture(tmp_path, proof=False)
-    for targets, expected in (
-        ((), "ref_kind_mismatch"),
-        (("refs/heads/dev", "refs/tags/v1"), "ref_kind_mismatch"),
-    ):
-        assert (
-            expected
-            in publication_request.observe_remote_publication_effect(
-                root=repo, source_ref=head, target_refs=targets, remotes={}, ref_admissions={}
-            )[2][0]
-        )
-    command = ("git", "ls-remote", "origin", "refs/heads/dev")
-
-    def transport(*_args, **_kwargs):
-        if timeout:
-            raise subprocess.TimeoutExpired(command, 30, stderr="transport stalled")
-        return subprocess.CompletedProcess(command, 1, "", "transport failed")
-
-    monkeypatch.setattr(publication_execution.git, "run_network_git", transport)
-    effect, observations, gaps = publication_request.observe_remote_publication_effect(
-        root=repo,
-        source_ref=head,
-        target_refs=("refs/heads/dev",),
-        remotes={"gitlab": "origin"},
-        ref_admissions={"refs/heads/dev": {}},
+    for targets in ((), ("refs/heads/dev", "refs/tags/v1")):
+        assert publication_request.observe_remote_publication_effect(
+            root=repo, source_ref=head, target_refs=targets, remotes={}, ref_admissions={}
+        )[2] == ("publication_target_ref_kind_mismatch",)
+    refs = ("refs/heads/dev", "refs/heads/main")
+    command = ("git", "ls-remote", "origin", *refs)
+    row = f"{head}\t{refs[0]}\n"
+    faults = (
+        (subprocess.TimeoutExpired(command, 30, stderr="transport stalled"), "timeout"),
+        (subprocess.TimeoutExpired(command, 30, stderr=b"transport stalled"), "timeout"),
+        (
+            publication_execution.git.GitExecutionError("spawn_failed", reason="missing"),
+            "spawn_failed",
+        ),
+        (subprocess.CompletedProcess(command, 1, "", "failed"), "ls_remote_failed"),
+        *(
+            (subprocess.CompletedProcess(command, 0, raw, ""), "remote_ref_observation_ambiguous")
+            for raw in (
+                row + row,
+                row + f"{head}\trefs/heads/extra\n",
+                "malformed",
+                f"{head}\trefs/tags/v1^{{}}\n",
+            )
+        ),
     )
-    assert effect is None
-    assert gaps == ("publication_remote_observation_unavailable:gitlab:origin:refs/heads/dev",)
-
-    observed = observations["gitlab"]["refs"]["refs/heads/dev"]
-    if timeout:
-        assert observed == {
-            **unavailable_remote(repo, "origin", "refs/heads/dev"),
-            "command": list(command),
-        }
-    else:
-        assert observed["reason"] == "ls_remote_failed"
+    for fault, reason in faults:
+        monkeypatch.setattr(publication_execution.git, "run_network_git", Mock(side_effect=[fault]))
+        effect, observations, gaps = publication_request.observe_remote_publication_effect(
+            root=repo,
+            source_ref=head,
+            target_refs=refs,
+            remotes={"gitlab": "origin"},
+            ref_admissions={},
+        )
+        assert effect is None
+        assert gaps == tuple(
+            f"publication_remote_observation_unavailable:gitlab:origin:{ref}" for ref in refs
+        )
+        for observed in observations["gitlab"]["refs"].values():
+            assert [observed[k] for k in ("state", "reason", "object_oid")] == [
+                "unavailable",
+                reason,
+                "",
+            ]
+            if reason == "timeout":
+                assert observed["command"] == list(command)
+                assert observed["cwd"] == repo.resolve().as_posix()
+                assert (observed["timeout_seconds"], observed["stderr"]) == (
+                    30,
+                    "transport stalled",
+                )
+                assert (observed["peeled_commit"], observed["tree_oid"]) == ("", "")
     store = local_state_root(repo) / "requests/publication"
     store.mkdir(parents=True)
-    missing = store / f"{'1' * 64}.json"
-    failures = [
+    failures = (
         (tmp_path / "elsewhere.json", "1" * 64, "path_invalid"),
-        (missing, "1" * 64, "receipt_missing"),
-    ]
-    for path, digest, error in failures:
-        with pytest.raises(ValueError, match=error):
-            publication_request.load_remote_publication_request(repo, str(path), digest)
+        (store / f"{'1' * 64}.json", "1" * 64, "receipt_missing"),
+    )
     invalid = b"not-json"
     for digest, error in (
         ("2" * 64, "sha256_mismatch"),
@@ -198,6 +202,8 @@ def test_publication_remote_failure_matrix(
     ):
         path = store / f"{digest}.json"
         path.write_bytes(invalid)
+        failures += ((path, digest, error),)
+    for path, digest, error in failures:
         with pytest.raises(ValueError, match=error):
             publication_request.load_remote_publication_request(repo, str(path), digest)
 
@@ -276,12 +282,11 @@ def test_publication_and_pre_push_share_exact_proof_and_continuation(
             lambda *_: (None, ["proof_not_proven"]),
         )
     if state == "runtime-missing":
-
-        def absent(*_args):
-            message = "hook_runtime_current_missing"
-            raise ValueError(message)
-
-        monkeypatch.setattr(proof_adapter, "runtime_command", absent)
+        monkeypatch.setattr(
+            proof_adapter,
+            "runtime_command",
+            Mock(side_effect=ValueError("hook_runtime_current_missing")),
+        )
         repair = f"/runtime/bin/ethos hook install --root {repo} --json"
         monkeypatch.setattr(
             proof_adapter, "hook_runtime_binding", lambda _: {"next_action": repair}

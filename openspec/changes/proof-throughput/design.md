@@ -71,6 +71,17 @@ Receipts use `throughput-pinned-candidate-` and `throughput-candidate-identity-`
 in the existing evidence root. Full-suite package migration, coverage mapping,
 surviving-owner containment and complete proof remain unverified.
 
+Native hook admission also loaded file-write and publication owners for every
+prepared reference, even when neither capability was requested. Existing hook
+dispatch now loads those owners only on their respective paths; the ref adapter
+no longer imports file-write admission. Native work/topic ref probes reject the
+old implementation when unrelated imports are unavailable and pass after repair.
+No checks, exception handling or runtime validation are bypassed. The 226 direct
+hook/admission consumers pass at two/eight workers in 105.30/34.89 seconds with
+cleanup. Import-only ABBA observes 617 to 437 loaded modules and approximately
+0.155 to 0.113 seconds inside the import; these are startup measurements, not a
+full-proof speedup. The existing evidence root uses `throughput-hook-boundary-`.
+
 ### Original Baseline
 
 The exact source proof at `26405d4d8f57d48f6d6a1603d738b06a688fcd7f`

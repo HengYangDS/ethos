@@ -13,6 +13,8 @@ import pytest
 
 import ethos.adapters.repo.hook.admission as hook_admission
 from ethos.adapters.repo.hook.protocol import execute_hook
+from tests.support.governed_repository import git
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 
 if TYPE_CHECKING:
@@ -130,6 +132,42 @@ def test_prepared_branch_cannot_use_the_notification_path(tmp_path: Path) -> Non
     ]
 
 
+@pytest.mark.parametrize("branch", ["work/feature", "topic"])
+def test_ref_admission_does_not_initialize_unrelated_write_or_publication_owners(
+    tmp_path: Path, branch: str
+) -> None:
+    """A native ref decision must not depend on unused file or push transports."""
+    fixture = prepared_work_lane(tmp_path)
+    root = fixture.worktree
+    old = git(root, "rev-parse", "HEAD")
+    new = git(root, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    probe = _PROTOCOL_PROBE.replace("{'cyclopts', 'pydantic'}", "{'cyclopts'}").replace(
+        "('ethos.adapters.admission', 'ethos.adapters.repo.runtime.selection')",
+        "('ethos.adapters.admission.prewrite', 'ethos.adapters.admission.publication')",
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            "-I",
+            "-c",
+            probe,
+            str(REPOSITORY_ROOT / "src"),
+            "reference-transaction",
+            "prepared",
+        ],
+        cwd=root,
+        input=f"{old} {new} refs/heads/{branch}\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == result.stderr == ""
+    assert git(root, "rev-parse", "HEAD") == old
+
+
 def test_native_entrypoint_rejects_an_unavailable_repository(tmp_path: Path) -> None:
     """A missing Git root remains a failed native result rather than a traceback."""
     result = subprocess.run(
@@ -225,7 +263,7 @@ def test_pre_push_evaluates_every_update_and_blocks_the_batch(
             "required_gaps": ["commit_subject_invalid:rejected"] if blocked else [],
         }
 
-    monkeypatch.setattr(hook_admission, "push_admission_report", admit)
+    monkeypatch.setattr("ethos.adapters.admission.publication.push_admission_report", admit)
     zero = "0" * 40
     updates = "".join(
         (

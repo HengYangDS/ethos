@@ -87,13 +87,15 @@ at most three and rejects invalidated intent on the next call. These are bounded
 observations, not a complete-proof performance claim. Receipts use
 `throughput-foundation-` and `throughput-official-batch-` in the existing root.
 
-The same 192 selected native cases pass at two and four workers in 109.781 and
-62.616 seconds including wrapper and cleanup. The latter includes JUnit output;
-the two-worker run does not. This is an observed 43-percent reduction, not a
-controlled whole-suite estimate. Both retain the same test timeout and no retry.
+The same 192 selected native cases pass at two/four/eight workers in
+109.781/62.616/47.710 seconds including wrapper and cleanup. Four/eight include
+JUnit output; two does not. Four/eight case identifiers and product/selected-test
+hashes match, with no skips or failures. Eight reduces elapsed time by a further
+24 percent relative to four; these are observed samples, not whole-suite estimates.
+Every run retains the same test timeout and no retry.
 The host reports 18 physical/logical CPUs and 128 GiB memory; resource pressure
-does not justify keeping the lower count. Four workers are selected for the next
-exact full proof; higher counts remain eligible after equivalent qualification.
+does not justify keeping the lower count. Eight workers are selected for the next
+exact full proof; other counts remain eligible after equivalent qualification.
 Installed-wheel execution resolves bundled OpenSpec and the exact batch script;
 three package/public cases pass, with 1.329 seconds build/install and 4.450 seconds
 test execution. Temporary package and test roots are removed.

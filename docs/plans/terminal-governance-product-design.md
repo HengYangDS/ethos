@@ -131,8 +131,9 @@ combined coverage, including preparation and cleanup rather than selected tests.
 Report cold computation and warm runs separately; disclose external provisioning
 outside the command. The latest concurrency instruction permits measured faster
 worker counts: two is a comparison baseline, not a ceiling. The same 192 native
-cases pass at two/four workers in 109.781/62.616 seconds including cleanup; the
-next complete proof uses four. Continue eliminating repeated work in parallel
+cases pass at two/four/eight workers in 109.781/62.616/47.710 seconds including
+cleanup; the next complete proof uses eight. The four/eight runs have identical
+case identifiers and matching product and selected-test bytes. Continue eliminating repeated work in parallel
 with concurrency qualification, and keep worker-loss recovery independently open.
 
 The complete source proof at `26405d4d8` passed all 35 gates in 2,171.66 seconds:
@@ -181,8 +182,9 @@ canonical validation of the complete Attestation set. Preserve current membershi
 and corruption detection while removing redundant decoding/serialization at their
 owner. Measure cold, warm and cache-cleared equality, actual calls/bytes and
 resource bounds; a cache or faster fixture alone is not product acceptance.
-Do not increase workers, relax coverage, skip related consumers or claim the
-full iteration cycle is already accelerated.
+Keep this two-worker observation as a baseline; adopt faster qualified concurrency
+without relaxing coverage, skipping related consumers or claiming unmeasured
+whole-cycle acceleration.
 
 The current proof query now compiles each floor once per invocation: four policy
 resolutions become two, with fresh queries still rebuilding both. The same
@@ -1824,19 +1826,24 @@ one, and reuse an admitted lane. Measure progress by unique obligations absorbed
 and exact refs, worktrees, Leases, and owned projections verified retired, not by
 commits, tests, inventory passes, or documentation volume.
 
-Architecture, implementation, runtime performance and iteration speed are one
-optimization problem. First reduce repeated authority, interpretation, setup and
-work; then optimize the remaining measured critical path. Use the existing gate
-DAG and exact input closure: cheap distinguishing checks precede expensive proof,
-independent read-only checks may share valid work, and cache eviction must affect
-cost rather than verdict. Reuse requires fresh relevant source, policy, tools,
-environment and external facts; elapsed age or unchanged HEAD alone is insufficient.
+Architecture, implementation, runtime performance and iteration speed optimize
+one outcome: the shortest reliable change-to-delivery interval. Reduce repeated
+interpretation, setup and computation while adopting effective concurrency, not
+as mutually exclusive phases. Use the existing gate DAG and exact input closure:
+cheap distinguishing checks precede expensive proof; independent resource-safe
+checks overlap; immutable inputs, prepared tools and unchanged valid execution
+evidence are reused. Incremental selection must cover the affected obligations,
+and final required proof remains complete. Prewarming has an owner and bounded
+lifetime; include its preparation in end-to-end accounting rather than hiding it.
+Cache eviction changes cost, never verdict. Reuse requires relevant source,
+policy, tools, environment and external facts; age or unchanged HEAD is insufficient.
 
 Measure time to first actionable failure, change-to-accepted-runtime duration,
 repeated execution, fixture/setup cost, resource peaks and recovery effort through
 existing receipts. Compare equivalent workloads and correctness boundaries before
-claiming improvement. Do not raise concurrency, narrow acceptance, lower coverage
-or budgets, suppress warnings, or add another orchestrator to improve a number.
+claiming improvement. Qualified faster worker counts are eligible immediately;
+two/four/eight are measurements, not permanent ceilings. Do not narrow acceptance,
+lower coverage or budgets, suppress warnings or add another orchestrator to improve a number.
 Projection/archive readiness belongs before the expensive final verification;
 local microbenchmark gains do not establish whole-cycle acceleration.
 
@@ -2365,7 +2372,8 @@ hotspot selection, not wall-clock attribution or proof that fixture setup alone
 causes the cost. A bounded live sample observed repeated native Git hooks during
 these fixtures. Instrument those existing setup/effect boundaries, remove repeated
 non-asserted lifecycle construction and reuse only complete, still-valid inputs.
-Keep two workers, real effect-boundary conformance and the 95 percent floor.
+Keep the historical two-worker baseline, real effect-boundary conformance and
+the 95 percent floor; execution uses the active qualified concurrency policy.
 Archive currently still requires a new exact proof after an unchanged-byte move;
 sub-evidence reuse must preserve native source identity and fresh authorization.
 
@@ -6276,7 +6284,8 @@ not a failed cleanup effect. The earlier local fifteen-second hosted-shell
 timeout remains causally unconfirmed too. An unchanged bounded retry passed
 locally, but neither retry establishes a systemic fix. Preserve both failures
 at the existing quality/P5 owner, instrument the smallest native startup boundary
-and keep full hosted qualification open. Do not raise concurrency or deadlines.
+and keep full hosted qualification open. More concurrency is not a timeout repair;
+qualify it separately and retain the existing deadlines.
 
 The AIGW owner reports its public runtime update and normal-hook dry/actual
 proposal pushes passed at this source. One uncovered input form remains: public
@@ -6605,8 +6614,8 @@ readiness assumption of 0.5 seconds and a real attestation `git` subprocess with
 no timeout, interrupted only by pytest's 300-second limit. The native matrix
 passes but does not substitute for hosted source verification. Original proof
 and JUnit outputs are retained under the existing runtime-status-admission
-evidence root. Do not raise concurrency or timeouts, or rerun unchanged heavy
-jobs as a repair. Three browser outputs mistakenly generated in accepted root
+evidence root. Do not inflate timeouts or rerun unchanged heavy jobs as a repair;
+qualify concurrency through equivalent workload observations. Three browser outputs mistakenly generated in accepted root
 were attributed to their AIGW task, the producer stopped, and exact bytes were
 relocated to that existing ignored evidence root with source absence verified.
 General malformed archive postimage/re-entry and Lease

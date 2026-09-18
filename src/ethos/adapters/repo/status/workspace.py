@@ -38,6 +38,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from ethos.adapters.repo.hook.observation import HookRuntimeBinding
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
 
@@ -62,6 +63,7 @@ class _StatusPayload:
     unbound: list[dict[str, object]]
     workspace_gaps: list[str]
     selected_runtime: SelectedRuntime | None
+    hook_binding: HookRuntimeBinding | None
     authority: dict[str, object]
 
 
@@ -153,6 +155,7 @@ def workspace_status_observation(
     *,
     include_foreign_path_scope: bool = True,
     selected_runtime: SelectedRuntime | None = None,
+    hook_binding: HookRuntimeBinding | None = None,
 ) -> tuple[dict[str, object], CurrentAuthority | None]:
     """Return one workspace projection and its same-snapshot current authority."""
     try:
@@ -163,6 +166,7 @@ def workspace_status_observation(
                 root,
                 defer_details=not include_foreign_path_scope,
                 selected_runtime=selected_runtime,
+                hook_binding=hook_binding,
             ),
             None,
         )
@@ -246,6 +250,7 @@ def workspace_status_observation(
             unbound=unbound_refs,
             workspace_gaps=workspace_gaps,
             selected_runtime=selected_runtime,
+            hook_binding=hook_binding,
             authority=authority_projection,
         )
     )
@@ -266,6 +271,7 @@ def _status_payload(payload: _StatusPayload) -> dict[str, object]:
             "runtime_binding": runtime_binding(
                 payload.runtime_root,
                 selected_runtime=payload.selected_runtime,
+                hook_binding=payload.hook_binding,
             ),
             "landing_readiness": payload.landing,
             "candidate": payload.candidate,
@@ -335,6 +341,7 @@ def _non_git_status(
     *,
     defer_details: bool,
     selected_runtime: SelectedRuntime | None,
+    hook_binding: HookRuntimeBinding | None,
 ) -> dict[str, object]:
     del defer_details
     policy = load_branch_role_policy(root)
@@ -398,6 +405,7 @@ def _non_git_status(
             unbound=[],
             workspace_gaps=["git_repository_missing", "candidate_branch_missing"],
             selected_runtime=selected_runtime,
+            hook_binding=hook_binding,
             authority={},
         )
     )

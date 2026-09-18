@@ -243,8 +243,9 @@ unchanged relative links resolving under a different directory after archive.
 The existing projection owner now derives destination edits and official
 canonical output; source deletions and transient effect paths retain proof
 attribution. Root/nested/canonical public journeys, replay and compensation pass
-in the focused family. This is not yet exact full proof, installed delivery or
-archive completion. The official Change owns the remaining acceptance tasks.
+in the focused family. The exact full proof and source/package/runtime delivery
+subsequently passed at 7f81088fe; the Change itself is not archived. Its tasks
+retain the remaining acceptance and recovery obligations.
 
 Stable-supply metadata was read from PyPI, npm, official GitHub releases and the
 Node index. Compatible source/lock/CI upgrades proceed together. Filelock 4.0.0
@@ -252,13 +253,35 @@ is blocked by virtualenv's declared less-than-4 dependency; its resolution is
 open, not an authorized constraint bypass. Node 26.9.0 hosted supply and the
 latest published 24.19.0 Python wheel have distinct execution claims.
 
-The last accepted source remains 8d2cc3b7b. Its 35-gate local proof passed in
-716.348 seconds with 3,844 passed, one skipped and 95.047670-percent combined
-coverage. GitHub main and GitLab dev/main subsequently passed. GitHub dev
-35349488427 failed two native bootstrap cases at their 30-second deadline;
-JUnit and raw provider output are preserved. A later 233-case local consumer
-run passes, but does not identify or fix that hosted timeout. Do not replay an
-unchanged heavy job or raise its deadline as a substitute for diagnosis.
+The bounded quality-transport committee reviewed five independent lenses and
+cross-examined each recommendation; its disposition is in the active
+proof-throughput design under Quality Transport And Supply Review. No broad
+Nox retirement, dual-environment migration, constraint override or new runner
+was admitted. Compatible supply is containment, not latest-stable completion.
+Keep the upstream conflict open until supported supply or a capability-preserving
+dependency-graph replacement qualifies; decide before the next release acceptance
+rather than treating waiting as delivery. Prioritize measured operation-local
+runtime-observation reuse, then capability-specific setup and lifecycle costs.
+Tests must express preserved behavior rather than prescribe framework absence
+or universal uv/.venv layout. Raw review evidence stays in the existing
+commit-integrity evidence root, not a second roadmap or policy authority.
+
+The September 19 readback selects accepted source 7f81088fe. Its 35-gate local
+proof passed in 821.599 seconds with 3,869 passed, one skipped and
+95.003514-percent combined coverage. The immutable runtime matches source/tree.
+GitHub main/dev 35365437541/35365437583 and GitLab main/dev 7470/7469 were
+observed successful; this does not prove the current successor candidate.
+Historical GitHub dev 35349488427 failed two native bootstrap cases at their
+30-second deadline. Later success does not identify that earlier timeout's
+cause. Retain its JUnit and diagnostics without blind replay or timeout inflation.
+
+The first postcommittee implementation reuses the same current runtime
+observation within status and workspace binding. Native corruption/recovery and
+197 focused consumers pass. Five alternating paired status-handler samples
+preserve identical results and reduce inventory reads from two to one; medians
+are 5.581587 and 4.965634 seconds. This does not establish full-proof or installed
+successor latency. Exact proof, install, peer delivery and remaining lifecycle
+closeout remain explicit tasks rather than being inferred from the measurement.
 
 A separate-Change creation attempt exposed a public selection gap: creating a
 second active Change succeeded, but continuation prewrite had no unambiguous

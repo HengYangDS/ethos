@@ -1563,3 +1563,79 @@ and SBOM were dependency-blocked; 593.059 seconds is not complete acceptance
 latency. The owned test root is gone. Add distinguishing transport-failure and
 post-effect compensation cases, then rerun exact proof without combining focused
 coverage or relaxing the 95-percent threshold.
+
+## Quality Transport And Supply Review
+
+Five independent read-only agent reviews and a cross-examination round evaluated
+architecture, supply, assurance, performance and ecosystem compatibility against
+source 7f81088fe65768d56390eaca36dbc7426034ac57. Raw reports and source bindings are
+retained in `build/evidence/quality/commit-integrity/quality-committee.json`.
+They are design evidence, not independent execution or product acceptance.
+
+| Alternative | Disposition and evidence |
+| --- | --- |
+| Retain the current native closure | Operational containment only. Filelock 3 remains an unresolved latest-stable gap; no exception or completion is inferred. |
+| Remove Nox and the pre-commit framework | Not selected without capability-preserving evidence. Eight modules consume Session operations; twenty declared gates and both Forge projections use Nox. A new Session clone would transfer complexity, not remove it. |
+| Separate launcher and checks with native tooling | Feasible in the isolated probe, not qualified on real consumers. Import-time project dependencies and invoking-interpreter capture remain obstacles. Filelock 3 in the launcher would still leave comprehensive freshness open. |
+| Repair the upstream constraint owner | Preferred supply path: supported stable metadata and behavior, native resolution, dependency health and repository acceptance. Local overrides or relabeled rebuilt metadata do not establish upstream support. |
+| Remove measured redundant work at existing owners | Selected bounded performance direction: operation-local runtime observation first, then demand-driven setup and measured lifecycle work. No full-cycle speedup is inferred from a profile. |
+
+Nox is not a second proof scheduler. It supplies used output capture, accepted
+exit codes, environment changes, positional arguments and failure behavior.
+The native ETHOS hooks and optional six-check framework projection have distinct
+coverage. Removing a projection requires disposition of that capability, not
+an assertion that unobserved usage proves it unnecessary.
+
+Current Filelock 4 and virtualenv's below-4 requirement have no common solution
+inside one installation. A different resolver cannot change that fact. Before
+the next release-acceptance decision, recheck supported upstream supply once;
+if no repair exists, evaluate an obligation-preserving replacement of the
+constraining owner or retain an explicit unresolved result. Waiting or another
+environment does not complete freshness. No arbitrary waiting period, automatic
+exception, downstream fork, or new dependency platform is admitted.
+
+The latest proof's unit and installed-acceptance spans are sequential:
+571.943 and 214.819 seconds inside an 821.599-second wrapper observation.
+The separate 184.926-second installed timeline includes nested runtime, lane and
+merge spans; their durations must not be summed. The measured duplicate runtime
+inventory is actionable, but its profiled cumulative time is not an unprofiled
+speedup estimate.
+
+Two proposed tests were withdrawn rather than allowed to legislate a design:
+blanket framework absence, and universal script-to-uv.lock/.venv binding.
+The surviving obligation is semantic: declared executable/source/supply identity,
+supported interpreter, fresh applicability and preserved failure behavior.
+A stdlib script or native adopter tool must not acquire artificial uv requirements.
+
+Migration experiments, if later selected, must exercise real consumers:
+accepted scanner findings, redirected collection output, environment deletion,
+positional arguments, missing supply and cancellation. Process-group nesting
+requires an explicit native fault case: replacing ordinary Nox child launches
+with independently grouped children can escape outer group cancellation.
+This is a source-level risk, not a newly reproduced fault. Full native-platform,
+installed-runtime, proof and cleanup evidence remain separate acceptance bars.
+
+## Single-Observation Status
+
+Public status observes hook/runtime currentness once and supplies that same
+typed observation to workspace runner/schema binding. The existing workspace
+payload carries it only inside the call; public JSON and source-binding policy
+remain unchanged. Subsequent calls independently reread selector, inventory,
+expected source and launcher bytes. Effects retain their own fresh admission.
+
+The original regression observed two selected-runtime reads. The replacement
+extends the existing public corruption/recovery case: all three status calls
+read once, damaged package data unarms the runtime, and restored bytes recover
+the original result. Missing-launcher and stale-build policy cases share setup
+without conflating their distinct transport states. No quality threshold or
+test obligation was removed to accommodate the hard test budget.
+
+Five alternating fresh-process handler pairs used identical current repository
+inputs. The baseline handler came from 7f81088fe, the candidate from this source.
+Results were equal in every pair; native runtime inventories were two versus
+one. Median handler time was 5.581587 versus 4.965634 seconds. The first baseline
+sample was slower, so medians and individual samples are retained. This is not
+a full-proof, cold-bootstrap or installed-successor speedup claim. Evidence is
+single-status-paired-measurement.json in the existing commit-integrity root.
+Focused command, hook, runtime, archive-planning and write-admission consumers
+passed 197 cases; frozen exact proof and successor delivery remain required.

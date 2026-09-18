@@ -55,12 +55,15 @@
 - [x] Preserve validated source deletions and archive effect paths through public proof/replay.
 - [x] Refresh compatible stable supply and exact CI projections with the Python support line intact.
 - [x] Reject unsupported reference kinds and malformed transport; qualify package entry aliases and native archive execution.
-- [ ] Complete exact full proof and source/package/runtime delivery for archive preservation.
+- [x] Complete exact full proof and source/package/runtime delivery for archive preservation.
 - [ ] Resolve or explicitly retain the native bootstrap timeout with distinguishing evidence.
-- [ ] Resolve the upstream Filelock 4 dependency conflict without ignoring constraints.
+- [x] Review quality transport and supply alternatives with five independent lenses and cross-examination.
+- [ ] Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement.
 - [ ] Repair public continuation after creating a second active Change.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.
 - [x] Measure complete proof below 1,200 seconds without weakening gates.
 - [ ] Evaluate the 600-second direction from the measured remaining critical path.
+- [x] Reuse one current runtime observation in public status and verify corruption recovery.
+- [ ] Qualify and deliver the exact single-observation status candidate.

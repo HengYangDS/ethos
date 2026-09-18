@@ -212,19 +212,26 @@ def test_repository_transition_observes_one_fresh_archive_proof_set(tmp_path, mo
 
 
 @pytest.mark.parametrize("archived", [False, True])
-def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(tmp_path, archived):
+def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(
+    tmp_path, monkeypatch, archived
+):
     if archived:
         fixture, head, first = _archive_bound_work_proof(tmp_path)
         repo = fixture.candidate
     else:
         repo, head = proof_repository(tmp_path / "repo")
         first = _issue(repo, head)
+    monkeypatch.setenv("ETHOS_CHANGE", "fixture-change" if archived else "proof-binding")
     query = partial(proof_module.proof_for_repository_transition, repo, head)
     persist_proof_attestation(repo, first)
     later = reissue_attestation(first, issued_at=first.issued_at + timedelta(seconds=1))
     persist_proof_attestation(repo, later)
     assert query() == (min((first, later), key=lambda record: record.id), [])
     assert proof_gaps(repo, head) == []
+    monkeypatch.setenv("ETHOS_CHANGE", "missing")
+    assert query()[1][0].startswith("proof_source_intent_unavailable:")
+    assert query(attestation_id=first.id) == (first, [])
+    monkeypatch.setenv("ETHOS_CHANGE", "fixture-change" if archived else "proof-binding")
     conflict = reissue_attestation(
         first,
         verifier="agent:test:case:conflict",
@@ -232,6 +239,7 @@ def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(tmp_p
     )
     persist_proof_attestation(repo, conflict)
     assert query() == (None, ["contradiction"])
+    assert query(attestation_id=first.id) == (None, ["contradiction"])
 
 
 @pytest.mark.parametrize("novel", [False, True])

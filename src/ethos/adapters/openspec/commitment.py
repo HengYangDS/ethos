@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
+from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.openspec.selection import selection_gaps
 from ethos.adapters.repo.git import run_git
@@ -285,6 +286,7 @@ def load_openspec_commitment(
     if not openspec_profile_enabled(repo, tree_ref=tree_ref):
         msg = "openspec_profile_not_enabled"
         raise ValueError(msg)
+    change_id = requested_change(change_id)
     command = official_command or openspec_cli.openspec_base_command()
     if command is None:
         msg = "openspec_official_cli_missing"

@@ -61,8 +61,11 @@
 - [ ] Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement.
 - [x] Repair exact official-artifact continuation after a second Change is created.
 - [x] Preserve explicit choice and eliminate recursive status recovery for ambiguous ordinary work.
-- [ ] Qualify and deliver the exact Change-continuation candidate.
-- [ ] Close explicit product-write selection and multi-contribution integration across native consumers.
+- [x] Qualify and deliver the exact Change-continuation candidate.
+- [ ] Close invocation-local product-write and exact-proof selection across native consumers.
+- [ ] Verify explicit archive selection against independently selected proof and native hooks.
+- [ ] Complete multi-contribution lifecycle integration without losing unselected intent.
+- [ ] Reproduce and close official batch large-output backpressure through the existing transport.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

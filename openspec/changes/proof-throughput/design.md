@@ -1729,3 +1729,51 @@ All 29 inexpensive gates, scoped product typing, format and source budgets pass.
 Product/test ELOC remains 45,961/50,000. This is candidate evidence, not completed
 repository proof or installed-runtime acceptance. Existing receipts
 change-selection-final-consumers and change-selection-cheap bind that boundary.
+
+## Invocation-Local Intent And Bounded Output
+
+The operation selects official intent through existing OpenSpec selection;
+`ETHOS_CHANGE` supplies only the invocation default. Explicit command/API input
+wins, followed by environment input and existing native inference. Nothing is
+stored in Lease, Git config or a new carrier. Current resolution applies the
+same choice before workspace and exact-tree compilation. Empty input is invalid,
+not absence. Synthetic test repositories clear the caller's selection.
+
+Proof admission first validates the observed evidence set, then selects the
+requested intent. An explicit Attestation ID selects that record's intent;
+environment input cannot replace the carried proof. Selection retains every
+same-intent conflict, exact-source, policy, Lease and effect check. The public
+native journey covers product prewrite, pre-tool, Git commit, two exact proofs,
+candidate CAS and accepted CAS. Explicit archive/proof disagreement and complete
+multi-contribution lifecycle remain separately open; this batch does not claim
+those broader outcomes.
+
+Boundary regressions exposed three candidate defects before delivery: committed
+resolution did not forward the choice; empty identifiers reached the native
+program; ambient selection hid an exact requested proof. Their six failing cases
+passed after owner repair. The core consumer family passed 352 cases. A wider
+test set exceeded its caller's 330-second bound. Isolated transition consumers
+then reported one runtime-build-stale failure while this writer changed source
+inputs; that interval is invalid as a stable-input regression verdict. Freeze
+all source and fixture inputs before native runtime/proof tests, not merely
+before the full proof. Owned process-group and temporary-root absence were
+verified after the interrupted run.
+
+A separate adopter report reproduced official output backpressure at the existing
+batch transport: a 1,408,904-byte task carrier produced over two MB of valid native
+output, while the previous synchronous frame writer raised EAGAIN. The native
+early-exit handler requires synchronous completion, so replacing it with an
+unawaited stream callback would lose failure frames. The writer now retries only
+EAGAIN/EINTR within the existing command's supplied deadline, yields between
+attempts, and clears the active frame before writing so failure cannot replay
+a partial frame. Other write errors remain failures. The parent process owner
+retains cancellation and deadline enforcement. No command parser or dependency
+was added.
+
+The native comparison exercises small and large frames, official early exit and
+unexecuted tail. A stopped reader reaches a bounded write-timeout; a closed reader
+fails with EPIPE; neither duplicates a frame. POSIX pipe-failure probes do not
+qualify native Windows behavior. Raw evidence is retained in the existing
+commit-integrity evidence root under operation-intent-*, batch-backpressure-* and
+batch-native-failures. Focused evidence is not exact-source full proof, installed
+acceptance, publication, Change archive or Work Lane retirement.

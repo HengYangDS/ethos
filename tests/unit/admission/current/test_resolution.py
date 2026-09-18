@@ -89,12 +89,14 @@ def test_current_resolution_owns_acceptance_and_fresh_paths(monkeypatch) -> None
     assert resolution.next_action == ""
 
 
+@pytest.mark.parametrize("selection", ["explicit", "environment"])
 @pytest.mark.parametrize(
     "gap", ["", "openspec_official_cli_missing", "openspec_acceptance_missing:example"]
 )
 def test_current_resolution_compiles_committed_source_intent_without_workspace_reread(
-    monkeypatch, gap
+    monkeypatch, gap, selection
 ):
+    monkeypatch.setenv("ETHOS_CHANGE", "example" if selection == "environment" else "other")
     commitment = commitment_fixture(id="change:example")
     calls: list[tuple[str | None, str | None]] = []
     observe = Mock(side_effect=AssertionError("committed intent must not read workspace"))
@@ -111,7 +113,7 @@ def test_current_resolution_compiles_committed_source_intent_without_workspace_r
         ROOT,
         status={"role": "work_lane", "head": HEAD, "changed_paths": []},
         authority=authority(),
-        change="example",
+        change="example" if selection == "explicit" else None,
         changed=False,
         intent_tree_ref=HEAD,
     )

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
-from contextlib import contextmanager
+import shutil
+from contextlib import nullcontext
+from functools import partial
 from typing import TYPE_CHECKING
 
 import pytest
@@ -14,6 +16,7 @@ from ethos.adapters.openspec.commitment import commitment_from_projection
 from ethos.contracts.semantic import Commitment
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_active_commitment
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -21,56 +24,45 @@ if TYPE_CHECKING:
 
 
 def _materialize_spec_free_change(root: Path, *, tasks: str) -> Path:
-    (root / "openspec").mkdir()
-    (root / "openspec/config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
-    change_root = root / "openspec/changes/dependency-refresh"
-    change_root.mkdir(parents=True)
-    for name, content in {
-        ".openspec.yaml": "schema: spec-driven\nskip_specs: true\n",
-        "proposal.md": """## Why
-
-Refresh the dependency.
-
-## What Changes
-
-- Use the stable package.
-
-## Capabilities
-
-### New Capabilities
-
-None.
-
-### Modified Capabilities
-
-None.
-
-## Impact
-
-Supply chain only.
-""",
-        "design.md": "## Decisions\n\nUse the stable package.\n",
-        "tasks.md": tasks,
-    }.items():
-        (change_root / name).write_text(content, encoding="utf-8")
-    return change_root
+    """Reuse the native official carrier and select its supported spec-free mode."""
+    write_active_commitment(root, change_id="dependency-refresh")
+    change = root / "openspec/changes/dependency-refresh"
+    shutil.rmtree(change / "specs")
+    (change / ".openspec.yaml").write_text("schema: spec-driven\nskip_specs: true\n")
+    (change / "tasks.md").write_text(tasks)
+    return change
 
 
-def test_official_projection_compiles_minimal_commitment() -> None:
-    projection = {
-        "id": "minimal-authority",
-        "deltas": [
-            {
-                "spec": "authority",
-                "requirements": [
-                    {
-                        "text": "Official OpenSpec is the sole tracked intent carrier.",
-                        "scenarios": [{"rawText": "- **WHEN** selected\n- **THEN** compile"}],
-                    }
-                ],
-            }
-        ],
-    }
+def _requirement_projection(*requirements: object, spec: str = "authority") -> dict:
+    """Share native carrier structure while leaving expected observations independent."""
+    values = requirements or (
+        {
+            "text": "Official OpenSpec is the sole tracked intent carrier.",
+            "scenarios": [{"rawText": "- **WHEN** selected\n- **THEN** compile"}],
+        },
+    )
+    return {"id": "minimal-authority", "deltas": [{"spec": spec, "requirements": list(values)}]}
+
+
+@pytest.fixture
+def compilation_root(tmp_path, monkeypatch):
+    """Isolate official transport while retaining real compilation and validation."""
+    root = init_git_repo(tmp_path / "repo")
+    monkeypatch.setattr(compilation, "openspec_profile_enabled", lambda *_a, **_k: True)
+    monkeypatch.setattr(compilation, "_openspec_projection", lambda *_a: nullcontext(root))
+    monkeypatch.setattr(compilation.openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    return root
+
+
+@pytest.mark.parametrize("removed", [False, True])
+def test_official_projection_compiles_minimal_commitment(*, removed: bool) -> None:
+    projection = _requirement_projection()
+    if removed:
+        removed = _requirement_projection(
+            {"text": "Retired parallel authority remains supported.", "scenarios": []}
+        )["deltas"][0] | {"operation": "REMOVED"}
+        projection["deltas"].insert(0, removed)
+        projection["deltas"][1]["operation"] = "ADDED"
 
     commitment = commitment_from_projection("minimal-authority", projection)
 
@@ -83,41 +75,6 @@ def test_official_projection_compiles_minimal_commitment() -> None:
         Commitment.model_validate(commitment.model_dump() | {"predecessors": ()})
 
 
-def test_removed_requirements_do_not_become_acceptance_obligations() -> None:
-    projection = {
-        "id": "minimal-authority",
-        "deltas": [
-            {
-                "spec": "authority",
-                "operation": "REMOVED",
-                "requirements": [
-                    {
-                        "text": "Retired parallel authority remains supported.",
-                        "scenarios": [],
-                    }
-                ],
-            },
-            {
-                "spec": "authority",
-                "operation": "ADDED",
-                "requirements": [
-                    {
-                        "text": "Official OpenSpec is the sole tracked intent carrier.",
-                        "scenarios": [{"rawText": "- **WHEN** selected\n- **THEN** compile"}],
-                    }
-                ],
-            },
-        ],
-    }
-
-    commitment = commitment_from_projection("minimal-authority", projection)
-
-    assert commitment.acceptance == (
-        "authority:requirement:Official OpenSpec is the sole tracked intent carrier.",
-        "authority:scenario:- **WHEN** selected\n- **THEN** compile",
-    )
-
-
 @pytest.mark.parametrize("with_requirement", [False, True])
 def test_native_rename_compiles_a_bound_relation_without_fabricated_requirements(
     *, with_requirement: bool
@@ -128,18 +85,15 @@ def test_native_rename_compiles_a_bound_relation_without_fabricated_requirements
         "operation": "RENAMED",
         "rename": {"from": "Hosted budget tool supply", "to": "Native verification tool supply"},
     }
-    requirement = {
-        "spec": "quality",
-        "operation": "MODIFIED",
-        "requirements": [
-            {
-                "text": "Native supply SHALL be rootless.",
-                "scenarios": [
-                    {"rawText": "- **WHEN** unprivileged\n- **THEN** materialize in owned cache"}
-                ],
-            }
-        ],
-    }
+    requirement = _requirement_projection(
+        {
+            "text": "Native supply SHALL be rootless.",
+            "scenarios": [
+                {"rawText": "- **WHEN** unprivileged\n- **THEN** materialize in owned cache"}
+            ],
+        },
+        spec="quality",
+    )["deltas"][0] | {"operation": "MODIFIED"}
     projection = {
         "id": "native-supply",
         "deltas": [rename, *([requirement] if with_requirement else [])],
@@ -178,21 +132,10 @@ def test_native_rename_rejects_incomplete_or_ambiguous_relation(rename: object) 
         commitment_from_projection("native-supply", projection)
 
 
-def _spec_free_status(change: str, *, complete: bool = True, spec_state: str = "skipped"):
-    """Build the same official artifact graph for valid and invalid state cases."""
-    return {
-        "changeName": change,
-        "isComplete": complete,
-        "artifacts": [
-            {"id": "proposal", "status": "done", "requires": []},
-            {"id": "specs", "status": spec_state, "requires": ["proposal"]},
-            {"id": "design", "status": "done", "requires": ["proposal"]},
-            {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
-        ],
-    }
-
-
-def test_official_spec_free_projection_compiles_minimal_commitment() -> None:
+@pytest.mark.parametrize(
+    ("complete", "spec_state"), [(True, "skipped"), (True, "done"), (False, "skipped")]
+)
+def test_official_spec_free_projection_compiles_minimal_commitment(*, complete, spec_state) -> None:
     projection = {
         "id": "dependency-refresh",
         "deltas": [
@@ -203,25 +146,33 @@ def test_official_spec_free_projection_compiles_minimal_commitment() -> None:
             }
         ],
     }
-    status = _spec_free_status("dependency-refresh")
+    status = {
+        "changeName": "dependency-refresh",
+        "isComplete": complete,
+        "artifacts": [
+            {"id": "proposal", "status": "done", "requires": []},
+            {"id": "specs", "status": spec_state, "requires": ["proposal"]},
+            {"id": "design", "status": "done", "requires": ["proposal"]},
+            {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
+        ],
+    }
     artifact_digests = {
         name: hashlib.sha256(name.encode()).hexdigest()
         for name in ("metadata", "proposal", "design", "tasks")
     }
 
-    first = commitment_from_projection(
+    compile_intent = partial(
+        commitment_from_projection,
         "dependency-refresh",
         projection,
         status=status,
         artifact_digests=artifact_digests,
     )
-    second = commitment_from_projection(
-        "dependency-refresh",
-        projection,
-        status=status,
-        artifact_digests=artifact_digests,
-    )
-
+    if not complete or spec_state != "skipped":
+        with pytest.raises(ValueError, match="openspec_acceptance_missing"):
+            compile_intent()
+        return
+    first, second = compile_intent(), compile_intent()
     assert first == second
     assert first.acceptance == (
         f"openspec:artifact:design:sha256:{artifact_digests['design']}",
@@ -233,34 +184,6 @@ def test_official_spec_free_projection_compiles_minimal_commitment() -> None:
     )
 
 
-@pytest.mark.parametrize(("complete", "spec_state"), [(True, "done"), (False, "skipped")])
-def test_zero_requirement_projection_requires_valid_official_spec_free_planning_graph(
-    *, complete: bool, spec_state: str
-) -> None:
-    status = _spec_free_status("minimal-authority", complete=complete, spec_state=spec_state)
-    projection = {
-        "id": "minimal-authority",
-        "deltas": [
-            {
-                "spec": "not-a-capability",
-                "operation": "MODIFIED",
-                "description": "official show emitted proposal prose rather than requirements",
-            }
-        ],
-    }
-
-    with pytest.raises(ValueError, match="openspec_acceptance_missing"):
-        commitment_from_projection(
-            "minimal-authority",
-            projection,
-            status=status,
-            artifact_digests={
-                name: hashlib.sha256(name.encode()).hexdigest()
-                for name in ("metadata", "proposal", "design", "tasks")
-            },
-        )
-
-
 @pytest.mark.parametrize(
     ("projection", "error"),
     [
@@ -269,33 +192,19 @@ def test_zero_requirement_projection_requires_valid_official_spec_free_planning_
         ({"id": "minimal-authority", "deltas": []}, "openspec_acceptance_missing"),
         ({"id": "minimal-authority", "deltas": [None]}, "openspec_show_invalid"),
         (
-            {"id": "minimal-authority", "deltas": [{"spec": "", "requirements": []}]},
+            _requirement_projection(spec=""),
             "openspec_show_invalid",
         ),
         (
-            {
-                "id": "minimal-authority",
-                "deltas": [{"spec": "authority", "requirements": [None]}],
-            },
+            _requirement_projection(None),
             "openspec_show_invalid",
         ),
         (
-            {
-                "id": "minimal-authority",
-                "deltas": [{"spec": "authority", "requirements": [{"text": "", "scenarios": []}]}],
-            },
+            _requirement_projection({"text": "", "scenarios": []}),
             "openspec_acceptance_missing",
         ),
         (
-            {
-                "id": "minimal-authority",
-                "deltas": [
-                    {
-                        "spec": "authority",
-                        "requirements": [{"text": "required", "scenarios": [{}]}],
-                    }
-                ],
-            },
+            _requirement_projection({"text": "required", "scenarios": [{}]}),
             "openspec_acceptance_missing",
         ),
     ],
@@ -309,32 +218,10 @@ def test_commitment_compilation_fails_closed_on_incomplete_official_projection(
 
 
 def test_load_commitment_selects_one_active_change_and_checks_digest(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    compilation_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    tmp_path = init_git_repo(tmp_path / "repo")
-    projection = {
-        "id": "minimal-authority",
-        "deltas": [
-            {
-                "spec": "authority",
-                "requirements": [
-                    {
-                        "text": "Official OpenSpec remains authoritative.",
-                        "scenarios": [{"rawText": "- **WHEN** selected\n- **THEN** compile"}],
-                    }
-                ],
-            }
-        ],
-    }
+    projection = _requirement_projection()
     expected = commitment_from_projection("minimal-authority", projection)
-
-    @contextmanager
-    def selected_projection(_repo: Path, _tree_ref: str | None):
-        yield tmp_path
-
-    monkeypatch.setattr(compilation, "openspec_profile_enabled", lambda *_a, **_k: True)
-    monkeypatch.setattr(compilation, "_openspec_projection", selected_projection)
-    monkeypatch.setattr(compilation.openspec_cli, "openspec_base_command", lambda: ("openspec",))
 
     def run_json(_root: Path, _command: tuple[str, ...], args: tuple[str, ...]):
         return (
@@ -350,13 +237,13 @@ def test_load_commitment_selects_one_active_change_and_checks_digest(
     monkeypatch.setattr(compilation.openspec_cli, "run_json", run_json)
 
     loaded = compilation.load_openspec_commitment(
-        tmp_path,
+        compilation_root,
         expected_digest=expected.digest(),
     )
 
     assert loaded == expected
     with pytest.raises(ValueError, match="commitment_digest_mismatch"):
-        compilation.load_openspec_commitment(tmp_path, expected_digest="f" * 64)
+        compilation.load_openspec_commitment(compilation_root, expected_digest="f" * 64)
 
 
 def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_complete(
@@ -430,7 +317,7 @@ def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_comp
     ],
 )
 def test_load_commitment_rejects_missing_or_ambiguous_authority(
-    tmp_path: Path,
+    compilation_root: Path,
     monkeypatch: pytest.MonkeyPatch,
     profile_state: str,
     command: tuple[str, ...] | None,
@@ -438,18 +325,12 @@ def test_load_commitment_rejects_missing_or_ambiguous_authority(
     change_id: str | None,
     error: str,
 ) -> None:
-    tmp_path = init_git_repo(tmp_path / "repo")
-
-    @contextmanager
-    def selected_projection(_repo: Path, _tree_ref: str | None):
-        yield tmp_path
 
     monkeypatch.setattr(
         compilation,
         "openspec_profile_enabled",
         lambda *_a, **_k: profile_state == "enabled",
     )
-    monkeypatch.setattr(compilation, "_openspec_projection", selected_projection)
     monkeypatch.setattr(compilation.openspec_cli, "openspec_base_command", lambda: command)
     monkeypatch.setattr(
         compilation.openspec_cli,
@@ -463,21 +344,14 @@ def test_load_commitment_rejects_missing_or_ambiguous_authority(
     monkeypatch.setattr(compilation, "_archived_commitment", lambda *_a, **_k: None)
 
     with pytest.raises(ValueError, match=error):
-        compilation.load_openspec_commitment(tmp_path, change_id=change_id)
+        compilation.load_openspec_commitment(compilation_root, change_id=change_id)
 
 
 def test_load_commitment_uses_exact_attested_archive_when_official_show_is_absent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    compilation_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     archived = commitment_fixture(id="change:archived")
 
-    @contextmanager
-    def selected_projection(_repo: Path, _tree_ref: str | None):
-        yield tmp_path
-
-    monkeypatch.setattr(compilation, "openspec_profile_enabled", lambda *_a, **_k: True)
-    monkeypatch.setattr(compilation, "_openspec_projection", selected_projection)
-    monkeypatch.setattr(compilation.openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
         compilation.openspec_cli,
         "run_json",
@@ -490,7 +364,7 @@ def test_load_commitment_uses_exact_attested_archive_when_official_show_is_absen
     )
 
     loaded = compilation.load_openspec_commitment(
-        tmp_path,
+        compilation_root,
         change_id="archived",
         tree_ref="a" * 40,
     )

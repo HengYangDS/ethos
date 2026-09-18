@@ -19,6 +19,7 @@ from ethos.adapters.openspec.lifecycle.report import openspec_root_gaps
 from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.observation import governed_branch_intent_report
+from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.openspec.selection import selection_gaps
 from ethos.adapters.repo.git import current_branch as git_current_branch
@@ -59,12 +60,13 @@ def openspec_governance_report(
             },
             "commands": {},
         }
+    change = requested_change(change)
     archive = root / "openspec" / "changes" / "archive" / (change or "")
     active_identifier_gaps = (
         [f"openspec_active_change_identifier_is_archive_directory:{change}"]
         if change and archive.is_dir()
         else [f"openspec_active_change_identifier_invalid:{change}"]
-        if change and logical_change_identifier_issue(change)
+        if change is not None and logical_change_identifier_issue(change)
         else []
     )
     if active_identifier_gaps:

@@ -27,7 +27,8 @@ def _repo(tmp_path: Path) -> Path:
     return root
 
 
-def test_governance_reports_not_applicable_without_profile(tmp_path):
+def test_governance_reports_not_applicable_without_profile(tmp_path, monkeypatch):
+    monkeypatch.setenv("ETHOS_CHANGE", "missing")
     root = fixture.init_git_repo(tmp_path / "repo")
 
     report = governance.openspec_governance_report(root, lifecycle=True)
@@ -40,13 +41,25 @@ def test_governance_reports_not_applicable_without_profile(tmp_path):
     assert report["official_cli"] == {"available": False, "base_command": []}
 
 
-def test_governance_rejects_archive_and_invalid_active_identifiers(monkeypatch, tmp_path):
+@pytest.mark.parametrize("selection", ["explicit", "environment"])
+def test_governance_rejects_archive_and_invalid_active_identifiers(
+    monkeypatch, tmp_path, selection
+):
     root = _repo(tmp_path)
     (root / "openspec/changes/archive/archived").mkdir(parents=True)
     monkeypatch.setattr(cli, "openspec_base_command", lambda: (_ for _ in ()).throw(AssertionError))
 
-    archived = governance.openspec_governance_report(root, change="archived", lifecycle=True)
-    invalid = governance.openspec_governance_report(root, change="20260810-invalid")
+    def report(change):
+        monkeypatch.setenv("ETHOS_CHANGE", change if selection == "environment" else "other")
+        return governance.openspec_governance_report(
+            root, change=change if selection == "explicit" else None, lifecycle=True
+        )
+
+    archived = report("archived")
+    invalid = report("20260810-invalid")
+    empty = report("")
+    assert empty["verdict"] == "block"
+    assert empty["required_gaps"] == ["openspec_active_change_identifier_invalid:"]
 
     assert archived["required_gaps"] == [
         "openspec_active_change_identifier_is_archive_directory:archived"

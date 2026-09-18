@@ -1,6 +1,7 @@
+"""Native test-gate scheduling, coverage evidence and resource ownership."""
+
 from __future__ import annotations
 
-import time
 import tomllib
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -9,59 +10,86 @@ from typing import cast
 import pytest
 
 import tools.ci.python_test_gate as python_test_gate
+from ethos.adapters.process import run_command
 from ethos.contracts.gates import GateRegistryDeclaration
 from tests.support.runtime_scenarios import empty_node_package_supply
+from tests.support.subprocesses import kill_after_marker
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import nox
 
 import os
 import subprocess
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[2]
-PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.ini"
 
 
-def test_parallel_python_test_gate_does_not_replay_a_crashed_worker(tmp_path: Path) -> None:
-    marker = tmp_path / "executions.txt"
+@pytest.mark.parametrize("crash", [False, True])
+def test_parallel_python_test_gate_does_not_replay_a_crashed_worker(
+    tmp_path: Path, monkeypatch, *, crash: bool
+) -> None:
+    """Native gate scheduling bounds queued work after an unreplayed worker loss."""
+    gate = _test_gate(tmp_path, workers=2)
+    (tmp_path / "conftest.py").write_text(
+        "from pathlib import Path\ndef pytest_testnodedown(node, error):\n"
+        "    if error: Path(__file__).with_name('failed').touch()\n"
+    )
     test = tmp_path / "test_worker_loss.py"
     test.write_text(
-        """import os
+        f"""import os, time
 from pathlib import Path
+import pytest
 
-
-def test_worker_loss() -> None:
-    marker = Path(os.environ["ETHOS_WORKER_LOSS_MARKER"])
-    with marker.open("ab", buffering=0) as stream:
-        stream.write(b"executed\\n")
-    os._exit(86)
+@pytest.mark.parametrize("index", range(80))
+def test_worker_loss(index):
+    with (Path(__file__).parent / f"executed-{{index}}").open("a") as stream:
+        stream.write("after\\n" if Path(__file__).with_name("failed").exists() else "before\\n")
+    if index == 0 and {crash!r}:
+        os._exit(86)
+    time.sleep(0.05)
 """,
         encoding="utf-8",
     )
-    command = [sys.executable, "-m", "pytest", "-c", str(PYTEST_CONFIG)]
-    command += ["-n", "2", str(test)]
-    result = subprocess.run(
-        command,
-        cwd=ROOT,
-        env=os.environ | {"ETHOS_WORKER_LOSS_MARKER": str(marker)},
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    monkeypatch.setattr(python_test_gate, "ROOT", tmp_path)
+    monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)
+    monkeypatch.setattr(python_test_gate, "TARGETS", (str(test),))
+    observed = []
 
-    assert result.returncode != 0
-    assert marker.read_text(encoding="utf-8") == "executed\n"
-    output = result.stdout + result.stderr
-    for fragment in ("worker 'gw", "crashed while running", "::test_worker_loss"):
-        assert fragment in output
+    def execute(*command: str, env, **_kwargs) -> None:
+        result = run_command(
+            tmp_path,
+            (*command, "--no-cov"),
+            timeout=30,
+            env={key: value for key, value in env.items() if value is not None},
+            remove_env=tuple(key for key, value in env.items() if value is None),
+            remove_env_prefixes=("COVERAGE",),
+        )
+        observed.append(result)
+        result.check_returncode()
+
+    try:
+        gate.run_tests(cast("nox.Session", SimpleNamespace(run=execute)))
+    except subprocess.CalledProcessError:
+        assert crash
+    assert len(observed) == 1
+    result = observed[0]
+    assert (result.returncode != 0) is crash, result.stdout + result.stderr
+    executed = list(tmp_path.glob("executed-*"))
+    observations = [path.read_text().strip() for path in executed]
+    assert set(observations) <= {"before", "after"}
+    assert (tmp_path / "executed-0").read_text() == "before\n"
+    assert observations.count("after") <= 3 if crash else len(executed) == 80, observations
+    assert gate.head_file.exists() is not crash
+    assert not gate.s.basetemp.exists()
+    if crash:
+        for fragment in ("worker 'gw", "crashed while running", "::test_worker_loss[0]"):
+            assert fragment in result.stdout + result.stderr
 
 
 @pytest.mark.parametrize("full", [False, True])
 def test_coverage_gate_is_in_the_resolved_proof_closure(*, full: bool) -> None:
     declaration = GateRegistryDeclaration.model_validate(
-        tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+        tomllib.loads((python_test_gate.ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     )
     selected = declaration.proof_gates(full=full, python_executable=str(python_test_gate.PYTHON))
     identifiers = [gate.id for gate in selected]
@@ -86,8 +114,9 @@ def test_coverage_floor_rejects_below_required_measurement(
         key: value for key, value in os.environ.items() if not key.startswith("COVERAGE")
     }
     for action, args in (("run", (f"--source={tmp_path}", str(subject))), ("combine", ())):
-        subprocess.run(
-            [
+        run_command(
+            tmp_path,
+            (
                 str(python_test_gate.PYTHON),
                 "-m",
                 "coverage",
@@ -95,33 +124,29 @@ def test_coverage_floor_rejects_below_required_measurement(
                 f"--rcfile={python_test_gate.COVERAGE_CONFIG}",
                 f"--data-file={gate.data}",
                 *args,
-            ],
-            cwd=tmp_path,
+            ),
             env=environment,
-            capture_output=True,
-            text=True,
+            inherit_environment=False,
             check=True,
+            timeout=10,
         )
     gate.head_file.write_text(gate.s.head + "\n", encoding="utf-8")
     before = gate.data.read_bytes()
     monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)
     observed = []
 
-    class Session:
-        @staticmethod
-        def run(*command: str, **_kwargs: object) -> None:
-            observed.append(
-                subprocess.run(
-                    command,
-                    cwd=tmp_path,
-                    env=environment,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
+    def execute(*command: str, **_kwargs: object) -> None:
+        observed.append(
+            run_command(
+                tmp_path,
+                command,
+                env=environment,
+                inherit_environment=False,
+                timeout=10,
             )
+        )
 
-    gate.enforce_floor(cast("nox.Session", Session()))
+    gate.enforce_floor(cast("nox.Session", SimpleNamespace(run=execute)))
 
     assert len(observed) == 1
     assert observed[0].returncode == exit_code, observed[0].stdout + observed[0].stderr
@@ -130,14 +155,14 @@ def test_coverage_floor_rejects_below_required_measurement(
     assert gate.data.read_bytes() == before
 
 
-def _test_gate(tmp_path: Path):
+def _test_gate(tmp_path: Path, *, workers: int | None = None):
     return python_test_gate.PythonTestGate(
         python_test_gate.Settings(
             head="a" * 40,
             evidence=tmp_path / "evidence",
             basetemp=tmp_path / "pytest",
             basetemp_owned=True,
-            workers=None,
+            workers=workers,
             shards=None,
             durations=0,
             timeout=None,
@@ -296,27 +321,7 @@ def execute(*args, **kwargs):
     time.sleep(60)
 gate.run_tests(SimpleNamespace(run=execute))
 """
-    environment = os.environ | {"PYTHONPATH": os.pathsep.join((str(ROOT), str(ROOT / "src")))}
-    with subprocess.Popen(
-        [str(python_test_gate.PYTHON), "-B", "-c", script, str(tmp_path)],
-        cwd=tmp_path,
-        env=environment,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    ) as process:
-        try:
-            deadline = time.monotonic() + 15
-            while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
-                time.sleep(0.02)
-            assert ready.exists(), "test owner did not enter native execution"
-            process.kill()
-            process.communicate(timeout=10)
-            assert process.returncode != 0
-        finally:
-            if process.poll() is None:
-                process.kill()
-                process.communicate(timeout=10)
+    assert kill_after_marker(tmp_path, script, (str(tmp_path),), ready, timeout=15) == "executing"
 
     assert not gate.head_file.exists()
     monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)

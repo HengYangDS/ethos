@@ -253,7 +253,8 @@ class PythonTestGate:
             "--cov=src/ethos",
             f"--basetemp={self.s.basetemp}",
             f"--durations={self.s.durations}",
-            "--dist=worksteal",
+            "--dist=load",
+            "--maxschedchunk=1",
         ]
         args[:0] = ["-n", str(self.s.workers)] if self.s.workers not in {None, 1} else []
         args += (

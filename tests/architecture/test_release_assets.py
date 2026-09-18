@@ -356,7 +356,7 @@ def test_test_environment_freezes_locked_supply_as_absolute_paths(
     assert observed["UV_CACHE_DIR"] == str(root / "build/runtime/tool-cache/uv")
     assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == str(supply)
 
-    assert "--dist=worksteal" in commands[0]
+    assert {"--dist=load", "--maxschedchunk=1"} <= set(commands[0])
     assert ("-n" in commands[0]) is (workers == 8)
     assert set(python_test_gate.TARGETS) <= set(commands[0])
 

@@ -24,12 +24,12 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
     binary.write_text(
         f"#!{sys.executable}\n"
         "import json, pathlib, subprocess, sys\n"
+        "with pathlib.Path('commands.jsonl').open('a') as stream:\n"
+        " stream.write(json.dumps(sys.argv[1:])+'\\n')\n"
         "case = json.loads(pathlib.Path('proof-case.json').read_text())\n"
         "assert pathlib.Path('.syft-prepared').is_file()\n"
-        "scanner = subprocess.check_output([case['scanner'], 'version'], text=True)\n"
+        "scanner = subprocess.check_output(['gitleaks', 'version'], text=True)\n"
         "assert scanner.strip() == 'fixture-scanner'\n"
-        "with pathlib.Path(case['command_log']).open('a') as stream:\n"
-        " stream.write(json.dumps(sys.argv[1:])+'\\n')\n"
         "if sys.argv[1:6] != ['run', '--frozen', '--offline', 'ethos', 'prove']:\n"
         " print('unexpected lifecycle transport', file=sys.stderr); sys.exit(9)\n"
         "for name, content in case['reports'].items():\n"
@@ -43,6 +43,18 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
     scanner = binary.with_name("gitleaks")
     scanner.write_text("#!/bin/sh\nprintf fixture-scanner\n")
     scanner.chmod(0o555)
+    supply = binary.with_name("prepare")
+    supply.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os, pathlib, subprocess, sys\n"
+        "bodies = json.loads(pathlib.Path('supply-case.json').read_text())\n"
+        "native = pathlib.Path(sys.argv[0]).name == 'native.py'\n"
+        "assert not native or sys.argv[1:] == ['--root', os.getcwd(), 'gitleaks', 'scc']\n"
+        "for body in bodies[:2] if native else bodies[2:]:\n"
+        " result = subprocess.run(['/bin/sh', '-c', body])\n"
+        " if result.returncode: sys.exit(result.returncode)\n"
+    )
+    supply.chmod(0o555)
     return binary
 
 
@@ -66,6 +78,7 @@ def _report_contents(reports: str) -> dict[str, str]:
 
 def _hosted_scripts(
     repo: Path,
+    transport: Path,
     supply_script: str,
     scanner_script: str = "exit 0\n",
     sbom_script: str = "touch .syft-prepared\n",
@@ -74,19 +87,10 @@ def _hosted_scripts(
     scripts = repo / "tools/ci/scripts"
     scripts.mkdir(parents=True)
     shutil.copy2(ROOT / "tools/ci/scripts/run-head-bound-proof.sh", scripts)
-    sbom = scripts / "install-syft.sh"
-    sbom.write_text("#!/bin/sh\n" + sbom_script)
-    sbom.chmod(0o755)
-    supply = repo / "tools/ci/toolchain/native.py"
-    supply.parent.mkdir()
-    supply.write_text(
-        "import subprocess, sys\n"
-        "assert sys.argv[1:3] == ['--root', str(__import__('pathlib').Path.cwd())]\n"
-        "assert sys.argv[3:] == ['gitleaks', 'scc']\n"
-        f"for body in ({scanner_script!r}, {supply_script!r}):\n"
-        " result = subprocess.run(['/bin/sh', '-c', body])\n"
-        " if result.returncode: sys.exit(result.returncode)\n"
-    )
+    for path in (repo / "tools/ci/toolchain/native.py", scripts / "install-syft.sh"):
+        path.parent.mkdir(exist_ok=True)
+        path.symlink_to(transport.with_name("prepare"))
+    (repo / "supply-case.json").write_text(json.dumps([scanner_script, supply_script, sbom_script]))
     return scripts
 
 
@@ -165,15 +169,12 @@ def test_hosted_receipt_requires_exact_executed_observation(
         data["attestation"] = {"id": "unrelated-proof"}
     elif fault == "unexecuted":
         data["executed"] = False
-    command_log = tmp_path / "commands.jsonl"
     binary = tmp_path / "bin/uv"
     binary.parent.mkdir()
     scanner = binary.parent / "gitleaks"
     (repo / "proof-case.json").write_text(
         json.dumps(
             {
-                "scanner": str(scanner),
-                "command_log": str(command_log),
                 "reports": _report_contents(reports),
                 "output": "{" if fault == "malformed" else json.dumps(payload),
                 "exit_code": 7 if fault == "process" else 0,
@@ -184,9 +185,11 @@ def test_hosted_receipt_requires_exact_executed_observation(
     assert binary.samefile(hosted_proof_transport)
     scripts = _hosted_scripts(
         repo,
+        hosted_proof_transport,
         f"printf '%s\\n' '{binary.parent}'\n",
         f"ln -s '{hosted_proof_transport.with_name('gitleaks')}' '{scanner}'\n",
     )
+    assert (scripts / "install-syft.sh").samefile(hosted_proof_transport.with_name("prepare"))
     summary_file = tmp_path / "summary.md"
     completed = _run_hosted(
         repo, scripts, binary.parent, expected, GITHUB_STEP_SUMMARY=str(summary_file)
@@ -197,7 +200,7 @@ def test_hosted_receipt_requires_exact_executed_observation(
     assert receipt["kind"] == "ethos_hosted_verification_receipt"
     assert receipt["satisfies_repository_proof"] is False
     assert receipt["verdict"] == ("pass" if fault == "none" else "block")
-    (command,) = [json.loads(line) for line in command_log.read_text().splitlines()]
+    (command,) = map(json.loads, (repo / "commands.jsonl").read_text().splitlines())
     assert {"--host", "--execute"} <= set(command)
     assert "--gate" not in command
     assert command[command.index("--expect-head") + 1] == expected
@@ -216,13 +219,14 @@ def test_hosted_receipt_requires_exact_executed_observation(
 
 @pytest.mark.parametrize("failed_tool", ["scc", "gitleaks", "syft"])
 def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
-    tmp_path: Path, failed_tool: str
+    tmp_path: Path, failed_tool: str, hosted_proof_transport: Path
 ) -> None:
     """A failed prerequisite must not leave prior passing output or invoke proof."""
     repo = init_git_repo(tmp_path / "repo")
     failure = f"echo {failed_tool}_archive_checksum_mismatch >&2\nexit 23\n"
     scripts = _hosted_scripts(
         repo,
+        hosted_proof_transport,
         *(failure if name == failed_tool else "exit 0\n" for name in ("scc", "gitleaks", "syft")),
     )
     evidence = repo / "build/evidence/quality"
@@ -235,14 +239,11 @@ def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
         path.write_text("stale passing output")
     bins = tmp_path / "bin"
     bins.mkdir()
-    invoked = tmp_path / "proof-invoked"
-    uv = bins / "uv"
-    uv.write_text(f"#!/bin/sh\ntouch '{invoked}'\nexit 99\n")
-    uv.chmod(0o755)
+    (bins / "uv").symlink_to(hosted_proof_transport)
     result = _run_hosted(repo, scripts, bins)
     assert result.returncode == 23, result.stdout + result.stderr
     assert f"{failed_tool}_archive_checksum_mismatch" in result.stderr
-    assert not invoked.exists()
+    assert not (repo / "commands.jsonl").exists()
     assert not any(path.exists() for path in stale)
     receipt = json.loads(result.stdout)
     assert receipt["verdict"] == "block"

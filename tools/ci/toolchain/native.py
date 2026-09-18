@@ -20,6 +20,8 @@ from tempfile import TemporaryDirectory
 from filelock import FileLock
 from filelock import Timeout
 
+from ethos.adapters.process import run_command
+
 
 @dataclass(frozen=True, slots=True)
 class NativeSupply:
@@ -100,13 +102,7 @@ class NativeSupply:
 
     def verify(self, executable: Path) -> None:
         """Observe the declared native version; bytes or a name alone are insufficient."""
-        observed = subprocess.run(
-            [str(executable), self.version_argument],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-        )
+        observed = run_command(Path.cwd(), (str(executable), self.version_argument), timeout=10)
         if observed.returncode or observed.stderr or observed.stdout.strip() != self.version_output:
             msg = f"native_tool_executable_version_mismatch:{self.name}"
             raise ValueError(msg)

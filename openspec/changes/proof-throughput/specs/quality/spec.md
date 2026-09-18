@@ -121,6 +121,13 @@ the supervisor or containment of deliberately detached processes.
 - **AND** inherited output pipes do not leave the descendant running
 - **AND** the original exception and captured timeout output remain available
 
+#### Scenario: Native executable verification times out
+
+- **WHEN** a version-check executable has a ready descendant and exceeds its deadline
+- **THEN** the shared process owner closes its process group before returning failure
+- **AND** the verified archive and previous executable retain their existing protections
+- **AND** transport and verification do not define competing cancellation semantics
+
 #### Scenario: A test supervisor is killed
 
 - **WHEN** a worker exits without executing its cleanup

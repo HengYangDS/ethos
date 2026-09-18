@@ -1337,3 +1337,25 @@ its absence while preserving the new service. Native cleanup sampling also found
 unlink/rmdir work after pytest exit; cleanup cost belongs in full-cycle timing,
 not an assumed idle wait. Receipts remain under `throughput-runner-qos-` and
 `throughput-runner-background-finalization-sample` in the existing evidence root.
+
+### Executable Observation Uses The Process Owner
+
+The native version observer used raw `subprocess.run`, unlike the established
+owned-command boundary. A real ten-second verification timeout killed its direct
+executable but left a ready child alive. The socket-based regression extends the
+existing transport test to version verification, with immediate and delayed
+startup; both verification cases fail before the repair while transport passes.
+
+Version observation now delegates to `ethos.adapters.process.run_command` with
+its existing ten-second deadline. This removes the independent raw execution
+path without another retry, cache, watcher or deadline policy. Native bootstrap
+and direct script consumers retain their calling environment. The 88-case supply
+and process matrix passes, including cache retention, corruption, concurrency,
+timeout, cancellation and original failure evidence. Every owned test root was
+removed. This closes living-caller version-check cleanup only; supervisor loss,
+unregistered group escape and native Windows containment remain open.
+
+The test matrix derives prerequisite outcomes from the existing platform/image
+inputs instead of redundant expected-state columns. The native command prefix
+is shared; no behavioral case was removed to meet the source budget. Current
+full proof and installed acceptance remain required after this bounded repair.

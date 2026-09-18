@@ -1359,3 +1359,33 @@ The test matrix derives prerequisite outcomes from the existing platform/image
 inputs instead of redundant expected-state columns. The native command prefix
 is shared; no behavioral case was removed to meet the source budget. Current
 full proof and installed acceptance remain required after this bounded repair.
+
+### Native Fixture Code And Case State
+
+The exact source proof at `2422bc029` ran for 723.472 seconds and failed one
+bootstrap prerequisite case at its existing 30-second deadline: 3,832 passed,
+one failed and one skipped. Its owned basetemp was removed. Current-source
+GitHub dev at `16e346b69` separately failed 22 cases, all in native supply and
+hosted-receipt fixtures; both GitLab pipelines passed. Runner policy correction
+therefore does not establish complete startup reliability.
+
+An invocation-path diagnostic ran identical shell bytes: newly executable files
+cost 0.412–1.180 seconds, while repeated execution of the same file cost about
+0.005 seconds. Explicit interpreter execution was similarly short. The second
+concurrency sample reused paths and must not be presented as a fresh-file result.
+This is evidence for avoiding repeated executable creation, not attribution to
+an operating-system security service or permission to weaken that service.
+
+Bootstrap fixtures now keep immutable command code in their module-owned supply;
+case-specific platform/image inputs, logs, Git state and trust remain isolated.
+The existing hosted transport supplies one read-only scanner executable instead
+of rebuilding identical code per case. Real shell dispatch, supply checks,
+identity assertions, all outcome cases and original deadlines remain intact.
+No product cache or executable-bypass path is introduced.
+
+The same 120 supply/receipt/process cases pass at two, four and eight workers in
+49.537, 37.314 and 38.276 seconds including owned cleanup. Case identities match;
+coverage is disabled equally for this diagnostic. Four workers are faster on
+this sample, not a reason to infer the optimal full-suite count. Whole-suite and
+hosted acceptance remain required. The existing `throughput-fixture-sharing-`
+receipts bind these results; the failed source proof remains failed.

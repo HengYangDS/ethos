@@ -233,107 +233,58 @@ def _current_authority() -> CurrentAuthority:
     )
 
 
-def test_prewrite_combines_minimal_lease_with_official_openspec_attribution(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.parametrize("bootstrap", [False, True])
+def test_prewrite_preserves_current_resolution_and_exact_paths(tmp_path, monkeypatch, bootstrap):
+    """Valid Lease and exact scope are shared without treating repair as valid intent."""
     _bind_common(monkeypatch, tmp_path)
     authority = _current_authority()
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
     monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
-    monkeypatch.setattr(
-        prewrite,
-        "resolve_current_resolution",
-        lambda *_args, **_kwargs: CurrentResolution(
-            verdict="pass",
-            authority=authority,
-            commitment=commitment_fixture(id="change:example"),
-            scope=CurrentScope(
-                paths=("README.md",),
-                material_scope={
-                    "verdict": "pass",
-                    "state": "attributed",
-                    "changed_paths": ["README.md"],
-                    "material_patterns": ["**"],
-                    "material_paths": ["README.md"],
-                    "changes": [{"name": "example"}],
-                    "covered_paths": [{"path": "README.md", "changes": ["example"]}],
-                    "uncovered_paths": [],
-                    "required_gaps": [],
-                    "advisory_gaps": [],
-                },
-            ),
-        ),
+    paths = (
+        ("openspec/changes/example/.openspec.yaml", "openspec/changes/example/proposal.md")
+        if bootstrap
+        else ("README.md",)
     )
-    report = prewrite.prewrite_guard(
-        root=tmp_path,
-        paths=[tmp_path / "README.md"],
-        editor_root=tmp_path,
-    )
-
-    assert report["verdict"] == "pass"
-    scope = report["material_scope"]
-    assert isinstance(scope, dict)
-    assert scope["state"] == "attributed"
-
-
-def test_prewrite_passes_exact_requested_paths_to_current_resolution(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _bind_common(monkeypatch, tmp_path)
-    authority = _current_authority()
-    monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
-    observed: list[tuple[str, ...]] = []
+    state = "official_change_bootstrap" if bootstrap else "attributed"
+    material = {
+        "verdict": "pass",
+        "state": state,
+        "changed_paths": list(paths),
+        "material_patterns": [] if bootstrap else ["**"],
+        "material_paths": [] if bootstrap else list(paths),
+        "changes": [{"name": "example"}],
+        "covered_paths": [{"path": path, "changes": ["example"]} for path in paths],
+        "uncovered_paths": [],
+        "required_gaps": [],
+        "advisory_gaps": [],
+    }
+    observed = []
 
     def resolve(*_args, **kwargs):
         assert kwargs["require_workspace"] is True
-        requested = tuple(kwargs["prewrite_paths"])
-        observed.append(requested)
+        observed.append(tuple(kwargs["prewrite_paths"]))
         return CurrentResolution(
             verdict="pass",
             authority=authority,
-            commitment=None,
-            scope=CurrentScope(
-                paths=requested,
-                material_scope={
-                    "verdict": "pass",
-                    "state": "official_change_bootstrap",
-                    "changed_paths": list(requested),
-                    "material_patterns": [],
-                    "material_paths": list(requested),
-                    "changes": [{"name": "example"}],
-                    "covered_paths": [
-                        {"path": candidate, "changes": ["example"]} for candidate in requested
-                    ],
-                    "uncovered_paths": [],
-                    "required_gaps": [],
-                    "advisory_gaps": [],
-                },
-            ),
-            next_action="openspec instructions proposal --change example --json",
-            openspec={"verdict": "block", "change": "example", "required_gaps": ["incomplete"]},
+            commitment=None if bootstrap else commitment_fixture(id="change:example"),
+            scope=CurrentScope(paths=paths, material_scope=material),
+            next_action="openspec instructions proposal --change example --json"
+            if bootstrap
+            else "",
+            openspec={"verdict": "block" if bootstrap else "pass", "change": "example"},
         )
 
     monkeypatch.setattr(prewrite, "resolve_current_resolution", resolve)
-    paths = (
-        "openspec/changes/example/.openspec.yaml",
-        "openspec/changes/example/proposal.md",
-    )
-
     report = prewrite.prewrite_guard(
         root=tmp_path,
         paths=[tmp_path / path for path in paths],
         editor_root=tmp_path,
         require_workspace=True,
     )
-
     assert report["verdict"] == "pass"
     assert observed == [paths]
-    scope = report["material_scope"]
-    assert isinstance(scope, dict)
-    assert scope["state"] == "official_change_bootstrap"
-    assert report["openspec"]["verdict"] == "block"  # Repair admission is not valid intent.
+    assert report["material_scope"] == material
+    assert report["openspec"]["verdict"] == ("block" if bootstrap else "pass")
 
 
 def test_prewrite_reuses_exact_archive_generation_binding(

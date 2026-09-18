@@ -267,38 +267,32 @@ or universal uv/.venv layout. Raw review evidence stays in the existing
 commit-integrity evidence root, not a second roadmap or policy authority.
 
 The September 19 readback selects accepted source
-013e1322689a8064a10e192004704ab3ad6cb2a6. Exact full proof passed all 35 gates
-in 760.664 seconds with 3,869 passed, one skipped and 95.000502-percent combined
-coverage. Installed source/tree and both peers' dev/main refs match. Hosted
-GitHub main/dev 35374579990/35374579664 and GitLab main/dev 7477/7476 remain
-running or queued; they are not claimed successful. The predecessor's four
-hosted pipelines passed, while earlier GitHub dev 35349488427 timed out in
-native bootstrap. Later success does not establish that timeout's cause.
+7060a5f0ec8ae57f46ef7647e7b3675898bde7c4. Its exact 35-gate full proof passed
+in 765.522 seconds with 3,873 passed, one skipped and 95.000502-percent combined
+coverage. Installed source/tree and both peers' dev/main refs match. Current
+hosted jobs remain pending/running; predecessor 013e13226 completed all four
+successfully. Earlier GitHub dev 35349488427 timed out in native bootstrap;
+later success does not establish that earlier failure's cause.
 
-The completed status repair passes one current runtime observation through
-workspace binding. Native corruption/recovery detects changed bytes on later
-calls. Five alternating handler pairs preserve complete results and reduce
-inventories from two to one, with medians 5.581587 and 4.965634 seconds.
-Installed profiling confirms one inventory, not installed latency. The
-single-status batch receipt separates proof, runtime, peer and hosted claims.
+The completed status repair shares one current runtime observation inside the
+call while later calls detect corruption. Five handler pairs preserve results,
+reducing inventories from two to one. The delivered capability repair removes
+unrelated Node-supply initialization from native listing and Python lint, while
+required missing or changed supply remains rejected. Six fresh-process pairs
+preserve discovery interfaces and reduce imports from 482 to 146, with median
+times 0.224650 and 0.027287 seconds. Neither local measurement proves overall
+proof improvement. Exact batch receipts retain acceptance and cleanup boundaries.
 
-The next bounded candidate initializes only selected quality capabilities.
-Native listing and Python lint no longer require unrelated Node supply;
-Markdown still rejects it. Later delivery selection rejects changed supply or
-lock state without changing an earlier explicit binding. Six alternating
-discovery pairs preserve interfaces and reduce loaded modules from 482 to 146;
-median import time is 0.224650 versus 0.027287 seconds on warm inputs.
-The 111-case focused family, Ruff, scoped tool typing and budgets pass.
-This is not full-proof improvement or accepted successor status. Complete
-proof and delivery remain tasks in the same official proof-throughput Change.
-
-A separate-Change creation attempt exposed a public selection gap: creating a
-second active Change succeeded, but continuation prewrite had no unambiguous
-selector. Only the five newly created untracked files were removed through the
-owned compensation path; exact contents and receipts remain in
-archive-links-creation-compensation.json under the existing evidence root.
-The creation/continuation gap remains open. Continue this bounded work in the
-sole existing Change; no parallel roadmap or new lane is introduced.
+The new bounded continuation repair follows the compensated second-Change
+creation incident recorded in archive-links-creation-compensation.json.
+Current resolution now uses the exact requested existing Change root for
+official-artifact prewrite; official graph, Lease, runtime and staged checks
+remain authoritative. Native public prewrite, pre-tool, creation and commit
+passed targeted execution. Mixed ordinary work remains unresolved, returns
+official list inspection and exposes its required choice instead of status
+recursion. Existing merge/archive provenance tests remain part of acceptance.
+Exact full proof and successor delivery are still required for this candidate.
+No persistent selector, additional Work Lane or parallel roadmap is introduced.
 
 The September 18 user adjustment keeps P5 on the immediate critical path with
 a staged target: first complete proof below 1,200 seconds, then evaluate the

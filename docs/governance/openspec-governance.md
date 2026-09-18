@@ -31,6 +31,20 @@ ETHOS does not reproduce those operations as public roots. `ethos plan --changed
 current OpenSpec projection and compile its acceptance into a transient
 Commitment.
 
+For authoring, exact prewrite paths entirely inside one existing active Change
+identify the intended Change without a separate selector. The official artifact
+graph bounds incomplete-Change writes; ordinary Commitment attribution replaces
+bootstrap after compilation succeeds. Public prewrite, pre-tool and native Git
+commit consume the same current resolution and independently check authority.
+A requested path does not grant permission or override an explicit selection.
+
+Several active Changes do not justify guessing the owner of ordinary product
+work. That unresolved observation directs the caller to the official Change
+list and marks the choice as required. Existing `ethos plan --change <id>` and
+`ethos prove --change <id>` carry an explicit selection; it is not persisted as
+another lifecycle state. Archive, contribution and integration admission remain
+separate from this artifact-authoring boundary.
+
 The archive write boundary is owned by a semantically namespaced Work Lane
 command, not by a seventh root command:
 

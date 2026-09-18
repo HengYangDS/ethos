@@ -151,7 +151,7 @@ def prewrite_guard(
         index_tree=str(patch_report.get("index_tree") or ""),
     )
     next_action = str(scope.get("next_action") or "")
-    user_decision_required = False
+    user_decision_required = bool(scope.get("user_decision_required", False))
     if verdict != "pass":
         if report_verdict(authority) != "pass":
             next_action, user_decision_required = current_authority.recovery(root)

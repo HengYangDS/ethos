@@ -1684,5 +1684,48 @@ The 111-case focused family, Ruff, scoped tool typing and source budgets pass;
 product/test ELOC is 45,937/50,000. Native checks and distinguishing regressions
 are retained under capability-boundary-verification and
 capability-startup-paired-measurement in the existing evidence root.
-Scratch absence is verified. Exact full proof, successor delivery and hosted
-acceptance remain separate unfulfilled obligations for this candidate.
+Scratch absence is verified. Successor 7060a5f0e passed all 35 exact full-proof
+gates in 765.522 seconds: 3,873 passed, one skipped, combined coverage
+95.000502 percent. Its accepted source, runtime and both peers' dev/main refs
+match. Hosted jobs were pending/running at the delivery observation; no overall
+speedup is inferred from this run. The capability-batch-closeout receipt binds
+these results. The preceding 013e13226 jobs subsequently all passed.
+
+## Exact Official Artifact Continuation
+
+Official creation can coexist with another active Change, but the former
+prewrite resolver discarded the exact requested artifact root and attempted a
+lane-wide selection. Both public prewrite and pre-tool then rejected the newly
+created proposal. The native reproducer uses official new-change execution,
+real Lease/runtime state and unchanged hooks; it fails before the owner repair.
+
+For prewrite only, the existing selection owner derives a candidate Change
+identity when every requested path names the same existing, valid active root.
+Current resolution uses that identity only when the caller did not explicitly
+select one. It still consumes the official CLI's selected status and artifact
+graph. During bootstrap, only official outputs are writable; complete intent
+uses normal Commitment attribution. No path, directory, selected name or prior
+PASS grants authority. Lease, runtime, editor-root, patch and staged-coordinate
+checks remain independent. No durable selector or new CLI option is introduced.
+
+Mixed product/Change paths, several Change roots, absent or symlink roots,
+archive paths and invalid names do not infer a selection. Default planning and
+proof still require unambiguous intent; explicit plan/prove selection remains
+the existing public interface. When ordinary work is ambiguous, current
+resolution returns official list inspection and marks the choice as required,
+rather than recursively advertising status. Prewrite forwards that typed choice
+instead of silently resetting it when a next action already exists.
+
+Native tests cover creation, artifact admission through both transports, wrong
+holder, complete intent, actual Git commit and exact-tree compilation. Separate
+path cases exercise selection boundaries, and existing native merge/archive
+cases preserve contribution provenance. The repair does not claim unrestricted
+multi-Change product execution: selecting a product operation or integrating
+several contributions still requires its own explicit intent and proof.
+
+The final sibling suite passes 261 cases in 116.30 seconds at two workers,
+including native merge/archive, current resolution, hook and terminal readers.
+All 29 inexpensive gates, scoped product typing, format and source budgets pass.
+Product/test ELOC remains 45,961/50,000. This is candidate evidence, not completed
+repository proof or installed-runtime acceptance. Existing receipts
+change-selection-final-consumers and change-selection-cheap bind that boundary.

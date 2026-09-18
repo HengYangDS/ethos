@@ -230,3 +230,24 @@ Every reuse SHALL revalidate the archive; retained bytes do not grant acceptance
 - **WHEN** its digest, member identity or member type is invalid
 - **THEN** the download is not retained as verified supply
 - **AND** cached corruption remains rejected before executable activation
+
+### Requirement: Owned removal minimizes permission effects
+
+Runtime and test-output cleanup SHALL share one filesystem removal owner for
+quiescent, exclusively owned paths. It SHALL prepare each real directory once
+and modify only permissions required for deletion. External referents SHALL
+retain bytes, permissions and modification time; caller-specific admission and
+native failure reporting SHALL remain effective.
+
+#### Scenario: Writable or sealed owned directories are removed
+
+- **WHEN** an admitted tree contains writable or owner-inaccessible directories
+- **THEN** cleanup removes the tree and changes only missing directory permissions
+- **AND** POSIX regular-file modes are unchanged before unlinking
+- **AND** repeated cleanup of the absent path succeeds
+
+#### Scenario: Links or deletion failures occur
+
+- **WHEN** an owned output contains a symbolic link or shares a regular-file inode
+- **THEN** generic cleanup preserves external referents and runtime admission retains its stronger rejection
+- **AND** a native deletion failure remains observable under the caller's declared policy

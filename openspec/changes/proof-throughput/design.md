@@ -1472,3 +1472,30 @@ byte-only experiment. Later matches passed without sampling overhead.
 The 104-case native matrix and 29 cheap gates pass with unchanged budgets,
 coverage policy and timeouts. Actual binary materialization, supervisor loss,
 unregistered descendants and Windows remain separate acceptance obligations.
+
+### Owned Removal Changes Only Required Permissions
+
+Runtime generation and test-output deletion share the existing filesystem owner.
+The caller supplies an exclusively owned, quiescent path; this helper grants no
+ownership or permission to retire a live consumer. Directory traversal prepares
+each actual directory once, only when owner permissions are missing. POSIX
+deletion does not rewrite regular-file modes. Windows only repairs a read-only
+regular file with one link. Root and nested links are never traversed; runtime
+generation deletion retains its stronger junction and exclusive-inode admission.
+Native removal failures propagate through the existing caller policy.
+
+The previous test-output walker rewrote writable directories and each nested
+directory twice; runtime removal made every regular file writable unnecessarily.
+Counterexamples observe actual changed paths and retain external bytes, inode,
+mode and modification time. The unified owner replaces both deletion paths;
+interpreter image creation still uses its separate writable-materialization
+operation because that consumer genuinely modifies files.
+
+A callback-retry alternative added platform and retry machinery without a
+measured advantage over directory preparation, so it was discarded. The final
+322-case consumer family and 29 cheap gates pass, and ten root/nested permission
+cases pass on each of Python 3.12.14 and 3.14.7. These observations do not establish
+native Windows or hostile concurrent-writer containment. Safe quiescence remains
+the caller's obligation, and platforms without no-follow chmod retain that limit.
+Sealed-tree microbenchmarks do not establish whole-proof throughput or bounded
+recovery after supervisor death; those existing obligations remain open.

@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import re
 import shutil
-import stat
 import sys
 import tempfile
 import tomllib
@@ -20,6 +19,7 @@ from filelock import FileLock
 from filelock import Timeout
 
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.filesystem import remove_owned_path as remove_generated_path
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -72,33 +72,6 @@ def _absolute_environment_path(name: str) -> Path | None:
         return None
     path = Path(value)
     return path if path.is_absolute() else (ROOT / path).resolve()
-
-
-def remove_generated_path(path: Path) -> None:
-    """Unlink owned output without changing external referents or hiding failure."""
-    if path.is_symlink():
-        path.unlink()
-    elif path.is_junction():
-        path.rmdir()
-    elif path.is_dir():
-        for parent, directories, files in os.walk(path, followlinks=False):
-            directory = Path(parent)
-            directory.chmod(stat.S_IMODE(directory.stat().st_mode) | stat.S_IRWXU)
-            for name in directories[:]:
-                child = directory / name
-                if child.is_symlink() or child.is_junction():
-                    directories.remove(name)
-                else:
-                    child.chmod(stat.S_IMODE(child.stat().st_mode) | stat.S_IRWXU)
-            if os.name == "nt":
-                for name in files:
-                    child = directory / name
-                    metadata = child.lstat()
-                    if stat.S_ISREG(metadata.st_mode) and metadata.st_nlink == 1:
-                        child.chmod(stat.S_IMODE(metadata.st_mode) | stat.S_IWUSR)
-        shutil.rmtree(path)
-    else:
-        path.unlink(missing_ok=True)
 
 
 @dataclass(frozen=True, slots=True)

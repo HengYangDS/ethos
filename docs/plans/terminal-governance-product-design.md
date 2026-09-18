@@ -39,15 +39,19 @@ are then deleted.
 ## Current Convergence Boundary
 
 The September 18 delivered checkpoint binds accepted source
-`2680fd31446d71c351c5fc0837e1b6b9c1051912`, tree
-`728b86cfb99e763b80fac5c51949f54bb247bc89`, and immutable runtime
-`a2bc9a5d137acc2479220d04f9c2db47f0524aa1d3b67c1b42819bf17f2795b3`.
+`351f21c2dc320c422722f4205fc436975155f810`, tree
+`2dc1fd102dc726fe1252b3cbca5266e97d4cf8e4`, and immutable runtime
+`89ce64ce529a897c44bf87007027079c3c3c98c47acd2f76fcc2be834fb23e9a`.
 Exact full proof passed 35 gates, 3,842 tests and one skip with 95.089768-percent
-combined coverage in 709.257 seconds. Candidate/accepted CAS, runtime activation
-and both independent peers' dev/main publication are post-observed. The prior
-runtime and owned scratch were reclaimed. This warm locked-toolchain result
-meets the 1,200-second target, not the 600-second direction or total hosted
-delivery latency. The Change and sole Work Lane remain open.
+combined coverage in 917.823 seconds. Candidate/accepted CAS, installed runtime
+and both independent peers' dev/main publication are post-observed. At
+2026-09-18 20:54 +08:00, GitHub runs 35341574656/35341574738 and GitLab
+7439/7440 all succeeded at that source; both peers still exposed the exact
+dev/main OID and no proposal refs. The previous runtime and proof basetemp
+were reclaimed. This run was slower than the preceding 709.257-second result:
+it meets 1,200 seconds, not the 600-second direction or total hosted latency.
+The test gate took 663.969 seconds and installed acceptance 215.585 seconds.
+The Change and sole Work Lane remain open.
 
 Release continuity is delivered: repository proof remains applicable after
 authoring retirement; distinct valid execution contexts do not contradict
@@ -71,22 +75,39 @@ ran together in 20.047 seconds; full proof and installation then passed.
 Existing `supply-preflight-` receipts bind the source, installed identity,
 four peer refs and removal of the old runtime and owned scratch.
 
-For preceding source `e58745a6`, GitHub dev including package artifacts and
-GitLab 7421/7422 passed. GitHub main job 105563747202 instead failed 15 native
-startup/readiness cases, with 3,826 passes and one skip. Its downloaded artifact
-digest matches the Forge metadata. This is not the earlier Syft mismatch and
-not proof of a universal process-deadlock cause. At 19:24 +08, the successor
-GitHub dev source job was running, main source queued and GitLab 7435/7436
-running; terminal hosted success remains separate.
+The delivered fixture repair shares immutable hosted preparation code while
+isolating each case's data, logs and repository state. Its proof transport
+records invocation before validation: success executes once; preparation failure
+never invokes proof. Native dispatch, deadlines and all failure outcomes remain
+covered. The 104-case matrix and 29 cheap gates preceded the full delivery above.
+Existing `native-startup-` evidence retains the earlier failed source proof;
+later green does not establish a universal cause for native startup delays.
 
-The next repair reuses immutable hosted supply fixture code while retaining
-per-case data, logs and repository state. The same proof transport records every
-invocation before validation, preserving both exactly-once success and no-call
-failure observations. It replaces repeated preparation executables rather than
-extending timeouts or bypassing native dispatch. Its final 104-case matrix and
-29 cheap gates pass together in 37.339 seconds at 45,625 product / 50,000 test
-ELOC. New-source full proof, installed delivery and hosted consumption remain
-required. Different collections and changing host load are not a speedup ratio.
+The current bounded cleanup repair gives runtime and test-output deletion one
+filesystem owner. It prepares each actual directory once, changes only missing
+permissions and leaves POSIX regular-file modes untouched. Native link/junction
+handling, runtime exclusive-inode checks and observable failures remain intact.
+The final 322-case runtime/test-gate/delivery family and 29 cheap gates passed
+together in 35.051 seconds; code hashes still match. Python 3.12.14 and 3.14.7
+each passed ten root/nested permission cases on the final implementation.
+Product/test ELOC are 45,663/49,997 against independent 50,000 limits.
+
+The callback-retry prototype was rejected after comparison: directory preparation
+was similarly fast with less mechanism. A 5,000-file sealed-tree comparison
+measured 0.220--0.224 seconds for directory-only cleanup; earlier full-file
+permission repair took 0.395--0.487 seconds. Those microbenchmarks exclude creation
+and do not demonstrate a whole-proof gain. New-source proof and installation,
+native Windows, supervisor loss and sustained resource bounds remain unproved.
+Existing `owned-cleanup-` receipts retain exact inputs, failures and owned cleanup.
+
+An independent adopter reports archive relocation changed valid Change-relative
+links into wrong targets: active `../../../docs/...` was retained after moving
+under `openspec/changes/archive/`. Its archived repair restored link resolution.
+This is attributed evidence, not yet replayed on the current accepted runtime.
+After this atomic cleanup delivery, verify the current archive owner with root
+and nested-spec links, validate target semantics in the proposed postimage before
+commit and preserve compensation on failure. Keep the historical-release/current
+HEAD mismatch rejection; do not copy an adopter link rewriter or reopen its lane.
 
 Matched native experiments distinguish fresh-file execution from reused identity:
 fresh scripts took 0.403--0.783 seconds, repeated identity 0.004--0.010 seconds,

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from typing import NoReturn
 
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.runtime.filesystem import make_owned_tree_writable
+from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.filesystem import require_exclusive_inodes
 from ethos.adapters.repo.runtime.filesystem import require_no_junctions
 from ethos.adapters.repo.runtime.filesystem import runtime_python
@@ -241,8 +241,7 @@ def remove_generated_tree(path: Path, *, ignore_errors: bool = False) -> None:
     try:
         require_no_junctions(path, error="hook_runtime_generation_tree_invalid")
         require_exclusive_inodes(path, error="hook_runtime_generation_hardlink_invalid")
-        make_owned_tree_writable(path)
-        shutil.rmtree(path)
+        remove_owned_path(path)
     except OSError:
         if not ignore_errors:
             raise

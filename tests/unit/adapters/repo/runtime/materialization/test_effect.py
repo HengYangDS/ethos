@@ -6,6 +6,7 @@ import os
 import stat
 import subprocess
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,6 +17,7 @@ import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.materialization.python_environment as runtime_python_environment
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.selection import activate_runtime
@@ -305,11 +307,15 @@ def test_runtime_generation_compares_windows_prefixes_as_paths(
         runtime_materialization.require_runtime_generation(target, args[4], args[5])
 
 
-def test_runtime_finalization_does_not_require_a_generated_ethos_launcher(
-    tmp_path: Path,
+@pytest.mark.parametrize("available", [False, True])
+def test_runtime_finalization_requires_python_but_not_a_console_launcher(
+    tmp_path: Path, *, available: bool
 ) -> None:
+    """Finalize only an interpreter-bearing generation and reclaim sealed output."""
     runtime = tmp_path / "runtime"
-    _write(runtime_materialization.runtime_python(runtime / "python"))
+    runtime.mkdir()
+    if available:
+        _write(runtime_materialization.runtime_python(runtime / "python"))
     artifact = PackageArtifact(tmp_path / "wheel", "c" * 64, runtime_build("a" * 40, "b" * 40))
     environment = _environment()
     files = runtime_materialization.runtime_file_inventory(runtime)
@@ -319,28 +325,19 @@ def test_runtime_finalization_does_not_require_a_generated_ethos_launcher(
         environment=environment,
         runtime_files=files,
     )
-
+    expectation = (
+        nullcontext()
+        if available
+        else pytest.raises(ValueError, match="hook_runtime_python_missing")
+    )
     try:
-        vars(runtime_materialization)["_finalize_runtime"](
-            runtime,
-            target,
-            artifact,
-            environment,
-            files,
-        )
-        assert (runtime / "manifest.json").is_file()
+        with expectation:
+            vars(runtime_materialization)["_finalize_runtime"](
+                runtime, target, artifact, environment, files
+            )
+        assert (runtime / "manifest.json").is_file() is available
     finally:
         runtime_materialization.remove_generated_tree(runtime, ignore_errors=True)
-
-
-def test_runtime_finalization_requires_python(tmp_path: Path) -> None:
-    runtime = tmp_path / "missing-python"
-    runtime.mkdir()
-    artifact = PackageArtifact(tmp_path / "wheel", "c" * 64, runtime_build("a" * 40, "b" * 40))
-    with pytest.raises(ValueError, match="hook_runtime_python_missing"):
-        vars(runtime_materialization)["_finalize_runtime"](
-            runtime, tmp_path / "digest", artifact, _environment(), {}
-        )
 
 
 def test_runtime_reuse_rejects_dependency_lock_drift(
@@ -350,13 +347,8 @@ def test_runtime_reuse_rejects_dependency_lock_drift(
     repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
     selected = activate_runtime(Path(git_common_dir(repo)), venv.parent)
     drifted_lock = "e" * 64
-    drifted = runtime_environment(
-        python_abi=selected.python_abi,
-        python_version=selected.python_version,
-        python_implementation=selected.python_implementation,
-        dependency_lock_sha256=drifted_lock,
-        platform_name=selected.platform,
-        architecture_name=selected.architecture,
+    drifted = load_runtime_manifest_bytes(selected.manifest.read_bytes()).environment._replace(
+        dependency_lock_sha256=drifted_lock
     )
     digest = runtime_materialization.file_sha256
     monkeypatch.setattr(
@@ -364,20 +356,18 @@ def test_runtime_reuse_rejects_dependency_lock_drift(
         "file_sha256",
         lambda path: drifted_lock if path == REPOSITORY_ROOT / "uv.lock" else digest(path),
     )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "require_python_image_source",
-        lambda _python: {
-            "executable": selected.python.resolve().as_posix(),
-            "base_executable": selected.python.resolve().as_posix(),
-            "python_abi": selected.python_abi,
-            "python_version": selected.python_version,
-            "python_implementation": selected.python_implementation,
-            "architecture": selected.architecture,
-            "prefix": selected.python.parent.parent.resolve().as_posix(),
-            "base_prefix": selected.python.parent.parent.resolve().as_posix(),
-        },
+    facts = _python_facts(selected.python.parent.parent)
+    facts.update(
+        executable=selected.python.resolve().as_posix(),
+        base_executable=selected.python.resolve().as_posix(),
     )
+    facts.update(
+        {
+            key: getattr(selected, key)
+            for key in ("python_abi", "python_version", "python_implementation", "architecture")
+        }
+    )
+    monkeypatch.setattr(runtime_materialization, "require_python_image_source", lambda _: facts)
     monkeypatch.setattr(
         runtime_materialization, "observe_runtime_environment", lambda *_args, **_kwargs: drifted
     )

@@ -101,11 +101,9 @@ def test_archive_binding_update_is_exact_and_preserves_preexisting_content(
         if state == "no_change":
             assert actual == original_graph
         else:
-            assert (
-                json.loads(actual)["sources"]["contract"]["sha256"]
-                == hashlib.sha256(b"after\n").hexdigest()
-            )
-            assert json.loads(actual)["nodes"] == json.loads(original_graph)["nodes"]
+            expected_graph = json.loads(original_graph)
+            expected_graph["sources"]["contract"]["sha256"] = hashlib.sha256(b"after\n").hexdigest()
+            assert json.loads(actual) == expected_graph
 
 
 @pytest.mark.parametrize(
@@ -155,9 +153,8 @@ def test_source_binding_renderer_fails_closed_without_certifying_meaning(
     elif fault == "missing-after":
         after = {}
     elif fault in {"authority", "digest"}:
-        value["sources"]["contract"]["authority" if fault == "authority" else "sha256"] = (
-            "different"
-        )
+        field = "authority" if fault == "authority" else "sha256"
+        value["sources"]["contract"][field] = "different"
     if fault == "noop":
         assert render_source_bindings(content, bindings, before, after) == content
     else:
@@ -200,6 +197,13 @@ def test_absent_projection_is_a_noop_but_unobservable_git_is_not(tmp_path: Path)
     refresh_archive_projections(root, source_head=head)
     with pytest.raises(ValueError, match="archive_projection_declaration_unavailable"):
         refresh_archive_projections(root, source_head="unavailable")
+    with pytest.raises(ValueError, match="archive_reference_tree_unavailable"):
+        relocation.archive_relocation(
+            root,
+            source_head=head,
+            tree="unavailable",
+            changed_paths=("openspec/changes/archive/2026-09-18-missing/tasks.md",),
+        )
 
 
 @pytest.mark.parametrize(
@@ -235,6 +239,7 @@ def test_absent_projection_is_a_noop_but_unobservable_git_is_not(tmp_path: Path)
             "projection_invalid",
         ),
         ("transport", None, "observation_timeout"),
+        ("transport", 1, "observation_failed"),
         ("[x](peer.md)", None, "members_changed"),
         ("[x](peer.md)", None, "content_changed"),
         ("[x](peer.md)", None, "missing_cli"),
@@ -277,7 +282,11 @@ def test_archive_reference_destinations_preserve_other_bytes(
         bridge = (
             Mock(side_effect=subprocess.TimeoutExpired(("node",), 60))
             if expected is None
-            else Mock(return_value=subprocess.CompletedProcess((), 0, json.dumps(expected), ""))
+            else Mock(
+                return_value=subprocess.CompletedProcess(
+                    (), int(expected == 1), json.dumps(expected), ""
+                )
+            )
         )
         monkeypatch.setattr(relocation, "run_command", bridge)
     if fault:

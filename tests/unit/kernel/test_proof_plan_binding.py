@@ -58,6 +58,9 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     record = _issue(repo, head)
     selected = persist_proof_attestation(repo, record)
     assert selected["root"]
+    repeated = persist_proof_attestation(repo, record)
+    assert repeated["root"] == selected["root"]
+    assert repeated["added"] == ()
     assert read_attestation_set(repo)[1] == (record,)
     assert record.predicate == "proof:execution"
     assert record.subject == f"git:commit:{head}"
@@ -434,13 +437,3 @@ def test_proof_plan_rejects_unresolved_authority(tmp_path, verdict, gaps, coordi
     )
     with pytest.raises(ValueError, match=error):
         proof_plan(tmp_path, resolution=resolution)
-
-
-def test_persistence_identity_and_self_contained_closure(tmp_path: Path) -> None:
-    repo, head = proof_repository(tmp_path / "repo")
-    record = _issue(repo, head)
-    selected = persist_proof_attestation(repo, record)
-    repeated = persist_proof_attestation(repo, record)
-    assert repeated["root"] == selected["root"]
-    assert repeated["added"] == ()
-    assert_selected_proof(repo, head, selected=record)

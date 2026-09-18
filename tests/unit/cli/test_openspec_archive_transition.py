@@ -259,18 +259,67 @@ def _declare_archive_binding(root: Path) -> tuple[str, Path, dict[str, object]]:
     }
     graph = {"sources": {"contract": binding}, "nodes": {"intent": {"label": "Keep meaning"}}}
     graph_path = projection / "semantic-graph.json"
-    graph_path.write_text(json.dumps(graph, indent=2) + "\n", encoding="utf-8")
-    declaration = {
-        "schema": "ethos.projection-declaration/v1",
-        "sources": [{"id": "contract", "path": source, "authority": binding["authority"]}],
-        "documents": {"semantic_graph": graph_path.relative_to(root).as_posix()},
-    }
-    (projection / "declaration.json").write_text(json.dumps(declaration) + "\n", encoding="utf-8")
+    for path, content in {
+        graph_path: graph,
+        projection / "declaration.json": {
+            "schema": "ethos.projection-declaration/v1",
+            "sources": [{"id": "contract", **{k: binding[k] for k in ("path", "authority")}}],
+            "documents": {"semantic_graph": graph_path.relative_to(root).as_posix()},
+        },
+    }.items():
+        path.write_text(json.dumps(content) + "\n", encoding="utf-8")
     commit_fixture(root, "declare bound projection")
     return source, graph_path, graph
 
 
-@pytest.mark.parametrize("mode", ["native", "staged", "native-failure", "staged-failure"])
+def _inject_archive_failure(monkeypatch, mode, root, head):
+    """Inject failure at its actual observation or Git-commit boundary."""
+    if mode == "observation-failure":
+        monkeypatch.setattr(
+            archive,
+            "archive_postimage",
+            Mock(
+                side_effect=[
+                    archive.archive_postimage(root, head=head, change="fixture-change"),
+                    ValueError("archive_reference_observation_timeout"),
+                ]
+            ),
+        )
+    elif mode.endswith("failure"):
+        monkeypatch.setattr(
+            archive_effect,
+            "create_git_commit",
+            lambda *_args, **_kwargs: Mock(returncode=1, stdout="", stderr="commit refused"),
+        )
+
+
+def _assert_archive_rejects_changed_meaning(root, graph_path, graph, source_head, current_head):
+    """A derived binding cannot authorize changed authored graph meaning."""
+    graph_path.write_text(json.dumps({**graph, "nodes": {}}) + "\n", encoding="utf-8")
+    with observe_worktree_postimage(root, previous=source_head) as postimage:
+        rejected = archive_postimage_scope_report(
+            root,
+            source_head=source_head,
+            tree=postimage.tree,
+            changed_paths=postimage.changed_paths,
+            requested_change="fixture-change",
+            environment=postimage.environment,
+        )
+    assert rejected is None
+    assert git(root, "rev-parse", "HEAD") == current_head
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "native",
+        "staged",
+        "native-failure",
+        "staged-failure",
+        "staged-index-failure",
+        "observation-failure",
+    ],
+)
 def test_official_archive_closes_its_exact_source_binding_projection(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: str
 ) -> None:
@@ -278,21 +327,17 @@ def test_official_archive_closes_its_exact_source_binding_projection(
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
     root = lifecycle.worktree
     source, graph_path, graph = _declare_archive_binding(root)
-    before_digest = json.loads(graph_path.read_bytes())["sources"]["contract"]["sha256"]
     head = lifecycle.head
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     seed_executed_proof(root, head)
     if mode.startswith("staged"):
-        lifecycle.stage_official_archive()
+        staged_archive = lifecycle.stage_official_archive()
+        if mode == "staged-index-failure":
+            git(root, "add", "--all")
     before_index = git(root, "write-tree")
     before_work = git(root, "status", "--porcelain")
     before_graph = graph_path.read_bytes()
-    if mode.endswith("failure"):
-        monkeypatch.setattr(
-            archive_effect,
-            "create_git_commit",
-            lambda *_args, **_kwargs: Mock(returncode=1, stdout="", stderr="commit refused"),
-        )
+    _inject_archive_failure(monkeypatch, mode, root, head)
     invoke = run_ethos_blocked if mode.endswith("failure") else run_ethos
     arguments = (
         "lane",
@@ -306,12 +351,18 @@ def test_official_archive_closes_its_exact_source_binding_projection(
         "--apply",
         "--json",
     )
-    result = invoke(*arguments, cwd=root)
-    report = result["data"]
+    report = invoke(*arguments, cwd=root)["data"]
 
     if mode.endswith("failure"):
-        assert report["required_gaps"] == ["openspec_archive_commit_failed"]
+        assert report["required_gaps"] == [
+            "archive_reference_observation_timeout"
+            if mode == "observation-failure"
+            else "openspec_archive_commit_failed"
+        ]
         assert report["compensation_state"] == "completed"
+        if mode.startswith("staged"):
+            assert report["effect_state"] == "mutated"
+            assert (root / staged_archive / "proposal.md").is_file()
         assert lifecycle.head == head
         assert git(root, "write-tree") == before_index
         assert git(root, "status", "--porcelain") == before_work
@@ -325,14 +376,10 @@ def test_official_archive_closes_its_exact_source_binding_projection(
         "../../../../../../docs/reference.md" in (archived / "specs/contracts/spec.md").read_text()
     )
     assert "../../../docs/reference.md" in (root / source).read_text()
-    updated = json.loads(graph_path.read_text(encoding="utf-8"))
-    assert (
-        updated["sources"]["contract"]["sha256"]
-        == hashlib.sha256((root / source).read_bytes()).hexdigest()
-    )
-    assert updated["sources"]["contract"]["sha256"] != before_digest
-    updated["sources"]["contract"]["sha256"] = before_digest
-    assert updated == graph
+    digest = hashlib.sha256((root / source).read_bytes()).hexdigest()
+    assert digest != graph["sources"]["contract"]["sha256"]
+    graph["sources"]["contract"]["sha256"] = digest
+    assert json.loads(graph_path.read_bytes()) == graph
     assert graph_path.relative_to(root).as_posix() in report["changed_paths"]
     assert git(root, "status", "--short") == ""
     archived_head = lifecycle.head
@@ -343,18 +390,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
     assert replay["data"]["state"] == "recognized"
     assert replay["data"]["attestation"] == report["attestation"]
 
-    graph_path.write_text(json.dumps({**graph, "nodes": {}}) + "\n", encoding="utf-8")
-    with observe_worktree_postimage(root, previous=head) as postimage:
-        rejected = archive_postimage_scope_report(
-            root,
-            source_head=head,
-            tree=postimage.tree,
-            changed_paths=postimage.changed_paths,
-            requested_change="fixture-change",
-            environment=postimage.environment,
-        )
-    assert rejected is None
-    assert lifecycle.head == archived_head
+    _assert_archive_rejects_changed_meaning(root, graph_path, graph, head, archived_head)
 
 
 def test_archive_change_blocks_when_the_work_lane_lease_is_missing(
@@ -405,35 +441,3 @@ def test_staged_archive_recovery_resolves_intent_from_the_exact_source_head(
     assert report["state"] == "ready_to_finalize_archive"
     assert resolve.call_count == 1
     assert resolve.call_args.kwargs["intent_tree_ref"] == lifecycle.completed_head
-
-
-def test_archive_finalization_failure_restores_the_exact_staged_postimage(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    archive_path = _stage_exact_archive(lifecycle)
-    index_tree = git(lifecycle.worktree, "write-tree")
-    status = git(lifecycle.worktree, "status", "--short")
-    monkeypatch.setattr(archive, "archive_postimage", _staged_postimage)
-    monkeypatch.setattr(archive, "_archive_coordinate_gaps", lambda *_args, **_kwargs: [])
-    monkeypatch.setattr(
-        archive_effect,
-        "create_git_commit",
-        lambda *_args, **_kwargs: type(
-            "Result", (), {"returncode": 1, "stdout": "", "stderr": "hook rejected"}
-        )(),
-    )
-
-    report = archive.archive_change(
-        root=lifecycle.worktree,
-        change="fixture-change",
-        expect_head=lifecycle.completed_head,
-        apply=True,
-    )
-
-    assert report["required_gaps"] == ["openspec_archive_commit_failed"]
-    assert report["effect_state"] == "mutated"
-    assert report["compensation_state"] == "completed"
-    assert git(lifecycle.worktree, "write-tree") == index_tree
-    assert git(lifecycle.worktree, "status", "--short") == status
-    assert (lifecycle.worktree / archive_path / "proposal.md").is_file()

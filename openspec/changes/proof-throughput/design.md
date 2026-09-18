@@ -1556,3 +1556,10 @@ reacquisition, environment creation, Nox execution and pre-commit configuration.
 Its dependency-health check still rejects the declared virtualenv upper bound.
 These observations justify further upstream compatibility review, not a full
 platform claim or an installed constraint override. The probe roots are removed.
+
+The first exact source proof at f4a169d31 passes 3,868 tests with one skip, but
+combined line/branch coverage is 94.980088 percent. Build, installed acceptance
+and SBOM were dependency-blocked; 593.059 seconds is not complete acceptance
+latency. The owned test root is gone. Add distinguishing transport-failure and
+post-effect compensation cases, then rerun exact proof without combining focused
+coverage or relaxing the 95-percent threshold.

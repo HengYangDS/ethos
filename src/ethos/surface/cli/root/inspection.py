@@ -33,7 +33,10 @@ def _count(value: object) -> int:
 def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
     repo = resolve_root(root)
-    observed, authority = workspace_status_observation(repo, include_foreign_path_scope=False)
+    runtime = hook_runtime_binding(repo)
+    observed, authority = workspace_status_observation(
+        repo, include_foreign_path_scope=False, hook_binding=runtime
+    )
     resolution = (
         resolve_current_resolution(
             repo,
@@ -69,7 +72,6 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     unbound = cast("list[dict[str, object]]", observed.get("unbound_work_lane_refs") or [])
     coordination_gaps = string_sequence(observed.get("coordination_gaps"))
     authority_projection = authority.projection() if authority is not None else {}
-    runtime = hook_runtime_binding(repo)
     commit_policy = commit_policy_enforcement(repo, runtime)
     runtime_gaps = string_sequence(runtime["required_gaps"]) if runtime["required"] else ()
     commit_policy_gaps = string_sequence(commit_policy.get("required_gaps"))

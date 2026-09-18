@@ -27,6 +27,14 @@ line and branch coverage and every existing behavioral acceptance obligation.
 - **THEN** ETHOS evaluates the 600-second direction using measured remaining work
 - **AND** neither infeasibility nor completion is inferred from local speedups
 
+#### Scenario: Status reuses one observation but never stale runtime currentness
+
+- **WHEN** public status projects workspace binding and hook readiness
+- **THEN** both consume one fresh runtime observation for that invocation
+- **AND** a later invocation independently detects changed selector or package bytes
+- **AND** corruption blocks readiness and restoring valid bytes permits recovery
+- **AND** mutation effects still obtain their own fresh admission
+
 ### Requirement: Worker failure bounds pending verification work
 
 Parallel verification SHALL bound per-worker queued work independently of suite

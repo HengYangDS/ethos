@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
+from unittest.mock import patch
 
 import pytest
 import tomli_w
@@ -44,13 +45,12 @@ def _fixture(tmp_path: Path, *, policy: str | None = None) -> tuple[Path, Path]:
     repo = tmp_path / "repo"
     repo.mkdir()
     assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    install_fixture_hook_runtime(repo)
+    binding = install_fixture_hook_runtime(repo)
     if policy is not None:
         path = repo / ".ethos/workspace.toml"
         path.parent.mkdir()
         path.write_text(policy, encoding="utf-8")
-    configured = git_process(repo, "config", "--path", "--get", "core.hooksPath")
-    return repo, Path(configured.stdout.strip())
+    return repo, Path(binding["hooks_path"])
 
 
 def _capability(repo: Path) -> tuple[dict[str, Any], CommitPolicyEnforcement]:
@@ -64,11 +64,11 @@ def test_hook_binding_tracks_exact_generation_and_expected_build(tmp_path: Path)
     repo, generation = _fixture(tmp_path)
 
     observed = hook_runtime_binding(repo)
-    projected = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
+    assert observed["required_gaps"] == []
+    projected, _ = _capability(repo)
     stale = hook_runtime_binding(repo, expected_build=runtime_build("c" * 40, "d" * 40))
 
     assert observed["hooks_path"] == generation.as_posix()
-    assert observed["required_gaps"] == []
     assert projected["data"]["hook_runtime"] == observed
     assert (stale["expected_source_commit"], stale["expected_source_tree"]) == (
         "c" * 40,
@@ -79,37 +79,49 @@ def test_hook_binding_tracks_exact_generation_and_expected_build(tmp_path: Path)
     assert Path(stale["next_action"].split()[0]).resolve() == Path(sys.executable).resolve()
 
 
-@pytest.mark.parametrize("launcher", ["commit-msg", "pre-push"])
-def test_declared_policy_reports_each_missing_transport(tmp_path: Path, launcher: str) -> None:
+@pytest.mark.parametrize("condition", ["commit-msg", "pre-push", "stale-runtime"])
+def test_declared_policy_unarms_transports_when_runtime_is_not_current(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, condition: str
+) -> None:
     repo, generation = _fixture(tmp_path, policy=_POLICY)
-    (generation / launcher).unlink()
+    if condition == "stale-runtime":
+        _advance_expected_build(monkeypatch, tmp_path)
+        gap = "write_admission_not_armed:runtime_build_stale"
+    else:
+        (generation / condition).unlink()
+        gap = f"write_admission_not_armed:{condition}_launcher_missing"
 
     projected, capability = _capability(repo)
 
-    gap = f"write_admission_not_armed:{launcher}_launcher_missing"
     assert capability["state"] == "unarmed"
     assert capability["declaration"]["subject_pattern"] == "fix: .+"
     assert capability["required_gaps"] == [gap]
-    assert gap in projected["required_gaps"]
-    assert capability["next_action"] == runtime_command(
-        repo, "hook", "install", "--root", repo.as_posix(), "--json"
-    )
+    assert projected["required_gaps"].count(gap) == 1
+    if condition == "stale-runtime":
+        assert capability["commit_message_transport"] == "unarmed"
+        assert capability["push_range_enforcement"] == "unarmed"
+        assert capability["next_action"].startswith(
+            (tmp_path / "accepted/.venv/bin/python").as_posix()
+        )
+    else:
+        assert capability["next_action"] == runtime_command(
+            repo, "hook", "install", "--root", repo.as_posix(), "--json"
+        )
 
 
 @pytest.mark.parametrize(
-    ("policy", "state", "declared", "message", "push"),
+    ("policy", "state", "declared", "transport"),
     [
-        (_POLICY, "armed", True, "armed", "armed"),
-        (None, "not_declared", False, "not_required", "not_required"),
-        (_POLICY.replace('"fix: .+"', '"["'), "invalid", None, "unknown", "unknown"),
+        (_POLICY, "armed", True, "armed"),
+        (None, "not_declared", False, "not_required"),
+        (_POLICY.replace('"fix: .+"', '"["'), "invalid", None, "unknown"),
     ],
 )
 def test_commit_policy_capability_state_matrix(
     tmp_path: Path,
     policy: str | None,
     state: str,
-    message: str,
-    push: str,
+    transport: str,
     *,
     declared: bool | None,
 ) -> None:
@@ -119,8 +131,8 @@ def test_commit_policy_capability_state_matrix(
 
     assert capability["state"] == state
     assert capability["declared"] is declared
-    assert capability["commit_message_transport"] == message
-    assert capability["push_range_enforcement"] == push
+    assert capability["commit_message_transport"] == transport
+    assert capability["push_range_enforcement"] == transport
     if state == "invalid":
         assert projected["verdict"] == "block"
         assert capability["required_gaps"][0].startswith("commit_policy_subject_pattern_invalid:")
@@ -158,24 +170,6 @@ def _advance_expected_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         runtime_build("c" * 40, "d" * 40), tmp_path / "accepted"
     )
     monkeypatch.setattr(runtime_authority, "expected_runtime_build", lambda _repo: expected)
-
-
-def test_stale_runtime_unarms_both_policy_transports(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, _generation = _fixture(tmp_path, policy=_POLICY)
-    _advance_expected_build(monkeypatch, tmp_path)
-
-    projected, capability = _capability(repo)
-
-    gap = "write_admission_not_armed:runtime_build_stale"
-    assert capability["state"] == "unarmed"
-    assert capability["commit_message_transport"] == "unarmed"
-    assert capability["push_range_enforcement"] == "unarmed"
-    assert capability["required_gaps"] == [gap]
-    assert projected["required_gaps"].count(gap) == 1
-    assert capability["next_action"].startswith((tmp_path / "accepted/.venv/bin/python").as_posix())
 
 
 @pytest.mark.parametrize("adopted", [False, True])
@@ -495,20 +489,22 @@ def test_predeclaration_runtime_derives_successor_install_not_old_reinstall(
 def test_selected_declaration_drift_cannot_borrow_the_invoking_contract(tmp_path: Path) -> None:
     """An inventory mismatch must unarm hooks before consuming changed package data."""
     repo, _generation = _fixture(tmp_path)
-    before = hook_runtime_binding(repo)
-    selected = Path(before["runtime_manifest_path"]).parent
-    declaration = next(selected.glob("python/**/ethos/adapters/repo/hook/binding.toml"))
-    original = declaration.read_bytes()
-    changed = original.replace(b"@HOOK@", b"wrong")
-    assert changed != original
-    declaration.write_bytes(changed)
-    observed = hook_runtime_binding(repo)
-    assert observed["current"] is False
-    assert (
-        "write_admission_not_armed:runtime_schema_migration_required" in observed["required_gaps"]
-    )
-    declaration.write_bytes(original)
-    assert hook_runtime_binding(repo) == before
+    observe = hook_binding.current_runtime
+    with patch.object(hook_binding, "current_runtime", wraps=observe) as reader:
+        before = _capability(repo)[0]["data"]["hook_runtime"]
+        selected = Path(before["runtime_manifest_path"]).parent
+        declaration = next(selected.glob("python/**/ethos/adapters/repo/hook/binding.toml"))
+        original = declaration.read_bytes()
+        changed = original.replace(b"@HOOK@", b"wrong")
+        assert changed != original
+        declaration.write_bytes(changed)
+        observed = _capability(repo)[0]["data"]["hook_runtime"]
+        assert observed["current"] is False
+        gap = "write_admission_not_armed:runtime_schema_migration_required"
+        assert gap in observed["required_gaps"]
+        declaration.write_bytes(original)
+        assert _capability(repo)[0]["data"]["hook_runtime"] == before
+        assert reader.call_count == 3  # Fresh inventory, including corruption.
 
 
 def test_hook_launcher_uses_git_shell_and_current_runtime_selector() -> None:

@@ -30,5 +30,6 @@ None.
 Existing Git/source/runtime observation and gate execution owners, shared native
 test fixtures, their regression tests and the canonical terminal plan.
 No new lane, authority, daemon, adopter mutation or mandatory caching service.
-Release promotion is archived but not yet accepted; its remaining proof and
-delivery obligations stay open while this measured bottleneck is addressed.
+Release-promotion source is archived and included in the accepted runtime.
+Actual release use, hosted reliability and remaining recovery obligations stay
+open while this measured bottleneck is addressed.

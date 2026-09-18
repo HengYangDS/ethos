@@ -190,7 +190,7 @@ def materialize_runtime_generation(
         else:
             try:
                 require_runtime_generation(target, artifact, environment, smoke=True)
-            except (OSError, ValueError):
+            except BaseException:
                 remove_generated_tree(target, ignore_errors=True)
                 raise
     finally:

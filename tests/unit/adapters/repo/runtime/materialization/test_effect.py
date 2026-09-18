@@ -195,7 +195,7 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     args, observed, commands = _generation_case(tmp_path, monkeypatch)
-    runtime_root, work, source, interpreter, artifact, environment = args
+    runtime_root, environment = args[0], args[5]
     target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
 
     assert len(commands) == 1
@@ -242,28 +242,37 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
         )
         with pytest.raises(ValueError, match="hook_runtime_python_not_relocatable"):
             runtime_materialization.require_runtime_generation(target, args[4], environment)
-    monkeypatch.setattr(
-        runtime_materialization.subprocess,
-        "run",
-        lambda *_a, **_k: subprocess.CompletedProcess([], 7, "out", "failed"),
+
+
+@pytest.mark.parametrize("failure", [ValueError, subprocess.TimeoutExpired, KeyboardInterrupt])
+def test_failed_runtime_verification_removes_only_its_new_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: type[BaseException]
+) -> None:
+    """Reject failed verification without retaining unverified or deleting accepted bytes."""
+    execute = subprocess.run
+    args, _observed, _commands = _generation_case(tmp_path, monkeypatch)
+    target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
+
+    preserved = runtime_materialization.runtime_file_inventory(target)
+
+    def failed_verification(*_args, **_kwargs):
+        if failure is ValueError:
+            return subprocess.CompletedProcess([], 7, "out", "failed")
+        if failure is KeyboardInterrupt:
+            raise KeyboardInterrupt
+        return execute([sys.executable, "-c", "import time; time.sleep(10)"], timeout=0.1)
+
+    monkeypatch.setattr(runtime_materialization.subprocess, "run", failed_verification)
+    pattern = (
+        r"hook_runtime_module_smoke_failed:command=.*python -B -I -m ethos\.cli "
+        "--version:returncode=7:stdout=out:stderr=failed"
     )
-    with pytest.raises(
-        ValueError,
-        match=(
-            r"hook_runtime_module_smoke_failed:command=.*python -B -I -m ethos\.cli "
-            "--version:returncode=7:stdout=out:stderr=failed"
-        ),
-    ):
+    with pytest.raises(failure, match=pattern if failure is ValueError else None):
         runtime_materialization.materialize_runtime_generation(
-            runtime_root,
-            work,
-            source,
-            interpreter,
-            artifact,
-            _environment(architecture_name="other"),
-            locked_requirements=None,
+            *args[:-1], _environment(architecture_name="other"), locked_requirements=None
         )
-    assert {path for path in runtime_root.iterdir() if path.is_dir()} == {target}
+    assert {path for path in args[0].iterdir() if path.is_dir()} == {target}
+    assert runtime_materialization.runtime_file_inventory(target) == preserved
 
 
 def test_runtime_generation_compares_windows_prefixes_as_paths(

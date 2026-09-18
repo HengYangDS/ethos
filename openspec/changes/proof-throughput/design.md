@@ -1254,3 +1254,29 @@ No running CI is interrupted, and the new projection still needs committed proof
 The rechecked worker-loss counterexample at `f6b0dd664` remains negative; no
 permanent supervisor, weak PID sweep or exception conceals that separate lifetime
 obligation. Native metadata acceptance does not establish descendant containment.
+
+### Verification Failure Owns Its Unaccepted Generation
+
+GitHub run 35301534646 finished with two fixture startup timeouts before their
+intended assertions: native module version execution exceeded ten seconds in
+runtime manifest and deferred-cleanup preparation. Its 3,823 passed, two failed
+and one skipped cases took 3,979.389 seconds; the complete unit gate took
+4,064.041 seconds. The original JUnit, coverage and hosted receipt are retained
+under the existing evidence root. Owned basetemp cleanup completed. A two-case
+covered replay passes in 3.623 seconds without changing product bytes; it does
+not establish the hosted timeout's OS cause.
+
+Following that exception exposed a distinct deterministic lifetime defect:
+after staging is renamed, verification cleanup handled only OSError and
+ValueError. TimeoutExpired and caller cancellation therefore left an unverified
+named generation. The owner now cleans its newly created target on every
+unsuccessful verification exit, then propagates the original exception.
+A pre-existing generation is never owned by that cleanup path. The replacement
+failure matrix retains the prior exit diagnostics and adds a real subprocess
+timeout and caller interruption; its two new cases fail before the repair.
+The owner module passes seventeen cases after repair and verifies retained
+generation bytes, not only directory existence.
+
+This closes neither the intermittent startup cause nor loss of the supervisor
+itself. It introduces no timeout increase, retry, alternative activation path
+or process broker. Accepted/runtime/peer delivery remains a separate observation.

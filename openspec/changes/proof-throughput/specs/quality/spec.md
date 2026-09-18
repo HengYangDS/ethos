@@ -108,6 +108,20 @@ the supervisor or containment of deliberately detached processes.
 - **THEN** a passing direct-command timeout test does not prove worker recovery
 - **AND** native supervisor-loss and platform acceptance remain required
 
+### Requirement: Runtime verification failure preserves generation ownership
+
+A newly created runtime generation SHALL remain unaccepted until its required
+verification succeeds. If verification fails or the caller is interrupted,
+its creator SHALL remove that owned generation and propagate the failure,
+without deleting or changing a previously accepted generation.
+
+#### Scenario: Verification times out after the staging rename
+
+- **WHEN** verification of a newly exposed generation times out or is interrupted
+- **THEN** the failed generation and owned staging are removed
+- **AND** the original failure propagates without claiming successful activation
+- **AND** the previously accepted generation retains its exact bytes
+
 ### Requirement: Native metadata comparisons preserve observation semantics
 
 ETHOS SHALL compare mutable file metadata before and after reading through the

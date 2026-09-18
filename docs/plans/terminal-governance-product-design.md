@@ -38,17 +38,22 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 17 13:09 +08 accepted source is
-`40bc6ff4ac022d73c274ec1b28b3be33bce60c52`, tree
-`429d38e18f42c829eb6b42a2fe6853aa5e518332`. Immutable runtime
-`7a5c0b580ca2601ba1945211f12cea22298c63ccd7faccc7d909a0a49e2017eb`
-matches that source/tree. Refresh-aware retirement passed source and postarchive
-full proofs, native candidate/accepted CAS and activation. Postarchive proof
-`926c0dbc032052fcd7995111191f5146426e0778fca3e0d3f78fb776edb523c6`
-passed 35 gates with 3,743 tests, one skip and 95.10 percent combined coverage.
-Native publication observed both peers' dev/main at that source. The previous
-self runtime and owned test/install scratch were removed. The sole coordinated
-work lane is reused for the next Change.
+The September 18 11:55 +08 accepted source is
+`d13291c1dd6d6dbdee320e92ed08aea71a3f8d6a`, tree
+`a3114116bee6a6e485df934b670a9257486b4384`. Immutable runtime
+`ffa3d05fd1320fd1755bcefa88b85744cf78b884002db4c7c3bf9791a2da94dc`
+matches that source/tree. Exact full proof passed all 35 gates with 3,825 tests,
+one skip and 95.084517-percent combined coverage in 657.281 seconds using native
+defaults, including eight workers. Candidate and accepted CAS completed; both
+peers' dev/main refs were post-observed at the same commit and tree. The previous
+self runtime was reclaimed and its absence verified.
+
+The old proposal was retired on both peers through exact receipt-bound deletion
+after accepted conservation and native open-review queries. Both refs and local
+remote-tracking refs are absent. Their API coordinates use supported local Git
+connection metadata, not tracked private addresses or inferred SSH endpoints.
+The sole work lane remains necessary for the active Change's recovery obligations;
+its exact-equal retirement preview passes but is not executed or called complete.
 
 Historical correction is delivered: 40 selected author fields and 37 committer
 fields were repaired without changing other source content, messages, dates or
@@ -68,9 +73,10 @@ not an independent adopter replay by this task. ETHOS implementation did not
 modify adopter repositories.
 
 The current official Change is `proof-throughput`. The preceding
-`release-promotion` implementation and source archive remain in this work lane;
-its accepted/runtime/peer delivery is not complete. Delivery remains distinct
-from contribution integration and consumes exact accepted content.
+`release-promotion` source archive and implementation are now included in
+accepted/runtime/peer delivery at `d13291c1d`; real release-selection use remains
+a separate acceptance claim. The active throughput Change retains honest open
+startup, supervisor-loss and further measured-reduction obligations.
 
 The September 17 implementation has passed 62 targeted release/publication and
 shared native-kill recovery cases. The eleven inexpensive dependency-resolved
@@ -226,16 +232,21 @@ nonregular-file, content-change and handle-cleanup rejection. GitHub run
 35301534646 passes all nine macOS/Linux/Windows and Python 3.12/3.13/3.14 native
 jobs; their package-only smoke artifacts bind `4afaeb849` and report native merge
 success. GitLab pipeline 7364 passes for the same source. GitHub source verification
-was still running at the September 18 11:31 +08 observation; it is not declared
-successful. Exact receipts and downloaded native artifacts remain in the existing
+subsequently failed: 3,823 passed, two fixture startup timeouts and one skip in
+3,979.389 seconds. The failures precede manifest-drift and deferred-cleanup
+assertions. A focused covered replay passes but does not explain the OS delay. Exact receipts and downloaded native artifacts remain in the existing
 commit-integrity evidence root.
 
 The GitHub verify template still overrode qualified source defaults with two
 workers and the old signal timeout. The bounded repair removes that duplicate
 configuration at its template and generated projection; nine projection tests
 pass. The distinct GitLab container keeps its resource override until measured.
-This repair still requires committed proof and delivery. The exact `f6b0dd664`
-worker-loss probe still reproduces a surviving descendant; its temporary root
+This repair is delivered at `d13291c1d`; successor hosted runs remain separate.
+The exception trace also exposed unaccepted runtime generations retained after
+verification timeout or caller cancellation. The current owner repair removes
+only the newly created failed generation and preserves the prior bytes; RED/GREEN
+evidence is under `throughput-runtime-finalize-`. It still needs full proof.
+The exact `f6b0dd664` worker-loss probe reproduces a surviving descendant; its temporary root
 was removed. That separate lifetime requirement remains open, including Windows
 containment. Neither native merge success nor full proof settles owner loss.
 

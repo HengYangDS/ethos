@@ -19,6 +19,10 @@ rm -f -- "${reports}/pytest"/junit*.xml "${reports}/coverage/coverage.xml" "${re
 set +e
 supply_directory="$(python "${dir}/../toolchain/native.py" --root "$PWD" gitleaks scc 2>"${stderr}")"
 supply_status=$?
+if [[ ${supply_status} -eq 0 ]]; then
+	"${dir}/install-syft.sh" >>"${stderr}" 2>&1
+	supply_status=$?
+fi
 proof_status=${supply_status}
 if [[ ${supply_status} -eq 0 ]]; then
 	PATH="${supply_directory}:${PATH}" uv run --frozen --offline ethos prove --host --execute --expect-head "${head}" --json >"${receipt}" 2>>"${stderr}"

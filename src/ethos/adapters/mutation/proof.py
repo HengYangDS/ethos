@@ -417,7 +417,7 @@ def proof_for_repository_transition(
     )
 
 
-def proof_gaps(root: Path, head: str) -> list[str]:
+def proof_gaps(root: Path, head: str, *, change_id: str | None = None) -> list[str]:
     """Return fail-closed proof Attestation gaps for one exact HEAD."""
     try:
         store = proof_artifact_root(root)
@@ -426,7 +426,7 @@ def proof_gaps(root: Path, head: str) -> list[str]:
             return ["attestation_set_repository_invalid"]
         raise
     _attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=store
+        root, head, store=store, change_id=change_id
     )
     return gaps
 

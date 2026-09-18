@@ -1,8 +1,10 @@
-"""Construct policy-bound proof plans and synthetic evidence for isolated tests."""
+"""Construct policy-bound native checks, proof plans and isolated evidence."""
 
 from __future__ import annotations
 
+import json
 import os
+import sys
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -155,3 +157,14 @@ def assert_selected_proof(
 ) -> None:
     assert proof_attestation(root, head) == selected
     assert proof_gaps(root, head) == ([] if gap is None else [gap])
+
+
+def declare_native_proof_checks(root: Path, *, test: str, typecheck: str) -> None:
+    """Bind the fixture's behavior and static gates to real Python programs."""
+    profile = root / ".ethos/profile.toml"
+    source = profile.read_text()
+    for gate, program in (("test", test), ("typecheck", typecheck)):
+        source = source.replace(
+            json.dumps(["sample", gate]), json.dumps([sys.executable, "-c", program])
+        )
+    profile.write_text(source)

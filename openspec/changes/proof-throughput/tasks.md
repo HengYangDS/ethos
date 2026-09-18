@@ -63,7 +63,7 @@
 - [x] Preserve explicit choice and eliminate recursive status recovery for ambiguous ordinary work.
 - [x] Qualify and deliver the exact Change-continuation candidate.
 - [x] Close invocation-local product-write and exact-proof selection across native consumers.
-- [ ] Verify explicit archive selection against independently selected proof and native hooks.
+- [x] Verify explicit archive selection against independently selected proof and native hooks.
 - [ ] Complete multi-contribution lifecycle integration without losing unselected intent.
 - [x] Reproduce and close official batch large-output backpressure through the existing transport.
 - [ ] Resolve native startup and repeated observation costs at their owners.

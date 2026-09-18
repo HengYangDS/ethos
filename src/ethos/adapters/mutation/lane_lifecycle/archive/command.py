@@ -106,6 +106,7 @@ def archive_change(
             str(status.get("role") or ""),
             head,
             expect_head,
+            change,
         )
         if gaps:
             return archive_preflight_report(branch, head, change, gaps, lease=resolution.lease)
@@ -280,6 +281,7 @@ def _archive_coordinate_gaps(
     role: str,
     head: str,
     expect_head: str,
+    change: str,
 ) -> list[str]:
     gaps: list[str] = []
     if role != ROLE_WORK_LANE:
@@ -287,7 +289,7 @@ def _archive_coordinate_gaps(
     elif head != expect_head:
         gaps.append("expect_head_mismatch")
     if not gaps:
-        gaps.extend(proof_gaps(root, head))
+        gaps.extend(proof_gaps(root, head, change_id=change))
     return list(dict.fromkeys(gaps))
 
 
@@ -457,7 +459,9 @@ def archive_preflight_report(
         if user_decision_required is None
         else user_decision_required
     )
-    if next_action is None and state == "different_holder":
+    if next_action is None and first == "proof_not_proven":
+        resolved_action = f"ethos prove --change {change} --expect-head {head} --execute --json"
+    elif next_action is None and state == "different_holder":
         resolved_action = (
             "ethos attestation query --predicate lane-resolution:takeover "
             f"--subject git:branch:{branch} --json"

@@ -495,34 +495,24 @@ def _declare_minimal_code_correctness(repo: Path) -> None:
     and map the required axes, so a proof seeded over the required floor is also complete
     on the code-correctness dimension (Tier 1.2)."""
     profile_path = repo / ".ethos" / "profile.toml"
-    profile_path.write_text(
-        profile_path.read_text(encoding="utf-8")
-        + "\n"
-        + "[proof]\n"
-        + 'code_correctness_gates = ["sample-tests", "sample-static"]\n\n'
-        + "[proof.code_correctness_map]\n"
-        + 'behavior = "sample-tests"\n'
-        + 'static-analysis = "sample-static"\n\n'
-        + "[[proof.gates]]\n"
-        + 'id = "sample-tests"\n'
-        + 'kind = "test"\n'
-        + 'command = ["sample", "test"]\n'
-        + 'dimensions = ["test", "coverage"]\n'
-        + 'execution_mode = "subprocess"\n'
-        + 'evidence_class = "proof"\n'
-        + "trust_bearing = true\n"
-        + 'tool_adapter = "repository-native"\n\n'
-        + "[[proof.gates]]\n"
-        + 'id = "sample-static"\n'
-        + 'kind = "typing"\n'
-        + 'command = ["sample", "typecheck"]\n'
-        + 'dimensions = ["static-analysis"]\n'
-        + 'execution_mode = "subprocess"\n'
-        + 'evidence_class = "contract"\n'
-        + "trust_bearing = true\n"
-        + 'tool_adapter = "repository-native"\n',
-        encoding="utf-8",
+    declaration = (
+        "\n[proof]\n"
+        'code_correctness_gates = ["sample-tests", "sample-static"]\n\n'
+        "[proof.code_correctness_map]\n"
+        'behavior = "sample-tests"\n'
+        'static-analysis = "sample-static"\n\n'
     )
+    for name, kind, command, dimensions, evidence in (
+        ("sample-tests", "test", "test", '["test", "coverage"]', "proof"),
+        ("sample-static", "typing", "typecheck", '["static-analysis"]', "contract"),
+    ):
+        declaration += (
+            f'[[proof.gates]]\nid = "{name}"\nkind = "{kind}"\n'
+            f'command = ["sample", "{command}"]\ndimensions = {dimensions}\n'
+            f'execution_mode = "subprocess"\nevidence_class = "{evidence}"\n'
+            'trust_bearing = true\ntool_adapter = "repository-native"\n\n'
+        )
+    profile_path.write_text(profile_path.read_text() + declaration.rstrip() + "\n")
 
 
 def exact_lease(

@@ -14,6 +14,7 @@ from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import is_ancestor
@@ -81,6 +82,7 @@ def apply_land_to_candidate(
     attestation: Attestation | None = None
     observed_candidate_head = ""
     cas_attempts = 0
+    extra: dict[str, object] = {}
     if plan is not None:
         try:
             attestation, failure, observed_candidate_head, cas_attempts = _candidate_cas(
@@ -89,11 +91,19 @@ def apply_land_to_candidate(
                 plan=plan,
                 candidate_head=candidate_head,
             )
+        except ProcessExecutionError as error:
+            failure = (str(error), str(error))
+            unknown = error.observation.get("outcome") != "unchanged"
+            extra.update(
+                process_failure=error.evidence(),
+                verdict="unknown" if unknown else "block",
+                state="partial_transition" if unknown else "blocked",
+            )
         except (TypeError, ValueError) as error:
             failure = (_candidate_admission_gap(error), str(error))
     if failure is not None or (cas_attempts and attestation is None):
         gap, stderr = failure or ("candidate_update_failed", "candidate attestation missing")
-        extra = {"stderr": stderr} if stderr else {}
+        extra["stderr"] = stderr
         if gap.startswith("candidate_cas_"):
             extra["candidate_head"] = observed_candidate_head
             extra["cas_attempts"] = cas_attempts
@@ -236,6 +246,8 @@ def _candidate_cas(
     issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
     try:
         return execute_candidate_plan(root, plan, issuer=issuer), None, "", 1
+    except ProcessExecutionError:
+        raise
     except ValueError as error:
         if str(error) not in {"git_effect_cas_mismatch", "git_effect_cas_rejected"}:
             raise
@@ -244,6 +256,8 @@ def _candidate_cas(
             return None, ("candidate_cas_stale", str(error)), observed, 1
         try:
             return execute_candidate_plan(root, plan, issuer=issuer), None, observed, 2
+        except ProcessExecutionError:
+            raise
         except ValueError as retry_error:
             if str(retry_error) in {"git_effect_cas_mismatch", "git_effect_cas_rejected"}:
                 current = run_git(
@@ -323,9 +337,9 @@ def _candidate_transition_plan(
     )
 
 
-def _blocked(policy, head, gaps, *, state="blocked", **extra):
+def _blocked(policy, head, gaps, *, state="blocked", verdict="block", **extra):
     return dict(
-        verdict="block",
+        verdict=verdict,
         state=state,
         branch=policy.candidate_branch,
         head=head,

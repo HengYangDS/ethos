@@ -105,6 +105,34 @@ not the verdict or selected effect.
 - **THEN** optimized observation preserves the native effective tree
 - **AND** the caller's index and unrelated resources remain unchanged
 
+### Requirement: Repository proof reuse preserves accepted meaning
+
+Repository transitions SHALL independently validate each proof's source,
+acceptance, policy, execution binding, integrity and applicability. Equivalent
+accepted meaning may have distinct authoring and repository execution facts.
+A prepared transition SHALL retain its carried proof identity and require that
+exact proof to remain admitted; adding equivalent evidence SHALL NOT rewrite the
+request or require repeating execution.
+
+#### Scenario: Accepted authoring lane has retired
+
+- **WHEN** an exact accepted source has a valid proof from a retired authoring lane
+- **THEN** release preview and native ref admission use repository-transition proof semantics
+- **AND** creating new authoring effects still requires current lane coordination
+
+#### Scenario: A prepared release gains equivalent evidence
+
+- **WHEN** another valid proof is recorded for the same accepted source and meaning
+- **THEN** the original request and signed tag bytes remain reusable after fresh admission
+- **AND** withdrawal, corruption, expiry or conflicting selected meaning still blocks
+
+#### Scenario: Git reports failure around a ref effect
+
+- **WHEN** the native ref process exits unsuccessfully
+- **THEN** its command, working directory, output, exit code and plan/effect identities remain observable
+- **AND** only a successful ref readback may classify the result as unchanged
+- **AND** uncertain completion retains recovery intent without blind effect replay
+
 ### Requirement: Interrupted commands retain effect and process ownership boundaries
 
 A synchronous command interrupted while its caller remains alive SHALL stop its

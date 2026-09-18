@@ -109,7 +109,7 @@ def _release_paths(root: Path, branch: str) -> tuple[Path, ...]:
     return tuple(paths)
 
 
-def _observe(selection: _Selection, *, apply: bool, authorized: bool):
+def _observe(selection: _Selection, *, apply: bool, authorized: bool, plan: TransitionPlan | None):
     """Read fresh source, proof, permission and linked-worktree preconditions."""
     root, head = selection.root, selection.head
     policy = load_branch_role_policy(root)
@@ -119,7 +119,9 @@ def _observe(selection: _Selection, *, apply: bool, authorized: bool):
     gaps = release_checkout_gaps(root, head) + hook_runtime_binding(root)["required_gaps"]
     require_release(not gaps, gaps[0] if gaps else "")
     accepted = accepted_release_source(root, head)
-    proof, gaps = proof_for_repository_transition(root, head)
+    proof, gaps = proof_for_repository_transition(
+        root, head, attestation_id=str(plan.prior_attestations["proof"]["id"]) if plan else ""
+    )
     require_release(proof is not None, gaps[0] if gaps else "release_source_not_proven")
     observed = ref_head(root, selection.ref)
     require_release(
@@ -276,13 +278,13 @@ def promote_release(
     selection = _Selection(root, head, previous, tag, load_branch_role_policy(root).release_branch)
     data: dict[str, object] = {"source": head, "previous": previous, "tag": tag}
     try:
+        plan = _existing_plan(selection)
         accepted, proof, observed, paths, version = _observe(
-            selection, apply=apply, authorized=authorized
+            selection, apply=apply, authorized=authorized, plan=plan
         )
         data.update(
             accepted=accepted, version=version, release_ref=selection.ref, observed=observed
         )
-        plan = _existing_plan(selection)
         require_release(
             plan is not None or observed != head or previous == head,
             "release_effect_evidence_missing",
@@ -296,14 +298,23 @@ def promote_release(
             lock = selection.stored.parent / ".lock"
             lock.parent.mkdir(parents=True, exist_ok=True)
             with FileLock(lock, timeout=0, mode=0o600, preserve_lock_file=True):
-                accepted, proof, _, paths, _ = _observe(selection, apply=True, authorized=True)
+                plan = _existing_plan(selection)
+                accepted, proof, _, paths, _ = _observe(
+                    selection, apply=True, authorized=True, plan=plan
+                )
                 assert proof is not None
-                plan = _existing_plan(selection) or _prepare_plan(selection, accepted, proof)
+                plan = plan or _prepare_plan(selection, accepted, proof)
                 data.update(_execute(selection, plan, paths, accepted, proof))
     except (OSError, KeyError, TypeError, ValueError, subprocess.SubprocessError, Timeout) as error:
         data["request"] = str(selection.stored) if selection.stored.exists() else ""
+        if isinstance(error, ProcessExecutionError):
+            data["process_failure"] = error.evidence()
         unknown = (
-            isinstance(error, (OSError, subprocess.SubprocessError, ProcessExecutionError))
+            isinstance(error, (OSError, subprocess.SubprocessError))
+            or (
+                isinstance(error, ProcessExecutionError)
+                and error.observation.get("outcome") != "unchanged"
+            )
             or str(error).startswith("git_effect_partial_effect_")
             or str(error)
             in {

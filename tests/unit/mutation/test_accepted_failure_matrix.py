@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.mutation.accepted.promotion as accepted
+from ethos.adapters.process import ProcessExecutionError
 from ethos.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
@@ -15,201 +17,137 @@ CURRENT = "a" * 40
 CANDIDATE = "b" * 40
 
 
-class _Proof:
-    def model_dump(self, **_kwargs):
-        return {"predicate": "proof:execution", "verdict": "pass"}
+def _attestation(predicate):
+    return SimpleNamespace(model_dump=lambda **_kwargs: {"predicate": predicate, "verdict": "pass"})
 
 
-class _EffectAttestation:
-    def model_dump(self, **_kwargs):
-        return {"predicate": "effect:git-ref", "verdict": "pass"}
-
-
-def _status(path: str = "/tmp/candidate", worktrees: tuple[object, ...] = ()) -> dict[str, object]:
-    return {"candidate": {"worktree_path": path}, "worktrees": list(worktrees)}
-
-
-def _promote(root: Path, *, status: dict[str, object] | None = None) -> dict[str, object]:
+def _promote(root: Path, *, path="/tmp/candidate", mirror="independent") -> dict[str, object]:
     return accepted.promote_candidate(
         root=root,
-        policy=BranchRolePolicy(),
+        policy=BranchRolePolicy(release_mirror=mirror),
         current_head=CURRENT,
         candidate_head=CANDIDATE,
-        status=_status() if status is None else status,
+        status={"candidate": {"worktree_path": path}, "worktrees": []},
     )
 
 
-def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
-    captured = {}
-    monkeypatch.setattr(accepted, "is_ancestor", lambda *_args: True)
-    monkeypatch.setattr(accepted, "proof_for_repository_transition", lambda *_a: (_Proof(), []))
-    monkeypatch.setattr(accepted, "sweep_stale_ref_intents", lambda *_args: [])
-    monkeypatch.setattr(accepted, "worktree_sync_gap", lambda *_args: "")
-    monkeypatch.setattr(accepted, "ref_worktree_paths", lambda *_args: ())
-
-    def compile_plan(_root, authority, effect, **kwargs):
-        captured.update(commitment=authority, effect=effect, kwargs=kwargs)
-        return SimpleNamespace(effect=effect)
-
-    monkeypatch.setattr(accepted, "compile_observed_git_effect", compile_plan)
-    monkeypatch.setattr(
-        accepted, "execute_git_effect", lambda *_args, **_kwargs: _EffectAttestation()
-    )
-    monkeypatch.setattr(
-        accepted,
-        "sync_ref_worktrees",
-        lambda *_args, **_kwargs: {"worktrees": [{"state": "synced"}]},
-    )
-    monkeypatch.setattr(
-        accepted,
-        "sync_linked_ref_worktree",
-        lambda *_args, **_kwargs: {"mode": "accepted_ff", "worktree_sync": "synced"},
-    )
-    return captured
+def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, Mock]:
+    boundaries = {}
+    for name, result in {
+        "is_ancestor": True,
+        "proof_for_repository_transition": (_attestation("proof:execution"), []),
+        "sweep_stale_ref_intents": [],
+        "worktree_sync_gap": "",
+        "ref_worktree_paths": (),
+        "execute_git_effect": _attestation("effect:git-ref"),
+        "sync_ref_worktrees": {"worktrees": [{"state": "synced"}]},
+        "sync_linked_ref_worktree": {"mode": "accepted_ff", "worktree_sync": "synced"},
+        "compile_observed_git_effect": object(),
+        "run_git": SimpleNamespace(stdout=CURRENT),
+    }.items():
+        boundaries[name] = Mock(return_value=result)
+        monkeypatch.setattr(accepted, name, boundaries[name])
+    return boundaries
 
 
 def test_candidate_promotion_uses_proof_without_repository_commitment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    captured = _prime(monkeypatch)
+    captured = _prime(monkeypatch)["compile_observed_git_effect"]
 
     report = _promote(tmp_path)
 
     assert report["verdict"] == "pass"
-    assert captured["commitment"] is None
-    assert captured["kwargs"]["prior_attestations"] == {
+    assert captured.call_args.args[1] is None
+    assert captured.call_args.kwargs["prior_attestations"] == {
         "proof": {"predicate": "proof:execution", "verdict": "pass"}
     }
 
 
-def test_candidate_promotion_rejects_divergence_before_proof_lookup(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("ancestor", [False, True])
+def test_candidate_promotion_checks_ancestry_before_exact_proof(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, ancestor
 ) -> None:
-    proof_calls = []
-    monkeypatch.setattr(accepted, "is_ancestor", lambda *_args: False)
-    monkeypatch.setattr(
-        accepted, "proof_for_repository_transition", lambda *_a: proof_calls.append(True)
-    )
-
+    boundaries = _prime(monkeypatch)
+    boundaries["is_ancestor"].return_value = ancestor
+    proof = boundaries["proof_for_repository_transition"]
+    proof.return_value = None, ["proof_head_stale"]
     report = _promote(tmp_path)
-
-    assert report["required_gaps"] == ["candidate_diverged_from_accepted"]
-    assert proof_calls == []
-
-
-def test_candidate_promotion_preserves_exact_proof_gaps(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(accepted, "is_ancestor", lambda *_args: True)
-    monkeypatch.setattr(
-        accepted, "proof_for_repository_transition", lambda *_a: (None, ["proof_head_stale"])
-    )
-
-    report = _promote(tmp_path)
-
-    assert report["required_gaps"] == ["proof_head_stale"]
+    assert report["required_gaps"] == [
+        "proof_head_stale" if ancestor else "candidate_diverged_from_accepted"
+    ]
+    assert proof.call_count == int(ancestor)
 
 
-def test_candidate_promotion_requires_candidate_worktree_binding(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _prime(monkeypatch)
-    report = _promote(tmp_path, status=_status(path=""))
-    assert report["required_gaps"] == ["candidate_worktree_binding_stale"]
-
-
-@pytest.mark.parametrize(
-    ("gap", "expected"),
-    [
-        ("dirty", "accepted_dirty"),
-        ("failed", "accepted_failed"),
-    ],
-)
+@pytest.mark.parametrize("gap", ["missing-path", "dirty", "failed"])
 def test_candidate_promotion_preflights_accepted_worktree_before_effect(
-    tmp_path, monkeypatch: pytest.MonkeyPatch, gap: str, expected: str
+    tmp_path, monkeypatch: pytest.MonkeyPatch, gap: str
 ) -> None:
-    _prime(monkeypatch)
-    effects = []
-    monkeypatch.setattr(accepted, "worktree_sync_gap", lambda *_args: gap)
-    monkeypatch.setattr(
-        accepted, "execute_git_effect", lambda *_args, **_kwargs: effects.append(True)
-    )
-
-    report = _promote(tmp_path)
-
-    assert report["required_gaps"] == [expected]
-    assert effects == []
+    boundaries = _prime(monkeypatch)
+    effect = boundaries["execute_git_effect"]
+    boundaries["worktree_sync_gap"].return_value = gap
+    report = _promote(tmp_path, path="" if gap == "missing-path" else "/tmp/candidate")
+    assert report["required_gaps"] == [
+        "candidate_worktree_binding_stale" if gap == "missing-path" else f"accepted_{gap}"
+    ]
+    effect.assert_not_called()
 
 
+@pytest.mark.parametrize("outcome", ["transition", "unchanged", "unknown"])
 def test_candidate_promotion_reports_transition_and_git_effect_failures(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+    tmp_path, monkeypatch: pytest.MonkeyPatch, outcome
 ) -> None:
-    _prime(monkeypatch)
-    monkeypatch.setattr(
-        accepted,
-        "compile_observed_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("profile invalid")),
+    boundaries = _prime(monkeypatch)
+    failure = (
+        ValueError("profile invalid")
+        if outcome == "transition"
+        else ProcessExecutionError(
+            "git_effect_cas_rejected",
+            reason="native_exit_nonzero",
+            observation={"outcome": outcome, "stderr": "hook refused"},
+        )
     )
-    transition = _promote(tmp_path)
-    assert transition["required_gaps"] == ["accepted_transition_invalid"]
-    assert transition["stderr"] == "profile invalid"
-
-    _prime(monkeypatch)
-    monkeypatch.setattr(
-        accepted,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("git_effect_cas_rejected")),
-    )
+    name = "compile_observed_git_effect" if outcome == "transition" else "execute_git_effect"
+    boundaries[name].side_effect = failure
     effect = _promote(tmp_path)
-    assert effect["required_gaps"] == ["accepted_atomic_update_rejected"]
-    assert effect["stderr"] == "git_effect_cas_rejected"
+    assert effect["required_gaps"] == [
+        "accepted_transition_invalid"
+        if outcome == "transition"
+        else "accepted_atomic_update_rejected"
+    ]
+    assert effect["stderr"] == str(failure)
+    if isinstance(failure, ProcessExecutionError):
+        assert effect["process_failure"] == failure.evidence()
+    assert effect["verdict"] == ("unknown" if outcome == "unknown" else "block")
 
 
 @pytest.mark.parametrize(
-    ("release_state", "accepted_state", "expected"),
+    ("owner", "state", "expected"),
     [
-        ("failed", "synced", ["release_mirror_worktree_sync_failed"]),
-        ("dirty", "synced", ["release_mirror_worktree_dirty_after_sync"]),
-        ("synced", "failed", ["accepted_worktree_sync_failed"]),
-        ("synced", "dirty", ["accepted_worktree_dirty_after_sync"]),
+        ("release", "failed", "release_mirror_worktree_sync_failed"),
+        ("release", "dirty", "release_mirror_worktree_dirty_after_sync"),
+        ("accepted", "failed", "accepted_worktree_sync_failed"),
+        ("accepted", "dirty", "accepted_worktree_dirty_after_sync"),
     ],
 )
 def test_candidate_promotion_reports_post_effect_worktree_compensation_state(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
-    release_state: str,
-    accepted_state: str,
-    expected: list[str],
+    owner: str,
+    state: str,
+    expected: str,
 ) -> None:
-    _prime(monkeypatch)
-    policy = BranchRolePolicy(release_mirror="accepted_ff")
-    monkeypatch.setattr(
-        accepted, "run_git", lambda *_args, **_kwargs: SimpleNamespace(stdout=CURRENT)
-    )
-    monkeypatch.setattr(accepted, "is_ancestor", lambda *_args: True)
-    monkeypatch.setattr(
-        accepted,
-        "sync_linked_ref_worktree",
-        lambda *_args, **_kwargs: {
-            "mode": "accepted_ff",
-            "worktree_sync": release_state,
-        },
-    )
-    monkeypatch.setattr(
-        accepted,
-        "sync_ref_worktrees",
-        lambda *_args, **_kwargs: {"worktrees": [{"state": accepted_state}]},
+    boundaries = _prime(monkeypatch)
+    name = "sync_linked_ref_worktree" if owner == "release" else "sync_ref_worktrees"
+    boundaries[name].return_value = (
+        {"mode": "accepted_ff", "worktree_sync": state}
+        if owner == "release"
+        else {"worktrees": [{"state": state}]}
     )
 
-    report = accepted.promote_candidate(
-        root=tmp_path,
-        policy=policy,
-        current_head=CURRENT,
-        candidate_head=CANDIDATE,
-        status=_status(),
-    )
+    report = _promote(tmp_path, mirror="accepted_ff")
 
-    assert report["required_gaps"] == expected
+    assert report["required_gaps"] == [expected]
     assert report["accepted_advanced"] is True
     assert report["attestation"]["predicate"] == "effect:git-ref"
 
@@ -228,22 +166,10 @@ def test_candidate_promotion_rejects_invalid_release_mirror_before_effect(
     ancestor: object,
     error: str,
 ) -> None:
-    _prime(monkeypatch)
-    monkeypatch.setattr(
-        accepted, "run_git", lambda *_args, **_kwargs: SimpleNamespace(stdout=release_head)
-    )
-
-    def is_ancestor(_root, old, _new):
-        return True if old == CURRENT else ancestor
-
-    monkeypatch.setattr(accepted, "is_ancestor", is_ancestor)
-    report = accepted.promote_candidate(
-        root=tmp_path,
-        policy=BranchRolePolicy(release_mirror="accepted_ff"),
-        current_head=CURRENT,
-        candidate_head=CANDIDATE,
-        status=_status(),
-    )
+    boundaries = _prime(monkeypatch)
+    boundaries["run_git"].return_value = SimpleNamespace(stdout=release_head)
+    boundaries["is_ancestor"].side_effect = lambda _root, old, _new: old == CURRENT or ancestor
+    report = _promote(tmp_path, mirror="accepted_ff")
 
     assert report["required_gaps"] == ["accepted_transition_invalid"]
     assert report["stderr"] == error

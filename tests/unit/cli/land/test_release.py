@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from filelock import FileLock
@@ -10,19 +12,54 @@ from filelock import FileLock
 import ethos.adapters.mutation.accepted.release as release_owner
 import ethos.adapters.repo.commit.creation as signing_owner
 import ethos.adapters.repo.git_effect_attestation as effect_attestation
+import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.publication import push_admission_report
+from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.release import committed_release_version
 from ethos.adapters.repo.release import release_ref_subject
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.proof import seed_executed_proof
 from tests.support.subprocesses import kill_after_marker
 from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import publication_peers
+
+
+def assert_native_failure(result, repo, boundary):
+    """Distinguish a native unchanged result from unresolved effect completion."""
+    failure = result["data"]["process_failure"]
+    assert failure["code"] == "git_effect_cas_rejected"
+    assert failure["cwd"] == str(repo)
+    assert "refused-proof" in failure["observation"]["stderr"]
+    assert failure["observation"]["returncode"] != 0
+    assert failure["observation"]["outcome"] == ("unchanged" if boundary == "hook" else "unknown")
+
+
+def native_failed_result(effect, args, options, *, scope, boundary, root):
+    """Execute native Git with either a refusing hook or a lost completion observation."""
+    if boundary == "hook":
+        root.mkdir()
+        hook = root / "reference-transaction"
+        hook.write_text('#!/bin/sh\n[ "$1" != prepared ] || { echo refused-proof >&2; exit 1; }\n')
+        hook.chmod(0o700)
+        options["environment"] = {
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "core.hooksPath",
+            "GIT_CONFIG_VALUE_0": str(root),
+        }
+        return effect(*args, **options)
+    completed = effect(*args, **options)
+    if boundary == "native-observer":
+        scope.setattr(
+            git_effects, "observe_git_effect", Mock(side_effect=ValueError("observer unavailable"))
+        )
+    return subprocess.CompletedProcess(completed.args, 1, completed.stdout, b"refused-proof ACK")
 
 
 def release_cli(
@@ -49,7 +86,8 @@ def release_cli(
 def test_public_release_preserves_native_package_and_signed_tag(
     tmp_path: Path, object_format: str
 ) -> None:
-    repo, main, old, head = accepted_release_fixture(tmp_path, object_format)
+    repo, main, old, head = accepted_release_fixture(tmp_path, object_format, retired_source=True)
+    assert proof_gaps(repo, head) == ["proof_lease_generation_stale"]
     for ref, previous, gaps in (
         ("refs/heads/main", old, ["release_ref_move_no_ref_intent"]),
         ("refs/tags/experiment", "0" * len(head), []),
@@ -94,7 +132,10 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert report["accepted_closeout_effect"]
 
 
-@pytest.mark.parametrize("boundary", ["plan-store", "ref-ack", "before-cas", "attestation"])
+@pytest.mark.parametrize(
+    "boundary",
+    ["plan-store", "ref-ack", "before-cas", "attestation", "hook", "native-ack", "native-observer"],
+)
 def test_release_faults_preserve_objects_and_recover_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
 ) -> None:
@@ -108,29 +149,26 @@ def test_release_faults_preserve_objects_and_recover_once(
         "apply": True,
         "authorized": True,
     }
-    refs, signatures, attempted = git(repo, "show-ref"), [], []
-    native = signing_owner.run_git
-
-    def observe_signing(root, *args, **kwargs):
-        if args[:2] == ("tag", "-s"):
-            signatures.append(args)
-        return native(root, *args, **kwargs)
-
-    monkeypatch.setattr(signing_owner, "run_git", observe_signing)
-    owner, name = (
-        (effect_attestation, "records")
-        if boundary == "attestation"
-        else (
-            release_owner,
-            "write_content_addressed" if boundary == "plan-store" else "execute_git_effect",
-        )
-    )
+    refs, attempted = git(repo, "show-ref"), []
+    signing = Mock(wraps=signing_owner.run_git)
+    monkeypatch.setattr(signing_owner, "run_git", signing)
+    owner, name = {
+        "hook": (git_effects, "_run_effect_program"),
+        "native-ack": (git_effects, "_run_effect_program"),
+        "native-observer": (git_effects, "_run_effect_program"),
+        "attestation": (effect_attestation, "records"),
+        "plan-store": (release_owner, "write_content_addressed"),
+    }.get(boundary, (release_owner, "execute_git_effect"))
     effect = getattr(owner, name)
 
     def lose_ack(*args, **kwargs):
         if boundary == "attestation" and len(args) <= 2:
             return effect(*args, **kwargs)
         attempted.append(True)
+        if owner is git_effects:
+            return native_failed_result(
+                effect, args, kwargs, scope=scope, boundary=boundary, root=tmp_path / "reject-hooks"
+            )
         if boundary == "ref-ack":
             effect(*args, **kwargs)
         message = "injected acknowledgement loss"
@@ -139,9 +177,11 @@ def test_release_faults_preserve_objects_and_recover_once(
     with monkeypatch.context() as scope:
         scope.setattr(owner, name, lose_ack)
         interrupted = release_owner.promote_release(**request)
-    assert interrupted["verdict"] == "unknown", interrupted
+    assert interrupted["verdict"] == ("block" if boundary == "hook" else "unknown"), interrupted
+    if owner is git_effects:
+        assert_native_failure(interrupted, repo, boundary)
     assert attempted == [True]
-    if boundary != "ref-ack":
+    if boundary not in {"ref-ack", "native-ack", "native-observer"}:
         assert git(repo, "show-ref") == refs
     if boundary == "before-cas":
         with monkeypatch.context() as scope:
@@ -150,9 +190,16 @@ def test_release_faults_preserve_objects_and_recover_once(
         assert rejected["verdict"] == "block", rejected
         assert rejected["required_gaps"] == ["release_request_actor_mismatch"]
         assert git(repo, "show-ref") == refs
+    stored = Path(interrupted["data"]["request"])
+    original_request = stored.read_bytes() if stored.is_file() else None
+    seed_executed_proof(repo, head)
     restored = release_owner.promote_release(**request)
     assert restored["verdict"] == "pass", restored
-    assert len(signatures) == (0 if boundary == "before-cas" else 1)
+    if original_request is not None:
+        assert stored.read_bytes() == original_request
+    assert sum(call.args[1:3] == ("tag", "-s") for call in signing.call_args_list) == bool(
+        request["tag"]
+    )
     assert git(repo, "rev-parse", "main") == head
     assert git(main, "status", "--porcelain") == ""
     assert not list((Path(git_common_dir(repo)) / "ethos/requests/release").glob("*.signing"))
@@ -245,9 +292,7 @@ def test_native_version_sources_are_explicit(
     tmp_path: Path, path: str, content: str, gap: str
 ) -> None:
     repo = init_git_repo(tmp_path / "version")
-    (repo / path).write_text(content)
-    git(repo, "add", path)
-    git(repo, "commit", "-m", "version fixture")
+    commit_fixture_file(repo, path, content, "version fixture")
     if gap:
         with pytest.raises(ValueError, match=gap):
             committed_release_version(repo, "HEAD")

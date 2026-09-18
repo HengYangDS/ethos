@@ -8,6 +8,7 @@ from typing import cast
 
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.mutation.proof import proof_for_repository_transition
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -145,13 +146,18 @@ def _apply_candidate_promotion(
             issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
         )
     except ValueError as error:
-        return _accepted_block(
+        report = _accepted_block(
             policy,
             current_head,
             ["accepted_atomic_update_rejected"],
             candidate_head=candidate_head,
             stderr=str(error),
         )
+        if isinstance(error, ProcessExecutionError):
+            report["process_failure"] = error.evidence()
+            if error.observation.get("outcome") != "unchanged":
+                report.update(verdict="unknown", state="partial_transition")
+        return report
     mirror_result = (
         sync_linked_ref_worktree(
             root,

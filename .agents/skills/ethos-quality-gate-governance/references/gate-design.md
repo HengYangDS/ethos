@@ -114,6 +114,15 @@ successful activation nor justifies a success verdict for the whole repair.
 Delete the old lifetime heuristic, not the historical evidence that exposed it.
 One successful cleanup does not prove sustained or strong-kill boundedness.
 
+Execute admission checks and their dependent write in one failure-propagating
+control flow. Validate the JSON verdict, exact HEAD, target paths and preimage
+before applying a patch; every subprocess must have checked success. A shell
+assertion followed by an independent write is not a guard. Replay denied and
+unknown decisions, stale preimages and successful admission against disposable
+bytes before using an amended recipe. If an unauthorized write occurs, stop,
+retain its exact diff, obtain rollback admission and verify the original bytes
+before obtaining a new forward decision; later permission is not retroactive.
+
 Move prevention to the earliest boundary that has enough information:
 
 ```text

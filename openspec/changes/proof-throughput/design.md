@@ -1231,12 +1231,26 @@ mid-read replacement. Sixty-seven merge/recovery/real-kill/public-continuation
 cases pass at eight workers in 40.151 seconds; after test consolidation the owner
 matrix was rerun. Access-time and descriptor-release assertions now live with the
 same observation owner rather than duplicate lifecycle setup. Product/test ELOC
-are 45,553/49,991; size, types, module boundaries and Ruff pass. Windows execution,
-package rebuild and exact-source proof are not inferred from these observations.
+are 45,553/49,991; size, types, module boundaries and Ruff pass.
 
-The preceding `f6b0dd664` full proof passed all 35 gates in 635.345 seconds with
-3,821 passed, one skip and 95.082854-percent coverage. Its candidate integration
-used one native CAS. Those results cover the preceding source, not this metadata
-repair. The rechecked worker-loss counterexample at the same commit remains
-negative; no permanent supervisor, weak PID sweep or exception was added to
-conceal the unresolved lifecycle obligation.
+The repaired `4afaeb849` source passes all 35 full gates in 614.301 seconds with
+3,825 passed, one skip and 95.084517-percent combined coverage. Test execution
+uses 431.191 seconds and installed acceptance 153.207 seconds. This is a warm
+locked-environment measurement, not cold provisioning or delivery elapsed time.
+The proof's owned temporary root is absent. Candidate integration and both
+proposal projections bind this source; accepted/runtime remain at `40bc6ff4`.
+
+All nine GitHub native OS/Python jobs passed and their downloaded smoke artifacts
+verify the selected source, package-only commands and native merge recovery.
+GitLab pipeline 7364 passed. GitHub source verification was still running at the
+September 18 11:31 +08 observation. Its actual command retained two workers and
+300-second signal timeout through template overrides, despite the qualified
+source defaults. Remove those duplicate GitHub values from the existing template
+and copy projection. The distinct GitLab container override remains until its
+resource envelope is qualified. The regression rejects GitHub's three stale
+overrides and retains byte-equality between template and output; nine cases pass.
+No running CI is interrupted, and the new projection still needs committed proof.
+
+The rechecked worker-loss counterexample at `f6b0dd664` remains negative; no
+permanent supervisor, weak PID sweep or exception conceals that separate lifetime
+obligation. Native metadata acceptance does not establish descendant containment.

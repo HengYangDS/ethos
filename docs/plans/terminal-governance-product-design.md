@@ -105,8 +105,8 @@ The readback and native job log are in the existing commit-integrity evidence
 root. Fixed CPython 3.12.12/3.14.7 sources show path stat copies birthtime into
 ctime while fstat retains change time. The isolated stable-representation probe
 reproduces rejection without file mutation; it is not native Windows acceptance.
-Repair comparisons at the metadata owner in the next bounded closure, retaining
-same-channel drift and file-identity checks, then rerun the real Windows path.
+The subsequent `4afaeb849` repair and all nine native jobs now pass, as recorded
+below. Keep the older failed run as evidence, not a current repair instruction.
 
 Hosted history-repair reconstruction is a separate verified gap. The first
 corrected-history GitLab push lacked the old object in its cold checkout.
@@ -199,16 +199,16 @@ observations, including `intent-selection-proof-query-profile.txt`. Current
 Change tasks own implementation progress. Full terminal convergence remains
 open across the P0–P7 route below.
 
-The exact eight-worker proof at `f6b0dd664` passes all 35 gates in 635.345
+The exact eight-worker proof at `4afaeb849` passes all 35 gates in 614.301
 seconds, including document preflight, Python execution, wheel build, installed
-acceptance, SBOM and owned cleanup. JUnit reports 3,821 passed and one skipped;
-combined coverage is 95.082854 percent. This is a warm locked-environment result,
+acceptance, SBOM and owned cleanup. JUnit reports 3,825 passed and one skipped;
+combined coverage is 95.084517 percent. This is a warm locked-environment result,
 not cold host provisioning or whole-delivery elapsed time. It meets the initial
 1,200-second target, not the subsequent 600-second direction. Test execution is
-448.563 seconds and installed acceptance 153.003 seconds; overlapping gate
-intervals are not additive. Candidate/dev is integrated at that exact object;
-accepted dev/main and the selected runtime remain at `40bc6ff4`. Do not equate
-candidate integration with accepted/runtime/peer delivery.
+431.191 seconds and installed acceptance 153.207 seconds; overlapping gate
+intervals are not additive. Candidate/dev and both published proposal refs match
+that exact object. Accepted dev/main and the selected runtime remain at `40bc6ff4`.
+Proposal publication is not accepted or installed delivery.
 
 The preceding failed proof at `db99bb7a` exposed a carrier placement mismatch
 and coverage attribution contamination. Both are repaired: native JavaScript
@@ -222,11 +222,22 @@ changes or focused-data merging. Evidence remains under the existing
 The native merge reader now compares before/after metadata within each channel
 and binds the pathname to its open handle by file identity. This removes the
 verified Windows ctime representation conflict while preserving replacement,
-nonregular-file, content-change and handle-cleanup rejection. Native Windows
-execution remains required: simulated observations and local source tests are
-not hosted acceptance. The exact `f6b0dd664` worker-loss probe still reproduces
-a surviving descendant; its temporary root was removed. That separate lifetime
-owner requirement is open and cannot be hidden by the successful full proof.
+nonregular-file, content-change and handle-cleanup rejection. GitHub run
+35301534646 passes all nine macOS/Linux/Windows and Python 3.12/3.13/3.14 native
+jobs; their package-only smoke artifacts bind `4afaeb849` and report native merge
+success. GitLab pipeline 7364 passes for the same source. GitHub source verification
+was still running at the September 18 11:31 +08 observation; it is not declared
+successful. Exact receipts and downloaded native artifacts remain in the existing
+commit-integrity evidence root.
+
+The GitHub verify template still overrode qualified source defaults with two
+workers and the old signal timeout. The bounded repair removes that duplicate
+configuration at its template and generated projection; nine projection tests
+pass. The distinct GitLab container keeps its resource override until measured.
+This repair still requires committed proof and delivery. The exact `f6b0dd664`
+worker-loss probe still reproduces a surviving descendant; its temporary root
+was removed. That separate lifetime requirement remains open, including Windows
+containment. Neither native merge success nor full proof settles owner loss.
 
 One 500-ELOC ceiling applies to every Python file, including tests and surfaces.
 Product and test totals have independent 50,000 ceilings; combined coverage stays

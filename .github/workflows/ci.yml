@@ -146,14 +146,6 @@ jobs:
     name: source verification
     runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     needs: quality
-    env:
-      # Two workers bound host pressure while keeping the full proof graph fast.
-      ETHOS_TEST_WORKERS: "2"
-      # pytest-timeout thread mode ends a timed-out xdist worker with os._exit(1).
-      # This macOS-only projection keeps a finite bound while preserving a normal
-      # pytest failure and teardown path for diagnosis.
-      ETHOS_TEST_TIMEOUT_SECONDS: "300"
-      ETHOS_TEST_TIMEOUT_METHOD: "signal"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         env:

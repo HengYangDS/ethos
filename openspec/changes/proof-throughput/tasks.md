@@ -34,7 +34,8 @@
 - [x] Remove proof-fixture hook-config mutation and project synthetic checks once from the exact plan while preserving independent issuance admission.
 - [x] Close carrier placement, dependency-first failure and source-stable coverage regressions.
 - [x] Close official read batching through public, fault, package and native acceptance.
-- [ ] Close native merge metadata channel comparisons and their package consumers.
+- [x] Close native merge metadata channel comparisons and their package consumers.
+- [x] Remove stale hosted defaults at the template and assert projection consistency.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.

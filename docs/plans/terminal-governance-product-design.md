@@ -38,15 +38,18 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 18 11:55 +08 accepted source is
-`d13291c1dd6d6dbdee320e92ed08aea71a3f8d6a`, tree
-`a3114116bee6a6e485df934b670a9257486b4384`. Immutable runtime
-`ffa3d05fd1320fd1755bcefa88b85744cf78b884002db4c7c3bf9791a2da94dc`
-matches that source/tree. Exact full proof passed all 35 gates with 3,825 tests,
-one skip and 95.084517-percent combined coverage in 657.281 seconds using native
-defaults, including eight workers. Candidate and accepted CAS completed; both
-peers' dev/main refs were post-observed at the same commit and tree. The previous
-self runtime was reclaimed and its absence verified.
+The September 18 13:03 +08 accepted source is
+`c85f990a6b40bb343491f436e8df241f68318a8c`, tree
+`0edad2e9617456cde18df0a50d9060d5dedfe3a1`. Immutable runtime
+`552f26ac8b2552045b06900bf3df317de44b8d6dd20f40fdbe3371f7f5abdf1f`
+matches that source/tree. Exact full proof passed all 35 gates with 3,828 tests,
+one skip and 95.084517-percent combined coverage in 731.540 seconds using native
+defaults, including eight workers. Candidate and accepted CAS completed; fresh
+native peer reads confirm both dev/main refs at that commit. Newly created
+runtime generations now retire after verification timeout or cancellation,
+without deleting accepted generations. The previous self runtime was reclaimed.
+Hosted main/dev verification was queued on GitHub and running on GitLab; source
+proof and publication do not establish hosted completion.
 
 The old proposal was retired on both peers through exact receipt-bound deletion
 after accepted conservation and native open-review queries. Both refs and local
@@ -140,6 +143,15 @@ cases pass at two/four/eight workers in 109.781/62.616/47.710 seconds including
 cleanup; the next complete proof uses eight. The four/eight runs have identical
 case identifiers and matching product and selected-test bytes. Continue eliminating repeated work in parallel
 with concurrency qualification, and keep worker-loss recovery independently open.
+
+The next bounded repair changes native test scheduling, not concurrency or
+coverage. Worksteal's preassigned queues continue draining after worker loss;
+the no-restart setting alone does not provide prompt failure. Native load with
+small batches preserves all 196 cases in the related eight-worker comparison
+(10.945 versus 11.700 seconds) while the fault probe limits queued drain. This
+is not a healthy-workload speed claim or supervisor-loss recovery. Exact full
+proof and delivery remain required; the active Change is not archived. Evidence
+uses the existing `throughput-scheduler-*` receipts, not another progress owner.
 
 The complete source proof at `26405d4d8` passed all 35 gates in 2,171.66 seconds:
 3,761 tests passed and one skipped. Pytest took 1,925.09 seconds (88.6 percent),

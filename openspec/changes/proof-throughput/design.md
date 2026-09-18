@@ -1280,3 +1280,25 @@ generation bytes, not only directory existence.
 This closes neither the intermittent startup cause nor loss of the supervisor
 itself. It introduces no timeout increase, retry, alternative activation path
 or process broker. Accepted/runtime/peer delivery remains a separate observation.
+
+### Native Scheduling Bounds Failure Drain
+
+The existing test-gate argument owner selects native load scheduling with a
+maximum scheduling chunk of one. Xdist retains its required lookahead; this is
+a bounded queue, not a promise of one in-flight test. The prior worksteal mode
+preallocated large worker queues, so disabling restarts still drained unrelated
+work after a crash. No vendor patch, new scheduler or retry layer is introduced.
+
+The replacement regression invokes the actual gate with an eighty-case native
+collection: healthy execution runs each case once; worker loss remains nonzero,
+retains the crash diagnostic, records no success and removes owned basetemp.
+The prior owner fails the queue bound. Related gate consumers pass 55 cases.
+Existing process and kill-after-marker helpers replace duplicated test plumbing;
+all prior coverage and stale-completion assertions remain present.
+
+The same 196 native ETHOS cases pass at eight workers under both schedulers with
+identical case identifiers: worksteal takes 10.945 seconds and load takes 11.700
+seconds, including scratch cleanup. This single ordered warm comparison does
+not establish a healthy-throughput gain; it qualifies result equivalence while
+the fault experiment demonstrates bounded drain. Full proof remains required.
+Supervisor death and intermittent runtime startup stay separate open boundaries.

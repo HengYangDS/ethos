@@ -27,6 +27,25 @@ line and branch coverage and every existing behavioral acceptance obligation.
 - **THEN** ETHOS evaluates the 600-second direction using measured remaining work
 - **AND** neither infeasibility nor completion is inferred from local speedups
 
+### Requirement: Worker failure bounds pending verification work
+
+Parallel verification SHALL bound per-worker queued work independently of suite
+size. A crashed worker SHALL fail the attempt without replay, retain its native
+diagnostic, and allow the surviving gate owner to reclaim owned test scratch.
+
+#### Scenario: Native worker exits with a large pending collection
+
+- **WHEN** one worker exits while many collected cases remain pending
+- **THEN** surviving workers drain only their bounded in-flight assignment
+- **AND** the gate fails without re-executing the crashed case or recording success
+- **AND** the surviving owner removes its owned basetemp
+
+#### Scenario: All workers remain healthy
+
+- **WHEN** the same declared collection runs without worker loss
+- **THEN** every collected case executes exactly once and the gate succeeds
+- **AND** equivalent-workload timing remains separate from failure latency
+
 ### Requirement: Verification preparation preserves its measured subject
 
 ETHOS SHALL validate declared carrier ownership before executing tests that

@@ -36,6 +36,7 @@
 - [x] Close official read batching through public, fault, package and native acceptance.
 - [x] Close native merge metadata channel comparisons and their package consumers.
 - [x] Remove stale hosted defaults at the template and assert projection consistency.
+- [x] Bound native worker-loss scheduling through the actual gate and compare healthy workload results.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [x] Remove newly exposed runtime generations after failed verification or caller cancellation.
 - [ ] Resolve native startup and repeated observation costs at their owners.

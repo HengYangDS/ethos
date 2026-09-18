@@ -10,6 +10,8 @@ import ethos.adapters.mutation.lane_lifecycle.start as lane_start
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.openspec.cli import openspec_base_command
+from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.selection import selected_change
@@ -23,9 +25,11 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.value import mutable_json
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import write_active_commitment
 from tests.support.governed_repository import write_test_profile
 from tests.support.openspec_lifecycle import native_merge_fixture
@@ -161,31 +165,18 @@ def test_merge_first_parent_retains_selection_after_native_completion(pending_me
     assert report["change"] == "publication"
 
 
-def test_multiple_lane_changes_remain_ambiguous(pending_merge):
-    """A native parent relation cannot justify choosing between two own intents."""
-    git(pending_merge, "merge", "--abort")
+@pytest.mark.parametrize("state", ["committed", "uncommitted", "tasks-complete"])
+def test_multiple_lane_changes_remain_ambiguous(pending_merge, state):
+    """Commit, merge and task progress cannot choose between two own intents."""
+    if state == "committed":
+        git(pending_merge, "merge", "--abort")
+    if state == "tasks-complete":
+        for change in ("static-delivery", "publication"):
+            tasks = pending_merge / f"openspec/changes/{change}/tasks.md"
+            tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
     write_active_commitment(pending_merge, change_id="second-local")
-    commit_fixture(pending_merge, "feat: author competing local intent")
-    report = openspec_governance_report(pending_merge, lifecycle=True)
-    assert report["verdict"] == "block"
-    assert any("ambiguous" in gap for gap in report["required_gaps"])
-
-
-def test_pending_merge_does_not_hide_new_uncommitted_local_intent(pending_merge):
-    """Parent attribution must not discard newly authored working-tree intent."""
-    write_active_commitment(pending_merge, change_id="second-local")
-    report = openspec_governance_report(pending_merge, lifecycle=True)
-    assert report["verdict"] == "block", report
-    assert any("ambiguous" in gap for gap in report["required_gaps"])
-
-
-def test_unresolved_parent_attribution_cannot_fall_back_to_task_counts(pending_merge):
-    """Selection failure and its public gap use the same contribution meaning."""
-    incoming_tasks = pending_merge / "openspec/changes/static-delivery/tasks.md"
-    incoming_tasks.write_text(incoming_tasks.read_text().replace("[ ]", "[x]"))
-    ours = pending_merge / "openspec/changes/publication/tasks.md"
-    ours.write_text(ours.read_text().replace("[ ]", "[x]"))
-    write_active_commitment(pending_merge, change_id="second-local")
+    if state == "committed":
+        commit_fixture(pending_merge, "feat: author competing local intent")
     report = openspec_governance_report(pending_merge, lifecycle=True)
     assert report["verdict"] == "block", report
     assert any("ambiguous" in gap for gap in report["required_gaps"])
@@ -325,3 +316,48 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
         assert plan["facts"]["values"]["change_id"] == "static-delivery"
         assert proof_gaps(next_lane, head) == []
     assert proof_attestation(work, head) == previous
+
+
+@pytest.mark.parametrize("command", [("lane", "prewrite"), ("hook", "admit", "pre-tool")])
+def test_exact_official_artifacts_continue_after_second_change_creation(
+    tmp_path, monkeypatch, command
+):
+    """Official creation remains editable without selecting unrelated product work."""
+    root = prepared_work_lane(tmp_path).worktree
+    change = "openspec/changes/second-local"
+    arguments = ("--editor-root", str(root), "--require-editor-root", "--json")
+    before = run_ethos(*command, f"{change}/.openspec.yaml", *arguments, cwd=root)
+    assert before["verdict"] == "pass"
+    base = openspec_base_command()
+    assert base
+    created = run_json(root, base, ("new", "change", "second-local", "--json"))
+    assert created["exit_code"] == 0, created
+    target = f"{change}/proposal.md"
+    admitted = run_ethos(*command, target, *arguments, cwd=root)
+    scope = admitted["data"] if command[0] == "lane" else admitted["data"]["admission"]
+    assert scope["material_scope"]["state"] == "official_change_bootstrap"
+    assert scope["material_scope"]["covered_paths"] == [
+        {"path": target, "changes": ["second-local"]}
+    ]
+    for extra in ("README.md", "openspec/changes/fixture-change/tasks.md"):
+        blocked = run_ethos_blocked(*command, target, extra, *arguments, cwd=root)
+        rejected = blocked["data"] if command[0] == "lane" else blocked["data"]["admission"]
+        assert rejected["openspec"]["change"] is None
+    assert not (root / target).exists()
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
+    blocked = run_ethos_blocked(*command, target, *arguments, cwd=root)
+    assert any("lease_holder_mismatch" in gap for gap in blocked["required_gaps"])
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    write_active_commitment(root, change_id="second-local")
+    valid = run_ethos(*command, target, *arguments, cwd=root)
+    assert valid["verdict"] == "pass"
+    before_commit = git(root, "rev-parse", "HEAD")
+    committed = commit_fixture(root, "feat: complete second intent")
+    assert committed != before_commit
+    blocked = run_ethos_blocked(*command, "README.md", *arguments, cwd=root)
+    assert blocked["next_action"] == "openspec list --json"
+    assert blocked["user_decision_required"] is True
+    status = run_ethos("status", "--json", cwd=root)
+    assert status["next_action"] == "openspec list --json"
+    assert status["user_decision_required"] is True
+    assert load_openspec_commitment(root, change_id="second-local", tree_ref=committed)

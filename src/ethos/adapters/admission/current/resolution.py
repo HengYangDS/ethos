@@ -13,6 +13,7 @@ from ethos.adapters.openspec.lifecycle.archive_transition import attested_archiv
 from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_scope_report
 from ethos.adapters.openspec.lifecycle.scope import official_validation_repair_scope_report
 from ethos.adapters.openspec.profile import load_profile_commitment
+from ethos.adapters.openspec.selection import artifact_path_change
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
@@ -140,6 +141,8 @@ class CurrentResolution:
 def _intent_action(root: Path, gap: str, change: str | None) -> str:
     if gap == "openspec_official_cli_missing":
         return "npm ci --ignore-scripts --no-audit --no-fund"
+    if gap.startswith("openspec_active_change_ambiguous:"):
+        return "openspec list --json"
     if change:
         return f"openspec status --change {change} --json"
     return f"ethos status --root {root.resolve().as_posix()} --json"
@@ -271,6 +274,7 @@ def resolve_current_resolution(
     observed_paths = prewrite_paths or (
         change_scope_paths_from_status(root, status) if changed else ()
     )
+    change = change if change is not None else artifact_path_change(root, prewrite_paths)
     official = openspec_governance_report(
         root,
         change=change,
@@ -357,6 +361,9 @@ def resolve_current_resolution(
         return repository_resolution
     if official_verdict != "pass" and archived is None:
         gap = official_gaps[0] if official_gaps else "openspec_scope_unavailable"
+        ambiguous = next(
+            (g for g in official_gaps if g.startswith("openspec_active_change_ambiguous:")), ""
+        )
         return CurrentResolution(
             verdict=official_verdict,
             authority=authority,
@@ -369,7 +376,8 @@ def resolve_current_resolution(
             openspec=official,
             required_gaps=official_gaps or (gap,),
             next_action=str(bootstrap_scope.get("next_action") or "")
-            or _intent_action(root, gap, change),
+            or _intent_action(root, ambiguous or gap, change),
+            user_decision_required=bool(ambiguous),
         )
     archive_authority: JsonObject = {}
     try:

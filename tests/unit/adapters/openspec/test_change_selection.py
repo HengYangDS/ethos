@@ -10,6 +10,7 @@ import pytest
 import ethos.adapters.openspec.cli as official
 import ethos.adapters.openspec.commitment as compilation
 from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.openspec.selection import artifact_path_change
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
@@ -154,3 +155,29 @@ def test_invalid_successful_change_projection_cannot_fall_back_to_history(
     )
     with pytest.raises((TypeError, ValueError), match=gap):
         load_openspec_commitment(root, change_id="contracts")
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ["same", "mixed", "different", "empty", "invalid", "archive", "escape", "missing", "symlink"],
+)
+def test_artifact_path_selection_never_invents_unambiguous_intent(tmp_path, kind):
+    """Only one exact existing active root can supply a path-selected identity."""
+    path = "openspec/changes/example"
+    target = tmp_path / path
+    target.mkdir(parents=True)
+    requests = {
+        "same": (f"{path}/proposal.md", f"{path}/tasks.md"),
+        "mixed": (f"{path}/proposal.md", "README.md"),
+        "different": (f"{path}/proposal.md", "openspec/changes/other/tasks.md"),
+        "empty": (),
+        "invalid": ("openspec/changes/Invalid/tasks.md",),
+        "archive": ("openspec/changes/archive/tasks.md",),
+        "escape": (f"{path}/../other/tasks.md",),
+    }
+    if kind in {"missing", "symlink"}:
+        target.rmdir()
+        if kind == "symlink":
+            target.symlink_to(tmp_path)
+    selected = artifact_path_change(tmp_path, requests.get(kind, (f"{path}/tasks.md",)))
+    assert selected == ("example" if kind == "same" else None)

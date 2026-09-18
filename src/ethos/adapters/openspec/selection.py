@@ -15,6 +15,8 @@ from ethos.adapters.repo.merge.observation import pending_merge_heads
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.repository.openspec.identifiers import active_change_root
+from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -29,6 +31,23 @@ def selected_change(
 ) -> str | None:
     """Select one explicit or unambiguous contribution without storing ownership."""
     return _selection(rows, requested, root=root, tree_ref=tree_ref)[0]
+
+
+def artifact_path_change(root: Path, paths: tuple[str, ...]) -> str | None:
+    """Select one existing Change named by every path, without authorizing writes."""
+    parts = [path.split("/") for path in paths]
+    if not parts or any(
+        len(item) < 4 or item[:2] != ["openspec", "changes"] or ".." in item for item in parts
+    ):
+        return None
+    names = {item[2] for item in parts}
+    if len(names) != 1:
+        return None
+    name = names.pop()
+    if name == "archive" or logical_change_identifier_issue(name):
+        return None
+    target = root / active_change_root(name)
+    return name if target.is_dir() and not target.is_symlink() else None
 
 
 def _selection(

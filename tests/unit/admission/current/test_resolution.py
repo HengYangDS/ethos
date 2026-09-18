@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.admission.current.resolution as resolution_adapter
-from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -96,13 +97,8 @@ def test_current_resolution_compiles_committed_source_intent_without_workspace_r
 ):
     commitment = commitment_fixture(id="change:example")
     calls: list[tuple[str | None, str | None]] = []
-    monkeypatch.setattr(
-        resolution_adapter,
-        "openspec_governance_report",
-        lambda *_a, **_k: (_ for _ in ()).throw(
-            AssertionError("committed-source resolution must not read mutable workspace intent")
-        ),
-    )
+    observe = Mock(side_effect=AssertionError("committed intent must not read workspace"))
+    monkeypatch.setattr(resolution_adapter, "openspec_governance_report", observe)
 
     def load(_root: Path, *, change_id: str | None, tree_ref: str | None = None):
         calls.append((change_id, tree_ref))
@@ -119,6 +115,7 @@ def test_current_resolution_compiles_committed_source_intent_without_workspace_r
         changed=False,
         intent_tree_ref=HEAD,
     )
+    observe.assert_not_called()
     assert calls == [("example", HEAD)]
     if gap:
         assert resolution.verdict == "block"
@@ -143,12 +140,10 @@ def test_current_resolution_compiles_committed_source_intent_without_workspace_r
 
 def test_current_resolution_preserves_unknown_official_intent_without_reinterpreting(monkeypatch):
     report = official_report(gaps=("carrier_unreadable",)) | {"verdict": "unknown"}
-    monkeypatch.setattr(
-        resolution_adapter,
-        "load_profile_commitment",
-        lambda *_a, **_k: pytest.fail("unknown official intent must stop resolution"),
-    )
+    load = Mock(side_effect=AssertionError("unknown official intent must stop resolution"))
+    monkeypatch.setattr(resolution_adapter, "load_profile_commitment", load)
     resolution = resolve_report(monkeypatch, report, role=ROLE_ACCEPTED_ROOT)
+    load.assert_not_called()
     assert resolution.verdict == "unknown"
     assert resolution.commitment is None
     assert resolution.required_gaps == ("carrier_unreadable",)
@@ -168,49 +163,36 @@ def test_current_resolution_admits_entity_free_repository_proof(
     official_verdict: str,
     official_gaps: list[str],
 ) -> None:
-    head = "a" * 40
-    authority = CurrentAuthority(
-        verdict="pass",
-        reason="not_required",
+    current = replace(
+        authority(),
         branch="candidate/dev" if role == ROLE_CANDIDATE else "dev",
-        actor="agent:test",
-        lease={},
-        current_head=head,
-        current_tree="b" * 40,
         required=False,
+        reason="not_required",
+        lease={},
     )
-    monkeypatch.setattr(
-        resolution_adapter,
-        "openspec_governance_report",
-        lambda *_args, **_kwargs: {
+    observe = Mock(
+        return_value={
             "verdict": official_verdict,
             "required_gaps": official_gaps,
             "commitment": {},
             "lifecycle": {"scope_binding": {}, "changes": []},
-        },
+        }
     )
-    monkeypatch.setattr(
-        resolution_adapter,
-        "attested_archive_transition",
-        lambda *_args, **_kwargs: None,
-    )
-    monkeypatch.setattr(
-        resolution_adapter,
-        "load_profile_commitment",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            AssertionError("entity-free repository proof must not invent intent")
-        ),
-    )
+    load = Mock(side_effect=AssertionError("entity-free proof must not invent intent"))
+    monkeypatch.setattr(resolution_adapter, "openspec_governance_report", observe)
+    monkeypatch.setattr(resolution_adapter, "attested_archive_transition", Mock(return_value=None))
+    monkeypatch.setattr(resolution_adapter, "load_profile_commitment", load)
 
     resolution = resolve_current_resolution(
         Path("/repository"),
-        status={"role": role, "head": head, "changed_paths": []},
-        authority=authority,
+        status={"role": role, "head": HEAD, "changed_paths": []},
+        authority=current,
         changed=False,
     )
 
+    load.assert_not_called()
     assert resolution.verdict == "pass"
-    assert resolution.authority is authority
+    assert resolution.authority is current
     assert resolution.commitment is None
     assert resolution.scope.paths == ()
     assert resolution.openspec == {

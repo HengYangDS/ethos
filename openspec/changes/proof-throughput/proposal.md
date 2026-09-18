@@ -16,6 +16,7 @@ can be met through cached verdicts alone or narrower assurance.
 - Preserve all behavioral obligations, native effects and the coverage floor.
 - Close the reproduced archive reference/proof-scope defects before completion.
 - Qualify the requested compatible stable supply through the same native consumers.
+- Close the reproduced official-artifact continuation and ambiguous recovery gaps.
 
 ## Capabilities
 
@@ -26,6 +27,7 @@ None.
 ### Modified Capabilities
 
 - `quality`: measured complete-proof throughput with unchanged assurance.
+- `repository-governance`: exact official-artifact continuation without parallel intent.
 
 ## Impact
 

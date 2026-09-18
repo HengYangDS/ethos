@@ -59,7 +59,10 @@
 - [ ] Resolve or explicitly retain the native bootstrap timeout with distinguishing evidence.
 - [x] Review quality transport and supply alternatives with five independent lenses and cross-examination.
 - [ ] Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement.
-- [ ] Repair public continuation after creating a second active Change.
+- [x] Repair exact official-artifact continuation after a second Change is created.
+- [x] Preserve explicit choice and eliminate recursive status recovery for ambiguous ordinary work.
+- [ ] Qualify and deliver the exact Change-continuation candidate.
+- [ ] Close explicit product-write selection and multi-contribution integration across native consumers.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.
@@ -69,4 +72,4 @@
 - [x] Qualify and deliver the exact single-observation status candidate.
 - [x] Initialize quality capabilities on demand and verify native missing-supply and fresh-selection behavior.
 - [x] Compare exact discovery interfaces and imported work against the committed baseline.
-- [ ] Qualify and deliver the exact demand-driven capability candidate.
+- [x] Qualify and deliver the exact demand-driven capability candidate.

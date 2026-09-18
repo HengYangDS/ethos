@@ -6,6 +6,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.relocation import archive_relocation
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.repository.policy.projections import SOURCE_BINDING_DECLARATION
@@ -25,19 +26,38 @@ def archive_projection_updates(
     environment: Mapping[str, str] | None = None,
 ) -> dict[str, bytes]:
     """Derive the archive's binding closure from the trusted source declaration."""
-    declaration = _binding_declaration(root, source_head, environment)
-    return (
-        _projection_updates(
-            root,
-            source_head,
-            tree,
-            changed_paths,
-            environment,
-            declaration,
-        )
-        if declaration is not None
-        else {}
+    return _archive_projection_values(
+        root,
+        source_head,
+        tree,
+        changed_paths,
+        environment,
+        _binding_declaration(root, source_head, environment),
+    )[0]
+
+
+def _archive_projection_values(
+    root: Path,
+    source_head: str,
+    tree: str,
+    changed_paths: tuple[str, ...],
+    environment: Mapping[str, str] | None,
+    declaration: bytes | None,
+) -> tuple[dict[str, bytes], dict[str, bytes]]:
+    updates, preimages = archive_relocation(
+        root,
+        source_head=source_head,
+        tree=tree,
+        changed_paths=changed_paths,
+        environment=environment,
     )
+    if declaration is not None:
+        projected = _projection_updates(
+            root, source_head, tree, changed_paths, environment, declaration, updates
+        )
+        preimages.update({path: _blob(root, source_head, path, environment) for path in projected})
+        updates.update(projected)
+    return updates, preimages
 
 
 def archive_projection_scope(
@@ -50,19 +70,31 @@ def archive_projection_scope(
     allow_pending: bool,
 ) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
     """Recognize exact derived output or an unchanged input still awaiting rendering."""
-    updates = archive_projection_updates(
-        root,
-        source_head=source_head,
-        tree=tree,
-        changed_paths=changed_paths,
-        environment=environment,
-    )
+    try:
+        updates, preimages = _archive_projection_values(
+            root,
+            source_head,
+            tree,
+            changed_paths,
+            environment,
+            _binding_declaration(root, source_head, environment),
+        )
+    except ValueError as error:
+        if str(error).startswith(
+            (
+                "archive_reference_content_changed",
+                "archive_reference_members_changed",
+                "archive_reference_canonical_type_invalid",
+            )
+        ):
+            return None
+        raise
     pending: list[str] = []
     for path, expected in updates.items():
         actual = _blob(root, tree, path, environment)
         if actual == expected and path in changed_paths:
             continue
-        if not allow_pending or actual != _blob(root, source_head, path, environment):
+        if not allow_pending or actual != preimages[path]:
             return None
         pending.append(path)
     return tuple(updates), tuple(pending)
@@ -75,6 +107,7 @@ def _projection_updates(
     changed_paths: tuple[str, ...],
     environment: Mapping[str, str] | None,
     declaration: bytes,
+    relocated: Mapping[str, bytes],
 ) -> dict[str, bytes]:
     if _blob(root, tree, SOURCE_BINDING_DECLARATION, environment) != declaration:
         message = "archive_projection_declaration_changed"
@@ -88,7 +121,10 @@ def _projection_updates(
         message = "archive_projection_input_outside_effect"
         raise ValueError(message)
     before = {path: _blob(root, source_head, path, environment) for path in sources}
-    after = {path: _blob(root, tree, path, environment) for path in sources}
+    after = {
+        path: relocated[path] if path in relocated else _blob(root, tree, path, environment)
+        for path in sources
+    }
     graph = _blob(root, source_head, output, environment)
     updated = render_source_bindings(graph, bindings, before, after)
     return {output: updated} if updated != graph else {}
@@ -97,10 +133,8 @@ def _projection_updates(
 def refresh_archive_projections(root: Path, *, source_head: str) -> None:
     """Apply only deterministic bindings to unchanged authored projection files."""
     declaration = _binding_declaration(root, source_head, None)
-    if declaration is None:
-        return
     with observe_worktree_postimage(root, previous=source_head) as observed:
-        updates = _projection_updates(
+        updates, preimages = _archive_projection_values(
             root,
             source_head,
             observed.tree,
@@ -110,12 +144,14 @@ def refresh_archive_projections(root: Path, *, source_head: str) -> None:
         )
     for relative, content in updates.items():
         path = root / relative
-        if path.resolve() != root.resolve() / relative or path.read_bytes() != _blob(
-            root, source_head, relative, None
-        ):
+        if path.resolve() != root.resolve() / relative or path.read_bytes() not in {
+            preimages[relative],
+            content,
+        }:
             message = f"archive_projection_preimage_changed:{relative}"
             raise ValueError(message)
-        path.write_bytes(content)
+        if path.read_bytes() != content:
+            path.write_bytes(content)
 
 
 def _binding_declaration(

@@ -303,8 +303,6 @@ def _archive_scope(
     ):
         return None
     archive_root = archive_roots.pop()
-    if _object_id(root, f"{tree}:{archive_root}", environment=environment) != source_tree:
-        return None
     previous_archive_tree = _object_id(
         root,
         f"{source_head}:{archive_root}",

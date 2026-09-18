@@ -397,8 +397,18 @@ def _apply_archive(
             command=result.get("command", []),
             **({"archive_collision": collision._asdict()} if collision else {}),
         )
-    normalize_projected_specs(repo, paths=dirty_changed_paths(repo))
-    observed = archive_postimage(repo, head=head, change=change)
+    try:
+        normalize_projected_specs(repo, paths=dirty_changed_paths(repo))
+        observed = archive_postimage(repo, head=head, change=change)
+    except (OSError, TypeError, ValueError) as error:
+        return archive_failure_report(
+            branch,
+            head,
+            change,
+            [str(error)],
+            compensate=compensate,
+            subject=subject,
+        )
     if observed is None or observed.active_present or observed.scope is None:
         return archive_failure_report(
             branch,

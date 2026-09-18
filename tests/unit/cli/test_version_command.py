@@ -21,7 +21,7 @@ def test_version_json_is_one_utf8_result_not_double_encoded() -> None:
     identity = payload["data"]["identity"]
     assert identity["product_version"] == "0.2.0-alpha.5"
     assert identity["distribution_version"].startswith("0.2.0a5.dev0+")
-    assert payload["data"]["openspec_version"] == "1.13.0"
+    assert payload["data"]["openspec_version"] == version_module.OFFICIAL_VERSION
     assert len(identity["source_commit"]) == 40
     assert len(identity["source_tree"]) == 40
     assert "channel" not in identity
@@ -35,7 +35,7 @@ def test_version_human_output_is_concise(tmp_path, monkeypatch) -> None:
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.startswith("ethos 0.2.0-alpha.5 ")
     assert "0.2.0a5.dev0+" in completed.stdout
-    assert "OpenSpec 1.13.0" in completed.stdout
+    assert f"OpenSpec {version_module.OFFICIAL_VERSION}" in completed.stdout
     assert "{" not in completed.stdout
     monkeypatch.setattr(sys, "prefix", (tmp_path / "runtime" / ("a" * 64) / "python").as_posix())
     monkeypatch.setattr(

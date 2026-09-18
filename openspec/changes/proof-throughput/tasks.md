@@ -51,6 +51,14 @@
 - [x] Reject hosted supply preparation failure before proof while preserving native diagnostics and clearing prior reports.
 - [x] Reuse immutable hosted preparation code with isolated case data and exact invocation observations.
 - [x] Share owned-output removal, preserve external referents and verify minimal permission effects.
+- [x] Reproduce relative-reference drift through native archive and repair the unique projection owner.
+- [x] Preserve validated source deletions and archive effect paths through public proof/replay.
+- [x] Refresh compatible stable supply and exact CI projections with the Python support line intact.
+- [x] Reject unsupported reference kinds and malformed transport; qualify package entry aliases and native archive execution.
+- [ ] Complete exact full proof and source/package/runtime delivery for archive preservation.
+- [ ] Resolve or explicitly retain the native bootstrap timeout with distinguishing evidence.
+- [ ] Resolve the upstream Filelock 4 dependency conflict without ignoring constraints.
+- [ ] Repair public continuation after creating a second active Change.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

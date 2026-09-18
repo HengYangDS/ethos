@@ -237,6 +237,37 @@ local-verification receipt ownership, cold-CI materials and independent release
 selection remain separate obligations. Existing commit-integrity receipts hold
 execution evidence; plan prose is not proof or a runtime status database.
 
+The September 18 continuation closes archive reference preservation before the
+remaining P5 resource and startup work. Exact Git/native probes reproduced
+unchanged relative links resolving under a different directory after archive.
+The existing projection owner now derives destination edits and official
+canonical output; source deletions and transient effect paths retain proof
+attribution. Root/nested/canonical public journeys, replay and compensation pass
+in the focused family. This is not yet exact full proof, installed delivery or
+archive completion. The official Change owns the remaining acceptance tasks.
+
+Stable-supply metadata was read from PyPI, npm, official GitHub releases and the
+Node index. Compatible source/lock/CI upgrades proceed together. Filelock 4.0.0
+is blocked by virtualenv's declared less-than-4 dependency; its resolution is
+open, not an authorized constraint bypass. Node 26.9.0 hosted supply and the
+latest published 24.19.0 Python wheel have distinct execution claims.
+
+The last accepted source remains 8d2cc3b7b. Its 35-gate local proof passed in
+716.348 seconds with 3,844 passed, one skipped and 95.047670-percent combined
+coverage. GitHub main and GitLab dev/main subsequently passed. GitHub dev
+35349488427 failed two native bootstrap cases at their 30-second deadline;
+JUnit and raw provider output are preserved. A later 233-case local consumer
+run passes, but does not identify or fix that hosted timeout. Do not replay an
+unchanged heavy job or raise its deadline as a substitute for diagnosis.
+
+A separate-Change creation attempt exposed a public selection gap: creating a
+second active Change succeeded, but continuation prewrite had no unambiguous
+selector. Only the five newly created untracked files were removed through the
+owned compensation path; exact contents and receipts remain in
+archive-links-creation-compensation.json under the existing evidence root.
+The creation/continuation gap remains open. Continue this bounded work in the
+sole existing Change; no parallel roadmap or new lane is introduced.
+
 The September 18 user adjustment keeps P5 on the immediate critical path with
 a staged target: first complete proof below 1,200 seconds, then evaluate the
 600-second direction from measured remaining work. The latter is not declared

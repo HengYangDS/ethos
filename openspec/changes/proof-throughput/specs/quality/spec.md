@@ -251,3 +251,52 @@ native failure reporting SHALL remain effective.
 - **WHEN** an owned output contains a symbolic link or shares a regular-file inode
 - **THEN** generic cleanup preserves external referents and runtime admission retains its stronger rejection
 - **AND** a native deletion failure remains observable under the caller's declared policy
+
+### Requirement: Archive preserves relative reference meaning
+
+Archive projection SHALL resolve supported local Markdown destinations against
+the exact source document and derive their archived or canonical locations.
+Only destination bytes and declared source bindings may change. Recognition
+SHALL reject missing or escaping targets, arbitrary edits and unsupported
+reference semantics rather than certify unchanged bytes as unchanged meaning.
+
+#### Scenario: Documents and delta requirements move
+
+- **WHEN** official archive moves documents with repository and Change-local references
+- **THEN** links, images and definitions retain their intended targets
+- **AND** untouched text, code, titles and line endings remain identical
+- **AND** canonical deltas use the locked official builder and derived source bindings
+
+#### Scenario: Exact postimage or completion fails
+
+- **WHEN** a referenced target disappears or a postimage contains unauthorized edits
+- **THEN** recognition rejects that postimage before acceptance
+- **AND** native effect failure preserves the existing compensation boundary
+- **AND** repeated completed recognition performs no duplicate effect
+
+### Requirement: Archive proof scope retains validated effect paths
+
+A nonempty repository proof scope SHALL retain validated archive effect paths
+that disappear from its net baseline diff. Source deletions SHALL remain
+attributed independently of Git rename detection. Empty scope SHALL NOT select
+unrelated historical archive authority.
+
+#### Scenario: A Change creates and archives a document
+
+- **WHEN** a source document is created and removed within the integrated range
+- **THEN** postarchive proof still includes its validated effect obligation
+- **AND** incomplete proof coverage remains rejected
+
+### Requirement: Stable supply preserves the supported dependency closure
+
+Supply updates SHALL select verified stable versions through their existing
+owners and preserve the supported Python line. Native locks, package contents,
+CI templates and generated projections SHALL agree. An incompatible upstream
+release SHALL remain an explicit unresolved constraint, not an ignored dependency
+or a false latest-version claim.
+
+#### Scenario: Latest upstream conflicts with a required dependency
+
+- **WHEN** the native resolver rejects a stable upstream version
+- **THEN** the compatible closure remains selected and the exact conflict is reported
+- **AND** other independently compatible updates continue through their normal acceptance

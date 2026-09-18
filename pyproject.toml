@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "cel-expr-python>=0.1.3",
-  "cyclopts>=4.25.2",
+  "cyclopts>=4.25.3",
   "filelock>=3.32.7",
   "jsonschema>=4.26.0",
   "markdown-it-py>=4.2.0",
@@ -15,7 +15,7 @@ dependencies = [
   "pydantic>=2.13.5",
   "pyyaml>=6.0.3",
   "tomli-w>=1.2.0",
-  "uv>=0.12.15",
+  "uv>=0.12.16",
 ]
 
 [project.scripts]
@@ -28,10 +28,10 @@ prerelease = "disallow"
 dev = [
   "codespell>=2.4.3",
   "deptry>=0.25.1",
-  "hatchling>=1.32.0",
+  "hatchling>=1.32.3",
   "hypothesis>=6.168.0",
   "import-linter>=2.15",
-  "mutmut>=3.7.0",
+  "mutmut>=3.8.0",
   "nox>=2026.8.17",
   "pillow>=12.3.0",
   "pre-commit>=4.6.2",
@@ -39,16 +39,16 @@ dev = [
   "pytest-cov>=7.1.0",
   "pytest-timeout>=2.4.0",
   "pytest-xdist>=3.8.0",
-  "ruff>=0.16.7",
+  "ruff>=0.16.8",
   "shellcheck-py>=0.11.0.1",
   "shfmt-py>=4.2.0",
-  "ty>=0.0.78",
-  "uv>=0.12.15",
+  "ty>=0.0.82",
+  "uv>=0.12.16",
   "yamllint>=1.38.0",
 ]
 
 [build-system]
-requires = ["hatchling>=1.32.0"]
+requires = ["hatchling>=1.32.3"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]

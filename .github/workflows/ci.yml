@@ -37,11 +37,11 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version: "26.8.2"
+          node-version: "26.9.0"
           cache: npm
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
         with:
-          version: "0.12.15"
+          version: "0.12.16"
           python-version: ${{ matrix.python }}
       - name: Provision native Python image supply
         run: uv python install --no-bin ${{ matrix.python }}
@@ -78,7 +78,7 @@ jobs:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
         with:
-          version: "0.12.15"
+          version: "0.12.16"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Admit pushed commit range
@@ -160,7 +160,7 @@ jobs:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
         with:
-          version: "0.12.15"
+          version: "0.12.16"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: OpenSpec strict validation
@@ -194,7 +194,7 @@ jobs:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
         with:
-          version: "0.12.15"
+          version: "0.12.16"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Build Python distributions

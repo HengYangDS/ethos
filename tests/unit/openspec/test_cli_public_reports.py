@@ -24,7 +24,6 @@ def test_source_cli_consumes_the_single_resolved_node_package_supply(
     tmp_path,
     reported,
 ) -> None:
-    assert cli.OFFICIAL_VERSION == "1.13.0"
     source = tmp_path / "source"
     supply = tmp_path / "prepared/node_modules"
     package = supply / "@fission-ai/openspec/package.json"

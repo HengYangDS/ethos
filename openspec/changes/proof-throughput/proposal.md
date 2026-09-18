@@ -14,6 +14,8 @@ can be met through cached verdicts alone or narrower assurance.
   authority or silently narrowing source inputs.
 - Reduce cold full-suite work before considering cross-run evidence reuse.
 - Preserve all behavioral obligations, native effects and the coverage floor.
+- Close the reproduced archive reference/proof-scope defects before completion.
+- Qualify the requested compatible stable supply through the same native consumers.
 
 ## Capabilities
 

@@ -93,7 +93,8 @@ def _write(path, content):
     path.write_text(content)
 
 
-def test_package_runner_claim_matrix(monkeypatch, tmp_path):
+@pytest.mark.parametrize("entry_alias", [False, True])
+def test_package_runner_claim_matrix(monkeypatch, tmp_path, entry_alias):
     env = {"ETHOS_OPENSPEC_BIN": "/tmp/untrusted-openspec", "PATH": "/tmp/untrusted-path"}
     for key, value in env.items():
         monkeypatch.setenv(key, value)
@@ -118,6 +119,9 @@ def test_package_runner_claim_matrix(monkeypatch, tmp_path):
     _write(package, json.dumps({"name": cli.OFFICIAL_PACKAGE, "version": cli.OFFICIAL_VERSION}))
     _write(declaration, json.dumps({"dependencies": {cli.OFFICIAL_PACKAGE: cli.OFFICIAL_VERSION}}))
     _write(entry, "")
+    if entry_alias:
+        (tmp_path / "alias").symlink_to(tmp_path, target_is_directory=True)
+        entry = tmp_path / "alias" / entry.relative_to(tmp_path)
     keys = "_DISTRIBUTION_DECLARATION _DISTRIBUTION_PACKAGE _DISTRIBUTION_ENTRY _DISTRIBUTION_LOCK"
     for key, value in zip(
         keys.split(), (declaration, package, entry, tmp_path / "package-lock.json"), strict=True

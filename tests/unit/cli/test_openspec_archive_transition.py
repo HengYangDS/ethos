@@ -241,6 +241,17 @@ def _declare_archive_binding(root: Path) -> tuple[str, Path, dict[str, object]]:
     source = "openspec/specs/contracts/spec.md"
     projection = root / "system/projections/terminal-architecture"
     projection.mkdir(parents=True)
+    active = root / "openspec/changes/fixture-change"
+    target = root / "docs/reference.md"
+    target.parent.mkdir(exist_ok=True)
+    target.write_text("# Reference\n")
+    (active / "design.md").write_text("[Reference](../../../docs/reference.md)\n")
+    delta = active / "specs/contracts/spec.md"
+    delta.write_text(
+        delta.read_text().replace(
+            "single intent carrier.", "[reference](../../../../../docs/reference.md)."
+        )
+    )
     binding = {
         "path": source,
         "authority": "fixture canonical contract",
@@ -283,7 +294,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
             lambda *_args, **_kwargs: Mock(returncode=1, stdout="", stderr="commit refused"),
         )
     invoke = run_ethos_blocked if mode.endswith("failure") else run_ethos
-    result = invoke(
+    arguments = (
         "lane",
         "archive-change",
         "--change",
@@ -294,8 +305,8 @@ def test_official_archive_closes_its_exact_source_binding_projection(
         root.as_posix(),
         "--apply",
         "--json",
-        cwd=root,
     )
+    result = invoke(*arguments, cwd=root)
     report = result["data"]
 
     if mode.endswith("failure"):
@@ -308,6 +319,12 @@ def test_official_archive_closes_its_exact_source_binding_projection(
         return
 
     assert report["verdict"] == "pass", report
+    archived = root / report["archive_path"]
+    assert "../../../../docs/reference.md" in (archived / "design.md").read_text()
+    assert (
+        "../../../../../../docs/reference.md" in (archived / "specs/contracts/spec.md").read_text()
+    )
+    assert "../../../docs/reference.md" in (root / source).read_text()
     updated = json.loads(graph_path.read_text(encoding="utf-8"))
     assert (
         updated["sources"]["contract"]["sha256"]
@@ -322,19 +339,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
     assert git(root, "rev-parse", "HEAD^") == head
     seed_executed_proof(root, archived_head)
     assert proof_gaps(root, archived_head) == []
-    replay = run_ethos(
-        "lane",
-        "archive-change",
-        "--change",
-        "fixture-change",
-        "--expect-head",
-        head,
-        "--root",
-        root.as_posix(),
-        "--apply",
-        "--json",
-        cwd=root,
-    )
+    replay = run_ethos(*arguments, cwd=root)
     assert replay["data"]["state"] == "recognized"
     assert replay["data"]["attestation"] == report["attestation"]
 

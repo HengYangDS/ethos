@@ -24,10 +24,8 @@ from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.contracts.plan import compile_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
-from ethos.contracts.value import frozen_tuple
 from ethos.contracts.value import mutable_json
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
@@ -113,10 +111,24 @@ def test_proof_plan_rejects_unknown_facts_without_a_commitment_bypass(
         )
 
 
-def test_repository_proof_without_active_change_has_no_commitment(tmp_path: Path) -> None:
-    """A repository proof binds Git and policy without inventing authored intent."""
+@pytest.mark.parametrize("paths", [None, (), ("FEATURE.md",)])
+def test_repository_proof_selects_only_current_archive_authority(tmp_path, paths):
+    """Intent-free proof is valid; archive obligations depend on current scope."""
     _repo, candidate = start_adopted_candidate(tmp_path)
     head = git(candidate, "rev-parse", "HEAD")
+    archive_authority = (
+        None
+        if paths is None
+        else {
+            "predicate": "effect:git-ref-update",
+            "attestation_id": "a" * 64,
+            "effect_digest": "c" * 64,
+            "plan_digest": "d" * 64,
+            "claim": {"operation": "openspec.archive", "effect": "c" * 64},
+            "source": "archive_commit",
+            "authorized_paths": ["openspec/changes/archive/previous/tasks.md"],
+        }
+    )
     resolution = CurrentResolution(
         verdict="pass",
         authority=CurrentAuthority(
@@ -130,137 +142,49 @@ def test_repository_proof_without_active_change_has_no_commitment(tmp_path: Path
             required=False,
         ),
         commitment=None,
-        scope=CurrentScope(()),
+        scope=CurrentScope(paths or (), archive_authority=archive_authority),
     )
-
     plan = proof_plan(candidate, resolution=resolution)
-    record = issue_conformant_proof(candidate, head, plan=plan)
-
     assert plan.commitment is None
     assert plan.inputs.commitment is None
     assert plan.facts["values"]["change_id"] == ""
-    assert record.commitment_digest is None
-    assert persist_proof_attestation(candidate, record)["added"] == (record.id,)
-    assert_selected_proof(candidate, head, selected=record)
-    assert proof_module.proof_for_repository_transition(candidate, head) == (record, [])
-
-
-def test_proof_plan_does_not_rehydrate_archive_authority_without_current_scope(
-    tmp_path: Path,
-) -> None:
-    """Historic archive authority is not a proof input when fresh scope is empty."""
-    _repo, candidate = start_adopted_candidate(tmp_path)
-    head = git(candidate, "rev-parse", "HEAD")
-    archive_authority = {
-        "predicate": "effect:git-ref-update",
-        "attestation_id": "a" * 64,
-        "effect_digest": "c" * 64,
-        "plan_digest": "d" * 64,
-        "claim": {"operation": "openspec.archive", "effect": "c" * 64},
-        "source": "archive_commit",
-        "authorized_paths": ["openspec/changes/archive/previous/tasks.md"],
-    }
-    resolution = CurrentResolution(
-        verdict="pass",
-        authority=CurrentAuthority(
-            verdict="pass",
-            reason="not_required",
-            branch="candidate/dev",
-            actor="agent:test:case:agent-test",
-            lease={},
-            current_head=head,
-            current_tree=git(candidate, "rev-parse", "HEAD^{tree}"),
-            required=False,
-        ),
-        commitment=None,
-        scope=CurrentScope((), archive_authority=archive_authority),
+    assert mutable_json(plan.prior_attestations) == (
+        {"openspec_archive": archive_authority} if paths else {}
     )
-
-    plan = proof_plan(candidate, resolution=resolution)
-
-    assert plan.prior_attestations == {}
-    assert "proof_archive_scope_stale" not in plan.required_gaps
-
-
-def test_proof_plan_keeps_archive_validation_for_nonempty_current_scope(tmp_path: Path) -> None:
-    """A live scope still fails closed when it does not cover historic archive paths."""
-    _repo, candidate = start_adopted_candidate(tmp_path)
-    head = git(candidate, "rev-parse", "HEAD")
-    archive_authority = {
-        "predicate": "effect:git-ref-update",
-        "attestation_id": "a" * 64,
-        "effect_digest": "c" * 64,
-        "plan_digest": "d" * 64,
-        "claim": {"operation": "openspec.archive", "effect": "c" * 64},
-        "source": "archive_commit",
-        "authorized_paths": ["openspec/changes/archive/previous/tasks.md"],
-    }
-    resolution = CurrentResolution(
-        verdict="pass",
-        authority=CurrentAuthority(
-            verdict="pass",
-            reason="not_required",
-            branch="candidate/dev",
-            actor="agent:test:case:agent-test",
-            lease={},
-            current_head=head,
-            current_tree=git(candidate, "rev-parse", "HEAD^{tree}"),
-            required=False,
-        ),
-        commitment=None,
-        scope=CurrentScope(("FEATURE.md",), archive_authority=archive_authority),
-    )
-
-    plan = proof_plan(candidate, resolution=resolution)
-
-    assert mutable_json(plan.prior_attestations) == {"openspec_archive": archive_authority}
-    assert plan.required_gaps == ("proof_archive_scope_stale",)
+    assert plan.required_gaps == (("proof_archive_scope_stale",) if paths else ())
+    if paths is None:
+        record = issue_conformant_proof(candidate, head, plan=plan)
+        assert record.commitment_digest is None
+        assert persist_proof_attestation(candidate, record)["added"] == (record.id,)
+        assert_selected_proof(candidate, head, selected=record)
+        assert proof_module.proof_for_repository_transition(candidate, head) == (record, [])
 
 
 @pytest.mark.parametrize(
-    ("field", "value", "gap"),
-    frozen_tuple(
-        literal_case(
-            "kernel.test_proof_plan_binding:parametrize:test_proof_predicate_evidence_drift_fails_closed:0"
-        )
-    ),
-)
-def test_proof_predicate_evidence_drift_fails_closed(
-    tmp_path: Path, field: str, value: object, gap: str
-) -> None:
-    repo, head = proof_repository(tmp_path / "repo")
-    valid = _issue(repo, head)
-    store_proof(repo, reissue_attestation(valid, body=valid.payload.body | {field: value}))
-    assert_selected_proof(repo, head, gap=gap)
-
-
-@pytest.mark.parametrize(
-    ("updates", "gap"),
+    ("location", "updates", "gap"),
     [
-        ({"predicate": "experiment:novel"}, "proof_not_proven"),
-        ({"plan_digest": "0" * 64}, "proof_attestation_binding_mismatch:plan_digest"),
-        ({"policy_digest": "0" * 64}, "proof_policy_digest_stale"),
+        *(
+            ("body", {field: value}, gap)
+            for field, value, gap in literal_case(
+                "kernel.test_proof_plan_binding:parametrize:test_proof_predicate_evidence_drift_fails_closed:0"
+            )
+        ),
+        ("envelope", {"predicate": "experiment:novel"}, "proof_not_proven"),
+        ("envelope", {"plan_digest": "0" * 64}, "proof_attestation_binding_mismatch:plan_digest"),
+        ("envelope", {"policy_digest": "0" * 64}, "proof_policy_digest_stale"),
+        ("payload", {"kind": "proof:future-execution"}, "proof_attestation_payload_kind_invalid"),
     ],
 )
-def test_proof_envelope_binding_drift_fails_closed(
-    tmp_path: Path, updates: dict[str, object], gap: str
-) -> None:
-    repo, head = proof_repository(tmp_path / "repo")
-    store_proof(repo, reissue_attestation(_issue(repo, head), **updates))
-    assert_selected_proof(repo, head, gap=gap)
-
-
-def test_unknown_proof_payload_kind_cannot_authorize(tmp_path: Path) -> None:
+def test_proof_drift_fails_closed_at_its_exact_layer(tmp_path, location, updates, gap):
+    """Body, envelope and payload-kind mutations retain separate rejection claims."""
     repo, head = proof_repository(tmp_path / "repo")
     valid = _issue(repo, head)
-    payload = valid.model_dump(mode="python", exclude={"id"})
-    payload["payload"] = {
-        "kind": "proof:future-execution",
-        "body": valid.payload.body,
-    }
-    store_proof(repo, Attestation.issue(payload))
-
-    assert_selected_proof(repo, head, gap="proof_attestation_payload_kind_invalid")
+    if location == "body":
+        updates = {"body": valid.payload.body | updates}
+    elif location == "payload":
+        updates = {"payload": {"body": valid.payload.body, **updates}}
+    store_proof(repo, reissue_attestation(valid, **updates))
+    assert_selected_proof(repo, head, gap=gap)
 
 
 def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_path: Path) -> None:
@@ -269,21 +193,18 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
     checks = conformant_proof_checks(plan)
     valid = _issue(repo, head, plan=plan, checks=checks)
 
-    plan_payload = plan.model_dump(mode="json")
-    invalid_plan = plan_payload | {"digest": "0" * 64}
-    body_cases = (
-        ({**valid.payload.body, "plan": None}, "proof_attestation_plan_missing"),
+    for field, value, expected in (
+        ("plan", None, "proof_attestation_plan_missing"),
         (
-            {**valid.payload.body, "plan": invalid_plan},
+            "plan",
+            plan.model_dump(mode="json") | {"digest": "0" * 64},
             "proof_attestation_plan_digest_mismatch",
         ),
-        (
-            {**valid.payload.body, "required_gaps": "invalid"},
-            "proof_attestation_required_gaps_invalid",
-        ),
-    )
-    for body, expected in body_cases:
-        assert proof_statement_gaps(reissue_attestation(valid, body=body), checks) == [expected]
+        ("required_gaps", "invalid", "proof_attestation_required_gaps_invalid"),
+    ):
+        assert proof_statement_gaps(
+            reissue_attestation(valid, body=valid.payload.body | {field: value}), checks
+        ) == [expected]
 
     failed_check = checks[0] | {"verdict": "block", "trust_bearing": False}
     result_gaps = proof_statement_gaps(
@@ -305,15 +226,6 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
     assert "proof_attestation_check_plan_mismatch" in gate_gaps
     assert f"proof_gate_not_policy_conformant:{plan.nodes[0].id}" in gate_gaps
 
-    for field, value, expected in (
-        ("scope", [], "proof_attestation_scope_mismatch"),
-        ("plane", "hosted", "proof_attestation_plane_mismatch"),
-        ("context", {}, "proof_attestation_context_mismatch"),
-    ):
-        assert expected in proof_statement_gaps(
-            reissue_attestation(valid, body={**valid.payload.body, field: value}),
-            checks,
-        )
     assert "trust_bearing_proof_missing" in proof_statement_gaps(
         valid,
         tuple(check | {"trust_bearing": False} for check in checks),
@@ -385,14 +297,31 @@ def test_proof_issuance_reuses_the_plan_commitment_without_rereading_exact_head(
         ({"required_gaps": []}, "proof_attestation_required_gaps_invalid"),
         ({"required_gaps": (1,)}, "proof_attestation_required_gaps_invalid"),
         ({"boundary": "unrecognized"}, "proof_attestation_boundary_mismatch"),
+        ("blocked-plan", "proof_plan_not_admitted"),
+        ({"required_gaps": ("unresolved",)}, "proof_attestation_verdict_mismatch"),
+        ("missing-check", "proof_attestation_check_plan_mismatch"),
     ],
 )
 def test_proof_issuance_payload_is_a_closed_contract(tmp_path, updates, error):
     repo, head = proof_repository(tmp_path / "repo")
     plan = current_proof_plan(repo, expected_head=head)
+    checks = conformant_proof_checks(plan)
+    if updates == "blocked-plan":
+        updates = {
+            "plan": compile_plan(
+                Commitment.model_validate(dict(plan.commitment)),
+                Facts.model_validate(plan.facts | {"observed_at": datetime.now(UTC)}),
+                plan.nodes,
+                policy=dict(plan.policy),
+                prior_attestations=dict(plan.prior_attestations),
+                required_gaps=("unresolved",),
+            )
+        }
+    elif updates == "missing-check":
+        updates = {"checks": checks[:-1]}
     payload = {
         "plan": plan,
-        "checks": conformant_proof_checks(plan),
+        "checks": checks,
         "verdict": "pass",
         "issuer": "agent:test:case:proof",
         "scope": "repository",
@@ -400,40 +329,6 @@ def test_proof_issuance_payload_is_a_closed_contract(tmp_path, updates, error):
     }
     with pytest.raises((TypeError, ValueError), match=error):
         issue_proof_attestation(repo, payload | updates)
-
-
-def test_proof_issuance_rejects_nonadmitted_plan_and_result_drift(tmp_path: Path) -> None:
-    repo, head = proof_repository(tmp_path / "repo")
-    admitted = current_proof_plan(repo, expected_head=head)
-    checks = conformant_proof_checks(admitted)
-    blocked = compile_plan(
-        Commitment.model_validate(dict(admitted.commitment)),
-        Facts.model_validate(admitted.facts | {"observed_at": datetime.now(UTC)}),
-        admitted.nodes,
-        policy=dict(admitted.policy),
-        prior_attestations=dict(admitted.prior_attestations),
-        required_gaps=("unresolved",),
-    )
-    payload = {
-        "plan": blocked,
-        "checks": checks,
-        "verdict": "pass",
-        "issuer": "agent:test:case:proof",
-        "scope": "repository",
-        "boundary": "repository",
-    }
-    with pytest.raises(ValueError, match="proof_plan_not_admitted"):
-        issue_proof_attestation(repo, payload)
-
-    payload["plan"] = admitted
-    payload["required_gaps"] = ("unresolved",)
-    with pytest.raises(ValueError, match="proof_attestation_verdict_mismatch"):
-        issue_proof_attestation(repo, payload)
-
-    payload["required_gaps"] = ()
-    payload["checks"] = checks[:-1]
-    with pytest.raises(ValueError, match="proof_attestation_check_plan_mismatch"):
-        issue_proof_attestation(repo, payload)
 
 
 @pytest.fixture

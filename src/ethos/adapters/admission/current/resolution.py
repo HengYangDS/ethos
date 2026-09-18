@@ -401,10 +401,20 @@ def resolve_current_resolution(
         material_scope=material_scope,
     )
     if archive_authority:
+        effect_paths = tuple(string_sequence(archive_authority.get("authorized_paths")))
+        additional = tuple(path for path in effect_paths if scope.paths and path not in scope.paths)
         scope = CurrentScope(
-            paths=scope.paths,
+            paths=(*scope.paths, *additional),
             archive_authority=archive_authority,
-            attributions=scope.attributions,
+            attributions=(
+                *scope.attributions,
+                *(
+                    PathAttribution(
+                        path, "archive_effect", "observed", commitment.id.removeprefix("change:")
+                    )
+                    for path in additional
+                ),
+            ),
             material_scope=scope.material_scope,
         )
     return CurrentResolution(

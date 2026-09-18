@@ -43,6 +43,8 @@ def archive_source_path(
 ) -> str | None:
     """Map native output to its exact relocated source, not to write authority."""
     active_root = active_change_root(change)
+    if path.startswith(f"{active_root}/") and path in completion_artifacts:
+        return path
     if path == archive_root or path.startswith(f"{archive_root}/"):
         source = active_root + path.removeprefix(archive_root)
         return source if source in completion_artifacts else None

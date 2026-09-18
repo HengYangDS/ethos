@@ -1499,3 +1499,60 @@ native Windows or hostile concurrent-writer containment. Safe quiescence remains
 the caller's obligation, and platforms without no-follow chmod retain that limit.
 Sealed-tree microbenchmarks do not establish whole-proof throughput or bounded
 recovery after supervisor death; those existing obligations remain open.
+
+## Reference-Preserving Archive And Stable Supply
+
+Archive is a path transformation, not merely byte relocation. A relative
+reference is interpreted against its source document; unchanged Markdown bytes
+can name a different object after the document moves. The existing archive
+projection owner derives the permitted destination edits from exact Git trees.
+Micromark provides concrete destination spans for links, images and definitions;
+all other text, code, titles, Unicode and line endings remain unchanged.
+Internal Change targets move with their documents. Repository targets retain
+their exact logical paths. Missing, escaping or undecodable targets are explicit
+failures, including targets removed from the observed postimage.
+
+Canonical requirements continue through the exact locked official OpenSpec
+builder. It applies the original and adjusted delta against the same preimage;
+ETHOS does not copy its delta parser. The existing source-binding renderer then
+consumes the corrected canonical bytes. Recognition admits only native output
+awaiting projection or the exact derived output, and replay is idempotent.
+Arbitrary content edits and declaration drift remain rejected. Native command
+failure uses the existing compensation owner, not a second transaction engine.
+
+Git rename similarity is not authority: corrected short documents can appear as
+delete/add. Their exact authorized source deletions remain attributed. A file
+created and deleted within one Change can also disappear from the net baseline
+diff; validated archive effect paths remain proof obligations when current scope
+is nonempty. Empty repository scope does not reactivate unrelated history.
+
+The adapter explicitly rejects HTML carrying href/src attributes, special Git
+entries in the moving source, and special-entry reference targets. It does not
+independently validate fragments. Supporting those reference forms and recovery
+after supervisor loss remain separate obligations. Native package execution
+qualifies the locked OpenSpec builder and production dependency closure.
+A real package probe exposed asymmetric canonical-path comparison through a
+symlinked installation parent; both coordinates now use resolved paths. A native
+alias regression and packaged archive/replay/compensation distinguish that repair.
+Malformed transport and timeout cannot authorize projection; timeout returns
+through the existing compensation boundary. Micromark replaces spelling-based Markdown rewriting; it does not add
+an authored meaning store. End-to-end verification, not a rewritten digest,
+establishes acceptance.
+
+The user-requested stable-supply refresh shares this qualification boundary:
+OpenSpec 1.13.1, Prettier 3.9.8, Node 26.9.0 for declared hosted consumers, and
+updated Python runtime, build and development locks. Node's Python wheel remains
+24.19.0, the latest published stable wheel observed on September 18; it is a
+distinct supply channel, not proof of Node 26 package execution. Filelock 4.0.0
+cannot resolve with Nox's virtualenv dependency requiring filelock below 4.
+Keep the compatible 3.32.7 closure until that constraint is resolved; do not
+ignore dependency metadata or narrow Python support to manufacture success.
+Official release/index metadata and native resolver outputs remain in the
+existing evidence root. CI source templates and byte-identical projections
+move together under exact patch admission, including the OCI image digest.
+
+The isolated Filelock 4 probe passes native virtualenv contention, reentrancy,
+reacquisition, environment creation, Nox execution and pre-commit configuration.
+Its dependency-health check still rejects the declared virtualenv upper bound.
+These observations justify further upstream compatibility review, not a full
+platform claim or an installed constraint override. The probe roots are removed.

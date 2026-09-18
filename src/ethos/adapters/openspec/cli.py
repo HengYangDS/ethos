@@ -105,7 +105,7 @@ def _verify_official_cli(
     entry = Path(command[1]).resolve() if len(command) == _SOURCE_COMMAND_LENGTH else Path()
     source_package, source_path = source_runtime or (Path(), Path())
     source_entry = source_runtime is not None and entry == source_path.resolve()
-    bundled_entry = entry == _DISTRIBUTION_ENTRY
+    bundled_entry = entry == _DISTRIBUTION_ENTRY.resolve()
     if source_entry:
         package = _json_object(source_package)
         lock = _json_object(_LOCK)

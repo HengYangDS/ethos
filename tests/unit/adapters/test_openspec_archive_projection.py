@@ -2,10 +2,13 @@
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
+import ethos.adapters.openspec.relocation as relocation
 from ethos.adapters.openspec.archive_projection import archive_projection_updates
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.archive_projection import refresh_archive_projections
@@ -18,30 +21,21 @@ from tests.support.governed_repository import init_git_repo
 
 
 def test_normalize_projected_specs_changes_only_terminal_newlines(tmp_path: Path) -> None:
-    root = tmp_path
-    projected = root / "openspec/specs/contracts/spec.md"
-    projected.parent.mkdir(parents=True)
     original = b"## Purpose\n\nKeep interior spacing.  \n\n## Requirements\n\nBody.\n\n\n"
-    projected.write_bytes(original)
-    archived = root / "openspec/changes/archive/2026-08-08-change/spec.md"
-    archived.parent.mkdir(parents=True)
-    archived.write_bytes(b"archived carrier\n\n")
-    binary = root / "openspec/specs/contracts/fixture.bin"
-    binary.write_bytes(b"\xff\x00\n\n")
-
-    normalized = normalize_projected_specs(
-        root,
-        paths=(
-            "openspec/specs/contracts/spec.md",
-            "openspec/changes/archive/2026-08-08-change/spec.md",
-            "openspec/specs/contracts/fixture.bin",
-        ),
+    contents = {
+        "openspec/specs/contracts/spec.md": original,
+        "openspec/changes/archive/2026-08-08-change/spec.md": b"archived carrier\n\n",
+        "openspec/specs/contracts/fixture.bin": b"\xff\x00\n\n",
+    }
+    for relative, content in contents.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+    assert normalize_projected_specs(tmp_path, paths=tuple(contents)) == (
+        "openspec/specs/contracts/spec.md",
     )
-
-    assert normalized == ("openspec/specs/contracts/spec.md",)
-    assert projected.read_bytes() == original.rstrip(b"\n") + b"\n"
-    assert archived.read_bytes() == b"archived carrier\n\n"
-    assert binary.read_bytes() == b"\xff\x00\n\n"
+    contents["openspec/specs/contracts/spec.md"] = original.rstrip(b"\n") + b"\n"
+    assert {path: (tmp_path / path).read_bytes() for path in contents} == contents
 
 
 def _bound_projection(root: Path) -> tuple[Path, Path, Path]:
@@ -52,28 +46,19 @@ def _bound_projection(root: Path) -> tuple[Path, Path, Path]:
     declaration.parent.mkdir(parents=True)
     graph = declaration.with_name("semantic-graph.json")
     binding = {"path": source.relative_to(root).as_posix(), "authority": "contract"}
-    declaration.write_text(
-        json.dumps(
-            {
-                "schema": "ethos.projection-declaration/v1",
-                "sources": [{"id": "contract", **binding}],
-                "documents": {"semantic_graph": graph.relative_to(root).as_posix()},
-            }
-        )
-        + "\n"
-    )
-    graph.write_text(
-        json.dumps(
-            {
-                "sources": {
-                    "contract": {**binding, "sha256": hashlib.sha256(b"before\n").hexdigest()}
-                },
-                "nodes": {"intent": {"label": "Preserve authored meaning"}},
-            },
-            indent=2,
-        )
-        + "\n"
-    )
+    documents = {
+        declaration: {
+            "schema": "ethos.projection-declaration/v1",
+            "sources": [{"id": "contract", **binding}],
+            "documents": {"semantic_graph": graph.relative_to(root).as_posix()},
+        },
+        graph: {
+            "sources": {"contract": {**binding, "sha256": hashlib.sha256(b"before\n").hexdigest()}},
+            "nodes": {"intent": {"label": "Preserve authored meaning"}},
+        },
+    }
+    for path, content in documents.items():
+        path.write_text(json.dumps(content, indent=2) + "\n")
     return source, declaration, graph
 
 
@@ -215,3 +200,92 @@ def test_absent_projection_is_a_noop_but_unobservable_git_is_not(tmp_path: Path)
     refresh_archive_projections(root, source_head=head)
     with pytest.raises(ValueError, match="archive_projection_declaration_unavailable"):
         refresh_archive_projections(root, source_head="unavailable")
+
+
+@pytest.mark.parametrize(
+    ("body", "expected", "fault"),
+    [
+        ("[x](../../../docs/target.md?q=1#title)", "[x](../../../../docs/target.md?q=1#title)", ""),
+        (
+            "![x][asset]\n\n[asset]: <../../../docs/target.md> 'Title'\n",
+            "![x][asset]\n\n[asset]: <../../../../docs/target.md> 'Title'\n",
+            "",
+        ),
+        (
+            "🎯 [x](../../../docs/file\\(x\\).md)\r\n",
+            "🎯 [x](../../../../docs/file%28x%29.md)\r\n",
+            "",
+        ),
+        ("[self](design.md#self) [peer](peer.md)", "[self](design.md#self) [peer](peer.md)", ""),
+        ("`[x](../../../missing)`\n\n```md\n[x](../../../missing)\n```\n", None, ""),
+        ("[web](https://example.invalid/a) [root](/docs/target.md) [anchor](#a)", None, ""),
+        ("[x](../../../docs/missing.md)", None, "target_missing"),
+        ("[x](../../../../outside.md)", None, "target_outside_repository"),
+        ("[x](../../../docs/%ZZ.md)", None, "encoding_invalid"),
+        ("[x](../../../docs/target.md)", None, "postimage_target_missing"),
+        ("<img src='../outside.png'>", None, "html_unsupported"),
+        ("[x](../../../docs/target.md)", None, "target_kind_unsupported"),
+        ("[x](peer.md)", None, "source_kind_unsupported"),
+        ("transport", [], "projection_invalid"),
+        ("transport", {"documents": "invalid", "canonical": []}, "projection_invalid"),
+        ("transport", {"documents": [], "canonical": []}, "projection_invalid"),
+        (
+            "transport",
+            {"documents": [{"path": "outside", "content": ""}], "canonical": []},
+            "projection_invalid",
+        ),
+        ("transport", None, "observation_timeout"),
+        ("[x](peer.md)", None, "members_changed"),
+        ("[x](peer.md)", None, "content_changed"),
+        ("[x](peer.md)", None, "missing_cli"),
+    ],
+)
+def test_archive_reference_destinations_preserve_other_bytes(
+    tmp_path, monkeypatch, body, expected, fault
+):
+    """Real Git projection preserves concrete syntax or rejects the exact missing target."""
+    root = init_git_repo(tmp_path / "repo")
+    active = root / "openspec/changes/links"
+    archived = root / "openspec/changes/archive/2026-09-18-links"
+    for relative, content in {
+        "docs/target.md": "# Target\n",
+        "docs/file(x).md": "# Escaped\n",
+        "openspec/changes/links/design.md": body,
+        "openspec/changes/links/peer.md": "# Peer\n",
+        "openspec/changes/links/note.txt": "Stable bytes\n",
+    }.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content.encode())
+    if fault.endswith("kind_unsupported"):
+        link = root / "docs/target.md" if fault.startswith("target") else active / "peer.md"
+        link.unlink()
+        link.symlink_to("file(x).md" if fault.startswith("target") else "../../../docs/target.md")
+    head = commit_fixture(root, "declare reference source")
+    archived.parent.mkdir(parents=True)
+    active.rename(archived)
+    if fault == "postimage_target_missing":
+        (root / "docs/target.md").unlink()
+    if fault == "members_changed":
+        (archived / "note.txt").unlink()
+    if fault == "content_changed":
+        (archived / "note.txt").write_bytes(b"unrelated edit")
+    if fault == "missing_cli":
+        monkeypatch.setattr(relocation, "openspec_base_command", lambda: None)
+        fault = "openspec_official_cli_missing"
+    if body == "transport":
+        bridge = (
+            Mock(side_effect=subprocess.TimeoutExpired(("node",), 60))
+            if expected is None
+            else Mock(return_value=subprocess.CompletedProcess((), 0, json.dumps(expected), ""))
+        )
+        monkeypatch.setattr(relocation, "run_command", bridge)
+    if fault:
+        with pytest.raises(ValueError, match=fault):
+            refresh_archive_projections(root, source_head=head)
+        assert (archived / "design.md").read_bytes() == body.encode()
+    else:
+        for _ in range(2):
+            refresh_archive_projections(root, source_head=head)
+            assert (archived / "design.md").read_bytes() == (expected or body).encode()
+    assert git(root, "rev-parse", "HEAD") == head

@@ -38,38 +38,56 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 18 checkpoint binds accepted source
-`8d635ade80a36659561b211b2a660e50d42234ee`, tree
-`9990f7a48dce102b728c90785f0ad427cd82298b`, and immutable runtime
-`4a9eeef7c02747bfdc8758f92341aabef56fb2a8bfa0727d71469af491baa143`.
-Exact full proof passed 35 gates, 3,833 tests and one skip with 95.084517-percent
-combined coverage in 681.119 seconds. Candidate/accepted CAS, runtime activation
-and both peers' dev/main publication are post-observed. Native version checks
-now use the process owner; immutable native fixture code is shared without
-sharing case state. The prior runtime and owned scratch were reclaimed.
+The September 18 delivered checkpoint binds accepted source
+`e58745a633379ff38b0d24f71de657d34741f906`, tree
+`57f11ca285bdad2cb06a12252e25d205e01aecb0`, and immutable runtime
+`49068c6d05cebc693f8ded39899965440efe78c5d23ccd2ae800f9cc37875dfb`.
+Exact full proof passed 35 gates, 3,841 tests and one skip with 95.089768-percent
+combined coverage in 670.898 seconds. Candidate/accepted CAS, runtime activation
+and both independent peers' dev/main publication are post-observed. The prior
+runtime and owned scratch were reclaimed. This warm locked-toolchain result
+meets the 1,200-second target, not the 600-second direction or total hosted
+delivery latency. The Change and sole Work Lane remain open.
 
-At 17:38 +08, GitLab pipelines 7408/7409 passed. GitHub runs 35324284947 and
-35324284756 passed source verification, quality and native conformance, but
-their package jobs failed because Homebrew Syft had advanced to 1.52.0 while
-the repository still required 1.51.1. The selected official stable release and
-Linux checksums are cross-checked against release API asset digests.
-The existing supply declaration now selects 1.52.0. Native Nox SBOM generation
-passed against the retained exact accepted wheel; the new source still requires
-its own build and full proof. No host downgrade, duplicate installation or
-relaxed version check follows from that diagnosis. Package preparation must
-eventually expose this dependency before expensive hosted source verification,
-through the existing supply owner rather than a second version parser.
+Release continuity is delivered: repository proof remains applicable after
+authoring retirement; distinct valid execution contexts do not contradict
+accepted meaning; a prepared request requires its own still-admitted proof.
+Native CAS failures preserve process evidence and fresh ref observation;
+unknown completion retains recovery intent. Existing `release-continuity-`
+receipts bind the 202-case focused matrix, exact full proof and delivery.
+The independent adopter owner then completed release and recovery without
+rerunning proof, replacing the original request or re-signing the original tag.
+Its `formal-release-recovery.json` and `workline-a-completion.json` were read
+and hash-verified: 1,171 members restored, 21 files installed, repeated recovery
+already installed, unmanaged content preserved and owned scratch removed.
+These are attributed owner execution results, not this task's independent replay;
+the completion receipt qualifies older candidate boilerplate in recovery output.
 
-The active bounded repair closes real adopter release continuity: repository
-proof remains applicable after authoring retirement; distinct valid execution
-contexts do not become contradictory accepted meaning; a prepared request
-requires its own still-admitted proof, not arbitrary reselection. Native CAS
-failure retains process evidence and fresh ref observation, with recovery intent
-preserved for unknown completion. The consolidated 202-case proof, release,
-publication and integration suite passes. Original failing probes and source
-identities remain in existing `release-continuity-` receipts. New exact full
-proof, installed delivery and adopter replay remain pending, not inferred from
-focused success. The Change and sole Work Lane remain open.
+The delivered supply declaration selects Syft 1.52.0; official Linux checksums
+and release asset digests agree. The previous GitHub package failure came from
+Homebrew advancing while the repository still selected 1.51.1. No host downgrade,
+parallel installation or relaxed version policy was used. At 18:38 +08,
+GitHub dev quality, native conformance and source verification passed while
+package artifacts queued; main source verification and GitLab pipelines
+7421/7422 were running. Both peers' dev/main still matched the delivered source.
+Those observations do not certify terminal hosted success.
+
+The next bounded repair moves that supply failure before expensive hosted proof
+through the existing wrapper and installer. Its scanner/budget/SBOM failure
+matrix retains native diagnostics, invalidates old reports and proves proof was
+not invoked; the healthy case proves preparation preceded exact-source execution.
+Focused acceptance passed 67 cases in 34.70 seconds with owned scratch removed.
+Current-source full proof, installation and hosted consumption remain separate
+required delivery steps, not inferred from those focused results.
+
+A bounded descriptor-owner experiment preserves real binary input/output and
+exit status, closes registered command groups after caller loss and leaves a
+healthy concurrent command untouched. Owner-control EOF also closes its groups.
+The 0.547-second experiment removed all owned processes and temporary files.
+It is not product containment: independent supervisor death, unregistered escape,
+protocol hardening and native Windows remain unproved. Existing
+`lifetime-fd-owner-probe` receipts retain that boundary; no service, persistent
+state or production broker was introduced.
 
 The existing GitHub runner now uses its vendor template's Interactive resource
 policy. Native routing-label removal drained the active job without cancellation;
@@ -1542,9 +1560,9 @@ narrow the global principles they illustrate.
 | Intent fidelity and historical guidance | Available input has informed the contract and this route; complete recovery is not proved. | Existing Feedback Intent Preservation and P1/P2: settle each distinct in-scope obligation, retain unresolved source gaps, and reject the mandatory-winner mistranslation through the full acceptance path. |
 | Lane absorption and housekeeping | Historical and source-delivery lanes are retired; the sole owned lane is reused for bounded repairs. Unique-content dispositions remain in [Transition Source Absorption](#transition-source-absorption), and exact retirement receipts remain separate evidence. | Existing Bounded Change Convergence Route: absorb unique dirty/committed semantics and verify exact ref, worktree, Lease and owned-resource retirement easiest first. |
 | Artifact, policy and admission correctness | Artifact-origin repair and source-delivery lifecycle are accepted; attributed adopter replay clears the prior active-Change integration cycle. | Existing admission owners still owe tag cause preservation and malformed archive postimage/re-entry; exact new evidence is required for each. |
-| Quality and full-cycle speed | Complete local proof reached 681.119 seconds; 600 seconds remains a direction. The official type gate resolves package `.` to `src`, so its PASS does not prove test/tool typing; a wider direct check exposed unresolved diagnostics. | Existing quality owners and P5: close semantic size, docstring/type/format scope, distinguishing failures, input-complete evidence reuse and actual first-failure/closeout measurements without narrowing obligations. |
+| Quality and full-cycle speed | Complete local proof reached 670.898 seconds; 600 seconds remains a direction. The official type gate resolves package `.` to `src`, so its PASS does not prove test/tool typing; a wider direct check exposed unresolved diagnostics. | Existing quality owners and P5: close semantic size, docstring/type/format scope, distinguishing failures, input-complete evidence reuse and actual first-failure/closeout measurements without narrowing obligations. |
 | Runtime, supply and temporary resources | The latest focused scratch roots were removed; sustained crash/kill boundedness and all-current supply are not proved. | Existing runtime/resource owners: verify package identity, migration/rollback, live-consumer-safe reclamation and sustained quantity/byte/inode budgets. |
-| Local and independent remote workflow | Historical identity correction and both peer replacements are delivered; no permanent single-author restriction applies. Current hosted package supply and real-adopter release continuity have separately observed gaps. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
+| Local and independent remote workflow | Historical identity correction and both peer replacements are delivered; no permanent single-author restriction applies. Release continuity is delivered with attributed adopter acceptance; current hosted completion remains separately observed. | Existing publication/commit-policy owners: exact local/single/multi-peer OIDs, hosted CI, reports and signature observations; developer proposal retirement does not wait for main. |
 | Agent guidance and enforceable behavior | Hooks, runtime and skills exist; registration alone does not prove host coverage or agent adherence. | Existing Hook And Extension Boundaries: context selection, capability discovery, fresh effect admission, bounded failures and measurable recovery without vendor/model binding. |
 | Document and physical semantic structure | Current registry and contracts exist; all placement, naming, source/projection and legacy cleanup obligations remain separately auditable. | Existing docs, module-layout and projection owners: preserve distinct design/plan/decision/task/evidence roles, remove redundant entities and prove consumer closure. |
 | OpenSpec and OKF customization | Official extension surfaces have been inspected; no custom schema or OKF adapter has been adopted. | Existing P1/P2/P7: native config first, justified schema only after semantic preservation tests, interoperable exchange without a second intent store or lifecycle. |

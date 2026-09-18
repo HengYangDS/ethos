@@ -64,6 +64,27 @@ identity so coverage remains attributable regardless of worker assignment.
 - **THEN** the imported runtime module retains its original source identity
 - **AND** subsequent executed verification remains observable to coverage
 
+### Requirement: Hosted supply preparation precedes expensive verification
+
+Hosted verification SHALL prepare its declared scanner, budget and SBOM supply
+through the existing supply owners before starting proof. Preparation failure
+SHALL preserve native diagnostics and exit status, invalidate previous attempt
+reports, and produce a failed hosted observation without executing proof.
+Package execution SHALL still validate supply in its own current environment.
+
+#### Scenario: A declared tool cannot be prepared
+
+- **WHEN** scanner, budget or SBOM preparation fails
+- **THEN** expensive proof does not start and the native failure remains observable
+- **AND** old proof, test and coverage reports cannot describe the new attempt
+- **AND** the hosted receipt identifies failed supply without issuing an Attestation
+
+#### Scenario: Prepared supply permits exact-source verification
+
+- **WHEN** every required preparation succeeds
+- **THEN** verification executes against the requested exact source
+- **AND** the later package boundary retains its own executable validation
+
 ### Requirement: Native read batching preserves official semantics
 
 ETHOS SHALL execute each bounded read batch through the selected official

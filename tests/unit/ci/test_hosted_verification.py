@@ -25,6 +25,7 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
         f"#!{sys.executable}\n"
         "import json, pathlib, subprocess, sys\n"
         "case = json.loads(pathlib.Path('proof-case.json').read_text())\n"
+        "assert pathlib.Path('.syft-prepared').is_file()\n"
         "scanner = subprocess.check_output([case['scanner'], 'version'], text=True)\n"
         "assert scanner.strip() == 'fixture-scanner'\n"
         "with pathlib.Path(case['command_log']).open('a') as stream:\n"
@@ -63,11 +64,19 @@ def _report_contents(reports: str) -> dict[str, str]:
     )
 
 
-def _hosted_scripts(repo: Path, supply_script: str, scanner_script: str = "exit 0\n") -> Path:
+def _hosted_scripts(
+    repo: Path,
+    supply_script: str,
+    scanner_script: str = "exit 0\n",
+    sbom_script: str = "touch .syft-prepared\n",
+) -> Path:
     """Keep the real wrapper with isolated external-tool preparation boundaries."""
     scripts = repo / "tools/ci/scripts"
     scripts.mkdir(parents=True)
     shutil.copy2(ROOT / "tools/ci/scripts/run-head-bound-proof.sh", scripts)
+    sbom = scripts / "install-syft.sh"
+    sbom.write_text("#!/bin/sh\n" + sbom_script)
+    sbom.chmod(0o755)
     supply = repo / "tools/ci/toolchain/native.py"
     supply.parent.mkdir()
     supply.write_text(
@@ -79,6 +88,26 @@ def _hosted_scripts(repo: Path, supply_script: str, scanner_script: str = "exit 
         " if result.returncode: sys.exit(result.returncode)\n"
     )
     return scripts
+
+
+def _run_hosted(repo: Path, scripts: Path, bins: Path, *args: str, **environment: str):
+    """Run the native shell with explicit case-local tools and environment."""
+    for name in ("python", "python3"):
+        (bins / name).symlink_to(sys.executable)
+    return subprocess.run(
+        ["bash", str(scripts / "run-head-bound-proof.sh"), *args],
+        cwd=repo,
+        env=os.environ
+        | {
+            "PATH": f"{bins}{os.pathsep}{os.environ['PATH']}",
+            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+            **environment,
+        },
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
 
 
 @pytest.mark.parametrize(
@@ -153,27 +182,14 @@ def test_hosted_receipt_requires_exact_executed_observation(
     )
     binary.symlink_to(hosted_proof_transport)
     assert binary.samefile(hosted_proof_transport)
-    for name in ("python", "python3"):
-        (binary.parent / name).symlink_to(sys.executable)
     scripts = _hosted_scripts(
         repo,
         f"printf '%s\\n' '{binary.parent}'\n",
         f"ln -s '{hosted_proof_transport.with_name('gitleaks')}' '{scanner}'\n",
     )
     summary_file = tmp_path / "summary.md"
-    completed = subprocess.run(
-        ["bash", str(scripts / "run-head-bound-proof.sh"), expected],
-        cwd=repo,
-        env=os.environ
-        | {
-            "PATH": f"{binary.parent}{os.pathsep}{os.environ['PATH']}",
-            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
-            "GITHUB_STEP_SUMMARY": str(summary_file),
-        },
-        capture_output=True,
-        text=True,
-        timeout=15,
-        check=False,
+    completed = _run_hosted(
+        repo, scripts, binary.parent, expected, GITHUB_STEP_SUMMARY=str(summary_file)
     )
     assert (completed.returncode == 0) is (fault == "none"), completed.stdout + completed.stderr
     assert scanner.samefile(hosted_proof_transport.with_name("gitleaks"))
@@ -198,7 +214,7 @@ def test_hosted_receipt_requires_exact_executed_observation(
     assert ("Coverage: 95.50%" if reports == "valid" else "Coverage: unavailable") in summary
 
 
-@pytest.mark.parametrize("failed_tool", ["scc", "gitleaks"])
+@pytest.mark.parametrize("failed_tool", ["scc", "gitleaks", "syft"])
 def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
     tmp_path: Path, failed_tool: str
 ) -> None:
@@ -207,38 +223,27 @@ def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
     failure = f"echo {failed_tool}_archive_checksum_mismatch >&2\nexit 23\n"
     scripts = _hosted_scripts(
         repo,
-        failure if failed_tool == "scc" else "exit 0\n",
-        failure if failed_tool == "gitleaks" else "exit 0\n",
+        *(failure if name == failed_tool else "exit 0\n" for name in ("scc", "gitleaks", "syft")),
     )
     evidence = repo / "build/evidence/quality"
-    proof = evidence / "proof/executed-proof.json"
-    old_test = evidence / "tests/pytest/junit.xml"
-    for path in (proof, old_test):
+    stale = (
+        evidence / "proof/executed-proof.json",
+        *(evidence / "tests" / name for name in _report_contents("valid")),
+    )
+    for path in stale:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("stale passing output")
     bins = tmp_path / "bin"
     bins.mkdir()
-    (bins / "python").symlink_to(sys.executable)
-    (bins / "python3").symlink_to(sys.executable)
     invoked = tmp_path / "proof-invoked"
     uv = bins / "uv"
     uv.write_text(f"#!/bin/sh\ntouch '{invoked}'\nexit 99\n")
     uv.chmod(0o755)
-    result = subprocess.run(
-        ["bash", str(scripts / "run-head-bound-proof.sh")],
-        cwd=repo,
-        env=os.environ
-        | {"PATH": f"{bins}{os.pathsep}{os.environ['PATH']}", "ETHOS_RUNTIME_BOOTSTRAPPED": "1"},
-        text=True,
-        capture_output=True,
-        timeout=15,
-        check=False,
-    )
+    result = _run_hosted(repo, scripts, bins)
     assert result.returncode == 23, result.stdout + result.stderr
     assert f"{failed_tool}_archive_checksum_mismatch" in result.stderr
     assert not invoked.exists()
-    assert not old_test.exists()
-    assert not proof.exists() or "stale passing output" not in proof.read_text()
+    assert not any(path.exists() for path in stale)
     receipt = json.loads(result.stdout)
     assert receipt["verdict"] == "block"
     retained = json.loads((evidence / "proof/hosted-verification.json").read_text())

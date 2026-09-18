@@ -1429,3 +1429,20 @@ Homebrew Syft advanced to 1.52.0 while the exact repository declaration remained
 Linux architectures. Updating that existing declaration restores native SPDX 2.3
 generation against the retained accepted wheel without another installation or
 version exception. New-source package and hosted acceptance remain required.
+
+### Hosted Supply Failure Left Shift
+
+The hosted verification wrapper already owns preparation failure, prior-report
+invalidation and native exit propagation. It now invokes the existing Syft
+installer after scanner/budget preparation and before proof. Both Forge source
+jobs consume that wrapper; no new gate, installer, version parser or provider
+workflow owns the same condition. Package execution still resolves and validates
+its executable in its own environment, so preparation is not cached authority
+or a claim that the later effect has succeeded.
+
+The existing native-shell failure matrix covers scanner, budget and SBOM supply.
+Each failed preparation prevents proof invocation, retains its exit and stderr,
+invalidates previous outputs and returns the existing hosted failure receipt.
+The healthy transport verifies that SBOM preparation occurred before consuming
+the exact-source command. Shared invocation code replaces duplicate test setup;
+isolated supply fixtures do not certify the real installer or a hosted job.

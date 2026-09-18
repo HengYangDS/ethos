@@ -7,32 +7,34 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tools.ci.format_selection import audit
+import pytest
+
+import tools.ci.format_selection as format_selection
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_every_tracked_file_has_one_effective_quality_owner() -> None:
-    payload = audit(ROOT)
+@pytest.fixture(scope="module")
+def carrier_report():
+    return json.loads(
+        subprocess.check_output(
+            (sys.executable, "tools/ci/format_selection.py"),
+            cwd=ROOT,
+            text=True,
+        )
+    )
 
+
+def test_format_selection_receipt_exposes_owner_for_every_tracked_file(carrier_report) -> None:
+    payload = carrier_report
     assert payload["verdict"] == "pass"
     assert payload["tracked_file_count"] == len(payload["assignments"])
-    assert payload["unowned_file_count"] == 0
-    assert payload["multiply_owned_file_count"] == 0
-    assert payload["unverified_file_count"] == 0
-
-
-def test_format_selection_receipt_exposes_owner_for_every_tracked_file() -> None:
-    completed = subprocess.run(
-        (sys.executable, "tools/ci/format_selection.py"),
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
+    assert not any(
+        payload[key]
+        for key in ("unowned_file_count", "multiply_owned_file_count", "unverified_file_count")
     )
-    payload = json.loads(completed.stdout)
-
-    assert payload["tracked_file_count"] == len(payload["assignments"])
     assert all(
         entry["format_owner"]
         and entry["format_check"]
@@ -43,8 +45,8 @@ def test_format_selection_receipt_exposes_owner_for_every_tracked_file() -> None
     )
 
 
-def test_current_openspec_markdown_has_generic_and_semantic_validation() -> None:
-    assignments = {entry["path"]: entry for entry in audit(ROOT)["assignments"]}
+def test_current_openspec_markdown_has_generic_and_semantic_validation(carrier_report) -> None:
+    assignments = {entry["path"]: entry for entry in carrier_report["assignments"]}
     active_tasks = sorted(
         path.relative_to(ROOT).as_posix()
         for path in (ROOT / "openspec" / "changes").glob("*/tasks.md")
@@ -63,8 +65,8 @@ def test_current_openspec_markdown_has_generic_and_semantic_validation() -> None
         assert assignment["semantic_companions"]
 
 
-def test_immutable_markdown_is_linted_without_rewrite_authority() -> None:
-    assignments = audit(ROOT)["assignments"]
+def test_immutable_markdown_is_linted_without_rewrite_authority(carrier_report) -> None:
+    assignments = carrier_report["assignments"]
     immutable = [
         entry
         for entry in assignments
@@ -77,8 +79,8 @@ def test_immutable_markdown_is_linted_without_rewrite_authority() -> None:
     assert {entry["validation_owner"] for entry in immutable} == {"markdownlint-cli2"}
 
 
-def test_native_carriers_separate_canonicalization_from_validation() -> None:
-    assignments = {entry["path"]: entry for entry in audit(ROOT)["assignments"]}
+def test_native_carriers_separate_canonicalization_from_validation(carrier_report) -> None:
+    assignments = {entry["path"]: entry for entry in carrier_report["assignments"]}
 
     expected = {
         "src/ethos/cli.py": ("ruff", "ruff"),
@@ -89,19 +91,42 @@ def test_native_carriers_separate_canonicalization_from_validation() -> None:
         "assets/brand/ethos-logo.svg": ("svgo", "svgo"),
         "assets/brand/ethos-logo-1024.png": ("source-binary", "pillow"),
         ".gitattributes": ("repository-canonical-text", "repository-hygiene"),
+        ".config/checks/pytest/pytest.ini": ("repository-canonical-text", "tool-native-parser"),
         "uv.lock": ("uv", "uv"),
     }
     for path, owners in expected.items():
         assignment = assignments[path]
         assert (assignment["format_owner"], assignment["validation_owner"]) == owners
-
-
-def test_declared_quality_commands_are_executable_owner_surfaces() -> None:
-    assignments = audit(ROOT)["assignments"]
-
-    assert all("," not in entry["format_check"] for entry in assignments)
-    ini = next(
-        entry for entry in assignments if entry["path"] == ".config/checks/pytest/pytest.ini"
+    assert all("," not in entry["format_check"] for entry in assignments.values())
+    assert assignments[".config/checks/pytest/pytest.ini"]["validation_command"].endswith(
+        "-s config_quality"
     )
-    assert ini["validation_owner"] == "tool-native-parser"
-    assert ini["validation_command"].endswith("-s config_quality")
+
+
+@pytest.mark.parametrize(
+    ("home", "allowed"),
+    [("src/ethos/adapters/", True), ("distributions/npm/", True), ("src/ethos/domain/", False)],
+)
+def test_native_javascript_transport_uses_its_semantic_adapter_home(
+    tmp_path, monkeypatch, capsys, home, allowed
+):
+    root = init_git_repo(tmp_path / "repo")
+    relative = ".config/checks/format/selection.toml"
+    config = root / relative
+    config.parent.mkdir(parents=True)
+    config.write_bytes((ROOT / relative).read_bytes())
+    module = root / home / "example.mjs"
+    module.parent.mkdir(parents=True)
+    module.write_text("export {};\n")
+    git(root, "add", relative, str(module.relative_to(root)))
+    monkeypatch.setattr(format_selection, "ROOT", root)
+    monkeypatch.setattr(format_selection, "CONFIG_PATH", config)
+    assert format_selection.main() == (0 if allowed else 1)
+    report = json.loads(capsys.readouterr().out)
+    assert [item["path"] for item in report["failures"]] == (
+        [] if allowed else [home + "example.mjs"]
+    )
+    assert all(
+        item["reason"] == "format outside declared carrier home: .mjs"
+        for item in report["failures"]
+    )

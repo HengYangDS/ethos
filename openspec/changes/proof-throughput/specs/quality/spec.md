@@ -27,6 +27,24 @@ line and branch coverage and every existing behavioral acceptance obligation.
 - **THEN** ETHOS evaluates the 600-second direction using measured remaining work
 - **AND** neither infeasibility nor completion is inferred from local speedups
 
+### Requirement: Verification preparation preserves its measured subject
+
+ETHOS SHALL validate declared carrier ownership before executing tests that
+consume it. Test preparation SHALL preserve the executing module's source
+identity so coverage remains attributable regardless of worker assignment.
+
+#### Scenario: A native adapter has no admitted carrier home
+
+- **WHEN** the carrier gate rejects a candidate adapter's placement
+- **THEN** the dependent test suite is not executed
+- **AND** its result identifies the failed prerequisite without claiming execution
+
+#### Scenario: Runtime supply variants share one test worker
+
+- **WHEN** package and source supply fixtures run before runtime verification
+- **THEN** the imported runtime module retains its original source identity
+- **AND** subsequent executed verification remains observable to coverage
+
 ### Requirement: Native read batching preserves official semantics
 
 ETHOS SHALL execute each bounded read batch through the selected official

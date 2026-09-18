@@ -311,6 +311,8 @@ def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tai
     assert actual[-1]["parse_error"] == "openspec_batch_interrupted"
     assert actual[-1]["json"] == {}
     assert cli.run_json_batch(root, base, ()) == ()
+    with pytest.raises(ValueError, match="openspec_batch_entry_invalid"):
+        cli.run_json_batch(root, ("openspec",), commands)
     with pytest.raises(ValueError, match="openspec_batch_read_only_required"):
         cli.run_json_batch(root, base, (("archive", "fixture-change", "--yes", "--json"),))
 

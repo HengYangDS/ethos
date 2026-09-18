@@ -67,11 +67,10 @@ These attributed observations close the reported refresh-retirement blocker,
 not an independent adopter replay by this task. ETHOS implementation did not
 modify adopter repositories.
 
-The current official Change is `release-promotion`: explicit accepted-to-independent
-main and signed tags through existing land/ref owners, native version identity
-and verified accepted-content reuse. Delivery is not another contribution
-integration. Missing effect/proof, stale coordinates and arbitrary unaccepted
-source remain rejected. No duplicate VERSION or new lifecycle is introduced.
+The current official Change is `proof-throughput`. The preceding
+`release-promotion` implementation and source archive remain in this work lane;
+its accepted/runtime/peer delivery is not complete. Delivery remains distinct
+from contribution integration and consumes exact accepted content.
 
 The September 17 implementation has passed 62 targeted release/publication and
 shared native-kill recovery cases. The eleven inexpensive dependency-resolved
@@ -199,6 +198,25 @@ Existing receipts under `build/evidence/quality/commit-integrity/` own the raw
 observations, including `intent-selection-proof-query-profile.txt`. Current
 Change tasks own implementation progress. Full terminal convergence remains
 open across the P0–P7 route below.
+
+The exact eight-worker proof at `db99bb7a` completed in 503.505 seconds and
+blocked: 3,816 tests passed, one failed and one skipped. Twenty-eight gates
+passed; coverage, generated-artifact, build, install and SBOM consumers did not
+execute. The failed format owner rejected the new `.mjs` transport outside its
+old npm-only home. Its failure was known near seven seconds, before heavy tests
+started near eighteen seconds. The native carrier declaration and existing
+readiness edge must agree before the next frozen proof; do not add another
+scheduler or a filename exception.
+
+The 94.954-percent coverage report also exposed a test-isolation defect, not a
+reason to relax the floor or reduce workers. A two-case single-worker replay
+shows that rewriting materialization `__file__` makes coverage reject the real
+module as outside its source set. Removing the synthetic module-origin mutation
+restores the same executed verification lines. Preserve the actual package
+source in supply fixtures, keep dependency/image inputs explicit, and qualify
+the full covered suite anew. Focused coverage remains diagnostic and is never
+combined into the final proof. Exact evidence uses `throughput-materialization-`
+and `throughput-carrier-preflight-` in the existing quality evidence root.
 
 One 500-ELOC ceiling applies to every Python file, including tests and surfaces.
 Product and test totals have independent 50,000 ceilings; combined coverage stays
@@ -1241,8 +1259,9 @@ repositories or treat a source handoff as acceptance of their diagrams.
 
 ### Remaining Dependencies And Delivery Order
 
-- Historical repair and local proof/runtime rebinding are complete; finish
-  independent peer replacement through the bounded publication owner.
+- Historical repair, local proof/runtime rebinding and independent peer
+  replacement are delivered at the recorded September 17 checkpoint. Verify
+  current hosted observations separately before claiming new delivery.
   Permanent single-contributor restriction is explicitly rejected. Do not
   substitute capability tests, policy declarations or mailmap for repaired refs.
 - Preserve hosted observations separately from delivered source. The accepted

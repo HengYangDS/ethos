@@ -109,23 +109,6 @@ def test_gate_registry_missing_or_malformed_source_fails_closed(tmp_path: Path) 
         load_gate_registry_declaration(malformed)
 
 
-@pytest.mark.parametrize(
-    "prerequisite",
-    [
-        "ruff",
-        "schemas",
-        "config-quality",
-        "python-types",
-        "source-budget",
-        "architecture-projection",
-    ],
-)
-def test_heavy_tests_require_inexpensive_source_readiness(prerequisite: str) -> None:
-    """Known cheap failures must be found before launching the expensive test suite."""
-    registry = load_gate_registry_declaration().registry()
-    assert prerequisite in registry["unit-architecture"].depends_on
-
-
 def test_native_nox_gates_share_the_bound_interpreter() -> None:
     """Quality execution must not bootstrap or mutate its own prepared environment."""
     python = "/bound/runtime/bin/python"

@@ -1638,8 +1638,13 @@ sample was slower, so medians and individual samples are retained. This is not
 a full-proof, cold-bootstrap or installed-successor speedup claim. Evidence is
 single-status-paired-measurement.json in the existing commit-integrity root.
 Focused command, hook, runtime, archive-planning and write-admission consumers
-passed 197 cases; frozen exact proof and successor delivery remain required.
-
+passed 197 cases. Exact successor 013e1322689a8064a10e192004704ab3ad6cb2a6
+then passed all 35 gates in 760.664 seconds with 3,869 passed, one skipped and
+95.000502-percent combined coverage. Installed source/tree and one runtime
+inventory were independently observed. Both peers' dev/main refs matched;
+their hosted jobs remained running or queued at the latest observation.
+The single-status batch receipt binds these distinct claims; Change archive
+and Work Lane retirement remain open.
 
 The first full proof at b16ad4dda failed one non-Git workspace test double:
 it accepted selected_runtime but not the existing owner's forwarded hook_binding.
@@ -1650,3 +1655,34 @@ tests/unit/lanes/status in addition to imported callers and hook/runtime tests.
 All imported call sites and string-based patch targets were searched before
 the rerun. Coverage remained above 95 percent, but dependent package gates did
 not execute; the 571.571-second failed attempt is not full-proof throughput.
+
+## Demand-Driven Quality Capabilities
+
+Session discovery binds the invoking project interpreter without validating or
+loading capabilities that the selected check does not use. Existing
+ProjectRuntime methods delegate Node executable and locked-supply selection to
+their current semantic owners. Tests and delivery bind the supply at operation
+creation; schema, image and delivery imports occur only at their consumers.
+Every later operation revalidates current inputs; no validity cache is added.
+
+The original native Nox matrix failed listing and Python lint with an unrelated
+missing Node supply. After repair both succeed; the Markdown check still rejects
+that same missing supply. Selected delivery preserves its exact supply, while
+later selection rejects changed configuration and lock mismatch. Existing
+Session behavior, command registry, gate coverage and thresholds are unchanged.
+
+Six alternating fresh-process discovery pairs use the committed baseline
+013e13226 and candidate modules with the same interpreter, source root and
+prepared supply. Session names and runtime coordinates agree. Median discovery
+falls from 0.224650 to 0.027287 seconds; imported module count falls from 482 to
+146. All five unselected capability owners are observed in every baseline and
+absent in every candidate. The tracked import regression additionally requires
+the session module itself, preventing an empty observation from passing.
+This warm-filesystem import measurement is not whole-proof or cold-setup timing.
+
+The 111-case focused family, Ruff, scoped tool typing and source budgets pass;
+product/test ELOC is 45,937/50,000. Native checks and distinguishing regressions
+are retained under capability-boundary-verification and
+capability-startup-paired-measurement in the existing evidence root.
+Scratch absence is verified. Exact full proof, successor delivery and hosted
+acceptance remain separate unfulfilled obligations for this candidate.

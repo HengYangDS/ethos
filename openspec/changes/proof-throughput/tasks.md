@@ -66,4 +66,7 @@
 - [x] Measure complete proof below 1,200 seconds without weakening gates.
 - [ ] Evaluate the 600-second direction from the measured remaining critical path.
 - [x] Reuse one current runtime observation in public status and verify corruption recovery.
-- [ ] Qualify and deliver the exact single-observation status candidate.
+- [x] Qualify and deliver the exact single-observation status candidate.
+- [x] Initialize quality capabilities on demand and verify native missing-supply and fresh-selection behavior.
+- [x] Compare exact discovery interfaces and imported work against the committed baseline.
+- [ ] Qualify and deliver the exact demand-driven capability candidate.

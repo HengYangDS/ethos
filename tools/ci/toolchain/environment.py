@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
 
 from ethos.adapters.repo.git import run_git
@@ -49,3 +50,13 @@ class ProjectRuntime:
             message = f"project executable is unavailable: {executable}"
             raise RuntimeError(message)
         return str(executable)
+
+    def node_executable(self) -> Path:
+        """Resolve Node only for a consumer that requires its executable."""
+        owner = import_module("ethos.adapters.repo.runtime.materialization.input_resolution")
+        return owner.resolve_node_executable()
+
+    def node_package_supply(self) -> Path:
+        """Validate current locked Node supply at the capability boundary."""
+        owner = import_module("ethos.adapters.repo.runtime.materialization.node_package_supply")
+        return owner.resolve_node_package_supply(self.root)

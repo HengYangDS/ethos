@@ -14,6 +14,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 
@@ -24,7 +25,9 @@ from ethos.adapters.gates.runner import ActionRunResult
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from tests.support.runtime_scenarios import empty_node_package_supply
+from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.dependency_hygiene import declaration_gaps
+from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
     import nox
@@ -179,34 +182,19 @@ def test_node_package_supply_environment_has_one_python_owner() -> None:
     assert readers == {"src/ethos/adapters/repo/runtime/materialization/node_package_supply.py"}
 
 
-def test_python_test_sessions_receive_the_frozen_node_package_supply(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    supply = tmp_path / "node_modules"
-    session = cast("nox.Session", object())
-    observed: list[tuple[str, object]] = []
-
-    gate = SimpleNamespace(
-        run_tests=lambda actual: observed.append(("tests", actual)),
-        enforce_floor=lambda actual: observed.append(("coverage", actual)),
-    )
-
-    def construct(*, node_package_supply):
-        observed.append(("supply", node_package_supply))
-        return gate
-
-    monkeypatch.setattr(ci_sessions, "NODE_PACKAGE_SUPPLY", supply)
-    monkeypatch.setattr(ci_sessions, "PythonTestGate", SimpleNamespace(from_environment=construct))
+def test_python_test_sessions_receive_the_frozen_node_package_supply(tmp_path, monkeypatch) -> None:
+    supply, session = tmp_path / "node_modules", object()
+    factory = Mock()
+    monkeypatch.setattr(ProjectRuntime, "node_package_supply", lambda _self: supply)
+    monkeypatch.setattr(python_test_gate.PythonTestGate, "from_environment", factory)
 
     ci_sessions.tests(session)
     ci_sessions.coverage_floor(session)
 
-    assert observed == [
-        ("supply", supply),
-        ("tests", session),
-        ("supply", supply),
-        ("coverage", session),
-    ]
+    assert factory.call_count == 2
+    assert all(call.kwargs == {"node_package_supply": supply} for call in factory.call_args_list)
+    factory.return_value.run_tests.assert_called_once_with(session)
+    factory.return_value.enforce_floor.assert_called_once_with(session)
 
 
 @pytest.mark.parametrize(
@@ -361,28 +349,40 @@ def test_test_environment_freezes_locked_supply_as_absolute_paths(
     assert set(python_test_gate.TARGETS) <= set(commands[0])
 
 
+def test_project_capability_supply_revalidates_each_operation(tmp_path, monkeypatch) -> None:
+    """A selected delivery freezes supply, while the next selection rereads it."""
+    supply = empty_node_package_supply(tmp_path)
+    runtime = ProjectRuntime.discover(tmp_path)
+    monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
+    pipeline = DeliveryPipeline.from_runtime(runtime)
+    assert pipeline.runtime is runtime
+    assert pipeline.node_package_supply == supply
+    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(tmp_path / "missing"))
+    with pytest.raises(ValueError, match="node_package_supply_unavailable"):
+        runtime.node_package_supply()
+    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
+    (supply / ".package-lock.json").write_text(
+        '{"lockfileVersion":3,"packages":{"node_modules/x":{}}}'
+    )
+    with pytest.raises(ValueError, match="node_package_supply_lock_mismatch"):
+        DeliveryPipeline.from_runtime(runtime)
+    assert pipeline.node_package_supply == supply
+
+
 def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monkeypatch) -> None:
-    supply = tmp_path / "node_modules"
-    supply.mkdir()
-    node = tmp_path / "node"
-    node.write_text("node\n", encoding="utf-8")
-    observed: dict[str, object] = {}
-
-    class ConfigQuality:
-        @staticmethod
-        def run(paths, *, node, package_supply):
-            observed.update(paths=paths, node=node, package_supply=package_supply)
-            return ()
-
-    session = SimpleNamespace(posargs=(), run=lambda *_args, **_kwargs: None, error=pytest.fail)
-
-    monkeypatch.setattr(ci_sessions, "NODE", node)
-    monkeypatch.setattr(ci_sessions, "NODE_PACKAGE_SUPPLY", supply, raising=False)
-    monkeypatch.setattr(ci_sessions, "import_module", lambda _name: ConfigQuality)
+    supply, node = tmp_path / "node_modules", tmp_path / "node"
+    check = Mock(return_value=())
+    monkeypatch.setattr(ProjectRuntime, "node_executable", lambda _self: node)
+    monkeypatch.setattr(ProjectRuntime, "node_package_supply", lambda _self: supply)
+    monkeypatch.setattr(ci_sessions, "import_module", lambda _name: SimpleNamespace(run=check))
+    session = SimpleNamespace(posargs=(), run=Mock(), error=pytest.fail)
 
     ci_sessions.config_quality(cast("nox.Session", session))
 
-    assert observed == {"paths": (), "node": node, "package_supply": supply}
+    check.assert_called_once_with((), node=node, package_supply=supply)
+    session.run.assert_called_once_with(
+        ci_sessions.RUNTIME.script("pre-commit"), "validate-config", ".pre-commit-config.yaml"
+    )
 
 
 def _write_fake_executable(path: Path, body: str) -> None:

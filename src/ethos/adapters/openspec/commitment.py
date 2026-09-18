@@ -279,6 +279,7 @@ def load_openspec_commitment(
     attestations: tuple[Attestation, ...] | None = None,
     official_command: tuple[str, ...] | None = None,
     official_status: object = None,
+    official_projection: dict[str, object] | None = None,
 ) -> Commitment:
     """Compile exact official intent, sharing only a caller's current evidence observation."""
     if not openspec_profile_enabled(repo, tree_ref=tree_ref):
@@ -327,8 +328,12 @@ def load_openspec_commitment(
         if logical_change_identifier_issue(change_id):
             msg = "openspec_change_required"
             raise ValueError(msg)
-        result = openspec_cli.run_json(
-            projection, command, ("show", change_id, "--type", "change", "--json")
+        result = (
+            official_projection
+            if tree_ref is None and official_projection is not None
+            else openspec_cli.run_json(
+                projection, command, ("show", change_id, "--type", "change", "--json")
+            )
         )
         if result.get("exit_code") != 0 or result.get("parse_error"):
             archived = _archived_commitment(

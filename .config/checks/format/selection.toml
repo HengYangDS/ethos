@@ -275,9 +275,9 @@ budget = [{ category = "ini", measure = "structured", baseline_measure = "lines"
 [[format]]
 extensions = [".js", ".mjs", ".cjs"]
 carrier = "JavaScript module"
-owner = "npm distribution surface"
-execution = "npm run test:npm"
-truth_boundary = "distribution adapter"
+owner = "package-owned JavaScript adapters"
+execution = "uv run --frozen --offline python -m nox -s javascript_lint"
+truth_boundary = "thin native transport; domain semantics remain in their authoritative owner"
 budget = [{ category = "js", comment_prefixes = ["//"] }]
 
 [[format]]

@@ -2,17 +2,50 @@
 
 ### Requirement: Complete verification throughput preserves assurance
 
-ETHOS SHALL target complete proof within 600 seconds on the declared reference
-workstation with two workers. The measurement SHALL include command preparation,
+ETHOS SHALL first target complete proof below 1,200 seconds on the declared
+reference workstation at a measured, qualified worker count. The measurement SHALL include preparation,
 all selected gates and cleanup, retaining at least 95-percent combined Python
 line and branch coverage and every existing behavioral acceptance obligation.
 
 #### Scenario: Complete performance acceptance
 
 - **WHEN** an optimized exact-source full proof is measured
-- **THEN** its elapsed time is at most 600 seconds
+- **THEN** its elapsed time is below 1,200 seconds
 - **AND** all required gates pass without narrower acceptance or hidden prework
 - **AND** cold-computation and warm measurements are identified separately
+
+#### Scenario: More workers improve verified throughput
+
+- **WHEN** identical inputs at a higher worker count preserve results and isolation
+- **THEN** ETHOS may adopt the faster count and qualify the complete proof there
+- **AND** the two-worker baseline remains a comparison, not an execution ceiling
+- **AND** process-loss recovery remains a separately tested obligation
+
+#### Scenario: Subsequent throughput improvement
+
+- **WHEN** the initial complete-proof target is reached
+- **THEN** ETHOS evaluates the 600-second direction using measured remaining work
+- **AND** neither infeasibility nor completion is inferred from local speedups
+
+### Requirement: Native read batching preserves official semantics
+
+ETHOS SHALL execute each bounded read batch through the selected official
+OpenSpec package without copying its command parser or caching mutable results.
+Every result SHALL bind its ordered input, native exit status and output.
+Incomplete transport SHALL preserve failure evidence without claiming execution.
+
+#### Scenario: An official command exits before the batch ends
+
+- **WHEN** the native program exits during one read
+- **THEN** completed frames preserve their native output and exit status
+- **AND** unexecuted commands return an explicit interrupted result
+- **AND** no effect command is admitted to the read batch
+
+#### Scenario: Intent changes between public observations
+
+- **WHEN** a later public plan observes changed OpenSpec inputs
+- **THEN** it invokes the current official reader again
+- **AND** an earlier successful observation cannot hide invalid current intent
 
 ### Requirement: Observation reuse preserves freshness and result identity
 

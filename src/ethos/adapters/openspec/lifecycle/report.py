@@ -157,14 +157,6 @@ def openspec_timeout_report(
     )
 
 
-def openspec_status_result(
-    root: Path, base_command: tuple[str, ...], selected: str | None, run_json
-) -> dict[str, Any]:
-    return (
-        run_json(root, base_command, ("status", "--change", selected, "--json")) if selected else {}
-    )
-
-
 def openspec_command_gaps(
     *,
     doctor: dict[str, Any],

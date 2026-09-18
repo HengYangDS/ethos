@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -24,41 +25,6 @@ def _repo(tmp_path: Path) -> Path:
     (root / "openspec/specs").mkdir(parents=True)
     (root / "openspec/config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
     return root
-
-
-def _residue(verdict: str = "pass") -> dict[str, object]:
-    return {
-        "verdict": verdict,
-        "records": [],
-        "advisory_gaps": [],
-        "required_gaps": ["openspec_branch_unavailable:candidate/dev"]
-        if verdict == "unknown"
-        else [],
-        "summary": {"change_count": 0},
-    }
-
-
-def _receipt(*, payload=None, parse_error="", exit_code=0):
-    return {
-        "command": ["openspec"],
-        "exit_code": exit_code,
-        "stdout": "",
-        "stderr": "",
-        "json": payload or {},
-        "parse_error": parse_error,
-    }
-
-
-def _run_empty(_root, _base, args):
-    if args[:2] == ("config", "list"):
-        return _receipt(payload={})
-    if args[:1] == ("doctor",):
-        return _receipt(payload={"root": {"healthy": True}})
-    if args[:1] == ("list",):
-        return _receipt(payload={"changes": []})
-    if args[:1] == ("validate",):
-        return _receipt(payload={"items": [], "summary": {"totals": {"failed": 0}}})
-    raise AssertionError(args)
 
 
 def test_governance_reports_not_applicable_without_profile(tmp_path):
@@ -92,9 +58,8 @@ def test_governance_rejects_archive_and_invalid_active_identifiers(monkeypatch, 
 
 
 def test_governance_reports_cli_unavailable_and_optional_absent_workspace(monkeypatch, tmp_path):
-    root = _repo(tmp_path)
+    root, _candidate = fixture.start_adopted_candidate(tmp_path)
     monkeypatch.setattr(cli, "openspec_base_command", lambda: None)
-    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
 
     unavailable = governance.openspec_governance_report(root)
     absent = fixture.init_git_repo(tmp_path / "absent")
@@ -106,96 +71,89 @@ def test_governance_reports_cli_unavailable_and_optional_absent_workspace(monkey
     assert (not_applicable["verdict"], not_applicable["state"]) == ("pass", "not_applicable")
 
 
-def test_governance_reports_timeout(monkeypatch, tmp_path):
-    root = _repo(tmp_path)
-    monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
-
-    timeout = _receipt(parse_error="openspec_command_timeout")
+@pytest.mark.parametrize("fault", ["timeout", "malformed", "empty"])
+def test_governance_preserves_failed_observation_and_empty_native_results(
+    monkeypatch, tmp_path, fault
+):
+    """A failed batch is distinct from a successful observation with no Change."""
+    root, _candidate = fixture.start_adopted_candidate(tmp_path)
+    original = cli.run_json_batch
     calls = []
 
-    def run_timeout(_root, _base, args):
-        calls.append(args)
-        return _receipt() if args[:2] == ("config", "list") else timeout
+    def observe(root, base, commands):
+        calls.append(commands)
+        rows = list(original(root, base, commands))
+        for index, args in enumerate(commands):
+            if fault == "timeout" or (fault == "malformed" and args[0] != "doctor"):
+                rows[index]["parse_error"] = (
+                    "openspec_command_timeout" if fault == "timeout" else "malformed"
+                )
+        return tuple(rows)
 
-    monkeypatch.setattr(cli, "run_json", run_timeout)
+    monkeypatch.setattr(cli, "run_json_batch", observe)
     report = governance.openspec_governance_report(root)
-    assert report["verdict"] == "block"
-    assert {"openspec_doctor_unhealthy", "openspec_doctor_json_parse_failed"} <= set(
-        report["required_gaps"]
-    )
-    assert calls == [("config", "list", "--json"), ("doctor", "--json")]
-
-
-def test_governance_reports_malformed_command_payloads(monkeypatch, tmp_path):
-    root = _repo(tmp_path)
-    malformed = _receipt(parse_error="malformed")
-    monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
-
-    def run_malformed(_root, _base, args):
-        if args[:2] == ("config", "list"):
-            return malformed
-        if args[:1] == ("doctor",):
-            return _receipt(payload={"root": {"healthy": True}})
-        if args[:1] == ("list",):
-            return _receipt(payload={"changes": []}, parse_error="malformed")
-        if args[:1] == ("validate",):
-            return malformed
-        return _receipt()
-
-    monkeypatch.setattr(cli, "run_json", run_malformed)
-    malformed_report = governance.openspec_governance_report(root, lifecycle=True)
-    assert {
-        "openspec_config_json_parse_failed",
-        "openspec_list_json_parse_failed",
-        "openspec_validate_json_parse_failed",
-    } <= set(malformed_report["required_gaps"])
-
-
-def test_governance_accepts_an_empty_official_change_list(monkeypatch, tmp_path):
-    root = _repo(tmp_path)
-    monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
-
-    monkeypatch.setattr(cli, "run_json", _run_empty)
-
-    report = governance.openspec_governance_report(root)
-
-    assert (report["verdict"], report["change"], report["required_gaps"]) == (
-        "pass",
-        None,
-        [],
-    )
+    assert len(calls) == 1
+    assert report["verdict"] == ("pass" if fault == "empty" else "block")
     assert report["commands"]["status"] == {}
+    expected = {
+        "timeout": {"openspec_doctor_unhealthy", "openspec_doctor_json_parse_failed"},
+        "malformed": {
+            f"openspec_{name}_json_parse_failed" for name in ("config", "list", "validate")
+        },
+        "empty": set(),
+    }[fault]
+    assert expected <= set(report["required_gaps"])
+    if fault == "empty":
+        assert (report["change"], report["required_gaps"]) == (None, [])
 
 
-def test_public_plan_preserves_native_validation_failure_without_item_diagnostics(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+@pytest.mark.parametrize("fault", ["invalid-intent", "unexplained-failure"])
+def test_public_plan_batches_fresh_intent_and_preserves_native_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fault: str
 ) -> None:
-    """A real governed plan cannot approve an unexplained native validation failure."""
+    """Each public plan observes current intent with bounded native startup and no false pass."""
     workspace = fixture.prepared_work_lane(tmp_path)
+    commands = []
+    native = subprocess.Popen.__init__
+
+    def observe(process, command, *args, **kwargs):
+        if "node" in str(command[0]):
+            commands.append(command)
+        return native(process, command, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess.Popen, "__init__", observe)
     assert run_ethos("plan", "--json", cwd=workspace.worktree)["verdict"] == "pass"
-    original = cli.run_json
+    assert len(commands) <= 3, commands
+    commands.clear()
+    original = cli.run_json_batch
     observed: list[dict[str, object]] = []
 
-    def failed_validation(root, command, args):
-        result = original(root, command, args)
-        if args[:1] == ("validate",):
-            result = {
-                **result,
-                "exit_code": 1,
-                "stderr": "native validation stopped without item diagnostics",
-                "json": {"items": []},
-            }
-            observed.append(result)
-        return result
+    def failed_validation(root, command, requested):
+        results = original(root, command, requested)
+        for args, result in zip(requested, results, strict=True):
+            if args[:1] == ("validate",):
+                result.update(
+                    exit_code=1,
+                    stderr="native validation stopped without item diagnostics",
+                    json={"items": []},
+                )
+                observed.append(result)
+        return results
 
-    monkeypatch.setattr(cli, "run_json", failed_validation)
+    if fault == "unexplained-failure":
+        monkeypatch.setattr(cli, "run_json_batch", failed_validation)
+    else:
+        spec = workspace.worktree / "openspec/changes/fixture-change/specs/contracts/spec.md"
+        spec.write_text("# Invalid current acceptance\n")
     projected = run_ethos("plan", "--json", cwd=workspace.worktree)
-    assert observed
     assert projected["verdict"] == "block", projected
-    assert "openspec_validate_failed" in projected["required_gaps"]
+    assert len(commands) <= 3, commands
+    assert bool(observed) is (fault == "unexplained-failure")
+    assert (
+        "openspec_validate_failed"
+        if observed
+        else "openspec_validation_failed:change:fixture-change"
+    ) in projected["required_gaps"]
 
 
 @pytest.mark.parametrize("mode", ["empty", "info", "mixed"])
@@ -302,17 +260,13 @@ def test_locked_native_archive_preserves_removal_meaning(tmp_path: Path, mode: s
 
 
 def test_governance_observes_archive_effect_separately_from_generation_scope(monkeypatch, tmp_path):
-    root = _repo(tmp_path)
+    root, _candidate = fixture.start_adopted_candidate(tmp_path)
     archive_scope = {
         "verdict": "pass",
         "state": "post_archive_closeout",
         "changes": [{"name": "archived", "path": "openspec/changes/archive/archived"}],
         "required_gaps": [],
     }
-    monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
-
-    monkeypatch.setattr(cli, "run_json", _run_empty)
 
     def observe_archive(_root, **kwargs):
         assert kwargs["changed_paths"] == ()
@@ -348,18 +302,19 @@ def test_governance_keeps_completed_unarchived_change_as_current_intent(
     if spec_free:
         shutil.rmtree(tasks.parent / "specs")
         (tasks.parent / ".openspec.yaml").write_text("schema: spec-driven\nskip_specs: true\n")
-    original = cli.run_json
+    original = cli.run_json_batch
     verified, calls = Mock(wraps=cli.openspec_base_command), []
     monkeypatch.setattr(cli, "openspec_base_command", verified)
 
-    def observe(repo, command, args):
-        calls.append(args)
-        result = original(repo, command, args)
-        if missing_source and args[:2] == ("instructions", "apply"):
-            result["json"]["contextFiles"]["proposal"] = [str(root / "missing-proposal.md")]
-        return result
+    def observe(repo, command, requested):
+        calls.extend(requested)
+        results = original(repo, command, requested)
+        for args, result in zip(requested, results, strict=True):
+            if missing_source and args[:2] == ("instructions", "apply"):
+                result["json"]["contextFiles"]["proposal"] = [str(root / "missing-proposal.md")]
+        return results
 
-    monkeypatch.setattr(cli, "run_json", observe)
+    monkeypatch.setattr(cli, "run_json_batch", observe)
     report = governance.openspec_governance_report(root, lifecycle=True)
     verified.assert_called_once()
     assert calls.count(("status", "--change", "complete", "--json")) == 1
@@ -374,38 +329,15 @@ def test_governance_keeps_completed_unarchived_change_as_current_intent(
 
 
 def test_governance_reports_invalid_commitment_and_artifact_paths(monkeypatch, tmp_path):
-    root = _repo(tmp_path)
-    monkeypatch.setattr(governance, "governed_branch_intent_report", lambda *_a, **_k: _residue())
-    monkeypatch.setattr(
-        governance,
-        "official_change_rows",
-        lambda _payload: [{"name": "active", "status": "in-progress"}],
-    )
-    monkeypatch.setattr(governance, "selected_change", lambda *_a, **_k: "active")
-    monkeypatch.setattr(governance, "openspec_command_gaps", lambda **_kwargs: [])
-    monkeypatch.setattr(
-        governance,
-        "lifecycle_report",
-        lambda *_a, **_k: {
-            "required_gaps": [],
-            "changes": [],
-            "scope_binding": {},
-            "branch_intent": _residue(),
-        },
-    )
-    monkeypatch.setattr(cli, "status_contract_gaps", lambda _payload: [])
-    monkeypatch.setattr(cli, "instructions_contract_gaps", lambda *_a, **_k: [])
+    root = fixture.prepared_work_lane(tmp_path).worktree
     monkeypatch.setattr(
         governance,
         "load_openspec_commitment",
         lambda *_a, **_k: (_ for _ in ()).throw(ValueError("invalid")),
     )
-    monkeypatch.setattr(cli, "run_json", lambda *_a, **_k: _receipt())
-
-    monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
     report = governance.openspec_governance_report(root, lifecycle=True)
 
-    assert "commitment_invalid:active" in report["required_gaps"]
+    assert "commitment_invalid:fixture-change" in report["required_gaps"]
     outside = tmp_path / "outside.md"
     status = {
         "artifactPaths": {

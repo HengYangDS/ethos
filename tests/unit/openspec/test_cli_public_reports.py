@@ -10,20 +10,21 @@ import sys
 import pytest
 
 import ethos.adapters.openspec.cli as cli
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_active_commitment
 
 
 def _completed(*, stdout: str = "", stderr: str = "", returncode: int = 0):
     return subprocess.CompletedProcess((), returncode, stdout, stderr)
 
 
-def test_official_version_is_the_repository_locked_stable_release() -> None:
-    assert cli.OFFICIAL_VERSION == "1.13.0"
-
-
+@pytest.mark.parametrize("reported", [cli.OFFICIAL_VERSION, "unexpected"])
 def test_source_cli_consumes_the_single_resolved_node_package_supply(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
+    reported,
 ) -> None:
+    assert cli.OFFICIAL_VERSION == "1.13.0"
     source = tmp_path / "source"
     supply = tmp_path / "prepared/node_modules"
     package = supply / "@fission-ai/openspec/package.json"
@@ -61,36 +62,40 @@ def test_source_cli_consumes_the_single_resolved_node_package_supply(
     monkeypatch.setattr(
         cli,
         "run_command",
-        lambda *_args, **_kwargs: _completed(stdout=f"{cli.OFFICIAL_VERSION}\n"),
+        lambda *_args, **_kwargs: _completed(stdout=f"{reported}\n"),
     )
+    command = ("/node", entry.as_posix())
+    report = cli.verify_official_cli(command)
+    assert report["version"] == reported
+    assert report["required_gaps"] == (
+        [] if reported == cli.OFFICIAL_VERSION else ["openspec_effective_version_mismatch"]
+    )
+    if reported == cli.OFFICIAL_VERSION:
+        assert cli.openspec_base_command() == command
+    assert observed == [source] * (2 if reported == cli.OFFICIAL_VERSION else 1)
 
-    assert cli.openspec_base_command() == ("/node", entry.as_posix())
-    assert observed == [source]
 
-
-def test_run_json_reports_object_malformed_array_and_empty_stdout(monkeypatch, tmp_path):
-    outputs = (
+@pytest.mark.parametrize(
+    ("stdout", "payload", "error"),
+    [
         (json.dumps({"state": "ready"}), {"state": "ready"}, ""),
         ("{", {}, "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"),
         ("[]", {}, "openspec_json_not_object"),
         ("", {}, ""),
-    )
-    observed = []
-
+    ],
+)
+def test_run_json_reports_object_malformed_array_and_empty_stdout(
+    monkeypatch, tmp_path, stdout, payload, error
+):
     def run_command(root, command, **kwargs):
-        observed.append((root, command, kwargs))
-        return _completed(stdout=outputs[len(observed) - 1][0])
+        assert root == tmp_path
+        assert command == ("openspec", "doctor", "--json")
+        assert (kwargs["check"], kwargs["remove_env_prefixes"]) == (False, ("GIT_",))
+        return _completed(stdout=stdout)
 
     monkeypatch.setattr(cli, "run_command", run_command)
-    reports = [cli.run_json(tmp_path, ("openspec",), ("doctor", "--json")) for _ in outputs]
-
-    assert [(report["json"], report["parse_error"]) for report in reports] == [
-        (payload, error) for _, payload, error in outputs
-    ]
-    assert all(item[0] == tmp_path for item in observed)
-    assert all(item[1] == ("openspec", "doctor", "--json") for item in observed)
-    assert all(item[2]["check"] is False for item in observed)
-    assert all(item[2]["remove_env_prefixes"] == ("GIT_",) for item in observed)
+    report = cli.run_json(tmp_path, ("openspec",), ("doctor", "--json"))
+    assert (report["json"], report["parse_error"]) == (payload, error)
 
 
 @pytest.mark.parametrize(
@@ -163,44 +168,6 @@ def test_official_cli_public_resolution_and_report_fail_closed(monkeypatch, tmp_
         "block",
         ["openspec_entry_mismatch"],
     )
-
-
-def test_official_cli_reports_effective_version_mismatch(monkeypatch, tmp_path):
-    package = tmp_path / "node_modules/@fission-ai/openspec/package.json"
-    entry = package.parent / "bin/openspec.js"
-    lock = tmp_path / "package-lock.json"
-    package.parent.mkdir(parents=True)
-    entry.parent.mkdir(parents=True)
-    package.write_text(
-        json.dumps({"name": cli.OFFICIAL_PACKAGE, "version": cli.OFFICIAL_VERSION}),
-        encoding="utf-8",
-    )
-    entry.write_text("", encoding="utf-8")
-    lock.write_text(
-        json.dumps(
-            {
-                "packages": {
-                    "": {"dependencies": {cli.OFFICIAL_PACKAGE: cli.OFFICIAL_VERSION}},
-                    "node_modules/@fission-ai/openspec": {"version": cli.OFFICIAL_VERSION},
-                }
-            }
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(cli, "_LOCK", lock)
-    monkeypatch.setattr(cli, "_source_runtime", lambda: (package, entry))
-    command = ("node", entry.as_posix())
-    monkeypatch.setattr(
-        cli,
-        "run_command",
-        lambda *_args, **_kwargs: _completed(stdout="unexpected\n"),
-    )
-
-    report = cli.verify_official_cli(command)
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["openspec_effective_version_mismatch"]
-    assert report["version"] == "unexpected"
 
 
 @pytest.mark.parametrize(
@@ -319,3 +286,86 @@ def test_archive_receipt_cannot_authorize_a_symlink_alias(tmp_path, alias_path):
         "",
     )
     assert marker.read_text() == "preserve unrelated archive\n"
+
+
+def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tail(tmp_path):
+    """The transport invokes the official program, not a second command parser."""
+    root = init_git_repo(tmp_path / "repo")
+    write_active_commitment(root)
+    base = cli.openspec_base_command()
+    assert base is not None
+    commands = (
+        ("list", "--json"),
+        ("status", "--change", "fixture-change", "--json"),
+        ("instructions", "apply", "--change", "fixture-change", "--json"),
+        ("instructions", "archive", "--change", "fixture-change", "--json"),
+        ("show", "fixture-change", "--type", "change", "--json"),
+        ("status", "--change", "missing-native-change", "--json"),
+        ("list", "--json"),
+    )
+    expected = [cli.run_json(root, base, args) for args in commands[:-1]]
+    actual = cli.run_json_batch(root, base, commands)
+    for index, (old, new) in enumerate(zip(expected, actual[:-1], strict=True)):
+        assert {key: new[key] for key in old} == old
+        assert new["transport"]["input_index"] == index
+    assert actual[-1]["parse_error"] == "openspec_batch_interrupted"
+    assert actual[-1]["json"] == {}
+    assert cli.run_json_batch(root, base, ()) == ()
+    with pytest.raises(ValueError, match="openspec_batch_read_only_required"):
+        cli.run_json_batch(root, base, (("archive", "fixture-change", "--yes", "--json"),))
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "shape",
+        "ordinal",
+        "arguments",
+        "code",
+        "stdout",
+        "truncated",
+        "extra",
+        "missing",
+        "exit",
+        "stderr",
+        "timeout",
+    ],
+)
+def test_official_batch_rejects_unbound_output_and_preserves_failure_evidence(
+    tmp_path, monkeypatch, fault
+):
+    """Only complete ordered native results may become observed JSON facts."""
+    args = ("list", "--json")
+    row = {
+        "index": 0,
+        "args": list(args),
+        "exit_code": 0,
+        "stdout": '{"changes": []}',
+        "stderr": "",
+    }
+    changed = {
+        "shape": [],
+        "ordinal": row | {"index": True},
+        "arguments": row | {"args": ["doctor"]},
+        "code": row | {"exit_code": False},
+        "stdout": row | {"stdout": {}},
+    }.get(fault, row)
+    output = json.dumps(changed) + "\n"
+    output = {"truncated": output[:-3], "extra": output * 2, "missing": ""}.get(fault, output)
+    error = "native error" if fault in {"stderr", "timeout"} else ""
+
+    def native(*_args, **kwargs):
+        assert kwargs["timeout"] == cli.OPENSPEC_COMMAND_TIMEOUT_SECONDS
+        assert json.loads(kwargs["stdin"]) == [list(args)]
+        if fault == "timeout":
+            raise subprocess.TimeoutExpired((), 60, output=output.encode(), stderr=error.encode())
+        return _completed(stdout=output, stderr=error, returncode=int(fault == "exit"))
+
+    monkeypatch.setattr(cli, "run_command", native)
+    (report,) = cli.run_json_batch(tmp_path, ("node", "/selected/openspec.js"), (args,))
+    assert report["json"] == {}
+    assert report["parse_error"] == (
+        "openspec_command_timeout" if fault == "timeout" else "openspec_batch_invalid"
+    )
+    assert report["transport"]["stdout"] == output
+    assert report["transport"]["stderr"] == error

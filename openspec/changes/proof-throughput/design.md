@@ -32,6 +32,72 @@ only measured throughput improvements and their correctness boundaries.
 
 ## Measured Baseline And Priority
 
+### Active Acceptance Target
+
+The September 18 user adjustment sets the first complete-proof target below
+1,200 seconds. The 600-second direction remains subject to measured feasibility,
+not an abandoned requirement or a claim that it is unreasonable. Historical
+measurements below retain their original targets and are not current acceptance.
+The subsequent explicit concurrency instruction permits faster qualified worker
+counts. Two workers remain a historical comparison, not a product ceiling.
+Reduce duplicated work and increase reliable parallelism together; record their
+contributions separately instead of postponing one until the other is complete.
+
+The exact `7711c673648426ce8aace0e267340e02cb593591` proof passes 35 gates,
+3,802 tests with one skip, and 95.067918-percent combined line/branch coverage.
+Its complete wrapper takes 1,689.755 seconds, plus a separately disclosed
+18.822-second preflight. Pytest accounts for 1,465.452 seconds; installed
+acceptance accounts for 169.032 seconds. Neither staged performance target is
+achieved. `throughput-boundaries-breakdown.json` retains exact phases and hashes.
+
+### Native Observation Boundary
+
+Fresh exclusive command timing of one unchanged closeout case distinguishes
+frequency from cost: official OpenSpec starts take approximately 4.36 seconds;
+eight native `update-ref` calls including hooks take 3.43 seconds; forty-three
+profile reads take approximately 0.21 seconds. Replacing only profile-object
+reads cannot explain or remove the dominant work.
+
+An isolated exact-content comparison qualifies native batches and Dulwich 1.2.15
+on SHA-1/SHA-256 loose/packed objects, linked common directories, fresh refs and
+missing/corrupt objects. Reftable opening succeeds; full reftable behavior and
+native platforms are not qualified. Reopening a packed repository per read can
+regress performance. No library is added: native batch reuse remains sufficient
+for this experiment and object reading is not the dominant measured cost.
+
+The selected repair batches read-only argv through the official package's
+exported Commander program with awaited sequential parsing. It reuses module
+loading, not command results. Python retains Change selection and acceptance
+compilation; the JavaScript adapter transports argv, output and exit status only.
+Governance uses one general batch and one selected-Change batch, then passes the
+exact observed projection to the existing compiler. Archive effects remain on
+their native single-command path. The retired single-status facade is removed.
+
+The read-shape boundary admits only existing observations. Every frame binds an
+ordinal and exact argv; malformed, reordered, truncated or incomplete results
+cannot provide JSON facts. Explicit native exit preserves completed output and
+marks the unexecuted tail interrupted. A timed-out observation has no current
+verdict; raw transport remains evidence. The existing process owner owns the
+single bounded child. This does not repair worker loss or Windows containment.
+
+Eight official reads take approximately 0.94 seconds as independent processes
+and 0.136 seconds through one import. All output bytes agree except native
+validation durations. Public-plan RED observes nine Node starts; GREEN permits
+at most three and rejects invalidated intent on the next call. These are bounded
+observations, not a complete-proof performance claim. Receipts use
+`throughput-foundation-` and `throughput-official-batch-` in the existing root.
+
+The same 192 selected native cases pass at two and four workers in 109.781 and
+62.616 seconds including wrapper and cleanup. The latter includes JUnit output;
+the two-worker run does not. This is an observed 43-percent reduction, not a
+controlled whole-suite estimate. Both retain the same test timeout and no retry.
+The host reports 18 physical/logical CPUs and 128 GiB memory; resource pressure
+does not justify keeping the lower count. Four workers are selected for the next
+exact full proof; higher counts remain eligible after equivalent qualification.
+Installed-wheel execution resolves bundled OpenSpec and the exact batch script;
+three package/public cases pass, with 1.329 seconds build/install and 4.450 seconds
+test execution. Temporary package and test roots are removed.
+
 ### Execution Boundaries
 
 Throughput and parallel safety share a structural requirement: ownership and
@@ -918,11 +984,11 @@ the corrected fixture, not that failure, supplies the comparison. Product/test
 ELOC is 45,401/49,996, with type, size and source-budget gates passing.
 
 Final performance acceptance measures complete proof on the same workstation
-with two workers and the declared locked toolchain. Include preparation and
+with declared qualified concurrency and the locked toolchain. Include preparation and
 cleanup, retain all gates and at least 95-percent combined line/branch coverage,
 and report cold-computation and warm results separately. Initial installation
 or network acquisition not included by the command must be disclosed separately.
-The target is at most 600 seconds; partial speedups do not satisfy it.
+The active staged target is defined above; partial speedups do not satisfy it.
 
 
 ### Exact Full-Proof Readback And Cancellation Race

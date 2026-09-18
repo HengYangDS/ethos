@@ -42,6 +42,7 @@
 - [x] Verify retained native downloads across executable failure without weakening activation.
 - [x] Restore vendor runner resource policy through drained cutover and verify routing, old-process cleanup and new-job consumption.
 - [x] Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.
+- [x] Share immutable bootstrap and scanner fixture code while isolating case state and qualifying identical two/four/eight-worker consumers.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

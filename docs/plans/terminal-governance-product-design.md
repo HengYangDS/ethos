@@ -73,8 +73,14 @@ raw executable verification killed its direct process but retained a ready child
 It now consumes the existing process owner, preserving the ten-second deadline
 and verified-archive protections. The 88-case native supply/process matrix passes;
 this is focused evidence, not accepted delivery or supervisor-loss recovery.
-Its full proof and installed acceptance remain required. No source-budget or
-coverage floor is relaxed, and no new process framework is introduced.
+Its exact full proof at `2422bc029` failed one bootstrap prerequisite timeout
+with 3,832 passes and one skip; dependent delivery did not execute. The next
+repair shares immutable bootstrap/scanner fixture code while preserving isolated
+state and real invocation. Its same 120 native cases pass at two/four/eight
+workers without deadline relaxation; another exact proof remains required.
+GitLab dev/main passed at `16e346b69`; GitHub dev failed 22 supply/receipt startup
+cases. These observations reject a universal QoS explanation. No source-budget
+or coverage floor is relaxed, and no new process framework is introduced.
 
 The old proposal was retired on both peers through exact receipt-bound deletion
 after accepted conservation and native open-review queries. Both refs and local

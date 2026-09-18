@@ -39,6 +39,9 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
         "sys.exit(case['exit_code'])\n"
     )
     binary.chmod(0o555)
+    scanner = binary.with_name("gitleaks")
+    scanner.write_text("#!/bin/sh\nprintf fixture-scanner\n")
+    scanner.chmod(0o555)
     return binary
 
 
@@ -155,7 +158,7 @@ def test_hosted_receipt_requires_exact_executed_observation(
     scripts = _hosted_scripts(
         repo,
         f"printf '%s\\n' '{binary.parent}'\n",
-        f"printf '#!/bin/sh\\nprintf fixture-scanner\\n' > '{scanner}'\nchmod +x '{scanner}'\n",
+        f"ln -s '{hosted_proof_transport.with_name('gitleaks')}' '{scanner}'\n",
     )
     summary_file = tmp_path / "summary.md"
     completed = subprocess.run(
@@ -173,13 +176,12 @@ def test_hosted_receipt_requires_exact_executed_observation(
         check=False,
     )
     assert (completed.returncode == 0) is (fault == "none"), completed.stdout + completed.stderr
+    assert scanner.samefile(hosted_proof_transport.with_name("gitleaks"))
     receipt = json.loads(completed.stdout)
     assert receipt["kind"] == "ethos_hosted_verification_receipt"
     assert receipt["satisfies_repository_proof"] is False
     assert receipt["verdict"] == ("pass" if fault == "none" else "block")
-    commands = [json.loads(line) for line in command_log.read_text().splitlines()]
-    assert len(commands) == 1
-    command = commands[0]
+    (command,) = [json.loads(line) for line in command_log.read_text().splitlines()]
     assert {"--host", "--execute"} <= set(command)
     assert "--gate" not in command
     assert command[command.index("--expect-head") + 1] == expected

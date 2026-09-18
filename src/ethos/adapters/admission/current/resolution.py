@@ -296,8 +296,13 @@ def resolve_current_resolution(
     commands = official.get("commands")
     status_result = commands.get("status") if isinstance(commands, dict) else None
     status_payload = status_result.get("json") if isinstance(status_result, dict) else None
-    archive_closeout = official_verdict == "pass" or official_gaps == (
-        "openspec_active_change_missing",
+    absent_intent_gaps = {"openspec_active_change_missing"}
+    if change is not None:
+        absent_intent_gaps.add(f"openspec_requested_change_missing:{change}")
+    archive_closeout = official_verdict == "pass" or (
+        official_verdict == "block"
+        and bool(official_gaps)
+        and set(official_gaps) <= absent_intent_gaps
     )
     archived = (
         attested_archive_transition(root, head=str(status.get("head") or ""), change=change)

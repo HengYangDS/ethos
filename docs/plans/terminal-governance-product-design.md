@@ -6897,6 +6897,21 @@ input runs green or repair production to accommodate them. Full goal obligations
 including supported latest supply, resource-loss recovery, adopter journeys and
 semantic/projection housekeeping, remain unchanged.
 
+The next multi-contribution slice reproduced two failures: earlier archived
+intent was rejected as missing from the active list, and full proof reselected
+ambient intent in a duplicate deep audit. Current resolution and the existing
+audit owner now share one resolved observation, while unrelated failures remain
+blocking. Two independent native worktrees passed merge, two archives, two
+post-archive proofs and candidate/accepted integration with both product files
+and both distinct requirements preserved. This source probe does not establish
+all-drop, independent verifier identity, retirement or installed behavior.
+
+The immediate order is final focused verification, exact full proof, immutable
+package replay and peer readback; then remaining process-loss/bootstrap and
+supported-supply obligations before this Change's archive and sole-lane exit.
+The 600-second performance direction remains open. Reuse exact prior evidence;
+do not restore the independent ambient audit or accumulate a new progress ledger.
+
 ## Completion Boundary
 
 Terminal convergence is verified only when every batch above is accepted and

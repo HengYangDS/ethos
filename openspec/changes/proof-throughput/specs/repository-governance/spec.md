@@ -112,3 +112,18 @@ not be resolved by choosing a convenient proof.
 - **WHEN** a query names an Attestation and a different or invalid Change
 - **THEN** it rejects instead of ignoring either explicit constraint
 - **AND** matching active or attested archived intent remains admissible
+
+#### Scenario: Several completed archives retain separate proof identities
+
+- **GIVEN** two distinct accepted intents have verified archive effects
+- **WHEN** either is explicitly selected at a later shared source commit
+- **THEN** its exact archived acceptance remains available for proof and planning
+- **AND** both contributed requirements and product results remain intact
+- **AND** absent, unreadable, invalid or unverified intent is not silently accepted
+
+#### Scenario: Full proof shares one current intent observation with audit
+
+- **WHEN** full proof resolves an explicit intent that differs from its ambient default
+- **THEN** governance audit consumes that same resolved OpenSpec observation
+- **AND** it retains independent adopter, commit and release policy checks
+- **AND** a new invocation observes current inputs rather than cached permission

@@ -51,6 +51,16 @@ def _prove(root: Path, head: str, *selection: str) -> dict:
     return report["data"]["attestation"]
 
 
+def _archive(root: Path, head: str, change: str) -> str:
+    """Archive with real proof, then prove the resulting exact source."""
+    _prove(root, head, "--change", change)
+    report = archive_change(root=root, change=change, expect_head=head, apply=True)
+    assert report["verdict"] == "pass", report
+    archived = git(root, "rev-parse", "HEAD")
+    _prove(root, archived, "--change", change)
+    return archived
+
+
 @pytest.fixture
 def pending_merge(tmp_path: Path) -> Path:
     """Reproduce independent open Changes with a real unresolved native merge."""
@@ -205,13 +215,9 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
     tasks = work / "openspec/changes/publication/tasks.md"
     tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
     source_head = commit_fixture(work, "feat: finish local publication")
-    _prove(work, source_head)
-    archived = archive_change(root=work, change="publication", expect_head=source_head, apply=True)
-    assert archived["verdict"] == "pass", archived
-    head = git(work, "rev-parse", "HEAD")
+    head = _archive(work, source_head, "publication")
     assert openspec_governance_report(work, lifecycle=True)["change"] == "publication"
     assert load_openspec_commitment(work, tree_ref=head).id == "change:publication"
-    _prove(work, head)
     previous = proof_attestation(work, head)
     assert previous is not None
     repo, candidate = work.parent / "repo", work.parent / "repo-candidate-dev"
@@ -324,8 +330,8 @@ def test_exact_official_artifacts_continue_after_second_change_creation(
 
 
 @pytest.fixture
-def selected_product_work(tmp_path, monkeypatch):
-    """Prepare two official intents above accepted executable verification policy."""
+def completed_product_work(tmp_path, monkeypatch):
+    """Prepare two completed official intents above accepted executable checks."""
     repo, candidate = start_adopted_candidate(tmp_path)
     _declare_executable_checks(repo)
     head = commit_fixture(repo, "test: declare native verification before authoring")
@@ -335,23 +341,25 @@ def selected_product_work(tmp_path, monkeypatch):
         repo, tmp_path / "work", base_ref="candidate/dev", holder_ref="agent:test:case:agent-test"
     )
     write_active_commitment(work, change_id="second-local")
-    commit_fixture(work, "feat: declare second intent")
+    delta = work / "openspec/changes/second-local/specs/contracts/spec.md"
+    delta.write_text(delta.read_text().replace("Fixture change", "Second contribution"))
+    for tasks in (work / "openspec/changes").glob("*/tasks.md"):
+        tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
+    commit_fixture(work, "feat: declare completed contributions")
     monkeypatch.setenv("ETHOS_CHANGE", "second-local")
     return repo, candidate, work
 
 
 def test_process_intent_carries_product_work_through_native_integration(
-    selected_product_work, monkeypatch
+    completed_product_work, monkeypatch
 ):
     """One selection spans authoring, proof, archive and both native CAS boundaries."""
-    repo, candidate, work = selected_product_work
+    repo, candidate, work = completed_product_work
     args = ("README.md", "--editor-root", str(work), "--require-editor-root", "--json")
     for command in (("lane", "prewrite"), ("hook", "admit", "pre-tool")):
         admitted = run_ethos(*command, *args, cwd=work)
         assert admitted["verdict"] == "pass", admitted
     (work / "README.md").write_text("# Combined publication\n")
-    for tasks in (work / "openspec/changes").glob("*/tasks.md"):
-        tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
     head = commit_fixture(work, "feat: integrate selected contribution")
     for choice, expected in (
         ((), "second-local"),
@@ -409,18 +417,22 @@ def test_process_intent_carries_product_work_through_native_integration(
     assert not (work / "openspec/changes/fixture-change").exists()
     assert tasks.read_bytes() == preserved
     assert run_ethos(*arguments, cwd=work)["verdict"] == "pass"
-    monkeypatch.setenv("ETHOS_CHANGE", "second-local")
-    head = git(work, "rev-parse", "HEAD")
-    _prove(work, head)
+    monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
+    head = _archive(work, git(work, "rev-parse", "HEAD"), "second-local")
+    _prove(work, head, "--change", "fixture-change")
+    canonical = (work / "openspec/specs/contracts/spec.md").read_text()
+    assert all(
+        f"### Requirement: {name}" in canonical
+        for name in ("Fixture change", "Second contribution")
+    )
     run_ethos("land", "--apply", "--authorize", "--expect-head", head, "--json", cwd=work)
-    accepted = git(repo, "rev-parse", "HEAD")
     run_ethos(
         "land",
         "--closeout",
         "--apply",
         "--authorize",
         "--expect-head",
-        accepted,
+        git(repo, "rev-parse", "HEAD"),
         "--candidate-head",
         head,
         "--json",

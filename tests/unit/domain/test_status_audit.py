@@ -54,9 +54,10 @@ def _adopter(root: Path, *, registry: bool) -> Path:
 
 
 @pytest.mark.parametrize("registry", [False, True])
+@pytest.mark.parametrize("shared", [False, True])
 @pytest.mark.parametrize("condition", ["valid", "role", "release", "openspec", "commit"])
 def test_common_adopter_audit_is_representation_independent(
-    tmp_path: Path, condition: str, *, registry: bool
+    tmp_path: Path, monkeypatch, condition: str, *, registry: bool, shared: bool
 ) -> None:
     """Real generic observations never inherit product layout or skip obligations."""
     repo = _adopter(tmp_path / "node", registry=registry)
@@ -75,7 +76,10 @@ def test_common_adopter_audit_is_representation_independent(
         (repo / ".ethos/workspace.toml").write_text(
             '[commit_policy]\nsubject_pattern = "["\n', encoding="utf-8"
         )
-    report = status.audit_for_root(repo)
+    observation = status.openspec_shape_report(repo) if shared else None
+    if shared:
+        monkeypatch.setattr(status, "openspec_shape_report", lambda _: pytest.fail("second read"))
+    report = status.audit_for_root(repo, openspec=observation)
     assert report["verdict"] == ("pass" if condition == "valid" else "block"), report
     assert "docs" not in report
     assert "schemas" not in report

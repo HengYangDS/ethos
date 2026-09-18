@@ -6,11 +6,11 @@ import pytest
 
 import ethos.adapters.admission.current.resolution as resolution_adapter
 import ethos.surface.cli.root.planning as planning_cli
-from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import current_scope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from tests.support.semantic import commitment_fixture
+from tests.unit.admission.current.support import authority
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -122,22 +122,18 @@ def test_post_archive_planning_uses_fresh_git_paths_not_an_archived_carrier() ->
     assert {item.state for item in scope.attributions} == {"observed"}
 
 
-def test_post_archive_planning_ignores_lease_payload_beyond_coordination() -> None:
-    commitment = commitment_fixture(id="change:fixture-change")
-    paths = ("openspec/changes/archive/2026-08-28-fixture-change/design.md",)
-    first = current_scope(
-        commitment=commitment,
-        fallback_paths=paths,
-    )
-    second = current_scope(
-        commitment=commitment,
-        fallback_paths=paths,
-    )
-
-    assert first == second
-
-
-def test_current_resolution_recovers_exact_archive_effect(monkeypatch, tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "extra",
+    [
+        "",
+        "openspec_requested_change_missing:fixture-change",
+        "openspec_list_unreadable",
+        "openspec_validation_failed:spec:contracts",
+    ],
+)
+def test_current_resolution_recovers_exact_archive_effect(
+    monkeypatch, tmp_path: Path, extra
+) -> None:
     head = "a" * 40
     archive_paths = (
         "openspec/changes/archive/2026-08-29-fixture-change/tasks.md",
@@ -180,33 +176,21 @@ def test_current_resolution_recovers_exact_archive_effect(monkeypatch, tmp_path:
         "openspec_governance_report",
         lambda *_args, **_kwargs: {
             "verdict": "block",
-            "required_gaps": ["openspec_active_change_missing"],
+            "required_gaps": ["openspec_active_change_missing"] + ([extra] if extra else []),
             "commitment": {},
             "lifecycle": {"scope_binding": {}},
         },
     )
-    authority = CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch="work/fixture-change",
-        actor="agent:test",
-        lease={
-            "lane_ref": "work/fixture-change",
-            "holder_ref": "agent:test",
-            "generation": 1,
-            "expires_at": "2026-08-30T00:00:00Z",
-        },
-        current_head=head,
-        current_tree="b" * 40,
-    )
-
     resolution = resolve_current_resolution(
         tmp_path,
         status={"role": ROLE_WORK_LANE, "head": head},
-        authority=authority,
+        authority=authority(),
         change="fixture-change",
     )
 
+    if extra and not extra.startswith("openspec_requested_change_missing:"):
+        assert (resolution.verdict, resolution.commitment) == ("block", None)
+        return
     assert resolution.commitment == commitment
     assert resolution.scope.paths == observed_paths
     assert resolution.scope.archive_authority == archive_authority

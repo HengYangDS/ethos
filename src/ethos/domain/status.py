@@ -15,17 +15,20 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
+def audit_for_root(
+    root: Path, *, openspec_mode: str = "shape", openspec: dict[str, object] | None = None
+) -> dict[str, object]:
     """Evaluate common obligations independently of proof-gate representation."""
-    openspec = (
-        (
-            openspec_governance_report(root)
-            if openspec_mode == "deep"
-            else openspec_shape_report(root)
+    if openspec is None:
+        openspec = (
+            (
+                openspec_governance_report(root)
+                if openspec_mode == "deep"
+                else openspec_shape_report(root)
+            )
+            if openspec_profile_enabled(root)
+            else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
         )
-        if openspec_profile_enabled(root)
-        else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
-    )
     return repository_audit_module.governance_audit(
         root,
         openspec=openspec,

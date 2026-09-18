@@ -1810,3 +1810,39 @@ integration consumers. Both owned scratch roots were removed. Twenty-eight of
 29 inexpensive gates passed on the first run; Markdown lint caught unquoted
 receipt globs, which were corrected before final admission. These counts overlap
 and are not a total of distinct tests or a full-proof claim.
+
+## Preserved Intent Across Multiple Archives
+
+A native installed-wheel probe completed two archives, then failed to reprove the
+earlier explicitly selected intent. Current resolution accepted only one exact
+missing-active gap shape; official selection also reports that the named Change
+is absent from the active list. The resolution owner now distinguishes those
+absence observations from unreadable, invalid or unknown observations, and only
+verified archive evidence can satisfy the former. Missing evidence remains a
+failure. Archive recognition does not replace fresh authority or source checks.
+
+The next two-worktree probe exposed a second consumer of the same invariant:
+full proof independently ran deep OpenSpec audit using the ambient selection
+before resolving its explicit input. The audit and proof therefore disagreed.
+Full proof now passes the current resolution's OpenSpec observation into the
+existing audit composition. The audit still evaluates adopter, commit and release
+policy independently; callers without supplied observation retain native reads.
+The shared observation is invocation-local, never a reusable authorization.
+
+The tracked native journey preserves distinct requirements, both archives and
+both exact post-archive proofs. A separate bounded source probe creates two
+independent worktrees with different product files, integrates one contribution,
+starts and continues the public native merge, archives each intent, proves each
+at the final object and executes candidate and accepted CAS. Both product files
+and both accepted requirements survive. Its receipt is
+`multi-contribution-native-cooperation-green.json` in the existing
+commit-integrity evidence root. This is not installed-package, all-drop,
+independent-identity, retirement or cross-platform acceptance.
+
+The initial 252 sibling tests passed; after repairing duplicate deep audit,
+68 focused consumers passed. Tests assert reused observation reaches the audit
+and that malformed adopter/commit/release/configuration policy still blocks.
+A prior test that compared identical calls without any Lease input was removed:
+it never demonstrated the named Lease boundary. Existing real Lease mismatch,
+expiry, transfer and inherited-lane regressions retain that responsibility.
+Final exact proof, package replay and hosted observations remain distinct.

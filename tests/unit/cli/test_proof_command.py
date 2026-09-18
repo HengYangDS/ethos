@@ -491,7 +491,16 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
     authority = object()
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
-    monkeypatch.setattr(proof_cli.status_domain, "audit_for_root", lambda *_args, **_kwargs: audit)
+
+    def audit_once(_root, **kwargs):
+        assert kwargs["openspec"] == (
+            lifecycle
+            if openspec
+            else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
+        )
+        return audit
+
+    monkeypatch.setattr(proof_cli.status_domain, "audit_for_root", audit_once)
     monkeypatch.setattr(
         proof_cli,
         "workspace_status_observation",
@@ -506,14 +515,6 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
         return binding
 
     monkeypatch.setattr(proof_cli, "resolve_current_resolution", resolve)
-    monkeypatch.setattr(
-        proof_cli,
-        "openspec_governance_report",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            AssertionError("proof must reuse CurrentResolution OpenSpec observation")
-        ),
-        raising=False,
-    )
 
     def compile_plan(*_args, **kwargs):
         assert kwargs["resolution"] is binding

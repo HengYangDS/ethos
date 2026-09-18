@@ -181,7 +181,6 @@ def _proof_context(
     repo: Path, options: _ProofOptions
 ) -> tuple[str, dict[str, object], CurrentResolution, dict[str, object]]:
     """Observe the repository and OpenSpec lifecycle once for governed proof."""
-    audit = status_domain.audit_for_root(repo, openspec_mode="deep" if options.full else "shape")
     status, authority = workspace_status_observation(repo, include_foreign_path_scope=False)
     resolution = resolve_current_resolution(
         repo,
@@ -195,6 +194,9 @@ def _proof_context(
         dict(resolution.openspec)
         if resolution.openspec
         else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
+    )
+    audit = status_domain.audit_for_root(
+        repo, openspec=openspec_lifecycle if options.full else None
     )
     return current_head, audit, resolution, openspec_lifecycle
 

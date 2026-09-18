@@ -199,24 +199,34 @@ observations, including `intent-selection-proof-query-profile.txt`. Current
 Change tasks own implementation progress. Full terminal convergence remains
 open across the P0–P7 route below.
 
-The exact eight-worker proof at `db99bb7a` completed in 503.505 seconds and
-blocked: 3,816 tests passed, one failed and one skipped. Twenty-eight gates
-passed; coverage, generated-artifact, build, install and SBOM consumers did not
-execute. The failed format owner rejected the new `.mjs` transport outside its
-old npm-only home. Its failure was known near seven seconds, before heavy tests
-started near eighteen seconds. The native carrier declaration and existing
-readiness edge must agree before the next frozen proof; do not add another
-scheduler or a filename exception.
+The exact eight-worker proof at `f6b0dd664` passes all 35 gates in 635.345
+seconds, including document preflight, Python execution, wheel build, installed
+acceptance, SBOM and owned cleanup. JUnit reports 3,821 passed and one skipped;
+combined coverage is 95.082854 percent. This is a warm locked-environment result,
+not cold host provisioning or whole-delivery elapsed time. It meets the initial
+1,200-second target, not the subsequent 600-second direction. Test execution is
+448.563 seconds and installed acceptance 153.003 seconds; overlapping gate
+intervals are not additive. Candidate/dev is integrated at that exact object;
+accepted dev/main and the selected runtime remain at `40bc6ff4`. Do not equate
+candidate integration with accepted/runtime/peer delivery.
 
-The 94.954-percent coverage report also exposed a test-isolation defect, not a
-reason to relax the floor or reduce workers. A two-case single-worker replay
-shows that rewriting materialization `__file__` makes coverage reject the real
-module as outside its source set. Removing the synthetic module-origin mutation
-restores the same executed verification lines. Preserve the actual package
-source in supply fixtures, keep dependency/image inputs explicit, and qualify
-the full covered suite anew. Focused coverage remains diagnostic and is never
-combined into the final proof. Exact evidence uses `throughput-materialization-`
-and `throughput-carrier-preflight-` in the existing quality evidence root.
+The preceding failed proof at `db99bb7a` exposed a carrier placement mismatch
+and coverage attribution contamination. Both are repaired: native JavaScript
+adapters have a semantic carrier home; format readiness precedes its dependent
+tests; supply fixtures retain the executing module origin. Same-worker replay
+and the complete covered proof establish the latter, without configuration
+changes or focused-data merging. Evidence remains under the existing
+`throughput-source-stable-`, `throughput-materialization-` and
+`throughput-carrier-preflight-` prefixes.
+
+The native merge reader now compares before/after metadata within each channel
+and binds the pathname to its open handle by file identity. This removes the
+verified Windows ctime representation conflict while preserving replacement,
+nonregular-file, content-change and handle-cleanup rejection. Native Windows
+execution remains required: simulated observations and local source tests are
+not hosted acceptance. The exact `f6b0dd664` worker-loss probe still reproduces
+a surviving descendant; its temporary root was removed. That separate lifetime
+owner requirement is open and cannot be hidden by the successful full proof.
 
 One 500-ELOC ceiling applies to every Python file, including tests and surfaces.
 Product and test totals have independent 50,000 ceilings; combined coverage stays

@@ -2,12 +2,10 @@
 
 import base64
 import json
-import os
 import shlex
 import sqlite3
 from contextlib import closing
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -17,7 +15,6 @@ import ethos.adapters.admission.current.resolution as resolution_owner
 import ethos.adapters.mutation.lane_lifecycle.merge as merge_admission
 import ethos.adapters.repo.merge.effect as merge_effect
 import ethos.adapters.repo.runtime.binding as runtime_binding_owner
-from ethos.adapters.repo.merge.observation import metadata_bytes
 from ethos.adapters.repo.merge.observation import observe_merge
 from ethos.adapters.repo.merge.recovery import preserve_merge
 from ethos.adapters.store.state.schema import state_database
@@ -154,42 +151,6 @@ def test_lost_result_ack_is_recognized_without_repeating_effect(tmp_path, monkey
     recovered = _apply(work, preview)
     assert recovered["verdict"] == "pass", recovered
     assert git(work, "rev-parse", "HEAD") == after
-
-
-def test_metadata_read_ignores_access_time_without_ignoring_content_drift(tmp_path, monkeypatch):
-    """A read's atime update is not a content edit or replacement of its inode."""
-    path = tmp_path / "MERGE_HEAD"
-    path.write_bytes(b"exact native bytes\n")
-    original = path.stat()
-    fstat = os.fstat
-    count = 0
-
-    def access_time_only(descriptor):
-        nonlocal count
-        observed = fstat(descriptor)
-        count += 1
-        if count == 1:
-            fields = {
-                name: getattr(observed, name)
-                for name in (
-                    "st_dev",
-                    "st_ino",
-                    "st_mode",
-                    "st_uid",
-                    "st_gid",
-                    "st_size",
-                    "st_mtime_ns",
-                    "st_ctime_ns",
-                    "st_atime_ns",
-                )
-            }
-            fields["st_atime_ns"] -= 1
-            return SimpleNamespace(**fields)
-        return observed
-
-    monkeypatch.setattr(os, "fstat", access_time_only)
-    assert metadata_bytes(path) == b"exact native bytes\n"
-    assert path.stat().st_mtime_ns == original.st_mtime_ns
 
 
 def test_merge_start_cannot_overwrite_ignored_local_content(tmp_path):

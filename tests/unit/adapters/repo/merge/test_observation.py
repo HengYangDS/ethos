@@ -2,6 +2,7 @@
 
 import errno
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -27,61 +28,86 @@ def test_metadata_never_reads_missing_or_redirected_native_content(tmp_path: Pat
         outside = tmp_path / "outside"
         outside.write_bytes(b"must not become merge metadata")
         path.symlink_to(outside)
-        with pytest.raises(OSError, match="symbolic links") as failure:
+        with pytest.raises(ValueError, match="merge_metadata_unsafe"):
             observation.metadata_bytes(path)
-        assert failure.value.errno == errno.ELOOP
         assert outside.read_bytes() == b"must not become merge metadata"
 
 
-def test_rejected_metadata_releases_its_open_descriptor(tmp_path: Path, monkeypatch):
-    """Repeated unsafe observations must not leak native descriptors."""
-    path = tmp_path / "MERGE_HEAD"
-    path.mkdir()
-    descriptors = []
-    original = observation.os.open
+@pytest.mark.parametrize("boundary", ["unsafe", "open-replacement", "read-replacement"])
+def test_rejected_metadata_releases_descriptors_and_preserves_replacement(
+    tmp_path, monkeypatch, boundary
+):
+    """Unsafe handles and either replacement window fail without leaking descriptors."""
+    path, replacement = tmp_path / "MERGE_HEAD", tmp_path / "replacement"
+    path.write_bytes(b"unchanged bytes")
+    replacement.write_bytes(b"unchanged bytes")
+    native_open, native_fstat = observation.os.open, observation.os.fstat
+    descriptors, calls = [], []
 
-    def remember_descriptor(*args, **kwargs):
-        descriptor = original(*args, **kwargs)
+    def opened(*args, **kwargs):
+        if boundary == "open-replacement":
+            replacement.replace(path)
+        descriptor = native_open(*args, **kwargs)
         descriptors.append(descriptor)
         return descriptor
 
-    monkeypatch.setattr(observation.os, "open", remember_descriptor)
-    with pytest.raises((IsADirectoryError, ValueError)):
-        observation.metadata_bytes(path)
+    def observed(descriptor):
+        calls.append(descriptor)
+        if boundary == "unsafe":
+            return SimpleNamespace(st_mode=0)
+        if boundary == "read-replacement" and len(calls) == 2:
+            replacement.replace(path)
+        return native_fstat(descriptor)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(observation.os, "open", opened)
+        patch.setattr(observation.os, "fstat", observed)
+        error = "merge_metadata_unsafe" if boundary == "unsafe" else "merge_metadata_changed"
+        with pytest.raises(ValueError, match=error):
+            observation.metadata_bytes(path)
     assert len(descriptors) == 1
-    descriptor = descriptors[0]
     try:
-        with pytest.raises(OSError, match="Bad file descriptor") as failure:
-            observation.os.fstat(descriptor)
-        assert failure.value.errno == errno.EBADF
+        with pytest.raises(OSError, match="Bad file descriptor") as error:
+            native_fstat(descriptors[0])
+        assert error.value.errno == errno.EBADF
+        assert path.read_bytes() == b"unchanged bytes"
     finally:
         try:
-            observation.os.close(descriptor)
-        except OSError as failure:
-            if failure.errno != errno.EBADF:
+            observation.os.close(descriptors[0])
+        except OSError as error:
+            if error.errno != errno.EBADF:
                 raise
 
 
-def test_metadata_replacement_during_read_is_rejected(tmp_path: Path, monkeypatch):
-    """A replaced inode with identical bytes is not the admitted file observation."""
+@pytest.mark.parametrize("drift", ["none", "descriptor", "path", "access-time"])
+def test_metadata_compares_changes_within_each_native_observation_channel(
+    tmp_path, monkeypatch, drift
+):
+    """Different stable path/handle ctime meanings never weaken same-channel drift checks."""
     path = tmp_path / "MERGE_HEAD"
-    path.write_bytes(b"unchanged bytes")
-    replacement = tmp_path / "replacement"
-    replacement.write_bytes(b"unchanged bytes")
-    original = observation.os.fstat
-    calls = 0
+    path.write_bytes(b"native bytes")
+    fstat, path_stat = observation.os.fstat, Path.stat
+    calls = {"descriptor": 0, "path": 0}
 
-    def replace_after_read(descriptor):
-        nonlocal calls
-        calls += 1
-        if calls == 2:
-            replacement.replace(path)
-        return original(descriptor)
+    def observed(channel, value):
+        calls[channel] += 1
+        fields = {name: getattr(value, name) for name in dir(value) if name.startswith("st_")}
+        fields["st_ctime_ns"] += 1000 if channel == "descriptor" else 0
+        fields["st_ctime_ns"] += int(drift == channel and calls[channel] == 2)
+        fields["st_atime_ns"] += calls[channel] if drift == "access-time" else 0
+        return SimpleNamespace(**fields)
 
-    monkeypatch.setattr(observation.os, "fstat", replace_after_read)
-    with pytest.raises(ValueError, match="merge_metadata_changed"):
-        observation.metadata_bytes(path)
-    assert path.read_bytes() == b"unchanged bytes"
+    monkeypatch.setattr(observation.os, "fstat", lambda fd: observed("descriptor", fstat(fd)))
+    monkeypatch.setattr(
+        Path,
+        "stat",
+        lambda p, **kw: observed("path", path_stat(p, **kw)) if p == path else path_stat(p, **kw),
+    )
+    if drift in {"none", "access-time"}:
+        assert observation.metadata_bytes(path) == b"native bytes"
+    else:
+        with pytest.raises(ValueError, match="merge_metadata_changed"):
+            observation.metadata_bytes(path)
 
 
 def test_parent_must_resolve_to_its_exact_commit_identity(tmp_path: Path):

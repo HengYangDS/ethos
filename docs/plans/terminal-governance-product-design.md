@@ -39,11 +39,11 @@ are then deleted.
 ## Current Convergence Boundary
 
 The September 18 delivered checkpoint binds accepted source
-`e58745a633379ff38b0d24f71de657d34741f906`, tree
-`57f11ca285bdad2cb06a12252e25d205e01aecb0`, and immutable runtime
-`49068c6d05cebc693f8ded39899965440efe78c5d23ccd2ae800f9cc37875dfb`.
-Exact full proof passed 35 gates, 3,841 tests and one skip with 95.089768-percent
-combined coverage in 670.898 seconds. Candidate/accepted CAS, runtime activation
+`2680fd31446d71c351c5fc0837e1b6b9c1051912`, tree
+`728b86cfb99e763b80fac5c51949f54bb247bc89`, and immutable runtime
+`a2bc9a5d137acc2479220d04f9c2db47f0524aa1d3b67c1b42819bf17f2795b3`.
+Exact full proof passed 35 gates, 3,842 tests and one skip with 95.089768-percent
+combined coverage in 709.257 seconds. Candidate/accepted CAS, runtime activation
 and both independent peers' dev/main publication are post-observed. The prior
 runtime and owned scratch were reclaimed. This warm locked-toolchain result
 meets the 1,200-second target, not the 600-second direction or total hosted
@@ -63,22 +63,42 @@ already installed, unmanaged content preserved and owned scratch removed.
 These are attributed owner execution results, not this task's independent replay;
 the completion receipt qualifies older candidate boilerplate in recovery output.
 
-The delivered supply declaration selects Syft 1.52.0; official Linux checksums
-and release asset digests agree. The previous GitHub package failure came from
-Homebrew advancing while the repository still selected 1.51.1. No host downgrade,
-parallel installation or relaxed version policy was used. At 18:38 +08,
-GitHub dev quality, native conformance and source verification passed while
-package artifacts queued; main source verification and GitLab pipelines
-7421/7422 were running. Both peers' dev/main still matched the delivered source.
-Those observations do not certify terminal hosted success.
+The delivered supply declaration selects Syft 1.52.0 and hosted preflight now
+rejects scanner, budget or SBOM preparation before expensive proof. Native
+diagnostics, stale-report invalidation and exact-source verification share the
+existing wrapper and supply owners. The final 67-case check and 29 cheap gates
+ran together in 20.047 seconds; full proof and installation then passed.
+Existing `supply-preflight-` receipts bind the source, installed identity,
+four peer refs and removal of the old runtime and owned scratch.
 
-The next bounded repair moves that supply failure before expensive hosted proof
-through the existing wrapper and installer. Its scanner/budget/SBOM failure
-matrix retains native diagnostics, invalidates old reports and proves proof was
-not invoked; the healthy case proves preparation preceded exact-source execution.
-Focused acceptance passed 67 cases in 34.70 seconds with owned scratch removed.
-Current-source full proof, installation and hosted consumption remain separate
-required delivery steps, not inferred from those focused results.
+For preceding source `e58745a6`, GitHub dev including package artifacts and
+GitLab 7421/7422 passed. GitHub main job 105563747202 instead failed 15 native
+startup/readiness cases, with 3,826 passes and one skip. Its downloaded artifact
+digest matches the Forge metadata. This is not the earlier Syft mismatch and
+not proof of a universal process-deadlock cause. At 19:24 +08, the successor
+GitHub dev source job was running, main source queued and GitLab 7435/7436
+running; terminal hosted success remains separate.
+
+The next repair reuses immutable hosted supply fixture code while retaining
+per-case data, logs and repository state. The same proof transport records every
+invocation before validation, preserving both exactly-once success and no-call
+failure observations. It replaces repeated preparation executables rather than
+extending timeouts or bypassing native dispatch. Its final 104-case matrix and
+29 cheap gates pass together in 37.339 seconds at 45,625 product / 50,000 test
+ELOC. New-source full proof, installed delivery and hosted consumption remain
+required. Different collections and changing host load are not a speedup ratio.
+
+Matched native experiments distinguish fresh-file execution from reused identity:
+fresh scripts took 0.403--0.783 seconds, repeated identity 0.004--0.010 seconds,
+and explicit shell interpretation 0.003--0.004 seconds. Copied native executables
+showed the same first-use difference. Native system logs name the exact
+experimental files in security scans, and sampling places delay before script
+body execution. This supports avoiding needless executable creation, not disabling
+host protection or claiming the old CI failure has a fully identified OS cause.
+The historical failure-window query returned no matching records. Actual supply
+installation must still execute and validate its newly produced binary.
+All experiment-owned files/processes were removed; the first probe's attempted
+copy of protected system file flags failed and is retained as failed evidence.
 
 A bounded descriptor-owner experiment preserves real binary input/output and
 exit status, closes registered command groups after caller loss and leaves a

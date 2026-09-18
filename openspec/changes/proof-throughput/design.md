@@ -1446,3 +1446,29 @@ invalidates previous outputs and returns the existing hosted failure receipt.
 The healthy transport verifies that SBOM preparation occurred before consuming
 the exact-source command. Shared invocation code replaces duplicate test setup;
 isolated supply fixtures do not certify the real installer or a hosted job.
+
+### Hosted Fixture Code Has A Different Lifetime From Case Data
+
+The hosted receipt matrix previously recreated executable supply code for every
+case. Both exact-native shell observation and isolated fault selection remain
+required, but per-case code identity is not an acceptance condition. The existing
+module-scoped transport now also owns one read-only preparation executable.
+Native scanner/budget preparation and SBOM preparation link to that code and
+consume isolated case data through the working directory. No production supply
+owner, native command dispatch, policy check or deadline changes.
+
+A source-level identity assertion fails before reuse. The healthy and all failed
+supply cases then exercise the same invocation log: success executes exactly
+once; failed preparation never invokes proof. The log starts before input
+validation so a broken premature invocation cannot disappear behind bad fixture
+data. Failure diagnostics, previous-report invalidation, requested source and
+scanner invocation remain observed through the real wrapper.
+
+Native paired fresh/reused-file experiments and exact-path system logs explain
+why avoiding repeated executable creation is useful; they do not prove every
+hosted timeout has the same cause. The initial stack probe failed while copying
+protected system flags; its scratch and children were removed before the corrected
+byte-only experiment. Later matches passed without sampling overhead.
+The 104-case native matrix and 29 cheap gates pass with unchanged budgets,
+coverage policy and timeouts. Actual binary materialization, supervisor loss,
+unregistered descendants and Windows remain separate acceptance obligations.

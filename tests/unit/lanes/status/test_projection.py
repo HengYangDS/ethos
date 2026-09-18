@@ -122,12 +122,12 @@ def test_workspace_projection_distinguishes_candidate_and_non_git_failures(
     monkeypatch.setattr(
         workspace,
         "runtime_binding",
-        lambda _root, *, selected_runtime=None: observed.append(selected_runtime) or {},
+        lambda _root, **observations: observed.append(observations) or {},
     )
     status = workspace.workspace_status(tmp_path, selected_runtime=selected)
     assert (status["branch"], status["landing_readiness"]["state"], observed) == (
         "untracked",
         "not_work_lane",
-        [selected],
+        [{"selected_runtime": selected, "hook_binding": None}],
     )
     assert "git_repository_missing" in status["required_gaps"]

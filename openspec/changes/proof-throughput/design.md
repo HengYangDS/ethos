@@ -1639,3 +1639,14 @@ a full-proof, cold-bootstrap or installed-successor speedup claim. Evidence is
 single-status-paired-measurement.json in the existing commit-integrity root.
 Focused command, hook, runtime, archive-planning and write-admission consumers
 passed 197 cases; frozen exact proof and successor delivery remain required.
+
+
+The first full proof at b16ad4dda failed one non-Git workspace test double:
+it accepted selected_runtime but not the existing owner's forwarded hook_binding.
+The failure is in the test transport, not a reproduced runtime admission defect.
+The corrected double records the complete keyword observation and asserts both
+values, preserving the non-Git diagnosis. Focused selection now includes
+tests/unit/lanes/status in addition to imported callers and hook/runtime tests.
+All imported call sites and string-based patch targets were searched before
+the rerun. Coverage remained above 95 percent, but dependent package gates did
+not execute; the 571.571-second failed attempt is not full-proof throughput.

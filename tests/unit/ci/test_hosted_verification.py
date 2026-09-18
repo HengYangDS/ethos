@@ -201,7 +201,7 @@ def test_hosted_receipt_requires_exact_executed_observation(
     assert receipt["satisfies_repository_proof"] is False
     assert receipt["verdict"] == ("pass" if fault == "none" else "block")
     (command,) = map(json.loads, (repo / "commands.jsonl").read_text().splitlines())
-    assert {"--host", "--execute"} <= set(command)
+    assert {"--host", "--execute", "--full"} <= set(command)
     assert "--gate" not in command
     assert command[command.index("--expect-head") + 1] == expected
     if fault != "none":

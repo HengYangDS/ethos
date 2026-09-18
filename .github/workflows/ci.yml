@@ -101,70 +101,14 @@ jobs:
           --remote origin
           --root .
           --json
-      - name: Carrier format and syntax
-        run: uv run --frozen --offline python -m nox -s format_check
-      - name: Type policy
-        run: >-
-          tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --host --execute
-          --gate python-types --expect-head "$(git rev-parse HEAD)" --json
-      - name: Import boundaries
-        run: uv run --frozen --offline python -m nox -s import_boundaries
-      - name: Dependency hygiene
-        run: uv run --frozen --offline python -m nox -s dependencies
-      - name: JSON schema hygiene
-        run: uv run --frozen --offline python -m nox -s schemas
-      - name: Repository hygiene
-        run: uv run --frozen --offline python -m nox -s repository_hygiene
-      - name: Product boundary
-        run: uv run --frozen --offline python -m nox -s product_boundary
-      - name: Docstring coverage
-        run: uv run --frozen --offline python -m nox -s docstrings
-      - name: Module layout
-        run: uv run --frozen --offline python -m nox -s module_layout
-      - name: Python vulnerability audit
-        run: uv run --frozen --offline python -m nox -s vulnerabilities
-      - name: Secrets scan
-        run: tools/ci/scripts/run-secrets-scan.sh
+      # The registry owns gate order and package creation. Execute it once;
+      # independently required hosted checks below project this exact result.
       - name: External links
         run: >-
           tools/ci/scripts/install-lychee.sh && tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute
           --gate external-links --expect-head "$(git rev-parse HEAD)" --json
-      - name: Prose spelling
-        run: uv run --frozen --offline python -m nox -s prose
-      - name: CI projection drift
-        run: uv run --frozen --offline python -m nox -s ci_templates
-      - name: GitHub workflow syntax
-        run: tools/ci/scripts/run-actionlint.sh
-      - name: Format selection boundary
-        run: uv run --frozen --offline python -m nox -s format_selection
-      - name: Architecture projection drift
-        run: uv run --frozen --offline python -m nox -s architecture_projection
       - name: Hosted provider observation envelope
         run: uv run --frozen --offline python -m nox -s hosted_observation
-
-  verify:
-    name: source verification
-    runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
-    needs: quality
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        env:
-          # See quality: the source-controlled admission hook is armed after checkout.
-          GIT_CONFIG_COUNT: "1"
-          GIT_CONFIG_KEY_0: core.hooksPath
-          GIT_CONFIG_VALUE_0: /dev/null
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: "3.14"
-      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
-        with:
-          version: "0.12.16"
-      - name: Bootstrap Python and OpenSpec
-        run: tools/ci/scripts/bootstrap-python.sh
-      - name: OpenSpec strict validation
-        run: node_modules/.bin/openspec validate --all --strict --json
       - name: HEAD-bound hosted verification receipt
         run: tools/ci/scripts/run-head-bound-proof.sh
       - name: Upload proof receipt
@@ -177,33 +121,32 @@ jobs:
             build/evidence/quality/tests/pytest/junit*.xml
             build/evidence/quality/tests/coverage/coverage.xml
           if-no-files-found: error
-
-  package:
-    name: package artifacts
-    runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
-    needs: verify
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        env:
-          # Prevent the runner host's global hook from vetoing the initial checkout.
-          GIT_CONFIG_COUNT: "1"
-          GIT_CONFIG_KEY_0: core.hooksPath
-          GIT_CONFIG_VALUE_0: /dev/null
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: "3.14"
-      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
-        with:
-          version: "0.12.16"
-      - name: Bootstrap Python and OpenSpec
-        run: tools/ci/scripts/bootstrap-python.sh
-      - name: Build Python distributions
-        run: uv run --frozen --offline python -m nox -s build
-      - name: Generate SPDX SBOM
-        run: uv run --frozen --offline python -m nox -s supply_chain
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: python-distributions
+          if-no-files-found: error
           path: |
             build/artifacts/python/
             build/evidence/release/
+
+  verify:
+    name: repository proof
+    runs-on: ubuntu-latest
+    needs: quality
+    if: ${{ always() }}
+    steps:
+      - name: Require successful hosted execution and artifact publication
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+        run: test "$QUALITY_RESULT" = success
+
+  package:
+    name: package artifacts
+    runs-on: ubuntu-latest
+    needs: quality
+    if: ${{ always() }}
+    steps:
+      - name: Require successful hosted execution and artifact publication
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+        run: test "$QUALITY_RESULT" = success

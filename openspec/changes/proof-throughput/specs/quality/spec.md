@@ -337,3 +337,24 @@ its explicit input binding.
 - **THEN** subsequent selection rejects missing or mismatched supply
 - **AND** the earlier operation retains its original explicit binding
 - **AND** no prior successful validation authorizes the later operation
+
+### Requirement: Hosted verification has one execution owner
+
+A hosted source attempt SHALL execute the full declared gate graph once in one
+prepared checkout. Dependent provider checks SHALL project its result without
+rebuilding artifacts or repeating checks. Only successful execution and required
+artifact upload may satisfy those dependent checks.
+
+#### Scenario: A complete hosted execution succeeds
+
+- **WHEN** the full graph passes and its required outputs upload successfully
+- **THEN** dependent check identities project that success without another checkout
+- **AND** published wheel and SBOM bytes are the outputs of the verified execution
+- **AND** provider-only checks outside that graph retain their distinct execution
+
+#### Scenario: The execution cannot establish success
+
+- **WHEN** execution or required upload fails, is cancelled or is skipped
+- **THEN** dependent checks cannot report success
+- **AND** native diagnostics and available proof reports remain separately observable
+- **AND** the attempt does not retry or increase the native executable deadline

@@ -66,6 +66,8 @@
 - [x] Verify explicit archive selection against independently selected proof and native hooks.
 - [x] Complete multi-contribution lifecycle integration without losing unselected intent.
 - [x] Reproduce and close official batch large-output backpressure through the existing transport.
+- [x] Consolidate hosted preparation and full execution with fail-closed required-check projections.
+- [ ] Qualify and deliver the exact single-execution CI candidate.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

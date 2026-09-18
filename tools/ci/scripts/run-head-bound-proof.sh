@@ -25,7 +25,7 @@ if [[ ${supply_status} -eq 0 ]]; then
 fi
 proof_status=${supply_status}
 if [[ ${supply_status} -eq 0 ]]; then
-	PATH="${supply_directory}:${PATH}" uv run --frozen --offline ethos prove --host --execute --expect-head "${head}" --json >"${receipt}" 2>>"${stderr}"
+	PATH="${supply_directory}:${PATH}" uv run --frozen --offline ethos prove --host --execute --full --expect-head "${head}" --json >"${receipt}" 2>>"${stderr}"
 	proof_status=$?
 fi
 python3 - "${receipt}" "${head}" "$(git rev-parse HEAD)" "${proof_status}" "${supply_status}" <<'PY'

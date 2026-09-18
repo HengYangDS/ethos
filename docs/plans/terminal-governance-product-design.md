@@ -38,25 +38,35 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 18 13:38 +08 accepted source is
-`d2a25c4045e2628263e76cca6ecdbf7f8003277c`, tree
-`4b194ce99fde3554f265cd29463117065394b337`. Immutable runtime
-`894004e08ede2e6c80cbd5ecd3a2183538d3b1184e735ad90cc6591f2b668527`
-matches that source/tree. Exact full proof passed all 35 gates with 3,829 tests,
-one skip and 95.084517-percent combined coverage in 684.828 seconds using native
-eight-worker load scheduling. Candidate and accepted CAS, runtime activation and
-both peers' dev/main publication completed with exact post-observations. The
-old runtime and completed owned test scratch were reclaimed. This is local
-source and installed acceptance, not a claim of current hosted success.
+The September 18 15:20 +08 checkpoint binds accepted source
+`16e346b695854be7ddd59be2deec9bb21ccff12e`, tree
+`6abcc70fbf2340a4ee837cde7b1db93e46205369`, and immutable runtime
+`5e2fb459a447776a01b47b5aec3e5105a5e5e403c98a9576df89093f5192f38b`.
+Exact full proof passed 35 gates, 3,831 tests and one skip with 95.084517-percent
+combined coverage in 741.358 seconds. Candidate/accepted CAS, runtime activation
+and both peers' dev/main publication are post-observed. Verified downloads now
+survive executable activation failure without granting executable acceptance.
+The preceding runtime and completed owned scratch were reclaimed. These are
+local source, installed and publication results, not current hosted completion.
 
-Hosted source failure and native startup remain open. A current quality job
-fails on gitleaks version startup before scanning. Retain verified downloads
-before executable activation at their existing owner, without accepting an
-unverified executable. Separately, the runner's Background resource policy
-contradicts its native vendor template; a controlled 56-case comparison shows
-94.233 seconds versus normal 39.597/34.438 seconds. Idle-only activation was
-deferred after ten minutes with no service mutation or job interruption.
-Neither that observation nor a passing isolated replay closes startup reliability.
+The existing GitHub runner now uses its vendor template's Interactive resource
+policy. Native routing-label removal drained the active job without cancellation;
+idle local and remote observations preceded service replacement. The original
+labels and every other service field were preserved, the old listener was removed,
+and the new listener consumed a job. The initial cleanup comparison incorrectly
+included parent PID, which changes on reparenting; corrected cleanup bound PID,
+start time and executable and proved old-instance absence. Evidence is retained
+under the existing `throughput-runner-qos-` receipts, not another state store.
+
+The same-56-case comparison measured 94.233 seconds under Background versus
+39.597/34.438 seconds normally. A later native sample found the completed test
+owner spending most samples in unlink/rmdir during scratch cleanup; its owned
+basetemp subsequently disappeared. Neither observation proves all startup
+failures or resource-lifetime defects resolved. At this checkpoint, GitHub's nine
+current-source native conformance jobs pass; current quality/source delivery
+remains queued behind an already-running predecessor. Both current GitLab
+pipelines are running. Preserve those distinct acceptance boundaries and finish
+startup/recovery and measured remaining-cost obligations before Change closure.
 
 The old proposal was retired on both peers through exact receipt-bound deletion
 after accepted conservation and native open-review queries. Both refs and local

@@ -40,6 +40,7 @@
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [x] Remove newly exposed runtime generations after failed verification or caller cancellation.
 - [x] Verify retained native downloads across executable failure without weakening activation.
+- [x] Restore vendor runner resource policy through drained cutover and verify routing, old-process cleanup and new-job consumption.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

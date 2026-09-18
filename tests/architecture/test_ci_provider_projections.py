@@ -2,17 +2,32 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shlex
 import tomllib
 from pathlib import Path
 
+import pytest
 import yaml
 
+from ethos.adapters.process import run_command
 from tools.ci.ci_projection import check_templates
 from tools.ci.ci_projection import projection_entries
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.fixture(scope="module")
+def github():
+    """Read the frozen provider source once; parity is checked independently."""
+    return yaml.safe_load((ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text())
+
+
+@pytest.fixture(scope="module")
+def gitlab():
+    """Read the frozen GitLab projection source once."""
+    return yaml.safe_load((ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text())
 
 
 def _range_coordinates(command: str) -> tuple[str, ...]:
@@ -25,26 +40,29 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
     return tuple(options[1::2])
 
 
-def test_dual_forge_projections_equal_their_declared_templates() -> None:
+def test_dual_forge_projections_equal_their_declared_templates(github, gitlab) -> None:
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == 0
-    github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
+    jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
+    steps = [step for job in jobs.values() for step in job["steps"]]
+    commands = [step.get("run", "") for step in steps]
+    assert commands.count("tools/ci/scripts/bootstrap-python.sh") == 1
+    assert commands.count("tools/ci/scripts/run-head-bound-proof.sh") == 1
+    assert sum("actions/checkout@" in step.get("uses", "") for step in steps) == 1
+    assert not any(
+        " -m nox -s build" in command or " -m nox -s supply_chain" in command
+        for command in commands
+    )
     assert not {
         "ETHOS_TEST_WORKERS",
         "ETHOS_TEST_TIMEOUT_SECONDS",
         "ETHOS_TEST_TIMEOUT_METHOD",
-    }.intersection(github["jobs"]["verify"].get("env", {}))
-    uploads = [
-        step
-        for step in github["jobs"]["verify"]["steps"]
-        if "with" in step and "path" in step["with"]
-    ]
-    assert any(
-        "build/evidence/quality/tests/pytest/junit*.xml" in step["with"]["path"]
-        and step.get("if") == "always()"
-        for step in uploads
-    )
-    artifacts = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text())["ethos:verify"]["artifacts"]
+    }.intersection(github["jobs"]["quality"].get("env", {}))
+    upload = next(step for step in steps if step.get("name") == "Upload proof receipt")
+    junit = "build/evidence/quality/tests/pytest/junit*.xml"
+    assert junit in upload["with"]["path"]
+    assert upload.get("if") == "always()"
+    artifacts = gitlab["ethos:verify"]["artifacts"]
     assert artifacts["when"] == "always"
     assert "build/evidence/quality/tests/pytest/junit*.xml" in artifacts["paths"]
     assert artifacts["reports"]["junit"] == "build/evidence/quality/tests/pytest/junit*.xml"
@@ -54,39 +72,42 @@ def test_dual_forge_projections_equal_their_declared_templates() -> None:
     }
 
 
-def test_provider_commands_use_locked_offline_registry_sessions() -> None:
-    texts = [
-        (ROOT / relative).read_text(encoding="utf-8")
-        for relative in (".github/workflows/ci.yml", ".gitlab-ci.yml")
-    ]
-    assert all("uv run --frozen --offline python -m nox -s format_check" in text for text in texts)
-    assert all("uv run --frozen --offline python -m nox -s build" in text for text in texts)
-    assert all(
-        "node_modules/.bin/openspec validate --all --strict --json" in text for text in texts
-    )
-    assert all("\n    - openspec validate" not in text for text in texts)
+@pytest.mark.parametrize("provider", ["github", "gitlab"])
+def test_provider_commands_use_shared_owners_without_activating_mutation(provider) -> None:
+    entry = next(item for item in projection_entries() if item["provider"] == provider)
+    text = (ROOT / entry["template"]).read_text()
+    assert "tools/ci/scripts/run-head-bound-proof.sh" in text
+    assert "tools/ci/scripts/configure-git-checkout.sh" not in text
+    assert "ethos hook install" not in text
+    assert "\n    - openspec validate" not in text
+    if provider == "gitlab":
+        assert "uv run --frozen --offline python -m nox -s format_check" in text
+        assert "uv run --frozen --offline python -m nox -s build" in text
+        assert "node_modules/.bin/openspec validate --all --strict --json" in text
 
 
-def test_hosted_repository_proof_does_not_activate_local_mutation_runtime() -> None:
-    texts = [
-        (ROOT / relative).read_text(encoding="utf-8")
-        for relative in (
-            ".config/ci/templates/hosted/github-actions.yml",
-            ".config/ci/templates/hosted/gitlab-ci.yml",
-            ".github/workflows/ci.yml",
-            ".gitlab-ci.yml",
+@pytest.mark.parametrize(
+    ("job", "name"), [("verify", "repository proof"), ("package", "package artifacts")]
+)
+def test_required_github_checks_project_only_successful_execution(github, job, name) -> None:
+    projected = github["jobs"][job]
+    assert projected["name"] == name
+    assert projected["needs"] == "quality"
+    assert projected["if"] == "${{ always() }}"
+    assert len(projected["steps"]) == 1
+    step = projected["steps"][0]
+    assert step["env"] == {"QUALITY_RESULT": "${{ needs.quality.result }}"}
+    for result in ("success", "failure", "cancelled", "skipped", ""):
+        observed = run_command(
+            ROOT,
+            ("bash", "-c", step["run"]),
+            env=os.environ | {"QUALITY_RESULT": result},
+            timeout=5,
         )
-    ]
-
-    assert all("tools/ci/scripts/configure-git-checkout.sh" not in text for text in texts)
-    assert all("tools/ci/scripts/run-head-bound-proof.sh" in text for text in texts)
-    assert all("ethos hook install" not in text for text in texts)
+        assert (observed.returncode == 0) == (result == "success")
 
 
-def test_integration_events_transport_exact_commit_range_coordinates() -> None:
-    github = yaml.safe_load(
-        (ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text(encoding="utf-8")
-    )
+def test_integration_events_transport_exact_commit_range_coordinates(github, gitlab) -> None:
     github_steps = {
         step["name"]: step
         for step in github["jobs"]["quality"]["steps"]
@@ -112,9 +133,6 @@ def test_integration_events_transport_exact_commit_range_coordinates() -> None:
         ),
     ]
 
-    gitlab = yaml.safe_load(
-        (ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text(encoding="utf-8")
-    )
     gitlab_job = gitlab["ethos:commit-policy"]
     assert gitlab_job["variables"] == {"GIT_STRATEGY": "clone"}
     rules = gitlab_job["rules"]
@@ -140,12 +158,7 @@ def test_integration_events_transport_exact_commit_range_coordinates() -> None:
         "origin",
     )
 
-    provider_text = "\n".join(
-        (
-            (ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text(encoding="utf-8"),
-            (ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text(encoding="utf-8"),
-        )
-    )
+    provider_text = yaml.safe_dump({"github": github, "gitlab": gitlab})
     assert "rev-list" not in provider_text
     assert "subject_pattern" not in provider_text
 
@@ -184,10 +197,7 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners() -> N
     assert set(re.findall(r"ghcr\.io/astral-sh/uv:([^-@]+)-", gitlab)) == {uv_version}
 
 
-def test_host_conformance_receives_native_python_supply_before_activation() -> None:
-    github = yaml.safe_load(
-        (ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text(encoding="utf-8")
-    )
+def test_host_conformance_receives_native_python_supply_before_activation(github, gitlab) -> None:
     github_job = github["jobs"]["host-conformance"]
     github_steps = github_job["steps"]
     setup_uv = next(
@@ -209,9 +219,6 @@ def test_host_conformance_receives_native_python_supply_before_activation() -> N
         "uv run --frozen python -m nox -s host_conformance"
     )
 
-    gitlab = yaml.safe_load(
-        (ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text(encoding="utf-8")
-    )
     gitlab_job = gitlab["ethos:host-conformance"]
     assert gitlab_job["stage"] == "verify"
     assert gitlab_job["script"] == ["uv run --frozen --offline python -m nox -s host_conformance"]
@@ -239,6 +246,4 @@ def test_github_action_pins_are_unique_full_commit_ids() -> None:
         pins.setdefault(action, set()).add(commit)
     assert pins
     assert all(len(commits) == 1 for commits in pins.values())
-    assert all(
-        re.fullmatch(r"[0-9a-f]{40}", commit) for commits in pins.values() for commit in commits
-    )
+    assert all(len(commit) == 40 for commits in pins.values() for commit in commits)

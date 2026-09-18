@@ -38,20 +38,28 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 18 delivered checkpoint binds accepted source
-`351f21c2dc320c422722f4205fc436975155f810`, tree
-`2dc1fd102dc726fe1252b3cbca5266e97d4cf8e4`, and immutable runtime
-`89ce64ce529a897c44bf87007027079c3c3c98c47acd2f76fcc2be834fb23e9a`.
-Exact full proof passed 35 gates, 3,842 tests and one skip with 95.089768-percent
-combined coverage in 917.823 seconds. Candidate/accepted CAS, installed runtime
-and both independent peers' dev/main publication are post-observed. At
-2026-09-18 20:54 +08:00, GitHub runs 35341574656/35341574738 and GitLab
-7439/7440 all succeeded at that source; both peers still exposed the exact
-dev/main OID and no proposal refs. The previous runtime and proof basetemp
-were reclaimed. This run was slower than the preceding 709.257-second result:
-it meets 1,200 seconds, not the 600-second direction or total hosted latency.
-The test gate took 663.969 seconds and installed acceptance 215.585 seconds.
-The Change and sole Work Lane remain open.
+The September 19 delivered checkpoint binds accepted source
+`d7e6b536932a41d1d7d61fda8722a2d553688a03`, tree
+`6fa97dc220841b88f076ed57fd6e3acfe4d9abaf`, and immutable runtime
+`925a60d686d6a9d7ac8bfe0d23892b8b09113dd92882f78127d2dac8e6bc69d4`.
+Exact full proof passes 35 gates with 3,901 tests, one skip and 95.014516-percent
+combined coverage in 706.991 seconds. Native and exact installed-wheel journeys
+preserve two independently authored contributions, two archives, both reproofs
+and candidate/accepted integration. Local and both remote dev/main OIDs matched
+that source at delivery; the preceding runtime and owned scratch were removed.
+This is bounded acceptance, not all-drop, exploration or whole-goal completion.
+
+The September 19 07:08 +08:00 provider readback supersedes the delivery receipt's
+nonterminal CI status: GitHub main 35402902785 passed; dev 35402902857 failed
+before proof because a fresh gitleaks version probe timed out after ten seconds.
+The nine dev OS/Python conformance jobs passed. Applicable dev/main rulesets also
+require repository proof, while the old workflow emitted source verification.
+The current candidate consolidates duplicated hosted execution at the existing
+quality job and preserves required check identities as fail-closed projections.
+It adds no permanent cache, changes no ruleset and leaves native cold-start cause
+open. Final 81-case focused checks and unchanged source budgets pass; exact new
+HEAD proof and hosted execution remain pending. The existing proof-throughput
+Change and sole Work Lane remain open.
 
 Release continuity is delivered: repository proof remains applicable after
 authoring retirement; distinct valid execution contexts do not contradict

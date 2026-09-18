@@ -1846,3 +1846,48 @@ A prior test that compared identical calls without any Lease input was removed:
 it never demonstrated the named Lease boundary. Existing real Lease mismatch,
 expiry, transfer and inherited-lane regressions retain that responsibility.
 Final exact proof, package replay and hosted observations remain distinct.
+
+## One Hosted Execution, Independent Provider Check Projections
+
+The September 19 observation of source d7e6b5369 distinguishes two outcomes:
+GitHub main run 35402902785 succeeds, while dev run 35402902857 fails during
+gitleaks preparation before proof. The latter downloads the same declared
+archive again and times out while executing a fresh staged binary. Earlier
+macOS logs show a security-policy wait interrupted at the caller deadline;
+that observation does not establish permanent denial or its ultimate cause.
+
+Repository-isolated permanent cache storage was considered and rejected for
+this batch. The shared cache variable also controls actionlint and Syft consumers
+with different validation behavior. Persistent generations would need their own
+retention and concurrent reclamation contract. Neither weakening those boundaries
+nor extending the executable timeout follows from a faster warm sample.
+
+Instead, the existing GitHub quality job owns one checkout, locked bootstrap,
+explicit full host observation and upload of the exact wheel and SBOM produced
+by that execution. The gate registry replaces the copied quality command list;
+external links and provider observation remain explicit because they are not in
+the full set. The nine native OS/Python conformance jobs remain independent.
+No supply policy, security service or dependency constraint changes.
+
+The existing required quality, proof and package check identities remain.
+The latter two project the owning job's current result through GitHub needs;
+they do not execute or parse another proof. Native shell regression executes
+success, failure, cancellation, skipped and empty outcomes. Only success passes.
+The observed ruleset requires repository proof, not the old source verification
+name. The source projection now matches that external required context without
+editing or relaxing the ruleset. These checks are not independent verification.
+
+The wrapper explicitly requests the full gate set. A distinguishing regression
+first rejected its prior default selection. Package upload is a successful-path
+effect and missing output fails; proof diagnostics remain always-uploaded.
+The source keeps existing native supply owners, checkout-local caches, byte and
+version checks, lock/temporary cleanup and unchanged deadlines. Removing repeated
+job preparation avoids an accidental lifetime boundary rather than adding a
+persistent cache and collector. Cold execution remains an unresolved boundary.
+
+The existing ci-single-execution evidence records three failing projection cases,
+the separate full-selection RED and the final 81-case native/projection matrix.
+The matrix passes in 37.19 seconds with owned scratch absent and product/test
+ELOC 46,032/49,999. Duplicate test configuration reads are shared; unique failure
+and policy assertions remain. Exact committed proof, installation and hosted
+results are still required before this candidate is described as delivered.

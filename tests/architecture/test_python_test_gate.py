@@ -173,31 +173,35 @@ def _test_gate(tmp_path: Path, *, workers: int | None = None):
     )
 
 
-def test_python_cleanup_propagates_removal_failure(tmp_path, monkeypatch) -> None:
-    target = tmp_path / "evidence"
-    target.mkdir()
-
-    def denied(_path: Path) -> None:
-        message = "cleanup denied"
-        raise OSError(message)
-
-    monkeypatch.setattr(python_test_gate.shutil, "rmtree", denied)
-    with pytest.raises(OSError, match="cleanup denied"):
-        python_test_gate.remove_generated_path(target)
-
-
-def test_python_cleanup_removes_owned_readonly_runtime_tree(tmp_path) -> None:
+@pytest.mark.parametrize("mode", [0o755, 0o555, 0o000, 0o100])
+def test_python_cleanup_changes_only_required_directory_permissions(
+    tmp_path, monkeypatch, mode
+) -> None:
+    """Deletion must not rewrite writable directories or POSIX file metadata."""
     target = tmp_path / "evidence"
     runtime = target / "repo/.git/ethos/runtime/digest"
     runtime.mkdir(parents=True)
     payload = runtime / "manifest.json"
     payload.write_text("{}\n", encoding="utf-8")
     payload.chmod(0o444)
-    runtime.chmod(0o555)
+    runtime.chmod(mode)
+    chmod, changed = type(target).chmod, []
 
+    def observe(path, mode, **kwargs):
+        if path == runtime:
+            assert kwargs.get("follow_symlinks", True) is (
+                os.chmod not in os.supports_follow_symlinks
+            )
+        changed.append(path)
+        return chmod(path, mode, **kwargs)
+
+    monkeypatch.setattr(type(target), "chmod", observe)
     python_test_gate.remove_generated_path(target)
 
     assert not target.exists()
+    if os.name == "posix":
+        assert changed == ([] if mode == 0o755 else [runtime])
+    python_test_gate.remove_generated_path(target)
 
 
 @pytest.mark.parametrize("relation", ["root-link", "nested-link", "hardlink"])

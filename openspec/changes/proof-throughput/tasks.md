@@ -50,6 +50,7 @@
 - [x] Qualify the official stable SBOM supply after observed host-version drift.
 - [x] Reject hosted supply preparation failure before proof while preserving native diagnostics and clearing prior reports.
 - [x] Reuse immutable hosted preparation code with isolated case data and exact invocation observations.
+- [x] Share owned-output removal, preserve external referents and verify minimal permission effects.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

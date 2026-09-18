@@ -154,3 +154,23 @@ Unsafe kinds and replaced files SHALL remain rejected without leaking handles.
 - **THEN** unchanged native merge metadata remains readable
 - **AND** changes within either channel or replacement of the named file are rejected
 - **AND** read-induced access-time changes do not masquerade as content mutation
+
+### Requirement: Verified supply survives later activation failure
+
+The native supply owner SHALL retain an archive only after its declared digest
+and executable member are verified. Later executable-version failure SHALL
+preserve that verified download while leaving the previous executable unchanged.
+Every reuse SHALL revalidate the archive; retained bytes do not grant acceptance.
+
+#### Scenario: A downloaded executable fails its version check
+
+- **WHEN** archive verification succeeds and executable verification fails or times out
+- **THEN** exactly the verified archive remains available for a later attempt
+- **AND** the old executable is unchanged and temporary preparation is removed
+- **AND** retrying failed executable verification does not redownload the archive
+
+#### Scenario: Archive content is invalid
+
+- **WHEN** its digest, member identity or member type is invalid
+- **THEN** the download is not retained as verified supply
+- **AND** cached corruption remains rejected before executable activation

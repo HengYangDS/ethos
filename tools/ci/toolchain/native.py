@@ -169,6 +169,8 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30) -> Path:
                     root=root,
                 )
             expected = supply.executable_bytes(selected)
+            if selected == staged_archive:
+                staged_archive.replace(archive)
             if (
                 not target.is_symlink()
                 and target.is_file()
@@ -182,8 +184,6 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30) -> Path:
                 prepared.chmod(0o755)
                 supply.verify(prepared)
                 prepared.replace(target)
-            if selected == staged_archive:
-                staged_archive.replace(archive)
     return cache
 
 

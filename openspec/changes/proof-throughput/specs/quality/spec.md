@@ -308,3 +308,24 @@ or a false latest-version claim.
 - **WHEN** the native resolver rejects a stable upstream version
 - **THEN** the compatible closure remains selected and the exact conflict is reported
 - **AND** other independently compatible updates continue through their normal acceptance
+
+### Requirement: Quality capabilities initialize only when selected
+
+Quality session discovery SHALL preserve its declared interface without loading
+or validating unrelated capabilities. Each selected consumer SHALL resolve its
+required tools and source-bound supply through the existing owners. A later
+operation SHALL revalidate changed inputs; an already selected operation retains
+its explicit input binding.
+
+#### Scenario: An unrelated Node supply is unavailable
+
+- **WHEN** native session listing or Python lint runs without prepared Node supply
+- **THEN** the operation succeeds without resolving that unrelated capability
+- **AND** a selected Markdown check rejects missing required supply
+
+#### Scenario: Supply changes after one operation is selected
+
+- **WHEN** a delivery operation binds valid supply and the configuration or lock later changes
+- **THEN** subsequent selection rejects missing or mismatched supply
+- **AND** the earlier operation retains its original explicit binding
+- **AND** no prior successful validation authorizes the later operation

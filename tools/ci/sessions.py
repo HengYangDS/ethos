@@ -12,27 +12,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import cast
 
-from PIL import Image
-
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
-from ethos.adapters.repo.runtime.materialization.node_package_supply import (
-    resolve_node_package_supply,
-)
-from ethos.repository.policy.schema import schema_validation_report
-from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
-NODE = resolve_node_executable()
-NODE_PACKAGE_SUPPLY = resolve_node_package_supply(ROOT)
-
-DELIVERY = DeliveryPipeline.from_runtime(
-    RUNTIME,
-    node_package_supply=NODE_PACKAGE_SUPPLY,
-)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
-PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
 PUBLIC_SESSIONS = (
     "lint",
     "format_check",
@@ -130,23 +114,35 @@ def lint(session) -> None:
 
 
 def tests(session) -> None:
-    PythonTestGate.from_environment(node_package_supply=NODE_PACKAGE_SUPPLY).run_tests(session)
+    gate = import_module("tools.ci.python_test_gate").PythonTestGate.from_environment(
+        node_package_supply=RUNTIME.node_package_supply()
+    )
+    gate.run_tests(session)
 
 
 def coverage_floor(session) -> None:
-    PythonTestGate.from_environment(node_package_supply=NODE_PACKAGE_SUPPLY).enforce_floor(session)
+    gate = import_module("tools.ci.python_test_gate").PythonTestGate.from_environment(
+        node_package_supply=RUNTIME.node_package_supply()
+    )
+    gate.enforce_floor(session)
 
 
 def build(session) -> None:
-    DELIVERY.build(session)
+    import_module("tools.ci.delivery.pipeline").DeliveryPipeline.from_runtime(RUNTIME).build(
+        session
+    )
 
 
 def install_smoke(session) -> None:
-    DELIVERY.prove_install(session)
+    import_module("tools.ci.delivery.pipeline").DeliveryPipeline.from_runtime(
+        RUNTIME
+    ).prove_install(session)
 
 
 def host_conformance(session) -> None:
-    DELIVERY.prove_host(session)
+    import_module("tools.ci.delivery.pipeline").DeliveryPipeline.from_runtime(RUNTIME).prove_host(
+        session
+    )
 
 
 def dependencies(session) -> None:
@@ -219,19 +215,20 @@ def shell_lint(session) -> None:
 
 
 def markdown_lint(session) -> None:
-    markdownlint = NODE_PACKAGE_SUPPLY / "markdownlint-cli2/markdownlint-cli2-bin.mjs"
-    if not NODE.is_file() or not markdownlint.is_file():
+    node = RUNTIME.node_executable()
+    markdownlint = RUNTIME.node_package_supply() / "markdownlint-cli2/markdownlint-cli2-bin.mjs"
+    if not markdownlint.is_file():
         session.error("locked markdownlint-cli2 is missing; run npm ci --ignore-scripts")
     session.run(
-        str(NODE), str(markdownlint), "--config", ".config/checks/markdown/.markdownlint-cli2.yaml"
+        str(node), str(markdownlint), "--config", ".config/checks/markdown/.markdownlint-cli2.yaml"
     )
 
 
 def config_quality(session) -> None:
     failures = import_module("tools.ci.config_quality").run(
         tuple(session.posargs),
-        node=NODE,
-        package_supply=NODE_PACKAGE_SUPPLY,
+        node=RUNTIME.node_executable(),
+        package_supply=RUNTIME.node_package_supply(),
     )
     if failures:
         session.error("configuration quality failed:\n" + "\n".join(failures))
@@ -272,11 +269,11 @@ def import_boundaries(session) -> None:
 
 
 def schemas(session) -> None:
-    report = schema_validation_report(ROOT)
+    report = import_module("ethos.repository.policy.schema").schema_validation_report(ROOT)
     session.log(json.dumps(report, sort_keys=True))
     if report["verdict"] != "pass":
         session.error(
-            "schema validation failed: " + ", ".join(str(gap) for gap in report["required_gaps"])
+            "schema validation failed: " + ", ".join(cast("list[str]", report["required_gaps"]))
         )
 
 
@@ -287,18 +284,23 @@ def local_ci(session) -> None:
 def javascript_lint(session) -> None:
     paths = _paths("*.js", "*.mjs", "*.cjs")
     if paths:
-        prettier = NODE_PACKAGE_SUPPLY / "prettier/bin/prettier.cjs"
+        node = RUNTIME.node_executable()
+        prettier = RUNTIME.node_package_supply() / "prettier/bin/prettier.cjs"
         session.run(
-            str(NODE), str(prettier), "--check", "--no-config", "--print-width", "100", *paths
+            str(node), str(prettier), "--check", "--no-config", "--print-width", "100", *paths
         )
 
 
 def svg_lint(session) -> None:
-    svgo = NODE_PACKAGE_SUPPLY / "svgo/bin/svgo.js"
-    for relative in _paths("*.svg"):
+    paths = _paths("*.svg")
+    if not paths:
+        return
+    node = RUNTIME.node_executable()
+    svgo = RUNTIME.node_package_supply() / "svgo/bin/svgo.js"
+    for relative in paths:
         result = subprocess.run(
             (
-                str(NODE),
+                str(node),
                 str(svgo),
                 "--multipass",
                 "--pretty",
@@ -322,6 +324,6 @@ def svg_lint(session) -> None:
 
 def asset_validation(session) -> None:
     for relative in _paths("*.png"):
-        with Image.open(ROOT / relative) as image:
+        with import_module("PIL.Image").open(ROOT / relative) as image:
             image.verify()
         session.log(f"{relative}: valid PNG")

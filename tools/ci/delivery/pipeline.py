@@ -26,14 +26,9 @@ class DeliveryPipeline:
     node_package_supply: Path
 
     @classmethod
-    def from_runtime(
-        cls,
-        runtime: ProjectRuntime,
-        *,
-        node_package_supply: Path,
-    ) -> DeliveryPipeline:
-        """Bind the delivery pipeline to the locked project runtime."""
-        return cls(runtime, node_package_supply)
+    def from_runtime(cls, runtime: ProjectRuntime) -> DeliveryPipeline:
+        """Bind delivery inputs only when a delivery operation is selected."""
+        return cls(runtime, runtime.node_package_supply())
 
     def build(self, session: nox.Session) -> None:
         """Materialize exactly one offline wheel through Hatchling and uv."""

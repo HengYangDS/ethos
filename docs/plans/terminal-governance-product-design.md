@@ -266,22 +266,31 @@ Tests must express preserved behavior rather than prescribe framework absence
 or universal uv/.venv layout. Raw review evidence stays in the existing
 commit-integrity evidence root, not a second roadmap or policy authority.
 
-The September 19 readback selects accepted source 7f81088fe. Its 35-gate local
-proof passed in 821.599 seconds with 3,869 passed, one skipped and
-95.003514-percent combined coverage. The immutable runtime matches source/tree.
-GitHub main/dev 35365437541/35365437583 and GitLab main/dev 7470/7469 were
-observed successful; this does not prove the current successor candidate.
-Historical GitHub dev 35349488427 failed two native bootstrap cases at their
-30-second deadline. Later success does not identify that earlier timeout's
-cause. Retain its JUnit and diagnostics without blind replay or timeout inflation.
+The September 19 readback selects accepted source
+013e1322689a8064a10e192004704ab3ad6cb2a6. Exact full proof passed all 35 gates
+in 760.664 seconds with 3,869 passed, one skipped and 95.000502-percent combined
+coverage. Installed source/tree and both peers' dev/main refs match. Hosted
+GitHub main/dev 35374579990/35374579664 and GitLab main/dev 7477/7476 remain
+running or queued; they are not claimed successful. The predecessor's four
+hosted pipelines passed, while earlier GitHub dev 35349488427 timed out in
+native bootstrap. Later success does not establish that timeout's cause.
 
-The first postcommittee implementation reuses the same current runtime
-observation within status and workspace binding. Native corruption/recovery and
-197 focused consumers pass. Five alternating paired status-handler samples
-preserve identical results and reduce inventory reads from two to one; medians
-are 5.581587 and 4.965634 seconds. This does not establish full-proof or installed
-successor latency. Exact proof, install, peer delivery and remaining lifecycle
-closeout remain explicit tasks rather than being inferred from the measurement.
+The completed status repair passes one current runtime observation through
+workspace binding. Native corruption/recovery detects changed bytes on later
+calls. Five alternating handler pairs preserve complete results and reduce
+inventories from two to one, with medians 5.581587 and 4.965634 seconds.
+Installed profiling confirms one inventory, not installed latency. The
+single-status batch receipt separates proof, runtime, peer and hosted claims.
+
+The next bounded candidate initializes only selected quality capabilities.
+Native listing and Python lint no longer require unrelated Node supply;
+Markdown still rejects it. Later delivery selection rejects changed supply or
+lock state without changing an earlier explicit binding. Six alternating
+discovery pairs preserve interfaces and reduce loaded modules from 482 to 146;
+median import time is 0.224650 versus 0.027287 seconds on warm inputs.
+The 111-case focused family, Ruff, scoped tool typing and budgets pass.
+This is not full-proof improvement or accepted successor status. Complete
+proof and delivery remain tasks in the same official proof-throughput Change.
 
 A separate-Change creation attempt exposed a public selection gap: creating a
 second active Change succeeded, but continuation prewrite had no unambiguous
@@ -1314,7 +1323,7 @@ cumulative values are not wall time. Keep the two-worker envelope unchanged.
 | Repository observations | The same journey derives source identity 35 times and workspace state 26 times; 1,951 product Git calls remain. | Git/source/observation owners must share immutable input within a bounded observation and batch native reads; effect-time ref, policy and Lease checks stay fresh. |
 | Fixture construction | Current JUnit contains 3,660 cases: 2,162 sub-0.1-second cases total 25.08 worker-seconds; 73 cases taking at least ten seconds total 1,483.32 worker-seconds. These sums are not wall-clock proof time. | Reuse immutable fixture supply; construct only the preconditions a test needs. Preserve full native journeys, independent mutable repositories, fault and recovery observations. |
 | Resource supply | A fresh lane installs 71 locked packages offline in 224 ms after an 885-ms editable build; repeated network fetching is not proved by that preparation. | Native supply already has identity checking, a lock and atomic replacement. Measure cache hits, transferred bytes, archive extraction and full input identity across local/CI lifetimes before changing it. |
-| Nox initialization | Every session eagerly resolves Node supply and delivery machinery, including Python-only checks. | Session and supply owners should demand only the selected capability; a missing unrelated tool must not block an independent check. This remains unimplemented. |
+| Nox initialization | The reproduced import-time dependency blocked native listing and Python lint when unrelated Node supply was missing. | The current candidate defers capability initialization to its existing consumers. Native failure/success and changed-supply cases pass; full proof and delivery remain required. |
 | Archive provenance lookup | After historical repair, the generic reader repeatedly verifies the same 2,855-object mapping across archive candidates; a selected Change reached tests in about 90 seconds instead of spending about 37 minutes in lookup. | The current identity-repair closeout shares validation only inside one observation. Every later invocation revalidates; exact ancestor, archive bytes and effect admission remain mandatory. |
 | Decisive failure placement | The 35-gate scheduler still starts expensive checks after an unrelated required failure. Root-cache drift was reported only after 3,659 tests passed. | Run the existing artifact observation before heavy work and retain its post-run check. Stop unnecessary expensive starts after decisive failure while preserving independent diagnostics and owned cleanup; do not invent data dependencies or weaken evidence. |
 | Proof invalidation | Prearchive and postarchive both reran the full suite; coverage completion currently binds to HEAD. | Reuse only execution evidence with a complete source/test/rule/tool/environment input closure. Reevaluate acceptance, currentness and authorization for the new subject; never relabel an old proof. |

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +28,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.proof import conformant_proof_checks
 from tests.support.proof import current_proof_plan
+from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import issue_conformant_proof
 
 _PROGRAM = """
@@ -64,18 +64,7 @@ def proof_repository(tmp_path: Path) -> Path:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     (repo / ".gitignore").write_text("build/\n")
-    profile = repo / ".ethos/profile.toml"
-    profile.write_text(
-        profile.read_text()
-        .replace(
-            'command = ["sample", "test"]',
-            "command = " + json.dumps([sys.executable, "-c", _PROGRAM]),
-        )
-        .replace(
-            'command = ["sample", "typecheck"]',
-            "command = " + json.dumps([sys.executable, "-c", "print('static green')"]),
-        )
-    )
+    declare_native_proof_checks(repo, test=_PROGRAM, typecheck="print('static green')")
     commit_fixture(repo, "declare real proof gates")
     return repo
 

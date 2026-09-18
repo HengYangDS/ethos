@@ -222,7 +222,13 @@ def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(
         repo, head = proof_repository(tmp_path / "repo")
         first = _issue(repo, head)
     monkeypatch.setenv("ETHOS_CHANGE", "fixture-change" if archived else "proof-binding")
-    query = partial(proof_module.proof_for_repository_transition, repo, head)
+    query = partial(
+        proof_admission.proof_attestation,
+        repo,
+        head,
+        store=proof_module.proof_artifact_root(repo),
+        repository_transition=True,
+    )
     persist_proof_attestation(repo, first)
     later = reissue_attestation(first, issued_at=first.issued_at + timedelta(seconds=1))
     persist_proof_attestation(repo, later)
@@ -231,6 +237,10 @@ def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(
     monkeypatch.setenv("ETHOS_CHANGE", "missing")
     assert query()[1][0].startswith("proof_source_intent_unavailable:")
     assert query(attestation_id=first.id) == (first, [])
+    exact = partial(query, attestation_id=first.id)
+    assert exact(change_id="fixture-change" if archived else "proof-binding") == (first, [])
+    for invalid in ("missing", ""):
+        assert exact(change_id=invalid)[1][0].startswith("proof_source_intent_unavailable:")
     monkeypatch.setenv("ETHOS_CHANGE", "fixture-change" if archived else "proof-binding")
     conflict = reissue_attestation(
         first,

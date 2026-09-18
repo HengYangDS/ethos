@@ -52,6 +52,7 @@ def proof_attestation(
     repository_transition: bool = False,
     store: Path,
     attestation_id: str = "",
+    change_id: str | None = None,
 ) -> tuple[Attestation | None, list[str]]:
     """Return one deterministic member of the current exact proof set."""
     admitted, gaps = _admitted_proofs(
@@ -60,6 +61,7 @@ def proof_attestation(
         repository_transition=repository_transition,
         store=store,
         attestation_id=attestation_id,
+        change_id=change_id,
     )
     if not admitted:
         return None, gaps
@@ -76,6 +78,7 @@ def _admitted_proofs(
     repository_transition: bool,
     store: Path,
     attestation_id: str,
+    change_id: str | None,
 ) -> tuple[tuple[Attestation, ...], list[str]]:
     try:
         _selected_root, attestations = read_attestation_set(root)
@@ -103,7 +106,9 @@ def _admitted_proofs(
     integrity = _integrity_gaps(evaluated)
     if integrity:
         return (), integrity
-    evaluated, gaps = _intent_candidates(root, head, evaluated, attestations, attestation_id)
+    evaluated, gaps = _intent_candidates(
+        root, head, evaluated, attestations, attestation_id, change_id=change_id
+    )
     if gaps:
         return (), gaps
     valid_by_floor = {
@@ -143,8 +148,11 @@ def _intent_candidates(
     evaluated: tuple[tuple[Attestation, str, list[str]], ...],
     attestations: tuple[Attestation, ...],
     attestation_id: str,
+    *,
+    change_id: str | None,
 ) -> tuple[tuple[tuple[Attestation, str, list[str]], ...], list[str]]:
     """Select an intent query without hiding malformed evidence or same-intent conflicts."""
+    intent_digest = None
     if attestation_id:
         selected = next(
             (item for item, _floor, _gaps in evaluated if item.id == attestation_id), None
@@ -152,16 +160,18 @@ def _intent_candidates(
         if selected is None:
             return (), ["proof_attestation_selection_missing"]
         intent_digest = selected.commitment_digest
-    elif (change := requested_change()) is not None and openspec_profile_enabled(
-        root, tree_ref=head
-    ):
+    change = change_id if attestation_id else requested_change(change_id)
+    if change is not None and openspec_profile_enabled(root, tree_ref=head):
         try:
-            intent_digest = load_openspec_commitment(
+            requested_digest = load_openspec_commitment(
                 root, tree_ref=head, change_id=change, attestations=attestations
             ).digest()
         except (TypeError, ValueError) as error:
             return (), [f"proof_source_intent_unavailable:{error}"]
-    else:
+        if intent_digest is not None and intent_digest != requested_digest:
+            return (), ["proof_attestation_intent_mismatch"]
+        intent_digest = requested_digest
+    if intent_digest is None:
         return evaluated, []
     selected_rows = tuple(row for row in evaluated if row[0].commitment_digest == intent_digest)
     return (selected_rows, []) if selected_rows else ((), ["proof_not_proven"])

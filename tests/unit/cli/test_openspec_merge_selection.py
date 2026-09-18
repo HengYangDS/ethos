@@ -1,16 +1,16 @@
 """Native parent provenance distinguishes coexisting official Change intent."""
 
-import json
-import sys
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.start as lane_start
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
+from ethos.adapters.mutation.proof import proof_artifact_root
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof_admission import proof_attestation as query_proof
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.openspec.commitment import load_openspec_commitment
@@ -27,24 +27,28 @@ from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.value import mutable_json
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
+from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import write_active_commitment
 from tests.support.governed_repository import write_test_profile
 from tests.support.openspec_lifecycle import native_merge_fixture
+from tests.support.proof import declare_native_proof_checks
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.semantic import reissue_attestation
 
 
 def _prove(root: Path, head: str, *selection: str) -> dict:
     """Execute the same native full-proof contract for each lifecycle consumer."""
-    return run_ethos(
+    report = run_ethos(
         "prove", *selection, "--full", "--execute", "--expect-head", head, "--json", cwd=root
     )
+    assert report["verdict"] == "pass", report
+    assert report["data"]["attestation"]["subject"] == f"git:commit:{head}"
+    return report["data"]["attestation"]
 
 
 @pytest.fixture
@@ -101,11 +105,7 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     git(repo, "checkout", branch)
     selected_root, records = read_attestation_set(repo)
     if case in {"missing", "corrupt", "unrelated"}:
-        selected = tuple(
-            record for record in records if record.predicate == "effect:git-ref-update"
-        )
-        assert len(selected) == 1
-        record = selected[0]
+        (record,) = (record for record in records if record.predicate == "effect:git-ref-update")
         if case == "corrupt":
             record = reissue_attestation(
                 record, body=record.payload.body | {"input_digest": "corrupt"}
@@ -182,32 +182,8 @@ def test_multiple_lane_changes_remain_ambiguous(pending_merge, state):
     assert any("ambiguous" in gap for gap in report["required_gaps"])
 
 
-def test_archived_lane_intent_does_not_select_the_remaining_incoming_change(
-    pending_merge, monkeypatch
-):
-    """Archiving the local contribution cannot turn imported tasks into local intent."""
-    work = pending_merge
-    (work / "README.md").write_text("# Combined publication\n")
-    tasks = work / "openspec/changes/publication/tasks.md"
-    tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
-    commit_fixture(work, "feat: finish local publication")
-    monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.archive.command.proof_gaps", lambda *_args: []
-    )
-    archived = archive_change(
-        root=work, change="publication", expect_head=git(work, "rev-parse", "HEAD"), apply=True
-    )
-    assert archived["verdict"] == "pass", archived
-    report = openspec_governance_report(work, lifecycle=True)
-    assert report["change"] == "publication", report
-    assert load_openspec_commitment(work, tree_ref=git(work, "rev-parse", "HEAD")).id == (
-        "change:publication"
-    )
-
-
 def _declare_executable_checks(work: Path) -> None:
     """Use distinct real checks rather than synthetic proof success."""
-    profile = work / ".ethos/profile.toml"
     verify = (
         "from pathlib import Path; "
         "assert Path('README.md').read_text() == '# Combined publication\\n'; "
@@ -218,17 +194,7 @@ def _declare_executable_checks(work: Path) -> None:
         "profile = tomllib.loads(Path('.ethos/profile.toml').read_text()); "
         "assert len(profile['proof']['gates']) == 2; print('gate-policy-verified')"
     )
-    profile.write_text(
-        profile.read_text()
-        .replace(
-            'command = ["sample", "test"]',
-            "command = " + json.dumps([sys.executable, "-c", verify]),
-        )
-        .replace(
-            'command = ["sample", "typecheck"]',
-            "command = " + json.dumps([sys.executable, "-c", validate]),
-        )
-    )
+    declare_native_proof_checks(work, test=verify, typecheck=validate)
 
 
 def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, monkeypatch):
@@ -238,13 +204,13 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
     _declare_executable_checks(work)
     tasks = work / "openspec/changes/publication/tasks.md"
     tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
-    commit_fixture(work, "feat: finish local publication")
-    source_head = git(work, "rev-parse", "HEAD")
+    source_head = commit_fixture(work, "feat: finish local publication")
     _prove(work, source_head)
     archived = archive_change(root=work, change="publication", expect_head=source_head, apply=True)
     assert archived["verdict"] == "pass", archived
     head = git(work, "rev-parse", "HEAD")
     assert openspec_governance_report(work, lifecycle=True)["change"] == "publication"
+    assert load_openspec_commitment(work, tree_ref=head).id == "change:publication"
     _prove(work, head)
     previous = proof_attestation(work, head)
     assert previous is not None
@@ -294,9 +260,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
         assert planned["data"]["commitment"]["id"] == "change:static-delivery"
     assert proof_gaps(next_lane, head) == ["proof_lane_mismatch"]
     for arguments in ((), ("--change", "static-delivery")):
-        proven = _prove(next_lane, head, *arguments)
-        assert proven["verdict"] == "pass", proven
-        assert proven["data"]["attestation"]["subject"] == f"git:commit:{head}"
+        _prove(next_lane, head, *arguments)
         attestation = proof_attestation(next_lane, head)
         assert attestation is not None
         assert attestation.id != previous.id
@@ -359,14 +323,13 @@ def test_exact_official_artifacts_continue_after_second_change_creation(
     assert load_openspec_commitment(root, change_id="second-local", tree_ref=committed)
 
 
-def test_process_intent_carries_product_work_through_native_integration(tmp_path, monkeypatch):
-    """One ephemeral selection spans editing, Git hooks, proof and both CAS boundaries."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+@pytest.fixture
+def selected_product_work(tmp_path, monkeypatch):
+    """Prepare two official intents above accepted executable verification policy."""
+    repo, candidate = start_adopted_candidate(tmp_path)
     _declare_executable_checks(repo)
-    commit_fixture(repo, "test: declare native verification before authoring")
-    candidate = tmp_path / "candidate"
-    git(repo, "worktree", "add", "-b", "candidate/dev", str(candidate), "dev")
+    head = commit_fixture(repo, "test: declare native verification before authoring")
+    git(candidate, "reset", "--hard", head)
     install_fixture_hook_runtime(repo)
     work = create_change_source_lane(
         repo, tmp_path / "work", base_ref="candidate/dev", holder_ref="agent:test:case:agent-test"
@@ -374,11 +337,21 @@ def test_process_intent_carries_product_work_through_native_integration(tmp_path
     write_active_commitment(work, change_id="second-local")
     commit_fixture(work, "feat: declare second intent")
     monkeypatch.setenv("ETHOS_CHANGE", "second-local")
+    return repo, candidate, work
+
+
+def test_process_intent_carries_product_work_through_native_integration(
+    selected_product_work, monkeypatch
+):
+    """One selection spans authoring, proof, archive and both native CAS boundaries."""
+    repo, candidate, work = selected_product_work
     args = ("README.md", "--editor-root", str(work), "--require-editor-root", "--json")
     for command in (("lane", "prewrite"), ("hook", "admit", "pre-tool")):
         admitted = run_ethos(*command, *args, cwd=work)
         assert admitted["verdict"] == "pass", admitted
     (work / "README.md").write_text("# Combined publication\n")
+    for tasks in (work / "openspec/changes").glob("*/tasks.md"):
+        tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
     head = commit_fixture(work, "feat: integrate selected contribution")
     for choice, expected in (
         ((), "second-local"),
@@ -386,17 +359,37 @@ def test_process_intent_carries_product_work_through_native_integration(tmp_path
     ):
         planned = run_ethos("plan", *choice, "--json", cwd=work)
         assert planned["data"]["commitment"]["id"] == f"change:{expected}"
-    proven = _prove(work, head)
-    assert proven["verdict"] == "pass", proven
+    _prove(work, head)
     selected = proof_attestation(work, head)
     monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
     assert proof_gaps(work, head) == ["proof_not_proven"]
     monkeypatch.setenv("ETHOS_CHANGE", "second-local")
-    other = _prove(work, head, "--change", "fixture-change")
-    assert other["verdict"] == "pass", other
-    other_id = other["data"]["attestation"]["id"]
+    before = git(work, "ls-files", "--stage")
+    arguments = (
+        "lane",
+        "archive-change",
+        "--change",
+        "fixture-change",
+        "--expect-head",
+        head,
+        "--apply",
+        "--json",
+    )
+    denied = run_ethos_blocked(*arguments, cwd=work)
+    assert denied["required_gaps"] == ["proof_not_proven"]
+    assert "--change fixture-change" in denied["next_action"]
+    assert (git(work, "rev-parse", "HEAD"), git(work, "status", "--porcelain")) == (head, "")
+    assert git(work, "ls-files", "--stage") == before
+    other_id = _prove(work, head, "--change", "fixture-change")["id"]
     observed, gaps = proof_for_repository_transition(work, head, attestation_id=other_id)
     assert (observed.id, gaps) == (other_id, [])
+    assert query_proof(
+        work,
+        head,
+        store=proof_artifact_root(work),
+        attestation_id=other_id,
+        change_id="second-local",
+    ) == (None, ["proof_attestation_intent_mismatch"])
     assert proof_gaps(work, head) == []
     assert proof_attestation(work, head) == selected
     assert selected.commitment_digest == load_openspec_commitment(work).digest()
@@ -409,6 +402,16 @@ def test_process_intent_carries_product_work_through_native_integration(tmp_path
             denied = run_ethos_blocked("lane", "prewrite", *args, cwd=work)
             assert any(gap in item for item in denied["required_gaps"])
 
+    tasks = work / "openspec/changes/second-local/tasks.md"
+    preserved = tasks.read_bytes()
+    monkeypatch.setenv("ETHOS_CHANGE", "missing")
+    run_ethos(*arguments, cwd=work)
+    assert not (work / "openspec/changes/fixture-change").exists()
+    assert tasks.read_bytes() == preserved
+    assert run_ethos(*arguments, cwd=work)["verdict"] == "pass"
+    monkeypatch.setenv("ETHOS_CHANGE", "second-local")
+    head = git(work, "rev-parse", "HEAD")
+    _prove(work, head)
     run_ethos("land", "--apply", "--authorize", "--expect-head", head, "--json", cwd=work)
     accepted = git(repo, "rev-parse", "HEAD")
     run_ethos(
@@ -425,5 +428,5 @@ def test_process_intent_carries_product_work_through_native_integration(tmp_path
     )
     assert git(repo, "rev-parse", "HEAD") == git(candidate, "rev-parse", "HEAD") == head
     monkeypatch.delenv("ETHOS_CHANGE")
-    blocked = run_ethos_blocked("lane", "prewrite", *args, cwd=work)
-    assert any("ambiguous" in gap for gap in blocked["required_gaps"])
+    planned = run_ethos("plan", "--change", "second-local", "--json", cwd=work)
+    assert planned["data"]["commitment"]["id"] == "change:second-local"

@@ -437,7 +437,7 @@ def test_archive_public_rejects_invalid_coordinates_before_any_effect(
         )
         gap = "archive_requires_work_lane"
     elif boundary == "proof":
-        monkeypatch.setattr(archive, "proof_gaps", lambda *_args: ["proof_not_proven"])
+        monkeypatch.setattr(archive, "proof_gaps", lambda *_args, **_kwargs: ["proof_not_proven"])
         gap = "proof_not_proven"
     elif boundary in {"commitment", "lifecycle"}:
         resolution = CurrentResolution(

@@ -6868,12 +6868,20 @@ official batch EAGAIN defect is reproduced and repaired at that transport;
 single-output and batched-output equality, native failure and bounded stalled
 reader behavior are separate checks.
 
-Next dependencies remain: freeze source and fixtures; finish affected consumers
-and inexpensive gates; produce one exact full proof; install the exact package;
-replay package-native selection and large output; publish and independently
-observe configured peers. Then settle explicit archive selection and remaining
-multi-contribution obligations before Change archive and sole-lane retirement.
-Do not reopen the completed five-reviewer committee or add another roadmap.
+The selection and bounded-output repair reached accepted source
+`7f203f45eb01fa1049e07b0349800a276c53de7f`, tree
+`dc4c510132992fc1e9eb665955029aa05a7c9c80`. Its 35-gate proof took 1,014.956
+seconds with 3,890 passing tests, one skip and 95.010853% combined coverage.
+The batch-platform-closeout receipt separates that result from package/runtime,
+peer OID and nonterminal hosted observations; it is not global completion.
+
+The current bounded repair forwards explicit archive intent through proof and
+post-observation. Native RED evidence demonstrated both cross-intent false
+acceptance and ambient-selection false rejection. Dual explicit proof constraints
+also failed before the admission-owner repair. Finish frozen sibling consumers,
+unchanged budgets and one exact full proof before installation and publication.
+Remaining multi-contribution obligations precede Change archive and sole-lane
+retirement. Do not reopen the completed five-reviewer committee or add a roadmap.
 
 The adopter's intervening Git-unavailable report was withdrawn after its zsh
 script was shown to overwrite PATH through the special path variable. No ETHOS

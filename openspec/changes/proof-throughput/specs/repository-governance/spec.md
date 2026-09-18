@@ -80,7 +80,7 @@ Absent selection SHALL preserve ambiguity; invalid selection SHALL fail closed.
 ### Requirement: Exact proof query selects intent without weakening evidence
 
 A proof query SHALL select the requested official intent, or the intent bound
-to an explicitly selected Attestation. Applicable evidence SHALL retain exact
+to an explicitly selected Attestation. When both are explicit, they SHALL agree. Applicable evidence SHALL retain exact
 source, policy, integrity, freshness and authority checks. Distinct intents
 SHALL remain distinct queries; conflicting evidence for the same query SHALL
 not be resolved by choosing a convenient proof.
@@ -92,3 +92,23 @@ not be resolved by choosing a convenient proof.
 - **AND** an exact Attestation selection overrides the environment choice
 - **AND** an unproven selected intent cannot borrow the other proof
 - **AND** malformed evidence and same-intent contradictions remain blocking
+
+#### Scenario: Explicit archive cannot borrow another intent's proof
+
+- **GIVEN** two official Changes share the exact source and only one has proof
+- **WHEN** archive explicitly requests the unproven Change
+- **THEN** admission rejects before changing refs, index or content
+- **AND** an environment-selected proof for the other Change cannot satisfy it
+
+#### Scenario: Explicit archive remains selected through post-observation
+
+- **GIVEN** the named Change has a current exact proof
+- **WHEN** archive runs with an unrelated or invalid environment selection
+- **THEN** admission and post-observation consume the explicit Change
+- **AND** unselected intent remains unchanged and replay observes the prior effect
+
+#### Scenario: Explicit proof constraints must agree
+
+- **WHEN** a query names an Attestation and a different or invalid Change
+- **THEN** it rejects instead of ignoring either explicit constraint
+- **AND** matching active or attested archived intent remains admissible

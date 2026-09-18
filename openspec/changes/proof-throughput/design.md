@@ -1744,9 +1744,11 @@ requested intent. An explicit Attestation ID selects that record's intent;
 environment input cannot replace the carried proof. Selection retains every
 same-intent conflict, exact-source, policy, Lease and effect check. The public
 native journey covers product prewrite, pre-tool, Git commit, two exact proofs,
-candidate CAS and accepted CAS. Explicit archive/proof disagreement and complete
-multi-contribution lifecycle remain separately open; this batch does not claim
-those broader outcomes.
+candidate CAS and accepted CAS. Archive carries that same explicit intent through
+proof admission and post-observation. An explicit Change and Attestation ID are
+conjunctive constraints; disagreement rejects the query. Ambient selection
+cannot replace either explicit input. Complete multi-contribution lifecycle
+remains a separate obligation.
 
 Boundary regressions exposed three candidate defects before delivery: committed
 resolution did not forward the choice; empty identifiers reached the native
@@ -1777,3 +1779,34 @@ qualify native Windows behavior. Raw evidence is retained in the existing
 commit-integrity evidence root under operation-intent-*, batch-backpressure-* and
 batch-native-failures. Focused evidence is not exact-source full proof, installed
 acceptance, publication, Change archive or Work Lane retirement.
+
+## Explicit Archive Proof Selection
+
+The archive command previously resolved its named Change but asked for proof
+without forwarding that input. A second active Change could supply a passing
+proof, or an invalid ambient choice could block a valid explicit archive. Both
+native counterexamples failed before repair. The existing proof admission owner
+now accepts the exact Change input; archive post-observation carries the same
+input. Integrity validation still precedes filtering, and same-intent conflicts
+remain blocking. No selector is persisted and no process environment is mutated. Missing proof
+returns one exact `prove --change` continuation, not an ambient status query.
+
+A further counterexample rejects inconsistent explicit Change and Attestation
+constraints, including invalid selections over active and archived intent. The
+native journey checks rejection without Git/index/content effects, successful
+archive despite an invalid ambient default, replay, preservation of unselected
+tasks, reproof and both integration boundaries. This is not proof of every
+cooperation, exploration, all-drop or cross-platform recovery path.
+
+Shared native-check construction replaces repeated fixture setup; the simplified
+gate declaration is byte-identical to its predecessor. Unique inherited-archive
+assertions move into the existing executable-proof journey rather than disappear.
+The current RED/GREEN evidence is `archive-selection-*` and `archive-scope-*` under
+the existing commit-integrity evidence root. Full proof, installed acceptance,
+publish and retirement remain separate completion claims.
+
+Frozen sibling runs passed 225 cases, followed by 117 continuation and
+integration consumers. Both owned scratch roots were removed. Twenty-eight of
+29 inexpensive gates passed on the first run; Markdown lint caught unquoted
+receipt globs, which were corrected before final admission. These counts overlap
+and are not a total of distinct tests or a full-proof claim.

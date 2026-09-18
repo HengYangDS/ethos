@@ -185,7 +185,7 @@ def completed_lifecycle(
     )
     monkeypatch.setattr(
         "ethos.adapters.mutation.lane_lifecycle.archive.command.proof_gaps",
-        lambda _root, candidate: [] if candidate == head else ["proof_not_proven"],
+        lambda _root, candidate, **_kwargs: [] if candidate == head else ["proof_not_proven"],
     )
     return OpenSpecLifecycle(*fixture, head)
 
@@ -277,7 +277,7 @@ def stub_archive_public(
 
     monkeypatch.setattr(archive, "workspace_status_observation", observe_workspace)
     monkeypatch.setattr(archive, "resolve_current_resolution", resolve_current)
-    monkeypatch.setattr(archive, "proof_gaps", lambda *_args: [])
+    monkeypatch.setattr(archive, "proof_gaps", lambda *_args, **_kwargs: [])
 
     def git_stdout(_root: Path, *args: str) -> str:
         return {

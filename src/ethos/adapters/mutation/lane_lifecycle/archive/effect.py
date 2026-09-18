@@ -328,7 +328,7 @@ def complete_archive(
             issuer=str(current_lease.get("holder_ref") or ""),
         )
         recognized = False
-    post = openspec_governance_report(root, lifecycle=True)
+    post = openspec_governance_report(root, change=change, lifecycle=True)
     post_gaps = [str(gap) for gap in post.get("required_gaps", ())]
     if post_gaps:
         return lifecycle_report(

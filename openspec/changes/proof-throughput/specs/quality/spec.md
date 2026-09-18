@@ -107,3 +107,17 @@ the supervisor or containment of deliberately detached processes.
 - **WHEN** a worker exits without executing its cleanup
 - **THEN** a passing direct-command timeout test does not prove worker recovery
 - **AND** native supervisor-loss and platform acceptance remain required
+
+### Requirement: Native metadata comparisons preserve observation semantics
+
+ETHOS SHALL compare mutable file metadata before and after reading through the
+same native observation channel. Path and open-handle observations SHALL refer
+to the same file identity, without equating platform-specific timestamp meanings.
+Unsafe kinds and replaced files SHALL remain rejected without leaking handles.
+
+#### Scenario: Stable Windows path and handle timestamps differ
+
+- **WHEN** path stat and descriptor stat expose different stable ctime meanings
+- **THEN** unchanged native merge metadata remains readable
+- **AND** changes within either channel or replacement of the named file are rejected
+- **AND** read-induced access-time changes do not masquerade as content mutation

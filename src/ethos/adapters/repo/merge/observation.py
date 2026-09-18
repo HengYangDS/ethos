@@ -33,6 +33,10 @@ def git_path(root: Path, name: str) -> Path:
 def metadata_bytes(path: Path) -> bytes | None:
     """Read one regular native metadata file without following symlinks."""
     try:
+        named_before = path.stat(follow_symlinks=False)
+        if not S_ISREG(named_before.st_mode):
+            message = "merge_metadata_unsafe"
+            raise ValueError(message)
         descriptor = os.open(
             path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
         )
@@ -43,12 +47,14 @@ def metadata_bytes(path: Path) -> bytes | None:
         if not S_ISREG(before.st_mode):
             message = "merge_metadata_unsafe"
             raise ValueError(message)
+        if not os.path.samestat(named_before, before):
+            message = "merge_metadata_changed"
+            raise ValueError(message)
         with os.fdopen(descriptor, "rb", closefd=False) as stream:
             content = stream.read()
-        identity = _content_identity(before)
-        if identity != _content_identity(os.fstat(descriptor)) or identity != _content_identity(
-            path.stat(follow_symlinks=False)
-        ):
+        if _content_identity(before) != _content_identity(
+            os.fstat(descriptor)
+        ) or _content_identity(named_before) != _content_identity(path.stat(follow_symlinks=False)):
             message = "merge_metadata_changed"
             raise ValueError(message)
         return content

@@ -1213,3 +1213,30 @@ identity is asserted by the existing generation fixture rather than a separate
 repeated setup. Every original acceptance assertion remains represented.
 The 29-gate cheap preflight passes in 17.701 seconds at 45,547 product and 50,000
 test ELOC. These are not complete-proof, installed or accepted-source claims.
+
+### Same-Channel Native Metadata Observation
+
+The Windows package journey rejected unchanged merge metadata because path stat
+and descriptor stat expose different ctime semantics. The existing reader now
+compares pathname snapshots to pathname snapshots and descriptor snapshots to
+descriptor snapshots. Native file identity joins the two channels before content
+is read. It retains ctime change detection within each channel, ignores only
+read-induced atime, rejects nonregular paths/handles and both replacement
+windows, and closes every opened descriptor. No platform exclusion, timestamp
+exception or second metadata reader is introduced.
+
+The stable different-channel case failed before the repair. The final owner
+matrix passes fourteen cases, including descriptor/path drift and pre-open and
+mid-read replacement. Sixty-seven merge/recovery/real-kill/public-continuation
+cases pass at eight workers in 40.151 seconds; after test consolidation the owner
+matrix was rerun. Access-time and descriptor-release assertions now live with the
+same observation owner rather than duplicate lifecycle setup. Product/test ELOC
+are 45,553/49,991; size, types, module boundaries and Ruff pass. Windows execution,
+package rebuild and exact-source proof are not inferred from these observations.
+
+The preceding `f6b0dd664` full proof passed all 35 gates in 635.345 seconds with
+3,821 passed, one skip and 95.082854-percent coverage. Its candidate integration
+used one native CAS. Those results cover the preceding source, not this metadata
+repair. The rechecked worker-loss counterexample at the same commit remains
+negative; no permanent supervisor, weak PID sweep or exception was added to
+conceal the unresolved lifecycle obligation.

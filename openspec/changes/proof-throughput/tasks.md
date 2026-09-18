@@ -33,9 +33,11 @@
 - [x] Load file-write and publication admission only at their actual hook boundaries, retaining native ref decisions.
 - [x] Remove proof-fixture hook-config mutation and project synthetic checks once from the exact plan while preserving independent issuance admission.
 - [x] Close carrier placement, dependency-first failure and source-stable coverage regressions.
-- [ ] Close official read batching through public, fault, package and native acceptance.
+- [x] Close official read batching through public, fault, package and native acceptance.
+- [ ] Close native merge metadata channel comparisons and their package consumers.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.
-- [ ] Measure complete proof below 1,200 seconds without weakening gates, then evaluate the 600-second direction.
+- [x] Measure complete proof below 1,200 seconds without weakening gates.
+- [ ] Evaluate the 600-second direction from the measured remaining critical path.

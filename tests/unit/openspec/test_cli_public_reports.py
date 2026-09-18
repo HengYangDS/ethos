@@ -308,7 +308,7 @@ def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tai
     )
     expected = [cli.run_json(root, base, args) for args in commands[:-1]]
     actual = cli.run_json_batch(root, base, commands)
-    if task_count > 1:
+    if task_count > 1 and os.name == "posix":
         transport = (base[0], str(Path(cli.__file__).with_name("batch.mjs")), base[1], "0.5")
         with subprocess.Popen(
             transport,

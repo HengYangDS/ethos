@@ -1321,6 +1321,19 @@ cases later timed out in a larger focused run and passed in isolation; that is
 unresolved startup evidence, not grounds to remove their assertions or certify
 the host. The independent same-56-case QoS comparison takes 39.597 and 34.438
 seconds normally versus 94.233 seconds under background policy. The live custom
-runner differs from its installed vendor template in that policy. An idle-only
-cutover attempt expired without changing the service or interrupting a job;
-actual service activation and hosted acceptance remain open.
+runner differed from its installed vendor template in that policy. Passive idle
+waiting could not ensure an admission gap between queued jobs. The completed
+cutover instead removed only its existing custom routing label, waited for native
+worker exit and remote idle, changed only ProcessType to the vendor value, then
+restored the exact labels. The new listener consumed a job; hosted proof success
+remains separate. No tests were cancelled and no credential or installation owner
+changed.
+
+Process identity must exclude mutable parentage: bootout reparents an orphaned
+listener, so comparing the complete process row can falsely report its absence.
+The post-observation caught this error. Cleanup matched PID, start time and
+executable, confirmed no child job, terminated only that old instance and proved
+its absence while preserving the new service. Native cleanup sampling also found
+unlink/rmdir work after pytest exit; cleanup cost belongs in full-cycle timing,
+not an assumed idle wait. Receipts remain under `throughput-runner-qos-` and
+`throughput-runner-background-finalization-sample` in the existing evidence root.

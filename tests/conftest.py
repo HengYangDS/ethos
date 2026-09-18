@@ -79,3 +79,4 @@ def _hermetic_git_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
         monkeypatch.setenv(f"GIT_CONFIG_VALUE_{index}", value)
     monkeypatch.setenv("GIT_TERMINAL_PROMPT", "0")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    monkeypatch.delenv("ETHOS_CHANGE", raising=False)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,11 @@ from ethos.repository.openspec.identifiers import logical_change_identifier_issu
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def requested_change(explicit: str | None = None) -> str | None:
+    """Read one invocation-local intent choice without persisting permission."""
+    return explicit if explicit is not None else os.environ.get("ETHOS_CHANGE")
 
 
 def selected_change(

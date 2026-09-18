@@ -6,16 +6,15 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.openspec.cli as cli
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
-
-
-def _completed(*, stdout: str = "", stderr: str = "", returncode: int = 0):
-    return subprocess.CompletedProcess((), returncode, stdout, stderr)
+from tests.support.subprocesses import completed
 
 
 @pytest.mark.parametrize("reported", [cli.OFFICIAL_VERSION, "unexpected"])
@@ -47,11 +46,7 @@ def test_source_cli_consumes_the_single_resolved_node_package_supply(
         encoding="utf-8",
     )
     entry.write_text("", encoding="utf-8")
-    observed = []
-
-    def resolve(root):
-        observed.append(root)
-        return supply
+    resolve = Mock(return_value=supply)
 
     monkeypatch.setattr(cli, "_SOURCE_ROOT", source)
     monkeypatch.setattr(cli, "_SOURCE_DECLARATION", source / "package.json")
@@ -61,7 +56,7 @@ def test_source_cli_consumes_the_single_resolved_node_package_supply(
     monkeypatch.setattr(
         cli,
         "run_command",
-        lambda *_args, **_kwargs: _completed(stdout=f"{reported}\n"),
+        lambda *_args, **_kwargs: completed(stdout=f"{reported}\n"),
     )
     command = ("/node", entry.as_posix())
     report = cli.verify_official_cli(command)
@@ -71,7 +66,9 @@ def test_source_cli_consumes_the_single_resolved_node_package_supply(
     )
     if reported == cli.OFFICIAL_VERSION:
         assert cli.openspec_base_command() == command
-    assert observed == [source] * (2 if reported == cli.OFFICIAL_VERSION else 1)
+    assert [call.args for call in resolve.call_args_list] == [(source,)] * (
+        2 if reported == cli.OFFICIAL_VERSION else 1
+    )
 
 
 @pytest.mark.parametrize(
@@ -90,7 +87,7 @@ def test_run_json_reports_object_malformed_array_and_empty_stdout(
         assert root == tmp_path
         assert command == ("openspec", "doctor", "--json")
         assert (kwargs["check"], kwargs["remove_env_prefixes"]) == (False, ("GIT_",))
-        return _completed(stdout=stdout)
+        return completed(stdout=stdout)
 
     monkeypatch.setattr(cli, "run_command", run_command)
     report = cli.run_json(tmp_path, ("openspec",), ("doctor", "--json"))
@@ -287,10 +284,17 @@ def test_archive_receipt_cannot_authorize_a_symlink_alias(tmp_path, alias_path):
     assert marker.read_text() == "preserve unrelated archive\n"
 
 
-def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tail(tmp_path):
+@pytest.mark.parametrize("task_count", [1, 10_000])
+def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tail(
+    tmp_path, task_count
+):
     """The transport invokes the official program, not a second command parser."""
     root = init_git_repo(tmp_path / "repo")
     write_active_commitment(root)
+    tasks = root / "openspec/changes/fixture-change/tasks.md"
+    tasks.write_text(
+        "## Tasks\n\n" + "".join(f"- [ ] {i}. " + "x" * 128 + "\n" for i in range(task_count))
+    )
     base = cli.openspec_base_command()
     assert base is not None
     commands = (
@@ -304,6 +308,26 @@ def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tai
     )
     expected = [cli.run_json(root, base, args) for args in commands[:-1]]
     actual = cli.run_json_batch(root, base, commands)
+    if task_count > 1:
+        transport = (base[0], str(Path(cli.__file__).with_name("batch.mjs")), base[1], "0.5")
+        with subprocess.Popen(
+            transport,
+            cwd=root,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ) as child:
+            try:
+                child.stdin.write(json.dumps([commands[2]]).encode())
+                child.stdin.close()
+                child.wait(timeout=5)
+            finally:
+                if child.poll() is None:
+                    child.kill()
+                    child.wait(timeout=5)
+            assert child.returncode != 0
+            assert b"openspec_batch_write_timeout" in child.stderr.read()
+            assert child.stdout.read().count(b'{"index":') == 1
     for index, (old, new) in enumerate(zip(expected, actual[:-1], strict=True)):
         assert {key: new[key] for key in old} == old
         assert new["transport"]["input_index"] == index
@@ -360,7 +384,7 @@ def test_official_batch_rejects_unbound_output_and_preserves_failure_evidence(
         assert json.loads(kwargs["stdin"]) == [list(args)]
         if fault == "timeout":
             raise subprocess.TimeoutExpired((), 60, output=output.encode(), stderr=error.encode())
-        return _completed(stdout=output, stderr=error, returncode=int(fault == "exit"))
+        return completed(stdout=output, stderr=error, returncode=int(fault == "exit"))
 
     monkeypatch.setattr(cli, "run_command", native)
     (report,) = cli.run_json_batch(tmp_path, ("node", "/selected/openspec.js"), (args,))

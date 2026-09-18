@@ -14,6 +14,7 @@ from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.observation import active_change_names_in_ref
+from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.adapters.repo.git import current_branch
@@ -58,6 +59,7 @@ def proof_attestation(
         head,
         repository_transition=repository_transition,
         store=store,
+        attestation_id=attestation_id,
     )
     if not admitted:
         return None, gaps
@@ -73,6 +75,7 @@ def _admitted_proofs(
     *,
     repository_transition: bool,
     store: Path,
+    attestation_id: str,
 ) -> tuple[tuple[Attestation, ...], list[str]]:
     try:
         _selected_root, attestations = read_attestation_set(root)
@@ -100,6 +103,9 @@ def _admitted_proofs(
     integrity = _integrity_gaps(evaluated)
     if integrity:
         return (), integrity
+    evaluated, gaps = _intent_candidates(root, head, evaluated, attestations, attestation_id)
+    if gaps:
+        return (), gaps
     valid_by_floor = {
         floor: tuple(
             item
@@ -129,6 +135,36 @@ def _admitted_proofs(
     else:
         set_gaps = []
     return ((), set_gaps) if set_gaps else (valid, [])
+
+
+def _intent_candidates(
+    root: Path,
+    head: str,
+    evaluated: tuple[tuple[Attestation, str, list[str]], ...],
+    attestations: tuple[Attestation, ...],
+    attestation_id: str,
+) -> tuple[tuple[tuple[Attestation, str, list[str]], ...], list[str]]:
+    """Select an intent query without hiding malformed evidence or same-intent conflicts."""
+    if attestation_id:
+        selected = next(
+            (item for item, _floor, _gaps in evaluated if item.id == attestation_id), None
+        )
+        if selected is None:
+            return (), ["proof_attestation_selection_missing"]
+        intent_digest = selected.commitment_digest
+    elif (change := requested_change()) is not None and openspec_profile_enabled(
+        root, tree_ref=head
+    ):
+        try:
+            intent_digest = load_openspec_commitment(
+                root, tree_ref=head, change_id=change, attestations=attestations
+            ).digest()
+        except (TypeError, ValueError) as error:
+            return (), [f"proof_source_intent_unavailable:{error}"]
+    else:
+        return evaluated, []
+    selected_rows = tuple(row for row in evaluated if row[0].commitment_digest == intent_digest)
+    return (selected_rows, []) if selected_rows else ((), ["proof_not_proven"])
 
 
 def _selected_candidates(

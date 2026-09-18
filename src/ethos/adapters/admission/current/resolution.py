@@ -14,6 +14,7 @@ from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_sc
 from ethos.adapters.openspec.lifecycle.scope import official_validation_repair_scope_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.selection import artifact_path_change
+from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
@@ -262,6 +263,7 @@ def resolve_current_resolution(
     require_workspace: bool = False,
 ) -> CurrentResolution:
     """Resolve current authority, official intent, paths, gap, and action once."""
+    change = requested_change(change)
     resolved = _resolve_without_workspace_intent(
         root,
         status=status,

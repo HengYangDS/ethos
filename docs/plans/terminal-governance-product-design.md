@@ -6851,6 +6851,44 @@ unproved compatibility exception. Do not rewrite adopters or the two renderer
 repositories. Whole-repository structure, latest-stable supply, full adopter
 journeys, evidence reuse and sustained resource limits remain open.
 
+### Current Bounded Continuation — September 19, 2026 (+08:00)
+
+The accepted official-artifact continuation is source 265bd0432 with tree
+11d05ba475d36f040c0cdae3484bb1fb63e673a4. Its exact full proof passed in 714.020
+seconds; this is a historical measurement, not a prediction for new inputs.
+Fresh hosted observation confirmed both GitHub branches and GitLab dev passed;
+GitLab main was still running at that observation.
+
+The existing proof-throughput Change now carries invocation-local product
+selection and exact proof-query discrimination. Candidate regressions preserve
+explicit-over-environment precedence, unset/invalid behavior, current holder
+authority and same-intent conflicts. Reused native fixtures remove duplicate
+carrier construction without dropping distinct scenarios. The newly reported
+official batch EAGAIN defect is reproduced and repaired at that transport;
+single-output and batched-output equality, native failure and bounded stalled
+reader behavior are separate checks.
+
+Next dependencies remain: freeze source and fixtures; finish affected consumers
+and inexpensive gates; produce one exact full proof; install the exact package;
+replay package-native selection and large output; publish and independently
+observe configured peers. Then settle explicit archive selection and remaining
+multi-contribution obligations before Change archive and sole-lane retirement.
+Do not reopen the completed five-reviewer committee or add another roadmap.
+
+The adopter's intervening Git-unavailable report was withdrawn after its zsh
+script was shown to overwrite PATH through the special path variable. No ETHOS
+change or hook bypass was justified by that report. The prior immutable-evidence
+JSON serialization report remains already fixed. The later batch EAGAIN report
+is a distinct, independently reproduced defect, not another name for either.
+
+The wider consumer attempt was time-bounded but did not complete; its subsequent
+runtime-build-stale failure occurred while source inputs changed. This is an
+execution-discipline correction: native fixture identities require a frozen
+source interval too. Reuse valid completed observations, but do not call mixed
+input runs green or repair production to accommodate them. Full goal obligations,
+including supported latest supply, resource-loss recovery, adopter journeys and
+semantic/projection housekeeping, remain unchanged.
+
 ## Completion Boundary
 
 Terminal convergence is verified only when every batch above is accepted and

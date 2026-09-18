@@ -350,7 +350,12 @@ def run_json_batch(
     if len(base_command) != _SOURCE_COMMAND_LENGTH:
         message = "openspec_batch_entry_invalid"
         raise ValueError(message)
-    transport = (base_command[0], str(Path(__file__).with_name("batch.mjs")), base_command[1])
+    transport = (
+        base_command[0],
+        str(Path(__file__).with_name("batch.mjs")),
+        base_command[1],
+        str(OPENSPEC_COMMAND_TIMEOUT_SECONDS),
+    )
     gap = ""
     try:
         completed = _run_official(root, transport, stdin=json.dumps(commands))

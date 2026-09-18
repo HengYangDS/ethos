@@ -39,11 +39,26 @@ commit consume the same current resolution and independently check authority.
 A requested path does not grant permission or override an explicit selection.
 
 Several active Changes do not justify guessing the owner of ordinary product
-work. That unresolved observation directs the caller to the official Change
-list and marks the choice as required. Existing `ethos plan --change <id>` and
-`ethos prove --change <id>` carry an explicit selection; it is not persisted as
-another lifecycle state. Archive, contribution and integration admission remain
-separate from this artifact-authoring boundary.
+work. Without a selection, ETHOS directs the caller to the official Change list
+and marks the choice as required. An invocation-local `ETHOS_CHANGE=<id>` selects
+official intent across prewrite, pre-tool, native Git hooks, planning, proof and
+source integration. An explicit command or API selection takes precedence.
+The input identifies intent, never permission; exact source, Lease, runtime,
+editor, policy and effect checks remain independent.
+
+Use command-scoped environment assignment, for example
+`ETHOS_CHANGE=<id> ethos lane prewrite <path> --json`. Removing that input restores
+ordinary inference or ambiguity. Empty, invalid or missing selections fail
+closed in an OpenSpec-enabled repository. No selector is stored in Git config,
+Lease, a file or a database; repositories without this profile acquire no new
+intent obligation.
+
+Proof selection identifies the requested intent before comparing applicable
+evidence. A carried exact Attestation ID selects that proof's intent instead of
+an ambient environment choice; every current same-intent conflict and integrity
+check still applies. One intent cannot borrow another intent's proof. A proof
+selection is not effect authorization. Archive and multi-contribution lifecycle
+completion remain separate acceptance obligations.
 
 The archive write boundary is owned by a semantically namespaced Work Lane
 command, not by a seventh root command:

@@ -107,6 +107,14 @@ Incomplete transport SHALL preserve failure evidence without claiming execution.
 - **AND** unexecuted commands return an explicit interrupted result
 - **AND** no effect command is admitted to the read batch
 
+#### Scenario: A bounded output frame encounters pipe backpressure
+
+- **WHEN** official output exceeds the receiving pipe's available capacity
+- **THEN** the transport preserves every byte and input order as the reader drains
+- **AND** retry remains bounded by the existing command deadline
+- **AND** a stalled or closed reader fails without replaying a partially written frame
+- **AND** native early exit still preserves completed output and marks the remaining tail
+
 #### Scenario: Intent changes between public observations
 
 - **WHEN** a later public plan observes changed OpenSpec inputs

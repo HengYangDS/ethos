@@ -58,3 +58,37 @@ coexist. Only those outputs are admitted; directory-wide authority is excluded.
 - **THEN** ETHOS keeps the unresolved intent gap and marks the choice as required
 - **AND** its next action inspects the official Change list rather than repeating status
 - **AND** explicit plan and proof selection remain bound to the named official intent
+
+## ADDED Requirements
+
+### Requirement: Invocation-local intent selection
+
+ETHOS SHALL resolve an explicit command or API Change before the invocation's
+`ETHOS_CHANGE`, then use applicable native inference. The selected official
+intent SHALL remain an input, independent of current mutation authority.
+Absent selection SHALL preserve ambiguity; invalid selection SHALL fail closed.
+
+#### Scenario: One selected product operation spans native consumers
+
+- **GIVEN** an owned Work Lane contains two active official Changes
+- **WHEN** an invocation selects one complete Change
+- **THEN** prewrite, pre-tool, native commit, plan and proof consume that intent
+- **AND** explicit command selection overrides the environment input
+- **AND** removing the input restores unresolved selection
+- **AND** holder mismatch remains a blocking authority gap
+
+### Requirement: Exact proof query selects intent without weakening evidence
+
+A proof query SHALL select the requested official intent, or the intent bound
+to an explicitly selected Attestation. Applicable evidence SHALL retain exact
+source, policy, integrity, freshness and authority checks. Distinct intents
+SHALL remain distinct queries; conflicting evidence for the same query SHALL
+not be resolved by choosing a convenient proof.
+
+#### Scenario: Several intents have proofs at the same source
+
+- **WHEN** two official Changes have current proofs for one exact commit
+- **THEN** an invocation selects only its own intent's proof
+- **AND** an exact Attestation selection overrides the environment choice
+- **AND** an unproven selected intent cannot borrow the other proof
+- **AND** malformed evidence and same-intent contradictions remain blocking

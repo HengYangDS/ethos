@@ -29,6 +29,11 @@ def test_dual_forge_projections_equal_their_declared_templates() -> None:
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == 0
     github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
+    assert not {
+        "ETHOS_TEST_WORKERS",
+        "ETHOS_TEST_TIMEOUT_SECONDS",
+        "ETHOS_TEST_TIMEOUT_METHOD",
+    }.intersection(github["jobs"]["verify"].get("env", {}))
     uploads = [
         step
         for step in github["jobs"]["verify"]["steps"]

@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.commit.creation import configured_signer_fingerprint
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import apply_accepted_closeout
+from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_active_commitment
 from tests.support.proof import seed_executed_proof
 from tests.support.signature import configure_signer
 
@@ -106,7 +111,11 @@ def proposal_ref(remote: Path) -> str:
 
 
 def accepted_release_fixture(
-    tmp_path: Path, object_format: str = "sha1", *, native_version: str = "package.json"
+    tmp_path: Path,
+    object_format: str = "sha1",
+    *,
+    native_version: str = "package.json",
+    retired_source: bool = False,
 ):
     repo = init_git_repo(tmp_path / "repo", object_format=object_format)
     adopt_and_commit(repo)
@@ -132,12 +141,38 @@ def accepted_release_fixture(
     (repo / native_version).write_text(
         "1.2.3\n" if native_version == "VERSION" else '{"name":"sample","version":"1.2.3"}\n'
     )
+    if retired_source:
+        write_active_commitment(repo)
+        git(repo, "add", "openspec")
     git(repo, "add", ".ethos", native_version)
     git(repo, "commit", "-m", "fix: accept native release source")
     head = git(repo, "rev-parse", "HEAD")
-    seed_executed_proof(repo, head)
+    source = repo
+    if retired_source:
+        source = tmp_path / "authoring"
+        git(repo, "worktree", "add", "-b", "work/release", str(source), head)
+        acquire_lease(
+            state_database(repo),
+            lease=exact_lease(branch="work/release", holder_ref=os.environ["ETHOS_ACTOR"]),
+        )
+    seed_executed_proof(source, head)
     apply_accepted_closeout(repo, old, head)
     accepted = repo.parent / f"{repo.name}-accepted"
+    if retired_source:
+        run_ethos(
+            "lane",
+            "retire",
+            "landed",
+            "--branch",
+            "work/release",
+            "--expect-head",
+            head,
+            "--authorize",
+            "--apply",
+            "--json",
+            cwd=accepted,
+        )
+        assert not source.exists()
     main = tmp_path / "release"
     git(repo, "worktree", "add", str(main), "main")
     return accepted, main, old, head

@@ -103,26 +103,39 @@ def test_repository_transition_rejects_acceptance_not_bound_to_source(tmp_path, 
     assert observed == (None, ["proof_source_intent_mismatch"])
 
 
-def test_repository_proof_cannot_replace_lane_generation_proof(tmp_path):
+@pytest.mark.parametrize("archived", [False, True])
+def test_repository_proof_cannot_replace_lane_generation_proof(tmp_path, monkeypatch, archived):
     """Repository evidence remains reusable without becoming authoring authority."""
-    fixture = prepared_work_lane(tmp_path)
-    head = git(fixture.worktree, "rev-parse", "HEAD")
-    source = current_proof_plan(fixture.worktree, expected_head=head)
-    values = mutable_json(source.facts["values"])
-    values.pop("lease_generation")
-    facts = Facts.model_validate(
-        dict(source.facts) | {"values": values, "observed_at": datetime.now(UTC)}
+    if archived:
+        fixture, head, authoring = _archive_bound_work_proof(tmp_path)
+    else:
+        fixture = prepared_work_lane(tmp_path)
+        head = git(fixture.worktree, "rev-parse", "HEAD")
+        authoring = _issue(fixture.worktree, head)
+    git(fixture.candidate, "reset", "--hard", head)
+    record = _issue(fixture.candidate, head)
+    repository_query = partial(
+        proof_module.proof_for_repository_transition, fixture.candidate, head
     )
-    repository_plan = compile_plan(
-        Commitment.model_validate(mutable_json(source.commitment)),
-        facts,
-        source.nodes,
-        policy=mutable_json(source.policy),
+    persist_proof_attestation(fixture.candidate, record)
+    if not archived:
+        assert proof_gaps(fixture.worktree, head) == ["proof_lane_mismatch"]
+        assert repository_query() == (record, [])
+    persist_proof_attestation(fixture.worktree, authoring)
+    assert proof_gaps(fixture.worktree, head) == []
+    assert authoring.facts_digest != record.facts_digest
+    selected = min((record, authoring), key=lambda item: item.id)
+    assert repository_query() == (selected, [])
+    assert repository_query(attestation_id=record.id) == (record, [])
+    missing = None, ["proof_attestation_selection_missing"]
+    assert repository_query(attestation_id="0" * 64) == missing
+    selected_root, members = proof_admission.read_attestation_set(fixture.candidate)
+    monkeypatch.setattr(
+        proof_admission,
+        "read_attestation_set",
+        lambda _: (selected_root, tuple(item for item in members if item.id != record.id)),
     )
-    record = _issue(fixture.worktree, head, plan=repository_plan)
-    persist_proof_attestation(fixture.worktree, record)
-    assert proof_gaps(fixture.worktree, head) == ["proof_lane_mismatch"]
-    assert proof_module.proof_for_repository_transition(fixture.worktree, head) == (record, [])
+    assert repository_query(attestation_id=record.id) == missing
 
 
 def test_proof_query_compiles_each_exact_source_policy_once(tmp_path, monkeypatch):
@@ -198,52 +211,27 @@ def test_repository_transition_observes_one_fresh_archive_proof_set(tmp_path, mo
     assert observed.call_count == 3
 
 
-def test_repository_transition_accepts_exact_active_intent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Pending delivery does not invalidate proved source acceptance."""
-    fixture = prepared_work_lane(tmp_path)
-    head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
-    proof = _issue(fixture.worktree, head)
-    persist_proof_attestation(fixture.worktree, proof)
-    git(fixture.candidate, "reset", "--hard", head)
-    monkeypatch.setattr(proof_admission, "leases_by_branch", lambda _root: {})
-
-    assert proof_module.proof_for_repository_transition(fixture.candidate, head) == (proof, [])
-
-
-def test_repository_transition_rejects_conflicting_archive_proofs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    fixture, head, proof = _archive_bound_work_proof(tmp_path)
-    monkeypatch.setattr(proof_admission, "leases_by_branch", lambda _root: {})
-    persist_proof_attestation(
-        fixture.candidate,
-        reissue_attestation(
-            proof,
-            verifier="agent:test:case:conflict",
-            body=proof.payload.body | {"claim": {"objective": "conflict", "verdict": "pass"}},
-        ),
-    )
-
-    observed = proof_module.proof_for_repository_transition(fixture.candidate, head)
-    assert observed == (None, ["contradiction"])
-
-
-def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(tmp_path: Path) -> None:
-    repo, head = proof_repository(tmp_path / "repo")
-    first = _issue(repo, head)
+@pytest.mark.parametrize("archived", [False, True])
+def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(tmp_path, archived):
+    if archived:
+        fixture, head, first = _archive_bound_work_proof(tmp_path)
+        repo = fixture.candidate
+    else:
+        repo, head = proof_repository(tmp_path / "repo")
+        first = _issue(repo, head)
+    query = partial(proof_module.proof_for_repository_transition, repo, head)
     persist_proof_attestation(repo, first)
     later = reissue_attestation(first, issued_at=first.issued_at + timedelta(seconds=1))
     persist_proof_attestation(repo, later)
-    assert_selected_proof(repo, head, selected=min((first, later), key=lambda record: record.id))
+    assert query() == (min((first, later), key=lambda record: record.id), [])
+    assert proof_gaps(repo, head) == []
     conflict = reissue_attestation(
         first,
         verifier="agent:test:case:conflict",
         body=first.payload.body | {"claim": {"objective": "conflict", "verdict": "pass"}},
     )
     persist_proof_attestation(repo, conflict)
-    assert_selected_proof(repo, head, gap="contradiction")
+    assert query() == (None, ["contradiction"])
 
 
 @pytest.mark.parametrize("novel", [False, True])
@@ -275,12 +263,9 @@ def test_expired_or_other_query_proofs_do_not_pollute_current_authority(
 def test_proof_gaps_preserves_nonrepository_and_store_failure_distinction(
     tmp_path, monkeypatch, gap
 ):
-    def unavailable(_root):
-        raise ValueError(gap)
-
     if gap == "git_common_directory_unavailable":
         assert proof_gaps(tmp_path, "a" * 40) == ["attestation_set_repository_invalid"]
     else:
-        monkeypatch.setattr(proof_module, "proof_artifact_root", unavailable)
+        monkeypatch.setattr(proof_module, "proof_artifact_root", Mock(side_effect=ValueError(gap)))
         with pytest.raises(ValueError, match=gap):
             proof_gaps(tmp_path, "a" * 40)

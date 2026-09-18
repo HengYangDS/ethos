@@ -43,6 +43,11 @@
 - [x] Restore vendor runner resource policy through drained cutover and verify routing, old-process cleanup and new-job consumption.
 - [x] Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.
 - [x] Share immutable bootstrap and scanner fixture code while isolating case state and qualifying identical two/four/eight-worker consumers.
+- [x] Reproduce retired-lane release admission and equivalent-proof request recovery at native boundaries.
+- [x] Unify release proof selection and retain exact carried evidence with fresh applicability checks.
+- [x] Preserve native CAS diagnostics and distinguish unchanged from unknown completion across release and integration.
+- [x] Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
+- [x] Qualify the official stable SBOM supply after observed host-version drift.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

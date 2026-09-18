@@ -17,6 +17,7 @@ from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
+from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
@@ -320,7 +321,7 @@ def _release_move_gaps(repo: Path, ref: str, old: str, new: str, operation: str)
             head = release_ref_subject(repo, ref=ref, old=old, new=new)
     except (OSError, TypeError, ValueError) as error:
         return [str(error)]
-    gaps = proof_gaps(repo, head)
+    _, gaps = proof_for_repository_transition(repo, head)
     if gaps:
         return gaps
     intent = claim_ref_intent(

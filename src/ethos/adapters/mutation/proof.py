@@ -404,6 +404,8 @@ def proof_attestation(root: Path, head: str) -> Attestation | None:
 def proof_for_repository_transition(
     root: Path,
     head: str,
+    *,
+    attestation_id: str = "",
 ) -> tuple[Attestation | None, list[str]]:
     """Resolve the proof authority applicable to one repository transition."""
     return ethos.adapters.mutation.proof_admission.proof_attestation(
@@ -411,6 +413,7 @@ def proof_for_repository_transition(
         head,
         repository_transition=True,
         store=proof_artifact_root(root),
+        attestation_id=attestation_id,
     )
 
 

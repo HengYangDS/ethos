@@ -1,38 +1,29 @@
 from __future__ import annotations
 
-from datetime import UTC
-from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.mutation.landing as landing
+from ethos.adapters.process import ProcessExecutionError
 from ethos.contracts.branch.roles import BranchRolePolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
-from tests.support.semantic import attestation_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.contracts.semantic import Attestation
 
 
 def _pass_decision() -> SimpleNamespace:
     return SimpleNamespace(verdict="pass", required_gaps=())
 
 
-def _attestation() -> Attestation:
-    return attestation_fixture(
-        predicate="effect:git-ref-transaction",
-        verifier="agent:test:case:landing",
-        subject="git:ref:candidate/dev",
-        issued_at=datetime(2026, 8, 10, tzinfo=UTC),
-        payload_kind="effect:git-ref-transaction",
-        payload_body={},
-        effect_digest="a" * 64,
-    )
+def _candidate_plan(monkeypatch, root, current, previous):
+    """Share the exact plan shape while each failure owns its effect boundary."""
+    transition = (BranchRolePolicy(), {"head": current}, root, previous, object())
+    monkeypatch.setattr(landing, "_candidate_plan", Mock(return_value=(None, transition)))
 
 
 @pytest.mark.parametrize(
@@ -54,7 +45,7 @@ def test_candidate_readiness_preserves_known_admission_gaps(
     monkeypatch.setattr(
         landing,
         "_candidate_plan",
-        lambda *_a, **_k: (_ for _ in ()).throw(ValueError(error)),
+        Mock(side_effect=ValueError(error)),
     )
 
     report = landing.candidate_transition_readiness(root=repo)
@@ -68,44 +59,47 @@ def test_candidate_readiness_preserves_known_admission_gaps(
 
 
 @pytest.mark.parametrize(
-    ("observed", "second_error", "gap", "attempts"),
+    ("observed", "gap", "attempts"),
     [
-        ("changed", "", "candidate_cas_stale", 1),
-        ("expected", "git_effect_cas_rejected", "candidate_cas_retry_exhausted", 2),
+        ("changed", "candidate_cas_stale", 1),
+        ("expected", "candidate_cas_retry_exhausted", 2),
+        ("rejected", "git_effect_cas_rejected", 1),
+        ("unknown", "git_effect_cas_rejected", 1),
+        ("retry-native", "git_effect_cas_rejected", 2),
     ],
 )
 def test_candidate_apply_never_overwrites_observed_ref_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     observed: str,
-    second_error: str,
     gap: str,
     attempts: int,
 ) -> None:
-    calls = 0
-
-    def execute(*_args: object, **_kwargs: object) -> Attestation:
-        nonlocal calls
-        calls += 1
-        raise ValueError("git_effect_cas_rejected" if calls == 1 else second_error)
-
+    native_failure = ProcessExecutionError(
+        "git_effect_cas_rejected",
+        reason="native_exit_nonzero",
+        observation={"outcome": "unknown" if observed == "unknown" else "unchanged"},
+    )
+    execute = Mock(
+        side_effect=native_failure
+        if observed in {"rejected", "unknown"}
+        else ValueError("git_effect_cas_rejected")
+    )
+    if observed == "retry-native":
+        execute.side_effect = [ValueError("git_effect_cas_mismatch"), native_failure]
     monkeypatch.setattr(landing, "execute_candidate_plan", execute)
     monkeypatch.setattr(
         landing,
         "run_git",
-        lambda *_a, **_k: type("Result", (), {"stdout": observed})(),
+        Mock(
+            return_value=SimpleNamespace(
+                stdout="expected" if observed == "retry-native" else observed
+            )
+        ),
     )
 
     current = "source"
-    candidate = tmp_path / "candidate"
-    monkeypatch.setattr(
-        landing,
-        "_candidate_plan",
-        lambda _root: (
-            None,
-            (BranchRolePolicy(), {"head": current}, candidate, "expected", object()),
-        ),
-    )
+    _candidate_plan(monkeypatch, tmp_path / "candidate", current, "expected")
     monkeypatch.setattr(landing, "evaluate_mutation", lambda **_kwargs: _pass_decision())
     monkeypatch.setattr(
         landing, "sync_worktree", lambda *_a, **_k: pytest.fail("no sync after failed CAS")
@@ -114,9 +108,13 @@ def test_candidate_apply_never_overwrites_observed_ref_drift(
     report = landing.apply_land_to_candidate(root=tmp_path, authorized=True, expect_head=current)
 
     assert report["required_gaps"] == [gap]
-    assert report["candidate_head"] == observed
-    assert report["cas_attempts"] == attempts
-    assert calls == attempts
+    if observed in {"rejected", "unknown", "retry-native"}:
+        assert report["process_failure"] == native_failure.evidence()
+    else:
+        assert report["candidate_head"] == observed
+        assert report["cas_attempts"] == attempts
+    assert execute.call_count == attempts
+    assert report["verdict"] == ("unknown" if observed == "unknown" else "block")
 
 
 def test_apply_land_reports_worktree_compensation_failure_without_hiding_effect(
@@ -125,30 +123,17 @@ def test_apply_land_reports_worktree_compensation_failure_without_hiding_effect(
     repo, candidate = init_repo_with_candidate(tmp_path)
     current = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
-    attestation = _attestation()
-    monkeypatch.setattr(
-        landing,
-        "_candidate_plan",
-        lambda _root: (
-            None,
-            (
-                BranchRolePolicy(),
-                {"head": current},
-                candidate,
-                candidate_head,
-                object(),
-            ),
-        ),
-    )
+    attestation = Mock()
+    _candidate_plan(monkeypatch, candidate, current, candidate_head)
     monkeypatch.setattr(
         landing,
         "_candidate_cas",
-        lambda **_kwargs: (attestation, None, "", 1),
+        Mock(return_value=(attestation, None, "", 1)),
     )
     monkeypatch.setattr(
         landing,
         "sync_worktree",
-        lambda *_a, **_k: (_ for _ in ()).throw(ValueError("projection failed")),
+        Mock(side_effect=ValueError("projection failed")),
     )
 
     report = landing.apply_land_to_candidate(

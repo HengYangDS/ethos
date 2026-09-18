@@ -1389,3 +1389,43 @@ coverage is disabled equally for this diagnostic. Four workers are faster on
 this sample, not a reason to infer the optimal full-suite count. Whole-suite and
 hosted acceptance remain required. The existing `throughput-fixture-sharing-`
 receipts bind these results; the failed source proof remains failed.
+
+### Accepted Proof Continuity And Native Failure Evidence
+
+The real independent-release adopter reproduced three owner mismatches: the
+native hook required a retired authoring Lease while preview used repository
+proof; proof-set comparison confused execution context with accepted meaning;
+and an existing request was compared against a newly selected proof instead of
+its carried proof. Native Git stderr was then discarded behind a generic CAS
+error. These are continuity defects, not reasons to repeat full proof, recreate
+the authoring lane, delete prior evidence or re-sign an existing tag.
+
+The existing proof owner validates every complete execution envelope before
+comparing repository acceptance and policy. Authoring queries retain live Lease
+binding. The same selector can require an exact already-carried Attestation;
+absence, expiry, corruption and selected contradictions remain blocking. Release
+preview, effect preparation, replay and native hooks consume that owner. The
+stored request is still recompiled and compared exactly using its admitted proof,
+so arbitrary request changes never become acceptable through evidence reuse.
+
+The existing Git process exception carries native argv, cwd, stdout, stderr,
+return code and plan/effect digests. Post-observation distinguishes unchanged
+refs from uncertain completion. Unknown results retain effect intents; candidate
+integration does not retry native rejection, and release/accepted integration
+preserve the evidence. Real refusing hooks and success followed by a lost
+acknowledgement or failed observer exercise recovery without repeated effects.
+
+The first probes also corrected an overbroad hypothesis: changing only observation
+time does not change canonical Facts identity. The reproduced difference is
+authoring versus repository context. Tests use real lane retirement and native
+active/archive proof producers rather than inventing timestamp-only differences.
+Consolidation shares boundary mocks and native preparation without deleting
+distinct failures. Current exact-source full proof and installed/adopter replay
+remain separate acceptance boundaries.
+
+The accepted predecessor's GitHub package jobs exposed a different supply input:
+Homebrew Syft advanced to 1.52.0 while the exact repository declaration remained
+1.51.1. The official stable release API and checksum-file digests agree for both
+Linux architectures. Updating that existing declaration restores native SPDX 2.3
+generation against the retained accepted wheel without another installation or
+version exception. New-source package and hosted acceptance remain required.

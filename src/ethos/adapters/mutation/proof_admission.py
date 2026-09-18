@@ -50,6 +50,7 @@ def proof_attestation(
     *,
     repository_transition: bool = False,
     store: Path,
+    attestation_id: str = "",
 ) -> tuple[Attestation | None, list[str]]:
     """Return one deterministic member of the current exact proof set."""
     admitted, gaps = _admitted_proofs(
@@ -58,7 +59,12 @@ def proof_attestation(
         repository_transition=repository_transition,
         store=store,
     )
-    return (min(admitted, key=lambda item: item.id), []) if admitted else (None, gaps)
+    if not admitted:
+        return None, gaps
+    if attestation_id:
+        selected = next((item for item in admitted if item.id == attestation_id), None)
+        return selected, [] if selected else ["proof_attestation_selection_missing"]
+    return min(admitted, key=lambda item: item.id), []
 
 
 def _admitted_proofs(
@@ -116,7 +122,7 @@ def _admitted_proofs(
                 dict.fromkeys(gap for _item, _floor, item_gaps in evaluated for gap in item_gaps)
             )
         )
-    elif len({_bindings(item) for item in valid}) > 1:
+    elif len({_bindings(item, repository_transition=repository_transition) for item in valid}) > 1:
         set_gaps = ["stale_binding"]
     elif len({_assertion_digest(item) for item in valid}) > 1:
         set_gaps = ["contradiction"]
@@ -187,8 +193,10 @@ def _query_gaps(attestation: Attestation) -> list[str]:
     ]
 
 
-def _bindings(attestation: Attestation) -> tuple[str, ...]:
-    return tuple(getattr(attestation, name) for name in _BINDINGS)
+def _bindings(attestation: Attestation, *, repository_transition: bool) -> tuple[str, ...]:
+    """Compare accepted meaning after validating each execution's complete binding."""
+    fields = ("commitment_digest", "policy_digest") if repository_transition else _BINDINGS
+    return tuple(getattr(attestation, name) for name in fields)
 
 
 def _source_intent_gaps(

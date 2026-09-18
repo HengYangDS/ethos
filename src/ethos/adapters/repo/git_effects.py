@@ -15,6 +15,8 @@ import ethos.adapters.repo.git_effect_attestation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -219,6 +221,7 @@ def execute_git_effect(
     intents: list[dict[str, object]] = []
     applied = False
     persisted = False
+    outcome_unknown = False
     try:
         if recovering:
             intents = _claim_effect_intents(root, plan, effect, phase="recover")
@@ -245,6 +248,10 @@ def execute_git_effect(
         persisted = True
         _clear_claimed_intents(root, intents)
     except (OSError, TypeError, ValueError) as error:
+        outcome_unknown = (
+            isinstance(error, ProcessExecutionError)
+            and error.observation.get("outcome") == "unknown"
+        )
         if applied and not recovering and not persisted:
             _compensate_git_effect(
                 root,
@@ -258,7 +265,7 @@ def execute_git_effect(
     else:
         return attestation
     finally:
-        if not applied and not recovering:
+        if not applied and not recovering and not outcome_unknown:
             _abort_effect_intents(root, effect, intents)
 
 
@@ -301,9 +308,32 @@ def _apply_git_ref_transaction(
     *,
     environment: Mapping[str, str] | None,
 ) -> None:
-    if _run_effect_program(root, plan, effect, environment=environment).returncode:
-        message = "git_effect_cas_rejected"
-        raise ValueError(message)
+    completed = _run_effect_program(root, plan, effect, environment=environment)
+    if not completed.returncode:
+        return
+    observation = {
+        "returncode": completed.returncode,
+        "stdout": completed.stdout.decode("utf-8", errors="replace"),
+        "stderr": completed.stderr.decode("utf-8", errors="replace"),
+        "plan_digest": plan.digest,
+        "effect_digest": effect.digest(),
+        "outcome": "unknown",
+    }
+    try:
+        after = observe_git_effect(root, effect, environment=environment)
+        observation["post_observation"] = after
+        if after["refs"] == {name: update.expected for name, update in effect.updates.items()}:
+            observation["outcome"] = "unchanged"
+    except (OSError, TypeError, ValueError) as error:
+        observation["observation_error"] = str(error)
+    message = "git_effect_cas_rejected"
+    raise GitExecutionError(
+        message,
+        reason="native_exit_nonzero",
+        command=tuple(str(arg) for arg in completed.args),
+        cwd=str(root),
+        observation=observation,
+    )
 
 
 def _require_effect_postcondition(

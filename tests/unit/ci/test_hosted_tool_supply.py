@@ -24,6 +24,7 @@ import tools.ci.toolchain.environment as ci_environment
 from ethos.adapters.process import run_command
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tools.ci.toolchain.native import NativeSupply
 from tools.ci.toolchain.native import download
 from tools.ci.toolchain.native import prepare
 
@@ -59,17 +60,8 @@ def test_ci_trust_projects_only_operator_supplied_protected_anchor(tmp_path, cas
 
 @pytest.mark.parametrize("anchor_state", ["absent", "declared"])
 @pytest.mark.parametrize(
-    ("system", "image_state", "expected_apt", "install_state"),
-    [
-        (
-            "Linux",
-            "available",
-            ["update", "install -y --no-install-recommends procps lsof util-linux"],
-            "not-required",
-        ),
-        ("Darwin", "missing", None, "required"),
-        ("Darwin", "available", None, "not-required"),
-    ],
+    ("system", "image_state"),
+    [("Linux", "available"), ("Darwin", "missing"), ("Darwin", "available")],
 )
 def test_python_bootstrap_supplies_platform_prerequisites(
     tmp_path: Path,
@@ -77,8 +69,6 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     anchor_state: str,
     system: str,
     image_state: str,
-    expected_apt: list[str] | None,
-    install_state: str,
 ) -> None:
     def write_executable(path: Path, body: str) -> None:
         path.write_text(body, encoding="utf-8")
@@ -171,9 +161,13 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     assert "ambient-unknown-anchor" not in settings
     assert anchor.read_text() == "fixture-controlled public trust\n"
     observed_apt = apt_log.read_text(encoding="utf-8").splitlines() if apt_log.exists() else None
-    assert observed_apt == expected_apt
+    assert observed_apt == (
+        ["update", "install -y --no-install-recommends procps lsof util-linux"]
+        if system == "Linux"
+        else None
+    )
     observed_uv = uv_log.read_text(encoding="utf-8").splitlines()
-    if install_state == "required":
+    if image_state == "missing":
         assert observed_uv.index("sync --locked --group dev") < observed_uv.index(
             "python install --no-bin 3.14.7"
         )
@@ -250,20 +244,10 @@ def _native_supply(
         "ETHOS_CI_DOWNLOAD_ATTEMPTS": "1",
     }
 
+    command = (sys.executable, "-B", str(ROOT / "tools/ci/toolchain/native.py"))
+
     def invoke() -> subprocess.CompletedProcess[str]:
-        return run_command(
-            repo,
-            (
-                sys.executable,
-                "-B",
-                str(ROOT / "tools/ci/toolchain/native.py"),
-                "--root",
-                str(repo),
-                tool,
-            ),
-            env=env,
-            timeout=25,
-        )
+        return run_command(repo, (*command, "--root", str(repo), tool), env=env, timeout=25)
 
     return invoke, executable, package, body
 
@@ -385,13 +369,15 @@ def test_native_supply_lock_timeout_preserves_prior_bytes_and_creates_no_scratch
 
 
 @pytest.mark.parametrize("startup_delay", [0, 0.75])
-def test_native_supply_timeout_drains_download_descendants_before_cleanup(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, startup_delay: float
+@pytest.mark.parametrize("boundary", ["download", "verify"])
+def test_native_supply_timeout_drains_descendants_before_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, startup_delay: float, boundary: str
 ) -> None:
-    """An established descendant cannot survive the transport timeout and write later."""
+    """Transport and executable observation own descendants until timeout cleanup."""
     late = tmp_path / "late"
-    native_wait = subprocess.Popen.wait
-    connection: socket.socket | None = None
+    method = "wait" if boundary == "download" else "communicate"
+    native = getattr(subprocess.Popen, method)
+    connection = None
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen(1)
@@ -402,24 +388,34 @@ def test_native_supply_timeout_drains_download_descendants_before_cleanup(
             "s.settimeout(None); s.sendall(b'R'); s.recv(1); "
             f"pathlib.Path({str(late)!r}).write_text('escaped')"
         )
-        parent = (
-            "import subprocess, sys, time; "
-            f"time.sleep({startup_delay}); "
-            f"subprocess.Popen([sys.executable, '-c', {child!r}]).wait()"
+        executable = tmp_path / "tool"
+        executable.write_text(
+            f"#!{sys.executable}\nimport subprocess, sys, time\n"
+            f"time.sleep({startup_delay})\n"
+            f"subprocess.Popen([sys.executable, '-c', {child!r}], "
+            "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()\n"
         )
+        executable.chmod(0o755)
 
-        def wait_after_readiness(process, timeout=None):
+        def after_readiness(process, *args, **kwargs):
             nonlocal connection
-            if timeout is not None and connection is None:
+            if kwargs.get("timeout") is not None and connection is None:
                 connection, _ = listener.accept()
-                connection.settimeout(10)
+                connection.settimeout(2)
                 assert connection.recv(1) == b"R"
-            return native_wait(process, timeout=timeout)
+                kwargs["timeout"] = 0.5
+            return native(process, *args, **kwargs)
 
-        monkeypatch.setattr(subprocess.Popen, "wait", wait_after_readiness)
+        monkeypatch.setattr(subprocess.Popen, method, after_readiness)
+
+        def execute():
+            if boundary == "download":
+                return download((str(executable),), root=tmp_path, timeout=0.5)
+            return NativeSupply.read(ROOT, "scc").verify(executable)
+
         try:
             with pytest.raises(subprocess.TimeoutExpired):
-                download((sys.executable, "-c", parent), root=tmp_path, timeout=0.5)
+                execute()
             assert connection is not None
             assert connection.recv(1) == b""
         finally:

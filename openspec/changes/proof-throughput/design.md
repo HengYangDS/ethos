@@ -1302,3 +1302,25 @@ seconds, including scratch cleanup. This single ordered warm comparison does
 not establish a healthy-throughput gain; it qualifies result equivalence while
 the fault experiment demonstrates bounded drain. Full proof remains required.
 Supervisor death and intermittent runtime startup stay separate open boundaries.
+
+### Verified Supply And Executable Acceptance Have Distinct Lifetimes
+
+The current hosted gitleaks failure occurs during its ten-second version probe,
+not secret scanning. The materializer previously committed the downloaded
+archive only after that probe, so an execution failure discarded already verified
+input and forced the next attempt to download it again. The existing cache lock
+now commits the exact digest- and member-verified archive before attempting
+executable activation. Unverified downloads and failed staged executables still
+leave no preparation residue; old executable bytes remain unchanged. Reuse
+rechecks the archive, and a repeated bad version remains a failure without a
+second download. No cache, retry layer, relaxed timeout or new authority is added.
+
+The native failure matrix reproduces both wrong-version and real timeout loss
+before the repair, alongside digest/member/link/transport rejection. Two healthy
+cases later timed out in a larger focused run and passed in isolation; that is
+unresolved startup evidence, not grounds to remove their assertions or certify
+the host. The independent same-56-case QoS comparison takes 39.597 and 34.438
+seconds normally versus 94.233 seconds under background policy. The live custom
+runner differs from its installed vendor template in that policy. An idle-only
+cutover attempt expired without changing the service or interrupting a job;
+actual service activation and hosted acceptance remain open.

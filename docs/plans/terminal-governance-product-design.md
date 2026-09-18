@@ -38,18 +38,25 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 18 13:03 +08 accepted source is
-`c85f990a6b40bb343491f436e8df241f68318a8c`, tree
-`0edad2e9617456cde18df0a50d9060d5dedfe3a1`. Immutable runtime
-`552f26ac8b2552045b06900bf3df317de44b8d6dd20f40fdbe3371f7f5abdf1f`
-matches that source/tree. Exact full proof passed all 35 gates with 3,828 tests,
-one skip and 95.084517-percent combined coverage in 731.540 seconds using native
-defaults, including eight workers. Candidate and accepted CAS completed; fresh
-native peer reads confirm both dev/main refs at that commit. Newly created
-runtime generations now retire after verification timeout or cancellation,
-without deleting accepted generations. The previous self runtime was reclaimed.
-Hosted main/dev verification was queued on GitHub and running on GitLab; source
-proof and publication do not establish hosted completion.
+The September 18 13:38 +08 accepted source is
+`d2a25c4045e2628263e76cca6ecdbf7f8003277c`, tree
+`4b194ce99fde3554f265cd29463117065394b337`. Immutable runtime
+`894004e08ede2e6c80cbd5ecd3a2183538d3b1184e735ad90cc6591f2b668527`
+matches that source/tree. Exact full proof passed all 35 gates with 3,829 tests,
+one skip and 95.084517-percent combined coverage in 684.828 seconds using native
+eight-worker load scheduling. Candidate and accepted CAS, runtime activation and
+both peers' dev/main publication completed with exact post-observations. The
+old runtime and completed owned test scratch were reclaimed. This is local
+source and installed acceptance, not a claim of current hosted success.
+
+Hosted source failure and native startup remain open. A current quality job
+fails on gitleaks version startup before scanning. Retain verified downloads
+before executable activation at their existing owner, without accepting an
+unverified executable. Separately, the runner's Background resource policy
+contradicts its native vendor template; a controlled 56-case comparison shows
+94.233 seconds versus normal 39.597/34.438 seconds. Idle-only activation was
+deferred after ten minutes with no service mutation or job interruption.
+Neither that observation nor a passing isolated replay closes startup reliability.
 
 The old proposal was retired on both peers through exact receipt-bound deletion
 after accepted conservation and native open-review queries. Both refs and local

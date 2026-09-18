@@ -21,6 +21,7 @@ from filelock import FileLock
 from filelock import Timeout
 
 import tools.ci.toolchain.environment as ci_environment
+from ethos.adapters.process import run_command
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tools.ci.toolchain.native import download
@@ -156,14 +157,11 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     if anchor_state == "declared":
         environment["ETHOS_COMMIT_TRUST_ANCHOR"] = str(anchor)
 
-    result = subprocess.run(
+    result = run_command(
+        repo,
         ("/bin/bash", str(script_dir / "bootstrap-python.sh")),
-        cwd=repo,
         env=environment,
-        stdin=subprocess.DEVNULL,
-        text=True,
-        capture_output=True,
-        check=False,
+        inherit_environment=False,
         timeout=30,
     )
 
@@ -199,6 +197,8 @@ def _native_supply(
     version = "4.1.0" if tool == "scc" else "8.30.1"
     expected = f"scc version {version}" if tool == "scc" else version
     body = f"#!/bin/sh\nprintf '%s\\n' '{'wrong' if fault == 'version' else expected}'\n".encode()
+    if fault == "timeout":
+        body = b"#!/bin/sh\nexec sleep 15\n"
     package = tmp_path / "upstream.tar.gz"
     with tarfile.open(package, "w:gz") as archive:
         entry = tarfile.TarInfo("other" if fault == "missing" else tool)
@@ -251,21 +251,18 @@ def _native_supply(
     }
 
     def invoke() -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            [
+        return run_command(
+            repo,
+            (
                 sys.executable,
                 "-B",
                 str(ROOT / "tools/ci/toolchain/native.py"),
                 "--root",
                 str(repo),
                 tool,
-            ],
-            cwd=repo,
+            ),
             env=env,
-            text=True,
-            capture_output=True,
             timeout=25,
-            check=False,
         )
 
     return invoke, executable, package, body
@@ -273,11 +270,11 @@ def _native_supply(
 
 @pytest.mark.parametrize("tool", ["scc", "gitleaks"])
 @pytest.mark.parametrize(
-    "fault", ["digest", "version", "missing", "link", "duplicate", "transport"]
+    "fault", ["digest", "version", "timeout", "missing", "link", "duplicate", "transport"]
 )
 def test_native_tool_supply_rejects_invalid_supply_without_replacement(tmp_path, tool, fault):
     """Invalid external bytes preserve the old executable and remove owned scratch."""
-    invoke, executable, _package, _body = _native_supply(tmp_path, tool, fault)
+    invoke, executable, package, _body = _native_supply(tmp_path, tool, fault)
 
     result = invoke()
 
@@ -285,27 +282,30 @@ def test_native_tool_supply_rejects_invalid_supply_without_replacement(tmp_path,
     assert result.stderr
     assert executable.read_text() == "retained-but-untrusted"
     assert not list(executable.parent.glob(".prepare-*"))
+    assert [p.read_bytes() for p in executable.parent.glob("*.tar.gz")] == (
+        [package.read_bytes()] if fault in {"version", "timeout"} else []
+    )
+    if fault == "version":
+        assert invoke().returncode != 0
+        assert (tmp_path / "transfer.log").read_text() == "download\n"
 
 
 @pytest.mark.parametrize("tool", ["scc", "gitleaks"])
 def test_native_supply_is_rootless_reuses_identity_and_repairs_damage(tmp_path, tool):
     """A poisoned ambient PATH cannot replace declared supply or require global install."""
     invoke, executable, package, body = _native_supply(tmp_path, tool)
-    result = invoke()
-
-    assert result.returncode == 0, result.stderr
-    assert Path(result.stdout.strip()) == executable.parent
-    assert executable.read_bytes() == body
     transfer = tmp_path / "transfer.log"
-    assert transfer.read_text() == "download\n"
-    identity = executable.stat()
-    repeated = invoke()
-    assert repeated.returncode == 0, repeated.stderr
-    assert (executable.stat().st_ino, executable.stat().st_mtime_ns) == (
-        identity.st_ino,
-        identity.st_mtime_ns,
-    )
-    assert transfer.read_text() == "download\n"
+    identity = None
+    for _ in range(2):
+        result = invoke()
+        assert result.returncode == 0, result.stderr
+        assert Path(result.stdout.strip()) == executable.parent
+        assert executable.read_bytes() == body
+        current = executable.stat()
+        current_identity = (current.st_ino, current.st_mtime_ns)
+        assert identity is None or current_identity == identity
+        identity = current_identity
+        assert transfer.read_text() == "download\n"
     archive_digest = hashlib.sha256(package.read_bytes()).hexdigest()
     for damage in ("bytes", "mode", "symlink", "absent"):
         if damage == "bytes":
@@ -322,9 +322,8 @@ def test_native_supply_is_rootless_reuses_identity_and_repairs_damage(tmp_path, 
         assert os.access(executable, os.X_OK)
         assert executable.read_bytes() == body
         assert hashlib.sha256(package.read_bytes()).hexdigest() == archive_digest
-    archives = list(executable.parent.glob("*.tar.gz"))
-    assert len(archives) == 1
-    archives[0].write_bytes(b"corrupt cached archive")
+    (archive,) = executable.parent.glob("*.tar.gz")
+    archive.write_bytes(b"corrupt cached archive")
     rejected = invoke()
     assert rejected.returncode != 0
     assert "archive_checksum_mismatch" in rejected.stderr

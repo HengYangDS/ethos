@@ -39,6 +39,7 @@
 - [x] Bound native worker-loss scheduling through the actual gate and compare healthy workload results.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [x] Remove newly exposed runtime generations after failed verification or caller cancellation.
+- [x] Verify retained native downloads across executable failure without weakening activation.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.

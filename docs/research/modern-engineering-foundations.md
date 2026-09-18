@@ -175,6 +175,37 @@ lifetime, not a superficial scheduling rewrite.
 
 ## State, Hooks And Effects
 
+### Executed Native Observation Comparison
+
+September 18 source `7711c673648426ce8aace0e267340e02cb593591` changes the next
+replacement priority. One closeout case spends approximately 4.36 seconds on
+OpenSpec starts and 3.43 seconds on eight native ref updates including hooks;
+forty-three profile-object reads consume approximately 0.21 seconds. Counts
+alone therefore select the wrong bottleneck.
+
+An isolated Dulwich 1.2.15 trial passes exact-content SHA-1/SHA-256 loose/packed,
+linked-worktree, changing-ref and missing/corrupt-object cases. Native `cat-file`
+batching also removes most repeated startup cost without a new dependency.
+Reopening a packed object reader for every query can regress. Retain native
+effects, hooks, signatures and CAS; no production object-library choice follows
+from this microbenchmark. Full reftable behavior and Windows remain unqualified.
+
+The locked OpenSpec 1.13.0 package exports its Commander program. An awaited
+sequential batch reuses that official parser and command implementation, rather
+than constructing a parallel API. Eight reads measured approximately 0.94 seconds
+individually and 0.136 seconds batched. Output differs only in native validation
+duration fields; native failure exits preserve output and do not execute the
+tail. The bounded adapter must verify ordered frames, failure/currentness,
+read-only scope, installed-package inclusion and process cleanup before adoption.
+
+The fixed upstream references are OpenSpec commit
+`9d4e5974e5c0d9a09b9c6c1e1eb0975e80ec4461`, its exported
+`src/cli/index.ts`, Commander 14.0.3 repeated `parseAsync` state restoration, and
+Dulwich tag `dulwich-1.2.15`. Raw commands, source metadata and comparisons are
+in the existing ignored `build/evidence/quality/commit-integrity/` root under
+`throughput-foundation-` and `throughput-official-program-batch-feasibility`.
+These experiments qualify a narrow mechanism, not full-product superiority.
+
 [Git's native configured hooks][git-hook] and [configuration contract][git-hook-config]
 provide composition without another script dispatcher. The local isolated probe
 used command-scoped configuration only; no ETHOS hooks were disabled or modified.
@@ -500,7 +531,8 @@ production owner survives a successful comparison.
 | Collaboration and adoption | Greenfield and brownfield paths, handoff, cooperation with multiple contributions, zero/one winner, all-drop, useful-result preservation and conflict-aware upgrade/exit. |
 | Delivery and actual outcome | Zero/one/multiple independent remotes, exact selected objects, partial publication and recovery; later observation can invalidate current evidence applicability without rewriting history. |
 
-Record setup and execution separately; keep two test workers and fixed resource
+Record setup and execution separately; hold worker counts fixed within each
+implementation comparison and separately qualify faster concurrency. Keep resource
 limits for comparisons. Compare representative repetitions and report dispersion,
 not a claimed speedup from one warm run. Before adoption, name deleted owner code,
 configuration, subprocesses and manual maintenance touchpoints; count new runtime,

@@ -123,12 +123,17 @@ local-verification receipt ownership, cold-CI materials and independent release
 selection remain separate obligations. Existing commit-integrity receipts hold
 execution evidence; plan prose is not proof or a runtime status database.
 
-The September 17 throughput requirement promotes P5 onto the immediate critical
-path: complete proof must reach at most 600 seconds on this workstation with
-two workers, unchanged gates and at least 95-percent combined coverage. This
-includes command preparation and cleanup, not just cached or selected tests.
+The September 18 user adjustment keeps P5 on the immediate critical path with
+a staged target: first complete proof below 1,200 seconds, then evaluate the
+600-second direction from measured remaining work. The latter is not declared
+infeasible. Both retain unchanged gates and at least 95-percent
+combined coverage, including preparation and cleanup rather than selected tests.
 Report cold computation and warm runs separately; disclose external provisioning
-outside the command. Do not raise concurrency or hide prework to meet the target.
+outside the command. The latest concurrency instruction permits measured faster
+worker counts: two is a comparison baseline, not a ceiling. The same 192 native
+cases pass at two/four workers in 109.781/62.616 seconds including cleanup; the
+next complete proof uses four. Continue eliminating repeated work in parallel
+with concurrency qualification, and keep worker-loss recovery independently open.
 
 The complete source proof at `26405d4d8` passed all 35 gates in 2,171.66 seconds:
 3,761 tests passed and one skipped. Pytest took 1,925.09 seconds (88.6 percent),

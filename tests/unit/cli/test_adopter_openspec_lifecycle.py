@@ -32,8 +32,8 @@
   ],
   "commands": [
     ["config", "list"], ["doctor", "--json"], ["list", "--json"],
-    ["status", "--change"], ["instructions", "apply"],
-    ["instructions", "archive"], ["validate", "--all"], ["show", "active"]
+    ["validate", "--all"], ["status", "--change"], ["instructions", "apply"],
+    ["instructions", "archive"], ["show", "active"]
   ],
   "receipt": {
     "command": [], "exit_code": 0, "stdout": "", "stderr": "",
@@ -293,13 +293,13 @@ def test_adopter_lifecycle_claim_matrix(monkeypatch, tmp_path):
     repo, commands = _repo(tmp_path), []
     fixture.git(repo, "checkout", "-b", "work/intent")
     fixture.write_active_commitment(repo, change_id="active")
-    run = cli.run_json
+    run = cli.run_json_batch
 
     def observed(root, base, args):
-        commands.append(args)
+        commands.extend(args)
         return run(root, base, args)
 
-    monkeypatch.setattr(cli, "run_json", observed)
+    monkeypatch.setattr(cli, "run_json_batch", observed)
     report = openspec_governance_report(repo, lifecycle=True)
     assert report["required_gaps"] == []
     assert "archive_preflight" not in report["lifecycle"]["changes"][0]

@@ -16,7 +16,6 @@ from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.openspec.lifecycle.report import openspec_command_gaps
 from ethos.adapters.openspec.lifecycle.report import openspec_official_cli
 from ethos.adapters.openspec.lifecycle.report import openspec_root_gaps
-from ethos.adapters.openspec.lifecycle.report import openspec_status_result
 from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.observation import governed_branch_intent_report
@@ -175,10 +174,18 @@ def _openspec_governance_report(
         required_gaps.append("openspec_official_cli_missing")
         return openspec_unavailable_report(root, context)
 
-    config = openspec_cli.run_json(root, base_command, ("config", "list", "--json"))
+    config, doctor, list_result, validate = openspec_cli.run_json_batch(
+        root,
+        base_command,
+        (
+            ("config", "list", "--json"),
+            ("doctor", "--json"),
+            ("list", "--json"),
+            ("validate", "--all", "--strict", "--json"),
+        ),
+    )
     required_gaps.extend(["openspec_config_json_parse_failed"] if config["parse_error"] else [])
     required_gaps.extend(openspec_cli.config_contract_gaps(config["json"]))
-    doctor = openspec_cli.run_json(root, base_command, ("doctor", "--json"))
     if doctor["parse_error"] == "openspec_command_timeout":
         required_gaps.extend(["openspec_doctor_unhealthy", "openspec_doctor_json_parse_failed"])
         return openspec_timeout_report(
@@ -187,14 +194,21 @@ def _openspec_governance_report(
             base_command=base_command,
             doctor=doctor,
         )
-    list_result = openspec_cli.run_json(root, base_command, ("list", "--json"))
     rows = official_change_rows(list_result["json"])
     current_change = selected_change(rows, request.change, root=root) if rows is not None else None
-    status = openspec_status_result(
-        root,
-        base_command,
-        current_change,
-        openspec_cli.run_json,
+    status, apply, archive, projection = (
+        openspec_cli.run_json_batch(
+            root,
+            base_command,
+            (
+                ("status", "--change", current_change, "--json"),
+                ("instructions", "apply", "--change", current_change, "--json"),
+                ("instructions", "archive", "--change", current_change, "--json"),
+                ("show", current_change, "--type", "change", "--json"),
+            ),
+        )
+        if current_change
+        else ({}, {}, {}, {})
     )
     archive_scope = (
         lease_bound_archive_scope_report(
@@ -212,30 +226,6 @@ def _openspec_governance_report(
         else None
     )
     selected = current_change or archived_change
-    apply = (
-        openspec_cli.run_json(
-            root,
-            base_command,
-            ("instructions", "apply", "--change", current_change, "--json"),
-        )
-        if current_change
-        else {}
-    )
-    archive = (
-        openspec_cli.run_json(
-            root,
-            base_command,
-            ("instructions", "archive", "--change", current_change, "--json"),
-        )
-        if current_change
-        else {}
-    )
-    validate = openspec_cli.run_json(
-        root,
-        base_command,
-        ("validate", "--all", "--strict", "--json"),
-    )
-
     required_gaps.extend(
         openspec_command_gaps(
             doctor=doctor,
@@ -286,6 +276,7 @@ def _openspec_governance_report(
                 change_id=current_change,
                 official_command=base_command,
                 official_status=status.get("json"),
+                official_projection=projection,
             )
         except ValueError:
             required_gaps.append(f"commitment_invalid:{current_change}")

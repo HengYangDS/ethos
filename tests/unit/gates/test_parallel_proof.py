@@ -162,7 +162,19 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> 
 
 
 @pytest.mark.parametrize("verdict", ["block", "unknown"])
-@pytest.mark.parametrize("readiness_gate", ["ruff", "python-size", "source-budget"])
+@pytest.mark.parametrize(
+    "readiness_gate",
+    [
+        "ruff",
+        "schemas",
+        "config-quality",
+        "python-types",
+        "python-size",
+        "source-budget",
+        "architecture-projection",
+        "format-selection",
+    ],
+)
 def test_public_proof_stops_heavy_work_after_readiness_failure(
     monkeypatch, tmp_path, verdict, readiness_gate
 ):
@@ -212,7 +224,7 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
     checks, passed = proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
     assert passed is False
-    assert "schemas" in executed
+    assert readiness_gate in executed
     assert not {"unit-architecture", "coverage-floor", "build", "local-install-smoke"}.intersection(
         executed
     )

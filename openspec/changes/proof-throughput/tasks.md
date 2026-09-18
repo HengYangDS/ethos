@@ -32,6 +32,7 @@
 - [x] Bind native fixture children and hook declarations to the invoking source or installed candidate, not the test checkout.
 - [x] Load file-write and publication admission only at their actual hook boundaries, retaining native ref decisions.
 - [x] Remove proof-fixture hook-config mutation and project synthetic checks once from the exact plan while preserving independent issuance admission.
+- [x] Close carrier placement, dependency-first failure and source-stable coverage regressions.
 - [ ] Close official read batching through public, fault, package and native acceptance.
 - [ ] Close supervisor-loss and Windows descendant recovery with native regressions.
 - [ ] Resolve native startup and repeated observation costs at their owners.

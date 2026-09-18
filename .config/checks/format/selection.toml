@@ -146,7 +146,7 @@ validation_command = "uv lock --check"
 mutation_policy = "package-manager-only"
 
 [[ownership]]
-id = "npm-distribution"
+id = "javascript-adapters"
 extensions = [".js", ".mjs", ".cjs"]
 format_owner = "prettier"
 format_command = "uv run --frozen --offline python -m nox -s format -- javascript"
@@ -322,7 +322,7 @@ yaml_allowed_roots = [
   "package.json",
   "package-lock.json",
 ] }
-".mjs" = { roots = ["distributions/npm/"] }
+".mjs" = { roots = ["distributions/npm/", "src/ethos/adapters/"] }
 ".c4" = { roots = [".config/checks/architecture/models/"] }
 ".mmd" = { roots = ["docs/architecture/_generated/"] }
 ".svg" = { roots = ["assets/brand/"] }

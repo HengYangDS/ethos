@@ -1170,3 +1170,46 @@ admission and recovery ordering are unchanged. The module passes all 16 cases;
 in 17.96/10.88/7.76 seconds including cleanup. These equal no-coverage diagnostics
 neither change timeouts nor retry workers. Receipts use `throughput-ref-intent-`
 under the existing evidence root. Full-proof acceptance remains unverified.
+
+### Carrier Readiness And Coverage Source Identity
+
+The first eight-worker full proof at `db99bb7a` took 503.505 seconds and
+blocked. The sole test failure re-executed format selection: the `.mjs` adapter
+had a formatter owner but the placement declaration still admitted only npm
+distribution modules. The earlier preflight ran before the new module entered
+Git's index, so its success did not cover the final tracked carrier set.
+
+Use the existing JavaScript adapter owner for native package adapters and npm
+distribution. Domain modules remain outside that carrier home. Declare format
+selection as a test prerequisite because architecture tests consume its result;
+the existing scheduler then reports blocked, unexecuted dependent checks while
+independent diagnostics remain available. Freeze/stage the complete candidate
+before the final cheap preflight; prior observations do not cover newly tracked
+inputs. The registry/public-proof regressions verify the edge and retained
+failure cause without adding a second scheduler or a fake data dependency.
+
+Coverage was 94.954 percent, with 35 additional missed observations concentrated
+in unchanged runtime materialization. A fixed two-case `pytest -n 1` replay
+reproduced the cause: the supply fixture rewrote the live module's `__file__`,
+and coverage cached that origin outside its source set. The subsequent real
+verification ran but was not measured. Retaining the executing package source
+removes this attribution mutation; the same verification lines become covered.
+The fixture still distinguishes dependency/image/build sources and selected
+runtime reuse. Its source-identity assertion fails under the old setup.
+
+This does not prove the complete 95-percent floor, worker-loss containment or
+installed delivery. Only a new frozen full proof can settle those execution
+results. Do not change coverage configuration, merge focused data, reorder tests
+to hide the problem or retry failed cases. Public `.mjs` acceptance, domain
+rejection, full gate dependencies, native supply and package acceptance remain
+separate checks at their existing owners.
+
+The broad targeted run passes 280 cases at eight workers in 6.746 seconds with
+an isolated coverage file and removed basetemp. The final carrier/dependency
+matrix passes 53 cases, including every declared inexpensive readiness class.
+Duplicate declaration-only edge tests are replaced by public proof execution;
+shared carrier observation is computed once per test module, and native smoke
+identity is asserted by the existing generation fixture rather than a separate
+repeated setup. Every original acceptance assertion remains represented.
+The 29-gate cheap preflight passes in 17.701 seconds at 45,547 product and 50,000
+test ELOC. These are not complete-proof, installed or accepted-source claims.

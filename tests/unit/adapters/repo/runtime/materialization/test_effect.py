@@ -85,12 +85,23 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
             "base_prefix": python.parent.parent.resolve().as_posix(),
         },
     )
-    monkeypatch.setattr(
-        runtime_materialization.subprocess,
-        "run",
-        lambda *_a, **_k: subprocess.CompletedProcess([], 0, "0.2.0-alpha.2\n", ""),
-    )
-    return (runtime_root, work, source, interpreter, artifact, _environment()), observed
+
+    commands = []
+
+    def run(command, **_kwargs):
+        commands.append(command)
+        assert command == (
+            runtime_materialization.runtime_python(command[0].parent.parent),
+            "-B",
+            "-I",
+            "-m",
+            "ethos.cli",
+            "--version",
+        )
+        return subprocess.CompletedProcess(command, 0, "0.2.0-alpha.5\n", "")
+
+    monkeypatch.setattr(runtime_materialization.subprocess, "run", run)
+    return (runtime_root, work, source, interpreter, artifact, _environment()), observed, commands
 
 
 @pytest.mark.parametrize("supply", ["packaged", "split-image", "source", "selected"])
@@ -101,7 +112,8 @@ def test_runtime_materialization_binds_package_dependency_and_image_sources(
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(("git", "init", "--quiet", "--initial-branch=dev"), cwd=repo, check=True)
-    package = tmp_path / "bootstrap/lib/python3.14"
+    source_file = runtime_materialization.__file__
+    package = Path(source_file).resolve().parents[6]
     project = tmp_path / "runtime-project"
     invoked = _write(tmp_path / "managed-python/bin/python", b"python")
     dependency = project / ".venv/bin/python" if supply == "source" else invoked
@@ -128,9 +140,6 @@ def test_runtime_materialization_binds_package_dependency_and_image_sources(
         )
 
     patches = {
-        "__file__": str(
-            package / "site-packages/ethos/adapters/repo/runtime/materialization/effect.py"
-        ),
         "resolve_runtime_project": lambda _root: project,
         "resolve_locked_environment_python": lambda _root: dependency,
         "_reusable_runtime": lambda *_args: None,
@@ -151,6 +160,7 @@ def test_runtime_materialization_binds_package_dependency_and_image_sources(
     for name, value in patches.items():
         monkeypatch.setattr(runtime_materialization, name, value)
 
+    assert runtime_materialization.__file__ == source_file
     result = runtime_materialization.materialize_runtime(
         repo,
         invoked,
@@ -184,10 +194,11 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    args, observed = _generation_case(tmp_path, monkeypatch)
+    args, observed, commands = _generation_case(tmp_path, monkeypatch)
     runtime_root, work, source, interpreter, artifact, environment = args
     target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
 
+    assert len(commands) == 1
     assert len(observed) == 2
     assert observed[0].name.startswith(".runtime-build-")
     assert observed[1] == target
@@ -259,7 +270,7 @@ def test_runtime_generation_compares_windows_prefixes_as_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    args, _observed = _generation_case(tmp_path, monkeypatch)
+    args, _observed, _commands = _generation_case(tmp_path, monkeypatch)
     target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
     prefix = (target / "python").resolve().as_posix()
     windows_spelling = prefix.replace("/", "\\").upper()
@@ -283,33 +294,6 @@ def test_runtime_generation_compares_windows_prefixes_as_paths(
     )
     with pytest.raises(ValueError, match="hook_runtime_python_not_relocatable"):
         runtime_materialization.require_runtime_generation(target, args[4], args[5])
-
-
-def test_runtime_generation_smoke_uses_the_authenticated_python_module(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    args, _observed = _generation_case(tmp_path, monkeypatch)
-    commands: list[tuple[Path | str, ...]] = []
-
-    def run(command: tuple[Path | str, ...], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        commands.append(command)
-        return subprocess.CompletedProcess(command, 0, "0.2.0-alpha.3\n", "")
-
-    monkeypatch.setattr(runtime_materialization.subprocess, "run", run)
-
-    target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
-
-    assert commands == [
-        (
-            runtime_materialization.runtime_python(target / "python"),
-            "-B",
-            "-I",
-            "-m",
-            "ethos.cli",
-            "--version",
-        )
-    ]
 
 
 def test_runtime_finalization_does_not_require_a_generated_ethos_launcher(

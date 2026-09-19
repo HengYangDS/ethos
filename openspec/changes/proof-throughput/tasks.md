@@ -66,8 +66,8 @@
 - [x] Verify explicit archive selection against independently selected proof and native hooks.
 - [x] Complete multi-contribution lifecycle integration without losing unselected intent.
 - [x] Reproduce and close official batch large-output backpressure through the existing transport.
-- [x] Consolidate hosted preparation and full execution with fail-closed required-check projections.
-- [x] Qualify and deliver the exact single-execution CI candidate.
+- [ ] Consolidate hosted preparation and full execution with fail-closed required-check projections.
+- [ ] Qualify and deliver the exact single-execution CI candidate.
 - [x] Consolidate GitLab execution and replace privileged link supply with the official wheel.
 - [x] Route specification validation through the existing locked official owner and shared result interpretation.
 - [x] Consolidate provider prerequisites and recovery at the independent-evidence owner.
@@ -86,3 +86,14 @@
 - [x] Initialize quality capabilities on demand and verify native missing-supply and fresh-selection behavior.
 - [x] Compare exact discovery interfaces and imported work against the committed baseline.
 - [x] Qualify and deliver the exact demand-driven capability candidate.
+
+- [x] Reconcile required quality properties with local, emulated and hosted execution and mandatory provider admission.
+- [x] Reject host full-proof execution over uncommitted or missing committed source using the shared native source observer.
+- [x] Close contradictory proof results through shared execution-success semantics and real issuance regressions.
+- [x] Replace Ty prose parsing and execute both declared native shell checks.
+- [ ] Restore carrier discovery and effective shell/JavaScript quality at their native owners.
+- [ ] Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
+- [ ] Reject incomplete hosted results and missing, malformed or contradictory test artifacts through the existing receipt owner.
+- [ ] Enforce unapproved-warning rejection at native command adapters without treating informational output as failure.
+- [ ] Restore whole-module docstring enforcement at the native quality owner and remove the narrowed coverage substitute.
+- [ ] Verify complete per-property reports, cross-platform admission and warning propagation with native falsifying cases.

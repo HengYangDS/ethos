@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -52,3 +53,28 @@ def observe_worktree_postimage(root: Path, *, previous: str) -> Iterator[Worktre
             ).stdout.splitlines()
         )
         yield WorktreePostimage(tree, changed, environment)
+
+
+def observe_execution_source(root: Path, head: str, tree: str) -> dict[str, str]:
+    """Observe native working content and staged correspondence without editing the index."""
+    try:
+        staged = run_git(
+            root,
+            "diff",
+            "--cached",
+            "--quiet",
+            "--no-ext-diff",
+            head,
+            "--",
+            check=False,
+            observation=True,
+        )
+        with observe_worktree_postimage(root, previous=head) as observed:
+            worktree = observed.tree
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        message = f"proof_execution_source_unavailable:{error}"
+        raise ValueError(message) from error
+    if staged.returncode not in {0, 1}:
+        message = f"proof_execution_source_unavailable:{staged.stderr.strip()}"
+        raise ValueError(message)
+    return {"worktree": worktree, "index": tree if staged.returncode == 0 else ""}

@@ -9,6 +9,7 @@ from typing import Any
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.value import mutable_json
+from ethos.contracts.verdict import execution_succeeded
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 
@@ -71,7 +72,7 @@ def _result_gaps(
     gaps: list[str] = []
     if attestation.verdict != "pass":
         gaps.append(f"proof_attestation_verdict_{attestation.verdict}")
-    if any(check["verdict"] != "pass" for check in checks):
+    if any(not execution_succeeded(check) for check in checks):
         gaps.append("proof_attestation_check_not_passed")
     if not any(check["trust_bearing"] is True for check in checks):
         gaps.append("trust_bearing_proof_missing")

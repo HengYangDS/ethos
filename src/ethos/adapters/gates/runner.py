@@ -5,11 +5,13 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
+import os
 import subprocess
 from collections.abc import Mapping
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
+from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import replace
 from graphlib import TopologicalSorter
@@ -20,9 +22,15 @@ from typing import cast
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_head
+from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
@@ -62,7 +70,7 @@ def classify_action_result(
     if not isinstance(payload, dict) or "command" not in payload:
         return "pass", ()
     raw_verdict = payload.get("verdict")
-    if raw_verdict not in {"pass", "block", "unknown"}:
+    if not isinstance(raw_verdict, str) or raw_verdict not in {"pass", "block", "unknown"}:
         return "unknown", (
             {
                 "kind": "ethos_result",
@@ -156,6 +164,65 @@ class LocalGateRunner:
         )
 
 
+def observe_gate_execution(
+    root: Path,
+    *,
+    gate_ids: tuple[str, ...] = (),
+    full: bool = False,
+    expect_head: str | None = None,
+) -> dict[str, Any]:
+    """Execute one source-bound quality observation without granting mutation authority."""
+    head = current_tracked_head(root)
+    exact = full or expect_head is not None
+    tree = current_tree(root, head) if head and exact else ""
+    source: dict[str, str] = {}
+    results: tuple[ActionRunResult, ...] = ()
+    gaps = ["proof_head_missing"] if not head else []
+    if expect_head is not None and expect_head != head:
+        gaps.append("expected_head_mismatch")
+    policy = None
+    try:
+        if not gaps:
+            policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
+        if policy is not None:
+            gaps.extend(policy.gaps)
+            if not policy.nodes:
+                gaps.append("proof_floor_empty")
+        if not gaps and exact:
+            source = observe_execution_source(root, head, tree)
+            gaps.extend(
+                execution_source_gaps({"tree": tree, "values": {"execution_source": source}})
+            )
+        if not gaps and policy is not None:
+            results = run_gate_graph(
+                LocalGateRunner(),
+                policy.nodes,
+                policy.registry,
+                root=root,
+                capacity=max(1, os.cpu_count() or 1),
+                parallel=True,
+            )
+            gaps.extend(policy.result_gaps(tuple(asdict(result) for result in results)))
+            if exact and (
+                current_tracked_head(root) != head
+                or observe_execution_source(root, head, tree) != source
+                or resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full).digest
+                != policy.digest
+            ):
+                gaps.append("proof_execution_source_changed")
+    except ValueError as error:
+        gaps.append(str(error))
+    return {
+        "verdict": "block" if gaps or not results else "pass",
+        "head": head,
+        "policy_digest": policy.digest if policy is not None else "",
+        "execution_source": source,
+        "executed": bool(results),
+        "checks": [asdict(result) for result in results],
+        "required_gaps": gaps,
+    }
+
+
 def run_gate_graph(
     runner: DryRunRunner | LocalGateRunner,
     nodes: tuple[PlanNode, ...],
@@ -223,7 +290,7 @@ def _run_ready_gate(
     gaps = [
         f"gate_dependency_not_proven:{key}"
         for key in node.depends_on
-        if results[key].verdict != "pass" or results[key].exit_code != 0
+        if not execution_succeeded(asdict(results[key]))
     ]
     if gaps and not isinstance(runner, DryRunRunner):
         return ActionRunResult(

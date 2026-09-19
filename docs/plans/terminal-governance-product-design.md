@@ -38,51 +38,20 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 19 accepted checkpoint binds source
-`af174f158cac38a14068aa64c7b3d923b5627b55`, tree
-`e9c94d8525bfb88907117b59bd3a8e5cdf5a0169`, and installed runtime
-`507f386894c44a0d7b8227125275041c26428b73844211bd89dd6c08a8d78af9`.
-Its exact full proof passes 35 gates with 3,903 tests, one skip and
-95.014516-percent combined coverage in 688.962 seconds. Acceptance, installation
-and both peer dev/main projections completed; that statement does not transfer
-to later work-lane commits or establish whole-goal completion.
+The active priority is complete quality-assurance repair, not restoration of a
+historical CI job count. Current verified accepted source is 60124a8e; the sole
+owned work lane is work/20260915-commit-integrity. Historical source, runtime and
+hosted deliveries below retain their original scope and do not certify current
+quality completeness.
 
-GitHub main 35406817714 and dev 35406824919 passed, including the existing
-required proof and package checks. One prepared quality job executes and uploads
-the full graph; dependent checks project that result without repeated work.
-Main's hosted proof took 1,056 seconds, not a universal speedup or a 600-second
-result. GitLab main 7505 and dev 7504 failed. Main's retained report identifies
-missing lychee and bare OpenSpec command supply, not failed test assertions.
-
-The unaccepted work-lane successor bdfb4baa consolidates 26 GitLab jobs into five
-while preserving commit admission, Linux conformance and both Node versions.
-Native pipeline simulation reports no errors or warnings. Official locked lychee
-wheels replace the privileged installer; valid/broken links passed on macOS and
-UID-65534 Linux without network or system writes. This commit passed all 35 gates
-in 708.184 seconds but was deliberately not delivered with the known OpenSpec gap.
-
-The OpenSpec repair is committed at 8821f1e85 and passed all 35 gates in
-688.4 seconds with 3,981 tests passing, one skipped and 95.02-percent displayed
-combined coverage. Candidate integration completed. Accepted dev/main, runtime
-and both peers remain at af174f158 because the trusted predecessor requires an
-independent receipt for this gate-obligation replacement.
-
-That host capability is currently unavailable: its protected configuration is
-unreadable, the authorized broker path is absent, and residual provider code
-expects retired package/proof contracts. Noninteractive privilege access failed;
-no password prompt or protected change followed. The source repair exposes that
-prerequisite before requesting evidence, shares admission across closeout and
-publication, and removes the inadmissible Git-private receipt suggestion. Native
-source preview now gives one operator-repair action without moving refs.
-
-The exact existing wheel also passed isolated public CLI replay with Git-only
-PATH: empty/INFO success, invalid-spec rejection and missing bundled-supply
-rejection. Its environment was removed. This is package behavior, not accepted
-installation or independent identity. The active Change owns the remaining
-provider restoration, exact final proof, installation and hosted delivery.
-Virtualenv 21.7.15 still requires Filelock below 4; process-loss recovery, native
-bootstrap, measured throughput, full adopter journeys and final retirement remain
-open. No gate, budget or independent trust requirement is relaxed.
+The existing [proof-throughput design](../../openspec/changes/proof-throughput/design.md#quality-assurance-architecture-redesign)
+owns the evidence-backed quality architecture and bounded inventory. Its
+[official tasks](../../openspec/changes/proof-throughput/tasks.md) own progress.
+Execution order is exact source/policy admission, effective native quality owners,
+semantic CI partitions and reports, mandatory Forge enforcement, then exact
+local/package/hosted qualification. Earlier aggregate-only acceptance is reopened.
+Warnings, omitted checks, stale reports and unknown required outcomes cannot pass.
+No roadmap, broker restoration, parallel registry or adopter change is required.
 
 Release continuity is delivered: repository proof remains applicable after
 authoring retirement; distinct valid execution contexts do not contradict
@@ -6884,6 +6853,15 @@ repositories. Whole-repository structure, latest-stable supply, full adopter
 journeys, evidence reuse and sustained resource limits remain open.
 
 ### Current Bounded Continuation — September 19, 2026 (+08:00)
+
+CI completeness is the current priority. The user rejected registry counts and
+job consolidation as proof of quality preservation. The existing
+[Change design](../../openspec/changes/proof-throughput/design.md#ci-assurance-completeness-correction)
+records the verified scope, warning, receipt, platform-admission and observation
+gaps; its tasks reopen the contradicted hosted acceptance. Repair those owners
+and verify both valid and invalid behavior before resuming full qualification.
+The following source deliveries are historical observations, not completion of
+this correction. No second roadmap or quality registry is introduced.
 
 The accepted official-artifact continuation is source 265bd0432 with tree
 11d05ba475d36f040c0cdae3484bb1fb63e673a4. Its exact full proof passed in 714.020

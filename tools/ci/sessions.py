@@ -212,6 +212,7 @@ def shell_lint(session) -> None:
         session.run(
             RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shell/.shellcheckrc", *paths
         )
+        session.run(RUNTIME.script("shfmt"), "-d", *paths)
 
 
 def markdown_lint(session) -> None:

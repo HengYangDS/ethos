@@ -33,6 +33,14 @@ Inventory existing effective checks before deleting or merging their execution.
 Do not equate tool availability, graph coverage, lint success or a high coverage
 percentage with correct behavior or complete product assurance.
 
+A result must remain adverse through normalization, artifact storage, issuance,
+replay and final admission, not only through its first runner. Exercise a claimed
+pass with nonzero exit, warnings and unmet conditions at the actual issuance
+boundary. Use the shared execution-success predicate; do not recreate Boolean
+success checks in each projection. Native structured diagnostics and strict tool
+flags replace prose matching. Informational output is not a warning, and missing
+or malformed required diagnostics cannot certify success.
+
 For source-derived quality contracts, resolve required checks to their original
 propositions, scope, observation and rejection conditions before trusting a
 report. Undefined IDs are an input defect, not an invitation for a consumer to

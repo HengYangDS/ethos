@@ -9,7 +9,7 @@ include = [
   "references/gate-design.md",
 ]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:e24ae72969967f4bf039ade56cfae696cf5aa0880f008937502e569841f36891"
+expected_digest = "sha256:cfab9a08b8d0cc1a094c9bb0bcff474e3f0222216b2b7dbf63d82424f4d6cbf7"
 
 [quality]
 placeholder_allowed = false

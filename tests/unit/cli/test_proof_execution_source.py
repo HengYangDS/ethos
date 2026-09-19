@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.mutation.proof as proof_owner
+import ethos.adapters.repo.worktree_postimage as source_owner
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
@@ -69,11 +69,28 @@ def proof_repository(tmp_path: Path) -> Path:
     return repo
 
 
+def _execute(root: Path, head: str, *, host: bool = False):
+    """Run the same exact full-proof protocol on either observation plane."""
+    return run_ethos_raw(
+        "prove",
+        *(("--host",) if host else ()),
+        "--full",
+        "--execute",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=root,
+    )
+
+
+@pytest.mark.parametrize("host", [False, True])
 @pytest.mark.parametrize("mode", ["tracked", "deleted", "index", "policy", "untracked"])
 def test_public_proof_rejects_source_changes_during_successful_gates(
     proof_repository: Path,
     monkeypatch: pytest.MonkeyPatch,
     mode: str,
+    *,
+    host: bool,
 ) -> None:
     """A zero-exit gate cannot authorize another source or silently undo drift."""
     root = proof_repository
@@ -81,9 +98,7 @@ def test_public_proof_rejects_source_changes_during_successful_gates(
     before = read_attestation_set(root)
     monkeypatch.setenv("ETHOS_SOURCE_PROBE", mode)
 
-    completed = run_ethos_raw(
-        "prove", "--full", "--execute", "--expect-head", head, "--json", cwd=root
-    )
+    completed = _execute(root, head, host=host)
     payload = json.loads(completed.stdout)
 
     assert (root / "build/ran").read_text() == "executed"
@@ -91,19 +106,26 @@ def test_public_proof_rejects_source_changes_during_successful_gates(
     assert git(root, "status", "--porcelain=v1")
     assert payload["verdict"] != "pass", payload
     assert "proof_execution_source" in json.dumps(payload)
-    descriptor = payload["data"]["artifact_reference"]
-    store = Path(git(root, "rev-parse", "--git-common-dir"))
-    store = store if store.is_absolute() else root / store
-    evidence = json.loads((store / "ethos" / descriptor["path"]).read_text())
+    if host:
+        evidence = payload["data"]
+        assert not evidence["attestation"]
+    else:
+        descriptor = payload["data"]["artifact_reference"]
+        store = Path(git(root, "rev-parse", "--git-common-dir"))
+        store = store if store.is_absolute() else root / store
+        evidence = json.loads((store / "ethos" / descriptor["path"]).read_text())
     assert {check["action_id"] for check in evidence["checks"]} == {"sample-tests", "sample-static"}
     assert all(check["exit_code"] == 0 for check in evidence["checks"])
     assert read_attestation_set(root) == before
 
 
+@pytest.mark.parametrize("host", [False, True])
 @pytest.mark.parametrize("kind", ["tracked", "index", "untracked"])
 def test_dirty_source_is_refused_before_exact_commit_execution(
     proof_repository: Path,
     kind: str,
+    *,
+    host: bool,
 ) -> None:
     """Exploratory content does not get silently attributed to the committed HEAD."""
     root = proof_repository
@@ -115,28 +137,28 @@ def test_dirty_source_is_refused_before_exact_commit_execution(
         if kind == "index":
             git(root, "add", "README.md")
     before = git(root, "status", "--porcelain=v1")
-    completed = run_ethos_raw(
-        "prove", "--full", "--execute", "--expect-head", head, "--json", cwd=root
-    )
+    completed = _execute(root, head, host=host)
     payload = json.loads(completed.stdout)
     assert payload["verdict"] != "pass", payload
     assert not (root / "build/ran").exists()
     assert git(root, "status", "--porcelain=v1") == before
 
 
-def test_clean_source_and_ignored_outputs_allow_exact_commit_proof(proof_repository: Path) -> None:
+@pytest.mark.parametrize("host", [False, True])
+def test_clean_source_and_ignored_outputs_allow_exact_commit_proof(
+    proof_repository: Path, *, host: bool
+) -> None:
     """Output ownership, not blanket filesystem immutability, defines source scope."""
     root = proof_repository
     head = git(root, "rev-parse", "HEAD")
-    completed = run_ethos_raw(
-        "prove", "--full", "--execute", "--expect-head", head, "--json", cwd=root
-    )
+    completed = _execute(root, head, host=host)
     payload = json.loads(completed.stdout)
     assert payload["verdict"] == "pass", payload
     assert completed.returncode == 0
     assert (root / "build/ran").is_file()
     assert not git(root, "status", "--porcelain=v1")
-    assert payload["data"]["attestation"]["subject"] == f"git:commit:{head}"
+    attestation = payload["data"]["attestation"]
+    assert not attestation if host else attestation["subject"] == f"git:commit:{head}"
 
 
 @pytest.mark.parametrize("boundary", ["issuance", "selection"])
@@ -211,14 +233,14 @@ def test_unavailable_native_source_observation_cannot_issue_proof(
     root = proof_repository
     head = git(root, "rev-parse", "HEAD")
     plan = current_proof_plan(root, expected_head=head)
-    original = proof_owner.run_git
+    original = source_owner.run_git
 
     def unavailable(directory, *args, **kwargs):
         if args[:2] == ("diff", "--cached"):
             raise subprocess.CalledProcessError(128, ["git", *args], stderr="index unreadable")
         return original(directory, *args, **kwargs)
 
-    monkeypatch.setattr(proof_owner, "run_git", unavailable)
+    monkeypatch.setattr(source_owner, "run_git", unavailable)
     with pytest.raises(ValueError, match="proof_execution_source_unavailable"):
         issue_conformant_proof(root, head, plan=plan)
 
@@ -240,9 +262,7 @@ def test_public_proof_preserves_source_drift_between_issuance_and_selection(
         return original(directory, proof)
 
     monkeypatch.setattr(proof_cli, "persist_proof_attestation", drift)
-    completed = run_ethos_raw(
-        "prove", "--full", "--execute", "--expect-head", head, "--json", cwd=root
-    )
+    completed = _execute(root, head)
     payload = json.loads(completed.stdout)
     assert payload["verdict"] == "block"
     assert "proof_execution_source_changed" in payload["required_gaps"]

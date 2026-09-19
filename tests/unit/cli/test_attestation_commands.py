@@ -1,3 +1,5 @@
+"""Public result recording and query preserve immutable identity and idempotence."""
+
 from __future__ import annotations
 
 from datetime import UTC
@@ -6,40 +8,26 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.git import run_git
-from ethos.contracts.semantic import Attestation
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import init_git_repo
+from tests.support.semantic import attestation_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.semantic import Attestation
+
 
 def _input(path: Path, ordinal: int, *, carried_id: bool) -> Attestation:
-    record = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "observation:repository",
-            "verifier": "agent:test:attestation-command",
-            "subject": f"input:occurrence:{ordinal}",
-            "issued_at": datetime(2026, 8, 14, tzinfo=UTC),
-            "valid_from": None,
-            "valid_until": None,
-            "verdict": "pass",
-            "payload": {
-                "kind": "input:future-feedback",
-                "body": {"occurrence": {"ordinal": ordinal, "source": "test"}},
-            },
-            "relations": (),
-            "advisories": (),
-            "evidence_refs": (f"evidence:test:{ordinal}",),
-            "commitment_digest": None,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": None,
-            "mints_authority": False,
-        }
+    record = attestation_fixture(
+        predicate="observation:repository",
+        verifier="agent:test:attestation-command",
+        subject=f"input:occurrence:{ordinal}",
+        issued_at=datetime(2026, 8, 14, tzinfo=UTC),
+        payload_kind="input:future-feedback",
+        payload_body={"occurrence": {"ordinal": ordinal, "source": "test"}},
+        evidence_refs=(f"evidence:test:{ordinal}",),
     )
     path.write_text(
         record.canonical_json() if carried_id else record.canonical_json(exclude_id=True),

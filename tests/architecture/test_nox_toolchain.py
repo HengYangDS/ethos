@@ -84,6 +84,10 @@ def test_quality_inventory_excludes_deleted_worktree_paths(tmp_path, monkeypatch
     getattr(sessions, name)(session)
     checked = [call.args for call in session.run.call_args_list if call.args[0] != "git"]
     assert checked
+    if name == "shell_lint":
+        assert [Path(args[0]).name for args in checked] == ["shellcheck", "shfmt"]
+        assert "-d" in checked[1]
+        assert "-w" not in checked[1]
     assert all(filename in args for args in checked)
     assert all(f"deleted{Path(filename).suffix}" not in args for args in checked)
 

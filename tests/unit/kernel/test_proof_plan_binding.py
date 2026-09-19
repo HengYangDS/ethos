@@ -303,6 +303,10 @@ def test_proof_issuance_reuses_the_plan_commitment_without_rereading_exact_head(
         ("blocked-plan", "proof_plan_not_admitted"),
         ({"required_gaps": ("unresolved",)}, "proof_attestation_verdict_mismatch"),
         ("missing-check", "proof_attestation_check_plan_mismatch"),
+        ("check-exit", "proof_attestation_check_invalid"),
+        ("check-warning", "proof_attestation_check_invalid"),
+        ("check-diagnostic", "proof_attestation_check_invalid"),
+        ("check-gap", "proof_attestation_check_invalid"),
     ],
 )
 def test_proof_issuance_payload_is_a_closed_contract(tmp_path, updates, error):
@@ -322,6 +326,14 @@ def test_proof_issuance_payload_is_a_closed_contract(tmp_path, updates, error):
         }
     elif updates == "missing-check":
         updates = {"checks": checks[:-1]}
+    elif isinstance(updates, str) and updates.startswith("check-"):
+        change = {
+            "check-exit": {"exit_code": 7},
+            "check-warning": {"warnings": ["deprecated"]},
+            "check-diagnostic": {"diagnostics": [{"severity": "warning"}]},
+            "check-gap": {"required_gaps": ["missing"]},
+        }[updates]
+        updates = {"checks": (checks[0] | change, *checks[1:])}
     payload = {
         "plan": plan,
         "checks": checks,

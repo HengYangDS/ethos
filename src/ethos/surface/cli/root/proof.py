@@ -11,12 +11,12 @@ from typing import cast
 
 from cyclopts import Parameter
 
-import ethos.adapters.repo.git as git
 import ethos.domain.status as status_domain
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
+from ethos.adapters.gates.runner import observe_gate_execution
 from ethos.adapters.gates.runner import run_gate_graph
 from ethos.adapters.mutation.proof import assert_proof_execution_source
 from ethos.adapters.mutation.proof import issue_proof_attestation
@@ -26,6 +26,7 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import observation_verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -94,47 +95,9 @@ def _host_gate_observation(
     *, repo: Path, gate_ids: tuple[str, ...], expect_head: str | None, full: bool = False
 ) -> EthosResult:
     """Execute focused gates without repository lifecycle or Attestation authority."""
-    current_head = git.current_head(repo)
-    required_gaps = (
-        ("expected_head_mismatch",)
-        if expect_head is not None and expect_head != current_head
-        else ()
-    )
-    checks: list[dict[str, object]] = []
-    if not required_gaps:
-        policy = resolve_gate_policy(repo, tree_ref=current_head, gate_ids=gate_ids, full=full)
-        results = run_gate_graph(
-            LocalGateRunner(),
-            policy.nodes,
-            policy.registry,
-            root=repo,
-            capacity=max(1, os.cpu_count() or 1),
-            parallel=True,
-        )
-        checks = [
-            {
-                "action_id": result.action_id,
-                "command": list(result.command),
-                "exit_code": result.exit_code,
-                "verdict": result.verdict,
-                "diagnostics": list(result.diagnostics),
-                "started_after_seconds": result.started_after_seconds,
-                "duration_seconds": result.duration_seconds,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-            }
-            for result in results
-        ]
-        required_gaps = tuple(
-            f"gate_{'failed' if check['verdict'] == 'block' else 'unknown'}:{check['action_id']}"
-            for check in checks
-            if check["verdict"] != "pass"
-        )
-        if sorted(result.action_id for result in results) != sorted(
-            node.id for node in policy.nodes
-        ):
-            required_gaps = (*required_gaps, "host_gate_results_incomplete")
-    verdict: Verdict = "pass" if checks and not required_gaps else "block"
+    observed = observe_gate_execution(repo, gate_ids=gate_ids, full=full, expect_head=expect_head)
+    checks, required_gaps = observed["checks"], tuple(observed["required_gaps"])
+    current_head, verdict = observed["head"], observed["verdict"]
     return EthosResult(
         command="prove",
         verdict=verdict,
@@ -147,7 +110,9 @@ def _host_gate_observation(
         required_gaps=required_gaps,
         next_action="repair the selected host gate" if required_gaps else "",
         data={
-            "executed": True,
+            "executed": bool(checks),
+            "execution_source": observed["execution_source"],
+            "policy_digest": observed["policy_digest"],
             "boundary": "host",
             "host_probe": host_probe_boundary(host=True, probe=False),
             "checks": checks,
@@ -245,7 +210,7 @@ def run_plan_checks(
         )
     if execute:
         assert_proof_execution_source(repo, plan, checks=tuple(checks))
-    verdicts_ok = bool(checks) and all(check["verdict"] == "pass" for check in checks)
+    verdicts_ok = bool(checks) and all(execution_succeeded(check) for check in checks)
     trust_bearing_ok = any(
         check["trust_bearing"] is True and check["verdict"] == "pass" for check in checks
     )
@@ -401,7 +366,7 @@ def prove(
     except ValueError as exc:
         _emit_proof_gap(exc, json_output=json_output)
         return
-    verdicts_ok = bool(checks) and all(check["verdict"] == "pass" for check in checks)
+    verdicts_ok = bool(checks) and all(execution_succeeded(check) for check in checks)
     trust_bearing_ok = any(
         check["trust_bearing"] is True and check["verdict"] == "pass" for check in checks
     )

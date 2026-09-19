@@ -11,6 +11,7 @@ from typing import Any
 
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.gates import canonical_gate_command
 
 if TYPE_CHECKING:
@@ -71,6 +72,7 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
             or verdict not in {"pass", "block", "unknown"}
             or isinstance(exit_code, bool)
             or (exit_code is not None and not isinstance(exit_code, int))
+            or (verdict == "pass" and not execution_succeeded(raw))
         ):
             raise ValueError(message)
         diagnostics = raw.get("diagnostics", ())
@@ -91,6 +93,7 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
         normalized.append(
             {
                 **timing,
+                **{name: raw[name] for name in ("warnings", "required_gaps") if name in raw},
                 "action_id": action_id,
                 "command": list(canonical_gate_command(tuple(str(token) for token in command))),
                 "exit_code": exit_code,

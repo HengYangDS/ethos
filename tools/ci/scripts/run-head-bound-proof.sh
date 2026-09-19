@@ -37,13 +37,21 @@ report = {"kind": "ethos_hosted_verification_receipt", "verdict": "block",
           "satisfies_repository_proof": False, "expected_head": expected,
           "head": observed, "head_matches_expected": observed == expected,
           "process_exit_code": int(exit_code), "supply_exit_code": int(supply_exit), "required_gaps": []}
+checks = []
 try:
     if supply_exit != "0":
         raise ValueError("hosted_tool_supply_failed")
+    from ethos.adapters.repo.gate_policy import resolve_gate_policy
+    policy = resolve_gate_policy(Path.cwd(), tree_ref=observed, full=True)
+    if policy.gaps:
+        raise ValueError("hosted_policy_invalid:" + ",".join(policy.gaps))
     raw = path.read_bytes()
     proof = json.loads(raw)
     data, summary = proof["data"], proof["summary"]
     coordinates, checks = data["expected_head"], data["checks"]
+    if not isinstance(checks, list) or any(not isinstance(check, dict) for check in checks):
+        raise ValueError("hosted_checks_invalid")
+    gaps = list(policy.result_gaps(checks))
     valid = (
         exit_code == "0" and observed == expected
         and proof["verdict"] == "pass" and proof["state"] == "observed"
@@ -52,45 +60,74 @@ try:
         and summary["proof_attestation_issued"] is False and data["attestation"] == {}
         and coordinates == {"expected": expected, "current": expected, "matches": True}
         and isinstance(checks, list) and bool(checks) and summary["gate_count"] == len(checks)
-        and {"unit-architecture", "coverage-floor"} <= {check["action_id"] for check in checks}
-        and all(check["verdict"] == "pass" and check["exit_code"] == 0 for check in checks)
+        and not gaps
     )
     report.update(verdict="pass" if valid else "block", gate_count=len(checks),
-                  required_gaps=proof["required_gaps"], report_sha256=hashlib.sha256(raw).hexdigest())
+                  required_gaps=[*proof["required_gaps"], *gaps],
+                  expected_gate_count=len(policy.nodes), policy_digest=policy.digest,
+                  report_sha256=hashlib.sha256(raw).hexdigest())
 except (OSError, ValueError, KeyError, TypeError) as error:
     report["required_gaps"] = (["hosted_tool_supply_failed"] if supply_exit != "0"
                                else [f"invalid_hosted_observation:{error}"])
 if report["verdict"] != "pass" and not report["required_gaps"]:
     report["required_gaps"] = ["hosted_observation_binding_invalid"]
-if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
-    evidence = Path(os.environ.get("ETHOS_TEST_EVIDENCE_DIR", "build/evidence/quality/tests"))
-    lines = ["## ETHOS verification", f"Source: `{observed}`; expected: `{expected}`",
-             f"Hosted observation: **{report['verdict']}**; process exit: {exit_code}"]
+evidence = Path(os.environ.get("ETHOS_TEST_EVIDENCE_DIR", "build/evidence/quality/tests"))
+report_lines = []
+if supply_exit == "0":
     try:
         files = sorted((evidence / "pytest").glob("junit*.xml"))
         if not files:
             raise ValueError("missing JUnit")
-        cases = [case for file in files for case in ET.parse(file).iter("testcase")]
+        suites = [ET.parse(file).getroot() for file in files]
+        if any(suite.tag not in {"testsuite", "testsuites"} for suite in suites):
+            raise ValueError("invalid JUnit root")
+        cases = [case for suite in suites for case in suite.iter("testcase")]
         if not cases:
             raise ValueError("empty JUnit")
         failures, errors, skipped = (sum(case.find(tag) is not None for case in cases)
                                      for tag in ("failure", "error", "skipped"))
-        lines.append(f"Tests: {len(cases)}; failures: {failures}; errors: {errors}; skipped: {skipped}")
+        report["tests"] = dict(total=len(cases), failures=failures, errors=errors, skipped=skipped)
+        report_lines.append(f"Tests: {len(cases)}; failures: {failures}; errors: {errors}; skipped: {skipped}")
+        if failures or errors or any(int(suite.get(key, "0")) for root in suites
+                                    for suite in root.iter() if suite.tag in {"testsuite", "testsuites"}
+                                    for key in ("failures", "errors")):
+            report["required_gaps"].append("hosted_test_report_failed")
     except (OSError, ValueError, ET.ParseError) as error:
-        lines.append(f"Tests: unavailable ({type(error).__name__})")
+        report["required_gaps"].append("hosted_test_report_invalid")
+        report_lines.append(f"Tests: unavailable ({type(error).__name__})")
     try:
-        coverage = ET.parse(evidence / "coverage/coverage.xml").getroot().attrib
-        hit = sum(int(coverage[key]) for key in ("lines-covered", "branches-covered"))
-        total = sum(int(coverage[key]) for key in ("lines-valid", "branches-valid"))
-        if not 0 <= hit <= total or total == 0:
+        coverage_root = ET.parse(evidence / "coverage/coverage.xml").getroot()
+        coverage = coverage_root.attrib
+        covered, total = ((int(coverage[f"{name}-covered"]), int(coverage[f"{name}-valid"]))
+                          for name in ("lines", "branches"))
+        if coverage_root.tag != "coverage" or any(not 0 <= hit <= count for hit, count in (covered, total)):
             raise ValueError("invalid coverage counts")
-        lines.append(f"Coverage: {100 * hit / total:.2f}% combined statements/branches")
+        hit, count = covered[0] + total[0], covered[1] + total[1]
+        if count == 0:
+            raise ValueError("empty coverage")
+        report["coverage"] = dict(covered=hit, total=count, combined_percent=100 * hit / count)
+        report_lines.append(f"Coverage: {100 * hit / count:.2f}% combined statements/branches")
     except (OSError, ValueError, KeyError, ET.ParseError) as error:
-        lines.append(f"Coverage: unavailable ({type(error).__name__})")
-    lines.append("JUnit, coverage and exact diagnostics are in the job artifacts; this summary grants no authority.")
+        report["required_gaps"].append("hosted_coverage_report_invalid")
+        report_lines.append(f"Coverage: unavailable ({type(error).__name__})")
+if report["required_gaps"]:
+    report["verdict"] = "block"
+lines = ["## ETHOS verification", f"Source: `{observed}`; expected: `{expected}`",
+         f"Hosted observation: **{report['verdict']}**; process exit: {exit_code}", *report_lines]
+if report["required_gaps"]:
+    lines.append("Required gaps: " + ", ".join(report["required_gaps"]))
+rows = ["| Gate | Verdict | Exit | Seconds |", "| --- | --- | --- | --- |"]
+for check in checks if isinstance(checks, list) else []:
+    if isinstance(check, dict):
+        rows.append("| " + " | ".join(str(check.get(key, "unavailable")).replace("|", "\\|").replace("\n", " ")
+                    for key in ("action_id", "verdict", "exit_code", "duration_seconds")) + " |")
+lines.extend(["\n".join(rows), "Raw diagnostics and reports are retained artifacts; this observation grants no repository authority."])
+markdown = "\n\n".join(lines) + "\n"
+path.with_name("hosted-verification.md").write_text(markdown, encoding="utf-8")
+if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
     try:
         with Path(summary_path).open("a", encoding="utf-8") as stream:
-            stream.write("\n\n".join(lines) + "\n")
+            stream.write(markdown)
     except OSError as error:
         print(f"test_summary_unavailable:{error}", file=sys.stderr)
 rendered = json.dumps(report, sort_keys=True)

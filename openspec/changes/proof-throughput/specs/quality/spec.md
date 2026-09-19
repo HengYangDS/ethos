@@ -342,24 +342,45 @@ its explicit input binding.
 
 ### Requirement: Hosted verification has one execution owner
 
-A hosted source attempt SHALL execute the full declared gate graph once in one
-prepared checkout. Dependent provider checks SHALL project its result without
-rebuilding artifacts or repeating checks. Only successful execution and required
-artifact upload may satisfy those dependent checks.
+A hosted attempt SHALL cover the declared quality dependency graph through its
+shared execution owner. Native job partitions SHALL preserve every required
+obligation, dependency and source binding. Compatible evidence MAY be reused
+without repeating checks; aggregate-only forwarding SHALL NOT substitute for
+actual execution or required artifact validation.
 
-#### Scenario: A complete hosted execution succeeds
+#### Scenario: Complete partitioned execution succeeds
 
-- **WHEN** the full graph passes and its required outputs upload successfully
-- **THEN** dependent check identities project that success without another checkout
-- **AND** published wheel and SBOM bytes are the outputs of the verified execution
-- **AND** provider-only checks outside that graph retain their distinct execution
+- **WHEN** every required partition executes successfully against the selected source and policy
+- **THEN** final admission requires their complete, nonduplicated result union and artifact validation
+- **AND** the published wheel and SBOM bytes originate from that verified execution
+- **AND** platform conformance and provider-only obligations retain their distinct execution
 
-#### Scenario: The execution cannot establish success
+#### Scenario: A required result cannot establish success
 
-- **WHEN** execution or required upload fails, is cancelled or is skipped
-- **THEN** dependent checks cannot report success
-- **AND** native diagnostics and available proof reports remain separately observable
-- **AND** the attempt does not retry or increase the native executable deadline
+- **WHEN** a result or required upload fails, is cancelled, skipped, missing, malformed or UNKNOWN
+- **THEN** final admission cannot report success
+- **AND** native diagnostics and available reports remain inspectable
+- **AND** unchanged failure is not retried or hidden by a longer deadline
+
+#### Scenario: Exact HEAD does not describe the executing source
+
+- **WHEN** required source is missing from the selected commit or the worktree, index or policy drifts
+- **THEN** exact-commit qualification is refused before execution or at the post-execution fence
+- **AND** an exploratory working-tree observation cannot satisfy an exact-commit obligation
+
+#### Scenario: A native tool reports an adverse diagnostic with exit zero
+
+- **WHEN** native structured output contains a warning or error despite a zero exit
+- **THEN** its owning adapter refuses success and retains the diagnostic
+- **AND** informational output alone is not classified as a warning
+- **AND** shell formatting and shell semantics are both checked by their declared native tools
+
+#### Scenario: A proof check claims success with contradictory execution evidence
+
+- **WHEN** a passing check carries a nonzero exit, warning, adverse diagnostic or required gap
+- **THEN** shared execution admission refuses success before proof artifact creation
+- **AND** normalization cannot erase the adverse signal to produce an admissible proof
+- **AND** dependency scheduling and later proof validation use the same success predicate
 
 #### Scenario: Unprivileged hosted link checking
 

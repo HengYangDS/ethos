@@ -87,29 +87,25 @@ def test_verdict_reducer_orders_block_before_unknown_before_pass() -> None:
     assert reduce_verdicts() == "unknown"
 
 
-def test_report_verdict_requires_explicit_semantics_and_blocks_adverse_diagnostics() -> None:
-    assert report_verdict({"verdict": "unknown", "ok": True}) == "unknown"
-    assert report_verdict({"ok": False, "required_gaps": ["failed"]}) == "unknown"
-    assert report_verdict({"ok": True, "warnings": ["warning"]}) == "block"
-    assert (
-        report_verdict(
-            {"verdict": "pass", "diagnostics": [{"severity": "warning", "message": "warn"}]}
-        )
-        == "block"
-    )
-    assert (
-        report_verdict(
-            {"verdict": "pass", "diagnostics": [{"severity": "error", "code": "failed"}]}
-        )
-        == "block"
-    )
-    assert (
-        report_verdict(
-            {"verdict": "pass", "diagnostics": [{"severity": "info", "message": "note"}]}
-        )
-        == "pass"
-    )
-    assert report_verdict({}) == "unknown"
+@pytest.mark.parametrize(
+    ("report", "expected"),
+    [
+        ({"verdict": "unknown", "ok": True}, "unknown"),
+        ({"ok": False, "required_gaps": ["failed"]}, "unknown"),
+        ({"ok": True, "warnings": ["warning"]}, "block"),
+        ({"verdict": "pass", "diagnostics": [{"severity": "warning", "message": "warn"}]}, "block"),
+        ({"verdict": "pass", "diagnostics": [{"severity": "error", "code": "failed"}]}, "block"),
+        ({"verdict": "pass", "diagnostics": [{"severity": "info", "message": "note"}]}, "pass"),
+        ({}, "unknown"),
+        ({"verdict": []}, "unknown"),
+        ({"verdict": {}}, "unknown"),
+    ],
+)
+def test_report_verdict_requires_explicit_semantics_and_blocks_adverse_diagnostics(
+    report, expected
+):
+    """Malformed verdicts remain uncertainty, never exceptions or implicit success."""
+    assert report_verdict(report) == expected
 
 
 def test_closed_verdict_algebra_matches_the_complete_bounded_model() -> None:

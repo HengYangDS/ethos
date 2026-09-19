@@ -38,34 +38,39 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 19 delivered checkpoint binds source
+The September 19 accepted checkpoint binds source
 `af174f158cac38a14068aa64c7b3d923b5627b55`, tree
 `e9c94d8525bfb88907117b59bd3a8e5cdf5a0169`, and installed runtime
 `507f386894c44a0d7b8227125275041c26428b73844211bd89dd6c08a8d78af9`.
 Its exact full proof passes 35 gates with 3,903 tests, one skip and
-95.014516-percent combined coverage in 688.962 seconds. The installed package,
-local dev/main/candidate/work and both remote dev/main OIDs match; predecessor
-runtime and owned pytest scratch are removed. This is not whole-goal completion.
+95.014516-percent combined coverage in 688.962 seconds. Acceptance, installation
+and both peer dev/main projections completed; that statement does not transfer
+to later work-lane commits or establish whole-goal completion.
 
-GitHub main run 35406817714 passes, including the existing required proof and
-package check identities. Its one prepared quality job executes and uploads the
-real full graph; the two thin checks project that result rather than repeat work.
-The hosted proof took 1,056 seconds, so neither a universal speedup nor a 600-second
-result is established. GitHub dev remains separately observed by its existing
-native watcher. No running pipeline is cancelled to make the candidate appear green.
+GitHub main 35406817714 and dev 35406824919 passed, including the existing
+required proof and package checks. One prepared quality job executes and uploads
+the full graph; dependent checks project that result without repeated work.
+Main's hosted proof took 1,056 seconds, not a universal speedup or a 600-second
+result. GitLab main 7505 and dev 7504 failed. Main's retained report identifies
+missing lychee and bare OpenSpec command supply, not failed test assertions.
 
-The current bounded successor applies the same owner rule to GitLab: 26 prior
-jobs become five simulated native jobs while commit admission, Linux conformance
-and the two-version Node matrix remain. Native GitLab simulation and source
-regressions exposed and closed deprecated retry spelling. Before integration,
-unprivileged execution also required removal of the global lychee installer;
-the official binary wheel now uses the existing locked development environment.
-Positive and negative link cases passed on macOS and UID-65534 Linux without
-network or system writes. Full new-source proof and hosted execution are still
-required. Virtualenv 21.7.15 does not remove its Filelock-below-4 dependency;
-that latest-stable conflict remains open. The Change and sole Work Lane remain
-open for process-loss recovery, native bootstrap, further measured throughput,
-remaining complete adopter journeys and final retirement.
+The unaccepted work-lane successor bdfb4baa consolidates 26 GitLab jobs into five
+while preserving commit admission, Linux conformance and both Node versions.
+Native pipeline simulation reports no errors or warnings. Official locked lychee
+wheels replace the privileged installer; valid/broken links passed on macOS and
+UID-65534 Linux without network or system writes. This commit passed all 35 gates
+in 708.184 seconds but was deliberately not delivered with the known OpenSpec gap.
+
+The current owner repair replaces that bare command with the existing verified
+OpenSpec resolver and shares native result interpretation with lifecycle checks.
+The 242-case frozen consumer matrix passes, including real public CLI execution
+with system-only PATH, source/package resolver failures and archive preservation.
+Product/test ELOC are 46,044/49,995; owned scratch is absent. Existing Change
+artifacts carry the specification and implementation state; exact new-commit
+proof, installed-package execution and both hosted observations remain required.
+Virtualenv 21.7.15 still requires Filelock below 4; no supported latest-all claim
+or constraint override follows. Process-loss recovery, native bootstrap, measured
+throughput, full adopter journeys and final lane retirement remain open.
 
 Release continuity is delivered: repository proof remains applicable after
 authoring retirement; distinct valid execution contexts do not contradict

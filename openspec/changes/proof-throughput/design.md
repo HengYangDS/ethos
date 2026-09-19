@@ -1936,3 +1936,35 @@ GitHub's preceding main run 35406817714 completed successfully with real proof a
 package status projections. Its hosted proof took 1,056 seconds, compared with
 689 seconds locally; concurrency and host conditions differ, so this is not a
 controlled speedup. Native startup and whole-cycle performance remain open.
+
+## Official Validation Uses Its Existing Supply Owner
+
+GitLab main pipeline 7505 at af174f158 failed its full observation because the
+Markdown gate could not resolve lychee and the specification gate invoked a bare
+OpenSpec command. The locked lychee wheel removes the first undeclared host
+prerequisite. The second is not a reason to expand global PATH: the existing
+OpenSpec resolver already verifies source or packaged supply and invokes its
+exact Node entry. A restricted-PATH public host proof failed with missing_command
+while that resolver validated all twelve official items successfully.
+
+The specification gate now delegates to the existing OpenSpec governance adapter.
+It uses the same official resolver and bounded JSON transport as lifecycle
+observation. Native content, exit status and parse failure are combined by one
+result owner consumed by both paths; no Markdown parser or tool installer is
+introduced. The report retains native command, output and diagnostics. Missing
+supply blocks; valid empty and INFO results remain valid; invalid items,
+nonzero execution and unreadable or timed-out transport cannot pass.
+
+The existing result matrix separates payload, process exit and transport outcome
+instead of repeating overlapping fixtures. Both consumers share those cases;
+the public gate also executes real locked OpenSpec with system-only PATH. Native
+archive preservation and source/package resolver consumers remain in the frozen
+242-case matrix, which passed in 16.98 seconds. Owned scratch is absent and
+product/test ELOC are 46,044/49,995 with unchanged thresholds. These observations
+are not exact new-commit proof, installed-runtime or hosted acceptance.
+
+The bdfb4baa predecessor passed all 35 gates in 708.184 seconds but did not ship:
+its local environment concealed the hosted ambient-command gap. Commit the
+complete owner repair, obtain its exact full proof, then observe installation
+and both hosted projections. The known failure therefore remains a delivery
+obligation rather than a postponed host workaround.

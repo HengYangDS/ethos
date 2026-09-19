@@ -16,68 +16,50 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
 
 
-def _completed(name: str = "change") -> dict[str, object]:
-    return {"name": name, "status": "complete", "completedTasks": 1, "totalTasks": 1}
+def _completed(name: str = "change", **updates: object) -> dict[str, object]:
+    return {"name": name, "status": "complete", "completedTasks": 1, "totalTasks": 1, **updates}
 
 
+def _validation_item(**fields: object) -> dict[str, object]:
+    return {"id": "native", "type": "change", "valid": True, **fields}
+
+
+@pytest.mark.parametrize("exit_code", [0, 1])
+@pytest.mark.parametrize("parse_error", ["", "malformed", "openspec_command_timeout"])
 @pytest.mark.parametrize(
-    ("exit_code", "payload", "expected"),
+    ("payload", "expected"),
     [
-        (1, {"items": []}, ["openspec_validate_failed"]),
-        (
-            1,
-            {"items": [{"id": "native", "type": "change", "valid": True}]},
-            ["openspec_validate_failed"],
-        ),
+        ({"items": []}, []),
+        ({"items": [_validation_item()]}, []),
+        ({"items": [_validation_item(valid=False)]}, ["openspec_validation_failed:change:native"]),
         *(
-            (
-                code,
-                {"items": [{"id": "native", "type": "change", "valid": False}]},
-                ["openspec_validation_failed:change:native"],
-            )
-            for code in (0, 1)
-        ),
-        *(
-            (0, payload, ["openspec_validation_unreadable"])
+            (payload, ["openspec_validation_unreadable"])
             for payload in ({}, {"items": None}, {"items": {}}, {"items": [None]})
         ),
         *(
-            (
-                0,
-                {"items": [{"id": "native", "type": "change", "valid": True, **invalid}]},
-                ["openspec_validation_unreadable"],
+            ({"items": [_validation_item(**{field: value})]}, ["openspec_validation_unreadable"])
+            for field, values in (
+                ("id", ("", 1)),
+                ("type", ("other", [])),
+                ("valid", (1, "false", None)),
             )
-            for invalid in (
-                {"id": ""},
-                {"id": 1},
-                {"type": "other"},
-                {"type": []},
-                {"valid": 1},
-                {"valid": "false"},
-                {"valid": None},
-            )
+            for value in values
         ),
-        (0, {"items": []}, []),
         (
-            0,
             {
                 "items": [
-                    {
-                        "id": "native",
-                        "type": "change",
-                        "valid": True,
-                        "issues": [{"level": "INFO", "path": "file", "message": "No delta"}],
-                    }
+                    _validation_item(
+                        issues=[{"level": "INFO", "path": "file", "message": "No delta"}]
+                    )
                 ]
             },
             [],
         ),
         (
-            0,
             {
                 "items": [
-                    {"id": "valid", "type": "spec", "valid": True},
-                    {"id": "invalid", "type": "spec", "valid": False},
+                    _validation_item(id="valid", type="spec"),
+                    _validation_item(id="invalid", type="spec", valid=False),
                 ]
             },
             ["openspec_validation_failed:spec:invalid"],
@@ -85,14 +67,25 @@ def _completed(name: str = "change") -> dict[str, object]:
     ],
 )
 def test_validation_results_preserve_execution_and_item_failures(
-    exit_code: int, payload: dict[str, object], expected: list[str]
+    monkeypatch, tmp_path, exit_code, payload, expected, parse_error
 ) -> None:
     """Neither process success nor missing diagnostics can erase native failure."""
+    expected = expected or (["openspec_validate_failed"] if exit_code else [])
+    validation = {"exit_code": exit_code, "json": payload, "parse_error": parse_error}
+    expected = expected + (["openspec_validate_json_parse_failed"] if parse_error else [])
+    monkeypatch.setattr(governance.openspec_cli, "openspec_base_command", lambda: ("native",))
+    monkeypatch.setattr(governance.openspec_cli, "run_json", lambda *_args: validation)
+    gate = governance.openspec_validation_report(tmp_path)
+    assert gate == {
+        "verdict": "block" if expected else "pass",
+        "required_gaps": expected,
+        "validation": validation,
+    }
     observed = report.openspec_command_gaps(
         doctor={"exit_code": 0, "json": {"root": {"healthy": True}}, "parse_error": ""},
         list_result={"exit_code": 0, "json": {"changes": []}, "parse_error": ""},
         status={},
-        validate={"exit_code": exit_code, "json": payload, "parse_error": ""},
+        validate=validation,
         selected=None,
     )
     assert observed == expected
@@ -102,9 +95,9 @@ def test_official_rows_selection_and_command_gaps_reject_malformed_authority() -
     assert report.official_change_rows({}) is None
     assert report.official_change_rows({"changes": ["bad"]}) is None
     malformed = [
-        {"name": "", "status": "complete", "completedTasks": 1, "totalTasks": 1},
-        {"name": "x", "status": "complete", "completedTasks": True, "totalTasks": 1},
-        {"name": "x", "status": "complete", "completedTasks": 0, "totalTasks": 1},
+        _completed(""),
+        _completed("x", completedTasks=True),
+        _completed("x", completedTasks=0),
     ]
     assert all(report.official_change_rows({"changes": [row]}) is None for row in malformed)
     rows = [_completed("first"), _completed("second")]
@@ -154,22 +147,18 @@ def test_edge_reports_and_lifecycle_mismatches_preserve_attribution(
     assert timeout["commands"]["doctor"] == {"exit_code": 124}
     assert timeout["commands"]["list"] == {}
 
-    status_mismatch = report.lifecycle_report(
-        tmp_path,
-        request=request,
-        list_payload={"changes": [_completed("requested")]},
-        status_payload={"changeName": "other"},
-        apply_payload={"changeName": "requested"},
-    )
-    apply_mismatch = report.lifecycle_report(
-        tmp_path,
-        request=request,
-        list_payload={"changes": [_completed("requested")]},
-        status_payload={"changeName": "requested"},
-        apply_payload={"changeName": "other"},
-    )
-    assert status_mismatch["required_gaps"] == ["openspec_status_change_mismatch:requested"]
-    assert apply_mismatch["required_gaps"] == ["openspec_apply_change_mismatch:requested"]
+    for stage in ("status", "apply"):
+        payloads = {
+            f"{key}_payload": {"changeName": "other" if key == stage else "requested"}
+            for key in ("status", "apply")
+        }
+        mismatch = report.lifecycle_report(
+            tmp_path,
+            request=request,
+            list_payload={"changes": [_completed("requested")]},
+            **payloads,
+        )
+        assert mismatch["required_gaps"] == [f"openspec_{stage}_change_mismatch:requested"]
 
 
 def test_public_lifecycle_filters_capability_escape_and_governance_rejects_invalid_identifier(

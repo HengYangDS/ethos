@@ -17,7 +17,6 @@ env:
   PYTHONWARNINGS: error
   UV_LINK_MODE: copy
   UV_CACHE_DIR: build/runtime/tool-cache/uv
-  LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee
   ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools
 
 jobs:
@@ -105,7 +104,7 @@ jobs:
       # independently required hosted checks below project this exact result.
       - name: External links
         run: >-
-          tools/ci/scripts/install-lychee.sh && tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute
+          tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute
           --gate external-links --expect-head "$(git rev-parse HEAD)" --json
       - name: Hosted provider observation envelope
         run: uv run --frozen --offline python -m nox -s hosted_observation

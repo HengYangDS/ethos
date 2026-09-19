@@ -358,3 +358,10 @@ artifact upload may satisfy those dependent checks.
 - **THEN** dependent checks cannot report success
 - **AND** native diagnostics and available proof reports remain separately observable
 - **AND** the attempt does not retry or increase the native executable deadline
+
+#### Scenario: Unprivileged hosted link checking
+
+- **WHEN** a prepared hosted checkout runs its full graph without system write access
+- **THEN** link checking uses the declared locked binary wheel in that environment
+- **AND** no separate installer writes host executable directories
+- **AND** valid local links pass and missing targets produce a failing observation

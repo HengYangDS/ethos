@@ -6,7 +6,7 @@
 # retried job never succeeds (unlike python:3.12, which the runner keeps
 # layer-cached). Rather than depend on that registry, the npm jobs run on the
 # always-cached python:3.12 image and install Node from nodejs.org — the same
-# egress that already serves install-lychee.sh reliably.
+# egress used by the declared upstream tool suppliers.
 # Kept outside .gitlab-ci.yml so CI stays a projection over reusable setup logic.
 set -euo pipefail
 

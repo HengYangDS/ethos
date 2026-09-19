@@ -2,7 +2,6 @@
 stages:
   - quality
   - verify
-  - package
 
 # Candidate integration is local-only. Hosted pipelines run only for remote-eligible
 # branches, plus merge-request validation.
@@ -18,7 +17,6 @@ variables:
   PYTHONWARNINGS: error
   UV_LINK_MODE: copy
   UV_CACHE_DIR: build/runtime/tool-cache/uv
-  LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee
   ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools
   # GitLab exposes /cache through a project-scoped runner cache volume.
   # Actionlint verifies the cached archive SHA-256 before reuse.
@@ -40,18 +38,15 @@ default:
     max: 2
     when:
       - runner_system_failure
-      - stuck_or_timeout_failure
+      - stuck_pending_with_matching_runners
+      - stuck_pending_no_matching_runners
+      - no_updates_running
+      - no_updates_canceling
       - api_failure
       - scheduler_failure
 
-# The quality stage runs every registered gate so a red gate fails CI — not just a
-# subset. Gates: ruff (broad rule families + format), ty (types), import-linter
-# (architecture), docstrings, product-boundary/contributor policy, Ruff S rules,
-# Python vulnerability audit, gitleaks (secrets), config (TOML/YAML format+lint), shell lint,
-# markdown lint, lychee (doc links), provider projection drift, local emulator
-# boundaries, format selection, architecture projection, MCP smoke,
-# generated-artifact and release supply-chain checks.
-# A gate that does not run in CI is not a gate.
+# The full registry owns quality, proof, package creation and SBOM once.
+# Commit admission and native host/Node conformance retain their own boundaries.
 .python_setup: &python_setup
   image: &python_image ghcr.io/astral-sh/uv:0.12.16-python3.14-trixie-slim@sha256:768543c09cfe47d3d08c3cbfffadead2029a96d19c3c05285c8b6c6f637aa3a8
   before_script:
@@ -89,141 +84,6 @@ ethos:commit-policy:
       --root .
       --json
 
-ethos:carrier-quality:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s format_check
-
-ethos:types:
-  <<: *python_setup
-  stage: quality
-  script:
-    # The executed python-types gate requires zero diagnostics for every declared package.
-    # Unavailable or indeterminate ty execution also blocks through verdict-to-exit
-    # binding, so the pipeline cannot pass on an unverified type result.
-    - >-
-      tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --host --execute
-      --gate python-types --expect-head "$(git rev-parse HEAD)" --json
-
-ethos:architecture:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s import_boundaries
-
-ethos:dependency-hygiene:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s dependencies
-
-ethos:config:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s schemas
-
-ethos:hygiene:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s repository_hygiene
-
-ethos:product-boundary:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s product_boundary
-
-ethos:docstrings:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s docstrings
-
-ethos:module-layout:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s module_layout
-
-ethos:security:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s vulnerabilities
-  artifacts:
-    when: always
-    paths:
-      - build/evidence/quality/security/
-
-ethos:secrets:
-  <<: *python_setup
-  stage: quality
-  script:
-    # Secret scanning via gitleaks (prebuilt binary installed by the runner).
-    # Policy: root .gitleaks.toml. A tracked secret fails the pipeline.
-    - tools/ci/scripts/run-secrets-scan.sh
-  artifacts:
-    when: always
-    paths:
-      - build/evidence/quality/secrets/
-
-ethos:docs-links:
-  <<: *python_setup
-  stage: quality
-  script:
-    - tools/ci/scripts/install-lychee.sh
-    - >-
-      tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute
-      --gate markdown-links --expect-head "$(git rev-parse HEAD)" --json
-
-ethos:external-links:
-  <<: *python_setup
-  stage: quality
-  script:
-    - tools/ci/scripts/install-lychee.sh
-    - >-
-      tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute
-      --gate external-links --expect-head "$(git rev-parse HEAD)" --json
-
-ethos:prose:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s prose
-
-ethos:ci-projections:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s ci_templates
-
-ethos:github-workflow-syntax:
-  <<: *python_setup
-  stage: quality
-  script:
-    - tools/ci/scripts/run-actionlint.sh
-
-ethos:format-selection:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s format_selection
-
-ethos:architecture-projection:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s architecture_projection
-
-ethos:hosted-provider-observation:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s hosted_observation
-
 ethos:host-conformance:
   <<: *python_setup
   stage: verify
@@ -247,8 +107,8 @@ ethos:verify:
   stage: verify
   variables:
     # GIT_DEPTH=0 does not repair a runner checkout that was previously
-    # shallow. Reclone only the history-sensitive verify job so replay can
-    # resolve its pinned commits without making every quality job reclone.
+    # shallow. Reclone this history-sensitive execution owner so replay can
+    # resolve pinned commits without repeating preparation for every gate.
     GIT_STRATEGY: clone
     # The arm64 hosted runner can terminate xdist workers under the full
     # coverage suite. Keep the reusable owner script and its default parallel
@@ -257,8 +117,10 @@ ethos:verify:
     # The entrypoint prepares the image and then replaces PID 1. The entire
     # job runs unprivileged, preserving process visibility and permission tests.
   script:
-    - node_modules/.bin/openspec --version
-    - node_modules/.bin/openspec validate --all --strict --json
+    - >-
+      tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute
+      --gate external-links --expect-head "$(git rev-parse HEAD)" --json
+    - uv run --frozen --offline python -m nox -s hosted_observation
     - tools/ci/scripts/run-head-bound-proof.sh
   artifacts:
     when: always
@@ -266,6 +128,10 @@ ethos:verify:
       - build/evidence/quality/proof/
       - build/evidence/quality/tests/pytest/junit*.xml
       - build/evidence/quality/tests/coverage/coverage.xml
+      - build/evidence/quality/security/
+      - build/evidence/quality/secrets/
+      - build/artifacts/python/
+      - build/evidence/release/
     reports:
       junit: build/evidence/quality/tests/pytest/junit*.xml
       coverage_report:
@@ -286,27 +152,3 @@ ethos:npm:
     - source tools/ci/scripts/bootstrap-python.sh
     - tools/ci/scripts/install-node.sh
     - tools/ci/scripts/run-node-compatibility.sh
-
-ethos:package:
-  <<: *python_setup
-  stage: package
-  script:
-    - uv run --frozen --offline python -m nox -s build
-    - uv run --frozen --offline python -m nox -s supply_chain
-  artifacts:
-    when: always
-    paths:
-      - build/artifacts/python/
-      - build/evidence/release/
-
-ethos:npm-package:
-  stage: package
-  # See ethos:npm — python:3.14 + install-node.sh avoids the unreachable
-  # node:24 image.
-  image: ghcr.io/astral-sh/uv:0.12.16-python3.14-trixie-slim@sha256:768543c09cfe47d3d08c3cbfffadead2029a96d19c3c05285c8b6c6f637aa3a8
-  script:
-    - source tools/ci/scripts/bootstrap-python.sh
-    - tools/ci/scripts/install-node.sh
-    - npm config set engine-strict true
-    - npm ci --ignore-scripts
-    - npm run test:npm

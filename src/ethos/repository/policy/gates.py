@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import sys
 import tomllib
+from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,6 +17,7 @@ from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 
@@ -53,6 +56,28 @@ class ResolvedGatePolicy:
                 for gate in self.gates
             )
         )
+
+    def result_gaps(self, checks: object) -> tuple[str, ...]:
+        """Require one successful, identity-matching result per declared obligation."""
+        if not isinstance(checks, (list, tuple)) or any(
+            not isinstance(check, Mapping) or not isinstance(check.get("action_id"), str)
+            for check in checks
+        ):
+            return ("gate_results_invalid",)
+        counts = Counter(check["action_id"] for check in checks)
+        expected = {node.id: node.command for node in self.nodes}
+        gaps = [f"gate_missing:{key}" for key in sorted(expected.keys() - counts.keys())]
+        gaps += [f"gate_unknown:{key}" for key in sorted(counts.keys() - expected.keys())]
+        gaps += [f"gate_duplicate:{key}" for key, count in sorted(counts.items()) if count != 1]
+        for check in checks:
+            name, command = check["action_id"], check.get("command")
+            if name in expected and (
+                not isinstance(command, (list, tuple)) or tuple(command) != expected[name]
+            ):
+                gaps.append(f"gate_identity_mismatch:{name}")
+            if not execution_succeeded(check):
+                gaps.append(f"gate_execution_not_proven:{name}")
+        return tuple(gaps) if checks else ("gate_results_empty", *gaps)
 
     @property
     def projection(self) -> dict[str, object]:

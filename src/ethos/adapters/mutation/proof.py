@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
@@ -23,13 +22,12 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
+from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
@@ -39,6 +37,7 @@ from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
+from ethos.contracts.verdict import execution_succeeded
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -116,31 +115,6 @@ def _proof_issue_values(
     )
 
 
-def _execution_source(root: Path, head: str, tree: str) -> dict[str, str]:
-    """Observe native working content and staged correspondence without editing the index."""
-    try:
-        staged = run_git(
-            root,
-            "diff",
-            "--cached",
-            "--quiet",
-            "--no-ext-diff",
-            head,
-            "--",
-            check=False,
-            observation=True,
-        )
-        with observe_worktree_postimage(root, previous=head) as observed:
-            worktree = observed.tree
-    except (OSError, ValueError, subprocess.SubprocessError) as error:
-        message = f"proof_execution_source_unavailable:{error}"
-        raise ValueError(message) from error
-    if staged.returncode not in {0, 1}:
-        message = f"proof_execution_source_unavailable:{staged.stderr.strip()}"
-        raise ValueError(message)
-    return {"worktree": worktree, "index": tree if staged.returncode == 0 else ""}
-
-
 def assert_proof_execution_source(
     root: Path, plan: TransitionPlan, *, checks: tuple[dict[str, object], ...] = ()
 ) -> None:
@@ -152,7 +126,7 @@ def assert_proof_execution_source(
     try:
         if not gap and (
             current_tracked_head(root) != head
-            or _execution_source(root, head, str(plan.facts.get("tree") or ""))
+            or observe_execution_source(root, head, str(plan.facts.get("tree") or ""))
             != plan.facts["values"]["execution_source"]
         ):
             gap = "proof_execution_source_changed"
@@ -247,7 +221,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         msg = "proof_attestation_check_plan_mismatch"
         raise ValueError(msg)
     normalized = tuple(checks_by_id[gate_id] for gate_id in execution_order)
-    checks_pass = all(check["verdict"] == "pass" for check in normalized)
+    checks_pass = all(execution_succeeded(check) for check in normalized)
     if verdict == "pass" and (required_gaps or not checks_pass):
         msg = "proof_attestation_verdict_mismatch"
         raise ValueError(msg)
@@ -364,7 +338,7 @@ def proof_plan(
             "changed_paths": effective_paths,
             "change_id": selected_change_id,
             "gate_ids": tuple(node.id for node in nodes),
-            "execution_source": _execution_source(root, head, authority.current_tree),
+            "execution_source": observe_execution_source(root, head, authority.current_tree),
             **(
                 {
                     "selected_carrier": observed_scope.selected_carrier,

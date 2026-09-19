@@ -52,7 +52,7 @@
     },
     "verification": {
       "label": "Falsifiable, scoped evidence",
-      "text": "Prove exact candidates and combinations with falsifiable checks. Independent verification is optional unless risk or policy requires its separate trust domain. Local, independent and hosted claims stay distinct; a composite needs a responsible verifier and explicit rule. Evidence does not authorize effects.",
+      "text": "Prove exact candidates and combinations with falsifiable checks. Committed action policy selects disabled, optional or required independent verification; execution identity changes alone do not select a provider. Control replacement keeps the stricter accepted/proposed requirement. Local, independent and hosted claims stay distinct; a composite needs a responsible verifier and explicit rule. Evidence does not authorize effects.",
       "surface": "main-static"
     },
     "candidate": {

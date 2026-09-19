@@ -52,8 +52,18 @@ def report_verdict(report: Mapping[str, object]) -> Verdict:
         if _items(report.get("warnings")) or _has_adverse_diagnostic(report.get("diagnostics"))
         else ()
     )
-    declared = _VERDICTS.get(report.get("verdict"), "unknown")
+    raw = report.get("verdict")
+    declared = _VERDICTS.get(raw, "unknown") if isinstance(raw, str) else "unknown"
     return close_verdict(declared, gaps, warnings)
+
+
+def execution_succeeded(report: Mapping[str, object]) -> bool:
+    """Require actual zero exit and a closed passing result, not a claimed status alone."""
+    return (
+        type(report.get("exit_code")) is int
+        and report["exit_code"] == 0
+        and report_verdict(report) == "pass"
+    )
 
 
 def reduce_verdicts(

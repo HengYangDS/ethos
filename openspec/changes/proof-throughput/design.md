@@ -1852,6 +1852,11 @@ Final exact proof, package replay and hosted observations remain distinct.
 
 ## One Hosted Execution, Independent Provider Check Projections
 
+Historical intermediate design. The later [Quality Assurance Architecture
+Redesign](#quality-assurance-architecture-redesign) supersedes its single-checkout
+and aggregate-forwarding decisions. Retain its observed incidents and supply
+findings as evidence, not current execution requirements.
+
 The September 19 observation of source d7e6b5369 distinguishes two outcomes:
 GitHub main run 35402902785 succeeds, while dev run 35402902857 fails during
 gitleaks preparation before proof. The latter downloads the same declared
@@ -1896,6 +1901,10 @@ and policy assertions remain. Exact committed proof, installation and hosted
 results are still required before this candidate is described as delivered.
 
 ## GitLab Convergence And Native Wheel Supply
+
+Historical intermediate topology. The [quality redesign](#quality-assurance-architecture-redesign)
+supersedes the five-job acceptance argument; the verified native-wheel supply
+replacement remains applicable.
 
 The shared registry, not one Forge's job list, owns verification membership.
 GitLab previously ran 26 jobs for this source: repeated quality setup preceded
@@ -2101,3 +2110,222 @@ sustained latency distribution or cold/warm equivalence. Accepted main/dev,
 installed runtime and both peers were separately read back at that source;
 new hosted CI runs remain pending. The existing release-tag receipts preserve
 these separate observations without treating local proof as hosted success.
+
+## CI Assurance Completeness Correction
+
+The September 19 review distinguishes declared checks, executed properties,
+result admission and provider enforcement. The 35-entry full registry is not
+evidence that the quality requirements are complete. The earlier hosted
+consolidation acceptance is reopened; prior successful source delivery remains
+historical evidence, not current completeness.
+
+| Obligation | Observed implementation | Disposition |
+| --- | --- | --- |
+| Whole-source documentation | The docstring owner reports 101/101 while 27 of 278 tracked product Python modules lack module docstrings. A module and public function with no docstrings produce zero selected symbols and pass. | Confirmed scope defect against the user requirement; restore native whole-module enforcement. |
+| Warning rejection | Real command gates with explicit stdout or stderr warnings exit zero and pass. An ETHOS command envelope with warnings blocks. | Confirmed inconsistent command boundary; native adapters must settle diagnostics, not arbitrary JSON or log spelling. |
+| Complete hosted results | The real wrapper accepts three check results for a declared full invocation. Existing tests also accept missing, malformed and failing JUnit reports. | Confirmed receipt admission defect; compare with the existing exact-source policy compiler and validate required artifacts. |
+| Required platform acceptance | Active GitHub ruleset 19657652 requires quality gates, repository proof and package artifacts. The last two depend only on quality; host-conformance is outside those required dependencies. | Verified enforcement gap; bind required capability results without duplicate executions. |
+| Honest observation | The hosted-observation session defaults to a nonexecuted UNKNOWN envelope and succeeds unless execution is explicitly enabled. | Configuration observation is not a completed hosted check; separate actual post-run readback from pipeline self-observation. |
+| Local provider coverage | Emulator selection is quality for GitHub and ethos:verify for GitLab. Native local CI selects the full registry, not the independent provider workloads. | Selected-job emulation is not complete provider parity; qualify declared local and platform-specific boundaries. |
+| Check effectiveness | Projection tests check source equality, command presence and aggregate status. Those assertions do not reject missing semantic obligations or narrowed tool coverage. | Replace completeness claims with per-property positive and falsifying execution evidence. |
+
+The warning probes exercised LocalGateRunner with real bounded subprocesses, not
+a full repository promotion. The wrapper probes used isolated external-tool
+transports and the unchanged shell wrapper; all three flawed acceptance cases
+passed in 2.24 seconds. Their temporary roots were removed. The observed local
+CI owner already checks result membership and source stability; that does not
+repair its shared command-warning boundary or missing semantic obligations.
+No current hosted full-proof bypass or complete historical equivalence is
+claimed. A parsed JSON object without a command discriminator is currently
+opaque to the command runner; native output must gain an explicit interpretation
+boundary rather than guessing every tool's JSON meaning.
+
+Correction order is required-property inventory, executable counterexamples,
+existing-owner repair, removal of substituted checks, focused verification,
+then exact proof and separate local/GitHub/GitLab readback. Receipt hardening is
+the first bounded repair, not closure of the other rows. Preserve complete gate
+coverage, the warning-zero requirement, 95-percent combined coverage and
+50,000 product/test budgets. The 900-second reference-workstation target does
+not authorize omissions. Do not run CI to observe its own future completion.
+
+The first receipt repair rejects the six previously accepted counterexamples:
+missing, malformed and failing reports, partial results, duplicate results and
+unknown gate identities. The existing policy compiler owns expected membership
+and command identity; no copied gate list was added. The provider-neutral
+Markdown artifact exposes every returned gate. Thirty focused receipt and
+provider-projection cases pass in 20.55 seconds, with temporary roots removed.
+This is not complete quality acceptance: warning adapters, whole-module docs,
+platform admission, current hosted execution and test-source budget remain open.
+The current test budget exceeded 50,000 and is not waived. Source-based semantic
+projection tests inherited from the preceding batch remain intentionally RED.
+
+## Quality Assurance Architecture Redesign
+
+### Objective And Decision
+
+The unit of quality is a falsifiable obligation, not a file, job, tool name or
+passing counter. Requirements remain in official OpenSpec; the existing gate
+registry compiles their executable owners and dependencies. Native tool policy
+owns diagnostics. Execution results identify the source, policy, invocation,
+environment, outcome and artifacts. CI, reports and merge controls consume those
+results without creating another authority. These are distinct responsibilities,
+not new persistent entities.
+
+Three architectures were compared. Restoring every historical job recovers some
+visibility but retains duplicate setup and verification. A monolithic execution
+plus status-forwarding jobs saves work but hides responsibility and propagates
+an insufficient aggregate. The selected terminal architecture partitions the
+existing dependency graph at semantic and resource boundaries into native CI
+jobs. Each job owns real execution or exact artifact validation; final admission
+conjoins every required outcome. Shared preparation and unchanged evidence are
+reused only with sufficient input closure. There is no fixed target job count.
+
+A claim is accepted only when its required check set is complete, execution is
+bound to the claimed source and policy, native outcomes are successful, warnings
+are settled under policy, required artifacts are present and consistent, and the
+selected platform obligations hold. Authorization remains separate. A pipeline
+can observe source quality without minting repository mutation authority.
+
+### Complete Bounded Inventory
+
+The inventory covers active source, tests, tools, native configurations, official
+specifications, hooks, the full/default graph, CI templates and projections,
+package acceptance, reports and Forge merge settings. Historical source deliveries
+are not current acceptance. Rows describe observed coverage, not an exhaustive
+claim that every implementation is correct.
+
+| Quality obligation | Current owner and observed coverage | Terminal disposition and falsifier |
+| --- | --- | --- |
+| Requirement preservation | OpenSpec quality requirements and Change scenarios; graph membership alone cannot establish sufficiency | Keep each distinct requirement and its falsifier; deletion of a check must retain the obligation through a demonstrated replacement |
+| Execution-source identity | Repository proof has native worktree/index correspondence; host full proof ignores policy gaps and executes dirty bytes | Reuse the existing source observer before and after exact execution; reject a missing committed script restored untracked and a committed failing script replaced with passing bytes |
+| Declaration/result completeness | Local CI checks closure membership; hosted wrapper formerly checked only a subset | One policy compiler and closed verdict semantics; reject missing, duplicate, unknown or identity-mismatched results |
+| Python lint and formatting | Ruff native lint/format runs over tracked and admitted untracked Python | Keep native rules and rule ownership; verify all selected files and failed native outcomes |
+| Docstrings | Custom owner counts packages and decorated commands, not ordinary modules; 27/278 product, 92/230 test and 4/32 tool modules lack module documentation | Native Ruff D rules own presence/style; preserve necessary signature semantics without another style parser; reject missing module documentation throughout authoring surfaces |
+| Type correctness | Ty currently selects src only and infers results from prose | Use supported native diagnostic output and warning failure; qualify product and quality-tool/test policy explicitly rather than claiming all Python is typed |
+| Architecture and visibility | Import-linter declares one layer contract; layout rules cover several paths | Test allowed and forbidden cross-boundary imports, private access and dependency direction; names and diagrams alone are not enforcement |
+| Carrier coverage | Format selection requires nonempty command strings; default YAML input is a fixed list and missing requested files are filtered | Derive current candidates from ownership and native discovery; distinguish admitted deletion, absent required carrier and empty applicable set |
+| Shell quality | ShellCheck is executed; declared shfmt ownership has no call in shell_lint | Invoke both native owners for their distinct properties and reject syntax/semantic/format defects without rewriting during proof |
+| JavaScript quality | javascript_lint invokes Prettier; npm test:npm only packs a dry-run manifest | Separate formatting, semantic lint and launcher behavior; add real launcher positive/negative execution, not more packaging counters |
+| Schemas and configuration | Schema metaschemas and selected live instances are checked; parser success is not consumer conformance | Verify required instance coverage and consumer rejection; remove copied/disconnected configs and nonfunctional command claims |
+| Behavioral testing | Unit/architecture, property and native-effect cases execute; combined coverage floor is 95 percent | Preserve fault/recovery/adopter obligations; use targeted mutation or distinguishing cases for critical verdicts, not coverage as correctness proof |
+| Warning semantics | Provider/ETHOS envelopes reject warnings; plain command success can hide explicit warnings; emulator regexes do not cover other planes | Tool-native warnings-as-errors or native structured findings at the owning adapter; unknown required interpretation cannot pass; informational output remains valid |
+| Security and supply | Python/npm dependency audits, tracked-secret scan and SPDX generation exist; these are not full SAST or provenance | Distinguish vulnerability, secret, source-security, artifact identity and provenance claims; qualify each required owner and avoid asserting an unearned SLSA level |
+| Package and installation | Wheel/package-only acceptance exists; host matrix exercises package behavior plus two portability tests | Declare exact platform/tool/behavior scope; package conformance does not imply the complete source-quality graph ran on that OS |
+| Local provider emulation | One selected GitHub job and one selected GitLab job | Expose exact selected scope; support required dependency closure without claiming remote success or unavailable platforms |
+| Provider enforcement | GitHub required statuses omit native conformance; GitLab only_allow_merge_if_pipeline_succeeds is false | Bind final required admission to every mandatory result, turn on native pipeline success requirement, verify with a denied invalid candidate and normal valid path |
+| Reports and diagnostics | JUnit/coverage mostly originate in verify; aggregate receipt previously tolerated invalid artifacts | Native test reports, per-check diagnostics, coverage and artifact identity remain separate; missing, stale or contradictory required reports block acceptance |
+| Resource and latency bounds | Reference proof target is 900 seconds; historical GitLab verify took 1716 seconds; supervisor-loss boundaries remain open | Measure critical path, input transfer, queue/startup and cleanup; retain owned deadlines and no retry of unchanged failures; do not trade quality for elapsed time |
+
+### Implemented Boundary And Remaining Qualification
+
+The source observer and result-set validator now serve host and local execution.
+Native Ty output replaces prose parsing; warnings fail through its native flag
+and structured report. ShellCheck and shfmt both execute. Malformed diagnostic
+values remain nonpassing results rather than escaping as unhashable exceptions.
+One shared `execution_succeeded` predicate also guards dependency scheduling,
+proof normalization, issuance and replay: a claimed pass cannot erase a nonzero
+exit, warning or required gap. Existing proof normalization preserves adverse
+signals and rejects contradictory success before artifact creation.
+
+Evidence remains candidate-only: `build/evidence/quality/commit-integrity/`
+contains the `ci-redesign-integrated-focused`, `ci-proof-result-integrity-red`
+and `ci-proof-result-integrity-focused` logs. The latter red/green pair exercises
+actual proof issuance, not a substitute result parser. Native shell and Ty
+observations are separate retained evidence. No current full proof, installation,
+Forge setting change or hosted redesign acceptance is implied.
+
+Docstrings, JavaScript semantics, configuration discovery, native CI partitions,
+required Forge admission and complete report delivery remain open. A later
+candidate must qualify all these obligations; the historical monolithic CI green
+is not acceptance of this architecture.
+
+### Execution, Reports And Admission
+
+The initial native partition is repository policy, static code/carriers,
+behavior/coverage, security/supply, package/install and supported platform
+conformance. This is a derived execution view of existing obligations, not a
+second gate registry. The accepted graph may combine or separate jobs when the
+resource or dependency boundary warrants it. External-link/network observations
+remain distinguishable from deterministic local checks.
+
+Every required obligation appears exactly once in the accepted result union;
+shared prerequisites may have multiple consumers but are not executed repeatedly
+without a reason. An execution partition must preserve dependency order, source
+identity, environment/material applicability and every artifact consumer. Until
+that reuse boundary is implemented and tested, no skipped prerequisite is claimed
+as satisfied. Native cache loss changes work only, never verdict or authority.
+
+GitHub's final required job explicitly observes all mandatory needs, including
+matrix conformance. GitLab enables the native successful-pipeline merge condition
+and leaves required jobs nonoptional. Both handle failed, cancelled, skipped,
+missing and UNKNOWN outcomes explicitly. Preserve exact-commit multi-peer release
+semantics; changing CI must not introduce Forge-created divergent integration
+commits or silently change merge methods. Existing settings are read, changed
+within the authorized boundary, then read back; no credential changes are needed.
+
+Detailed checks stay visible where they execute. Native JUnit remains test-result
+transport, coverage reports remain measurement, and security formats keep native
+meaning. The existing Allure Report 3 direction remains preferred for test journeys,
+attachments, history and human/Agent inspection. Its official pytest adapter
+captures the same execution as JUnit; native non-test evidence is linked, not
+fabricated as test cases. This follows the existing modern-foundations research,
+not a new tool-selection decision. Qualify its result identity, bounded retention,
+real report accessibility and failure behavior without granting policy authority. No hidden witnesses or copied status fields certify coverage.
+
+### Evidence Interpretation And Failure Placement
+
+An exact committed check observes committed policy plus matching executing bytes.
+A working-tree diagnostic is a different claim and remains useful before commit;
+it cannot be relabeled exact-commit qualification. Full hosted verification must
+reject missing declared source and pre/post source drift. Preserve diagnostic
+output on failure, and leave authorization to repository admission.
+
+A native command's zero exit is sufficient only for the properties its contract
+actually checks. Prefer native warnings-as-errors and structured diagnostics.
+Do not infer arbitrary JSON meaning from property spelling, count stderr as a
+warning, or use a global log regex to invent tool semantics. Parser validity,
+covered source range, checks executed and semantic sufficiency remain distinct.
+
+### Migration And Acceptance Order
+
+1. Preserve the existing RED evidence; re-open contradictory completion claims.
+2. Repair exact-source and policy/result admission before trusting new CI output.
+3. Replace narrowed or disconnected quality owners: docstrings, warnings, shell,
+   JavaScript, configuration discovery and capability-specific assurance.
+4. Compile coherent native job partitions and reports; replace aggregate-only
+   placeholders and self-observation, retaining native provenance and failures.
+5. Update required Forge enforcement with readback and negative/positive admission
+   evidence, without changing independent peer object identity semantics.
+6. Run focused falsifiers and affected consumers, then exact full proof, installed
+   behavior and each hosted provider; only then close the corresponding tasks.
+
+The first receipt patch is provisional, not the terminal architecture. Its
+embedded validation must converge into existing shared owners rather than become
+another policy interpreter. No dependency, daemon, task graph, persistent
+Commitment, parallel plan or unconditional cache is introduced by this design.
+Tests remain within 50,000 ELOC through semantic fixture consolidation, never by
+removing unique adversarial obligations or cosmetic line compression. The source
+and test ceilings are independent. The 900-second threshold applies to the
+qualified reference workload, not arbitrary CI queue latency or every platform.
+
+### Research And Observed Limits
+
+Official GitLab documentation states that JUnit reports do not control job
+status; scripts must propagate failure. Official GitHub Actions documentation
+states that a skipped job can report success, and needs/always must be composed
+explicitly. Official Ruff documentation provides native pydocstyle selection and
+module/package checks. These capabilities support the proposed boundaries;
+none proves the current ETHOS implementation or hosted enforcement correct.
+
+- GitLab unit test reports: <https://docs.gitlab.com/ci/testing/unit_test_reports/>
+- GitHub conditional jobs: <https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions>
+- GitHub workflow dependencies: <https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax>
+- Ruff native documentation policy: <https://docs.astral.sh/ruff/tutorial/>
+- Allure report architecture: <https://allurereport.org/docs/how-it-works/>
+
+Readback of GitHub run 35439910008 and GitLab pipeline 7525 shows successful
+jobs for source 60124a8e. Those executions predate this correction and do not
+prove completeness. GitLab project 423 reports pipeline-success enforcement
+disabled. No Forge settings were changed during this inventory. The two native
+public full-proof probes returned pass for uncommitted script bytes; neither
+probe changed ETHOS or demonstrated repository land/publish acceptance.

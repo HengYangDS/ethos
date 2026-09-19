@@ -2078,7 +2078,7 @@
       "plane": "semantic",
       "flow_class": "control",
       "effect_capable": false,
-      "guard": "none"
+      "guard": "committed_action_policy_selection"
     },
     {
       "id": "independent-to-claim",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -11,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from ethos.contracts.gates import load_gate_registry_declaration
+from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -61,7 +64,11 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def _report_contents(reports: str) -> dict[str, str]:
     """Keep per-case report data separate from the shared executable fixture."""
     contents = {
-        "pytest/junit.xml": "<testsuite><testcase/><testcase><failure/></testcase></testsuite>",
+        "pytest/junit.xml": (
+            "<testsuite><testcase/>"
+            + ("<testcase><failure/></testcase>" if reports == "failed" else "<testcase/>")
+            + "</testsuite>"
+        ),
         "coverage/coverage.xml": (
             '<coverage lines-covered="96" lines-valid="100" '
             'branches-covered="95" branches-valid="100"/>'
@@ -84,6 +91,9 @@ def _hosted_scripts(
     sbom_script: str = "touch .syft-prepared\n",
 ) -> Path:
     """Keep the real wrapper with isolated external-tool preparation boundaries."""
+    interpreter = repo / ".venv/bin/python"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.symlink_to(sys.executable)
     scripts = repo / "tools/ci/scripts"
     scripts.mkdir(parents=True)
     shutil.copy2(ROOT / "tools/ci/scripts/run-head-bound-proof.sh", scripts)
@@ -97,7 +107,9 @@ def _hosted_scripts(
 def _run_hosted(repo: Path, scripts: Path, bins: Path, *args: str, **environment: str):
     """Run the native shell with explicit case-local tools and environment."""
     for name in ("python", "python3"):
-        (bins / name).symlink_to(sys.executable)
+        launcher = bins / name
+        launcher.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} "$@"\n')
+        launcher.chmod(0o555)
     return subprocess.run(
         ["bash", str(scripts / "run-head-bound-proof.sh"), *args],
         cwd=repo,
@@ -114,39 +126,29 @@ def _run_hosted(repo: Path, scripts: Path, bins: Path, *args: str, **environment
     )
 
 
-@pytest.mark.parametrize(
-    "fault",
-    [
-        "none",
-        "process",
-        "gap",
-        "head",
-        "checkout",
-        "malformed",
-        "empty",
-        "gate",
-        "plane",
-        "unexecuted",
-    ],
-)
-@pytest.mark.parametrize("reports", ["missing", "malformed", "valid"])
-def test_hosted_receipt_requires_exact_executed_observation(
-    tmp_path: Path, fault: str, reports: str, hosted_proof_transport: Path
-) -> None:
-    """No local lane readiness or misleading passing field can authorize CI success."""
-    repo = init_git_repo(tmp_path / "repo")
-    head = git(repo, "rev-parse", "HEAD")
-    expected = "0" * 40 if fault == "checkout" else head
+def _observation_payload(expected: str, fault: str) -> dict[str, object]:
+    """Build a complete result and corrupt only the boundary under test."""
     coordinates = {"expected": expected, "current": expected, "matches": True}
     checks = [
-        {"action_id": gate, "verdict": "pass", "exit_code": 0}
-        for gate in ("unit-architecture", "coverage-floor", "openspec")
+        {
+            "action_id": gate.id,
+            "command": list(gate_execution_identity(gate)),
+            "verdict": "pass",
+            "exit_code": 0,
+        }
+        for gate in load_gate_registry_declaration(ROOT / "system/gates.toml").proof_gates(
+            full=True, python_executable=sys.executable
+        )
     ]
     payload = {
         "verdict": "pass",
         "state": "observed",
         "required_gaps": [],
-        "summary": {"boundary": "host", "gate_count": 3, "proof_attestation_issued": False},
+        "summary": {
+            "boundary": "host",
+            "gate_count": len(checks),
+            "proof_attestation_issued": False,
+        },
         "data": {
             "executed": True,
             "boundary": "host",
@@ -156,19 +158,61 @@ def test_hosted_receipt_requires_exact_executed_observation(
         },
     }
     data = payload["data"]
-    if fault == "gap":
-        payload["required_gaps"] = ["gate_failed:coverage-floor"]
-    elif fault == "head":
+    if fault == "head":
         coordinates["current"] = "1" * 40
-    elif fault == "empty":
-        data["checks"] = []
     elif fault == "gate":
         checks[0]["verdict"] = "block"
+    elif fault == "gap":
+        payload["required_gaps"] = ["gate_failed:coverage-floor"]
+    elif fault == "empty":
+        checks.clear()
+    elif fault == "partial":
+        checks[:] = [
+            check
+            for check in checks
+            if check["action_id"] in {"unit-architecture", "coverage-floor"}
+        ]
+    elif fault == "duplicate":
+        checks.append(checks[0].copy())
+    elif fault == "unknown-gate":
+        checks.append(checks[0] | {"action_id": "undeclared", "command": []})
     elif fault == "plane":
-        data["boundary"] = "repository"
-        data["attestation"] = {"id": "unrelated-proof"}
+        data.update(boundary="repository", attestation={"id": "unrelated-proof"})
     elif fault == "unexecuted":
         data["executed"] = False
+    payload["summary"]["gate_count"] = len(data["checks"])
+    return payload
+
+
+@pytest.mark.parametrize(
+    ("fault", "reports"),
+    [("none", report) for report in ("missing", "malformed", "failed", "valid")]
+    + [
+        (fault, "valid")
+        for fault in (
+            "process",
+            "gap",
+            "head",
+            "checkout",
+            "malformed",
+            "empty",
+            "gate",
+            "plane",
+            "unexecuted",
+            "partial",
+            "duplicate",
+            "unknown-gate",
+        )
+    ],
+)
+def test_hosted_receipt_requires_exact_executed_observation(
+    tmp_path: Path, fault: str, reports: str, hosted_proof_transport: Path
+) -> None:
+    """No local lane readiness or misleading passing field can authorize CI success."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    expected = "0" * 40 if fault == "checkout" else head
+    payload = _observation_payload(expected, fault)
     binary = tmp_path / "bin/uv"
     binary.parent.mkdir()
     scanner = binary.parent / "gitleaks"
@@ -194,27 +238,30 @@ def test_hosted_receipt_requires_exact_executed_observation(
     completed = _run_hosted(
         repo, scripts, binary.parent, expected, GITHUB_STEP_SUMMARY=str(summary_file)
     )
-    assert (completed.returncode == 0) is (fault == "none"), completed.stdout + completed.stderr
+    expected_pass = fault == "none" and reports == "valid"
+    assert (completed.returncode == 0) is expected_pass, completed.stdout + completed.stderr
     assert scanner.samefile(hosted_proof_transport.with_name("gitleaks"))
     receipt = json.loads(completed.stdout)
     assert receipt["kind"] == "ethos_hosted_verification_receipt"
     assert receipt["satisfies_repository_proof"] is False
-    assert receipt["verdict"] == ("pass" if fault == "none" else "block")
+    assert receipt["verdict"] == ("pass" if expected_pass else "block")
     (command,) = map(json.loads, (repo / "commands.jsonl").read_text().splitlines())
     assert {"--host", "--execute", "--full"} <= set(command)
     assert "--gate" not in command
     assert command[command.index("--expect-head") + 1] == expected
-    if fault != "none":
+    if not expected_pass:
         assert "exact-child-diagnostic" in completed.stderr
     summary = summary_file.read_text()
     assert expected in summary
     assert receipt["verdict"] in summary
     assert (
-        "Tests: 2; failures: 1; errors: 0; skipped: 0"
-        if reports == "valid"
+        f"Tests: 2; failures: {int(reports == 'failed')}; errors: 0; skipped: 0"
+        if reports in {"valid", "failed"}
         else "Tests: unavailable"
     ) in summary
-    assert ("Coverage: 95.50%" if reports == "valid" else "Coverage: unavailable") in summary
+    assert (
+        "Coverage: 95.50%" if reports in {"valid", "failed"} else "Coverage: unavailable"
+    ) in summary
 
 
 @pytest.mark.parametrize("failed_tool", ["scc", "gitleaks", "syft"])

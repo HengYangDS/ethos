@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
 
 from ethos.repository.policy.projections import validate_projection_assurance
 from tests.support.governed_repository import git
@@ -110,7 +111,41 @@ def test_selected_source_remains_stdlib_exportable(tmp_path: Path) -> None:
         text=True,
         timeout=30,
     )
-    assert json.loads(result.stdout) == export_projection_input(root=root)
+    exported = json.loads(result.stdout)
+    assert exported == export_projection_input(root=root)
+    Draft202012Validator(
+        json.loads((ROOT / "system/schemas/projection-input.schema.json").read_text())
+    ).validate(exported)
+    assert (
+        exported["documents"]["copy"]["maturity_notice"]
+        == "Target architecture, not a claim of current implementation."
+    )
+    nodes = exported["semantics"]["nodes"]
+    for identity in (
+        "problem_observation",
+        "research",
+        "intent_alignment",
+        "repository_norms",
+        "capability_contract",
+        "collaboration_selection",
+        "use_outcome",
+        "feedback_learning",
+        "adoption_exit",
+        "skills",
+        "independent_verifier",
+        "brownfield_repo",
+        "greenfield_repo",
+    ):
+        assert nodes[identity]["attributes"]["required_visible"]
+    assert "transient" in nodes["commitment_n"]["attributes"]["semantics"].lower()
+    assert exported["authority"]["effect_authority"] is False
+    relation = next(
+        row
+        for row in exported["semantics"]["relations"]
+        if row["id"] == "candidate-state-to-independent"
+    )
+    assert relation["attributes"]["guard"] == "committed_action_policy_selection"
+    assert "independent_verification" in relation["provenance"]
 
 
 @pytest.mark.parametrize(

@@ -52,6 +52,12 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
         (0, '{"value": 1}', "pass", ""),
         (
             0,
+            '{"command":"prove","verdict":[]}',
+            "unknown",
+            "ethos_result_verdict_missing_or_invalid",
+        ),
+        (
+            0,
             '{"command":"prove","state":"done"}',
             "unknown",
             "ethos_result_verdict_missing_or_invalid",

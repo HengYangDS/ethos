@@ -4,6 +4,7 @@ from datetime import UTC
 from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -12,8 +13,9 @@ from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
+from tests.support.proof import conformant_proof_checks
+from tests.support.semantic import attestation_fixture
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -50,44 +52,23 @@ def _plan(*, gap: str = ""):
 
 
 def _check(*, verdict: str = "pass", trust_bearing: bool = True) -> dict[str, object]:
-    return {
-        "action_id": "gate",
-        "command": ["gate"],
+    return conformant_proof_checks(_plan())[0] | {
         "exit_code": 0 if verdict != "unknown" else None,
-        "stdout": "",
-        "stderr": "",
         "verdict": verdict,
-        "evidence_class": "test",
         "trust_bearing": trust_bearing,
-        "diagnostics": [],
     }
 
 
-def _attestation(verdict: str = "pass") -> SimpleNamespace:
-    return Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "proof:repository",
-            "verifier": "agent:test:proof-command",
-            "subject": "repository:proof-command",
-            "issued_at": datetime(2026, 1, 1, tzinfo=UTC),
-            "valid_from": None,
-            "valid_until": None,
-            "verdict": verdict,
-            "payload": {
-                "kind": "proof:repository",
-                "body": {"artifact": {"path": "artifact.json", "sha256": "sha256:" + "d" * 64}},
-            },
-            "relations": (),
-            "advisories": (),
-            "evidence_refs": (),
-            "commitment_digest": "a" * 64,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": None,
-            "mints_authority": False,
-        }
+def _attestation(verdict: str = "pass"):
+    return attestation_fixture(
+        predicate="proof:repository",
+        verifier="agent:test:proof-command",
+        subject="repository:proof-command",
+        issued_at=datetime(2026, 1, 1, tzinfo=UTC),
+        verdict=verdict,
+        payload_kind="proof:repository",
+        payload_body={"artifact": {"path": "artifact.json", "sha256": "sha256:" + "d" * 64}},
+        commitment_digest="a" * 64,
     )
 
 
@@ -202,18 +183,9 @@ def test_prove_fail_closed_before_result_compilation(
 ) -> None:
     plan = _plan(gap="plan_gap") if case == "plan-blocked" else _plan()
     _repo, emitted = _arrange(monkeypatch, tmp_path, plan=plan)
-    if case == "plan-error":
-        monkeypatch.setattr(
-            proof_cli,
-            "proof_plan",
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError(expected_gap)),
-        )
-    elif case == "runner-error":
-        monkeypatch.setattr(
-            proof_cli,
-            "run_plan_checks",
-            lambda **_kwargs: (_ for _ in ()).throw(ValueError(expected_gap)),
-        )
+    if case != "plan-blocked":
+        target = "proof_plan" if case == "plan-error" else "run_plan_checks"
+        monkeypatch.setattr(proof_cli, target, Mock(side_effect=ValueError(expected_gap)))
 
     proof_cli.prove(root=tmp_path, json_output=True)
 
@@ -248,8 +220,10 @@ def test_prove_preserves_nonpassing_current_resolution_without_planning(
     monkeypatch.setattr(
         proof_cli,
         "proof_plan",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            AssertionError("proof planning must not run after current resolution blocks")
+        Mock(
+            side_effect=AssertionError(
+                "proof planning must not run after current resolution blocks"
+            )
         ),
     )
 
@@ -284,7 +258,7 @@ def test_prove_does_not_replace_unexpected_resolution_failure(
     monkeypatch.setattr(
         proof_cli,
         "resolve_current_resolution",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("resolution_failed")),
+        Mock(side_effect=ValueError("resolution_failed")),
     )
 
     with pytest.raises(ValueError, match=r"^resolution_failed$"):
@@ -292,82 +266,37 @@ def test_prove_does_not_replace_unexpected_resolution_failure(
 
 
 @pytest.mark.parametrize(
-    ("case", "options", "checks", "expected_gap", "state", "next_action"),
+    ("case", "options", "check", "expected_gap"),
     [
-        ("ready", _options(), (_check(),), "", "ready", "ethos prove --execute"),
-        (
-            "full-dry",
-            _options(full=True),
-            (_check(),),
-            "full_proof_requires_execute",
-            "gapped",
-            "ethos plan --changed --json",
-        ),
-        (
-            "head-drift",
-            _options(expect_head="0" * 40),
-            (_check(),),
-            "expected_head_mismatch",
-            "gapped",
-            "ethos plan --changed --json",
-        ),
-        (
-            "scope",
-            _options(scope="novel"),
-            (_check(),),
-            "unknown_proof_scope:novel",
-            "gapped",
-            "ethos plan --changed --json",
-        ),
-        (
-            "gate-failed",
-            _options(execute=True),
-            (_check(verdict="block"),),
-            "gate_failed:gate",
-            "gapped",
-            "ethos plan --changed --json",
-        ),
-        (
-            "gate-unknown",
-            _options(execute=True),
-            (_check(verdict="unknown"),),
-            "gate_unknown:gate",
-            "gapped",
-            "ethos plan --changed --json",
-        ),
+        ("ready", _options(), _check(), ""),
+        ("full-dry", _options(full=True), _check(), "full_proof_requires_execute"),
+        ("head-drift", _options(expect_head="0" * 40), _check(), "expected_head_mismatch"),
+        ("scope", _options(scope="novel"), _check(), "unknown_proof_scope:novel"),
+        ("gate-failed", _options(execute=True), _check(verdict="block"), "gate_failed:gate"),
+        ("gate-unknown", _options(execute=True), _check(verdict="unknown"), "gate_unknown:gate"),
         (
             "trust",
             _options(execute=True),
-            (_check(trust_bearing=False),),
+            _check(trust_bearing=False),
             "trust_bearing_proof_missing",
-            "gapped",
-            "ethos plan --changed --json",
         ),
     ],
 )
-def test_prove_result_matrix(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    case: str,
-    options: SimpleNamespace,
-    checks: tuple[dict[str, object], ...],
-    expected_gap: str,
-    state: str,
-    next_action: str,
-) -> None:
-    _repo, emitted = _arrange(monkeypatch, tmp_path, checks=checks)
+def test_prove_result_matrix(monkeypatch, tmp_path, case, options, check, expected_gap) -> None:
+    """Each native outcome determines one state and one actionable continuation."""
+    _repo, emitted = _arrange(monkeypatch, tmp_path, checks=(check,))
     monkeypatch.setattr(
         proof_cli,
         "issue_proof_attestation",
         lambda _repo, payload: _attestation(str(payload["verdict"])),
     )
-
     proof_cli.prove(options, root=tmp_path, json_output=True)
-
     result = emitted[-1]
-    assert result.state == state
+    assert result.state == ("gapped" if expected_gap else "ready")
     assert (expected_gap in result.required_gaps) is bool(expected_gap)
-    assert result.next_action == next_action
+    assert result.next_action == (
+        "ethos plan --changed --json" if expected_gap else "ethos prove --execute"
+    )
     assert result.data["expected_head"]["matches"] is (case != "head-drift")
 
 
@@ -394,9 +323,9 @@ def test_prove_persists_pass_and_routes_the_next_public_command(
     assert len(persisted) == 1
 
 
-def test_prove_reissues_a_blocked_attestation_when_persistence_fails(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+@pytest.mark.parametrize("boundary", ["issuance", "persistence"])
+def test_prove_reports_failed_evidence_boundary_once(monkeypatch, tmp_path, boundary) -> None:
+    """Issuance failure emits once; failed persistence reissues a blocked result."""
     _repo, emitted = _arrange(monkeypatch, tmp_path)
     issued = []
 
@@ -405,34 +334,23 @@ def test_prove_reissues_a_blocked_attestation_when_persistence_fails(
         return _attestation(str(payload["verdict"]))
 
     monkeypatch.setattr(proof_cli, "issue_proof_attestation", issue)
-    monkeypatch.setattr(
-        proof_cli,
-        "persist_proof_attestation",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("collision")),
+    target, error, expected = (
+        ("issue_proof_attestation", "proof_binding_invalid", "proof_binding_invalid")
+        if boundary == "issuance"
+        else (
+            "persist_proof_attestation",
+            "collision",
+            "proof_attestation_persistence_failed:collision",
+        )
     )
-
+    monkeypatch.setattr(proof_cli, target, Mock(side_effect=ValueError(error)))
     proof_cli.prove(_options(execute=True), root=tmp_path, json_output=True)
-
-    result = emitted[-1]
-    assert result.state == "gapped"
-    assert result.required_gaps == ("proof_attestation_persistence_failed:collision",)
-    assert [payload["verdict"] for payload in issued] == ["pass", "block"]
-
-
-def test_prove_emits_the_issuance_gap_without_a_second_result(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _repo, emitted = _arrange(monkeypatch, tmp_path)
-    monkeypatch.setattr(
-        proof_cli,
-        "issue_proof_attestation",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("proof_binding_invalid")),
-    )
-
-    proof_cli.prove(_options(execute=True), root=tmp_path, json_output=True)
-
     assert len(emitted) == 1
-    assert emitted[0].required_gaps == ("proof_binding_invalid",)
+    assert emitted[0].state == "gapped"
+    assert emitted[0].required_gaps == (expected,)
+    assert [payload["verdict"] for payload in issued] == (
+        [] if boundary == "issuance" else ["pass", "block"]
+    )
 
 
 def test_compact_and_detailed_proof_preserve_the_same_observed_meaning(

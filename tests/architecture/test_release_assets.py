@@ -18,6 +18,7 @@ from unittest.mock import Mock
 
 import pytest
 
+import ethos.adapters.gates.runner as gate_execution
 import tools.ci.local_ci as local_ci
 import tools.ci.python_test_gate as python_test_gate
 import tools.ci.sessions as ci_sessions
@@ -223,21 +224,23 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
     monkeypatch.setattr(local_ci, "EVIDENCE", tmp_path / "result.json")
     monkeypatch.setattr(local_ci, "LOG_ROOT", tmp_path / "logs")
     monkeypatch.setattr(
-        local_ci, "current_tracked_head", lambda _root: "" if case == "head-missing" else "a" * 40
+        gate_execution,
+        "current_tracked_head",
+        lambda _root: "" if case == "head-missing" else "a" * 40,
     )
-    monkeypatch.setattr(local_ci, "dirty_content_sha256", lambda _root: "before")
+    monkeypatch.setattr(local_ci, "current_tracked_head", gate_execution.current_tracked_head)
+    monkeypatch.setattr(gate_execution, "current_tree", lambda *_a: "b" * 40)
     monkeypatch.setattr(
-        local_ci,
-        "dirty_provenance",
-        lambda _root: {"state": "dirty" if case == "dirty" else "clean"},
-        raising=False,
+        gate_execution,
+        "observe_execution_source",
+        lambda *_a: {"index": "b" * 40, "worktree": "dirty" if case == "dirty" else "b" * 40},
     )
     policy = local_ci.resolve_gate_policy(ROOT, full=True)
     if case == "policy":
         policy = replace(policy, gaps=("invalid_policy",))
-    monkeypatch.setattr(local_ci, "resolve_gate_policy", lambda *_a, **_k: policy)
+    monkeypatch.setattr(gate_execution, "resolve_gate_policy", lambda *_a, **_k: policy)
     observed = []
-    base_run = local_ci.run_gate_graph
+    base_run = gate_execution.run_gate_graph
 
     class Runner:
         def run(self, node, _gate, *, root):
@@ -253,14 +256,14 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
         result = base_run(*args, **kwargs)
         if case in {"overlay", "head", "policy-drift"}:
             name, value = {
-                "overlay": ("dirty_content_sha256", "after"),
+                "overlay": ("observe_execution_source", {"index": "b" * 40, "worktree": "changed"}),
                 "head": ("current_tracked_head", "b" * 40),
                 "policy-drift": (
                     "resolve_gate_policy",
                     replace(policy, sources=(("ruff", (("ruff.toml", "changed"),)),)),
                 ),
             }[case]
-            monkeypatch.setattr(local_ci, name, lambda *_a, **_k: value)
+            monkeypatch.setattr(gate_execution, name, lambda *_a, **_k: value)
         return (
             ()
             if case == "empty"
@@ -277,8 +280,8 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
             )
         )
 
-    monkeypatch.setattr(local_ci, "LocalGateRunner", Runner)
-    monkeypatch.setattr(local_ci, "run_gate_graph", execute)
+    monkeypatch.setattr(gate_execution, "LocalGateRunner", Runner)
+    monkeypatch.setattr(gate_execution, "run_gate_graph", execute)
     session = SimpleNamespace(error=pytest.fail, log=lambda _message: None)
     if case == "pass":
         local_ci.run(cast("nox.Session", session))

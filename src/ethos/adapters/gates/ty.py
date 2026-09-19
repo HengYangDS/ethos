@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-import re
+import json
 import subprocess
 import tomllib
 from typing import TYPE_CHECKING
 
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import run_command
 from ethos.contracts.verdict import close_verdict
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-_COUNT_RE = re.compile(r"Found (\d+) diagnostic")
 _DIAGNOSTIC_EXCERPT_LIMIT = 12
 
 
@@ -24,13 +25,17 @@ def _runtime_command(root: Path, package_src: str) -> list[str]:
         "--",
         "uv",
         "run",
-        "--locked",
+        "--frozen",
+        "--offline",
         "--group",
         "dev",
         "python",
         "-m",
         "ty",
         "check",
+        "--output-format",
+        "gitlab",
+        "--error-on-warning",
         "--python",
         str(venv),
         "--extra-search-path",
@@ -40,39 +45,47 @@ def _runtime_command(root: Path, package_src: str) -> list[str]:
 
 
 def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
-    """Run ty and retain whether its diagnostic count is determinate."""
-    command = f"ty check {package_src}"
+    """Interpret native findings, preserving tool failure and owned execution bounds."""
+    command = _runtime_command(root, package_src)
+    returncode: int | str | None = None
+    diagnostics: list[dict[str, object]] | None = None
+    stderr = ""
     try:
-        completed = subprocess.run(
-            _runtime_command(root, package_src),
-            cwd=root,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        output = completed.stdout + completed.stderr
-    except OSError as error:
-        completed = None
-        output = f"{type(error).__name__}: {error}"
-    count = _diagnostic_count_from_output(output) if completed is not None else None
-    returncode = completed.returncode if completed is not None else None
-    if count is None or (count == 0 and returncode):
-        state = "tool_error"
-    else:
-        state = "diagnostics" if count else "clean"
+        completed = run_command(root, tuple(command), timeout=120)
+        returncode, stderr = completed.returncode, completed.stderr
+        output = completed.stdout + stderr
+        try:
+            findings = json.loads(completed.stdout)
+        except ValueError:
+            findings = None
+        if isinstance(findings, list) and all(
+            isinstance(item, dict)
+            and isinstance(item.get("description"), str)
+            and isinstance(item.get("severity"), str)
+            and item["severity"] in {"info", "minor", "major", "critical", "blocker"}
+            for item in findings
+        ):
+            diagnostics = findings
+    except (OSError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
+        returncode = "timeout" if isinstance(error, subprocess.TimeoutExpired) else None
+        output = stderr = f"{type(error).__name__}: {error}"
+    count = len(diagnostics) if diagnostics is not None else None
+    state = (
+        "tool_error"
+        if count is None or returncode not in (0, 1) or (count == 0 and returncode != 0)
+        else "diagnostics"
+        if count
+        else "clean"
+    )
     return {
         "count": count,
         "returncode": returncode,
         "state": state,
         "command": command,
+        "diagnostics": diagnostics,
+        "stderr": stderr,
         "diagnostic_excerpt": _diagnostic_excerpt(output),
     }
-
-
-def _diagnostic_count_from_output(output: str) -> int | None:
-    """Return a count only for a terminal ty result; unknown output is an error."""
-    match = _COUNT_RE.search(output)
-    return 0 if "All checks passed" in output else int(match.group(1)) if match else None
 
 
 def _diagnostic_excerpt(output: str) -> list[str]:
@@ -106,7 +119,7 @@ def ty_gate_report(root: Path) -> dict[str, object]:
         count = package_result["count"]
         if package_result["state"] == "tool_error":
             failure = package_result["returncode"]
-            failure_kind = str(failure) if isinstance(failure, int) else "launch"
+            failure_kind = str(failure) if failure is not None else "launch"
             gaps.append(f"ty_execution_failed:{package}:{failure_kind}")
         elif isinstance(count, int) and count > 0:
             gaps.append(f"ty_zero_tolerance_violation:{package}:{count}")

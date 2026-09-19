@@ -10,23 +10,23 @@ cd "${repo_root}"
 
 policy_path="${repo_root}/.config/checks/node/runtime.toml"
 if [[ ! -f "${policy_path}" ]]; then
-  echo "Node runtime compatibility policy missing: ${policy_path}" >&2
-  exit 1
+	echo "Node runtime compatibility policy missing: ${policy_path}" >&2
+	exit 1
 fi
 
 if command -v python3 >/dev/null 2>&1; then
-  python_command="python3"
+	python_command="python3"
 elif command -v python >/dev/null 2>&1; then
-  python_command="python"
+	python_command="python"
 else
-  echo "Python 3 is required to read ${policy_path}" >&2
-  exit 1
+	echo "Python 3 is required to read ${policy_path}" >&2
+	exit 1
 fi
 
 requested_version="${NODE_VERSION:-}"
 resolved_version="$(
-  "${script_dir}/with-python-runtime.sh" -- \
-    "${python_command}" - "${policy_path}" "${requested_version}" <<'PY_POLICY'
+	"${script_dir}/with-python-runtime.sh" -- \
+		"${python_command}" - "${policy_path}" "${requested_version}" <<'PY_POLICY'
 from __future__ import annotations
 
 import sys
@@ -59,19 +59,19 @@ PY_POLICY
 )"
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "Node ${resolved_version} is required but node is not on PATH" >&2
-  exit 1
+	echo "Node ${resolved_version} is required but node is not on PATH" >&2
+	exit 1
 fi
 if ! command -v npm >/dev/null 2>&1; then
-  echo "npm is required for Node ${resolved_version} compatibility proof" >&2
-  exit 1
+	echo "npm is required for Node ${resolved_version} compatibility proof" >&2
+	exit 1
 fi
 
 actual_version="$(node --version)"
 actual_version="${actual_version#v}"
 if [[ "${actual_version}" != "${resolved_version}" ]]; then
-  echo "Node runtime mismatch: requested ${resolved_version}, active ${actual_version}" >&2
-  exit 1
+	echo "Node runtime mismatch: requested ${resolved_version}, active ${actual_version}" >&2
+	exit 1
 fi
 
 node --version

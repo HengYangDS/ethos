@@ -50,7 +50,7 @@ def control_replacement_report(
     candidate_head: str,
     independent_verification_receipt: Path | None = None,
 ) -> dict[str, object]:
-    """Require one protected signed receipt when the candidate changes control."""
+    """Observe control changes and apply exact committed verification policy."""
     changed = _changed_paths(candidate_root, accepted_head, candidate_head)
     changed_paths = changed or ()
     control_paths = tuple(sorted(path for path in changed_paths if _is_control_path(path)))
@@ -112,9 +112,9 @@ def control_replacement_report(
     verification = _verification_report(
         root=candidate_root,
         accepted_head=accepted_head,
+        candidate_head=candidate_head,
         request=request,
         receipt_path=independent_verification_receipt,
-        floor_changed=bool(changed_obligations),
     )
     report["independent_verification"] = verification
     report["required_gaps"] = list(cast("list[str]", verification["required_gaps"]))
@@ -197,16 +197,14 @@ def _verification_report(
     *,
     root: Path,
     accepted_head: str,
+    candidate_head: str,
     request: dict[str, object],
     receipt_path: Path | None,
-    floor_changed: bool,
 ) -> dict[str, object]:
     prior = independent_verification_policy(root, "control_replacement", tree_ref=accepted_head)
-    proposed = independent_verification_policy(root, "control_replacement")
+    proposed = independent_verification_policy(root, "control_replacement", tree_ref=candidate_head)
     modes = {"disabled": 0, "optional": 1, "required": 2}
     policy = max((prior, proposed), key=lambda item: modes[item.mode])
-    if floor_changed:
-        policy = policy.model_copy(update={"mode": "required"})
     return configured_verification_report(
         root=root,
         policy=policy,

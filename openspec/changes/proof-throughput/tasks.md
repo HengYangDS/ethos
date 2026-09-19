@@ -71,7 +71,8 @@
 - [x] Consolidate GitLab execution and replace privileged link supply with the official wheel.
 - [x] Route specification validation through the existing locked official owner and shared result interpretation.
 - [x] Consolidate provider prerequisites and recovery at the independent-evidence owner.
-- [ ] Restore and qualify the protected independent-verification capability before final delivery.
+- [x] Remove implicit external-verifier enrollment; qualify committed-policy selection and exact local control-replacement acceptance.
+- [ ] Retire obsolete verifier deployment references and disposable host residue, preserving evidence and credential boundaries.
 - [ ] Qualify the rootless dual-provider successor through exact proof, installed runtime and hosted observation.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.

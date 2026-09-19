@@ -161,11 +161,17 @@ runner is allowed to execute the protected closeout with an explicit
 `--root <accepted-root>`, while remote push remains `deferred` and the candidate
 worktree is audited and proven before accepted-root movement.
 
-A changed required gate obligation requires independent acceptance under the
-trusted predecessor policy. The control-replacement report binds both commits,
-trees and control digests, the candidate's executed Attestation and changed
-verification obligations. Its verification request is the provider input; the
-current proof artifact remains evidence, not permission or a hand-written proof.
+A changed gate obligation requires explicit acceptance of the exact candidate,
+not automatic enrollment in an external verifier. The control-replacement report
+binds both commits, trees, control digests, the candidate's executed Attestation
+and changed obligations. Closeout of that replacement requires `--authorize`,
+the exact accepted `--expect-head` and explicit `--candidate-head`; fresh effect
+checks and CAS remain mandatory. The report and proof do not grant authority.
+
+Independent verification follows the stricter policy read from the two exact
+committed objects. A candidate cannot disable a required predecessor verifier.
+Execution-identity changes are review information, not proof of weakening or
+equivalence, and cannot turn disabled or optional policy into required policy.
 
 [Independent verification adoption](../governance/independent-verification-adoption.md)
 owns the provider, protected receipt store and recovery boundary. Control

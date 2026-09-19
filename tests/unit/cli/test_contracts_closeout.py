@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import tomllib
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 import ethos.adapters.admission.evidence.external as evidence
 import ethos.adapters.repo.status.workspace as workspace
@@ -184,11 +186,36 @@ def test_source_acceptance_preserves_pending_delivery_until_official_archive(
     assert not (fixture.repository / tasks).exists()
 
 
+@pytest.mark.parametrize("replace_gate", [False, True])
 def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, replace_gate: bool
 ) -> None:
-    repo, candidate, accepted_head, candidate_head = _archived_candidate(tmp_path, monkeypatch)
-    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
+    def prepare(worktree: Path) -> None:
+        if replace_gate:
+            profile = worktree / ".ethos/profile.toml"
+            declaration = tomllib.loads(profile.read_text())
+            declaration["proof"]["gates"][0]["command"] = ["python", "-c", "print('replacement')"]
+            profile.write_text(tomli_w.dumps(declaration))
+
+    repo, candidate, accepted_head, candidate_head = _archived_candidate(
+        tmp_path, monkeypatch, prepare=prepare if replace_gate else None
+    )
+    if replace_gate:
+        preview = _closeout(repo, expect_head=accepted_head)
+        assert preview["verdict"] == "pass"
+        rejected = _closeout(
+            repo, "--apply", "--authorize", expect_head=accepted_head, blocked=True
+        )
+        assert rejected["required_gaps"] == ["control_replacement_candidate_head_required"]
+        assert git(repo, "rev-parse", "dev") == accepted_head
+    payload = _closeout(
+        repo,
+        "--apply",
+        "--authorize",
+        "--candidate-head",
+        candidate_head,
+        expect_head=accepted_head,
+    )
     assert payload["state"] == "accepted_validated"
     resolution = payload["data"]["closeout_resolution"]
     coordinates = resolution["coordinates"]

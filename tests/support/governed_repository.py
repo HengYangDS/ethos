@@ -338,7 +338,7 @@ def write_role_policy(
     commit_fixture(repo, "configure branch roles")
 
 
-def adopt_and_commit(repo: Path) -> None:
+def adopt_and_commit(repo: Path, *, release_mirror: str = "independent") -> None:
     plan = adoption_plan(repo, apply=True)
     assert plan["applied"] is True
     (repo / ".ethos" / "workspace.toml").write_text(
@@ -348,7 +348,7 @@ def adopt_and_commit(repo: Path) -> None:
             candidate_branch="candidate/dev",
             work_branch_prefix="work/",
             proposal_branch_prefix="proposal/",
-            release_mirror="independent",
+            release_mirror=release_mirror,
         ),
         encoding="utf-8",
     )

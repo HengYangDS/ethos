@@ -17,7 +17,6 @@ from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.release import committed_release_version
 from ethos.adapters.repo.release import release_ref_subject
 from tests.support.ethos_cli_runner import run_ethos
@@ -28,17 +27,8 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.proof import seed_executed_proof
 from tests.support.subprocesses import kill_after_marker
 from tests.unit.cli.land.publication.support import accepted_release_fixture
+from tests.unit.cli.land.publication.support import assert_signed_publication
 from tests.unit.cli.land.publication.support import publication_peers
-
-
-def assert_native_failure(result, repo, boundary):
-    """Distinguish a native unchanged result from unresolved effect completion."""
-    failure = result["data"]["process_failure"]
-    assert failure["code"] == "git_effect_cas_rejected"
-    assert failure["cwd"] == str(repo)
-    assert "refused-proof" in failure["observation"]["stderr"]
-    assert failure["observation"]["returncode"] != 0
-    assert failure["observation"]["outcome"] == ("unchanged" if boundary == "hook" else "unknown")
 
 
 def native_failed_result(effect, args, options, *, scope, boundary, root):
@@ -82,41 +72,70 @@ def release_cli(
     )
 
 
-@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+@pytest.mark.parametrize(
+    ("object_format", "native_version"),
+    [("sha1", "package.json"), ("sha256", "package.json"), ("sha1", "VERSION")],
+)
+@pytest.mark.parametrize("release_mirror", ["independent", "accepted_ff"])
 def test_public_release_preserves_native_package_and_signed_tag(
-    tmp_path: Path, object_format: str
+    tmp_path: Path, object_format: str, native_version: str, release_mirror: str
 ) -> None:
-    repo, main, old, head = accepted_release_fixture(tmp_path, object_format, retired_source=True)
+    repo, main, old, head = accepted_release_fixture(
+        tmp_path,
+        object_format,
+        native_version=native_version,
+        retired_source=True,
+        release_mirror=release_mirror,
+    )
     assert proof_gaps(repo, head) == ["proof_lease_generation_stale"]
-    for ref, previous, gaps in (
-        ("refs/heads/main", old, ["release_ref_move_no_ref_intent"]),
+    previous = head if release_mirror == "accepted_ff" else old
+    for ref, ref_before, gaps in (
+        (
+            "refs/heads/main",
+            previous,
+            ["release_ref_move_no_ref_intent"] if release_mirror == "independent" else [],
+        ),
         ("refs/tags/experiment", "0" * len(head), []),
     ):
         report = ref_move_admission_report(
-            root=repo, ref_name=ref, old_value=previous, new_value=head
+            root=repo, ref_name=ref, old_value=ref_before, new_value=head
         )
         assert report["required_gaps"] == gaps
         assert report["verdict"] == ("block" if gaps else "pass")
     refs = git(repo, "show-ref")
-    preview = release_cli(repo, head, old)
+    preview = release_cli(repo, head, previous)
     assert preview["verdict"] == "pass", preview
     assert git(repo, "show-ref") == refs
-    applied = release_cli(repo, head, old, "--apply", "--authorize")
+    store = Path(git_common_dir(repo)) / "ethos/requests/release"
+    store.mkdir(parents=True, exist_ok=True)
+    with FileLock(store / ".lock", timeout=0, preserve_lock_file=True):
+        blocked = release_cli(repo, head, previous, "--apply", "--authorize", blocked=True)
+    assert (blocked["state"], blocked["required_gaps"]) == ("waiting", ["release_in_progress"])
+    assert not list(store.glob("*.signing"))
+    assert git(repo, "show-ref") == refs
+    staged = signing_owner.create_signed_tag(
+        repo, name="v1.2.3", head=head, staging=tmp_path / "tag"
+    )
+    rejected = run_ethos_blocked(
+        "hook", "ref-transaction", "refs/tags/v1.2.3", "0" * len(head), staged, "--json", cwd=repo
+    )
+    assert rejected["required_gaps"] == ["release_ref_move_no_ref_intent"]
+    assert "land --release" in rejected["next_action"]
+    assert f"--release-head {previous}" in rejected["next_action"]
+    assert "--tag v1.2.3" in rejected["next_action"]
+    applied = release_cli(repo, head, previous, "--apply", "--authorize")
     assert applied["verdict"] == "pass", applied
     assert git(repo, "rev-parse", "main") == head
     assert git(main, "status", "--porcelain") == ""
     tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
-    verified = observe_git_object(repo, tag, "annotated-tag")
-    assert verified["peeled_commit"] == head
-    assert verified["signature"]["verdict"] == "pass"
     with pytest.raises(ValueError, match="release_tag_name_mismatch"):
         release_ref_subject(repo, ref="refs/tags/v9.9.9", old="0" * len(head), new=tag)
-    assert not (repo / "VERSION").exists()
-    repeated = release_cli(repo, head, old, "--apply", "--authorize")
+    assert (repo / "VERSION").exists() == (native_version == "VERSION")
+    repeated = release_cli(repo, head, previous, "--apply", "--authorize")
     assert repeated["verdict"] == "pass", repeated
     assert git(repo, "rev-parse", "refs/tags/v1.2.3") == tag
 
-    publication_peers(repo, tmp_path, f"{old}:refs/heads/main", object_format=object_format)
+    peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main", object_format=object_format)
     report = push_admission_report(
         root=repo,
         target_ref="refs/heads/main",
@@ -130,22 +149,24 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert report["commit_policy_admission"]["remote_head"] == old
     assert report["commit_policy_admission"]["baseline_ref"] == "refs/heads/dev"
     assert report["accepted_closeout_effect"]
+    assert_signed_publication(repo, peers, head, tag)
 
 
 @pytest.mark.parametrize(
     "boundary",
     ["plan-store", "ref-ack", "before-cas", "attestation", "hook", "native-ack", "native-observer"],
 )
+@pytest.mark.parametrize("release_mirror", ["independent", "accepted_ff"])
 def test_release_faults_preserve_objects_and_recover_once(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str, release_mirror: str
 ) -> None:
     """Real effects, compensation and actor fences share one recoverable request."""
-    repo, main, old, head = accepted_release_fixture(tmp_path)
+    repo, main, old, head = accepted_release_fixture(tmp_path, release_mirror=release_mirror)
     request = {
         "root": repo,
         "head": head,
-        "previous": old,
-        "tag": "" if boundary == "before-cas" else "v1.2.3",
+        "previous": head if release_mirror == "accepted_ff" else old,
+        "tag": "" if boundary == "before-cas" and release_mirror == "independent" else "v1.2.3",
         "apply": True,
         "authorized": True,
     }
@@ -179,7 +200,14 @@ def test_release_faults_preserve_objects_and_recover_once(
         interrupted = release_owner.promote_release(**request)
     assert interrupted["verdict"] == ("block" if boundary == "hook" else "unknown"), interrupted
     if owner is git_effects:
-        assert_native_failure(interrupted, repo, boundary)
+        failure = interrupted["data"]["process_failure"]
+        assert failure["code"] == "git_effect_cas_rejected"
+        assert failure["cwd"] == str(repo)
+        assert "refused-proof" in failure["observation"]["stderr"]
+        assert failure["observation"]["returncode"] != 0
+        assert failure["observation"]["outcome"] == (
+            "unchanged" if boundary == "hook" else "unknown"
+        )
     assert attempted == [True]
     if boundary not in {"ref-ack", "native-ack", "native-observer"}:
         assert git(repo, "show-ref") == refs
@@ -205,25 +233,14 @@ def test_release_faults_preserve_objects_and_recover_once(
     assert not list((Path(git_common_dir(repo)) / "ethos/requests/release").glob("*.signing"))
 
 
-def test_release_lock_contention_is_bounded_and_does_not_sign(tmp_path: Path) -> None:
-    """A held owner lock returns a waiting receipt rather than duplicate effects."""
-    repo, _main, old, head = accepted_release_fixture(tmp_path)
-    store = Path(git_common_dir(repo)) / "ethos/requests/release"
-    store.mkdir(parents=True)
-    with FileLock(store / ".lock", timeout=0, preserve_lock_file=True):
-        result = release_owner.promote_release(
-            root=repo, head=head, previous=old, tag="v1.2.3", apply=True, authorized=True
-        )
-    assert result["state"] == "waiting", result
-    assert result["required_gaps"] == ["release_in_progress"]
-    assert not list(store.glob("*.signing"))
-    assert git(repo, "rev-parse", "main") == old
-
-
 @pytest.mark.parametrize("boundary", ["tag-object", "ref-cas"])
-def test_killed_release_recovers_exact_native_objects(tmp_path: Path, boundary: str) -> None:
+@pytest.mark.parametrize("release_mirror", ["independent", "accepted_ff"])
+def test_killed_release_recovers_exact_native_objects(
+    tmp_path: Path, boundary: str, release_mirror: str
+) -> None:
     """Kill the writer after native success but before its caller gets the result."""
-    repo, main, old, head = accepted_release_fixture(tmp_path)
+    repo, main, old, head = accepted_release_fixture(tmp_path, release_mirror=release_mirror)
+    previous = head if release_mirror == "accepted_ff" else old
     marker = tmp_path / "effect-ready"
     script = """
 import sys
@@ -238,14 +255,14 @@ pause_after_effect(owner, name, Path(marker))
 print(release.promote_release(root=Path(repo),head=head,previous=old,tag='v1.2.3',apply=True,authorized=True),flush=True)
 """
     kill_after_marker(
-        repo, script, (str(repo), old, head, boundary, str(marker)), marker, timeout=30
+        repo, script, (str(repo), previous, head, boundary, str(marker)), marker, timeout=30
     )
     before = (
         marker.read_text()
         if boundary == "tag-object"
         else git(repo, "rev-parse", "refs/tags/v1.2.3")
     )
-    result = release_cli(repo, head, old, "--apply", "--authorize")
+    result = release_cli(repo, head, previous, "--apply", "--authorize")
     assert result["verdict"] == "pass", result
     assert git(repo, "rev-parse", "refs/tags/v1.2.3") == before
     assert git(main, "status", "--porcelain") == ""
@@ -253,24 +270,38 @@ print(release.promote_release(root=Path(repo),head=head,previous=old,tag='v1.2.3
 
 
 @pytest.mark.parametrize("gap", ["authorization", "dirty", "source", "main", "tag", "proof"])
-def test_release_public_rejection_preserves_all_refs(tmp_path: Path, gap: str) -> None:
+@pytest.mark.parametrize("release_mirror", ["independent", "accepted_ff"])
+def test_release_public_rejection_preserves_all_refs(
+    tmp_path: Path, gap: str, release_mirror: str
+) -> None:
     """Each independent precondition fails before signing or moving any source."""
-    repo, main, old, head = accepted_release_fixture(tmp_path)
-    if gap == "dirty":
-        (main / "untracked").write_text("preserve me")
+    repo, main, old, head = accepted_release_fixture(tmp_path, release_mirror=release_mirror)
+    previous = head if release_mirror == "accepted_ff" else old
     if gap == "proof":
         git(repo, "update-ref", "-d", "refs/ethos/attestations-set")
     refs = git(repo, "show-ref")
+    if release_mirror == "accepted_ff" and gap == "main":
+        unchanged = release_cli(repo, head, head, "--apply", "--authorize", tag="")
+        assert unchanged["verdict"] == "pass", unchanged
+        assert "attestation" not in unchanged["data"]
+        assert git(repo, "show-ref") == refs
+    if gap == "dirty":
+        (main / "untracked").write_text("preserve me")
+    if gap == "main":
+        previous = old if release_mirror == "accepted_ff" else "1" * 40
     result = release_cli(
         repo,
         old if gap == "source" else head,
-        "1" * 40 if gap == "main" else old,
+        previous,
         "--apply",
         *(("--authorize",) if gap != "authorization" else ()),
         tag="v9.9.9" if gap == "tag" else "v1.2.3",
         blocked=True,
     )
     assert result["required_gaps"], result
+    if gap == "main" and release_mirror == "accepted_ff":
+        assert result["required_gaps"] == ["release_mirror_requires_accepted_closeout"]
+        assert "land --closeout" in result["next_action"]
     assert git(repo, "show-ref") == refs
 
 

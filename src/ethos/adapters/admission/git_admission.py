@@ -23,6 +23,7 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.release import declared_release_tag
 from ethos.adapters.repo.release import release_ref_subject
+from ethos.adapters.repo.release import release_selection_command
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -344,6 +345,14 @@ def _release_move_report(
         if not declared_release_tag(repo, ref_head(repo, policy.accepted_branch), ref):
             return base
     gaps = _release_move_gaps(repo, ref, old, new, operation)
+    if operation == "release.tag" and gaps == ["release_ref_move_no_ref_intent"]:
+        policy = load_branch_role_policy(repo)
+        base["next_action"] = release_selection_command(
+            repo,
+            head=ref_head(repo, policy.accepted_branch),
+            previous=ref_head(repo, policy.release_branch),
+            tag=ref.removeprefix("refs/tags/"),
+        )
     return (
         _verdict(base, "block", "blocked", "block", "release_ref_move_not_admitted", gaps)
         if gaps

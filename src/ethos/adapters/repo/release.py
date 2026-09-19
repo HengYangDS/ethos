@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import tomllib
 from typing import TYPE_CHECKING
 
@@ -29,6 +30,28 @@ def require_release(condition: object, gap: str) -> None:
     """Require one precise release invariant without converting unknown into success."""
     if not condition:
         raise ValueError(gap)
+
+
+def release_selection_command(
+    root: Path, *, head: str, previous: str, tag: str = "", apply: bool = False
+) -> str:
+    """Render one exact release selection; a hook requests preview, never authority."""
+    return shlex.join(
+        (
+            "ethos",
+            "land",
+            "--release",
+            "--expect-head",
+            head,
+            "--release-head",
+            previous,
+            *(("--tag", tag) if tag else ()),
+            *(("--apply", "--authorize") if apply else ()),
+            "--root",
+            str(root),
+            "--json",
+        )
+    )
 
 
 def _version_value(name: str, raw: str) -> str:

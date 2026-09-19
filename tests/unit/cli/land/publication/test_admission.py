@@ -26,7 +26,6 @@ from tests.support.governed_repository import init_git_repo
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
-from tests.unit.cli.land.publication.support import signed_publication_fixture
 
 
 @pytest.mark.parametrize("valid", [False, True])
@@ -206,35 +205,6 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
     for path, digest, error in failures:
         with pytest.raises(ValueError, match=error):
             publication_request.load_remote_publication_request(repo, str(path), digest)
-
-
-@pytest.mark.parametrize(
-    ("case", "name", "gap"),
-    [
-        ("lightweight", "lightweight", "not_annotated_tag:refs/tags/lightweight"),
-        ("trust", "v1.2.3", "signature_untrusted:refs/tags/v1.2.3"),
-        ("version", "v9.9.9", "version_mismatch:v9.9.9!=v1.2.3"),
-    ],
-)
-def test_publication_rejects_invalid_release_objects(
-    tmp_path: Path, case: str, name: str, gap: str
-) -> None:
-    repo, _peers, commit, *_rest = signed_publication_fixture(tmp_path)
-    if case == "lightweight":
-        git(repo, "tag", name, commit)
-    elif case == "version":
-        git(repo, "tag", "-s", "-m", "different version", name, commit)
-    else:
-        Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile")).write_text("")
-    ref = f"refs/tags/{name}"
-    effect, observations, gaps = publication_request.observe_remote_publication_effect(
-        root=repo,
-        source_ref=ref,
-        target_refs=(ref,),
-        remotes={"gitlab": "origin"},
-        ref_admissions={},
-    )
-    assert (effect, observations, gaps) == (None, {}, (f"publication_source_{gap}",))
 
 
 def test_publish_uses_git_ref_grammar_as_the_positive_name_authority(

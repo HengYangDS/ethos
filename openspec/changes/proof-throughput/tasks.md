@@ -72,7 +72,9 @@
 - [x] Route specification validation through the existing locked official owner and shared result interpretation.
 - [x] Consolidate provider prerequisites and recovery at the independent-evidence owner.
 - [x] Remove implicit external-verifier enrollment; qualify committed-policy selection and exact local control-replacement acceptance.
-- [ ] Retire obsolete verifier deployment references and disposable host residue, preserving evidence and credential boundaries.
+- [x] Qualify accepted-mirror signed tags, exact hook recovery, no-op selection and both-mode interrupted effects through public release and peer publication.
+- [ ] Deliver the signed-tag repair through exact proof, accepted runtime and peer readback.
+- [x] Retire obsolete verifier deployment references and disposable host residue, preserving evidence and credential boundaries.
 - [ ] Qualify the rootless dual-provider successor through exact proof, installed runtime and hosted observation.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.

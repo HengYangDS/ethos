@@ -6962,6 +6962,24 @@ separate retirement gap, never permission to fabricate a receipt and never a
 reason to require an unselected external verifier. This replaces the false
 provider-restoration prerequisite rather than adding another roadmap.
 
+The correction is accepted at `7e80972e97e55b37134728ec4d9b941ee631c503`.
+Its exact full proof passed in 714.864 seconds; installed runtime and dual-peer
+publication passed separately. Both GitHub and GitLab main/dev runs subsequently
+completed successfully at that commit. Obsolete provider/configuration,
+privilege rule and runtime paths were removed and reread absent. The retained
+offline historical Git archive has no execution consumer and still needs unique
+content disposition; it is not an active provider or a blanket cleanup exemption.
+
+The current bounded release-tag correction follows the same Change. Complete
+both branch-mode signed-tag, interruption, no-op and native peer-publication
+qualification, then exact proof, accepted runtime and peer observation. Aligned
+branches are CAS assertions; neither local caller confirmation nor green tests
+establish independent identity. The remaining critical path is measured test
+execution followed by package acceptance. Investigate resource independence and
+repeated work before changing scheduling; 714.864 seconds is not a lower bound.
+This continuation retains the full earlier terminal obligations and does not
+create a second roadmap or declare the sole Work Lane ready for retirement.
+
 ## Completion Boundary
 
 Terminal convergence is verified only when every batch above is accepted and

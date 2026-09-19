@@ -12,7 +12,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from tests.support.architecture import projection_quality_fixture
-from tests.support.governed_repository import git as _git
+from tests.support.governed_repository import git
 from tools.ci import architecture_projection
 from tools.projection.export_terminal_architecture import export_projection_input
 
@@ -39,9 +39,9 @@ def _write_json(path: Path, value: object) -> None:
 def _fixture_repository(tmp_path: Path, *, effect_authority: bool = False) -> tuple[Path, str]:
     root = tmp_path / "repository"
     root.mkdir()
-    _git(root, "init", "-q")
-    _git(root, "config", "user.email", "projection@example.invalid")
-    _git(root, "config", "user.name", "Projection Fixture")
+    git(root, "init", "-q")
+    git(root, "config", "user.email", "projection@example.invalid")
+    git(root, "config", "user.name", "Projection Fixture")
 
     source_path = root / "docs/source.md"
     source_path.parent.mkdir(parents=True)
@@ -118,15 +118,15 @@ def _fixture_repository(tmp_path: Path, *, effect_authority: bool = False) -> tu
     (root / owner).parent.mkdir(parents=True)
     (root / owner).write_bytes((REPOSITORY_ROOT / owner).read_bytes())
 
-    _git(root, "add", ".")
-    _git(root, "commit", "-qm", "fixture")
-    return root, _git(root, "rev-parse", "HEAD")
+    git(root, "add", ".")
+    git(root, "commit", "-qm", "fixture")
+    return root, git(root, "rev-parse", "HEAD")
 
 
 def test_export_is_exact_tree_bound_deterministic_and_host_path_free(tmp_path: Path) -> None:
     """One export journey verifies identity, schema, isolation and canonical transport."""
     root, commit = _fixture_repository(tmp_path)
-    tree = _git(root, "rev-parse", f"{commit}^{{tree}}")
+    tree = git(root, "rev-parse", f"{commit}^{{tree}}")
     committed_source = (root / "docs/source.md").read_bytes()
     (root / "docs/source.md").write_text("uncommitted drift\n", encoding="utf-8")
     (root / "src/ethos/repository/policy/projections.py").write_text(
@@ -197,9 +197,9 @@ def test_architecture_gate_checks_the_same_exact_export(
         (root / "docs/model.c4").write_text("model {}\n", encoding="utf-8")
         (root / "docs/model.mmd").write_text("invalid rendering\n", encoding="utf-8")
     if source_state in {"stale", "missing"}:
-        _git(root, "add", ".")
-        _git(root, "commit", "-qm", "source changed after archive")
-        commit = _git(root, "rev-parse", "HEAD")
+        git(root, "add", ".")
+        git(root, "commit", "-qm", "source changed after archive")
+        commit = git(root, "rev-parse", "HEAD")
     monkeypatch.setattr(architecture_projection, "ROOT", root)
     monkeypatch.setattr(
         architecture_projection, "CONFIG_PATH", root / ".config/checks/architecture/projection.toml"
@@ -234,8 +234,8 @@ def test_export_fails_closed_on_stale_or_missing_exact_tree_sources(tmp_path: Pa
     graph = json.loads(graph_path.read_text(encoding="utf-8"))
     graph["sources"]["source"]["sha256"] = "0" * 64
     _write_json(graph_path, graph)
-    _git(root, "add", ".")
-    _git(root, "commit", "-qm", "stale binding")
+    git(root, "add", ".")
+    git(root, "commit", "-qm", "stale binding")
 
     with pytest.raises(ValueError, match="source digest mismatch"):
         export_projection_input(root=root, revision="HEAD")
@@ -251,8 +251,8 @@ def test_export_rejects_an_altered_source_authority(tmp_path: Path) -> None:
     graph = json.loads(graph_path.read_text())
     graph["sources"]["source"]["authority"] = "projection is now product authority"
     _write_json(graph_path, graph)
-    _git(root, "add", ".")
-    _git(root, "commit", "-qm", "alter authority without changing source")
+    git(root, "add", ".")
+    git(root, "commit", "-qm", "alter authority without changing source")
 
     with pytest.raises(ValueError, match="source authority mismatch"):
         export_projection_input(root=root)
@@ -280,8 +280,8 @@ def _revise_projection(root: Path, name: str, revise) -> None:
                 ("source",), tuple(row["id"] for row in value.get("invariants", []))
             ),
         )
-    _git(root, "add", ".")
-    _git(root, "commit", "--allow-empty", "-qm", "revise projection")
+    git(root, "add", ".")
+    git(root, "commit", "--allow-empty", "-qm", "revise projection")
 
 
 def test_export_retains_source_attributes_and_graph_contracts(tmp_path: Path) -> None:

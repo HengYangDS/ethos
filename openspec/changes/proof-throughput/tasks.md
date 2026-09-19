@@ -91,6 +91,7 @@
 - [x] Reject host full-proof execution over uncommitted or missing committed source using the shared native source observer.
 - [x] Close contradictory proof results through shared execution-success semantics and real issuance regressions.
 - [x] Replace Ty prose parsing and execute both declared native shell checks.
+- [x] Qualify the expanded cheap readiness closure before expensive behavior and delivery.
 - [ ] Restore carrier discovery and effective shell/JavaScript quality at their native owners.
 - [ ] Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 - [ ] Reject incomplete hosted results and missing, malformed or contradictory test artifacts through the existing receipt owner.

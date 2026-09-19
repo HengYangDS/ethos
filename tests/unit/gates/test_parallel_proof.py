@@ -173,6 +173,10 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> 
         "source-budget",
         "architecture-projection",
         "format-selection",
+        "module-layout",
+        "import-boundaries",
+        "docstrings",
+        "shell-lint",
     ],
 )
 def test_public_proof_stops_heavy_work_after_readiness_failure(

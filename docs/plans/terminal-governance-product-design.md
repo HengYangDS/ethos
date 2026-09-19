@@ -325,10 +325,11 @@ recursion. Existing merge/archive provenance tests remain part of acceptance.
 Exact full proof and successor delivery are still required for this candidate.
 No persistent selector, additional Work Lane or parallel roadmap is introduced.
 
-The September 18 user adjustment keeps P5 on the immediate critical path with
-a staged target: first complete proof below 1,200 seconds, then evaluate the
-600-second direction from measured remaining work. The latter is not declared
-infeasible. Both retain unchanged gates and at least 95-percent
+The September 19 user adjustment sets a temporary complete-proof threshold of
+900 seconds, superseding the earlier 1,200-second stage. P5 continues to evaluate
+the 600-second direction from measured remaining work, but that direction no
+longer blocks otherwise qualified delivery and is not declared infeasible.
+Both retain unchanged gates and at least 95-percent
 combined coverage, including preparation and cleanup rather than selected tests.
 Report cold computation and warm runs separately; disclose external provisioning
 outside the command. The latest concurrency instruction permits measured faster

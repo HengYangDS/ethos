@@ -17,6 +17,7 @@ import tools.ci.ci_projection as owner
 from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
+from ethos.repository.policy.projections import observe_projections
 from tools.ci.ci_projection import check_templates
 from tools.ci.ci_projection import compile_providers
 from tools.ci.ci_projection import projection_entries
@@ -25,15 +26,25 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture(scope="module")
+def ci_materials():
+    """Share immutable native inputs; every fault case gets its own mutable copy."""
+    config = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
+    paths = {path for relation in observe_projections(ROOT) for path in relation.materials}
+    paths.update(path for entry in config["projection"] for path in entry["required_owner_scripts"])
+    paths.update(entry["projection"] for entry in config["forge_surface"])
+    return config, {path: (ROOT / path).read_text() for path in paths}
+
+
+@pytest.fixture(scope="module")
 def github():
-    """Read the frozen provider source once; parity is checked independently."""
-    return yaml.safe_load((ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text())
+    """Read the actual hosted projection once; source parity is checked separately."""
+    return yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
 
 
 @pytest.fixture(scope="module")
 def gitlab():
-    """Read the frozen GitLab projection source once."""
-    return yaml.safe_load((ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text())
+    """Read the actual GitLab projection consumed by its native runner."""
+    return yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text())
 
 
 def _range_coordinates(command: str) -> tuple[str, ...]:
@@ -46,7 +57,7 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
     return tuple(options[1::2])
 
 
-def test_dual_forge_projections_equal_their_declared_templates(github, gitlab) -> None:
+def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None:
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == 0
     jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
@@ -81,7 +92,7 @@ def test_dual_forge_projections_equal_their_declared_templates(github, gitlab) -
 @pytest.mark.parametrize("provider", ["github", "gitlab"])
 def test_provider_commands_use_shared_owners_without_activating_mutation(provider, gitlab) -> None:
     entry = next(item for item in projection_entries() if item["provider"] == provider)
-    text = (ROOT / entry["template"]).read_text()
+    text = (ROOT / entry["projection"]).read_text()
     assert "tools/ci/scripts/run-head-bound-proof.sh" in text
     assert "tools/ci/scripts/configure-git-checkout.sh" not in text
     assert "ethos hook install" not in text
@@ -176,33 +187,38 @@ def test_integration_events_transport_exact_commit_range_coordinates(github, git
     assert "subject_pattern" not in provider_text
 
 
-def test_provider_emulators_are_digest_bound_and_fail_closed() -> None:
-    providers = {item["provider"]: item for item in projection_entries()}
-    assert set(providers) == {"github", "gitlab"}
-    assert all("@sha256:" in str(item["emulator_image"]) for item in providers.values())
-    assert all(int(item["emulator_timeout_seconds"]) > 0 for item in providers.values())
-    assert providers["gitlab"]["emulator_job"] == "ethos:verify"
-
-
-def test_hosted_runtime_versions_are_checked_projections_of_native_owners() -> None:
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    node = tomllib.loads((ROOT / ".config/checks/node/runtime.toml").read_text(encoding="utf-8"))
-    github = (ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text(encoding="utf-8")
-    gitlab = (ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text(encoding="utf-8")
-    uv_requirement = next(
-        item for item in project["dependency-groups"]["dev"] if item.startswith("uv>=")
+def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github, gitlab):
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    node = tomllib.loads((ROOT / ".config/checks/node/runtime.toml").read_text())
+    uv_version = next(
+        item.removeprefix("uv>=")
+        for item in project["dependency-groups"]["dev"]
+        if item.startswith("uv>=")
     )
-    uv_version = uv_requirement.removeprefix("uv>=")
-
-    assert set(re.findall(r'node-version: "([^"]+)"', github)) == {node["default_version"]}
-    assert set(re.findall(r'^\s+- "(\d+\.\d+\.\d+)"$', gitlab, re.MULTILINE)) == set(
-        node["compatibility_versions"]
+    steps = [step for job in github["jobs"].values() for step in job["steps"]]
+    for tool, field, expected in (
+        ("astral-sh/setup-uv@", "version", uv_version),
+        ("actions/setup-node@", "node-version", node["default_version"]),
+    ):
+        assert {step["with"][field] for step in steps if step.get("uses", "").startswith(tool)} == {
+            expected
+        }
+    assert (
+        gitlab["ethos:npm"]["parallel"]["matrix"][0]["NODE_VERSION"]
+        == node["compatibility_versions"]
     )
-    assert set(re.findall(r'^\s+version: "([^"]+)"$', github, re.MULTILINE)) == {uv_version}
-    images = set(re.findall(r"^\s*image:\s+(\S+)$", gitlab, re.MULTILINE))
-    declared = next(entry for entry in projection_entries() if entry["provider"] == "gitlab")
+    images = {
+        job["image"]
+        for job in gitlab.values()
+        if isinstance(job, dict) and isinstance(job.get("image"), str)
+    }
+    providers = {entry["provider"]: entry for entry in projection_entries()}
+    assert all("@sha256:" in entry["emulator_image"] for entry in providers.values())
+    assert all(int(entry["emulator_timeout_seconds"]) > 0 for entry in providers.values())
+    declared = providers["gitlab"]
+    assert declared["emulator_job"] == "ethos:verify"
     assert images == {declared["emulator_image"]}
-    assert set(re.findall(r"ghcr\.io/astral-sh/uv:([^-@]+)-", gitlab)) == {uv_version}
+    assert declared["emulator_image"].startswith(f"ghcr.io/astral-sh/uv:{uv_version}-")
 
 
 def test_host_conformance_receives_native_python_supply_before_activation(github, gitlab) -> None:
@@ -220,18 +236,16 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
         "${{ github.workspace }}/build/runtime/python"
     )
     assert setup_uv["with"]["python-version"] == "${{ matrix.python }}"
-    assert commands.index("uv python install --no-bin ${{ matrix.python }}") < commands.index(
-        "uv sync --locked --group dev"
-    )
-    assert commands.index("uv sync --locked --group dev") < commands.index(
-        "uv run --frozen python -m nox -s host_conformance"
-    )
+    preparation = [
+        "uv python install --no-bin ${{ matrix.python }}",
+        "uv sync --locked --group dev",
+        "uv run --frozen python -m nox -s host_conformance",
+    ]
+    assert [command for command in commands if command in preparation] == preparation
 
     gitlab_job = gitlab["ethos:host-conformance"]
     assert gitlab_job["stage"] == "verify"
     assert gitlab_job["script"] == ["uv run --frozen --offline python -m nox -s host_conformance"]
-    assert gitlab_job["image"].startswith("ghcr.io/astral-sh/uv:")
-    assert "@sha256:" in gitlab_job["image"]
 
 
 def test_full_proof_owns_github_workflow_syntax_before_hosted_execution() -> None:
@@ -246,111 +260,110 @@ def test_full_proof_owns_github_workflow_syntax_before_hosted_execution() -> Non
     assert gate["network_policy"] == "required"
 
 
-def test_github_action_pins_are_unique_full_commit_ids() -> None:
-    github = (ROOT / ".config/ci/templates/hosted/github-actions.yml").read_text(encoding="utf-8")
-    pins: dict[str, set[str]] = {}
-    for action, commit in re.findall(r"uses:\s+([^@\s]+)@([0-9a-f]+)", github):
-        pins.setdefault(action, set()).add(commit)
+def test_github_action_pins_are_unique_full_commit_ids(github) -> None:
+    pins: dict[str, str] = {}
+    for step in (step for job in github["jobs"].values() for step in job["steps"]):
+        if "uses" in step:
+            action, commit = step["uses"].split("@")
+            assert re.fullmatch(r"[0-9a-f]{40}", commit)
+            assert pins.setdefault(action, commit) == commit
     assert pins
-    assert all(len(commits) == 1 for commits in pins.values())
-    assert all(len(commit) == 40 for commits in pins.values() for commit in commits)
 
 
-def test_cue_compiler_preserves_provider_contract_and_rejects_missing_source(tmp_path):
-    """Native CUE must reproduce both providers and reject unsatisfied declarations."""
-    outputs = compile_providers(ROOT)
-    assert set(outputs) == {"github", "gitlab"}
-    cue = str(locked_tool(ROOT, "cue"))
-    for entry in projection_entries():
-        native = run_command(
-            ROOT,
-            (cue, "export", "yaml:", str(ROOT / entry["projection"]), "--out", "json"),
-            timeout=15,
-            check=True,
-        )
-        assert yaml.safe_load(outputs[entry["provider"]]) == json.loads(native.stdout)
+def test_native_projection_cli_is_deterministic_and_read_only(tmp_path):
+    """The real CLI emits the exact two committed projections without rewriting them."""
+    command = (".venv/bin/python", "tools/ci/ci_templates.py", "check-templates", "--render")
+    expected = {
+        item["projection"]: (ROOT / item["projection"]).read_text() for item in projection_entries()
+    }
+    first = run_command(ROOT, command, timeout=30, check=True).stdout
+    assert first == run_command(ROOT, command, timeout=30, check=True).stdout
+    assert json.loads(first) == expected
+    assert all((ROOT / path).read_text() == text for path, text in expected.items())
     with pytest.raises((ValueError, FileNotFoundError)):
         compile_providers(tmp_path)
-
-
-@pytest.mark.parametrize(
-    "fault", ["none", "drift", "self-certified", "malformed", "missing", "unformatted", "bootstrap"]
-)
-def test_cue_owner_rejects_agreeing_but_incorrect_copies(tmp_path, monkeypatch, capsys, fault):
-    """Agreement between two YAML copies cannot replace the CUE source contract."""
-    config = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
-    paths = {owner.CONFIG_RELATIVE_PATH, config["compiler"]["source"], ".config/ci/mise-install.sh"}
-    paths.update(config["compiler"]["inputs"].values())
-    paths.update(config["compiler"]["supply"].values())
-    for entry in config["projection"]:
-        paths.update((entry["template"], entry["projection"]))
-        paths.update(entry["required_owner_scripts"])
-    paths.update(entry["projection"] for entry in config["forge_surface"])
-    for relative in paths:
-        destination = tmp_path / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(ROOT / relative, destination)
-    entry = config["projection"][0]
-    if fault in {"drift", "self-certified"}:
-        for relative in (entry["template"], entry["projection"]):
-            target = tmp_path / relative
-            target.write_text(target.read_text().replace("name: ETHOS CI", "name: Unapproved"))
-        if fault == "self-certified":
-            model = tmp_path / config["compiler"]["source"]
-            candidate = model.read_text() + (
-                "\ncompiled: observations: compiled.providers\n"
-                'compiled: rendered: {github: "forged", gitlab: "forged"}\n'
-            )
-            model.write_text(
-                run_command(
-                    ROOT,
-                    (str(locked_tool(ROOT, "cue")), "fmt", "-"),
-                    stdin=candidate,
-                    timeout=15,
-                    check=True,
-                ).stdout
-            )
-    elif fault in {"bootstrap", "malformed"}:
-        relative, content = {
-            "bootstrap": (".config/ci/mise-install.sh", "#!/bin/sh\nexit 0\n"),
-            "malformed": (config["compiler"]["source"], "invalid: ["),
-        }[fault]
-        (tmp_path / relative).write_text(content)
-    elif fault == "missing":
-        (tmp_path / config["compiler"]["source"]).unlink()
-    elif fault == "unformatted":
-        model = tmp_path / config["compiler"]["source"]
-        model.write_text(model.read_text().replace('name: "ETHOS CI"', 'name:    "ETHOS CI"'))
-    monkeypatch.setattr(owner, "ROOT", tmp_path)
-    monkeypatch.setattr(owner, "CONFIG_PATH", tmp_path / owner.CONFIG_RELATIVE_PATH)
-    assert (owner.check_templates(json_output=True) == 0) is (fault == "none")
-    report = json.loads(capsys.readouterr().out)
-    if fault in {"self-certified", "bootstrap"}:
-        reason = {"self-certified": "cue_projection_drift", "bootstrap": "mise_bootstrap_drift"}[
-            fault
-        ]
-        assert report["failures"] == [{"provider": "compiler", "reason": reason}]
 
 
 @pytest.mark.parametrize(
     "fault",
     [
         "none",
-        "missing-lock",
-        "version-drift",
-        "project-hook",
-        "native-version",
-        "providers",
-        "compile",
+        "drift",
+        "byte-drift",
+        "self-certified",
+        "malformed",
+        "missing",
+        "unformatted",
+        "bootstrap",
+        "missing-output",
     ],
 )
-def test_cue_compiler_consumes_exact_locked_supply(tmp_path, fault):
+def test_cue_owner_requires_native_semantics_without_parallel_templates(
+    tmp_path, monkeypatch, capsys, fault, ci_materials
+):
+    """A native CUE relation needs no YAML template and rejects forged output."""
+    config, materials = ci_materials
+    files = dict(materials)
+    model, output = config["compiler"]["source"], config["projection"][0]["projection"]
+    if fault in {"drift", "self-certified"}:
+        files[output] = files[output].replace("name: ETHOS CI", "name: Unapproved")
+    elif fault == "byte-drift":
+        files[output] += "\n"
+    elif fault in {"bootstrap", "malformed"}:
+        relative, content = {
+            "bootstrap": (".config/ci/mise-install.sh", "#!/bin/sh\nexit 0\n"),
+            "malformed": (model, "invalid: ["),
+        }[fault]
+        files[relative] = content
+    elif fault in {"missing", "missing-output"}:
+        files.pop(model if fault == "missing" else output)
+    elif fault == "unformatted":
+        files[model] = files[model].replace('name: "ETHOS CI"', 'name:    "ETHOS CI"')
+    if fault == "self-certified":
+        files[model] = run_command(
+            ROOT,
+            (str(locked_tool(ROOT, "cue")), "fmt", "-"),
+            stdin=files[model]
+            + (
+                "\ncompiled: observations: compiled.providers\n"
+                'compiled: rendered: {github: "forged", gitlab: "forged"}\n'
+            ),
+            timeout=15,
+            check=True,
+        ).stdout
+    for relative, content in files.items():
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(content)
+    monkeypatch.setattr(owner, "ROOT", tmp_path)
+    monkeypatch.setattr(owner, "CONFIG_PATH", tmp_path / owner.CONFIG_RELATIVE_PATH)
+    assert (owner.check_templates(json_output=True) == 0) is (fault == "none")
+    report = json.loads(capsys.readouterr().out)
+    if fault in {"drift", "self-certified", "bootstrap", "byte-drift"}:
+        provider = "github" if fault == "byte-drift" else "compiler"
+        reason = {
+            "bootstrap": "mise_bootstrap_drift",
+            "byte-drift": f"projection byte drift: {output}",
+        }.get(fault, "cue_projection_drift")
+        assert report["failures"] == [{"provider": provider, "reason": reason}]
+
+
+@pytest.mark.parametrize(
+    ("fault", "error"),
+    [
+        ("none", None),
+        ("missing-lock", "mise.lock"),
+        ("version-drift", "mise_supply_unavailable"),
+        ("project-hook", None),
+        ("native-version", "cue_version_mismatch"),
+        ("providers", "cue_projection_providers_mismatch"),
+        ("compile", "cue_compilation_failed"),
+    ],
+)
+def test_cue_compiler_consumes_exact_locked_supply(tmp_path, fault, error, ci_materials):
     """Missing or mismatched locks cannot be repaired by ambient installed tools."""
-    config = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
-    files = {owner.CONFIG_RELATIVE_PATH: (ROOT / owner.CONFIG_RELATIVE_PATH).read_text()}
-    compiler = config["compiler"]
-    paths = [compiler["source"], *compiler["inputs"].values(), "mise.toml", "mise.lock"]
-    files.update({path: (ROOT / path).read_text() for path in paths})
+    config, materials = ci_materials
+    files, compiler = dict(materials), config["compiler"]
     if fault == "missing-lock":
         files.pop("mise.lock")
     elif fault in {"version-drift", "native-version"}:
@@ -366,13 +379,8 @@ def test_cue_compiler_consumes_exact_locked_supply(tmp_path, fault):
         files[compiler["source"]] = "invalid: ["
     before = dict(files)
     original_paths = tuple(tmp_path.iterdir())
-    if fault in {"missing-lock", "version-drift", "native-version", "providers", "compile"}:
-        expected = {
-            "native-version": "cue_version_mismatch",
-            "providers": "cue_projection_providers_mismatch",
-            "compile": "cue_compilation_failed",
-        }.get(fault)
-        with pytest.raises((ValueError, KeyError), match=expected):
+    if error:
+        with pytest.raises((ValueError, KeyError), match=error):
             compile_projections(tmp_path, owner.CONFIG_RELATIVE_PATH, files, executable=executable)
     else:
         assert set(compile_projections(tmp_path, owner.CONFIG_RELATIVE_PATH, files)) == {

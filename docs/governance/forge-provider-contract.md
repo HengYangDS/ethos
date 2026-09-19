@@ -86,7 +86,7 @@ rewrite, tag recreation, history mapping, or tree-only parity.
 
 | Surface | GitHub | GitLab | Truth boundary |
 | --- | --- | --- | --- |
-| Template source | `.config/ci/templates/hosted/github-actions.yml` | `.config/ci/templates/hosted/gitlab-ci.yml` | Tracked projection source |
+| Composition source | `.config/ci/pipeline.cue` | Same source | Consumes native gate and runtime declarations |
 | Hosted projection | `.github/workflows/ci.yml` | `.gitlab-ci.yml` | Generated or checked provider file |
 | Syntax gate | `actionlint` | YAML/config lint plus GitLab template checks | Provider syntax, not repository proof |
 | Local emulator | `act` wrapper | `gitlab-ci-local` wrapper | Local provider emulation only |
@@ -115,7 +115,7 @@ Provider evidence MUST declare one of these classes:
 | `hosted_provider_observation` | A provider-neutral envelope captured GitHub/GitLab observation state or tool-discovery state. | Repository proof, hosted success, or remote publication. |
 | `remote_publication` | A remote ref or release artifact was observed after publication. | Local proof sufficiency. |
 
-Local emulator evidence MUST include provider, template path, projected file,
+Local emulator evidence MUST include provider, source path, projected file,
 job or workflow scope, command, start/end Git head, dirty state, return code,
 and explicit booleans such as `hosted_github_status_claimed=false` or
 `hosted_gitlab_status_claimed=false`. Observation modes such as `doctor`,

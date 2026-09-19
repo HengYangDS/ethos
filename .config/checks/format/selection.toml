@@ -229,7 +229,10 @@ carrier = "YAML"
 owner = ".config/checks/yaml/yamllint.yaml"
 execution = "uv run --frozen --offline python -m nox -s config_quality"
 truth_boundary = "ecosystem-native projections only"
-budget = [{ category = "yaml", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#"] }]
+budget = [
+  { category = "ci_projection", paths = [".github/workflows/ci.yml", ".gitlab-ci.yml"], measure = "structured", accounting = "generated_evidence" },
+  { category = "yaml", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#"] },
+]
 
 [[format]]
 extensions = [".json"]
@@ -366,3 +369,14 @@ owner = "mise.toml"
 execution = "uv run --frozen --offline python -m nox -s ci_templates"
 truth_boundary = "authored constraints compiled into native provider projections"
 budget = [{ category = "cue", comment_prefixes = ["//"], comment_wrappers = [["/*", "*/"]] }]
+
+[[ownership]]
+id = "ci-projection"
+priority = 100
+paths = [".github/workflows/ci.yml", ".gitlab-ci.yml"]
+format_owner = "cue"
+format_command = "uv run --frozen --offline python tools/ci/ci_templates.py check-templates --render"
+format_check = "uv run --frozen --offline python -m nox -s ci_templates"
+validation_owner = "cue"
+validation_command = "uv run --frozen --offline python -m nox -s ci_templates"
+mutation_policy = "generator-only"

@@ -20,7 +20,6 @@ from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.semantic import canonical_json_digest
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.literal_cases import literal_case
 from tests.support.proof import seed_executed_proof
@@ -110,27 +109,6 @@ def _trusted_receipt(request: dict[str, object], **updates: object) -> Path:
     return path
 
 
-def test_non_control_change_bypasses_independent_verification(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    candidate = tmp_path / "candidate"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate, "dev")
-    report = _report(
-        candidate,
-        git(repo, "rev-parse", "HEAD"),
-        commit_fixture_file(candidate, "README.md", "# candidate\n", "docs"),
-    )
-    assert {
-        key: report[key]
-        for key in ("required", "verdict", "required_gaps", "subject", "independent_verification")
-    } == {
-        "required": False,
-        "verdict": "pass",
-        "required_gaps": [],
-        "subject": {},
-        "independent_verification": {},
-    }
-
-
 def test_control_subject_and_request_bind_exact_signed_git_state(tmp_path: Path) -> None:
     candidate, accepted, head = _control_change(tmp_path)
     seed_executed_proof(candidate, head)
@@ -196,21 +174,6 @@ def test_control_policy_modes_fail_closed(
     ) == (verdict, gaps, state)
 
 
-def test_only_existing_exact_signed_receipt_contract_is_accepted(tmp_path: Path) -> None:
-    candidate, accepted, head = _control_change(tmp_path)
-    seed_executed_proof(candidate, head)
-    request = cast("dict[str, object]", _report(candidate, accepted, head)["verification_request"])
-    report = _report(candidate, accepted, head, _trusted_receipt(request))
-    verification = cast("dict[str, object]", report["independent_verification"])
-    assert (
-        report["verdict"],
-        report["required_gaps"],
-        verification["verdict"],
-        verification["evidence_class"],
-    ) == ("pass", [], "pass", "independently_reexecuted")
-    assert "ok" not in verification
-
-
 def test_receipt_and_proof_negative_matrix_fails_closed(tmp_path: Path) -> None:
     candidate, accepted, head = _control_change(tmp_path)
     assert _report(candidate, accepted, head)["required_gaps"] == ["proof_not_proven"]
@@ -242,6 +205,14 @@ def test_receipt_and_proof_negative_matrix_fails_closed(tmp_path: Path) -> None:
             field
         )
     trusted = _trusted_receipt(request)
+    accepted_receipt = _report(candidate, accepted, head, trusted)
+    assert (accepted_receipt["verdict"], accepted_receipt["required_gaps"]) == ("pass", [])
+    verification = accepted_receipt["independent_verification"]
+    assert (verification["verdict"], verification["evidence_class"]) == (
+        "pass",
+        "independently_reexecuted",
+    )
+    assert "ok" not in verification
     outside = tmp_path / "outside.json"
     outside.write_bytes(trusted.read_bytes())
     assert _report(candidate, accepted, head, outside)["required_gaps"] == [
@@ -251,14 +222,32 @@ def test_receipt_and_proof_negative_matrix_fails_closed(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "path",
-    literal_case(
-        "admission.test_control_replacement:parametrize:test_control_path_matrix_requires_independent_verification:1"
-    ),
+    [
+        "README.md",
+        *literal_case(
+            "admission.test_control_replacement:parametrize:test_control_path_matrix_requires_independent_verification:1"
+        ),
+        "src/ethos/adapters/repo/runtime/selection.py",
+        "src/ethos/adapters/repo/hook/protocol.py",
+        "src/ethos/adapters/repo/hook/admission.py",
+        "src/ethos/adapters/repo/git_effects.py",
+        "src/ethos/domain/status.py",
+        "src/ethos/repository/audit.py",
+        "src/ethos/repository/release/configuration.py",
+    ],
 )
 def test_control_path_matrix_requires_independent_verification(tmp_path: Path, path: str) -> None:
     candidate, accepted, head = _control_change(tmp_path, path)
     seed_executed_proof(candidate, head)
     report = _report(candidate, accepted, head)
+    if path == "README.md":
+        assert (report["required"], report["verdict"], report["required_gaps"]) == (
+            False,
+            "pass",
+            [],
+        )
+        assert report["subject"] == report["independent_verification"] == {}
+        return
     assert (
         report["required"],
         report["control_paths"],
@@ -268,20 +257,13 @@ def test_control_path_matrix_requires_independent_verification(tmp_path: Path, p
 
 
 def test_control_digest_binds_git_mode(tmp_path: Path) -> None:
-    repo, candidate = start_adopted_candidate(tmp_path)
-    commit_fixture_file(repo, "system/gates.toml", "version = 1\n", "control")
-    accepted = git(repo, "rev-parse", "HEAD")
-    git(candidate, "reset", "--hard", accepted)
-    profile = candidate / ".ethos/profile.toml"
-    profile.write_text(profile.read_text() + '\n[independent_verification]\nmode = "required"\n')
+    candidate, _accepted, accepted = _control_change(tmp_path)
     (candidate / "system/gates.toml").chmod(0o755)
-    git(candidate, "add", ".")
-    git(candidate, "commit", "-m", "mode")
-    head = git(candidate, "rev-parse", "HEAD")
+    head = commit_fixture_file(candidate, "system/gates.toml", "candidate control\n", "mode")
     seed_executed_proof(candidate, head)
     report = _report(candidate, accepted, head)
     subject = cast("dict[str, dict[str, object]]", report["subject"])
-    assert set(report["control_paths"]) == {".ethos/profile.toml", "system/gates.toml"}
+    assert report["control_paths"] == ["system/gates.toml"]
     assert subject["accepted"]["control_digest"] != subject["candidate"]["control_digest"]
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
 
@@ -339,63 +321,48 @@ def test_unresolvable_git_subject_defers_instead_of_allowing(tmp_path: Path) -> 
     )
 
 
-def test_candidate_cannot_disable_trusted_predecessor_verification(tmp_path: Path) -> None:
-    """Replacing control also replaces policy only after the prior authority accepts it."""
-    candidate, accepted, _head = _control_change(tmp_path)
+@pytest.mark.parametrize("prior", ["required", "disabled"])
+def test_candidate_cannot_disable_trusted_predecessor_verification(
+    tmp_path: Path, prior: str
+) -> None:
+    """Either committed object can require verification; dirty policy cannot disable it."""
+    candidate, accepted, _head = _control_change(tmp_path, mode=prior)
     profile = candidate / ".ethos/profile.toml"
+    proposed = "disabled" if prior == "required" else "required"
     head = commit_fixture_file(
         candidate,
         ".ethos/profile.toml",
-        profile.read_text().replace('mode = "required"', 'mode = "disabled"'),
-        "attempt verifier downgrade",
+        profile.read_text().replace(f'mode = "{prior}"', f'mode = "{proposed}"'),
+        "change verifier policy",
     )
     seed_executed_proof(candidate, head)
+    profile.write_text(profile.read_text().replace('mode = "required"', 'mode = "disabled"'))
     report = _report(candidate, accepted, head)
     assert report["verdict"] != "pass", report
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
 
 
-@pytest.mark.parametrize("remove_check", [False, True])
-def test_candidate_cannot_remove_a_prior_gate_without_independent_acceptance(
-    tmp_path: Path, *, remove_check: bool
+def test_changed_gate_does_not_enable_an_unselected_external_provider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A changed proof floor cannot certify its own removal of a required check."""
+    """A changed floor is review input, not an implicit external-provider policy."""
     candidate, accepted, _head = _control_change(tmp_path, mode="disabled")
     profile = candidate / ".ethos/profile.toml"
     payload = tomllib.loads(profile.read_text())
     old = payload["proof"]["code_correctness_gates"][0]
-    if remove_check:
-        selected = next(gate for gate in payload["proof"]["gates"] if gate["id"] == old)
-        selected["command"] = ["python", "-c", "print('replacement does not check behavior')"]
+    selected = next(gate for gate in payload["proof"]["gates"] if gate["id"] == old)
+    selected["command"] = ["python", "-c", "print('replacement does not check behavior')"]
     head = commit_fixture_file(
         candidate, ".ethos/profile.toml", tomli_w.dumps(payload), "change proof floor"
     )
     seed_executed_proof(candidate, head)
+    monkeypatch.setattr(
+        evidence,
+        "load_independent_verification_provider",
+        lambda _path: pytest.fail("disabled policy must not inspect host configuration"),
+    )
     report = _report(candidate, accepted, head)
-    assert report["verdict"] == ("unknown" if remove_check else "pass"), report
-    if remove_check:
-        assert report["required_gaps"] == ["independent_verification_receipt_required"]
-        assert old in report["subject"]["verification_floor"]["changed_obligations"]
-
-
-@pytest.mark.parametrize(
-    "path",
-    [
-        "src/ethos/adapters/repo/runtime/selection.py",
-        "src/ethos/adapters/repo/hook/protocol.py",
-        "src/ethos/adapters/repo/hook/admission.py",
-        "src/ethos/adapters/repo/git_effects.py",
-        "src/ethos/domain/status.py",
-        "src/ethos/repository/audit.py",
-        "src/ethos/repository/release/configuration.py",
-    ],
-)
-def test_runtime_and_effect_owners_require_control_verification(tmp_path: Path, path: str) -> None:
-    """Changing executing authority cannot escape prior-policy verification."""
-    candidate, accepted, head = _control_change(tmp_path, path=path)
-    seed_executed_proof(candidate, head)
-    report = _report(candidate, accepted, head)
-    assert report["required"] is True
-    assert path in report["control_paths"]
-    assert report["verdict"] != "pass"
-    assert "independent_verification_receipt_required" in report["required_gaps"]
+    assert report["verdict"] == "pass", report
+    assert report["independent_verification"]["state"] == "disabled"
+    assert report["mints_authority"] is False
+    assert old in report["subject"]["verification_floor"]["changed_obligations"]

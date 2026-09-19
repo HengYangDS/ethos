@@ -1973,9 +1973,10 @@ obligation rather than a postponed host workaround.
 
 The OpenSpec owner repair at 8821f1e85 passed all 35 gates in 688.4 seconds:
 3,981 tests passed, one skipped, with 95.02-percent displayed combined coverage.
-Candidate integration completed, but the trusted predecessor correctly classified
-the changed gate identity as an obligation replacement requiring independent
-evidence. Accepted dev/main and both peers stayed at af174f158.
+Candidate integration completed, but execution-identity comparison implicitly
+enabled required independent verification despite both committed policies being
+disabled. This was an admission defect, not proof of semantic weakening.
+Accepted dev/main and both peers stayed at af174f158.
 
 The existing host deployment cannot currently supply that evidence: configuration
 is root-owned and unreadable by the caller, the allowlisted broker path is absent,
@@ -2004,9 +2005,9 @@ An additional isolated replay uses the already verified wheel, not another build
 Empty and informational specifications pass; invalid specifications and removed
 package-bundled OpenSpec supply block through the public CLI with Git-only PATH.
 It completes in 14.58 seconds and removes its owned environment. Existing receipts
-remain in the commit-integrity evidence root. Do not rerun the full expensive
-proof while the external prerequisite is unchanged; finish bounded source checks,
-then qualify the exact final candidate once a real provider path is available.
+remain in the commit-integrity evidence root. The external-provider restoration prerequisite was withdrawn on September 19:
+local acceptance must not enroll an unselected provider. Qualify the corrected
+policy and exact-acceptance path rather than repairing an obsolete host broker.
 
 The last portability check reproduced that chmod-zero does not inject a read
 denial under Linux root, although it does under UID 65534. Both isolated image
@@ -2016,3 +2017,36 @@ configuration and identity checks; it no longer changes filesystem permissions
 to simulate an unrelated operation outcome. All 22 independent-verification
 cases pass in 0.52 seconds. Product/test ELOC remain 46,020/49,998; no product
 permission policy, signature requirement or execution threshold changed.
+
+### Policy Selection And Exact Local Control Acceptance
+
+The September 19 user correction authorizes removal of the accidental host
+prerequisite and obsolete deployment. The actual source observation selected
+`required` despite accepted and candidate modes both being `disabled`, solely
+because the OpenSpec command became a package provider. That comparison cannot
+prove behavioral equivalence or weakening. It remains visible review evidence.
+
+The evidence owner now selects the stricter policy from both exact commits;
+uncommitted configuration cannot change it. Control replacement no longer
+promotes policy mode from execution-identity differences. The existing local
+closeout owner requires the explicit candidate commit for changed gate floors,
+in addition to authorization, accepted-head freshness, current proof and CAS.
+This is local maintainer acceptance, not independent re-execution. Explicitly
+required independent verification remains fail-closed, including predecessor
+requirements and malformed, stale or wrongly bound receipts.
+
+RED reproduced implicit host enrollment, uncommitted-policy selection and public
+closeout rejection. The first fixture also attempted an empty commit; that setup
+error was corrected without changing production behavior. Five focused cases
+then passed in 41.25 seconds. The consolidated 66-case consumer matrix passed in 108.40 seconds with frozen
+source and owned temporary state removed. Product/test ELOC are 46,024/49,998.
+Exact source delivery and host retirement remain separate pending claims.
+
+Historical deployment provenance is not current authority. July 13 installation
+records deployed root-owned provider/configuration under system paths. The
+August 5 predecessor handoff explicitly abandoned the root-broker route after
+rollback and retained its legacy provider. Present metadata still shows July
+configuration content, an absent broker executable and an allowlist naming it.
+Retirement must inspect consumers and exact resources; never resurrect this
+obsolete deployment as a prerequisite for repository acceptance. No credential
+material or protected state was read or changed by this diagnosis.

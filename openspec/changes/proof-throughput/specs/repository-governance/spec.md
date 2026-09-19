@@ -1,5 +1,36 @@
 ## MODIFIED Requirements
 
+### Requirement: Control replacement preserves trusted prior verification
+
+Control replacement SHALL read independent-verification policy from both exact
+committed objects and retain the stricter mode during acceptance. Changed gate
+identities SHALL remain review evidence, not implicit provider enrollment.
+Applying a changed floor SHALL require explicit authorization, exact accepted
+and candidate commits, current proof, fresh effect admission and CAS.
+
+#### Scenario: Candidate cannot disable its required verifier
+
+- **WHEN** a candidate replaces a required accepted verification policy with disabled
+- **THEN** control replacement still requires evidence under the prior policy
+
+#### Scenario: Executing authority is not an ordinary unverified change
+
+- **WHEN** runtime selection, hook execution or Git-effect implementation changes
+- **THEN** admission classifies the changed path as control and applies that policy
+
+#### Scenario: Changed gate identities retain local-first acceptance
+
+- **WHEN** both exact policies disable independent verification and gate execution changes
+- **THEN** admission does not inspect or require host provider configuration
+- **AND** the report exposes changed obligations without claiming semantic equivalence
+- **AND** apply without explicit candidate selection is rejected without moving refs
+- **AND** exact authorized acceptance remains reachable without an external receipt
+
+#### Scenario: Uncommitted policy cannot change the verification requirement
+
+- **WHEN** worktree policy differs from the selected candidate commit
+- **THEN** verification selection uses the committed candidate and accepted predecessor
+
 ### Requirement: Official Change bootstrap is a bounded write authority
 
 An owned Work Lane with a valid Lease SHALL create and complete one selected

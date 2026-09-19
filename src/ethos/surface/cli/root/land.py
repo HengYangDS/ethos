@@ -260,6 +260,12 @@ def _closeout_land_result(
         candidate_head=audited_candidate_head,
         independent_verification_receipt=independent_verification_receipt,
     )
+    if (
+        apply
+        and candidate_head is None
+        and string_mapping(control_replacement.get("subject")).get("verification_floor")
+    ):
+        control_gaps += ("control_replacement_candidate_head_required",)
     gaps = (
         tuple(string_sequence(audit.get("required_gaps")))
         + decision.required_gaps

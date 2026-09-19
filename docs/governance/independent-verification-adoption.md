@@ -19,6 +19,15 @@ ETHOS remains local-first by default. An adopter may require an independent
 verifier, but that verifier is a separately configured adapter and does not
 change repository command semantics.
 
+Control replacement reads the accepted and proposed action policies from their
+exact committed objects and retains the stricter requirement for that acceptance.
+Changed execution identities do not select a provider. Disabled verification
+does not inspect host configuration; optional verification without a supplied
+receipt remains local. Local closeout separately requires explicit authorization,
+current proof and exact Git preconditions. A changed gate floor additionally
+requires the explicit candidate commit. None of these local observations claims
+independent identity or proves behavioral equivalence.
+
 The adopter first binds its repository and runs the current proof contract:
 
 ```bash

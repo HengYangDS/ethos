@@ -6943,6 +6943,25 @@ supported-supply obligations before this Change's archive and sole-lane exit.
 The 600-second performance direction remains open. Reuse exact prior evidence;
 do not restore the independent ambient audit or accumulate a new progress ledger.
 
+## Control Acceptance And Obsolete Host Deployment
+
+The September 19 user correction supersedes any remaining instruction to restore
+the historical root broker before accepting ordinary repository evolution.
+Independent verification is selected by exact committed action policy, not by
+an execution-identity mismatch or the existence of a host configuration file.
+The existing proof-throughput Change owns this bounded correction and retirement.
+
+Complete the local admission regressions first: preserve required predecessor
+verification; reject uncommitted-policy substitution; expose changed obligations;
+require explicit candidate selection for their authorized exact closeout; preserve
+proof, CAS and post-effect evidence. Then qualify one frozen candidate and its
+installed runtime. Retire obsolete host scripts, configurations, runtime copies
+and stale privilege rules only after exact ownership and consumer review.
+Credential/evidence protection or unavailable noninteractive host authority is a
+separate retirement gap, never permission to fabricate a receipt and never a
+reason to require an unselected external verifier. This replaces the false
+provider-restoration prerequisite rather than adding another roadmap.
+
 ## Completion Boundary
 
 Terminal convergence is verified only when every batch above is accepted and

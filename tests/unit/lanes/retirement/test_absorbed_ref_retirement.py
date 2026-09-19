@@ -1,3 +1,5 @@
+"""Retire only absorbed refs with fresh exact authority and observed hook effects."""
+
 from __future__ import annotations
 
 import subprocess

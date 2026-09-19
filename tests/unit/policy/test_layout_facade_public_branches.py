@@ -1,3 +1,5 @@
+"""Distinguish owned behavior from private aliases and empty compatibility facades."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

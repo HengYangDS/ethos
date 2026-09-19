@@ -1,0 +1,11 @@
+min_version = "2026.9.11"
+[settings]
+locked = true
+not_found_system_fallback = false
+idiomatic_version_file_enable_tools = []
+[tools]
+cue = "0.17.1"
+"github:rhysd/actionlint" = "1.7.12"
+"github:boyter/scc" = "4.1.0"
+"github:gitleaks/gitleaks" = "8.30.1"
+"github:anchore/syft" = "1.52.0"

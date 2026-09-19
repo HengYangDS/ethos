@@ -1,3 +1,5 @@
+"""Observe native references while preserving unknown syntax and declaration ownership."""
+
 from __future__ import annotations
 
 import ast

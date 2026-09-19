@@ -1,3 +1,5 @@
+"""Resolve retirement targets and require evidence of retained lane contributions."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,3 +1,5 @@
+"""Bind dirty Git content to exact snapshots without following unsafe inputs."""
+
 from __future__ import annotations
 
 import hashlib

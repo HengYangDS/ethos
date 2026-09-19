@@ -1,3 +1,5 @@
+"""Reject worktree collisions, stale refs and ambiguous native observations."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

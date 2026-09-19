@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import os
 import platform
 import shlex
@@ -21,12 +22,14 @@ from filelock import FileLock
 from filelock import Timeout
 
 import tools.ci.toolchain.environment as ci_environment
+import tools.ci.toolchain.native as native
 from ethos.adapters.process import run_command
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tools.ci.toolchain.native import NativeSupply
 from tools.ci.toolchain.native import download
 from tools.ci.toolchain.native import prepare
+from tools.ci.toolchain.native import prepare_mise
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -82,6 +85,8 @@ def bootstrap_tools(tmp_path_factory: pytest.TempPathFactory) -> Path:
         "python": (
             f'[ "$1 $2" != "-B -" ] || exec {shlex.quote(sys.executable)} "$@"\n'
             'case "$*" in\n'
+            "  *toolchain/native.py*) printf 'mise-prepared\\n' >>../mise.log; "
+            "printf '/fixture/mise/bin\\n' ;;\n"
             "  *platform.python_version*) printf '3.14.7\\n' ;;\n"
             "  '-B -I -') cat >/dev/null\n"
             '    [ "$FIXTURE_IMAGE_STATE" = available ] || [ -f ../native-image ] ;;\n'
@@ -169,6 +174,7 @@ def test_python_bootstrap_supplies_platform_prerequisites(
         if system == "Linux"
         else None
     )
+    assert (tmp_path / "mise.log").read_text() == "mise-prepared\n"
     observed_uv = uv_log.read_text(encoding="utf-8").splitlines()
     if image_state == "missing":
         assert observed_uv.index("sync --locked --group dev") < observed_uv.index(
@@ -184,15 +190,15 @@ def _native_supply(
 ) -> tuple[Callable[[], subprocess.CompletedProcess[str]], Path, Path, bytes]:
     """Run the real materializer with only the external download boundary controlled."""
     repo = tmp_path / "repo"
-    scripts = repo / "tools/ci/scripts"
-    scripts.mkdir(parents=True)
-    shutil.copy2(ROOT / "tools/ci/scripts/download-file.sh", scripts)
+    repo.mkdir()
     bins = tmp_path / "bin"
     bins.mkdir()
     system = platform.system()
     arch = "arm64" if platform.machine() in {"arm64", "aarch64"} else "x86_64"
-    version = "4.1.0" if tool == "scc" else "8.30.1"
+    version = {"scc": "4.1.0", "gitleaks": "8.30.1", "syft": "1.52.0"}[tool]
     expected = f"scc version {version}" if tool == "scc" else version
+    if tool == "syft":
+        expected = json.dumps({"version": version})
     body = f"#!/bin/sh\nprintf '%s\\n' '{'wrong' if fault == 'version' else expected}'\n".encode()
     if fault == "timeout":
         body = b"#!/bin/sh\nexec sleep 15\n"
@@ -206,34 +212,37 @@ def _native_supply(
         if fault == "duplicate":
             archive.addfile(entry, io.BytesIO(body))
     digest = hashlib.sha256(package.read_bytes()).hexdigest()
-    policy = repo / (
-        ".config/checks/format/selection.toml"
-        if tool == "scc"
-        else ".config/checks/secrets/supply.toml"
+    backend = (
+        f"github:{ {'scc': 'boyter', 'gitleaks': 'gitleaks', 'syft': 'anchore'}[tool] }/{tool}"
     )
-    policy.parent.mkdir(parents=True)
-    key = (
-        f"{system}_{arch}"
-        if tool == "scc"
-        else f"{system.lower()}_{'x64' if arch == 'x86_64' else arch}"
-    )
-    policy.write_text(
-        ("[budget_tool_supply]\n" if tool == "scc" else "")
-        + f'version = "{version}"\nrelease_owner = "fixture/{tool}"\n'
-        + ("[budget_tool_supply.archive_sha256]\n" if tool == "scc" else "[archive_sha256]\n")
-        + f'{key} = "{"0" * 64 if fault == "digest" else digest}"\n'
+    target = f"{'macos' if system == 'Darwin' else 'linux'}-{'x64' if arch == 'x86_64' else arch}"
+    (repo / "mise.toml").write_text(f'[tools]\n"{backend}" = "{version}"\n')
+    checksum = "0" * 64 if fault == "digest" else digest
+    (repo / "mise.lock").write_text(
+        f'lockfile_version = 2\n[[tools."{backend}"]]\nversion = "{version}"\n'
+        f'[tools."{backend}"."platforms.{target}"]\nchecksum = "sha256:{checksum}"\n'
+        f'url = "https://github.com/fixture/{tool}/releases/download/v{version}/fixture.tar.gz"\n'
     )
     transfer_log = tmp_path / "transfer.log"
-    (bins / "curl").write_text(
-        f"#!{sys.executable}\nimport pathlib, shutil, sys\n"
+    (bins / "mise").write_text(
+        f"#!{sys.executable}\nimport os, pathlib, shutil, sys\n"
+        'assert sys.argv[1:3] == ["install", "--locked"]\n'
+        f"assert sys.argv[3] == {backend!r}\n"
+        'assert os.environ["MISE_SAFE"] == os.environ["MISE_LOCKED"] == "1"\n'
+        'assert os.environ["MISE_ALWAYS_KEEP_DOWNLOAD"] == "1"\n'
+        'assert pathlib.Path("mise.toml").is_file() and pathlib.Path("mise.lock").is_file()\n'
         f"with pathlib.Path({str(transfer_log)!r}).open('a') as f: f.write('download\\n')\n"
         + (
             "print('transport-down',file=sys.stderr); sys.exit(22)\n"
             if fault == "transport"
-            else f"shutil.copyfile({str(package)!r},sys.argv[sys.argv.index('--output')+1])\n"
+            else (
+                'target = pathlib.Path(os.environ["MISE_DATA_DIR"])/"downloads"/"fixture.tar.gz"\n'
+                "target.parent.mkdir(parents=True)\n"
+                f"shutil.copyfile({str(package)!r}, target)\n"
+            )
         )
     )
-    for executable in (tool, "apt-get", "sudo", "install"):
+    for executable in (tool, "curl", "apt-get", "sudo", "install"):
         (bins / executable).write_text("#!/bin/sh\necho forbidden-ambient-or-system >&2\nexit 99\n")
     for path in bins.iterdir():
         path.chmod(0o755)
@@ -255,7 +264,7 @@ def _native_supply(
     return invoke, executable, package, body
 
 
-@pytest.mark.parametrize("tool", ["scc", "gitleaks"])
+@pytest.mark.parametrize("tool", ["scc", "gitleaks", "syft"])
 @pytest.mark.parametrize(
     "fault", ["digest", "version", "timeout", "missing", "link", "duplicate", "transport"]
 )
@@ -267,6 +276,8 @@ def test_native_tool_supply_rejects_invalid_supply_without_replacement(tmp_path,
 
     assert result.returncode != 0
     assert result.stderr
+    if fault == "transport":
+        assert "transport-down" in result.stderr
     assert executable.read_text() == "retained-but-untrusted"
     assert not list(executable.parent.glob(".prepare-*"))
     assert [p.read_bytes() for p in executable.parent.glob("*.tar.gz")] == (
@@ -277,7 +288,7 @@ def test_native_tool_supply_rejects_invalid_supply_without_replacement(tmp_path,
         assert (tmp_path / "transfer.log").read_text() == "download\n"
 
 
-@pytest.mark.parametrize("tool", ["scc", "gitleaks"])
+@pytest.mark.parametrize("tool", ["scc", "gitleaks", "syft"])
 def test_native_supply_is_rootless_reuses_identity_and_repairs_damage(tmp_path, tool):
     """A poisoned ambient PATH cannot replace declared supply or require global install."""
     invoke, executable, package, body = _native_supply(tmp_path, tool)
@@ -318,7 +329,7 @@ def test_native_supply_is_rootless_reuses_identity_and_repairs_damage(tmp_path, 
     assert not list(executable.parent.glob(".prepare-*"))
 
 
-@pytest.mark.parametrize("tool", ["scc", "gitleaks"])
+@pytest.mark.parametrize("tool", ["scc", "gitleaks", "syft"])
 def test_concurrent_native_supply_converges_without_extra_downloads(tmp_path, tool):
     """One identity has one cache effect despite concurrent independent callers."""
     invoke, executable, _package, body = _native_supply(tmp_path, tool)
@@ -332,7 +343,7 @@ def test_concurrent_native_supply_converges_without_extra_downloads(tmp_path, to
     assert not list(executable.parent.glob(".prepare-*"))
 
 
-@pytest.mark.parametrize("tool", ["scc", "gitleaks"])
+@pytest.mark.parametrize("tool", ["scc", "gitleaks", "syft"])
 def test_native_supply_rejects_a_linked_cache_without_changing_its_target(tmp_path, tool):
     """The controlled path cannot follow a symbolic cache redirect."""
     invoke, executable, _package, _body = _native_supply(tmp_path, tool)
@@ -372,14 +383,13 @@ def test_native_supply_lock_timeout_preserves_prior_bytes_and_creates_no_scratch
 
 
 @pytest.mark.parametrize("startup_delay", [0, 0.75])
-@pytest.mark.parametrize("boundary", ["download", "verify"])
+@pytest.mark.parametrize("boundary", ["download", "verify", "bootstrap"])
 def test_native_supply_timeout_drains_descendants_before_cleanup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, startup_delay: float, boundary: str
 ) -> None:
     """Transport and executable observation own descendants until timeout cleanup."""
     late = tmp_path / "late"
-    method = "wait" if boundary == "download" else "communicate"
-    native = getattr(subprocess.Popen, method)
+    native_communicate = subprocess.Popen.communicate
     connection = None
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -407,14 +417,21 @@ def test_native_supply_timeout_drains_descendants_before_cleanup(
                 connection.settimeout(2)
                 assert connection.recv(1) == b"R"
                 kwargs["timeout"] = 0.5
-            return native(process, *args, **kwargs)
+            return native_communicate(process, *args, **kwargs)
 
-        monkeypatch.setattr(subprocess.Popen, method, after_readiness)
+        monkeypatch.setattr(subprocess.Popen, "communicate", after_readiness)
 
         def execute():
             if boundary == "download":
                 return download((str(executable),), root=tmp_path, timeout=0.5)
-            return NativeSupply.read(ROOT, "scc").verify(executable)
+            if boundary == "verify":
+                return NativeSupply.read(ROOT, "scc").verify(executable)
+            (tmp_path / "mise.toml").write_text('min_version = "2026.9.11"\n')
+            installer = tmp_path / ".config/ci/mise-install.sh"
+            installer.parent.mkdir(parents=True)
+            installer.write_text(f"exec {shlex.quote(str(executable))}\n")
+            monkeypatch.setattr(native.shutil, "which", lambda _name: None)
+            return prepare_mise(tmp_path)
 
         try:
             with pytest.raises(subprocess.TimeoutExpired):
@@ -425,3 +442,36 @@ def test_native_supply_timeout_drains_descendants_before_cleanup(
             if connection is not None:
                 connection.close()
     assert not late.exists()
+    assert not list(tmp_path.rglob(".bootstrap-*"))
+
+
+@pytest.mark.parametrize("fault", ["none", "failure", "wrong-version", "warning"])
+def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(tmp_path, monkeypatch, fault):
+    """Missing native mise uses only the selected installer and preserves failed targets."""
+    version = "2026.9.11"
+    (tmp_path / "mise.toml").write_text(f'min_version = "{version}"\n')
+    installer = tmp_path / ".config/ci/mise-install.sh"
+    installer.parent.mkdir(parents=True)
+    body = f"#!/bin/sh\necho {'wrong' if fault == 'wrong-version' else version}\n"
+    if fault == "warning":
+        body += "echo unapproved-warning >&2\n"
+    installer.write_text(
+        'mkdir -p "$(dirname "$MISE_INSTALL_PATH")"\n'
+        f'printf %s {shlex.quote(body)} >"$MISE_INSTALL_PATH"\n'
+        'chmod +x "$MISE_INSTALL_PATH"\n'
+        + ("echo bootstrap-failed >&2; exit 23\n" if fault == "failure" else "")
+    )
+    monkeypatch.setattr(native.shutil, "which", lambda _name: None)
+    target = tmp_path / "build/runtime/tool-cache/mise/bin/mise"
+    target.parent.mkdir(parents=True)
+    target.write_text("retained")
+    if fault == "none":
+        assert prepare_mise(tmp_path) == target
+        assert (
+            run_command(tmp_path, (str(target), "--version"), timeout=5).stdout.strip() == version
+        )
+    else:
+        with pytest.raises((ValueError, subprocess.CalledProcessError)):
+            prepare_mise(tmp_path)
+        assert target.read_text() == "retained"
+    assert not list(target.parent.glob(".bootstrap-*"))

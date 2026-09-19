@@ -1,3 +1,5 @@
+"""Preserve retirement proof, successor bindings and partial-effect recovery."""
+
 from __future__ import annotations
 
 import subprocess

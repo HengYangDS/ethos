@@ -1,3 +1,5 @@
+"""Reject malformed proof envelopes and poisoned nonselected evidence."""
+
 from __future__ import annotations
 
 import hashlib

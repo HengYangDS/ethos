@@ -1,3 +1,5 @@
+"""Distinguish wrapped shell observations from mutations and prohibited stash use."""
+
 from __future__ import annotations
 
 import pytest

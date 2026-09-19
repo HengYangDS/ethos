@@ -94,6 +94,9 @@
 - [x] Qualify the expanded cheap readiness closure before expensive behavior and delivery.
 - [x] Restore native configuration discovery and reject missing or delegated explicit targets.
 - [ ] Restore effective JavaScript semantic quality and native launcher behavior.
+- [ ] Migrate native developer/CI tool supply to mise locks and retire replaced installers.
+- [ ] Compile shared CI declarations through native CUE, remove independent template authority and qualify both Forge projections.
+- [ ] Reject invalid and non-Boolean CEL predicates at declaration loading and qualify existing consumers.
 - [ ] Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 - [ ] Reject incomplete hosted results and missing, malformed or contradictory test artifacts through the existing receipt owner.
 - [ ] Enforce unapproved-warning rejection at native command adapters without treating informational output as failure.

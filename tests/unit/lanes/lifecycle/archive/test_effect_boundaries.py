@@ -1,3 +1,5 @@
+"""Bind archive execution to selected intent and report recoverable failures."""
+
 from __future__ import annotations
 
 from datetime import UTC

@@ -1,3 +1,5 @@
+"""Classify shell and Git observations without authorizing hidden mutations."""
+
 from __future__ import annotations
 
 import shlex

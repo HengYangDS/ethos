@@ -1,3 +1,5 @@
+"""Preserve immutable results and derive bounded nonpersistent continuations."""
+
 from __future__ import annotations
 
 import json

@@ -5,8 +5,6 @@ output = "build/evidence/release/supply-chain.json"
 sbom = "build/evidence/release/ethos.spdx.json"
 artifact_glob = "build/artifacts/python/ethos-*.whl"
 tool = "syft"
-version = "1.52.0"
-archive_sha256 = { linux_amd64 = "caeedb81fb0491615f1ebd1761e4145d41ee86dd2cc7bf80669f9f5ad9d6133d", linux_arm64 = "c46d5e4c28e12aa4c5becfaa343ef1c7f89045b6b895f2c21d471c62db09c706" }
 format = "spdx-json"
 
 [boundary]

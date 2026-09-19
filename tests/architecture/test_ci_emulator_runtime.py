@@ -1,3 +1,5 @@
+"""Keep emulator absence, timeout and partial logs distinct from hosted success."""
+
 from __future__ import annotations
 
 import json

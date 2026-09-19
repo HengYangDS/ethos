@@ -1,3 +1,5 @@
+"""Preserve one product version owner across source and distribution identities."""
+
 from __future__ import annotations
 
 import hashlib

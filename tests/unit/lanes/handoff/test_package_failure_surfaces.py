@@ -1,3 +1,5 @@
+"""Reject malformed handoff manifests, tampering and unsafe package members."""
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,5 @@
+"""Stop landing on failed admission, dirty candidates or invalid ancestry."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

@@ -1,3 +1,5 @@
+"""Resolve native artifact entrypoints without granting authority to unbound tools."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

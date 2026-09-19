@@ -1,3 +1,5 @@
+"""Preserve Git process failures and drain timed-out native descendants."""
+
 from __future__ import annotations
 
 import socket

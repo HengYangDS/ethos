@@ -1,3 +1,5 @@
+"""Bind gate identities to selected source, runtime and profile semantics."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

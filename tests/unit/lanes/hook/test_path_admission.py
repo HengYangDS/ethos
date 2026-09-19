@@ -1,3 +1,5 @@
+"""Admit exact editor paths through native hooks and explicit patch baselines."""
+
 from __future__ import annotations
 
 import shutil

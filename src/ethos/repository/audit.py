@@ -1,3 +1,5 @@
+"""Combine repository policy observations without promoting unknown evidence."""
+
 from __future__ import annotations
 
 from collections.abc import Callable

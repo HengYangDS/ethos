@@ -1,3 +1,5 @@
+"""Check the complete verdict algebra and allow effects only for passing admission."""
+
 from __future__ import annotations
 
 from itertools import product

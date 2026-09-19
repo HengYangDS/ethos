@@ -74,13 +74,19 @@ def _shell_candidate_lines(text: str) -> list[str]:
     lines = []
     heredoc = ""
     array_depth = 0
+    continued = ""
     for raw in text.splitlines():
-        line = raw.strip()
+        line = continued + raw.strip()
+        continued = ""
+
         if heredoc:
             heredoc = "" if line == heredoc else heredoc
             continue
         if array_depth:
             array_depth += line.count("(") - line.count(")")
+            continue
+        if len(line) - len(line.rstrip("\\")) & 1:
+            continued = line[:-1] + " "
             continue
         if re.match(r"[A-Za-z_]\w*=\(", line):
             array_depth = line.count("(") - line.count(")")

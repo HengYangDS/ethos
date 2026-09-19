@@ -11,6 +11,7 @@ docstring-code-format = true
 
 [lint]
 select = [
+  "D",
   "E",
   "W",
   "F",
@@ -57,6 +58,10 @@ select = [
   "S604",
   "S605",
 ]
+
+# Every authored module/package needs a responsibility statement. Symbol-level
+# presence belongs to public interface policy; existing docstrings still obey D.
+ignore = ["D101", "D102", "D103", "D105", "D106", "D107"]
 
 [lint.mccabe]
 max-complexity = 10

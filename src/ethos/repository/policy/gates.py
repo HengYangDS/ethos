@@ -1,3 +1,5 @@
+"""Resolve gate obligations and bind execution identities to selected sources."""
+
 from __future__ import annotations
 
 import hashlib

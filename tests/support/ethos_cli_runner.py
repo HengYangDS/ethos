@@ -1,3 +1,5 @@
+"""Run public CLI tests with explicit repository and mutation isolation."""
+
 from __future__ import annotations
 
 import json

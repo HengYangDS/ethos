@@ -3,20 +3,11 @@ summary = "Fail-closed executable-carrier admission audit."
 runner = "uv run --frozen --offline python -m nox -s format_selection"
 
 [source_budget]
-cross_check = { command = "scc", args = ["--no-cocomo", "--no-complexity", "--by-file", "--format", "json2", "--exclude-file=__never__", "--count-as", "c4:md,mmd:md", "."], timeout_seconds = 30, tolerance = { python_total = 2000, global_total = 3000 } }
+cross_check = { command = "scc", args = ["--no-cocomo", "--no-complexity", "--by-file", "--format", "json2", "--exclude-file=__never__", "--count-as", "c4:md,mmd:md,cue:go", "."], timeout_seconds = 30, tolerance = { python_total = 2000, global_total = 3000 } }
 terminal = { python_product = 50000, python_tests = 50000 }
-aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "markdown", "shell", "js", "toml", "yaml", "json", "ini", "diagram"] }
+aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "markdown", "shell", "js", "toml", "yaml", "json", "ini", "diagram", "cue"] }
 immutable_record_roots = ["openspec/changes/archive/"]
 line_width = 100
-
-[budget_tool_supply]
-version = "4.1.0"
-release_owner = "boyter/scc"
-[budget_tool_supply.archive_sha256]
-Darwin_arm64 = "7201c7aa4aace058d43308462cba72adb18f6094c08c0741727455976d0a0747"
-Darwin_x86_64 = "7f705031228add7e55edded409179a60de6b538d41f153ba2922dee95adda50d"
-Linux_arm64 = "6e0d2a1f8d3540ba7df185477dec40bb7340f1b214bfd303147de5cad2bd7b8b"
-Linux_x86_64 = "c7328436d3027f4357d3d7853f7dc3ac2bbcb4ca08f1adad91a27c593884079b"
 
 [[format]]
 extensions = [".lock", ".json", ".yaml", ".yml"]
@@ -256,6 +247,14 @@ execution = "report-only"
 truth_boundary = "generated append-only streams, not tracked source of truth"
 
 [[format]]
+extensions = [".sh"]
+carrier = "Generated native tool bootstrap"
+owner = "mise.toml"
+execution = "uv run --frozen --offline python -m nox -s ci_templates"
+truth_boundary = "exact native installer projection; not hand-authored tool policy"
+budget = [{ category = "native_bootstrap", paths = [".config/ci/mise-install.sh"], comment_prefixes = ["#"], accounting = "generated_evidence" }]
+
+[[format]]
 extensions = [".sh", ".bash", ".zsh"]
 shebangs = ["sh", "bash", "zsh"]
 carrier = "Shell"
@@ -327,3 +326,43 @@ yaml_allowed_roots = [
 ".mmd" = { roots = ["docs/architecture/_generated/"] }
 ".svg" = { roots = ["assets/brand/"] }
 ".png" = { roots = ["assets/brand/"] }
+
+[[ownership]]
+id = "cue"
+extensions = [".cue"]
+format_owner = "cue"
+format_command = "mise exec -- cue fmt --files .config/ci"
+format_check = "uv run --frozen --offline python -m nox -s ci_templates"
+validation_owner = "cue"
+validation_command = "uv run --frozen --offline python -m nox -s ci_templates"
+mutation_policy = "native-formatter"
+
+[[ownership]]
+id = "mise-bootstrap"
+priority = 100
+paths = [".config/ci/mise-install.sh"]
+format_owner = "mise"
+format_command = "uv run --frozen --offline python tools/ci/toolchain/native.py --render-installer"
+format_check = "uv run --frozen --offline python -m nox -s ci_templates"
+validation_owner = "mise"
+validation_command = "uv run --frozen --offline python -m nox -s ci_templates"
+semantic_companions = ["shellcheck", "shfmt"]
+mutation_policy = "generator-only"
+
+[[ownership]]
+id = "mise-lock"
+paths = ["mise.lock"]
+format_owner = "mise"
+format_command = "mise lock"
+format_check = "uv run --frozen --offline python -m nox -s ci_templates"
+validation_owner = "mise"
+validation_command = "uv run --frozen --offline python -m nox -s ci_templates"
+mutation_policy = "official-owner-only"
+
+[[format]]
+extensions = [".cue"]
+carrier = "Native CUE configuration"
+owner = "mise.toml"
+execution = "uv run --frozen --offline python -m nox -s ci_templates"
+truth_boundary = "authored constraints compiled into native provider projections"
+budget = [{ category = "cue", comment_prefixes = ["//"], comment_wrappers = [["/*", "*/"]] }]

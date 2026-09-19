@@ -309,10 +309,22 @@ class Projection:
     source: str
     output: str
     kind: str
+    inputs: tuple[str, ...] = ()
+    provider: str = ""
+
+    @property
+    def materials(self) -> tuple[str, ...]:
+        """Return the complete declared input/output closure for this projection."""
+        return (self.declaration, self.source, *self.inputs, self.output)
 
     def render(self, text: str) -> str:
         """Render with the same pure producer used by native quality checks."""
-        return render_architecture(self.source, text) if self.kind == "likec4-to-mermaid" else text
+        if self.kind == "likec4-to-mermaid":
+            return render_architecture(self.source, text)
+        if self.kind == "copy":
+            return text
+        msg = f"projection_requires_native_compiler:{self.output}"
+        raise ValueError(msg)
 
 
 def projection_relations(files: Mapping[str, str]) -> tuple[Projection, ...]:
@@ -327,16 +339,46 @@ def projection_relations(files: Mapping[str, str]) -> tuple[Projection, ...]:
             msg = f"projection_declaration_invalid:{path}"
             raise ValueError(msg)
         for entry in payload.get("projection", []):
-            if not isinstance(entry, dict) or entry.get("kind", kind) != kind:
+            if not isinstance(entry, dict) or entry.get("kind", kind) not in {kind, "cue"}:
                 msg = f"projection_kind_unknown:{path}"
                 raise ValueError(msg)
-            source, output = (_local_path(entry.get(key), path) for key in (source_key, output_key))
+            selected_kind = entry.get("kind", kind)
+            if selected_kind == "cue":
+                source, inputs, provider = _compiler_relation(payload, entry, path)
+            else:
+                source, inputs, provider = _local_path(entry.get(source_key), path), (), ""
+            output = _local_path(entry.get(output_key), path)
             if source == output or output in outputs or output in PROJECTION_DECLARATIONS:
                 msg = f"projection_owner_conflict:{output}:{path}"
                 raise ValueError(msg)
             outputs.add(output)
-            relations.append(Projection(path, source, output, kind))
+            relations.append(Projection(path, source, output, selected_kind, inputs, provider))
     return tuple(relations)
+
+
+def _compiler_relation(
+    payload: dict, entry: dict, declaration: str
+) -> tuple[str, tuple[str, ...], str]:
+    compiler = payload.get("compiler")
+    if (
+        not isinstance(compiler, dict)
+        or not isinstance(compiler.get("inputs"), dict)
+        or not isinstance(compiler.get("supply"), dict)
+        or not isinstance(entry.get("provider"), str)
+        or not entry["provider"]
+    ):
+        msg = f"projection_compiler_invalid:{declaration}"
+        raise ValueError(msg)
+    source = _local_path(compiler.get("source"), declaration)
+    inputs = tuple(
+        _local_path(value, declaration)
+        for value in (
+            *compiler["inputs"].values(),
+            compiler["supply"].get("config"),
+            compiler["supply"].get("lock"),
+        )
+    )
+    return source, inputs, entry["provider"]
 
 
 def _local_path(value: object, declaration: str) -> str:
@@ -368,14 +410,11 @@ def projection_effect_gaps(
     after: tuple[Projection, ...],
     files: Mapping[str, str],
     changes: Mapping[str, str | None],
+    compiled: Mapping[str, str] | None = None,
 ) -> list[str]:
     """Check affected generation and require joint output/producer retirement."""
     gaps: list[str] = []
-    affected = {
-        item.output
-        for item in (*before, *after)
-        if changes.keys() & {item.declaration, item.source, item.output}
-    }
+    affected = {item.output for item in (*before, *after) if changes.keys() & set(item.materials)}
     remaining = {item.output for item in after}
     gaps.extend(
         f"generated_projection_owner_removed:{item.output}"
@@ -387,12 +426,19 @@ def projection_effect_gaps(
     for item in after:
         if item.output not in affected:
             continue
-        source, output = files.get(item.source), files.get(item.output)
-        if source is None:
-            gaps.append(f"generated_projection_input_missing:{item.source}")
+        output = files.get(item.output)
+        missing = [path for path in (item.source, *item.inputs) if path not in files]
+        if missing:
+            gaps.extend(f"generated_projection_input_missing:{path}" for path in missing)
         elif output is None:
             gaps.append(f"generated_projection_missing:{item.output}")
-        elif item.render(source) != output:
+        elif item.kind == "cue":
+            if compiled is None or item.output not in compiled:
+                msg = f"compiled_projection_unavailable:{item.output}"
+                raise ValueError(msg)
+            if compiled[item.output] != output:
+                gaps.append(f"generated_projection_drift:{item.output}")
+        elif item.render(files[item.source]) != output:
             gaps.append(f"generated_projection_drift:{item.output}")
     return sorted(set(gaps))
 

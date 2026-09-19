@@ -1,3 +1,5 @@
+"""Bind schema validation to product-owned definitions rather than adopter shadows."""
+
 from __future__ import annotations
 
 import json

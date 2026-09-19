@@ -134,14 +134,21 @@ def test_cel_expression_validation_rejects_invalid_declarations() -> None:
 
 def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions() -> None:
     payload = load_generated_artifact_topology_declaration().model_dump(mode="json")
+    for field, value, message in (
+        ("expression", "facts[", "invalid CEL expression"),
+        ("expression", "unknown == true", "invalid CEL expression"),
+        ("expression", "42", "CEL predicate must statically return a boolean"),
+        ("expression", "'true'", "CEL predicate must statically return a boolean"),
+        ("expression", "facts.allowed", "CEL predicate must statically return a boolean"),
+        ("decision", "classify", "Input should be"),
+    ):
+        original = payload["cel_rule"][0][field]
+        payload["cel_rule"][0][field] = value
+        with pytest.raises(ValueError, match=message):
+            GeneratedArtifactTopologyDeclaration.model_validate(payload)
+        payload["cel_rule"][0][field] = original
     payload["cel_rule"] = payload["cel_rule"][:-1]
-
     with pytest.raises(ValueError, match="unique and complete"):
-        GeneratedArtifactTopologyDeclaration.model_validate(payload)
-
-    payload = load_generated_artifact_topology_declaration().model_dump(mode="json")
-    payload["cel_rule"][0]["decision"] = "classify"
-    with pytest.raises(ValueError, match="Input should be"):
         GeneratedArtifactTopologyDeclaration.model_validate(payload)
 
 

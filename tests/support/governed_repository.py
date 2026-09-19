@@ -493,7 +493,8 @@ def _declare_minimal_code_correctness(repo: Path) -> None:
     adopt -> DECLARE your native code-correctness gates -> prove. These fixtures walk that
     third step: they append two qualifying native gates (one behavior, one static-analysis)
     and map the required axes, so a proof seeded over the required floor is also complete
-    on the code-correctness dimension (Tier 1.2)."""
+    on the code-correctness dimension (Tier 1.2).
+    """
     profile_path = repo / ".ethos" / "profile.toml"
     declaration = (
         "\n[proof]\n"

@@ -1,3 +1,5 @@
+"""Represent immutable public results and bound their projected payload size."""
+
 import hashlib
 import json
 from collections.abc import Mapping

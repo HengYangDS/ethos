@@ -1,3 +1,5 @@
+"""Retire linked work lanes through current admission and recovery continuations."""
+
 from __future__ import annotations
 
 import shlex

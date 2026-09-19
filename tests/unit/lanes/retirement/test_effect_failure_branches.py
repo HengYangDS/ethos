@@ -1,3 +1,5 @@
+"""Expose retirement drift and require exact archived contribution evidence."""
+
 from __future__ import annotations
 
 import subprocess

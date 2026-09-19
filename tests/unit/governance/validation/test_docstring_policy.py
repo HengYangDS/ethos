@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+import json
+import sys
 import textwrap
 import tomllib
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
+from ethos.adapters.process import run_command
 from ethos.repository.policy.docstrings.coverage import docstring_coverage_report
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def write_policy(
@@ -31,6 +31,14 @@ def write_python(root: Path, relative: str, source: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(textwrap.dedent(source), encoding="utf-8")
     return path
+
+
+def command_report(root: Path, source: str) -> dict:
+    """Inspect a command module beside one documented package boundary."""
+    write_policy(root)
+    write_python(root, "src/sample/__init__.py", '"""Public package."""\n')
+    write_python(root, "src/sample/cli.py", source)
+    return docstring_coverage_report(root)
 
 
 def test_docstring_report_defaults_to_clean_when_public_surface_is_absent(tmp_path: Path) -> None:
@@ -93,11 +101,8 @@ def test_docstring_report_preserves_duplicate_configured_surface_observations(
 
 
 def test_docstring_report_exposes_native_google_style_failures(tmp_path: Path) -> None:
-    write_policy(tmp_path)
-    write_python(tmp_path, "src/sample/__init__.py", '"""Public package."""\n')
-    write_python(
+    report = command_report(
         tmp_path,
-        "src/sample/cli.py",
         '''
         """Helper.
 
@@ -116,8 +121,6 @@ def test_docstring_report_exposes_native_google_style_failures(tmp_path: Path) -
         ''',
     )
 
-    report = docstring_coverage_report(tmp_path)
-
     assert report["coverage_percent"] == 100.0
     assert report["verdict"] == "block"
     issues = {(item["qualified_name"], item["code"]) for item in report["style_issues"]}
@@ -131,11 +134,8 @@ def test_docstring_report_exposes_native_google_style_failures(tmp_path: Path) -
 
 
 def test_docstring_report_accepts_arguments_and_async_native_commands(tmp_path: Path) -> None:
-    write_policy(tmp_path)
-    write_python(tmp_path, "src/sample/__init__.py", '"""Public package."""\n')
-    write_python(
+    report = command_report(
         tmp_path,
-        "src/sample/cli.py",
         '''
         """Public commands."""
 
@@ -148,8 +148,6 @@ def test_docstring_report_accepts_arguments_and_async_native_commands(tmp_path: 
             """
         ''',
     )
-
-    report = docstring_coverage_report(tmp_path)
 
     assert report["verdict"] == "pass"
     assert report["documented_count"] == report["public_count"] == 2
@@ -193,11 +191,8 @@ def test_docstring_report_handles_root_module_and_non_command_decorators(tmp_pat
 
 
 def test_docstring_report_recognizes_legacy_fields_and_section_underlines(tmp_path: Path) -> None:
-    write_policy(tmp_path)
-    write_python(tmp_path, "src/sample/__init__.py", '"""Public package."""\n')
-    write_python(
+    report = command_report(
         tmp_path,
-        "src/sample/cli.py",
         '''
         """Public commands."""
 
@@ -214,8 +209,6 @@ def test_docstring_report_recognizes_legacy_fields_and_section_underlines(tmp_pa
         ''',
     )
 
-    report = docstring_coverage_report(tmp_path)
-
     assert report["verdict"] == "block"
     legacy = [item for item in report["style_issues"] if item["code"] == "legacy_style"]
     assert [item["message"] for item in legacy] == [
@@ -225,11 +218,8 @@ def test_docstring_report_recognizes_legacy_fields_and_section_underlines(tmp_pa
 
 
 def test_docstring_report_handles_blank_argument_lines_and_section_boundary(tmp_path: Path) -> None:
-    write_policy(tmp_path)
-    write_python(tmp_path, "src/sample/__init__.py", '"""Public package."""\n')
-    write_python(
+    report = command_report(
         tmp_path,
-        "src/sample/cli.py",
         '''
         """Public commands."""
 
@@ -244,8 +234,6 @@ def test_docstring_report_handles_blank_argument_lines_and_section_boundary(tmp_
             """
         ''',
     )
-
-    report = docstring_coverage_report(tmp_path)
 
     assert report["verdict"] == "block"
     assert not any(item["code"] == "args_missing" for item in report["style_issues"])
@@ -268,3 +256,43 @@ def test_docstring_report_never_passes_malformed_native_inputs(
 
     with pytest.raises(error):
         docstring_coverage_report(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "relative",
+    ["src/example.py", "src/sample/__init__.py", "tests/unit/test_example.py", "tools/example.py"],
+)
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("value = 1\n", "missing"),
+        ('"""Explain the module"""\nvalue = 1\n', "D415"),
+        ('"""Explain the module."""\nvalue = 1\n', ""),
+    ],
+)
+def test_native_ruff_requires_module_documentation(relative, source, expected):
+    """Every authored module has the same native documentation and style floor."""
+    root = Path(__file__).resolve().parents[4]
+    result = run_command(
+        root,
+        (
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--config",
+            str(root / "ruff.toml"),
+            "--stdin-filename",
+            relative,
+            "--output-format",
+            "json",
+            "-",
+        ),
+        stdin=source,
+        timeout=20,
+    )
+    codes = {item["code"] for item in json.loads(result.stdout)}
+    if expected == "missing":
+        expected = "D104" if relative.endswith("__init__.py") else "D100"
+    assert codes == ({expected} if expected else set())
+    assert result.returncode == bool(expected)

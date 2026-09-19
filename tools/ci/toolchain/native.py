@@ -4,23 +4,26 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import platform
 import re
-import signal
+import shutil
 import subprocess
 import sys
 import tarfile
 import tomllib
-from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import urlsplit
 
 from filelock import FileLock
 from filelock import Timeout
 
 from ethos.adapters.process import run_command
+from ethos.adapters.toolchain.mise import mise_executable
+from ethos.adapters.toolchain.mise import run_mise
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,9 +31,10 @@ class NativeSupply:
     """One tool's native release identity, archive and executable observation."""
 
     name: str
+    backend: str
     version: str
     digest: str
-    release: str
+    url: str
     archive: str
     platform: str
     version_argument: str
@@ -47,35 +51,41 @@ class NativeSupply:
         if system not in {"Darwin", "Linux"} or arch is None:
             msg = f"native_tool_platform_unsupported:{system}:{machine}"
             raise ValueError(msg)
-        if name == "scc":
-            source = root / ".config/checks/format/selection.toml"
-            policy = tomllib.loads(source.read_text(encoding="utf-8"))["budget_tool_supply"]
-            key = f"{system}_{arch}"
-            archive = f"scc_{key}.tar.gz"
-            argument, prefix = "--version", "scc version "
-        elif name == "gitleaks":
-            source = root / ".config/checks/secrets/supply.toml"
-            policy = tomllib.loads(source.read_text(encoding="utf-8"))
-            key = f"{system.lower()}_{'x64' if arch == 'x86_64' else arch}"
-            archive = f"gitleaks_{policy['version']}_{key}.tar.gz"
-            argument, prefix = "version", ""
-        else:
+        declarations = tomllib.loads((root / "mise.toml").read_text())["tools"]
+        selected = [key for key in declarations if key.rsplit("/", 1)[-1] == name]
+        if len(selected) != 1 or name not in {"scc", "gitleaks", "syft"}:
             msg = f"native_tool_undeclared:{name}"
             raise ValueError(msg)
-        version, digest, release = (
-            policy["version"],
-            policy["archive_sha256"][key],
-            policy["release_owner"],
+        key = selected[0]
+        version = declarations[key]
+        locked = tomllib.loads((root / "mise.lock").read_text())
+        records = [row for row in locked["tools"][key] if row["version"] == version]
+        target = (
+            f"{'macos' if system == 'Darwin' else 'linux'}-{'x64' if arch == 'x86_64' else arch}"
         )
-        if not all(isinstance(value, str) for value in (version, digest, release)) or not (
+        if len(records) != 1 or locked.get("lockfile_version") != 2:
+            msg = f"native_tool_lock_mismatch:{name}"
+            raise ValueError(msg)
+        material = records[0][f"platforms.{target}"]
+        url, checksum = material["url"], material["checksum"]
+        parsed = urlsplit(url)
+        digest = checksum.removeprefix("sha256:")
+        archive = Path(parsed.path).name
+        if not (
             re.fullmatch(r"\d+\.\d+\.\d+", version)
+            and checksum.startswith("sha256:")
             and re.fullmatch(r"[0-9a-f]{64}", digest)
-            and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", release)
+            and parsed.scheme == "https"
+            and parsed.hostname == "github.com"
+            and not parsed.username
+            and not parsed.password
+            and archive.endswith(".tar.gz")
         ):
             msg = f"native_tool_policy_invalid:{name}"
             raise ValueError(msg)
+        argument, prefix = ("--version", "scc version ") if name == "scc" else ("version", "")
         return cls(
-            name, version, digest, release, archive, f"{system}_{arch}", argument, prefix + version
+            name, key, version, digest, url, archive, f"{system}_{arch}", argument, prefix + version
         )
 
     def executable_bytes(self, archive: Path) -> bytes:
@@ -102,8 +112,18 @@ class NativeSupply:
 
     def verify(self, executable: Path) -> None:
         """Observe the declared native version; bytes or a name alone are insufficient."""
-        observed = run_command(Path.cwd(), (str(executable), self.version_argument), timeout=10)
-        if observed.returncode or observed.stderr or observed.stdout.strip() != self.version_output:
+        arguments = (
+            (self.version_argument, "-o", "json")
+            if self.name == "syft"
+            else (self.version_argument,)
+        )
+        observed = run_command(Path.cwd(), (str(executable), *arguments), timeout=10)
+        version = (
+            json.loads(observed.stdout).get("version")
+            if self.name == "syft"
+            else observed.stdout.strip()
+        )
+        if observed.returncode or observed.stderr or version != self.version_output:
             msg = f"native_tool_executable_version_mismatch:{self.name}"
             raise ValueError(msg)
 
@@ -121,18 +141,98 @@ def _directory(path: Path) -> None:
         component.mkdir(exist_ok=True)
 
 
+def render_mise_installer(root: Path) -> str:
+    """Project the native installer with one semantics-preserving lint normalization."""
+    version = tomllib.loads((root / "mise.toml").read_text())["min_version"]
+    generated = run_command(
+        root,
+        (str(mise_executable(root)), "generate", "install-script", "--version", version),
+        timeout=30,
+        check=True,
+    ).stdout
+    # Match a literal tilde with a character class rather than quoted expansion syntax.
+    source = generated.replace('"~/"*)', "[~]/*)")
+    formatter = Path(sys.executable).parent / ("shfmt.exe" if os.name == "nt" else "shfmt")
+    return run_command(root, (str(formatter),), stdin=source, timeout=15, check=True).stdout
+
+
+def validate_mise_installer(root: Path) -> None:
+    """Reject edits or version drift in the native generated bootstrap."""
+    if (root / ".config/ci/mise-install.sh").read_text() != render_mise_installer(root):
+        message = "mise_bootstrap_drift"
+        raise ValueError(message)
+
+
+def prepare_mise(root: Path) -> Path:
+    """Reuse operator supply or stage the native installer before atomic publication."""
+    root = root.resolve(strict=True)
+    version = tomllib.loads((root / "mise.toml").read_text())["min_version"]
+
+    def verify(executable: Path) -> None:
+        observed = run_command(
+            root, (str(executable), "--version"), timeout=15, check=True, env={"MISE_SAFE": "1"}
+        )
+        if observed.stderr or (
+            not observed.stdout.startswith(f"{version} ") and observed.stdout.strip() != version
+        ):
+            message = f"mise_version_mismatch:{version}"
+            raise ValueError(message)
+
+    if installed := shutil.which("mise"):
+        executable = Path(installed)
+        verify(executable)
+        return executable
+    home = root / "build/runtime/tool-cache/mise/bin"
+    _directory(home)
+    executable = home / "mise"
+    with FileLock(home / ".bootstrap.lock", timeout=30):
+        if executable.is_file() and not executable.is_symlink() and os.access(executable, os.X_OK):
+            verify(executable)
+            return executable
+        with TemporaryDirectory(prefix=".bootstrap-", dir=home) as directory:
+            isolated = Path(directory)
+            candidate = isolated / "mise"
+            result = run_command(
+                root,
+                ("bash", str(root / ".config/ci/mise-install.sh"), "--version"),
+                timeout=180,
+                remove_env_prefixes=("MISE_",),
+                env={
+                    "MISE_SAFE": "1",
+                    "MISE_VERSION": version,
+                    "MISE_INSTALL_PATH": str(candidate),
+                    "MISE_INSTALL_FROM_GITHUB": "1",
+                    "MISE_INSTALL_EXT": "tar.gz",
+                    "TMPDIR": str(isolated),
+                },
+            )
+            sys.stderr.write(result.stdout + result.stderr)
+            result.check_returncode()
+            verify(candidate)
+            candidate.replace(executable)
+    return executable
+
+
 def download(command: tuple[str, ...], *, root: Path, timeout: float = 180) -> None:
-    """Drain the entire owned transport process group before releasing its cache."""
-    with subprocess.Popen(command, cwd=root, stdout=sys.stderr, start_new_session=True) as process:
-        try:
-            code = process.wait(timeout=timeout)
-        except BaseException:
-            with suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
-            raise
-        if code:
-            raise subprocess.CalledProcessError(code, command)
+    """Run native provisioning through the shared bounded process owner."""
+    result = run_command(
+        root,
+        command,
+        timeout=timeout,
+        remove_env_prefixes=("MISE_",),
+        env={
+            "MISE_SAFE": "1",
+            "MISE_LOCKED": "1",
+            "MISE_YES": "0",
+            "MISE_ALWAYS_KEEP_DOWNLOAD": "1",
+            "MISE_DATA_DIR": str(root / "data"),
+            "MISE_CACHE_DIR": str(root / "cache"),
+            "MISE_GLOBAL_CONFIG_FILE": str(root / "absent-global.toml"),
+            "MISE_SYSTEM_CONFIG_DIR": str(root / "absent-system"),
+        },
+    )
+    sys.stderr.write(result.stdout + result.stderr)
+    result.check_returncode()
 
 
 def prepare(root: Path, name: str, *, lock_timeout: float = 30) -> Path:
@@ -151,22 +251,23 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30) -> Path:
         _directory(cache)
         archive, target = cache / supply.archive, cache / name
         with TemporaryDirectory(prefix=".prepare-", dir=cache) as scratch:
-            staged_archive = Path(scratch) / supply.archive
             selected = archive
             if not archive.exists() and not archive.is_symlink():
-                selected = staged_archive
+                isolated = Path(scratch)
+                for filename in ("mise.toml", "mise.lock"):
+                    (isolated / filename).write_bytes((root / filename).read_bytes())
                 download(
-                    (
-                        "bash",
-                        str(root / "tools/ci/scripts/download-file.sh"),
-                        f"https://github.com/{supply.release}/releases/download/v{supply.version}/{supply.archive}",
-                        str(selected),
-                    ),
-                    root=root,
+                    (str(mise_executable(root)), "install", "--locked", supply.backend),
+                    root=isolated,
                 )
+                candidates = list((isolated / "data/downloads").rglob(supply.archive))
+                if len(candidates) != 1:
+                    msg = f"native_tool_download_unresolved:{supply.name}"
+                    raise ValueError(msg)
+                selected = candidates[0]
             expected = supply.executable_bytes(selected)
-            if selected == staged_archive:
-                staged_archive.replace(archive)
+            if selected != archive:
+                selected.replace(archive)
             if (
                 not target.is_symlink()
                 and target.is_file()
@@ -187,10 +288,27 @@ def main() -> int:
     """Emit only the exact tool PATH; failures remain nonzero diagnostics."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
-    parser.add_argument("tools", nargs="+", choices=("scc", "gitleaks"))
+    parser.add_argument("--mise", action="store_true")
+    parser.add_argument("--render-installer", action="store_true")
+    parser.add_argument("tools", nargs="*", choices=("scc", "gitleaks", "syft"))
     arguments = parser.parse_args()
     try:
-        paths = [prepare(arguments.root, tool) for tool in dict.fromkeys(arguments.tools)]
+        if arguments.render_installer:
+            sys.stdout.write(render_mise_installer(arguments.root))
+            return 0
+        paths = []
+        if arguments.mise:
+            paths.append(prepare_mise(arguments.root).parent)
+            result = run_mise(
+                arguments.root,
+                ("install", "--locked", "cue", "github:rhysd/actionlint"),
+                timeout=180,
+            )
+            sys.stderr.write(result.stdout + result.stderr)
+            result.check_returncode()
+        paths.extend(prepare(arguments.root, tool) for tool in dict.fromkeys(arguments.tools))
+        if not paths:
+            parser.error("select --mise or at least one tool")
     except (
         OSError,
         ValueError,

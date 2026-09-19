@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import tomllib
 from datetime import UTC
 from datetime import datetime
@@ -13,13 +12,14 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
+from tools.ci.toolchain.native import NativeSupply
+from tools.ci.toolchain.native import prepare
 
 if TYPE_CHECKING:
     import nox
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / ".config/release/supply-chain.toml"
-SYSTEM_SYFT_LOCATIONS = (Path("/opt/homebrew/bin/syft"), Path("/usr/local/bin/syft"))
 
 
 def _digest(path: Path) -> str:
@@ -34,31 +34,6 @@ def _single_artifact(pattern: str) -> Path:
     return artifacts[0]
 
 
-def _syft(expected_version: str) -> Path:
-    run_command(
-        ROOT,
-        (str(ROOT / "tools/ci/scripts/install-syft.sh"),),
-        check=True,
-        remove_env_prefixes=("GIT_",),
-    )
-    default_cache = ROOT / "build/runtime/tool-cache/ci-tools"
-    cache = Path(os.environ.get("ETHOS_CI_TOOL_CACHE_DIR", default_cache))
-    locations = (cache / "syft" / expected_version / "syft", *SYSTEM_SYFT_LOCATIONS)
-    for executable in locations:
-        if not executable.is_file():
-            continue
-        completed = run_command(
-            ROOT,
-            (str(executable), "version", "-o", "json"),
-            check=True,
-            remove_env_prefixes=("GIT_",),
-        )
-        if json.loads(completed.stdout).get("version") == expected_version:
-            return executable
-    message = f"expected syft {expected_version} at a repository-declared location"
-    raise RuntimeError(message)
-
-
 def run(session: nox.Session) -> None:
     """Generate one SPDX 2.3 SBOM and a receipt with deliberately bounded claims."""
     policy = tomllib.loads(POLICY.read_text(encoding="utf-8"))
@@ -66,7 +41,8 @@ def run(session: nox.Session) -> None:
     output, sbom = (ROOT / str(policy[key]) for key in ("output", "sbom"))
     output.parent.mkdir(parents=True, exist_ok=True)
     sbom.parent.mkdir(parents=True, exist_ok=True)
-    executable = _syft(str(policy["version"]))
+    supply = NativeSupply.read(ROOT, "syft")
+    executable = prepare(ROOT, "syft") / "syft"
     run_command(
         ROOT,
         (
@@ -96,7 +72,7 @@ def run(session: nox.Session) -> None:
             "sha256": _digest(sbom),
             "format": "SPDX-2.3",
         },
-        "generator": {"tool": "syft", "version": policy["version"]},
+        "generator": {"tool": "syft", "version": supply.version},
         "not_claimed": [
             "provenance",
             "signature",

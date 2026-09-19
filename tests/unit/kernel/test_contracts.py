@@ -1,3 +1,5 @@
+"""Validate semantic identity and declared system schema surfaces."""
+
 from __future__ import annotations
 
 import hashlib

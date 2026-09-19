@@ -1,3 +1,5 @@
+"""Detect ambiguous module names and competing command owners."""
+
 from __future__ import annotations
 
 import ast

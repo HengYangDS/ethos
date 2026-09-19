@@ -1,3 +1,5 @@
+"""Observe lane coordination, overlapping scopes and contribution relationships."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

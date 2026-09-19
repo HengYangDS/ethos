@@ -1,3 +1,5 @@
+"""Preserve candidate landing failures and reject stale accepted policy."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

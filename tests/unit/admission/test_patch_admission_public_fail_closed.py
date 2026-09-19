@@ -1,3 +1,5 @@
+"""Reject unverifiable patch state and preserve exact source admission."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

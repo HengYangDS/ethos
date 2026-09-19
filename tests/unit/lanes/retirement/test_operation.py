@@ -1,3 +1,5 @@
+"""Recover retirement under locks without replaying uncertain destructive effects."""
+
 from __future__ import annotations
 
 import json

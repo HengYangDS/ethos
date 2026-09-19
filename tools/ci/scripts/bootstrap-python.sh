@@ -106,6 +106,10 @@ if [[ ! -x "${repo_root}/node_modules/.bin/openspec" ]]; then npm ci --ignore-sc
 "${repo_root}/node_modules/.bin/openspec" --version
 uv sync --locked --group dev
 
+# Prepare native CI supply once, before any gate; output is only the selected PATH.
+mise_bin="$("${UV_PROJECT_ENVIRONMENT}/bin/python" "${script_dir}/../toolchain/native.py" --root "${repo_root}" --mise)"
+export PATH="${mise_bin}:${PATH}"
+
 # The runner/operator supplies this protected public anchor outside the checkout.
 # No candidate key discovery, signer generation or user identity mutation occurs.
 if [[ -n ${ETHOS_COMMIT_TRUST_ANCHOR:-} ]]; then

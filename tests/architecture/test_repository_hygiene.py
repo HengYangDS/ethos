@@ -1,3 +1,5 @@
+"""Enforce repository hygiene and reject source-level quality suppressions."""
+
 from __future__ import annotations
 
 import subprocess

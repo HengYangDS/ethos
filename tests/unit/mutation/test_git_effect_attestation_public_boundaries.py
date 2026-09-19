@@ -1,3 +1,5 @@
+"""Bind effect attestations to exact plans and reject invalid recovery evidence."""
+
 from __future__ import annotations
 
 from datetime import UTC

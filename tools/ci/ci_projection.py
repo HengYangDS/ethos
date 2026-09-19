@@ -12,7 +12,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ethos.adapters.process import run_command
+from ethos.adapters.projections.cue import compile_projections
+from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import observe_projections
+from tools.ci.toolchain.native import validate_mise_installer
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_RELATIVE_PATH = ".config/checks/ci/templates.toml"
@@ -33,6 +37,52 @@ def _git_output(*args: str) -> str:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def check_workflow(root: Path = ROOT) -> int:
+    """Run native workflow validation with the repository's selected locked tool."""
+    try:
+        executable = locked_tool(root, "actionlint")
+        result = run_command(
+            root,
+            (str(executable), ".github/workflows/ci.yml"),
+            timeout=60,
+        )
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        sys.stderr.write(f"workflow_tool_unavailable:{error}\n")
+        return 1
+    sys.stdout.write(result.stdout)
+    sys.stderr.write(result.stderr)
+    return result.returncode
+
+
+def compile_providers(
+    root: Path = ROOT,
+    *,
+    executable: Path | None = None,
+    observations: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Compile both Forge views once from exact CUE and native declaration inputs."""
+    files = {CONFIG_RELATIVE_PATH: (root / CONFIG_RELATIVE_PATH).read_text(encoding="utf-8")}
+    compiler = tomllib.loads(files[CONFIG_RELATIVE_PATH])["compiler"]
+    for relative in (
+        compiler["source"],
+        *compiler["inputs"].values(),
+        *compiler["supply"].values(),
+    ):
+        target = root / relative
+        if not target.resolve().is_relative_to(root.resolve()):
+            message = f"projection_input_outside_root:{relative}"
+            raise ValueError(message)
+        files[relative] = target.read_text(encoding="utf-8")
+    return compile_projections(
+        root,
+        CONFIG_RELATIVE_PATH,
+        files,
+        executable=executable,
+        observations=observations,
+        check_format=True,
+    )
 
 
 def projection_entries() -> list[dict[str, Any]]:
@@ -120,6 +170,19 @@ def check_templates(*, json_output: bool) -> int:
     failures: list[dict[str, str]] = []
     projections: list[dict[str, Any]] = []
     relations = {item.output: item for item in observe_projections(ROOT)}
+    try:
+        validate_mise_installer(ROOT)
+        compile_providers(
+            ROOT,
+            observations={
+                str(entry["provider"]): (ROOT / str(entry["projection"])).read_text(
+                    encoding="utf-8"
+                )
+                for entry in projection_entries()
+            },
+        )
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        failures.append({"provider": "compiler", "reason": str(error)})
     for entry in projection_entries():
         provider = str(entry["provider"])
         template = ROOT / str(entry["template"])

@@ -1,3 +1,5 @@
+"""Preserve canonical state schema and fail closed on contradictory legacy data."""
+
 from __future__ import annotations
 
 import json

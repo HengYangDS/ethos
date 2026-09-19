@@ -2,139 +2,56 @@
 
 from __future__ import annotations
 
-import json
+import tomllib
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 import ethos.domain.source_budget.measurement as measurement
 from tests.support.governed_repository import git
-from tests.support.subprocesses import completed
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
+from tests.support.source_budget import fake_scc
+from tests.support.source_budget import write_budget_selection
 
 ROOT = Path(__file__).resolve().parents[4]
 
 
-def _repository(tmp_path: Path, *, extra_format: str = "") -> Path:
-    selection = tmp_path / ".config/checks/format/selection.toml"
-    selection.parent.mkdir(parents=True)
-    selection.write_text(
-        """[source_budget]
-immutable_record_roots = ["openspec/changes/archive/"]
-line_width = 100
-
-[source_budget.terminal]
-python_product = 100
-python_tests = 100
-python_tools = 100
-python_other = 100
-global_total = 200
-
-[source_budget.cross_check]
-command = "fake-scc"
-args = ["--format", "json2"]
-timeout_seconds = 5
-tolerance = { python_total = 100, global_total = 100 }
-
-[source_budget.aggregates]
-python_total = ["python_product", "python_tests", "python_tools", "python_other"]
-global_total = ["python_product", "python_tests", "python_tools", "python_other", "structured"]
-
-[[format]]
-extensions = [".py"]
-shebangs = ["python"]
-budget = [
-  { category = "python_product", paths = ["src/*"], measure = "python_ast" },
-  { category = "python_tests", paths = ["tests/*"], measure = "python_ast" },
-  { category = "python_tools", paths = ["tools/*"], measure = "python_ast" },
-  { category = "python_other", measure = "python_ast" },
-]
-
-[[format]]
-extensions = [".unknown"]
-budget = [{ category = "structured", measure = "structured" }]
-"""
-        + extra_format,
-        encoding="utf-8",
+def _repository(tmp_path: Path) -> Path:
+    selection = write_budget_selection(
+        tmp_path,
+        terminal=(100, 100, 100, 100, 200),
+        tolerance=(100, 100),
     )
+    policy = tomllib.loads(selection.read_text())
+    python = next(item for item in policy["format"] if item["extensions"] == [".py"])
+    python["shebangs"] = ["python"]
+    policy["format"] = [
+        python,
+        {
+            "extensions": [".unknown"],
+            "budget": [{"category": "structured", "measure": "structured"}],
+        },
+    ]
+    policy["source_budget"]["aggregates"]["global_total"] = [
+        *(item["category"] for item in python["budget"]),
+        "structured",
+    ]
+    selection.write_text(tomli_w.dumps(policy))
     git(tmp_path, "init", "-q", "-b", "dev")
     return tmp_path
 
 
-def _fake_scc(
-    monkeypatch: pytest.MonkeyPatch,
-    payload: Callable[[Path], object],
-) -> None:
-    which = measurement.shutil.which
-    run_command = measurement.subprocess.run
-    monkeypatch.setattr(
-        measurement.shutil,
-        "which",
-        lambda command, **kwargs: (
-            "/fake-scc" if command == "fake-scc" else which(command, **kwargs)
-        ),
-    )
-
-    def run(command, **kwargs):
-        return (
-            completed(stdout=json.dumps(payload(Path(kwargs["cwd"]))))
-            if command[0] == "/fake-scc"
-            else run_command(command, **kwargs)
-        )
-
-    monkeypatch.setattr(measurement.subprocess, "run", run)
-
-
-def _scc_files(root: Path) -> object:
-    return {
-        "languageSummary": [
-            {
-                "Name": "fixture",
-                "Files": [
-                    {"Location": path.as_posix(), "Code": 0}
-                    for path in root.rglob("*")
-                    if path.is_file()
-                ],
-            }
-        ]
-    }
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        "[source_budget]\nterminal = []\n",
-        """[source_budget]
-immutable_record_roots = ["openspec/changes/archive/"]
-line_width = 100
-
-[source_budget.terminal]
-python_product = 1
-python_tests = 1
-python_tools = 1
-python_other = 1
-global_total = 2
-[source_budget.cross_check]
-command = "scc"
-args = {}
-timeout_seconds = 1
-tolerance = { python_total = 0, global_total = 0 }
-""",
-    ],
-)
-def test_source_budget_public_report_rejects_wrong_policy_container(
-    tmp_path: Path, body: str
-) -> None:
-    path = tmp_path / ".config/checks/format/selection.toml"
-    path.parent.mkdir(parents=True)
-    path.write_text(body, encoding="utf-8")
-
-    report = measurement.source_budget_report(tmp_path)
-
+@pytest.mark.parametrize("field", ["terminal", "cross_check"])
+def test_source_budget_public_report_rejects_wrong_policy_container(tmp_path, field):
+    root = _repository(tmp_path)
+    path = root / ".config/checks/format/selection.toml"
+    policy = tomllib.loads(path.read_text())
+    if field == "terminal":
+        policy["source_budget"][field] = []
+    else:
+        policy["source_budget"][field]["args"] = {}
+    path.write_text(tomli_w.dumps(policy))
+    report = measurement.source_budget_report(root)
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["source_budget_policy_invalid:shape"]
 
@@ -151,7 +68,7 @@ def test_source_budget_public_report_normalizes_env_interpreters(
         path.write_text(f"{shebang}VALUE = 1\n", encoding="utf-8")
         path.chmod(0o755)
     git(root, "add", ".")
-    _fake_scc(monkeypatch, _scc_files)
+    fake_scc(monkeypatch, root)
 
     report = measurement.source_budget_report(root)
 
@@ -165,7 +82,7 @@ def test_source_budget_public_report_rejects_unsupported_structured_suffix(
     root = _repository(tmp_path)
     (root / "value.unknown").write_text("value", encoding="utf-8")
     git(root, "add", ".")
-    _fake_scc(monkeypatch, _scc_files)
+    fake_scc(monkeypatch, root)
 
     report = measurement.source_budget_report(root)
 
@@ -173,83 +90,38 @@ def test_source_budget_public_report_rejects_unsupported_structured_suffix(
     assert report["inventory"]["file_count"] == 0
 
 
-@pytest.mark.parametrize("location", [None, "", "/outside/root.py"])
-def test_source_budget_public_cross_check_rejects_invalid_or_external_locations(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    location: object,
-) -> None:
+@pytest.mark.parametrize(
+    ("location", "code", "immutable", "gap"),
+    [
+        (None, 1, False, "source_budget_scc_file_missing:src/example.py"),
+        ("", 1, False, "source_budget_scc_file_missing:src/example.py"),
+        ("/outside/root.py", 1, False, "source_budget_scc_file_missing:src/example.py"),
+        ("source", True, False, "source_budget_scc_invalid"),
+        ("source", "1", False, "source_budget_scc_invalid"),
+        ("source", True, True, "source_budget_scc_invalid"),
+    ],
+)
+def test_cross_check_rejects_invalid_locations_and_source_or_immutable_counts(
+    tmp_path,
+    monkeypatch,
+    location,
+    code,
+    immutable,
+    gap,
+):
+    """Location and count failures remain distinct in source and archive planes."""
     root = _repository(tmp_path)
     source = root / "src/example.py"
     source.parent.mkdir()
-    source.write_text("VALUE = 1\n", encoding="utf-8")
+    source.write_text("VALUE = 1\n")
+    counts = {source.as_posix() if location == "source" else location: code}
+    if immutable:
+        record = root / "openspec/changes/archive/record.py"
+        record.parent.mkdir(parents=True)
+        record.write_text("VALUE = 1\n")
+        counts = {source.as_posix(): 1, record.as_posix(): code}
     git(root, "add", ".")
-    _fake_scc(
-        monkeypatch,
-        lambda _root: {
-            "languageSummary": [{"Name": "fixture", "Files": [{"Location": location, "Code": 1}]}]
-        },
-    )
-
+    fake_scc(monkeypatch, root, counts, include_all=False)
     report = measurement.source_budget_report(root)
-
     assert report["verdict"] == "block"
-    assert "source_budget_scc_file_missing:src/example.py" in report["required_gaps"]
-
-
-@pytest.mark.parametrize("code", [True, "1"])
-def test_source_budget_public_cross_check_rejects_invalid_counts(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    code: object,
-) -> None:
-    root = _repository(tmp_path)
-    source = root / "src/example.py"
-    source.parent.mkdir()
-    source.write_text("VALUE = 1\n", encoding="utf-8")
-    git(root, "add", ".")
-    _fake_scc(
-        monkeypatch,
-        lambda _root: {
-            "languageSummary": [
-                {"Name": "fixture", "Files": [{"Location": source.as_posix(), "Code": code}]}
-            ]
-        },
-    )
-
-    report = measurement.source_budget_report(root)
-
-    assert report["verdict"] == "block"
-    assert "source_budget_scc_invalid" in report["required_gaps"]
-
-
-def test_source_budget_public_cross_check_rejects_invalid_immutable_counts(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    root = _repository(tmp_path)
-    source = root / "src/example.py"
-    source.parent.mkdir()
-    source.write_text("VALUE = 1\n", encoding="utf-8")
-    record = root / "openspec/changes/archive/record.py"
-    record.parent.mkdir(parents=True)
-    record.write_text("VALUE = 1\n", encoding="utf-8")
-    git(root, "add", ".")
-    _fake_scc(
-        monkeypatch,
-        lambda _root: {
-            "languageSummary": [
-                {
-                    "Name": "fixture",
-                    "Files": [
-                        {"Location": source.as_posix(), "Code": 1},
-                        {"Location": record.as_posix(), "Code": True},
-                    ],
-                }
-            ]
-        },
-    )
-
-    report = measurement.source_budget_report(root)
-
-    assert report["verdict"] == "block"
-    assert "source_budget_scc_invalid" in report["required_gaps"]
+    assert gap in report["required_gaps"]

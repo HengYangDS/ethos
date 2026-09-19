@@ -1,3 +1,5 @@
+"""Verify external provider identity, protected configuration and exact receipts."""
+
 from __future__ import annotations
 
 import json

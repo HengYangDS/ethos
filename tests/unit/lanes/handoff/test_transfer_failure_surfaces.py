@@ -1,3 +1,5 @@
+"""Expose handoff context, lease and holder failures without losing their causes."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

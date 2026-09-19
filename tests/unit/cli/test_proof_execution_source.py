@@ -166,7 +166,6 @@ def test_direct_proof_boundary_rechecks_current_source(
     proof_repository: Path, boundary: str
 ) -> None:
     """SDK callers cannot evade source admission by avoiding the public CLI."""
-
     root = proof_repository
     head = git(root, "rev-parse", "HEAD")
     plan = current_proof_plan(root, expected_head=head)
@@ -193,7 +192,6 @@ def test_direct_proof_boundary_rechecks_current_source(
 
 def test_historical_proof_without_source_binding_is_not_new_proof(proof_repository: Path) -> None:
     """Rehashing a plan without observed source cannot preserve its proof claim."""
-
     root = proof_repository
     head = git(root, "rev-parse", "HEAD")
     plan = current_proof_plan(root, expected_head=head)

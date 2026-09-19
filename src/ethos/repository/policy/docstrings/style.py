@@ -1,3 +1,5 @@
+"""Check documentation sections and their correspondence to Python signatures."""
+
 from __future__ import annotations
 
 import ast

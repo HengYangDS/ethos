@@ -1,3 +1,5 @@
+"""Load immutable repository profiles with strict roots and policy boundaries."""
+
 from __future__ import annotations
 
 import tomllib

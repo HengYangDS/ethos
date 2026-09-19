@@ -1,3 +1,5 @@
+"""Exercise commit policy over exact messages, identities and introduced ranges."""
+
 from __future__ import annotations
 
 import subprocess

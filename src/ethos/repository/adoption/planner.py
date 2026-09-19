@@ -1,3 +1,5 @@
+"""Plan repository adoption and apply exact native bindings atomically."""
+
 from __future__ import annotations
 
 import hashlib

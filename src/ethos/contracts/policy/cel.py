@@ -84,13 +84,16 @@ def evaluate_cel_gap_groups(
     return gaps
 
 
-def validate_cel_expression(expression: str) -> str:
-    """Compile one declaration-owned CEL expression and return it unchanged."""
+def validate_cel_expression(expression: str, *, predicate: bool = False) -> str:
+    """Compile once and require a statically Boolean type for declared predicates."""
     try:
-        _cel_program(expression)
+        program = _cel_program(expression)
     except RuntimeError as exc:
         message = "invalid CEL expression"
         raise ValueError(message) from exc
+    if predicate and program.return_type() != cel.Type.BOOL:
+        message = "CEL predicate must statically return a boolean"
+        raise ValueError(message)
     return expression
 
 

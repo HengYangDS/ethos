@@ -1,3 +1,5 @@
+"""Transfer exact lane content with authority, compensation and source revocation."""
+
 from __future__ import annotations
 
 import hashlib

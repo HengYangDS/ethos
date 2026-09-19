@@ -135,6 +135,61 @@ remain necessary for distributed packages; duplicated editable resolutions for
 the same runtime do not. The experiment must name precisely which installers,
 launchers, discovery rules and supply copies disappear.
 
+### Native mise Replacement Evidence
+
+September 20, 2026, Asia/Shanghai: the installed Homebrew mise 2026.9.11 generated
+CUE 0.17.1 and actionlint 1.7.12 locks for macOS arm64/x64, Linux arm64/x64 and
+Windows x64. Two native lock refreshes preserved every lock byte. They still
+re-downloaded actionlint artifacts for provenance verification and took about
+9 seconds each; lock refresh belongs to supply updates, not every proof.
+A warm locked-install preview took 0.016 seconds and installed nothing.
+A later empty-cache isolated install took 7.359 seconds; its warm repeat took
+0.017 seconds, installed nothing, and preserved the lock bytes. Both tools ran
+successfully from that supply and the owned temporary installation was removed.
+`build/evidence/quality/commit-integrity/mise-cold-warm.json` contains the result.
+
+The bounded implementation uses the native resolver with exact supplied config
+and lock bytes in an owned temporary directory. Safe mode disables project hooks;
+operator tool storage remains available, while ambient configuration is excluded.
+Missing locks and mismatched selections fail instead of finding an ambient tool.
+CUE and workflow-gate regressions execute native binaries. The former actionlint
+downloader is replaced by a thin invocation of the same locked supply owner.
+
+A deliberate altered archive checksum still allowed `mise which` to return an
+already installed binary. This is not archive verification or an installed-byte
+integrity proof. Keep trusted supply selection and execution identity independent;
+do not replace stronger installed-runtime verification with a version string.
+The evidence in `build/evidence/quality/commit-integrity/mise-lock-repro.json`
+and the `mise-*-red.log` / `mise-*-green.log` files is local candidate evidence,
+not hosted qualification, complete supply migration or product installation.
+
+Native retained-download execution is now qualified on the local candidate for
+SCC, gitleaks and Syft. `mise-native-real-activation.json` records real cold
+provisioning followed by 0.052/0.166/0.191-second verified warm reuse, unchanged
+executable identity and complete isolated-root cleanup. The existing materializer
+delegates download/install to native mise in temporary storage and keeps only
+archive/member verification, cache publication and execution identity checks.
+Its custom download retry/transport and subprocess supervisor were replaced.
+The 292-case consumer run is focused evidence, not full or hosted acceptance.
+
+The fixed [native install implementation][mise-native-install] takes a
+tool/version lock but removes an existing target before forced replacement.
+Consequently `mise install --force` on the active executable is not a substitute
+for the existing failure-preserves-old-content obligation. Staging native
+provisioning outside the active target satisfies that distinction without
+implementing a second installer. Native safe mode excludes project hooks and
+settings, not the operating system; required safety and storage controls are
+explicit caller environment, with ambient mise configuration excluded.
+
+The native generated bootstrap was replayed in an isolated environment without
+mise on PATH. It prepared mise, CUE and actionlint in 15.24 seconds, reused them
+in 2.98 seconds, and removed its entire temporary root. An initial migration
+warning exposed unsafe version observation; safe mode removed the cause and a
+negative regression rejects remaining version diagnostics. The selected wrapper
+is reproduced with native generation plus one equivalent quoted-tilde pattern
+normalization and shfmt; its drift is rejected. These observations do not prove
+Linux/Windows bootstrap, hosted CI or installed ETHOS product completion.
+
 ## Execution, Reuse And Failure Latency
 
 [Pants][pants] is the leading native dependency-aware execution candidate to
@@ -622,3 +677,5 @@ marketing claims were not used as evidence of comparative performance.
 [intoto-envelope]: https://github.com/in-toto/attestation/blob/2dcd055e9f72e746687c306e35f4e59720ff45be/spec/v1/envelope.md
 
 [openspec-customization]: https://github.com/Fission-AI/OpenSpec/blob/9d4e5974e5c0d9a09b9c6c1e1eb0975e80ec4461/docs/customization.md
+
+[mise-native-install]: https://github.com/jdx/mise/blob/v2026.9.11/src/backend/mod.rs

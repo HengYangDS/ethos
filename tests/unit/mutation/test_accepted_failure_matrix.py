@@ -1,3 +1,5 @@
+"""Preserve candidate promotion policy and expose failed effect compensation."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

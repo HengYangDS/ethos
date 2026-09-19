@@ -1,3 +1,5 @@
+"""Capture bounded Forge observations without claiming repository acceptance."""
+
 import json
 import os
 import shutil

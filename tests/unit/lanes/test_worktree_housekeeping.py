@@ -1,3 +1,5 @@
+"""Remove only authorized disposable worktrees after fresh ownership checks."""
+
 from __future__ import annotations
 
 import shutil

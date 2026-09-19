@@ -1,3 +1,5 @@
+"""Carry selected acceptance intent through candidate and publication effects."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

@@ -1,3 +1,5 @@
+"""Fence prewrite with current editor, lease, HEAD and index authority."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

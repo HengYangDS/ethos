@@ -1,3 +1,5 @@
+"""Audit official intent carriers and reject invalid shapes or lost obligations."""
+
 from __future__ import annotations
 
 import re

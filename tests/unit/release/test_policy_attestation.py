@@ -1,3 +1,5 @@
+"""Bind release policy and attestations while separating host configuration."""
+
 from __future__ import annotations
 
 from pathlib import Path

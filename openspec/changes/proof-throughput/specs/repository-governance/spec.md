@@ -127,3 +127,23 @@ not be resolved by choosing a convenient proof.
 - **THEN** governance audit consumes that same resolved OpenSpec observation
 - **AND** it retains independent adopter, commit and release policy checks
 - **AND** a new invocation observes current inputs rather than cached permission
+
+### Requirement: External verification recovery follows its owning prerequisite
+
+Required independent verification SHALL validate the configured provider before
+requesting its receipt. Control replacement and publication SHALL share that
+owner and report an actionable prerequisite without inventing evidence paths.
+Optional unselected verification SHALL preserve local-first behavior.
+
+#### Scenario: The required provider is unavailable
+
+- **WHEN** its protected configuration is missing, unreadable or invalid
+- **THEN** admission identifies that provider prerequisite and requests operator repair
+- **AND** no repository effect or executable retry is presented as the repair
+
+#### Scenario: A configured provider has no valid receipt
+
+- **WHEN** evidence is absent, outside the protected store, stale or incorrectly bound
+- **THEN** admission requests valid evidence from the configured provider
+- **AND** its configured store and issuer remain distinct from repository private state
+- **AND** valid signatures, freshness and exact bindings are all required for success

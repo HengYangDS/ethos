@@ -1968,3 +1968,41 @@ its local environment concealed the hosted ambient-command gap. Commit the
 complete owner repair, obtain its exact full proof, then observe installation
 and both hosted projections. The known failure therefore remains a delivery
 obligation rather than a postponed host workaround.
+
+## Provider Recovery Before Another Verification Attempt
+
+The OpenSpec owner repair at 8821f1e85 passed all 35 gates in 688.4 seconds:
+3,981 tests passed, one skipped, with 95.02-percent displayed combined coverage.
+Candidate integration completed, but the trusted predecessor correctly classified
+the changed gate identity as an obligation replacement requiring independent
+evidence. Accepted dev/main and both peers stayed at af174f158.
+
+The existing host deployment cannot currently supply that evidence: configuration
+is root-owned and unreadable by the caller, the allowlisted broker path is absent,
+and the residual provider expects retired package and proof shapes. A bounded
+noninteractive privilege probe failed without prompting. No protected host
+configuration, identity, signing material or trust requirement was changed.
+
+The independent admission reader nevertheless hid the provider prerequisite behind
+a missing-receipt gap, while closeout invented a Git-private receipt path that its
+own protected-store validator would reject. Four public/provider counterexamples
+and one unreadable-config counterexample failed before repair. The shared evidence
+owner now checks configured supply first, distinguishes unreadable configuration,
+and supplies one recovery action to closeout and publication. The duplicate
+control-specific provider reader and guessed receipt path are removed.
+
+The 58-case owner/closeout matrix passed; its expanded 68-case consumer run exposed
+one test's incorrect assumption that read-only publish always exits nonzero for a
+JSON block. The test now preserves that native observation contract and checks
+the explicit full-ref rejection separately; the corrected public case passes.
+The source CLI on actual host state now reports provider_config_unreadable and
+operator repair consistently in result, mutation decision and bootstrap projection.
+These are source observations, not restored provider or accepted-source delivery.
+
+An additional isolated replay uses the already verified wheel, not another build.
+Empty and informational specifications pass; invalid specifications and removed
+package-bundled OpenSpec supply block through the public CLI with Git-only PATH.
+It completes in 14.58 seconds and removes its owned environment. Existing receipts
+remain in the commit-integrity evidence root. Do not rerun the full expensive
+proof while the external prerequisite is unchanged; finish bounded source checks,
+then qualify the exact final candidate once a real provider path is available.

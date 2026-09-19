@@ -21,11 +21,9 @@ from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import JsonObject
 from ethos.contracts.verdict import Verdict
 from ethos.normalization.coercion import string_mapping
-from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from ethos.contracts.admission import AdmissionDecision
@@ -130,28 +128,6 @@ def closeout_command_from_status(root: Path, status: dict[str, object]) -> str:
     )
 
 
-def closeout_receipt_path(repo: Path, control_replacement: dict[str, object]) -> Path | None:
-    """Derive the content-addressed external receipt location for one request."""
-    verification = string_mapping(control_replacement.get("independent_verification"))
-    if verification.get("receipt"):
-        return None
-    request = string_mapping(control_replacement.get("verification_request"))
-    if not request or "independent_verification_receipt_required" not in string_sequence(
-        control_replacement.get("required_gaps")
-    ):
-        return None
-    common_dir = git_adapter.git_common_dir(repo)
-    if not common_dir:
-        return None
-    return (
-        Path(common_dir)
-        / "ethos"
-        / "receipts"
-        / "independent-verification"
-        / f"{canonical_json_digest(request)}.json"
-    )
-
-
 def closeout_resolution(
     *,
     repo: Path,
@@ -187,7 +163,6 @@ def closeout_resolution(
         candidate_head=candidate_head,
         candidate_tree=git_adapter.current_tree(audit_root, candidate_head),
     )
-    expected_receipt = receipt_path or closeout_receipt_path(repo, control_replacement)
     if verdict == "pass" and apply and candidate_head == accepted_head:
         next_action = "ethos publish"
     elif verdict == "pass" and apply:
@@ -200,12 +175,14 @@ def closeout_resolution(
             "ethos lane candidate --refresh-from-accepted --apply --authorize "
             f"--expect-head {accepted_head} --root {repo.resolve().as_posix()} --json"
         )
+    elif verification.get("required_gaps") and verification.get("next_action"):
+        next_action = str(verification["next_action"])
     else:
         next_action = closeout_apply_command(
             repo,
             accepted_head=accepted_head,
             candidate_head=candidate_head,
-            receipt_path=expected_receipt,
+            receipt_path=receipt_path,
         )
     return CloseoutResolution(
         coordinates=coordinates,
@@ -230,7 +207,7 @@ def closeout_resolution(
         user_decision_required=(
             "candidate_diverged_from_accepted" in gaps
             or "authorization_required" in gaps
-            or "independent_verification_receipt_required" in gaps
+            or bool(verification.get("required_gaps"))
         ),
     )
 
@@ -284,6 +261,8 @@ def closeout_bootstrap_package(
     accepted_head: str,
     candidate_head: str,
     receipt_path: Path | None = None,
+    verification: dict[str, object] | None = None,
+    next_action: str = "",
 ) -> dict[str, object]:
     """Build the closeout bootstrap package (command to run against accepted_root)."""
     policy = load_branch_role_policy(repo)
@@ -332,7 +311,7 @@ def closeout_bootstrap_package(
         "candidate_head": candidate_head,
         "proof_target": proof_target,
         "independent_verification": {
-            "required": "independent_verification_receipt_required" in required_gaps,
+            "required": (verification or {}).get("mode") == "required",
             "proof_floor_id": "ethos:control-replacement:v1",
             "receipt_option": (
                 f"--independent-verification-receipt {receipt_path.resolve().as_posix()}"
@@ -354,9 +333,8 @@ def closeout_bootstrap_package(
             "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
             "defer remote push until remote publication is available",
         ],
-        "next_action": "ethos publish"
-        if already_current and not required_gaps
-        else "run closeout with a current ETHOS runner against accepted_root",
+        "next_action": next_action
+        or ("ethos publish" if already_current and not required_gaps else command),
     }
 
 

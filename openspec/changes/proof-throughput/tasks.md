@@ -73,14 +73,14 @@
 - [x] Consolidate provider prerequisites and recovery at the independent-evidence owner.
 - [x] Remove implicit external-verifier enrollment; qualify committed-policy selection and exact local control-replacement acceptance.
 - [x] Qualify accepted-mirror signed tags, exact hook recovery, no-op selection and both-mode interrupted effects through public release and peer publication.
-- [ ] Deliver the signed-tag repair through exact proof, accepted runtime and peer readback.
+- [x] Deliver the signed-tag repair through exact proof, accepted runtime and peer readback.
 - [x] Retire obsolete verifier deployment references and disposable host residue, preserving evidence and credential boundaries.
 - [ ] Qualify the rootless dual-provider successor through exact proof, installed runtime and hosted observation.
 - [ ] Resolve native startup and repeated observation costs at their owners.
 - [ ] Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] Verify equivalent results, reduced work, isolation and cleanup.
-- [x] Measure complete proof below 1,200 seconds without weakening gates.
-- [ ] Evaluate the 600-second direction from the measured remaining critical path.
+- [x] Measure complete proof within the temporary 900-second threshold without weakening gates.
+- [ ] Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 - [x] Reuse one current runtime observation in public status and verify corruption recovery.
 - [x] Qualify and deliver the exact single-observation status candidate.
 - [x] Initialize quality capabilities on demand and verify native missing-supply and fresh-selection behavior.

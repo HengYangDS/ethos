@@ -34,10 +34,12 @@ only measured throughput improvements and their correctness boundaries.
 
 ### Active Acceptance Target
 
-The September 18 user adjustment sets the first complete-proof target below
-1,200 seconds. The 600-second direction remains subject to measured feasibility,
-not an abandoned requirement or a claim that it is unreasonable. Historical
-measurements below retain their original targets and are not current acceptance.
+The September 19 user adjustment sets a temporary complete-proof acceptance
+threshold of 900 seconds, superseding the earlier 1,200-second stage. The
+600-second direction remains a nonblocking optimization objective, not an
+abandoned requirement or a claim of infeasibility. All required gates, coverage
+and behavioral obligations remain unchanged. Historical measurements below
+retain their original targets and are not current acceptance.
 The subsequent explicit concurrency instruction permits faster qualified worker
 counts. Two workers remain a historical comparison, not a product ceiling.
 Reduce duplicated work and increase reliable parallelism together; record their
@@ -2091,3 +2093,11 @@ release, refusal and failure-observation cases then passed in 173.90 seconds.
 Owned temporary roots were removed. Product/test ELOC are 46,058/50,000, with
 unchanged 500-per-file limits. Static, type and official specification validation
 passed; exact-HEAD proof and runtime delivery remain separate outstanding claims.
+
+The exact `60124a8e4a71c4f852595d4318be966975cc8826` full proof subsequently
+passed all 35 gates in 806.048 seconds with 3,997 passing tests and one skip.
+This run meets the temporary 900-second threshold; it does not establish a
+sustained latency distribution or cold/warm equivalence. Accepted main/dev,
+installed runtime and both peers were separately read back at that source;
+new hosted CI runs remain pending. The existing release-tag receipts preserve
+these separate observations without treating local proof as hosted success.

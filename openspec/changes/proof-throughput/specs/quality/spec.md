@@ -2,15 +2,16 @@
 
 ### Requirement: Complete verification throughput preserves assurance
 
-ETHOS SHALL first target complete proof below 1,200 seconds on the declared
-reference workstation at a measured, qualified worker count. The measurement SHALL include preparation,
+ETHOS SHALL use 900 seconds as the temporary complete-proof acceptance threshold
+on the declared reference workstation at a measured, qualified worker count.
+The measurement SHALL include preparation,
 all selected gates and cleanup, retaining at least 95-percent combined Python
 line and branch coverage and every existing behavioral acceptance obligation.
 
 #### Scenario: Complete performance acceptance
 
 - **WHEN** an optimized exact-source full proof is measured
-- **THEN** its elapsed time is below 1,200 seconds
+- **THEN** its elapsed time is at most 900 seconds
 - **AND** all required gates pass without narrower acceptance or hidden prework
 - **AND** cold-computation and warm measurements are identified separately
 
@@ -23,8 +24,9 @@ line and branch coverage and every existing behavioral acceptance obligation.
 
 #### Scenario: Subsequent throughput improvement
 
-- **WHEN** the initial complete-proof target is reached
+- **WHEN** the temporary complete-proof threshold is met
 - **THEN** ETHOS evaluates the 600-second direction using measured remaining work
+- **AND** that optimization direction does not block otherwise qualified delivery
 - **AND** neither infeasibility nor completion is inferred from local speedups
 
 #### Scenario: Status reuses one observation but never stale runtime currentness

@@ -1,3 +1,5 @@
+"""Resolve declared carrier ownership without granting mutation authority."""
+
 import fnmatch
 import json
 import subprocess
@@ -66,11 +68,17 @@ def _assignment(path: str, declaration: dict[str, object]) -> dict[str, object]:
     }
 
 
-def audit(root: Path = ROOT) -> dict[str, object]:
-    """Compile one effective quality owner for every tracked repository file."""
+def audit(root: Path = ROOT, *, paths: tuple[str, ...] | None = None) -> dict[str, object]:
+    """Compile effective quality ownership for tracked or explicitly selected carriers."""
     config = tomllib.loads((root / CONFIG_PATH.relative_to(ROOT)).read_text(encoding="utf-8"))
     declarations = [item for item in config.get("ownership", []) if isinstance(item, dict)]
-    tracked = subprocess.check_output(["git", "ls-files"], cwd=root, text=True).splitlines()
+    tracked = (
+        paths
+        if paths is not None
+        else subprocess.check_output(["git", "ls-files", "-z"], cwd=root, text=True).split("\0")[
+            :-1
+        ]
+    )
     assignments: list[dict[str, object]] = []
     failures: list[dict[str, str]] = []
     unowned = multiply_owned = unverified = 0

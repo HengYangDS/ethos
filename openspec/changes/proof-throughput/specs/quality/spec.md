@@ -396,3 +396,23 @@ actual execution or required artifact validation.
 - **AND** governance and gate consumers apply the same native result interpretation
 - **AND** empty or informational valid results pass while invalid items, failed execution and unreadable output block
 - **AND** missing official supply blocks without substituting another executable
+
+### Requirement: Configuration selection preserves requested coverage
+
+Configuration checks SHALL discover candidate files through native Git and
+resolve their validation responsibility through the existing ownership compiler.
+Explicit absent or differently owned targets SHALL NOT become empty success.
+Default diagnostics MAY omit files deleted from the current candidate; exact
+committed execution SHALL retain its independent source-correspondence check.
+
+#### Scenario: A new configuration is outside the former filename list
+
+- **WHEN** tracked or nonignored candidate configuration contains a native failure
+- **THEN** default selection checks it and preserves the native failure
+- **AND** ignored files and official external carriers remain with their owners
+
+#### Scenario: The caller requests an absent or differently owned file
+
+- **WHEN** an explicit target is missing, deleted or delegated to another owner
+- **THEN** selection fails with the target and applicable owner guidance
+- **AND** valid relative and absolute targets receive the same validation

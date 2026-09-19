@@ -2338,3 +2338,37 @@ prove completeness. GitLab project 423 reports pipeline-success enforcement
 disabled. No Forge settings were changed during this inventory. The two native
 public full-proof probes returned pass for uncommitted script bytes; neither
 probe changed ETHOS or demonstrated repository land/publish acceptance.
+
+## Configuration Selection Preserves Its Requested Obligation
+
+Configuration quality consumes the existing carrier-ownership compiler. Its
+native Git inventory includes tracked and nonignored candidate configuration;
+there is no copied YAML filename list or OpenSpec root exclusion. A default
+working-tree diagnostic omits files removed from that candidate. Exact-HEAD
+execution separately rejects uncommitted source through the shared observer.
+An explicitly requested missing target is an error, not an empty successful
+selection. Another owner's carrier returns its declared validation command.
+
+The native Nox entry previously returned exit zero for a nonexistent YAML
+configuration. Five selection counterexamples reproduced the same loss: newly
+tracked YAML, candidate YAML, missing explicit input, deleted explicit input and
+explicit foreign-owned input. The repaired owner preserves native lint failures,
+valid candidates, ignored-file boundaries and official OpenSpec ownership.
+Relative and absolute spellings exercise the same requested meaning. Per-case
+fixture state remains isolated; common attestation CLI argument construction is
+shared without removing any assertions or changing the test budget.
+
+Evidence is retained under `build/evidence/quality/commit-integrity/` in the
+`config-discovery-*` native and focused logs. These are working-tree diagnostics,
+not current-commit repository proof or hosted qualification. Native format/lint
+selection and owner dispatch do not prove arbitrary consumer semantics. External
+CI still qualifies the previously accepted commit independently.
+
+The September 19 architecture feedback is consistent with this boundary:
+capabilities remain replaceable, observations carry scope and freshness, and
+independent verification is selected by risk rather than implicit service
+enrollment. The small trust kernel does not narrow the complete product chain.
+Stale observations invalidate only claims that depend on them. Suggested external
+framework mechanisms remain research inputs pending a named consumer, measured
+benefit and source verification; this repair introduces no additional platform,
+persistent graph, task ledger or permission authority.

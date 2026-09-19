@@ -1,3 +1,5 @@
+"""Quality sessions enforce native selection and execution boundaries."""
+
 from __future__ import annotations
 
 import os
@@ -10,6 +12,9 @@ import pytest
 
 import ethos.repository.policy.schema as schema_owner
 from ethos.adapters.process import run_command
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tools.ci import config_quality
 from tools.ci import sessions
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -149,3 +154,52 @@ def test_session_discovery_does_not_load_unselected_capabilities() -> None:
         "ethos.adapters.repo.runtime.materialization.input_resolution",
         "ethos.adapters.repo.runtime.materialization.node_package_supply",
     }.intersection(result.stdout.splitlines())
+
+
+@pytest.mark.parametrize(
+    ("state", "explicit", "fails"),
+    [
+        ("invalid", False, True),
+        ("invalid", True, True),
+        ("valid", False, False),
+        ("valid", True, False),
+        ("missing", True, True),
+        ("deleted", False, False),
+        ("deleted", True, True),
+        ("untracked", False, True),
+        ("ignored", False, False),
+        ("external", False, False),
+        ("external", True, True),
+    ],
+)
+def test_config_selection_keeps_native_failures_and_ownership(
+    tmp_path, monkeypatch, state, explicit, fails
+):
+    """Default discovery covers candidates; explicit absent or foreign inputs cannot pass."""
+    root = init_git_repo(tmp_path / "repo")
+    policy = root / ".config/checks/format/selection.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_bytes((ROOT / policy.relative_to(root)).read_bytes())
+    relative = "openspec/config.yaml" if state == "external" else ".config/new-policy.yaml"
+    target = root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("---\nvalue: true\n" if state == "valid" else "broken: [\n")
+    (root / ".gitignore").write_text(
+        policy.relative_to(root).as_posix() + "\n" + (relative if state == "ignored" else "")
+    )
+    if state not in {"ignored", "untracked", "missing"}:
+        git(root, "add", relative)
+    if state in {"missing", "deleted"}:
+        target.unlink()
+    monkeypatch.setattr(config_quality, "ROOT", root)
+    spellings = (
+        (relative, str(target), str(root / ".config" / ".." / relative)) if explicit else (None,)
+    )
+    for spelling in spellings:
+        failures = config_quality.run(
+            (spelling,) if spelling else (), node=root / "node", package_supply=root
+        )
+        assert bool(failures) is fails, failures
+        if fails:
+            assert relative in "\n".join(failures)
+            assert state != "external" or "another owner" in "\n".join(failures)

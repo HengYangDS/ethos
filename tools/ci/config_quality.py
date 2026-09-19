@@ -14,6 +14,9 @@ from typing import Any
 from yamllint import config as yamllint_config
 from yamllint import linter as yamllint_linter
 
+from ethos.adapters.process import run_command
+from tools.ci.format_selection import audit as carrier_ownership
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -21,49 +24,62 @@ ROOT = Path(__file__).resolve().parents[2]
 TAPLO_CONFIG = ROOT / ".config/checks/taplo/taplo.toml"
 YAML_CONFIG = ROOT / ".config/checks/yaml/yamllint.yaml"
 JSON_CONFIG = ROOT / ".config/checks/json/format.toml"
-DEFAULT_YAML_PATHS = (
-    Path(".pre-commit-config.yaml"),
-    Path(".config/checks/markdown/.markdownlint-cli2.yaml"),
-    Path(".config/checks/yaml/yamllint.yaml"),
-    Path(".config/ci/templates/hosted/github-actions.yml"),
-    Path(".config/ci/templates/hosted/gitlab-ci.yml"),
-    Path(".github/workflows/ci.yml"),
-    Path(".gitlab-ci.yml"),
-)
 SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"})
-EXTERNAL_YAML_ROOTS = (Path("openspec"),)
 
 
-def _ethos_yaml(path: Path) -> bool:
-    return not any(path.is_relative_to(root) for root in EXTERNAL_YAML_ROOTS)
-
-
-def _tracked_paths(*patterns: str) -> tuple[Path, ...]:
-    output = subprocess.check_output(("git", "ls-files", "-z", *patterns), cwd=ROOT)
-    return tuple(Path(item.decode()) for item in output.split(b"\0") if item)
+def _configuration_inventory() -> tuple[Path, ...]:
+    """Discover tracked and nonignored candidate configuration through native Git."""
+    output = run_command(
+        ROOT,
+        (
+            "git",
+            "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            *(f"*{suffix}" for suffix in sorted(SUPPORTED_SUFFIXES)),
+        ),
+        timeout=30,
+        check=True,
+    ).stdout
+    return tuple(Path(item) for item in output.split("\0") if item)
 
 
 def _candidate_paths(raw_paths: Iterable[str]) -> dict[str, tuple[Path, ...]]:
     requested = tuple(Path(raw) for raw in raw_paths)
     unsupported = tuple(path for path in requested if path.suffix.lower() not in SUPPORTED_SUFFIXES)
     if unsupported:
-        names = ", ".join(path.as_posix() for path in unsupported)
-        message = f"unsupported config lint targets: {names}"
+        message = "unsupported config lint targets: " + ", ".join(map(str, unsupported))
         raise ValueError(message)
-    paths = requested or (
-        *_tracked_paths("*.toml", "*.json", "*.ini", "*.cfg"),
-        *DEFAULT_YAML_PATHS,
-    )
-    existing = tuple(
-        dict.fromkeys(
-            path
-            for path in paths
-            if (ROOT / path).is_file()
-            and (path.suffix.lower() not in {".yaml", ".yml"} or _ethos_yaml(path))
-        )
-    )
+    paths = requested or _configuration_inventory()
+    missing = [str(path) for path in requested if not (ROOT / path).is_file()]
+    if missing:
+        message = "config target missing or not a file: " + ", ".join(missing)
+        raise ValueError(message)
+    selected = []
+    for path in dict.fromkeys(paths):
+        resolved = (ROOT / path).resolve()
+        if not resolved.is_relative_to(ROOT.resolve()):
+            message = f"config target outside repository: {path}"
+            raise ValueError(message)
+        if resolved.is_file():
+            selected.append((ROOT / path).absolute().relative_to(ROOT.resolve()).as_posix())
+    ownership = carrier_ownership(ROOT, paths=tuple(selected))
+    if ownership["failures"]:
+        message = "config ownership unresolved: " + str(ownership["failures"])
+        raise ValueError(message)
+    candidates = []
+    for item in ownership["assignments"]:
+        if str(item["validation_command"]).endswith("-s config_quality"):
+            candidates.append(Path(item["path"]))
+        elif requested:
+            message = (
+                f"config target has another owner: {item['path']}; run {item['validation_command']}"
+            )
+            raise ValueError(message)
     return {
-        suffix: tuple(path for path in existing if path.suffix.lower() in suffixes)
+        suffix: tuple(path for path in candidates if path.suffix.lower() in suffixes)
         for suffix, suffixes in {
             "toml": {".toml"},
             "yaml": {".yaml", ".yml"},
@@ -175,7 +191,10 @@ def _ini_failures(paths: tuple[Path, ...]) -> list[str]:
 
 def run(paths: Iterable[str], *, node: Path, package_supply: Path) -> tuple[str, ...]:
     """Return deterministic configuration-quality failures."""
-    candidates = _candidate_paths(paths)
+    try:
+        candidates = _candidate_paths(paths)
+    except (ValueError, OSError, subprocess.SubprocessError) as error:
+        return (str(error),)
     return (
         *_toml_failures(candidates["toml"], node, package_supply),
         *_json_failures(candidates["json"]),

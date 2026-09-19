@@ -92,7 +92,8 @@
 - [x] Close contradictory proof results through shared execution-success semantics and real issuance regressions.
 - [x] Replace Ty prose parsing and execute both declared native shell checks.
 - [x] Qualify the expanded cheap readiness closure before expensive behavior and delivery.
-- [ ] Restore carrier discovery and effective shell/JavaScript quality at their native owners.
+- [x] Restore native configuration discovery and reject missing or delegated explicit targets.
+- [ ] Restore effective JavaScript semantic quality and native launcher behavior.
 - [ ] Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 - [ ] Reject incomplete hosted results and missing, malformed or contradictory test artifacts through the existing receipt owner.
 - [ ] Enforce unapproved-warning rejection at native command adapters without treating informational output as failure.

@@ -49,9 +49,9 @@ configuration plane, not a truth center.
   `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate and
   falls back to the pinned upstream GitHub release binary when no local
   `actionlint` is installed.
-- `.config/checks/lychee/lychee.toml` owns link-check behavior while
-  `.config/checks/lychee/supply.toml` owns the downloaded binary identity and
-  archive digests used by hosted runners.
+- `.config/checks/lychee/lychee.toml` owns link-check behavior. Its supply
+  declaration maps the executable to the official `lychee-bin` wheel; the
+  development dependency and `uv.lock` own version and artifact identity.
 - `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; the `hosted_observation` Nox session records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
 - `.config/checks/format/selection.toml` owns fail-closed executable-carrier
   admission and file-format boundary checks; `uv run --frozen --offline python -m nox -s format_selection`

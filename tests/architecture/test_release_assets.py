@@ -68,15 +68,13 @@ def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
     for installer_path in installers:
         installer = installer_path.read_text(encoding="utf-8")
         policy_paths = set(re.findall(r"\.config/[A-Za-z0-9_./-]+\.toml", installer))
-        assert len(policy_paths) == 1
-        policy_path = policy_paths.pop()
+        (policy_path,) = policy_paths
         declared_policies.add(policy_path)
         policy = tomllib.loads((ROOT / policy_path).read_text(encoding="utf-8"))
         digests = [
             value for value in _nested_values(policy) if re.fullmatch(r"[a-f0-9]{64}", value)
         ]
         assert digests
-        assert all(re.fullmatch(r"[a-f0-9]{64}", digest) for digest in digests)
         versions = [
             value for value in _nested_values(policy) if re.fullmatch(r"\d+\.\d+\.\d+", value)
         ]
@@ -94,11 +92,14 @@ def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
     assert declared_policies == {
         ".config/checks/format/selection.toml",
         ".config/checks/github/actionlint.toml",
-        ".config/checks/lychee/supply.toml",
         ".config/checks/node/runtime.toml",
         ".config/checks/secrets/supply.toml",
         ".config/release/supply-chain.toml",
     }
+
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    assert any(item.startswith("lychee-bin>=") for item in project["dependency-groups"]["dev"])
+    assert not (ROOT / "tools/ci/scripts/install-lychee.sh").exists()
 
 
 def test_python_bootstrap_derives_uv_version_from_project_owner() -> None:

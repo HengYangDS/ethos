@@ -38,28 +38,34 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The September 19 delivered checkpoint binds accepted source
-`d7e6b536932a41d1d7d61fda8722a2d553688a03`, tree
-`6fa97dc220841b88f076ed57fd6e3acfe4d9abaf`, and immutable runtime
-`925a60d686d6a9d7ac8bfe0d23892b8b09113dd92882f78127d2dac8e6bc69d4`.
-Exact full proof passes 35 gates with 3,901 tests, one skip and 95.014516-percent
-combined coverage in 706.991 seconds. Native and exact installed-wheel journeys
-preserve two independently authored contributions, two archives, both reproofs
-and candidate/accepted integration. Local and both remote dev/main OIDs matched
-that source at delivery; the preceding runtime and owned scratch were removed.
-This is bounded acceptance, not all-drop, exploration or whole-goal completion.
+The September 19 delivered checkpoint binds source
+`af174f158cac38a14068aa64c7b3d923b5627b55`, tree
+`e9c94d8525bfb88907117b59bd3a8e5cdf5a0169`, and installed runtime
+`507f386894c44a0d7b8227125275041c26428b73844211bd89dd6c08a8d78af9`.
+Its exact full proof passes 35 gates with 3,903 tests, one skip and
+95.014516-percent combined coverage in 688.962 seconds. The installed package,
+local dev/main/candidate/work and both remote dev/main OIDs match; predecessor
+runtime and owned pytest scratch are removed. This is not whole-goal completion.
 
-The September 19 07:08 +08:00 provider readback supersedes the delivery receipt's
-nonterminal CI status: GitHub main 35402902785 passed; dev 35402902857 failed
-before proof because a fresh gitleaks version probe timed out after ten seconds.
-The nine dev OS/Python conformance jobs passed. Applicable dev/main rulesets also
-require repository proof, while the old workflow emitted source verification.
-The current candidate consolidates duplicated hosted execution at the existing
-quality job and preserves required check identities as fail-closed projections.
-It adds no permanent cache, changes no ruleset and leaves native cold-start cause
-open. Final 81-case focused checks and unchanged source budgets pass; exact new
-HEAD proof and hosted execution remain pending. The existing proof-throughput
-Change and sole Work Lane remain open.
+GitHub main run 35406817714 passes, including the existing required proof and
+package check identities. Its one prepared quality job executes and uploads the
+real full graph; the two thin checks project that result rather than repeat work.
+The hosted proof took 1,056 seconds, so neither a universal speedup nor a 600-second
+result is established. GitHub dev remains separately observed by its existing
+native watcher. No running pipeline is cancelled to make the candidate appear green.
+
+The current bounded successor applies the same owner rule to GitLab: 26 prior
+jobs become five simulated native jobs while commit admission, Linux conformance
+and the two-version Node matrix remain. Native GitLab simulation and source
+regressions exposed and closed deprecated retry spelling. Before integration,
+unprivileged execution also required removal of the global lychee installer;
+the official binary wheel now uses the existing locked development environment.
+Positive and negative link cases passed on macOS and UID-65534 Linux without
+network or system writes. Full new-source proof and hosted execution are still
+required. Virtualenv 21.7.15 does not remove its Filelock-below-4 dependency;
+that latest-stable conflict remains open. The Change and sole Work Lane remain
+open for process-loss recovery, native bootstrap, further measured throughput,
+remaining complete adopter journeys and final retirement.
 
 Release continuity is delivered: repository proof remains applicable after
 authoring retirement; distinct valid execution contexts do not contradict

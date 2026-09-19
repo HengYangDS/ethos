@@ -73,7 +73,7 @@ def test_dual_forge_projections_equal_their_declared_templates(github, gitlab) -
 
 
 @pytest.mark.parametrize("provider", ["github", "gitlab"])
-def test_provider_commands_use_shared_owners_without_activating_mutation(provider) -> None:
+def test_provider_commands_use_shared_owners_without_activating_mutation(provider, gitlab) -> None:
     entry = next(item for item in projection_entries() if item["provider"] == provider)
     text = (ROOT / entry["template"]).read_text()
     assert "tools/ci/scripts/run-head-bound-proof.sh" in text
@@ -81,9 +81,17 @@ def test_provider_commands_use_shared_owners_without_activating_mutation(provide
     assert "ethos hook install" not in text
     assert "\n    - openspec validate" not in text
     if provider == "gitlab":
-        assert "uv run --frozen --offline python -m nox -s format_check" in text
-        assert "uv run --frozen --offline python -m nox -s build" in text
-        assert "node_modules/.bin/openspec validate --all --strict --json" in text
+        assert {name for name in gitlab if name.startswith("ethos:")} == {
+            "ethos:commit-policy",
+            "ethos:verify",
+            "ethos:host-conformance",
+            "ethos:npm",
+        }
+        assert gitlab["ethos:verify"]["script"][-1] == "tools/ci/scripts/run-head-bound-proof.sh"
+        assert gitlab["ethos:verify"]["before_script"] == []
+        assert "bootstrap-python.sh" in gitlab["ethos:verify"]["image"]["entrypoint"][2]
+        assert "build/artifacts/python/" in gitlab["ethos:verify"]["artifacts"]["paths"]
+        assert "stuck_or_timeout_failure" not in gitlab["default"]["retry"]["when"]
 
 
 @pytest.mark.parametrize(
@@ -94,8 +102,7 @@ def test_required_github_checks_project_only_successful_execution(github, job, n
     assert projected["name"] == name
     assert projected["needs"] == "quality"
     assert projected["if"] == "${{ always() }}"
-    assert len(projected["steps"]) == 1
-    step = projected["steps"][0]
+    (step,) = projected["steps"]
     assert step["env"] == {"QUALITY_RESULT": "${{ needs.quality.result }}"}
     for result in ("success", "failure", "cancelled", "skipped", ""):
         observed = run_command(
@@ -164,11 +171,11 @@ def test_integration_events_transport_exact_commit_range_coordinates(github, git
 
 
 def test_provider_emulators_are_digest_bound_and_fail_closed() -> None:
-    config = tomllib.loads((ROOT / ".config/checks/ci/templates.toml").read_text(encoding="utf-8"))
-    providers = {item["provider"]: item for item in config["projection"]}
+    providers = {item["provider"]: item for item in projection_entries()}
     assert set(providers) == {"github", "gitlab"}
     assert all("@sha256:" in str(item["emulator_image"]) for item in providers.values())
     assert all(int(item["emulator_timeout_seconds"]) > 0 for item in providers.values())
+    assert providers["gitlab"]["emulator_job"] == "ethos:verify"
 
 
 def test_hosted_runtime_versions_are_checked_projections_of_native_owners() -> None:
@@ -187,13 +194,8 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners() -> N
     )
     assert set(re.findall(r'^\s+version: "([^"]+)"$', github, re.MULTILINE)) == {uv_version}
     images = set(re.findall(r"^\s*image:\s+(\S+)$", gitlab, re.MULTILINE))
-    assert images == {
-        next(
-            str(entry["emulator_image"])
-            for entry in projection_entries()
-            if entry["provider"] == "gitlab"
-        )
-    }
+    declared = next(entry for entry in projection_entries() if entry["provider"] == "gitlab")
+    assert images == {declared["emulator_image"]}
     assert set(re.findall(r"ghcr\.io/astral-sh/uv:([^-@]+)-", gitlab)) == {uv_version}
 
 
@@ -228,10 +230,9 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
 
 def test_full_proof_owns_github_workflow_syntax_before_hosted_execution() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    full = declaration["proof_sets"]["full"]
     gates = {gate["id"]: gate for gate in declaration["gates"]}
 
-    assert full.count("github-workflow-syntax") == 1
+    assert declaration["proof_sets"]["full"].count("github-workflow-syntax") == 1
     gate = gates["github-workflow-syntax"]
     assert gate["command"] == ["tools/ci/scripts/run-actionlint.sh"]
     assert gate["depends_on"] == ["config-quality"]

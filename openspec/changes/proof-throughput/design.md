@@ -1891,3 +1891,48 @@ The matrix passes in 37.19 seconds with owned scratch absent and product/test
 ELOC 46,032/49,999. Duplicate test configuration reads are shared; unique failure
 and policy assertions remain. Exact committed proof, installation and hosted
 results are still required before this candidate is described as delivered.
+
+## GitLab Convergence And Native Wheel Supply
+
+The shared registry, not one Forge's job list, owns verification membership.
+GitLab previously ran 26 jobs for this source: repeated quality setup preceded
+another full proof and separate wheel/SBOM creation. The existing verify job now
+owns the full graph and its output artifacts. Commit-range admission remains a
+separate prerequisite. Native host conformance and both declared Node versions
+remain independent workloads. The duplicate npm package job is removed because
+each Node compatibility invocation already checks engine strictness, installs
+locked packages and runs the same package test. No protected branch rule changes.
+
+The server's native pipeline simulation resolves five jobs after this change.
+It first reported deprecated stuck-or-timeout retry spelling. The source now
+uses the four documented replacement reasons without increasing the retry limit
+or retrying script failures. The emulator selection follows the surviving verify
+job. JUnit, coverage, security, secrets, proof, wheel and SBOM outputs remain
+published through the existing artifact mechanism, not a second report database.
+
+Moving checks into the unprivileged verify container exposed a real prerequisite:
+the old lychee installer wrote to /usr/local/bin. Privilege restoration and another
+custom materializer were rejected. Upstream owns lychee-bin as a Maturin binary
+wheel; its metadata has no runtime Python dependencies. The existing development
+dependency group and uv lock now own that supply. The former 103-line installer,
+its duplicate download loop and its separate cache environment disappear.
+The tool-supply declaration retains only the executable-to-distribution relation;
+version and artifact hashes reside in the existing package owners. Host Homebrew
+installations remain untouched. No product-runtime dependency is added.
+
+Before selection, exact PyPI wheel hashes were verified and the native binary
+passed valid and broken local-link cases on macOS and on the declared Linux image
+as UID 65534, with networking disabled and /usr/local/bin unwritable. Scratch and
+the owned container were removed. These probes are not full repository or Windows
+acceptance. The source-policy regression failed before the migration. The 93-case
+consumer matrix passed, then source budget rejected two excess test lines. A
+redundant regex assertion and duplicate cardinality operation were consolidated
+without losing their distinguishing observations; thresholds remain unchanged.
+
+Virtualenv 21.7.15 was released during this work. Its lock update preserves the
+supported closure and Python 3.12 line; upstream metadata still requires Filelock
+below 4. No local constraint override or complete latest-stable claim follows.
+GitHub's preceding main run 35406817714 completed successfully with real proof and
+package status projections. Its hosted proof took 1,056 seconds, compared with
+689 seconds locally; concurrency and host conditions differ, so this is not a
+controlled speedup. Native startup and whole-cycle performance remain open.

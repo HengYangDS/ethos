@@ -144,7 +144,7 @@
     "runner_mutation": {
       "path": "docs/architecture/runner-and-mutation.md",
       "authority": "current runner, Work Lane, closeout, verifier and peer mutation boundaries",
-      "sha256": "cca4f3db21732d4a20df64fae9f5f233771ed4956fe40f763824dacafe6983ad"
+      "sha256": "c7229042a76a2925bfee48590ccaecc32453a77fea712f8b54a640496b975f1c"
     },
     "local_state": {
       "path": "docs/architecture/local-state.md",
@@ -169,7 +169,7 @@
     "independent_verification": {
       "path": "docs/governance/independent-verification-adoption.md",
       "authority": "optional independent trust-domain boundary",
-      "sha256": "7e0867fa8c532f7d865993a911f5e4ad21822ac4c34f24e6fdfe03632a8fe4c0"
+      "sha256": "c347c34d4a10c6e0e98be454214651179a53c3956c42053c393fcbab13e9561d"
     },
     "contracts": {
       "path": "openspec/specs/contracts/spec.md",

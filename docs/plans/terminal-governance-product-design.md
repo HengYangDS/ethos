@@ -61,16 +61,28 @@ wheels replace the privileged installer; valid/broken links passed on macOS and
 UID-65534 Linux without network or system writes. This commit passed all 35 gates
 in 708.184 seconds but was deliberately not delivered with the known OpenSpec gap.
 
-The current owner repair replaces that bare command with the existing verified
-OpenSpec resolver and shares native result interpretation with lifecycle checks.
-The 242-case frozen consumer matrix passes, including real public CLI execution
-with system-only PATH, source/package resolver failures and archive preservation.
-Product/test ELOC are 46,044/49,995; owned scratch is absent. Existing Change
-artifacts carry the specification and implementation state; exact new-commit
-proof, installed-package execution and both hosted observations remain required.
-Virtualenv 21.7.15 still requires Filelock below 4; no supported latest-all claim
-or constraint override follows. Process-loss recovery, native bootstrap, measured
-throughput, full adopter journeys and final lane retirement remain open.
+The OpenSpec repair is committed at 8821f1e85 and passed all 35 gates in
+688.4 seconds with 3,981 tests passing, one skipped and 95.02-percent displayed
+combined coverage. Candidate integration completed. Accepted dev/main, runtime
+and both peers remain at af174f158 because the trusted predecessor requires an
+independent receipt for this gate-obligation replacement.
+
+That host capability is currently unavailable: its protected configuration is
+unreadable, the authorized broker path is absent, and residual provider code
+expects retired package/proof contracts. Noninteractive privilege access failed;
+no password prompt or protected change followed. The source repair exposes that
+prerequisite before requesting evidence, shares admission across closeout and
+publication, and removes the inadmissible Git-private receipt suggestion. Native
+source preview now gives one operator-repair action without moving refs.
+
+The exact existing wheel also passed isolated public CLI replay with Git-only
+PATH: empty/INFO success, invalid-spec rejection and missing bundled-supply
+rejection. Its environment was removed. This is package behavior, not accepted
+installation or independent identity. The active Change owns the remaining
+provider restoration, exact final proof, installation and hosted delivery.
+Virtualenv 21.7.15 still requires Filelock below 4; process-loss recovery, native
+bootstrap, measured throughput, full adopter journeys and final retirement remain
+open. No gate, budget or independent trust requirement is relaxed.
 
 Release continuity is delivered: repository proof remains applicable after
 authoring retirement; distinct valid execution contexts do not contradict

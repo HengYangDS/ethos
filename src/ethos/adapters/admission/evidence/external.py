@@ -98,8 +98,9 @@ def load_independent_verification_provider(
         return None, ["independent_verification_provider_config_untrusted"]
     try:
         payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return None, ["independent_verification_provider_config_invalid"]
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        kind = "unreadable" if isinstance(exc, OSError) else "invalid"
+        return None, [f"independent_verification_provider_config_{kind}"]
     store_table = payload.get("receipt_store")
     signature_table = payload.get("signature")
     if not isinstance(store_table, dict) or not isinstance(signature_table, dict):
@@ -352,49 +353,78 @@ def independent_verification_admission_report(
     policy = independent_verification_policy(root, action)
     configured = os.environ.get("ETHOS_INDEPENDENT_VERIFICATION_RECEIPT", "").strip()
     path = Path(configured).expanduser() if configured else None
-    if policy.mode == "disabled" or (policy.mode == "optional" and path is None):
-        return independent_verification_report(
-            root=root,
-            policy=policy,
-            request=request,
-            receipt_path=path,
-        )
-    if path is None:
-        return independent_verification_report(
-            root=root,
-            policy=policy,
-            request=request,
-            receipt_path=None,
-        )
-    provider, provider_gaps = load_independent_verification_provider(
-        provider_config_path or default_provider_config_path()
+    return configured_verification_report(
+        root=root,
+        policy=policy,
+        request=request,
+        receipt_path=path,
+        provider_config_path=provider_config_path,
     )
+
+
+def configured_verification_report(
+    *,
+    root: Path,
+    policy: IndependentVerificationPolicy,
+    request: dict[str, object],
+    receipt_path: Path | None,
+    provider_config_path: Path | None = None,
+) -> dict[str, object]:
+    """Evaluate the provider prerequisite before its evidence for every consumer."""
+    if policy.mode == "disabled" or (policy.mode == "optional" and receipt_path is None):
+        return independent_verification_report(
+            root=root,
+            policy=policy,
+            request=request,
+            receipt_path=receipt_path,
+        )
+    config = provider_config_path or default_provider_config_path()
+    provider, gaps = load_independent_verification_provider(config)
     if provider is None:
         return {
-            "root": root.resolve().as_posix(),
-            "mode": policy.mode,
-            "receipt": {},
-            "evidence_class": "local_readiness",
-            "mints_authority": False,
+            **_local_verification_report(root=root, policy=policy),
             "verdict": "block",
             "state": "blocked" if policy.mode == "required" else "invalid",
-            "required_gaps": provider_gaps,
+            "required_gaps": gaps,
+            "next_action": f"Have the provider operator restore protected configuration {config}.",
         }
-    if not path_is_within(path, provider.receipt_store):
-        return {
-            "root": root.resolve().as_posix(),
-            "mode": policy.mode,
-            "receipt": {},
-            "evidence_class": "local_readiness",
-            "mints_authority": False,
+    provider_binding = {
+        "config_path": config.as_posix(),
+        "receipt_store": provider.receipt_store.as_posix(),
+        "issuer": provider.issuer,
+        "key_id": provider.key_id,
+        "implementation_digest": provider.implementation_digest,
+    }
+    if receipt_path is not None and not path_is_within(receipt_path, provider.receipt_store):
+        report = {
+            **_local_verification_report(root=root, policy=policy),
             "verdict": "block",
             "state": "invalid",
             "required_gaps": ["independent_verification_receipt_outside_store"],
         }
-    return independent_verification_report(
-        root=root,
-        policy=policy,
-        request={**request, "implementation_digest": provider.implementation_digest},
-        receipt_path=path,
-        signature_verifier=lambda receipt: verify_independent_receipt_signature(receipt, provider),
-    )
+    else:
+        report = independent_verification_report(
+            root=root,
+            policy=policy,
+            request={
+                **request,
+                **{
+                    key: provider_binding[key]
+                    for key in ("implementation_digest", "issuer", "key_id")
+                },
+            },
+            receipt_path=receipt_path,
+            signature_verifier=lambda receipt: verify_independent_receipt_signature(
+                receipt, provider
+            ),
+        )
+    return {
+        **report,
+        "provider": provider_binding,
+        "next_action": (
+            f"Obtain a valid signed {request.get('action', 'verification')} receipt for "
+            f"{request.get('commit', '')} from {provider.issuer} in {provider.receipt_store}."
+            if report["required_gaps"]
+            else ""
+        ),
+    }

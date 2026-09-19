@@ -7,12 +7,8 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.repo.git as git
-from ethos.adapters.admission.evidence.external import default_provider_config_path
+from ethos.adapters.admission.evidence.external import configured_verification_report
 from ethos.adapters.admission.evidence.external import independent_verification_policy
-from ethos.adapters.admission.evidence.external import independent_verification_report
-from ethos.adapters.admission.evidence.external import load_independent_verification_provider
-from ethos.adapters.admission.evidence.external import path_is_within
-from ethos.adapters.admission.evidence.external import verify_independent_receipt_signature
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.semantic import canonical_json_digest
@@ -211,43 +207,12 @@ def _verification_report(
     policy = max((prior, proposed), key=lambda item: modes[item.mode])
     if floor_changed:
         policy = policy.model_copy(update={"mode": "required"})
-    if receipt_path is None:
-        return independent_verification_report(
-            root=root,
-            policy=policy,
-            request=request,
-            receipt_path=None,
-        )
-    provider, gaps = load_independent_verification_provider(default_provider_config_path())
-    if provider is None:
-        return _blocked_verification(root, gaps)
-    if not path_is_within(receipt_path, provider.receipt_store):
-        return _blocked_verification(root, ["independent_verification_receipt_outside_store"])
-    return independent_verification_report(
+    return configured_verification_report(
         root=root,
         policy=policy,
-        request={
-            **request,
-            "implementation_digest": provider.implementation_digest,
-            "issuer": provider.issuer,
-            "key_id": provider.key_id,
-        },
+        request=request,
         receipt_path=receipt_path,
-        signature_verifier=lambda receipt: verify_independent_receipt_signature(receipt, provider),
     )
-
-
-def _blocked_verification(root: Path, gaps: list[str]) -> dict[str, object]:
-    return {
-        "root": root.resolve().as_posix(),
-        "mode": "required",
-        "receipt": {},
-        "evidence_class": "local_readiness",
-        "mints_authority": False,
-        "verdict": "block",
-        "state": "blocked",
-        "required_gaps": gaps,
-    }
 
 
 def _control_digest(root: Path, head: str, paths: tuple[str, ...]) -> str | None:

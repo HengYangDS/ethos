@@ -58,30 +58,36 @@ def _report(candidate: Path, accepted: str, head: str, receipt: Path | None = No
     )
 
 
-def _trusted_receipt(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: dict[str, object], **updates: object
-) -> Path:
-    store = tmp_path / "receipts"
-    store.mkdir(exist_ok=True)
+@pytest.fixture(autouse=True)
+def configured_provider(tmp_path, monkeypatch):
     provider = evidence.IndependentVerificationProvider(
-        receipt_store=store,
+        receipt_store=tmp_path / "receipts",
         allowed_signers=tmp_path / "allowed-signers",
         namespace="ethos-independent-verification",
         implementation_digest="e" * 64,
         issuer="provider:example",
         key_id="provider:example",
     )
+    provider.receipt_store.mkdir()
     monkeypatch.setattr(
-        replacement, "load_independent_verification_provider", lambda _path: (provider, [])
+        evidence, "load_independent_verification_provider", lambda _path: (provider, [])
     )
     monkeypatch.setattr(
-        replacement, "default_provider_config_path", lambda: tmp_path / "provider.toml"
+        evidence, "default_provider_config_path", lambda: tmp_path / "provider.toml"
     )
     monkeypatch.setattr(
-        replacement,
+        evidence,
         "verify_independent_receipt_signature",
         lambda receipt, configured: receipt.signature == "signed" and configured == provider,
     )
+
+
+def _trusted_receipt(request: dict[str, object], **updates: object) -> Path:
+    provider, gaps = evidence.load_independent_verification_provider(
+        evidence.default_provider_config_path()
+    )
+    assert provider is not None
+    assert not gaps
     now = datetime.now(UTC)
     receipt = IndependentVerificationReceipt.model_validate(
         {
@@ -99,7 +105,7 @@ def _trusted_receipt(
         }
     )
     receipt = receipt.model_copy(update={"payload_digest": receipt.canonical_payload_digest()})
-    path = store / "receipt.json"
+    path = provider.receipt_store / "receipt.json"
     path.write_text(json.dumps(receipt.model_dump(mode="json")))
     return path
 
@@ -190,13 +196,11 @@ def test_control_policy_modes_fail_closed(
     ) == (verdict, gaps, state)
 
 
-def test_only_existing_exact_signed_receipt_contract_is_accepted(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_only_existing_exact_signed_receipt_contract_is_accepted(tmp_path: Path) -> None:
     candidate, accepted, head = _control_change(tmp_path)
     seed_executed_proof(candidate, head)
     request = cast("dict[str, object]", _report(candidate, accepted, head)["verification_request"])
-    report = _report(candidate, accepted, head, _trusted_receipt(tmp_path, monkeypatch, request))
+    report = _report(candidate, accepted, head, _trusted_receipt(request))
     verification = cast("dict[str, object]", report["independent_verification"])
     assert (
         report["verdict"],
@@ -207,14 +211,12 @@ def test_only_existing_exact_signed_receipt_contract_is_accepted(
     assert "ok" not in verification
 
 
-def test_receipt_and_proof_negative_matrix_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_receipt_and_proof_negative_matrix_fails_closed(tmp_path: Path) -> None:
     candidate, accepted, head = _control_change(tmp_path)
     assert _report(candidate, accepted, head)["required_gaps"] == ["proof_not_proven"]
     seed_executed_proof(candidate, head)
     request = cast("dict[str, object]", _report(candidate, accepted, head)["verification_request"])
-    custom = _trusted_receipt(tmp_path, monkeypatch, request)
+    custom = _trusted_receipt(request)
     custom.write_text(json.dumps({"kind": "control-replacement-verifier", "verdict": "pass"}))
     assert _report(candidate, accepted, head, custom)["required_gaps"] == [
         "independent_verification_receipt_invalid"
@@ -234,12 +236,12 @@ def test_receipt_and_proof_negative_matrix_fails_closed(
             candidate,
             accepted,
             head,
-            _trusted_receipt(tmp_path, monkeypatch, request, **{field: wrong}),
+            _trusted_receipt(request, **{field: wrong}),
         )
         assert report["required_gaps"] == ["independent_verification_receipt_binding_mismatch"], (
             field
         )
-    trusted = _trusted_receipt(tmp_path, monkeypatch, request)
+    trusted = _trusted_receipt(request)
     outside = tmp_path / "outside.json"
     outside.write_bytes(trusted.read_bytes())
     assert _report(candidate, accepted, head, outside)["required_gaps"] == [

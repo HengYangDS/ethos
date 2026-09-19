@@ -73,31 +73,6 @@ def test_receipt_digest_and_signature_share_kernel_canonical_bytes(
     assert captured["input"] == receipt.canonical_payload_bytes()
 
 
-def test_proof_floor_digest_uses_kernel_semantic_identity(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setattr(external.git, "current_head", lambda _root: "a" * 40)
-    monkeypatch.setattr(
-        external.git,
-        "git_stdout",
-        lambda _root, *args: (
-            "b" * 40 if args[:2] == ("rev-parse", "a" * 40 + "^{tree}") else "origin-url"
-        ),
-    )
-
-    def policy(_root: Path, *, tree_ref: str):
-        assert (_root, tree_ref) == (tmp_path, "a" * 40)
-        return type("Policy", (), {"gate_ids": ("tests", "verify-é"), "digest": "c" * 64})()
-
-    monkeypatch.setattr(external, "resolve_gate_policy", policy)
-
-    request = independent_verification_request(root=tmp_path, action="publish")
-
-    assert request["proof_floor_digest"] == canonical_json_digest(
-        {"gate_ids": ["tests", "verify-é"]}
-    )
-
-
 def _provider(root: Path) -> IndependentVerificationProvider:
     store = root / "store"
     store.mkdir(exist_ok=True)
@@ -113,66 +88,59 @@ def _provider(root: Path) -> IndependentVerificationProvider:
 
 @pytest.mark.parametrize(
     ("mode", "receipt", "verdict", "state", "gaps"),
-    literal_case(
-        "admission.test_independent_verification:parametrize:test_policy_modes_preserve_local_first_fail_closed_semantics:0"
-    ),
+    [
+        *literal_case(
+            "admission.test_independent_verification:parametrize:test_policy_modes_preserve_local_first_fail_closed_semantics:0"
+        ),
+        ("required", "valid", "pass", "independently_verified", []),
+    ],
 )
 def test_policy_modes_preserve_local_first_fail_closed_semantics(
     tmp_path: Path, mode: str, receipt: str | None, verdict: str, state: str, gaps: list[str]
 ) -> None:
     path = tmp_path / "receipt.json" if receipt else None
     if path:
-        path.write_text("{" if receipt == "malformed" else "[]", encoding="utf-8")
+        if receipt == "valid":
+            _write_receipt(path)
+        else:
+            path.write_text("{" if receipt == "malformed" else "[]", encoding="utf-8")
     report = independent_verification_report(
         root=tmp_path,
         policy=IndependentVerificationPolicy(mode=mode),
-        request={"action": "publish"},
+        request=REQUEST,
         receipt_path=path,
+        signature_verifier=lambda receipt: receipt.issuer == "provider:example",
     )
     assert (report["verdict"], report["state"], report["required_gaps"]) == (
         verdict,
         state,
         gaps,
     )
-    assert report["evidence_class"] == "local_readiness"
+    assert report["evidence_class"] == (
+        "independently_reexecuted" if receipt == "valid" else "local_readiness"
+    )
     assert report["mints_authority"] is False
     assert "ok" not in report
 
 
-def test_required_policy_accepts_only_exact_valid_receipt(tmp_path: Path) -> None:
-    path = _write_receipt(tmp_path / "receipt.json")
-    report = independent_verification_report(
-        root=tmp_path,
-        policy=IndependentVerificationPolicy(mode="required"),
-        request=REQUEST,
-        receipt_path=path,
-        signature_verifier=lambda receipt: receipt.issuer == "provider:example",
+def test_profile_policy_is_valid_action_scoped_and_default_disabled(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        external, "load_independent_verification_provider", lambda _path: (_provider(tmp_path), [])
     )
-    assert report["verdict"] == "pass"
-    assert report["evidence_class"] == "independently_reexecuted"
-    assert report["required_gaps"] == []
 
+    def observe(action="publish"):
+        return independent_verification_admission_report(
+            root=tmp_path, action=action, request={"action": action}
+        )
 
-def test_profile_policy_is_valid_action_scoped_and_default_disabled(tmp_path: Path) -> None:
-    assert (
-        independent_verification_admission_report(
-            root=tmp_path, action="publish", request={"action": "publish"}
-        )["verdict"]
-        == "pass"
-    )
+    assert observe()["verdict"] == "pass"
     write_test_profile(
-        tmp_path,
-        independent_verification={"actions": {"publish": {"mode": "required"}}},
+        tmp_path, independent_verification={"actions": {"publish": {"mode": "required"}}}
     )
-    assert independent_verification_admission_report(
-        root=tmp_path, action="publish", request={"action": "publish"}
-    )["required_gaps"] == ["independent_verification_receipt_required"]
-    assert (
-        independent_verification_admission_report(
-            root=tmp_path, action="land", request={"action": "land"}
-        )["verdict"]
-        == "pass"
-    )
+    assert observe()["required_gaps"] == ["independent_verification_receipt_required"]
+    assert observe("land")["verdict"] == "pass"
     profile = tmp_path / ".ethos/profile.toml"
     profile.write_text("[", encoding="utf-8")
     with pytest.raises(ValueError, match="repository_profile_invalid"):
@@ -181,8 +149,9 @@ def test_profile_policy_is_valid_action_scoped_and_default_disabled(tmp_path: Pa
         IndependentVerificationPolicy(mode="always")
 
 
+@pytest.mark.parametrize("gates", [("tests", "lint"), ("tests", "verify-é")])
 def test_request_binds_exact_revision_and_policy_without_provider_identity(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, gates: tuple[str, ...]
 ) -> None:
     monkeypatch.setattr(external.git, "current_head", lambda _root: "a" * 40)
     monkeypatch.setattr(
@@ -195,16 +164,19 @@ def test_request_binds_exact_revision_and_policy_without_provider_identity(
 
     def policy(_root: Path, *, tree_ref: str):
         assert (_root, tree_ref) == (tmp_path, "a" * 40)
-        return type("Policy", (), {"gate_ids": ("tests", "lint"), "digest": "c" * 64})()
+        return type("Policy", (), {"gate_ids": gates, "digest": "c" * 64})()
 
     monkeypatch.setattr(external, "resolve_gate_policy", policy)
+    expected_digest = canonical_json_digest({"gate_ids": sorted(gates)})
+    if gates == ("tests", "lint"):
+        assert expected_digest == "bdd89b540b1199629ad5bcfc89e847d489408875c99944bd17b6aefcd80a5297"
     assert independent_verification_request(root=tmp_path, action="publish") == {
         "remote": "origin-url",
         "commit": "a" * 40,
         "tree": "b" * 40,
         "action": "publish",
         "proof_floor_id": "ethos:promotion-required-gates:v1",
-        "proof_floor_digest": "bdd89b540b1199629ad5bcfc89e847d489408875c99944bd17b6aefcd80a5297",
+        "proof_floor_digest": expected_digest,
         "policy_digest": "c" * 64,
         "implementation_digest": "",
     }
@@ -242,6 +214,24 @@ def test_provider_configuration_is_protected_outside_agent_identity(
     loaded, gaps = load_independent_verification_provider(config)
     assert gaps == []
     assert loaded == provider
+    absent = external.configured_verification_report(
+        root=tmp_path,
+        policy=IndependentVerificationPolicy(mode="required"),
+        request=REQUEST,
+        receipt_path=None,
+        provider_config_path=config,
+    )
+    assert absent["required_gaps"] == ["independent_verification_receipt_required"]
+    assert str(provider.receipt_store) in absent["next_action"]
+    assert absent["provider"]["issuer"] == provider.issuer
+    config.chmod(0)
+    try:
+        assert load_independent_verification_provider(config) == (
+            None,
+            ["independent_verification_provider_config_unreadable"],
+        )
+    finally:
+        config.chmod(0o600)
 
 
 @pytest.mark.parametrize(
@@ -298,14 +288,7 @@ def test_provider_verifies_signature_from_protected_anchor(
     config = _write_provider_config(tmp_path, provider)
     unsigned = _receipt(signature="placeholder")
     payload = tmp_path / "payload"
-    payload.write_text(
-        json.dumps(
-            unsigned.model_dump(mode="json", exclude={"signature", "payload_digest"}),
-            sort_keys=True,
-            separators=(",", ":"),
-        ),
-        encoding="utf-8",
-    )
+    payload.write_bytes(unsigned.canonical_payload_bytes())
     subprocess.run(
         [ssh_keygen, "-Y", "sign", "-f", private_key, "-n", provider.namespace, payload],
         check=True,
@@ -366,11 +349,14 @@ def test_receipt_negative_matrix_remains_local_readiness(
 
 
 @pytest.mark.parametrize(("mode", "state"), [("required", "blocked"), ("optional", "invalid")])
+@pytest.mark.parametrize("supplied", [False, True])
 def test_missing_provider_config_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str, state: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str, state: str, *, supplied: bool
 ) -> None:
     receipt = _write_receipt(tmp_path / "receipt.json")
-    monkeypatch.setenv("ETHOS_INDEPENDENT_VERIFICATION_RECEIPT", receipt.as_posix())
+    monkeypatch.setenv(
+        "ETHOS_INDEPENDENT_VERIFICATION_RECEIPT", receipt.as_posix() if supplied else ""
+    )
     write_test_profile(
         tmp_path,
         independent_verification={"actions": {"publish": {"mode": mode}}},
@@ -381,7 +367,12 @@ def test_missing_provider_config_fails_closed(
         request={"action": "publish"},
         provider_config_path=tmp_path / "missing.toml",
     )
-    assert (report["state"], report["required_gaps"]) == (
-        state,
-        ["independent_verification_provider_config_missing"],
-    )
+    if mode == "optional" and not supplied:
+        assert report["verdict"] == "pass"
+    else:
+        assert (report["state"], report["required_gaps"]) == (
+            state,
+            ["independent_verification_provider_config_missing"],
+        )
+        assert str(tmp_path / "missing.toml") in report["next_action"]
+        assert not report["next_action"].startswith("ethos publish")

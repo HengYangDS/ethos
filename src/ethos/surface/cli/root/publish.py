@@ -322,6 +322,7 @@ def _publish_projection(
         else ""
         if options.apply and verdict == "pass"
         else retirement_next_action
+        or str(context.independent_verification.get("next_action") or "")
         or str(context.proof_admission.get("next_action") or "")
         or " ".join(
             (

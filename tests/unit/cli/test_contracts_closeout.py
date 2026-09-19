@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.admission.evidence.external as evidence
 import ethos.adapters.repo.status.workspace as workspace
 import ethos.domain.land.closeout as closeout
 import ethos.surface.cli.hook.commands as hook_commands
@@ -329,6 +330,9 @@ def test_land_closeout_rejects_stale_candidate_coordinate(
 def test_land_closeout_defers_control_replacement_without_signed_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    config = tmp_path / "missing-provider.toml"
+    monkeypatch.setattr(evidence, "_SYSTEM_PROVIDER_CONFIGS", (config,))
+
     def prepare(worktree: Path) -> None:
         profile = worktree / ".ethos" / "profile.toml"
         profile.write_text(
@@ -340,7 +344,7 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(
         path.mkdir(parents=True, exist_ok=True)
         (path / "new_control.py").write_text("CONTROL = 'candidate'\n", encoding="utf-8")
 
-    repo, _candidate, _accepted_head, candidate_head = _archived_candidate(
+    repo, candidate, _accepted_head, candidate_head = _archived_candidate(
         tmp_path, monkeypatch, prepare=prepare
     )
     payload = run_ethos_blocked(
@@ -356,8 +360,8 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(
     control = payload["data"]["control_replacement"]
     assert (control["required"], control["verdict"], payload["state"]) == (
         True,
-        "unknown",
-        "deferred",
+        "block",
+        "blocked",
     )
     bootstrap = payload["data"]["closeout_bootstrap"]
     verification = bootstrap["independent_verification"]
@@ -365,12 +369,18 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(
         verification[key]
         for key in ("required", "proof_floor_id", "trust_boundary", "mints_authority")
     ) == (True, "ethos:control-replacement:v1", "protected-provider", False)
-    assert "<" not in payload["next_action"]
-    assert payload["next_action"].startswith("ethos land --closeout")
-    assert f"--expect-head {git(repo, 'rev-parse', 'HEAD')}" in payload["next_action"]
-    assert f"--candidate-head {candidate_head}" in payload["next_action"]
-    assert f"--root {repo.resolve().as_posix()}" in payload["next_action"]
+    assert payload["required_gaps"] == ["independent_verification_provider_config_missing"]
+    assert str(config) in payload["next_action"]
+    assert not payload["next_action"].startswith("ethos land")
+    assert verification["receipt_option"] == ""
+    assert payload["next_action"] == control["independent_verification"]["next_action"]
     assert git(repo, "rev-parse", "HEAD") != candidate_head
+
+    for selection in ((), ("--ref", "refs/heads/dev")):
+        runner = run_ethos_blocked if selection else run_ethos
+        observed = runner("publish", *selection, "--json", cwd=candidate)
+        assert "independent_verification_provider_config_missing" in observed["required_gaps"]
+        assert observed["next_action"] == payload["next_action"]
 
 
 def test_land_closeout_audits_candidate_content_before_fast_forward(

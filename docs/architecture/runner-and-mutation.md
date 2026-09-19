@@ -161,25 +161,17 @@ runner is allowed to execute the protected closeout with an explicit
 `--root <accepted-root>`, while remote push remains `deferred` and the candidate
 worktree is audited and proven before accepted-root movement.
 
-When a candidate changed a control path and needs a protected external bootstrap
-receipt, the candidate-proof input is the native JSON result of
-`ethos prove --execute --json`. The verifier requires `command = "prove"`,
-`verdict = pass`, `state = "proven"`, `data.executed = true`, and matching candidate
-HEAD bindings at `data.evidence.head` and
-`data.provenance.predicate.head`. A hand-written `{head, state}` envelope is
-not a proof record. This keeps the bootstrap adapter bound to the product proof
-contract without adding a profile, provider, or adopter-specific branch.
+A changed required gate obligation requires independent acceptance under the
+trusted predecessor policy. The control-replacement report binds both commits,
+trees and control digests, the candidate's executed Attestation and changed
+verification obligations. Its verification request is the provider input; the
+current proof artifact remains evidence, not permission or a hand-written proof.
 
-ETHOS does not ship the executable that makes this operator decision. The
-the independent provider emits the signed
-`system/schemas/kernel/independent-verification-receipt.schema.json` receipt into
-its protected receipt store. The receipt is supplied explicitly through
-`--independent-verification-receipt`. Product admission rechecks the exact
-accepted and candidate HEADs, changed control paths, both control-tree digests,
-the executed-proof digest, provider implementation digest, and signature,
-and bootstrap decision bindings before allowing closeout. The receipt is one-shot,
-mints no authority, and does not claim cryptographic independence from the local
-OS identity boundary; stronger trust anchors remain an operator deployment choice.
+[Independent verification adoption](../governance/independent-verification-adoption.md)
+owns the provider, protected receipt store and recovery boundary. Control
+replacement and publication consume the same configured-evidence owner before
+offering an effect. Provider setup does not authorize repository changes, and
+a local re-execution is not an independent identity claim.
 
 If the accepted root and candidate branch already resolve to the same HEAD,
 closeout is current rather than ready-to-mutate. `ethos land --closeout --json`

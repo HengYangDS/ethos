@@ -467,7 +467,7 @@ def publication_readiness_result(
     publish_next_action = (
         str(publication.get("next_action") or "")
         if local_verdict == "pass"
-        else "ethos land --json"
+        else str(independent_verification.get("next_action") or "ethos land --json")
     )
     # Read-only tracking synchronization observes an existing remote ref; it never
     # upgrades this no-push command into an executed publication transition.

@@ -28,7 +28,6 @@ from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.land.closeout import closeout_audit_root
 from ethos.domain.land.closeout import closeout_bootstrap_package
-from ethos.domain.land.closeout import closeout_receipt_path
 from ethos.domain.land.closeout import closeout_resolution
 from ethos.domain.land.closeout import land_next_action
 from ethos.domain.land.closeout import repository_audit_after_admission
@@ -98,7 +97,6 @@ def _closeout_result(
         apply=apply,
         receipt_path=receipt_path,
     )
-    expected_receipt = receipt_path or closeout_receipt_path(repo, control_replacement)
     mutation_next_action = resolution.next_action
     policy = load_branch_role_policy(repo)
     expected_state = {
@@ -162,7 +160,9 @@ def _closeout_result(
                 required_gaps=gaps,
                 accepted_head=accepted_head,
                 candidate_head=candidate_head,
-                receipt_path=expected_receipt,
+                receipt_path=receipt_path,
+                verification=string_mapping(control_replacement.get("independent_verification")),
+                next_action=mutation_next_action,
             ),
             "mutation": mutation_envelope(
                 command=command,

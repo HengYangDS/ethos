@@ -36,23 +36,19 @@ def _input(path: Path, ordinal: int, *, carried_id: bool) -> Attestation:
     return record
 
 
+def _command(root: Path, *arguments: str, blocked: bool = False):
+    """Share public invocation construction, preserving each scenario's assertions."""
+    runner = run_ethos_blocked if blocked else run_ethos
+    return runner("attestation", *arguments, "--root", str(root), "--json", cwd=root)
+
+
 def test_attestation_record_dry_run_then_apply_is_idempotent(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     input_path = tmp_path / "attestation.json"
     record = _input(input_path, 1, carried_id=False)
 
     results = [
-        run_ethos(
-            "attestation",
-            "record",
-            "--input",
-            input_path.as_posix(),
-            "--root",
-            repo.as_posix(),
-            *arguments,
-            "--json",
-            cwd=repo,
-        )
+        _command(repo, "record", "--input", input_path.as_posix(), *arguments)
         for arguments in ((), ("--apply",), ("--apply",))
     ]
 
@@ -75,30 +71,11 @@ def test_attestation_query_returns_exact_unknown_values_without_authority_claim(
         _input(path, ordinal, carried_id=True) for path, ordinal in zip(paths, (2, 3), strict=True)
     )
     for path in paths:
-        run_ethos(
-            "attestation",
-            "record",
-            "--input",
-            path.as_posix(),
-            "--root",
-            repo.as_posix(),
-            "--apply",
-            "--json",
-            cwd=repo,
-        )
+        _command(repo, "record", "--input", path.as_posix(), "--apply")
 
     first = records[0]
-    result = run_ethos(
-        "attestation",
-        "query",
-        "--subject",
-        first.subject,
-        "--payload-kind",
-        first.payload.kind,
-        "--root",
-        repo.as_posix(),
-        "--json",
-        cwd=repo,
+    result = _command(
+        repo, "query", "--subject", first.subject, "--payload-kind", first.payload.kind
     )
 
     assert result["verdict"] == "pass"
@@ -113,30 +90,18 @@ def test_attestation_commands_fail_closed_for_invalid_roots_and_selectors(
     input_path = tmp_path / "attestation.json"
     _input(input_path, 4, carried_id=True)
     for arguments in ((), ("--apply",)):
-        result = run_ethos_blocked(
-            "attestation",
-            "record",
-            "--input",
-            input_path.as_posix(),
-            "--root",
-            tmp_path.as_posix(),
-            *arguments,
-            "--json",
-            cwd=tmp_path,
+        result = _command(
+            tmp_path, "record", "--input", input_path.as_posix(), *arguments, blocked=True
         )
         assert result["required_gaps"] == ["attestation_set_repository_invalid"]
 
-    result = run_ethos_blocked(
-        "attestation", "query", "--root", tmp_path.as_posix(), "--json", cwd=tmp_path
-    )
+    result = _command(tmp_path, "query", blocked=True)
     assert result["required_gaps"] == ["attestation_set_repository_invalid"]
 
     repo = init_git_repo(tmp_path / "repo")
     blob = run_git(repo, "hash-object", "-w", "--stdin", stdin="not-a-root").stdout.strip()
     run_git(repo, "update-ref", ATTESTATION_SET_REF, blob)
-    result = run_ethos_blocked(
-        "attestation", "query", "--root", repo.as_posix(), "--json", cwd=repo
-    )
+    result = _command(repo, "query", blocked=True)
     assert result["required_gaps"] == ["attestation_set_root_invalid"]
 
     selectors = (
@@ -147,14 +112,5 @@ def test_attestation_commands_fail_closed_for_invalid_roots_and_selectors(
         ("--payload-kind", "bad/space", "payload_kind"),
     )
     for option, value, field in selectors:
-        result = run_ethos_blocked(
-            "attestation",
-            "query",
-            option,
-            value,
-            "--root",
-            repo.as_posix(),
-            "--json",
-            cwd=repo,
-        )
+        result = _command(repo, "query", option, value, blocked=True)
         assert result["required_gaps"] == [f"attestation_selector_invalid:{field}"]

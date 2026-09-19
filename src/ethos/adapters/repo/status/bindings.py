@@ -1,3 +1,5 @@
+"""Project live branch, worktree and lease bindings into repository status."""
+
 from __future__ import annotations
 
 import subprocess

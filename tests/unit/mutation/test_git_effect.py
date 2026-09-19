@@ -1,3 +1,5 @@
+"""Execute exact Git effects with admission, attestation and recoverable compensation."""
+
 from __future__ import annotations
 
 import subprocess

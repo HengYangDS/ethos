@@ -1,3 +1,5 @@
+"""Reject retired authority carriers across Git-admissible repository content."""
+
 from __future__ import annotations
 
 import re

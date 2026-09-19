@@ -1,3 +1,5 @@
+"""Declare product surfaces and patterns that identify host-specific leakage."""
+
 from __future__ import annotations
 
 import re

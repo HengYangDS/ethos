@@ -1,3 +1,5 @@
+"""Combine module-layout findings across the declared semantic source scope."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

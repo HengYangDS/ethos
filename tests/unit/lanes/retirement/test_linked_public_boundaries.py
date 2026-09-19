@@ -1,3 +1,5 @@
+"""Fence linked-lane retirement with current actor, lease and absorption facts."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

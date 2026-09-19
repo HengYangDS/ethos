@@ -126,7 +126,6 @@ def test_install_smoke_invokes_one_acceptance_transaction(
 
 def test_local_ci_uses_the_declared_full_quality_closure() -> None:
     """Local verification cannot silently omit declared full-proof obligations."""
-
     expected = resolve_gate_policy(ROOT, full=True)
     assert local_ci.owner_commands() == [
         shlex.join(gate_execution_identity(expected.registry[node.id])) for node in expected.nodes

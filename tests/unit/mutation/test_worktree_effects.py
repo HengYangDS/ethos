@@ -1,3 +1,5 @@
+"""Recognize and attest exact worktree effects without repeating completed changes."""
+
 from __future__ import annotations
 
 import shutil

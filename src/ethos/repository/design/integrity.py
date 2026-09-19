@@ -1,3 +1,5 @@
+"""Check canonical design ownership, semantic anchors and dependent projections."""
+
 from __future__ import annotations
 
 import re

@@ -2248,6 +2248,121 @@ docstrings and shell checks now precede behavioral execution; real registry
 counterexamples reject expensive work after any fails or becomes unknown.
 Timing below the reference threshold did not make the blocked attempt accepted.
 
+### CUE, CEL And Independent Product Delivery
+
+CUE owns CI composition and provider translation; the existing gate registry owns
+check obligations and dependencies. The compiler consumes that registry rather
+than copying its gate list into another policy. Generated GitHub/GitLab documents
+are never editable authorities. Preserve platform-specific native semantics and
+reject unresolved values, inconsistent dependencies and projection drift.
+
+mise owns native developer/CI tool selection and its platform lock. Language
+package locks remain with uv and npm. The initial cutover replaces CUE's ad-hoc
+version selection and actionlint's downloader/cache with native locked resolution.
+Retire the remaining duplicate native suppliers in dependency order; do not keep
+parallel editable versions or put ETHOS admission into a mise task graph. Runtime
+adopters need not use mise. Resolving supplied configuration must suppress project
+hooks and ambient configuration, and must not install tools during observation.
+Two unchanged lock refreshes retained exact bytes but repeated provenance artifact
+downloads; keep resolution outside normal proof execution. Native warm install
+checks and locked selection reuse prepared supply, not prior authorization.
+Lock-time archive verification is distinct from auditing an already installed
+executable; neither a path nor a successful version command proves its bytes.
+
+Current candidate evidence is in `build/evidence/quality/commit-integrity/`.
+The native transport now delegates SCC, gitleaks and Syft provisioning to
+`mise install --locked` in owned temporary storage, retaining its verified
+download and publishing the executable only after independent archive/member and
+version checks. The custom curl/retry transport and its private subprocess
+supervisor are removed from this owner. The shared process runner closes stdin,
+bounds execution and drains descendants; native stderr survives nonzero exits.
+The remaining materializer owns verification, cache reuse and atomic publication,
+not tool-version selection or another package resolver. The existing bootstrap
+entry now prepares mise, CUE and actionlint before gates. It reuses operator mise
+or runs the official generated installer in an owned staged directory with a
+180-second process deadline, verifies its version and atomically publishes it.
+Its temporary root captures upstream download/extraction residue on every exit.
+Node provisioning remains migration work.
+
+`mise-native-transport-red.log` rejects the old download path through a hostile
+curl executable. Its 47-case successor passes malformed archive, version, timeout,
+repair, concurrency and exact cache boundaries. The distinguishing error-channel
+regression failed before the shared-runner adapter preserved native stderr; all
+seven targeted transport/cancellation cases then passed.
+`mise-native-consumer-closure.log` records 292 passing related tests in 130.56
+seconds and removal of its owned pytest root. This is not full proof or coverage.
+
+`mise-native-real-activation.json` records real SCC/gitleaks/Syft cold provisioning
+in 7.81/7.05/12.08 seconds and verified warm reuse in 0.052/0.166/0.191 seconds.
+Warm executable bytes, inode and mtime stayed unchanged; config/lock bytes stayed
+unchanged and all isolated installation roots were removed. These are macOS
+arm64 observations, not hosted or cross-platform qualification.
+The real cold-bootstrap receipt starts without mise on PATH or a tool cache:
+mise, CUE and actionlint were ready in 15.24 seconds; the warm invocation took
+2.98 seconds and installed nothing. The initial migration warning was reproduced
+and removed by safe-mode version observation. Version stderr is rejected rather
+than hidden, and temporary roots were removed. The 158-case bootstrap/supply
+regression includes real descendant termination. The 28-case reference regression
+covers native root declarations and shell continuations. Public module-layout and
+product-boundary gates pass; implementations live in semantic modules rather than
+package initialization facades. The current budget receipt records product 46,373
+and tests 49,996 ELOC with unchanged ceilings. Duplicate counter-failure setup was
+consolidated while splitting duplicate and noninteger observations into distinct
+cases. Receipts are mise-bootstrap-real-cold-ci.json,
+mise-bootstrap-boundary-green.log and mise-reference-discovery-green.log under
+the same evidence root; none is full-proof or hosted qualification.
+
+The docstring raw-string migration exposed a genuine JSON-fixture escape change.
+Its native adopter configuration test failed and now passes after preserving the
+decoded input, demonstrating why AST shape and formatter green alone do not
+prove a documentation-only behavior change. Whole Ruff and format checks pass.
+The canonical Ty gate passes only `src`; a separate same-tool baseline comparison
+finds 423 diagnostics at accepted source and 419 in this candidate, all in
+tests/tools, with no new diagnostic signatures. Those remain an explicit coverage
+and typing gap, not permission to claim whole-repository typing clean.
+
+The cutover remains incomplete: the installed runtime recognizes only copy-based
+CI relations, and hosted qualification plus CI semantic/report obligations
+remain open. CUE now validates source semantics independently of candidate
+rendered/observations fields, and its regression requires the exact
+`cue_projection_drift` reason. Do not activate a new projection declaration using
+a runtime unable to understand it. Deliver compiler capability before the
+declaration cutover through the existing accepted transition boundary; do not make
+an already activated new runtime a prerequisite for proving its own successor.
+Exact proof, installation and hosted observations are still unperformed for this
+candidate. The working-root mise declaration and lock are the sole editable
+native selections; removed evidence copies must not become alternate authorities.
+
+Native Ruff D rules enforce module/package documentation across product, tests
+and tools, plus style for existing docstrings. Symbol-level missing-docstring
+rules are not a demand for comments repeating every test function name; public
+CLI documentation and structured signature obligations remain in their existing
+interface owner. One-line responsibility statements are reviewed from module
+behavior, not generated from filenames. Adding headers preserves executable ASTs.
+
+CEL owns pure runtime predicate evaluation. Declaration loading compiles each
+predicate and checks its Boolean result type; execution supplies fresh facts.
+Compile-cache reuse is safe only for unchanged expressions and environments,
+never for decisions or authority. Dynamic fields retain their runtime failure
+boundary; a Boolean return type is not proof of complete fact-field typing.
+
+The CLI and MCP are independent product surfaces over one application boundary.
+Host installation owns reusable immutable package supply; a repository selects
+an exact release identity and owns its policy and Git-local state. Repository
+binding must not require a copied source checkout or a full private product
+installation per repository. Different selected versions may coexist; shared
+mutable state, silent upgrades and a floating global executable are not substitutes.
+Migration must prove identity preservation, live-use fencing, interruption recovery,
+rollback and eventual reclamation before deleting existing common-dir runtimes.
+
+The current Change delivers its CUE/CEL and CI scope. Standalone installation and
+MCP delivery remain in the existing terminal plan and must not be postponed until
+all unrelated hygiene is complete. Their acceptance is a fresh installation outside
+ETHOS source, two repositories selecting explicit versions, CLI/MCP result parity,
+real client discovery and execution, failure/cancellation, upgrade and clean exit.
+Do not interpret a package build, Python import or internal runtime command as
+completion of that user-facing product path.
+
 ### Execution, Reports And Admission
 
 The initial native partition is repository policy, static code/carriers,

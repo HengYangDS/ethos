@@ -1,3 +1,5 @@
+"""Materialize independent Git snapshots for isolated provider emulation."""
+
 from __future__ import annotations
 
 import shutil

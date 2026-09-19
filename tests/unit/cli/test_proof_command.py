@@ -1,3 +1,5 @@
+"""Preserve proof resolution failures and reuse one resolved repository context."""
+
 from __future__ import annotations
 
 from datetime import UTC

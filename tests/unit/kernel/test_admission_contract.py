@@ -1,3 +1,5 @@
+"""Bind immutable admission decisions to exact requests without coercion."""
+
 from __future__ import annotations
 
 from pathlib import Path

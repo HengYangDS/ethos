@@ -1,3 +1,5 @@
+"""Enforce semantic package ownership across tracked and candidate source."""
+
 from __future__ import annotations
 
 import subprocess

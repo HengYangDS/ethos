@@ -1,3 +1,5 @@
+"""Report product-boundary leaks in source, metadata and release-visible history."""
+
 from __future__ import annotations
 
 import json

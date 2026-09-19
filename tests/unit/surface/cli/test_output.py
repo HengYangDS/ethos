@@ -1,3 +1,5 @@
+"""Project human-readable decisions and treat closed output pipes as terminal."""
+
 from __future__ import annotations
 
 import sys

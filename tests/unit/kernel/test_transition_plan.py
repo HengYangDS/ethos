@@ -1,3 +1,5 @@
+"""Compile exact immutable effect plans and reject divergent proof graphs."""
+
 from __future__ import annotations
 
 import hashlib

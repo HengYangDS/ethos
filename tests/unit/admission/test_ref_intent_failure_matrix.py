@@ -1,3 +1,5 @@
+"""Preserve live ref-intent ownership and reject stale or malformed requests."""
+
 from __future__ import annotations
 
 import errno

@@ -1,3 +1,5 @@
+"""Verify platform-specific durability for content-addressed publication."""
+
 from __future__ import annotations
 
 import os

@@ -1,3 +1,5 @@
+"""Reject unsafe skill capabilities and malformed package evidence."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

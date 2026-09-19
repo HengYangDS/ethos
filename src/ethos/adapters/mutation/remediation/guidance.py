@@ -1,3 +1,5 @@
+"""Select bounded recovery commands from current lifecycle gaps."""
+
 from __future__ import annotations
 
 import shlex

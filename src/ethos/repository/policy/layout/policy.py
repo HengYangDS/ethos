@@ -1,3 +1,5 @@
+"""Resolve semantic package scope and identify empty namespaces without consumers."""
+
 from __future__ import annotations
 
 import ast

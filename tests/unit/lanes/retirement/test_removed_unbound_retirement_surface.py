@@ -1,3 +1,5 @@
+"""Keep retired command surfaces absent and absorbed-ref retirement bounded."""
+
 from __future__ import annotations
 
 from pathlib import Path

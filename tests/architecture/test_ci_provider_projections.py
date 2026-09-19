@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shlex
+import shutil
 import tomllib
 from pathlib import Path
 
 import pytest
 import yaml
 
+import tools.ci.ci_projection as owner
 from ethos.adapters.process import run_command
+from ethos.adapters.projections.cue import compile_projections
+from ethos.adapters.toolchain.mise import locked_tool
 from tools.ci.ci_projection import check_templates
+from tools.ci.ci_projection import compile_providers
 from tools.ci.ci_projection import projection_entries
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -248,3 +254,139 @@ def test_github_action_pins_are_unique_full_commit_ids() -> None:
     assert pins
     assert all(len(commits) == 1 for commits in pins.values())
     assert all(len(commit) == 40 for commits in pins.values() for commit in commits)
+
+
+def test_cue_compiler_preserves_provider_contract_and_rejects_missing_source(tmp_path):
+    """Native CUE must reproduce both providers and reject unsatisfied declarations."""
+    outputs = compile_providers(ROOT)
+    assert set(outputs) == {"github", "gitlab"}
+    cue = str(locked_tool(ROOT, "cue"))
+    for entry in projection_entries():
+        native = run_command(
+            ROOT,
+            (cue, "export", "yaml:", str(ROOT / entry["projection"]), "--out", "json"),
+            timeout=15,
+            check=True,
+        )
+        assert yaml.safe_load(outputs[entry["provider"]]) == json.loads(native.stdout)
+    with pytest.raises((ValueError, FileNotFoundError)):
+        compile_providers(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "fault", ["none", "drift", "self-certified", "malformed", "missing", "unformatted", "bootstrap"]
+)
+def test_cue_owner_rejects_agreeing_but_incorrect_copies(tmp_path, monkeypatch, capsys, fault):
+    """Agreement between two YAML copies cannot replace the CUE source contract."""
+    config = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
+    paths = {owner.CONFIG_RELATIVE_PATH, config["compiler"]["source"], ".config/ci/mise-install.sh"}
+    paths.update(config["compiler"]["inputs"].values())
+    paths.update(config["compiler"]["supply"].values())
+    for entry in config["projection"]:
+        paths.update((entry["template"], entry["projection"]))
+        paths.update(entry["required_owner_scripts"])
+    paths.update(entry["projection"] for entry in config["forge_surface"])
+    for relative in paths:
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / relative, destination)
+    entry = config["projection"][0]
+    if fault in {"drift", "self-certified"}:
+        for relative in (entry["template"], entry["projection"]):
+            target = tmp_path / relative
+            target.write_text(target.read_text().replace("name: ETHOS CI", "name: Unapproved"))
+        if fault == "self-certified":
+            model = tmp_path / config["compiler"]["source"]
+            candidate = model.read_text() + (
+                "\ncompiled: observations: compiled.providers\n"
+                'compiled: rendered: {github: "forged", gitlab: "forged"}\n'
+            )
+            model.write_text(
+                run_command(
+                    ROOT,
+                    (str(locked_tool(ROOT, "cue")), "fmt", "-"),
+                    stdin=candidate,
+                    timeout=15,
+                    check=True,
+                ).stdout
+            )
+    elif fault in {"bootstrap", "malformed"}:
+        relative, content = {
+            "bootstrap": (".config/ci/mise-install.sh", "#!/bin/sh\nexit 0\n"),
+            "malformed": (config["compiler"]["source"], "invalid: ["),
+        }[fault]
+        (tmp_path / relative).write_text(content)
+    elif fault == "missing":
+        (tmp_path / config["compiler"]["source"]).unlink()
+    elif fault == "unformatted":
+        model = tmp_path / config["compiler"]["source"]
+        model.write_text(model.read_text().replace('name: "ETHOS CI"', 'name:    "ETHOS CI"'))
+    monkeypatch.setattr(owner, "ROOT", tmp_path)
+    monkeypatch.setattr(owner, "CONFIG_PATH", tmp_path / owner.CONFIG_RELATIVE_PATH)
+    assert (owner.check_templates(json_output=True) == 0) is (fault == "none")
+    report = json.loads(capsys.readouterr().out)
+    if fault in {"self-certified", "bootstrap"}:
+        reason = {"self-certified": "cue_projection_drift", "bootstrap": "mise_bootstrap_drift"}[
+            fault
+        ]
+        assert report["failures"] == [{"provider": "compiler", "reason": reason}]
+
+
+@pytest.mark.parametrize("fault", ["none", "missing-lock", "version-drift", "project-hook"])
+def test_cue_compiler_consumes_exact_locked_supply(tmp_path, fault):
+    """Missing or mismatched locks cannot be repaired by ambient installed tools."""
+    config = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
+    files = {owner.CONFIG_RELATIVE_PATH: (ROOT / owner.CONFIG_RELATIVE_PATH).read_text()}
+    compiler = config["compiler"]
+    paths = [compiler["source"], *compiler["inputs"].values(), "mise.toml", "mise.lock"]
+    files.update({path: (ROOT / path).read_text() for path in paths})
+    if fault == "missing-lock":
+        files.pop("mise.lock")
+    elif fault == "version-drift":
+        files["mise.toml"] = files["mise.toml"].replace('cue = "0.17.1"', 'cue = "0.17.0"')
+    elif fault == "project-hook":
+        files["mise.toml"] += '\n[hooks]\nenter = "touch FORBIDDEN"\n'
+    before = dict(files)
+    original_paths = tuple(tmp_path.iterdir())
+    if fault in {"missing-lock", "version-drift"}:
+        with pytest.raises((ValueError, KeyError)):
+            compile_projections(tmp_path, owner.CONFIG_RELATIVE_PATH, files)
+    else:
+        assert set(compile_projections(tmp_path, owner.CONFIG_RELATIVE_PATH, files)) == {
+            "github",
+            "gitlab",
+        }
+    assert files == before
+    assert tuple(tmp_path.iterdir()) == original_paths
+
+
+@pytest.mark.parametrize("fault", ["none", "syntax", "missing-lock", "version-drift"])
+def test_workflow_gate_uses_locked_native_tool_without_ambient_fallback(
+    tmp_path, monkeypatch, fault
+):
+    """Run the real gate over a tiny workflow with a hostile ambient actionlint."""
+    for path in ("mise.toml", "mise.lock"):
+        shutil.copyfile(ROOT / path, tmp_path / path)
+    workflow = tmp_path / ".github/workflows/ci.yml"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        "name: check\non: push\njobs:\n  check:\n"
+        "    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n"
+    )
+    if fault == "syntax":
+        workflow.write_text("on: push\njobs: [\n")
+    elif fault == "missing-lock":
+        (tmp_path / "mise.lock").unlink()
+    elif fault == "version-drift":
+        config = tmp_path / "mise.toml"
+        config.write_text(config.read_text().replace('"1.7.12"', '"0.0.0"'))
+    bins = tmp_path / "bin"
+    bins.mkdir()
+    trap = bins / "actionlint"
+    trap.write_text("#!/bin/sh\ntouch AMBIENT_EXECUTED\nexit 0\n")
+    trap.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bins}{os.pathsep}{os.environ['PATH']}")
+    before = workflow.read_bytes()
+    assert (owner.check_workflow(tmp_path) == 0) is (fault == "none")
+    assert workflow.read_bytes() == before
+    assert not (tmp_path / "AMBIENT_EXECUTED").exists()

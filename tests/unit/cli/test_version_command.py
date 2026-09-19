@@ -1,3 +1,5 @@
+"""Return one native version result without loading unrelated command machinery."""
+
 from __future__ import annotations
 
 import json

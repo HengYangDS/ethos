@@ -1,3 +1,5 @@
+"""Reject noncanonical transition plans and malformed proof declarations."""
+
 from __future__ import annotations
 
 from datetime import UTC

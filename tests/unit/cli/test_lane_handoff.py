@@ -1,3 +1,5 @@
+"""Project lease handoff decisions through the public CLI without new authority."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

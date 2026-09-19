@@ -1,3 +1,5 @@
+"""Require selected project executables without ambient PATH substitution."""
+
 from __future__ import annotations
 
 import os

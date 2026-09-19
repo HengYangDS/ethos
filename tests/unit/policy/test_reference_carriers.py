@@ -28,7 +28,6 @@ def test_reference_carriers_have_one_deterministic_dispatch(path: str, carrier: 
 @pytest.mark.parametrize(
     "declaration",
     [
-        ".config/checks/secrets/supply.toml",
         ".config/checks/lychee/supply.toml",
         ".config/release/supply-chain.toml",
     ],

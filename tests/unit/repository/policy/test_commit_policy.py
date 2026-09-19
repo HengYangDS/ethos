@@ -1,3 +1,5 @@
+"""Compile optional commit policy once and reject malformed declarations."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -60,54 +62,29 @@ signing_format = "ssh"
 
 
 @pytest.mark.parametrize(
-    ("text", "error"),
+    ("old", "new", "error"),
     [
-        ("[commit_policy\n", "commit_policy_toml_invalid"),
-        ('commit_policy = "implicit"\n', "commit_policy_invalid:must_be_table"),
-        (
-            """[commit_policy]
-subject_pattern = "^fix: .+"
-signing_required = true
-signing_format = "ssh"
-identity_mode = "external"
-""",
-            "commit_policy_unknown_fields:identity_mode",
-        ),
-        (
-            '[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n',
-            "commit_policy_invalid:subject_pattern",
-        ),
-        (
-            """[commit_policy]
-subject_pattern = "["
-signing_required = true
-signing_format = "ssh"
-""",
-            "commit_policy_subject_pattern_invalid",
-        ),
-        (
-            """[commit_policy]
-subject_pattern = "^fix: .+"
-signing_required = "yes"
-signing_format = "ssh"
-""",
-            "commit_policy_invalid:signing_required",
-        ),
-        (
-            """[commit_policy]
-subject_pattern = "^fix: .+"
-signing_required = true
-signing_format = "openpgp"
-""",
-            "commit_policy_signing_format_unsupported:openpgp",
-        ),
+        ("[commit_policy]", "[commit_policy", "commit_policy_toml_invalid"),
+        ("all", 'commit_policy = "implicit"', "commit_policy_invalid:must_be_table"),
+        ("", 'identity_mode = "external"', "commit_policy_unknown_fields:identity_mode"),
+        ('subject_pattern = "^fix: .+"', "", "commit_policy_invalid:subject_pattern"),
+        ('"^fix: .+"', '"["', "commit_policy_subject_pattern_invalid"),
+        ("true", '"yes"', "commit_policy_invalid:signing_required"),
+        ('"ssh"', '"openpgp"', "commit_policy_signing_format_unsupported:openpgp"),
     ],
 )
 def test_present_commit_policy_fails_closed(
     tmp_path: Path,
-    text: str,
+    old: str,
+    new: str,
     error: str,
 ) -> None:
+    valid = (
+        '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
+        'signing_required = true\nsigning_format = "ssh"\n'
+    )
+    text = new if old == "all" else valid.replace(old, new, 1) if old else valid + new
+    assert text != valid
     _write_workspace(tmp_path, text)
 
     with pytest.raises((TypeError, ValueError), match=error):

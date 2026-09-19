@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from difflib import unified_diff
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -21,9 +21,6 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.runtime_scenarios import git_process
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 def _prewrite(root: Path, paths: tuple[str, ...], patch: Path | None = None):
     args = ("--patch", patch.as_posix()) if patch else ()
@@ -39,6 +36,23 @@ def _prewrite(root: Path, paths: tuple[str, ...], patch: Path | None = None):
         cwd=root,
     )
     return json.loads(completed.stdout)
+
+
+def _architecture_projection(root: Path, title: str = "Example") -> tuple[Path, Path, Path]:
+    """Declare a literal source/output pair without using the production renderer."""
+    declaration = root / ".config/checks/architecture/projection.toml"
+    declaration.parent.mkdir(parents=True, exist_ok=True)
+    declaration.write_text(
+        'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
+        'id = "view"\nsource = "model.c4"\noutput = "diagram.mmd"\n'
+        'kind = "likec4-to-mermaid"\n',
+    )
+    model, output = root / "model.c4", root / "diagram.mmd"
+    model.write_text(f'system Example "{title}"\n')
+    output.write_text(
+        f'%% Generated from model.c4. Do not edit by hand.\nflowchart LR\n  Example["{title}"]\n',
+    )
+    return declaration, model, output
 
 
 @pytest.mark.parametrize("suffix", ["json", "xml", "html"])
@@ -107,14 +121,8 @@ def test_authored_deletion_checks_surviving_native_input(
 def test_declared_output_requires_patch_but_its_source_does_not(tmp_path: Path) -> None:
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
-    declaration = root / ".config/checks/architecture/projection.toml"
-    declaration.parent.mkdir(parents=True)
-    declaration.write_text(
-        'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
-        'id = "view"\nsource = "model.c4"\noutput = "diagram.mmd"\n'
-        'kind = "likec4-to-mermaid"\n',
-    )
-    (root / "model.c4").write_text('system Example "Example"\n')
+    _declaration, _model, output = _architecture_projection(root)
+    output.unlink()
     result = _prewrite(root, ("diagram.mmd",))
     assert result["verdict"] == "block", result
     assert result["data"]["paths"][0]["origin"] == "projection"
@@ -197,20 +205,9 @@ def test_projection_effect_uses_producer_before_and_after(
 ) -> None:
 
     root = init_git_repo(tmp_path / "repo")
-    declaration = ".config/checks/architecture/projection.toml"
-    source, output = "model.c4", "diagram.mmd"
-    files = {
-        declaration: 'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
-        'id = "view"\nsource = "model.c4"\noutput = "diagram.mmd"\n'
-        'kind = "likec4-to-mermaid"\n',
-        source: 'system Example "Example"\n',
-        output: "%% Generated from model.c4. Do not edit by hand.\n"
-        'flowchart LR\n  Example["Example"]\n',
-    }
-    for path, text in files.items():
-        target = root / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text)
+    paths = _architecture_projection(root)
+    declaration, source, output = (path.relative_to(root).as_posix() for path in paths)
+    files = {path.relative_to(root).as_posix(): path.read_text() for path in paths}
     commit_active_change(root)
     head = git(root, "rev-parse", "HEAD")
     mutations: dict[str, dict[str, str | None]] = {
@@ -279,15 +276,8 @@ def test_deleted_input_observation_distinguishes_effects(
 def test_path_only_admission_cannot_erase_a_committed_producer(tmp_path: Path) -> None:
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
-    declaration = root / ".config/checks/architecture/projection.toml"
-    declaration.parent.mkdir(parents=True)
-    declaration.write_text(
-        'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
-        'id = "view"\nsource = "model.c4"\noutput = "diagram.mmd"\n'
-        'kind = "likec4-to-mermaid"\n',
-    )
-    (root / "model.c4").write_text('system Example "Example"\n')
-    (root / "diagram.mmd").write_text("old output\n")
+    declaration, _model, output = _architecture_projection(root)
+    output.write_text("old output\n")
     commit_fixture(root, "declare producer")
     declaration.unlink()
     report = _prewrite(root, ("diagram.mmd",))
@@ -389,18 +379,8 @@ def test_precommit_validates_index_projection_not_working_copy(
 ) -> None:
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
-    declaration = root / ".config/checks/architecture/projection.toml"
-    declaration.parent.mkdir(parents=True)
-    declaration.write_text(
-        'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
-        'id = "view"\nsource = "model.c4"\noutput = "diagram.mmd"\n'
-        'kind = "likec4-to-mermaid"\n',
-    )
-    model = root / "model.c4"
-    output = root / "diagram.mmd"
-    model.write_text('system Example "Before"\n')
-    before = '%% Generated from model.c4. Do not edit by hand.\nflowchart LR\n  Example["Before"]\n'
-    output.write_text(before)
+    _declaration, model, output = _architecture_projection(root, "Before")
+    before = output.read_text()
     commit_fixture(root, "declare exact producer")
     model.write_text('system Example "After"\n')
     after = before.replace('"Before"', '"After"')
@@ -424,17 +404,7 @@ def test_precommit_validates_index_projection_not_working_copy(
 @pytest.mark.parametrize("effect", ["disguise", "retire", "unlink-source", "symlink-output"])
 def test_staged_retirement_preserves_exact_output_existence(tmp_path: Path, effect: str) -> None:
     root = init_git_repo(tmp_path / "repo")
-    declaration = root / ".config/checks/architecture/projection.toml"
-    declaration.parent.mkdir(parents=True)
-    declaration.write_text(
-        'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
-        'source = "model.c4"\noutput = "diagram.mmd"\nkind = "likec4-to-mermaid"\n',
-    )
-    (root / "model.c4").write_text('system Example "Example"\n')
-    output = root / "diagram.mmd"
-    output.write_text(
-        '%% Generated from model.c4. Do not edit by hand.\nflowchart LR\n  Example["Example"]\n'
-    )
+    declaration, _model, output = _architecture_projection(root)
     commit_active_change(root)
     baseline = git(root, "rev-parse", "HEAD")
     if effect in {"disguise", "retire"}:
@@ -491,3 +461,57 @@ def test_index_admission_rejects_coordinate_drift(
     gaps = result["required_gaps"]
     assert isinstance(gaps, list)
     assert any("changed_during_admission" in gap for gap in gaps), result
+
+
+@pytest.mark.parametrize("selected", ["valid", "drift", "missing", "malformed"])
+def test_cue_index_admission_uses_exact_transitive_inputs(tmp_path, selected):
+    """Staged CUE and TOML, not a repaired checkout, decide output admission."""
+    root = init_git_repo(tmp_path / "repo")
+    declaration = ".config/checks/ci/templates.toml"
+    files = {
+        declaration: (
+            'schema = "ethos-ci-template-consistency-v1"\n'
+            '[compiler]\nsource = "pipeline.cue"\n'
+            'supply = { config = "mise.toml", lock = "mise.lock" }\n'
+            'inputs = { settings = "settings.toml" }\n[[projection]]\n'
+            'kind = "cue"\nprovider = "github"\nprojection = "output.yml"\n'
+        ),
+        "pipeline.cue": (
+            "package ci\n_inputs: settings: name: string\n"
+            "compiled: providers: github: name: _inputs.settings.name\n"
+        ),
+        "settings.toml": 'name = "Before"\n',
+        "output.yml": "name: Before\n",
+        "mise.toml": (Path(__file__).resolve().parents[3] / "mise.toml").read_text(),
+        "mise.lock": (Path(__file__).resolve().parents[3] / "mise.lock").read_text(),
+    }
+    for relative, text in files.items():
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text)
+    commit_active_change(root)
+    baseline = git(root, "rev-parse", "HEAD")
+    (root / "settings.toml").write_text('name = "After"\n')
+    if selected == "valid":
+        (root / "output.yml").write_text("name: After\n")
+    elif selected == "missing":
+        (root / "pipeline.cue").unlink()
+    elif selected == "malformed":
+        (root / "pipeline.cue").write_text("invalid: [\n")
+    git(root, "add", "--all")
+    for relative, text in files.items():
+        (root / relative).write_text(text)
+    index = git(root, "write-tree")
+    result = staged_artifact_admission(root, baseline)
+    assert (
+        result["verdict"]
+        == {
+            "valid": "pass",
+            "drift": "block",
+            "missing": "block",
+            "malformed": "unknown",
+        }[selected]
+    ), result
+    assert git(root, "write-tree") == index
+    assert git(root, "rev-parse", "HEAD") == baseline
+    assert all((root / path).read_text() == text for path, text in files.items())

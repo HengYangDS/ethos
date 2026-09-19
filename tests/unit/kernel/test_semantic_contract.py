@@ -1,3 +1,5 @@
+"""Validate semantic values, canonical encodings and packaged golden vectors."""
+
 from __future__ import annotations
 
 import json

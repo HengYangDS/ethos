@@ -1,3 +1,5 @@
+"""Bind retirement commands to exact resources, retained refs and recovery inputs."""
+
 from __future__ import annotations
 
 import json

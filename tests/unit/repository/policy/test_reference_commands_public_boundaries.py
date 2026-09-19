@@ -1,3 +1,5 @@
+"""Resolve native command vocabulary without laundering unknown subcommands."""
+
 from __future__ import annotations
 
 import pytest
@@ -28,6 +30,8 @@ EOF
 helper
 FOO=1 env -u HOME -- uv run --python 3.14 python -m pytest
 npm run quality
+scanner \\
+  --scan .
 """
 
     assert shell_executables(text, npm_scripts) == {
@@ -38,6 +42,7 @@ npm run quality
         "npm",
         "npx",
         "prettier",
+        "scanner",
     }
     assert shell_commands(
         "uv run --python 3.14 pytest -q\n",

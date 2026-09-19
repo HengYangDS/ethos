@@ -1,3 +1,5 @@
+"""Preserve neutral holder identities and explicit collaboration outcomes."""
+
 from __future__ import annotations
 
 from datetime import UTC

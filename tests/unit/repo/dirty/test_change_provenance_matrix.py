@@ -1,3 +1,5 @@
+"""Classify exact dirty content and distinguish it from committed source identity."""
+
 from __future__ import annotations
 
 import subprocess

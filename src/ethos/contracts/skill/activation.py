@@ -1,3 +1,5 @@
+"""Compile skill activation with dependency, exclusion and ordering constraints."""
+
 from __future__ import annotations
 
 from typing import Any

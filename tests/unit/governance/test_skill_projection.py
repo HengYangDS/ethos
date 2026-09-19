@@ -1,3 +1,5 @@
+"""Keep skill activation declarative and evaluation evidence non-authorizing."""
+
 from __future__ import annotations
 
 from pathlib import Path

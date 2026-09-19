@@ -416,3 +416,48 @@ committed execution SHALL retain its independent source-correspondence check.
 - **WHEN** an explicit target is missing, deleted or delegated to another owner
 - **THEN** selection fails with the target and applicable owner guidance
 - **AND** valid relative and absolute targets receive the same validation
+
+### Requirement: Native tool supply has one declaration and bounded bootstrap
+
+Development and CI SHALL consume the same mise tool selections and platform
+locks. Ecosystem dependency locks SHALL remain with their package managers.
+Observation SHALL NOT install tools. Provisioning SHALL preserve current
+executables on failure, retain native diagnostics, and remove owned scratch.
+
+#### Scenario: A clean runner has no mise installation
+
+- **WHEN** the existing bootstrap executes with no prepared native mise
+- **THEN** the version-bound official installer runs in owned staged storage with a deadline
+- **AND** only a successfully verified executable is published
+- **AND** preparation of locked gate tools completes before gate execution
+
+#### Scenario: Native preparation fails or is interrupted
+
+- **WHEN** download, archive validation, executable validation or execution times out or fails
+- **THEN** the previous executable remains unchanged and owned descendants are drained
+- **AND** unapproved version diagnostics prevent publication
+- **AND** verified cache reuse preserves identity without repeating downloads
+
+### Requirement: Native compilers preserve exact policy and projection inputs
+
+CUE compilation SHALL consume the declared exact input closure and independently
+compare generated outputs. CEL predicate declarations SHALL compile to Boolean
+expressions. Candidate-supplied observations SHALL NOT certify candidate output.
+
+#### Scenario: Candidate projection bytes agree with a forged local copy
+
+- **WHEN** both copies disagree with the CUE source or candidate code supplies its own observation
+- **THEN** the independent output comparison rejects the discrepancy
+- **AND** staged admission uses index inputs rather than unrelated worktree bytes
+
+#### Scenario: An expression cannot serve as a predicate
+
+- **WHEN** a CEL declaration is invalid, unbound or not statically Boolean
+- **THEN** declaration loading rejects it before runtime policy evaluation
+- **AND** valid declared predicates retain their existing runtime semantics
+
+#### Scenario: The bootstrap projection is edited independently
+
+- **WHEN** installer bytes differ from the selected native generator output
+- **THEN** the existing projection gate rejects the drift
+- **AND** the documented lexical normalization and native shell formatting remain deterministic

@@ -7,6 +7,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
@@ -134,7 +135,7 @@ def _object_files(
     }
     files = _read_text_objects(root, selected)
     producers = projection_relations(files)
-    dependent = {path for item in producers for path in (item.source, item.output)}
+    dependent = {path for item in producers for path in item.materials}
     files.update(
         _read_text_objects(
             root,
@@ -163,7 +164,7 @@ def staged_artifact_admission(root: Path, baseline: str) -> dict[str, object]:
     try:
         before = _object_files(root, baseline)
         prior_paths = frozenset(
-            path for item in projection_relations(before) for path in (item.source, item.output)
+            path for item in projection_relations(before) for path in item.materials
         )
         after = _object_files(root, tree, prior_paths)
         effects = _indexed_effects(root)
@@ -174,7 +175,7 @@ def staged_artifact_admission(root: Path, baseline: str) -> dict[str, object]:
             for path, value in postimages.items()
             if path in before or path in after or effects[path] == "delete"
         }
-        gaps, unknown = _effect_gaps(projection_relations(before), after, postimages)
+        gaps, unknown = _effect_gaps(root, projection_relations(before), after, postimages)
     except (OSError, ValueError, UnicodeError) as exc:
         return {
             "verdict": "unknown",
@@ -367,14 +368,14 @@ def _source_effect_gaps(
         effective.pop(path, None)
     after = projection_relations(effective)
     for relation in (*before, *after):
-        for path in (relation.source, relation.output):
+        for path in relation.materials:
             source = root / path
             if path not in postimages and source.is_file():
                 if not source.resolve().is_relative_to(root.resolve()):
                     msg = f"projection_input_outside_root:{path}"
                     raise ValueError(msg)
                 effective[path] = source.read_text(encoding="utf-8")
-    gaps, unknown = _effect_gaps(before, effective, postimages)
+    gaps, unknown = _effect_gaps(root, before, effective, postimages)
     return gaps, unknown, sorted({item.output for item in (*before, *after)})
 
 
@@ -393,6 +394,7 @@ def _prior_projection_relations(
 
 
 def _effect_gaps(
+    root: Path,
     before: tuple[Projection, ...],
     effective: dict[str, str],
     postimages: dict[str, str | None],
@@ -400,6 +402,7 @@ def _effect_gaps(
     """Evaluate producer consistency and surviving consumers once for every input plane."""
     after = projection_relations(effective)
     deleted = frozenset(path for path, value in postimages.items() if value is None)
-    gaps = projection_effect_gaps(before, after, effective, postimages)
+    compiled = render_projections(root, after, effective, postimages)
+    gaps = projection_effect_gaps(before, after, effective, postimages, compiled)
     dangling, unknown = deleted_input_gaps(effective, deleted)
     return sorted({*gaps, *dangling}), unknown

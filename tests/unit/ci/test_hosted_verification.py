@@ -51,9 +51,8 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
         f"#!{sys.executable}\n"
         "import json, os, pathlib, subprocess, sys\n"
         "bodies = json.loads(pathlib.Path('supply-case.json').read_text())\n"
-        "native = pathlib.Path(sys.argv[0]).name == 'native.py'\n"
-        "assert not native or sys.argv[1:] == ['--root', os.getcwd(), 'gitleaks', 'scc']\n"
-        "for body in bodies[:2] if native else bodies[2:]:\n"
+        "assert sys.argv[1:] == ['--root', os.getcwd(), 'gitleaks', 'scc', 'syft']\n"
+        "for body in bodies:\n"
         " result = subprocess.run(['/bin/sh', '-c', body])\n"
         " if result.returncode: sys.exit(result.returncode)\n"
     )
@@ -97,9 +96,9 @@ def _hosted_scripts(
     scripts = repo / "tools/ci/scripts"
     scripts.mkdir(parents=True)
     shutil.copy2(ROOT / "tools/ci/scripts/run-head-bound-proof.sh", scripts)
-    for path in (repo / "tools/ci/toolchain/native.py", scripts / "install-syft.sh"):
-        path.parent.mkdir(exist_ok=True)
-        path.symlink_to(transport.with_name("prepare"))
+    path = repo / "tools/ci/toolchain/native.py"
+    path.parent.mkdir(exist_ok=True)
+    path.symlink_to(transport.with_name("prepare"))
     (repo / "supply-case.json").write_text(json.dumps([scanner_script, supply_script, sbom_script]))
     return scripts
 
@@ -233,7 +232,9 @@ def test_hosted_receipt_requires_exact_executed_observation(
         f"printf '%s\\n' '{binary.parent}'\n",
         f"ln -s '{hosted_proof_transport.with_name('gitleaks')}' '{scanner}'\n",
     )
-    assert (scripts / "install-syft.sh").samefile(hosted_proof_transport.with_name("prepare"))
+    assert (repo / "tools/ci/toolchain/native.py").samefile(
+        hosted_proof_transport.with_name("prepare")
+    )
     summary_file = tmp_path / "summary.md"
     completed = _run_hosted(
         repo, scripts, binary.parent, expected, GITHUB_STEP_SUMMARY=str(summary_file)

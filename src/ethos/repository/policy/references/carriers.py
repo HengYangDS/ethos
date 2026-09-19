@@ -81,7 +81,6 @@ REFERENCE_CARRIERS = (
         suffixes=frozenset({".json", ".mjs", ".toml"}),
         path_declarations=(
             (".config/checks/deptry/policy.toml", "python-import-policy"),
-            (".config/checks/secrets/supply.toml", "tool-supply"),
             (".config/checks/lychee/supply.toml", "tool-supply"),
             (".config/release/supply-chain.toml", "tool-supply"),
             ("system/gates.toml", "gates"),
@@ -89,6 +88,7 @@ REFERENCE_CARRIERS = (
             ("system/surfaces.toml", "surfaces"),
             (".ethos/release.toml", "release"),
             (".config/checks/ci/templates.toml", "providers"),
+            ("mise.toml", "mise"),
         ),
         entrypoints=(".config/checks/pytest/pytest.ini",),
         entrypoint_globs=(".config/ci/**/*.toml",),
@@ -111,6 +111,12 @@ def reference_carrier(path: str) -> ReferenceCarrier:
 def reference_paths(root: Path, declared: Iterable[Path]) -> list[Path]:
     """Return active files whose syntax has a declared reference carrier."""
     paths = {path for path in declared if _is_reference_path(root, path)}
+    paths.update(
+        root / relative
+        for carrier in REFERENCE_CARRIERS
+        for relative, _kind in carrier.path_declarations
+        if (root / relative).is_file()
+    )
     for relative in REFERENCE_SCAN_ROOTS:
         base = root / relative
         if not base.exists():

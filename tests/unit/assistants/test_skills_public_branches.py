@@ -1,3 +1,5 @@
+"""Preserve skill identity and schema ownership across public failure reports."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

@@ -1,3 +1,5 @@
+"""Build wheel and source distributions from one exact OpenSpec supply owner."""
+
 from __future__ import annotations
 
 import json

@@ -64,7 +64,6 @@ def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
     retired = ("system/tools.toml", "src/ethos/quality")
     assert all(not (ROOT / path).exists() for path in retired)
     installers = sorted((ROOT / "tools/ci/scripts").glob("install-*.sh"))
-    installers.append(ROOT / "tools/ci/scripts/run-actionlint.sh")
     declared_policies = set()
     for installer_path in installers:
         installer = installer_path.read_text(encoding="utf-8")
@@ -83,20 +82,20 @@ def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
         assert all(version not in installer for version in versions)
 
     native = (ROOT / "tools/ci/toolchain/native.py").read_text(encoding="utf-8")
-    native_policies = set(re.findall(r"\.config/[A-Za-z0-9_./-]+\.toml", native))
-    assert native_policies == {
-        ".config/checks/format/selection.toml",
-        ".config/checks/secrets/supply.toml",
-    }
-    declared_policies.update(native_policies)
+    assert "mise.toml" in native
+    assert "mise.lock" in native
+    assert not (ROOT / "tools/ci/scripts/install-syft.sh").exists()
+    assert not (ROOT / ".config/checks/secrets/supply.toml").exists()
 
-    assert declared_policies == {
-        ".config/checks/format/selection.toml",
-        ".config/checks/github/actionlint.toml",
-        ".config/checks/node/runtime.toml",
-        ".config/checks/secrets/supply.toml",
-        ".config/release/supply-chain.toml",
-    }
+    mise = tomllib.loads((ROOT / "mise.toml").read_text())
+    locked = tomllib.loads((ROOT / "mise.lock").read_text())["tools"]
+    for name, version in mise["tools"].items():
+        assert any(item["version"] == version for item in locked[name])
+    actionlint = (ROOT / "tools/ci/scripts/run-actionlint.sh").read_text()
+    assert "check_workflow" in actionlint
+    assert not any(command in actionlint for command in ("curl", "tar ", "apt-get", "--tool"))
+
+    assert declared_policies == {".config/checks/node/runtime.toml"}
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
     assert any(item.startswith("lychee-bin>=") for item in project["dependency-groups"]["dev"])

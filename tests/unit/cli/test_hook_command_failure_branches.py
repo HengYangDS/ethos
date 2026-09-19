@@ -1,3 +1,5 @@
+"""Expose actionable hook failures through the public command boundary."""
+
 from __future__ import annotations
 
 import json

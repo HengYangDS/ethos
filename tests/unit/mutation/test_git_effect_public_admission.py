@@ -1,3 +1,5 @@
+"""Compile current facts into exact CAS authority without reusable permissions."""
+
 from __future__ import annotations
 
 from datetime import UTC

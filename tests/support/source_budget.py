@@ -10,6 +10,7 @@ from tests.support.governed_repository import git
 from tests.support.subprocesses import completed as cp
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
     import pytest
@@ -125,15 +126,15 @@ def budget_repository(
     return selection, source
 
 
-def fake_scc(
+def fake_scc[Location: str | None](
     monkeypatch: pytest.MonkeyPatch,
     root: Path,
-    counts: dict[str, int] | None = None,
+    counts: Mapping[Location, object] | None = None,
     *,
     include_all: bool = True,
 ) -> None:
     """Expose an external cross-check fixture through the report boundary."""
-    expected = counts or {}
+    expected: dict[str | None, object] = dict((counts or {}).items())
     run = source_budget.subprocess.run
     which = source_budget.shutil.which
 
@@ -145,9 +146,9 @@ def fake_scc(
             capture_output=True,
             check=True,
         )
-        paths = completed.stdout.splitlines()
+        paths: list[str | None] = [*completed.stdout.splitlines()]
         if not include_all:
-            paths = [path for path in paths if path in expected]
+            paths = list(expected)
         return json.dumps(
             {
                 "languageSummary": [
@@ -155,7 +156,7 @@ def fake_scc(
                         "Name": "fixture",
                         "Files": [
                             {
-                                "Location": (root / path).as_posix(),
+                                "Location": None if path is None else (root / path).as_posix(),
                                 "Code": expected.get(path, 0),
                             }
                             for path in paths
@@ -184,7 +185,7 @@ def fake_scc(
 def measure_budget(
     monkeypatch: pytest.MonkeyPatch,
     root: Path,
-    counts: dict[str, int] | None = None,
+    counts: Mapping[str, int] | None = None,
     *,
     include_all: bool = True,
 ) -> source_budget.SourceBudgetReport:

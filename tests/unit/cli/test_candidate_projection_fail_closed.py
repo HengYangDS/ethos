@@ -1,3 +1,5 @@
+"""Keep candidate bootstrap, recovery and exact CAS projections truthful."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

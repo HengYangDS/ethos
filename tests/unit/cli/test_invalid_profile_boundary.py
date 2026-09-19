@@ -1,3 +1,5 @@
+"""Normalize invalid-profile failures without hiding CLI argument boundaries."""
+
 from __future__ import annotations
 
 import json

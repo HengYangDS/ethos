@@ -1,3 +1,5 @@
+"""Expose unavailable product, carrier and budget observations without false success."""
+
 from __future__ import annotations
 
 import json

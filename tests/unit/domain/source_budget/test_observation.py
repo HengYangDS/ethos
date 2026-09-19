@@ -7,10 +7,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.domain.source_budget.measurement as measurement
 import ethos.domain.source_budget.measurement as source_budget
-from ethos.domain.source_budget.measurement_policy import Policy
 from tests.support.source_budget import budget_repository
+from tests.support.source_budget import write_budget_selection
 from tests.support.subprocesses import completed as cp
 
 if TYPE_CHECKING:
@@ -29,26 +28,6 @@ if TYPE_CHECKING:
         lambda text: text.replace("python_product = 1000", "python_unknown = 1000"),
         lambda text: text.replace('shebangs = ["sh", "bash", "zsh"]', 'shebangs = "sh"'),
         lambda text: text.replace('comment_prefixes = ["#"]', 'comment_prefixes = "#"', 1),
-    ],
-)
-def test_malformed_or_incomplete_policy_fails_closed(
-    tmp_path: Path,
-    mutation,
-) -> None:
-    selection, _ = budget_repository(tmp_path)
-    selection.write_text(mutation(selection.read_text()), encoding="utf-8")
-
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["verdict"] == "block"
-    assert "ok" not in report
-    assert report["metrics"] == {}
-    assert report["required_gaps"][0].startswith("source_budget_policy_invalid:")
-
-
-@pytest.mark.parametrize(
-    "mutation",
-    [
         lambda text: text.replace('extensions = [".py"]', 'extensions = ["py"]'),
         lambda text: text.replace('extensions = [".py"]', 'extensions = [".py", ".py"]'),
         lambda text: text.replace(
@@ -74,7 +53,7 @@ def test_malformed_or_incomplete_policy_fails_closed(
         ),
     ],
 )
-def test_policy_contract_rejects_malformed_ownership_and_carriers(
+def test_malformed_or_incomplete_policy_fails_closed(
     tmp_path: Path,
     mutation,
 ) -> None:
@@ -84,6 +63,8 @@ def test_policy_contract_rejects_malformed_ownership_and_carriers(
     report = source_budget.source_budget_report(tmp_path)
 
     assert report["verdict"] == "block"
+    assert "ok" not in report
+    assert report["metrics"] == {}
     assert report["required_gaps"] == ["source_budget_policy_invalid:shape"]
 
 
@@ -126,35 +107,23 @@ def test_inventory_parse_failure_is_reported_without_measuring(
 
 
 @pytest.mark.parametrize(
-    ("dispatch", "gap"),
-    [
-        (
-            lambda *_args, **_kwargs: cp(stdout="not-json", command="scc"),
-            "source_budget_scc_invalid",
-        ),
-        (
-            lambda *_args, **_kwargs: cp(
-                stdout='{"languageSummary": []}', stderr="warn", command="scc"
-            ),
-            "source_budget_scc_invalid",
-        ),
-        (
-            lambda *_args, **_kwargs: cp(
-                stdout='{"languageSummary": []}', returncode=2, command="scc"
-            ),
-            "source_budget_scc_invalid",
-        ),
-    ],
+    "fault", ["malformed", "warning", "nonzero", "duplicate", "noninteger", "duplicate-invalid"]
 )
-def test_native_cross_check_failures_block_the_report(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    dispatch,
-    gap: str,
-) -> None:
+def test_native_cross_check_failures_block_the_report(tmp_path, monkeypatch, fault):
+    """Invalid native observations cannot certify source accounting."""
     budget_repository(tmp_path)
-    real_which = source_budget.shutil.which
-    real_run = source_budget.subprocess.run
+    location = (tmp_path / "src/ethos/demo.py").as_posix()
+    records = [{"Location": location, "Code": 2}]
+    if fault in {"duplicate", "duplicate-invalid"}:
+        records.append({"Location": location, "Code": 2 if fault == "duplicate" else True})
+    elif fault == "noninteger":
+        records[0]["Code"] = True
+    payload = (
+        "not-json"
+        if fault == "malformed"
+        else json.dumps({"languageSummary": [{"Files": records}]})
+    )
+    real_which, real_run = source_budget.shutil.which, source_budget.subprocess.run
     monkeypatch.setattr(
         source_budget.shutil,
         "which",
@@ -166,17 +135,20 @@ def test_native_cross_check_failures_block_the_report(
         source_budget.subprocess,
         "run",
         lambda command, **kwargs: (
-            dispatch(command, **kwargs)
+            cp(
+                stdout=payload,
+                stderr="warn" if fault == "warning" else "",
+                returncode=2 if fault == "nonzero" else 0,
+                command="scc",
+            )
             if command[0] == "/fake-scc"
             else real_run(command, **kwargs)
         ),
     )
-
     report = source_budget.source_budget_report(tmp_path)
-
     assert report["verdict"] == "block"
     assert report["cross_check"] == {}
-    assert report["required_gaps"] == [gap]
+    assert report["required_gaps"] == ["source_budget_scc_invalid"]
 
 
 def test_missing_native_cross_check_is_actionable(
@@ -197,96 +169,13 @@ def test_missing_native_cross_check_is_actionable(
     assert report["required_gaps"] == ["source_budget_scc_unavailable:fake-scc"]
 
 
-def test_native_cross_check_rejects_duplicate_and_non_integer_counts(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    budget_repository(tmp_path)
-    location = (tmp_path / "src/ethos/demo.py").as_posix()
-    payload = json.dumps(
-        {
-            "languageSummary": [
-                {
-                    "Files": [
-                        {"Location": location, "Code": 2},
-                        {"Location": location, "Code": True},
-                    ]
-                }
-            ]
-        }
-    )
-    real_which = source_budget.shutil.which
-    real_run = source_budget.subprocess.run
-    monkeypatch.setattr(
-        source_budget.shutil,
-        "which",
-        lambda command, **kwargs: (
-            "/fake-scc" if command == "fake-scc" else real_which(command, **kwargs)
-        ),
-    )
-    monkeypatch.setattr(
-        source_budget.subprocess,
-        "run",
-        lambda command, **kwargs: (
-            cp(stdout=payload, command="scc")
-            if command[0] == "/fake-scc"
-            else real_run(command, **kwargs)
-        ),
-    )
-
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["source_budget_scc_invalid"]
-
-
-def _policy() -> Policy:
-    return Policy.model_validate(
-        {
-            "terminal": {
-                "python_product": 10,
-                "python_tests": 10,
-                "python_tools": 10,
-                "python_other": 10,
-                "global_total": 20,
-            },
-            "immutable_record_roots": ("openspec/changes/archive/",),
-            "line_width": 100,
-            "cross_check": {
-                "command": "scc",
-                "args": (),
-                "timeout_seconds": 1,
-                "tolerance": {"python_total": 0, "global_total": 0},
-            },
-            "aggregates": {
-                "python_total": ("python_product", "python_tests", "python_tools", "python_other"),
-                "global_total": ("python_product", "python_tests", "python_tools", "python_other"),
-            },
-            "carriers": tuple(
-                {
-                    "category": category,
-                    "extensions": (".py",),
-                    "paths": (path,),
-                    "measure": "python_ast",
-                }
-                for category, path in (
-                    ("python_product", "src/*"),
-                    ("python_tests", "tests/*"),
-                    ("python_tools", "tools/*"),
-                    ("python_other", "*.py"),
-                )
-            ),
-        }
-    )
-
-
 def test_source_budget_public_report_stops_when_inventory_is_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(measurement, "policy_for_root", lambda _root: (_policy(), ()))
-    monkeypatch.setattr(measurement.git_adapter, "git_stdout", lambda *_a: "")
+    write_budget_selection(tmp_path)
+    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_a: "")
 
-    report = measurement.source_budget_report(tmp_path)
+    report = source_budget.source_budget_report(tmp_path)
 
     assert report["required_gaps"] == ["source_budget_inventory_unavailable"]
 
@@ -294,7 +183,7 @@ def test_source_budget_public_report_stops_when_inventory_is_unavailable(
 def test_source_budget_public_report_preserves_measure_and_cross_check_gaps(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    policy = _policy()
+    write_budget_selection(tmp_path, terminal=(10, 10, 10, 10, 20), tolerance=(0, 0))
     metrics = {
         "python_product": 11,
         "python_tests": 0,
@@ -305,10 +194,9 @@ def test_source_budget_public_report_preserves_measure_and_cross_check_gaps(
         "record_total": 0,
         "generated_evidence_total": 0,
     }
-    monkeypatch.setattr(measurement, "policy_for_root", lambda _root: (policy, ()))
-    monkeypatch.setattr(measurement, "_paths", lambda _root: ((("src/demo.py", False),), ()))
+    monkeypatch.setattr(source_budget, "_paths", lambda _root: ((("src/demo.py", False),), ()))
     monkeypatch.setattr(
-        measurement,
+        source_budget,
         "_measure",
         lambda *_a, **_k: (
             metrics,
@@ -318,12 +206,12 @@ def test_source_budget_public_report_preserves_measure_and_cross_check_gaps(
         ),
     )
     monkeypatch.setattr(
-        measurement,
+        source_budget,
         "_cross_check",
         lambda *_a, **_k: ({}, ("source_budget_scc_invalid", "source_budget_scc_invalid")),
     )
 
-    report = measurement.source_budget_report(tmp_path)
+    report = source_budget.source_budget_report(tmp_path)
 
     assert report["required_gaps"] == [
         "source_budget_carrier_unreadable:src/demo.py",

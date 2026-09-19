@@ -16,9 +16,11 @@ from typing import cast
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import field_validator
 from pydantic import model_validator
 
 from ethos.contracts.policy.cel import evaluate_cel_predicate
+from ethos.contracts.policy.cel import validate_cel_expression
 from ethos.contracts.value import FrozenTuple
 
 _CEL_RULE_IDS = frozenset(
@@ -113,6 +115,12 @@ class TopologyCelRule(BaseModel):
         "denied_legacy_generated_prefix",
         "denied_generated_prefix",
     ] = ""
+
+    @field_validator("expression")
+    @classmethod
+    def validate_predicate(cls, expression: str) -> str:
+        """Reject invalid or dynamically typed predicates before any path selection."""
+        return validate_cel_expression(expression, predicate=True)
 
 
 class GeneratedArtifactTopologyDeclaration(BaseModel):

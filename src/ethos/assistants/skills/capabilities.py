@@ -1,3 +1,5 @@
+"""Validate skill capabilities against declared commands and contained sources."""
+
 from __future__ import annotations
 
 from pathlib import Path

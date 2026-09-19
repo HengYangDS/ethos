@@ -1,3 +1,5 @@
+"""Verify native trust-anchor ownership and reject foreign write permissions."""
+
 from __future__ import annotations
 
 import json

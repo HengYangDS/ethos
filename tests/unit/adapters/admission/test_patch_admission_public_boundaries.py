@@ -1,3 +1,5 @@
+"""Reject escaping patch preimages and expose materialization failures."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

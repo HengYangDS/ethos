@@ -12,7 +12,6 @@ import ethos.domain.source_budget.measurement as source_budget
 from ethos.domain.source_budget.measurement_policy import PYTHON_CATEGORIES
 from tests.support.literal_cases import literal_case
 from tests.support.source_budget import budget_repository
-from tests.support.source_budget import fake_scc
 from tests.support.source_budget import measure_budget
 from tests.support.source_budget import tracked_budget_file
 
@@ -27,8 +26,7 @@ def test_aggregate_python_budget_uses_the_same_semantic_measurement(
     """Aggregate budgets cannot retain a different interpretation of Python source."""
     _, source = budget_repository(tmp_path)
     source.write_text(text, encoding="utf-8")
-    fake_scc(monkeypatch, tmp_path)
-    report = source_budget.source_budget_report(tmp_path)
+    report = measure_budget(monkeypatch, tmp_path)
     assert report["metrics"]["python_product"] == expected, report
 
 
@@ -38,8 +36,7 @@ def test_aggregate_python_budget_rejects_invalid_syntax(
     """A broken source file remains an explicit gap, not a passing small file."""
     _, source = budget_repository(tmp_path)
     source.write_text("def invalid(\n", encoding="utf-8")
-    fake_scc(monkeypatch, tmp_path)
-    report = source_budget.source_budget_report(tmp_path)
+    report = measure_budget(monkeypatch, tmp_path)
     assert report["verdict"] == "block", report
     assert "source_budget_carrier_unreadable:src/ethos/demo.py" in report["required_gaps"]
 

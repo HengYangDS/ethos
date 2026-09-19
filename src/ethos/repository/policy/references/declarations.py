@@ -184,6 +184,8 @@ def _declared_release_references(files: dict[str, str], owned: dict[str, set[str
 
 
 def _declared_tool_supply(files: dict[str, str], owned: dict[str, set[str]]) -> None:
+    if declaration_files(files, "mise"):
+        owned["executable"].add("mise")
     for text in declaration_files(files, "tool-supply").values():
         supply = _toml(text)
         if isinstance(tool := supply.get("tool"), str):

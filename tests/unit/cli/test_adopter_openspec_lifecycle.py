@@ -1,4 +1,4 @@
-"""Explicit package/adopter OpenSpec claim-state matrices.
+r"""Explicit package/adopter OpenSpec claim-state matrices.
 
 {
   "status": [
@@ -20,9 +20,9 @@
   ],
   "config": [
     ["adopter.config.missing", null, "block", null],
-    ["adopter.config.valid", "schema: spec-driven\\n", "pass", null],
+    ["adopter.config.valid", "schema: spec-driven\n", "pass", null],
     ["adopter.config.forbidden-default-store",
-     "schema: spec-driven\\ndefaultStore: private\\n", "block",
+     "schema: spec-driven\ndefaultStore: private\n", "block",
      ["openspec_config_default_store_forbidden"]]
   ],
   "unknown": [

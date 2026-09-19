@@ -1,3 +1,5 @@
+"""Measure source accurately and enforce public size and proof-policy boundaries."""
+
 from __future__ import annotations
 
 import json

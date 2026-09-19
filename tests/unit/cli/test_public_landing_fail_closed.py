@@ -1,3 +1,5 @@
+"""Reject stale landing effects and expose unsuccessful compensation."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

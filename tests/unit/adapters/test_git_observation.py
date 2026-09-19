@@ -1,3 +1,5 @@
+"""Bind Git observations to current executables, identity and explicit inputs."""
+
 from __future__ import annotations
 
 import os

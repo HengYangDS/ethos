@@ -1,3 +1,5 @@
+"""Detect alias facades and compatibility shells without owned behavior."""
+
 from __future__ import annotations
 
 import ast

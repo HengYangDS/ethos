@@ -1,3 +1,5 @@
+"""Observe provider emulation with bounded execution and source-bound evidence."""
+
 from __future__ import annotations
 
 import hashlib

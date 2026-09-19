@@ -1,3 +1,5 @@
+"""Require trusted predecessor policy for exact control-plane replacement."""
+
 from __future__ import annotations
 
 import json

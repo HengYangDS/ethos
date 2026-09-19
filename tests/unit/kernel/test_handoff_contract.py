@@ -1,3 +1,5 @@
+"""Bind cross-host handoff content while preserving local authority and safe reads."""
+
 from __future__ import annotations
 
 import os

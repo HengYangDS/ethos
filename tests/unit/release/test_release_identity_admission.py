@@ -1,3 +1,5 @@
+"""Admit exact release identities and reject conflicts or unsafe package stores."""
+
 from __future__ import annotations
 
 from datetime import UTC

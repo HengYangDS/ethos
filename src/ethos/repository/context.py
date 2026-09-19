@@ -1,3 +1,5 @@
+"""Derive repository context from the selected explicit adoption profile."""
+
 from pathlib import Path
 
 from ethos.repository.profile import INVALID_PROFILE_ERROR

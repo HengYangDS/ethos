@@ -1,3 +1,5 @@
+"""Resolve ref-move policy without implicit authority from missing declarations."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

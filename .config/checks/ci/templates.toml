@@ -16,6 +16,7 @@ forbidden_log_patterns = [
 ]
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
+  ".config/ci/mise-install.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
   "tools/ci/scripts/run-secrets-scan.sh",
@@ -38,6 +39,7 @@ forbidden_log_patterns = [
 ]
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
+  ".config/ci/mise-install.sh",
   "tools/ci/scripts/run-node-compatibility.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
@@ -72,3 +74,8 @@ provider = "gitlab"
 kind = "change"
 projection = ".gitlab/merge_request_templates/default.md"
 required_sections = ["summary", "evidence", "governance"]
+
+[compiler]
+source = ".config/ci/pipeline.cue"
+supply = { config = "mise.toml", lock = "mise.lock" }
+inputs = { gate_registry = "system/gates.toml", node = ".config/checks/node/runtime.toml" }

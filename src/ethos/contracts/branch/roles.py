@@ -1,3 +1,5 @@
+"""Define strict branch roles and their repository policy interpretation."""
+
 from __future__ import annotations
 
 import tomllib

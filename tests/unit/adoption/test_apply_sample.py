@@ -1,3 +1,5 @@
+"""Apply native adoption bindings with idempotence and failed-write cleanup."""
+
 from __future__ import annotations
 
 import os

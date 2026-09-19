@@ -1,3 +1,5 @@
+"""Require exact ref-transition intent and observe terminal effects without replay."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

@@ -1,3 +1,5 @@
+"""Observe release history and metadata without inventing findings for unreadable data."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

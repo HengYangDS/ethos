@@ -1,3 +1,5 @@
+"""Validate immutable adopter profiles without fallback from invalid selected state."""
+
 from __future__ import annotations
 
 import subprocess

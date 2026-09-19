@@ -38,20 +38,53 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The active priority is complete quality-assurance repair, not restoration of a
-historical CI job count. Current verified accepted source is 60124a8e; the sole
-owned work lane is work/20260915-commit-integrity. Historical source, runtime and
-hosted deliveries below retain their original scope and do not certify current
-quality completeness.
+The active priority is a usable independent product with complete quality
+assurance, not a historical CI job count or a repository-embedded implementation.
+The sole owned work lane is work/20260915-commit-integrity. Exact current source,
+runtime and hosted acceptance come from fresh observations, not this plan.
 
 The existing [proof-throughput design](../../openspec/changes/proof-throughput/design.md#quality-assurance-architecture-redesign)
-owns the evidence-backed quality architecture and bounded inventory. Its
-[official tasks](../../openspec/changes/proof-throughput/tasks.md) own progress.
-Execution order is exact source/policy admission, effective native quality owners,
-semantic CI partitions and reports, mandatory Forge enforcement, then exact
-local/package/hosted qualification. Earlier aggregate-only acceptance is reopened.
-Warnings, omitted checks, stale reports and unknown required outcomes cannot pass.
-No roadmap, broker restoration, parallel registry or adopter change is required.
+owns the bounded quality repair; its [official tasks](../../openspec/changes/proof-throughput/tasks.md)
+own progress. mise supplies the single native developer/CI tool selection and
+platform lock; uv/npm retain language dependency locks. Replace existing native
+downloaders and environment discovery at their consumers, without introducing a
+second task graph or requiring adopters to adopt ETHOS's development tools.
+CUE compiles shared CI declarations into Forge projections; CEL
+compiles typed policy predicates before runtime evaluation. Neither owns accepted
+intent, effects or reusable authorization. Delete superseded template and parser
+paths as their replacements become qualified, not by silently dropping checks.
+
+Complete the current CUE/CEL and CI admission closure, then deliver the independent
+CLI and MCP product path without waiting for unrelated global cleanup. Separate
+host product installation from repository binding: reuse immutable package supply
+across repositories, retain exact repository-selected identities and local Git
+facts, and migrate existing common-dir runtimes only after rollback and live-user
+safety are proven. CLI and MCP invoke one application owner with explicit repository,
+actor, input, cancellation and result boundaries. MCP must have a real client
+round trip; an internal Python module or packaged wheel alone is not installed
+product acceptance. A daemon is not a prerequisite for local stdio operation.
+
+Deliver the new projection compiler capability before activating CUE declarations
+that the installed predecessor cannot interpret. Keep source/runtime admission
+separate; an unavailable successor cannot be its own installation prerequisite.
+Native mise supply and the existing bootstrap now have local cold-start,
+staged-publication and failure-preservation evidence in the active Change.
+Finish exact compiler-capability acceptance, then CUE declaration/consumer
+cutover and hosted qualification. Retire remaining installers rather than
+preserve parallel version owners. These are consecutive accepted boundaries
+within the same Change, not a second plan or a reason to postpone product delivery.
+
+The typing gate currently covers product source only. The same-tool accepted
+baseline comparison found 423 diagnostics versus 419 in the candidate, all in
+tests/tools and with no new diagnostic signatures. Close these at report/fixture
+type owners and extend the existing gate scope; do not suppress diagnostics or
+treat source-only green as whole-repository assurance.
+
+Semantic CI partitions, native warning handling, complete reports and mandatory
+Forge admission remain required. Verify cold/warm results and negative cases before
+reusing evidence. Preserve independent product/test ceilings of 50,000 ELOC,
+500 ELOC per Python file, 95 percent combined coverage and the 900-second reference
+proof bound. No second roadmap, broker restoration or adopter mutation is required.
 
 Release continuity is delivered: repository proof remains applicable after
 authoring retirement; distinct valid execution contexts do not contradict
@@ -1979,17 +2012,19 @@ model; an absent optional carrier remains an observed profile fact.
 ### Product Surfaces And Experience
 
 One typed application service projects the same kernel result to CLI, Python SDK,
-schemas/conformance fixtures, optional stateless MCP or A2A adapters, and native
-CI/forge carriers. A surface may adapt transport and presentation only; it cannot
+schemas/conformance fixtures, the required stateless MCP adapter, optional A2A
+adapters, and native CI/forge carriers. A surface may adapt transport and presentation only; it cannot
 recompile policy, retain lifecycle state, or invent a second error taxonomy.
 
 The CLI defaults to concise human output and progressively reveals evidence;
 `--json` is stable automation output, not a separate behavior. Diagnostics carry
 one verdict, stable code, plain-language cause, exact evidence boundary, singular
-next action, and user-decision flag. Adoption is plan-first and idempotent. The
-installed product and contributor workflow both execute from an explicit
-project-local environment and lock. Recovery starts from Git, OpenSpec, fresh
-Facts, and Attestations rather than a surviving chat or proprietary agent state.
+next action, and user-decision flag. Adoption is plan-first and idempotent. The installed product has one host installation and immutable, explicitly
+selected version supply. Repository bindings select that supply without copying
+the product into each checkout; repository policy and Git-local state retain their
+own lifecycle. Contributor environments remain project-local and locked. Recovery
+starts from Git, OpenSpec, fresh Facts, and Attestations rather than a surviving
+chat or proprietary agent state.
 
 The terminal acceptance is task-based rather than screenshot-based: a new human,
 an autonomous agent, and an SDK client can each inspect, adopt, prove, recover,

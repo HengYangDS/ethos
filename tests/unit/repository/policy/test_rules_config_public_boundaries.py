@@ -1,3 +1,5 @@
+"""Keep missing rules distinct from malformed or unsupported policy."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

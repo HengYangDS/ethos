@@ -7,6 +7,7 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
@@ -224,14 +225,11 @@ def test_provider_configuration_is_protected_outside_agent_identity(
     assert absent["required_gaps"] == ["independent_verification_receipt_required"]
     assert str(provider.receipt_store) in absent["next_action"]
     assert absent["provider"]["issuer"] == provider.issuer
-    config.chmod(0)
-    try:
+    with patch.object(type(config), "read_text", side_effect=PermissionError):
         assert load_independent_verification_provider(config) == (
             None,
             ["independent_verification_provider_config_unreadable"],
         )
-    finally:
-        config.chmod(0o600)
 
 
 @pytest.mark.parametrize(

@@ -2156,8 +2156,9 @@ Markdown artifact exposes every returned gate. Thirty focused receipt and
 provider-projection cases pass in 20.55 seconds, with temporary roots removed.
 This is not complete quality acceptance: warning adapters, whole-module docs,
 platform admission, current hosted execution and test-source budget remain open.
-The current test budget exceeded 50,000 and is not waived. Source-based semantic
-projection tests inherited from the preceding batch remain intentionally RED.
+At that intermediate snapshot the test budget exceeded 50,000 and inherited
+projection tests remained RED. The later integrated boundary repair below
+supersedes those intermediate statuses; no budget waiver was granted.
 
 ## Quality Assurance Architecture Redesign
 
@@ -2238,6 +2239,14 @@ Docstrings, JavaScript semantics, configuration discovery, native CI partitions,
 required Forge admission and complete report delivery remain open. A later
 candidate must qualify all these obligations; the historical monolithic CI green
 is not acceptance of this architecture.
+
+The first exact full proof at b0d344805 completed in 741.74 seconds with
+4,014 tests passing, one skip, 95.05 percent combined coverage and successful
+package acceptance, but remained BLOCK on a test import's private alias.
+That alias is removed rather than exempted. Module layout, import boundaries,
+docstrings and shell checks now precede behavioral execution; real registry
+counterexamples reject expensive work after any fails or becomes unknown.
+Timing below the reference threshold did not make the blocked attempt accepted.
 
 ### Execution, Reports And Admission
 

@@ -147,7 +147,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "unit-architecture"
 kind = "test"
-depends_on = ["ruff", "schemas", "config-quality", "python-types", "python-size", "source-budget", "architecture-projection", "format-selection"]
+depends_on = ["ruff", "schemas", "config-quality", "python-types", "python-size", "source-budget", "architecture-projection", "format-selection", "module-layout", "import-boundaries", "docstrings", "shell-lint"]
 command = ["{python}", "-m", "nox", "-s", "tests"]
 policy = "required"
 profile = "product-toolchain"

@@ -126,77 +126,34 @@ def test_direct_measurement_is_clean_when_bounded_counters_agree(
     assert "digest" not in report["inventory"]
 
 
-def test_retired_evidence_path_does_not_exempt_maintained_source(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A legacy location cannot hide current source from its ordinary budget."""
+def test_record_measurement_preserves_totals_and_tracks_growth(tmp_path, monkeypatch):
+    """Archive records remain counted and cross-checked without entering source budgets."""
     budget_repository(tmp_path)
-    tracked_budget_file(tmp_path, "evidence/decision.py", "FIRST = 1\nSECOND = 2\n")
-    report = measure_budget(monkeypatch, tmp_path)
-    assert report["metrics"]["python_total"] == 4
-    assert report["metrics"]["record_total"] == 0
-
-
-def test_measurement_separates_exact_immutable_record_roots(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    budget_repository(tmp_path)
-    tracked_budget_file(
-        tmp_path, "openspec/changes/archive/closed/decision.py", "FIRST = 1\nSECOND = 2\n"
+    record = tracked_budget_file(
+        tmp_path, "openspec/changes/archive/closed/decision.py", "FIRST = 1\n"
     )
     tracked_budget_file(
         tmp_path, "openspec/changes/archive/closed/receipt.json", '{"closed": true}\n'
     )
-    report = measure_budget(monkeypatch, tmp_path)
-
-    assert report["required_gaps"] == []
-    assert report["metrics"]["python_total"] == 2
-    assert report["metrics"]["record_total"] == 3
-    assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
-
-
-def test_report_exposes_implementation_and_record_cross_check_totals(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    budget_repository(tmp_path)
-    tracked_budget_file(tmp_path, "openspec/changes/archive/closed/decision.py", "RECORDED = 1\n")
-    report = measure_budget(
-        monkeypatch,
-        tmp_path,
-        {
-            ".config/checks/format/selection.toml": 15,
-            ".ethos/rules.toml": 1,
-            "src/ethos/demo.py": 2,
-            "openspec/changes/archive/closed/decision.py": 1,
-        },
-    )
-
-    assert report["required_gaps"] == []
-    assert report["cross_check"]["python_total"] == report["metrics"]["python_total"]
-    assert report["cross_check"]["global_total"] <= report["metrics"]["global_total"]
-    assert report["metrics"]["record_total"] == 1
-    assert report["cross_check"]["record_total"] == 1
-    assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
-
-
-def test_generated_lock_is_dependency_evidence_not_owned_source(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    budget_repository(tmp_path)
-    before = measure_budget(monkeypatch, tmp_path)
-    tracked_budget_file(tmp_path, "package-lock.json", '{\n  "lockfileVersion": 3\n}\n')
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["required_gaps"] == []
-    assert report["inventory"]["category_counts"]["dependency_resolution"] == 1
-    assert report["metrics"]["global_total"] == before["metrics"]["global_total"]
-    assert report["cross_check"]["global_total"] == before["cross_check"]["global_total"]
-    assert report["metrics"]["generated_evidence_total"] > 0
-    assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
+    counts = {
+        ".config/checks/format/selection.toml": 15,
+        ".ethos/rules.toml": 1,
+        "src/ethos/demo.py": 2,
+        "openspec/changes/archive/closed/decision.py": 1,
+        "openspec/changes/archive/closed/receipt.json": 1,
+    }
+    before = measure_budget(monkeypatch, tmp_path, counts)
+    assert before["metrics"]["record_total"] == before["cross_check"]["record_total"] == 2
+    assert before["metrics"]["python_total"] == before["cross_check"]["python_total"] == 2
+    assert before["cross_check"]["global_total"] <= before["metrics"]["global_total"]
+    assert before["cross_check"]["file_count"] == before["inventory"]["file_count"]
+    assert before["required_gaps"] == []
+    record.write_text("FIRST = 1\nSECOND = 2\nTHIRD = 3\n")
+    after = source_budget.source_budget_report(tmp_path)
+    assert after["metrics"]["record_total"] == 4
+    assert after["metrics"]["python_total"] == before["metrics"]["python_total"]
+    assert after["metrics"]["global_total"] == before["metrics"]["global_total"]
+    assert after["required_gaps"] == []
 
 
 @pytest.mark.parametrize(
@@ -214,10 +171,15 @@ def test_ecosystem_lockfile_patterns_share_one_evidence_class(
     relative: str,
 ) -> None:
     budget_repository(tmp_path)
+    before = measure_budget(monkeypatch, tmp_path)
     tracked_budget_file(tmp_path, relative, "resolved dependency graph\n")
-    report = measure_budget(monkeypatch, tmp_path)
-
+    report = source_budget.source_budget_report(tmp_path)
+    assert report["required_gaps"] == []
     assert report["inventory"]["category_counts"]["dependency_resolution"] == 1
+    assert report["metrics"]["global_total"] == before["metrics"]["global_total"]
+    assert report["cross_check"]["global_total"] == before["cross_check"]["global_total"]
+    assert report["metrics"]["generated_evidence_total"] > 0
+    assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
 
 
 def test_ordinary_structured_files_cannot_impersonate_lockfile_evidence(
@@ -230,38 +192,6 @@ def test_ordinary_structured_files_cannot_impersonate_lockfile_evidence(
 
     assert report["inventory"]["category_counts"].get("dependency_resolution", 0) == 0
     assert report["inventory"]["category_counts"]["json"] == 1
-
-
-def test_record_growth_is_visible_without_increasing_implementation_totals(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    budget_repository(tmp_path)
-    record = tracked_budget_file(
-        tmp_path, "openspec/changes/archive/closed/decision.py", "FIRST = 1\n"
-    )
-    before = measure_budget(monkeypatch, tmp_path)
-
-    record.write_text("FIRST = 1\nSECOND = 2\nTHIRD = 3\n", encoding="utf-8")
-    after = source_budget.source_budget_report(tmp_path)
-
-    assert after["metrics"]["record_total"] == before["metrics"]["record_total"] + 2
-    assert after["metrics"]["python_total"] == before["metrics"]["python_total"]
-    assert after["metrics"]["global_total"] == before["metrics"]["global_total"]
-
-
-def test_record_root_does_not_hide_an_unclassified_executable(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    budget_repository(tmp_path)
-    tracked_budget_file(
-        tmp_path, "openspec/changes/archive/closed/opaque", "opaque\n", executable=True
-    )
-    report = measure_budget(monkeypatch, tmp_path)
-
-    expected = "source_budget_executable_unclassified:openspec/changes/archive/closed/opaque"
-    assert expected in report["required_gaps"]
 
 
 def test_terminal_verdict_uses_canonical_effective_lines_not_physical_cross_check(
@@ -303,12 +233,14 @@ def test_python_carrier_roles_cannot_compensate_for_one_another(
     assert not any("terminal_exceeded:global_total" in gap for gap in report["required_gaps"])
 
 
+@pytest.mark.parametrize("other", ["demo.py", "evidence/decision.py"])
 def test_python_role_partition_is_complete_and_non_overlapping(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    other: str,
 ) -> None:
     budget_repository(tmp_path)
-    for relative in ("tests/test_demo.py", "tools/demo.py", "demo.py"):
+    for relative in ("tests/test_demo.py", "tools/demo.py", other):
         tracked_budget_file(tmp_path, relative, "FIRST = 1\nSECOND = 2\n")
     report = measure_budget(monkeypatch, tmp_path)
 
@@ -319,6 +251,7 @@ def test_python_role_partition_is_complete_and_non_overlapping(
         "python_other": 2,
     }
     assert report["metrics"]["python_total"] == 8
+    assert report["metrics"]["record_total"] == 0
 
 
 def test_overlapping_python_role_patterns_fail_closed(
@@ -358,52 +291,39 @@ def test_global_total_blocks_without_any_python_role_exceeding(
     )
 
 
+@pytest.mark.parametrize("unknown", ["bin/tool", "openspec/changes/archive/closed/opaque"])
 def test_extensionless_hook_is_counted_and_unknown_executable_blocks(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    unknown: str,
 ) -> None:
     budget_repository(tmp_path)
     tracked_budget_file(tmp_path, ".githooks/pre-push", "#!/bin/sh\necho ready\n", executable=True)
-    tracked_budget_file(tmp_path, "bin/tool", "opaque\n", executable=True)
+    tracked_budget_file(tmp_path, unknown, "opaque\n", executable=True)
     report = measure_budget(monkeypatch, tmp_path)
 
     assert report["metrics"]["shell"] >= 1
-    assert "source_budget_executable_unclassified:bin/tool" in report["required_gaps"]
+    assert f"source_budget_executable_unclassified:{unknown}" in report["required_gaps"]
 
 
-def test_scc_cross_check_accepts_a_stricter_physical_markdown_count(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.parametrize("complete", [False, True])
+def test_native_counter_preserves_file_coverage_and_comparison_direction(
+    tmp_path, monkeypatch, complete
+):
     budget_repository(tmp_path, tolerance=(0, 0))
-    report = measure_budget(
-        monkeypatch,
-        tmp_path,
-        {
-            ".config/checks/format/selection.toml": 20,
-            ".ethos/rules.toml": 1,
-            "src/ethos/demo.py": 2,
-        },
+    counts = (
+        {".config/checks/format/selection.toml": 20, ".ethos/rules.toml": 1, "src/ethos/demo.py": 2}
+        if complete
+        else {"src/ethos/demo.py": 4}
     )
-
-    assert report["cross_check"]["global_total"] > report["metrics"]["global_total"]
-    assert not any("global_total_disagrees" in gap for gap in report["required_gaps"])
-
-
-def test_scc_file_set_and_canonical_overcount_disagreement_block(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    budget_repository(tmp_path, tolerance=(0, 0))
-    report = measure_budget(
-        monkeypatch,
-        tmp_path,
-        {"src/ethos/demo.py": 4},
-        include_all=False,
-    )
-
-    assert any(gap.startswith("source_budget_scc_file_missing:") for gap in report["required_gaps"])
-    assert any("_disagrees:" in gap for gap in report["required_gaps"])
+    report = measure_budget(monkeypatch, tmp_path, counts, include_all=complete)
+    gaps = report["required_gaps"]
+    if complete:
+        assert report["cross_check"]["global_total"] > report["metrics"]["global_total"]
+        assert not any("global_total_disagrees" in gap for gap in gaps)
+    else:
+        assert any(gap.startswith("source_budget_scc_file_missing:") for gap in gaps)
+        assert any("_disagrees:" in gap for gap in gaps)
 
 
 def test_structured_measurement_cannot_be_reduced_by_minifying_json(

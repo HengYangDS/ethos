@@ -56,9 +56,20 @@ def test_provider_report_preserves_verdict_and_root(monkeypatch, tmp_path, paylo
         seen.append(root)
         return payload
 
-    gate = _gate("ethos.test:report")
-    result = _runner(monkeypatch, report=report).run(_node(gate), gate, root=tmp_path)
-    assert (result.verdict, result.exit_code, seen) == (verdict, int(verdict != "pass"), [tmp_path])
+    gate = _gate("ethos.test:report", "ethos.test:second")
+
+    def second(root):
+        seen.append(("second", root))
+        return {"verdict": "pass"}
+
+    result = _runner(monkeypatch, report=report, second=second).run(
+        _node(gate), gate, root=tmp_path
+    )
+    assert (result.verdict, result.exit_code) == (verdict, int(verdict != "pass"))
+    assert seen == [tmp_path, ("second", tmp_path)]
+    assert [item["provider"] for item in json.loads(result.stdout)["providers"]] == list(
+        gate.providers
+    )
     if gap:
         assert result.diagnostics[0]["required_gaps"] == [gap]
 
@@ -67,6 +78,7 @@ def test_provider_report_preserves_verdict_and_root(monkeypatch, tmp_path, paylo
     ("tool_path", "outcome", "verdict", "state", "gap"),
     [
         (None, None, "unknown", "missing_tool", "quality_tool_missing:checker"),
+        (None, None, "pass", "skipped", ""),
         (
             "/bin/checker",
             OSError("offline"),
@@ -93,7 +105,12 @@ def test_quality_tool_public_failure_matrix(
     state: str,
     gap: str,
 ) -> None:
-    monkeypatch.setattr(gate_tool.shutil, "which", lambda _tool: tool_path)
+    def which(_tool):
+        if state == "skipped":
+            pytest.fail("empty input must not resolve a host tool")
+        return tool_path
+
+    monkeypatch.setattr(gate_tool.shutil, "which", which)
 
     def run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         if isinstance(outcome, OSError):
@@ -107,33 +124,15 @@ def test_quality_tool_public_failure_matrix(
         gate_id="quality",
         tool="checker",
         command=["checker", "--strict"],
-        files=["src/example.py"],
+        files=[] if state == "skipped" else ["src/example.py"],
     )
 
     assert (report["verdict"], report["state"]) == (verdict, state)
     assert report["required_gaps"] == ([gap] if gap else [])
+    if state == "skipped":
+        assert report["file_count"] == 0
     if state == "failed":
         assert str(report["stdout"]).endswith("[trimmed 1000 bytes]")
-
-
-def test_quality_tool_skips_empty_file_set_without_tool_lookup(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setattr(
-        gate_tool.shutil,
-        "which",
-        lambda _tool: pytest.fail("empty input must not resolve a host tool"),
-    )
-
-    report = gate_tool.quality_tool_report(
-        root=tmp_path, gate_id="quality", tool="checker", command=["checker"], files=[]
-    )
-
-    assert (report["verdict"], report["state"], report["file_count"]) == (
-        "pass",
-        "skipped",
-        0,
-    )
 
 
 def test_markdown_link_gate_excludes_deleted_tracked_paths(
@@ -210,29 +209,11 @@ def test_command_gate_executes_declared_python_not_ambient_canonical_identity(
     assert not marker.exists()
 
 
-def test_providers_are_aggregated_in_declaration_order(monkeypatch, tmp_path: Path) -> None:
-    calls: list[str] = []
-
-    def first(_: Path) -> dict[str, bool]:
-        calls.append("first")
-        return {"verdict": "pass"}
-
-    def second(_: Path) -> dict[str, bool]:
-        calls.append("second")
-        return {"verdict": "pass"}
-
-    gate = _gate("ethos.test:first", "ethos.test:second")
-    result = _runner(monkeypatch, first=first, second=second).run(_node(gate), gate, root=tmp_path)
-
-    assert calls == ["first", "second"]
-    assert [item["provider"] for item in json.loads(result.stdout)["providers"]] == [
-        "ethos.test:first",
-        "ethos.test:second",
-    ]
-
-
-def test_provider_exception_becomes_failed_result(monkeypatch, tmp_path: Path) -> None:
-    def broken(_: Path) -> dict[str, bool]:
+@pytest.mark.parametrize("non_mapping", [False, True])
+def test_provider_exception_becomes_failed_result(monkeypatch, tmp_path: Path, non_mapping) -> None:
+    def broken(_: Path):
+        if non_mapping:
+            return "not-a-mapping"
         message = "boom"
         raise RuntimeError(message)
 
@@ -240,7 +221,13 @@ def test_provider_exception_becomes_failed_result(monkeypatch, tmp_path: Path) -
     result = _runner(monkeypatch, broken=broken).run(_node(gate), gate, root=tmp_path)
 
     assert (result.verdict, result.exit_code) == ("block", 1)
-    assert result.diagnostics[0]["error"] == "RuntimeError: boom"
+    assert result.diagnostics[0]["kind"] == "gate_provider_error"
+    expected = (
+        "TypeError: gate provider must return a mapping: ethos.test:broken"
+        if non_mapping
+        else "RuntimeError: boom"
+    )
+    assert result.diagnostics[0]["error"] == expected
 
 
 def test_command_envelope_uses_verdict_and_plain_stderr_is_not_a_warning() -> None:

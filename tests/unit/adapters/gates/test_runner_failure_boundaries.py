@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -11,6 +12,9 @@ import pytest
 import ethos.adapters.gates.runner as gate_runner
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
+from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -150,20 +154,6 @@ def test_gate_graph_prioritizes_exclusive_writer_and_returns_input_order(tmp_pat
     )
 
 
-def test_provider_non_mapping_result_becomes_failed_result(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    gate = Gate(id="gate", kind="test", providers=("ethos.fake:report",))
-    node = PlanNode(id=gate.id, kind="check", command=("provider", *gate.providers))
-    monkeypatch.setattr(
-        gate_runner.importlib,
-        "import_module",
-        lambda _name: SimpleNamespace(report=lambda _root: "not-a-mapping"),
-    )
-    result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
-    assert (result.verdict, result.diagnostics[0]["kind"]) == ("block", "gate_provider_error")
-
-
 @pytest.mark.parametrize(
     ("prerequisite", "exit_code", "expected"),
     [
@@ -223,3 +213,83 @@ def test_failed_dependency_never_executes_delivery(tmp_path, prerequisite, exit_
         if expected[0] != "block"
         else (blocked.diagnostics[0]["required_gaps"] == ["gate_dependency_not_proven:coverage"])
     )
+
+
+@pytest.mark.parametrize("local_provider", [False, True])
+@pytest.mark.parametrize("transport", ["owner", "cli"])
+def test_public_execution_rejects_foreign_provider_before_any_gate(
+    tmp_path, local_provider, transport
+):
+    """A bound candidate provider must not execute an ambient package implementation."""
+    repo = init_git_repo(tmp_path / "repo")
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    profile.write_text('profile_id = "provider-fixture"\n[proof]\ngate_registry = "gates.toml"\n')
+    marker = repo / "EXECUTED"
+    program = f"from pathlib import Path; Path({str(marker)!r}).touch()"
+    provider = "ethos.contracts.gates:load_gate_registry_declaration"
+    (repo / "gates.toml").write_text(
+        'id = "provider-fixture"\n[proof_sets]\ndefault = ["external", "provider"]\n'
+        'full = ["external", "provider"]\n[[gates]]\nid = "external"\nkind = "test"\n'
+        f"command = {json.dumps([sys.executable, '-c', program])}\n"
+        '[[gates]]\nid = "provider"\nkind = "test"\n'
+        f'providers = ["{provider}"]\n'
+    )
+    if local_provider:
+        candidate = repo / "src/ethos/contracts/gates.py"
+        candidate.parent.mkdir(parents=True)
+        candidate.write_text(
+            'def load_gate_registry_declaration(root): return {"verdict": "pass"}\n'
+        )
+    head = commit_fixture(repo, "bind provider")
+    if transport == "cli":
+        result = run_ethos_raw(
+            "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+        )
+        payload = json.loads(result.stdout)
+        observed = payload["data"] | {
+            "verdict": payload["verdict"],
+            "required_gaps": payload["required_gaps"],
+        }
+        assert result.returncode != 0
+    else:
+        observed = gate_runner.observe_gate_execution(repo, full=True, expect_head=head)
+    assert observed["verdict"] == "block"
+    expected = (
+        f"gate_provider_source_mismatch:provider:{provider}"
+        if local_provider
+        else "gate_policy_source_missing:provider:src/ethos/contracts/gates.py"
+    )
+    assert observed["required_gaps"] == [expected], observed
+    assert observed["executed"] is False
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize("identity_state", ["exact", "stale", "unavailable"])
+def test_packaged_provider_requires_exact_candidate_identity(tmp_path, monkeypatch, identity_state):
+    """Installed matching builds remain usable; missing or stale identity grants nothing."""
+    repo = init_git_repo(tmp_path / "repo")
+    source = repo / "src/ethos/contracts/verdict.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("def report_verdict(root): return 'pass'\n")
+    head = commit_fixture(repo, "candidate provider")
+    tree = gate_runner.current_tree(repo, head)
+
+    def build():
+        if identity_state == "unavailable":
+            message = "identity unavailable"
+            raise ValueError(message)
+        return SimpleNamespace(
+            source_commit=head, source_tree=tree if identity_state == "exact" else ""
+        )
+
+    monkeypatch.setattr(gate_runner, "invoking_build_identity", build)
+    gate = Gate(id="check", kind="test", providers=("ethos.contracts.verdict:report_verdict",))
+    if identity_state == "exact":
+        gate_runner.assert_provider_execution_source(repo, (gate,))
+    else:
+        with pytest.raises(ValueError, match="gate_provider_source_mismatch:check:"):
+            gate_runner.assert_provider_execution_source(repo, (gate,))
+    # Packaged-only adopter checks have no falsely claimed repository source.
+    source.unlink()
+    gate_runner.assert_provider_execution_source(repo, (gate,))

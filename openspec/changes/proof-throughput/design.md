@@ -2329,8 +2329,8 @@ rendered/observations fields, and its regression requires the exact
 a runtime unable to understand it. Deliver compiler capability before the
 declaration cutover through the existing accepted transition boundary; do not make
 an already activated new runtime a prerequisite for proving its own successor.
-Exact proof, installation and hosted observations are still unperformed for this
-candidate. The working-root mise declaration and lock are the sole editable
+Exact proof has executed and failed; installation and hosted qualification remain
+unperformed for this candidate. The working-root mise declaration and lock are the sole editable
 native selections; removed evidence copies must not become alternate authorities.
 
 Native Ruff D rules enforce module/package documentation across product, tests
@@ -2487,3 +2487,32 @@ Stale observations invalidate only claims that depend on them. Suggested externa
 framework mechanisms remain research inputs pending a named consumer, measured
 benefit and source verification; this repair introduces no additional platform,
 persistent graph, task ledger or permission authority.
+
+
+### Provider Execution Identity And Failure Left Shift
+
+The exact full proof at 449b43fcd4c2b34ad758b0125d424970e28ba75f failed.
+Its 556.81-second attempt passed 4,082 tests but measured 94.98-percent combined
+coverage. Build, installed-package smoke and SBOM were dependency-blocked, so
+that duration is not a successful complete-proof measurement. The immutable
+invoking predecessor imported its provider implementations while command gates
+used the candidate environment. Source binding alone did not prevent the mixed
+implementation.
+
+The shared gate executor now checks repository-bound provider execution before
+starting any node. Matching source checkouts and exact-commit/tree packages are
+eligible; packaged-only adopter checks gain no source-checkout requirement.
+The normal locked source CLI supplies candidate execution. Current public effect
+admission and trusted-prior control replacement still govern acceptance and
+runtime activation. No runtime is patched, no CLI loopback is introduced and
+there is no second provider dispatcher.
+
+The RED fixture demonstrated an external effect before detecting the wrong
+provider. The repaired public owner and CLI reject it without that effect.
+Focused evidence includes provider-source-red.log, provider-source-focused.log,
+provider-native-boundaries.log and provider-budget-focused.log in the existing
+commit-integrity evidence directory. Native CUE counterexamples additionally
+reject wrong executable versions, unexpected provider sets and compilation
+failure. Duplicate archive-budget and provider-error fixture paths are merged
+without removing their distinct assertions. Focused green is not a new exact
+full proof; coverage and accepted runtime delivery remain open.

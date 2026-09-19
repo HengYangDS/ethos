@@ -461,3 +461,25 @@ expressions. Candidate-supplied observations SHALL NOT certify candidate output.
 - **WHEN** installer bytes differ from the selected native generator output
 - **THEN** the existing projection gate rejects the drift
 - **AND** the documented lexical normalization and native shell formatting remain deterministic
+
+
+### Requirement: Provider execution preserves the bound implementation
+
+A proof binding repository provider source SHALL execute that source or a package
+with the same source commit and tree. A mismatched invoking package SHALL be
+rejected before any gate executes. Package-supplied adopter checks without
+repository implementation bindings remain valid.
+
+#### Scenario: Old runtime would mix with candidate toolchain
+
+- **WHEN** a graph binds candidate provider source but the loaded package is older
+- **THEN** execution reports the provider/source mismatch before external checks start
+- **AND** no Attestation or passing host observation is produced
+- **AND** recovery selects the admitted checkout's locked execution environment
+
+#### Scenario: Matching execution and ordinary adoption
+
+- **WHEN** providers execute from the candidate checkout or its matching package
+- **THEN** ordinary gate execution remains available
+- **AND** packaged-only adopter providers do not inherit a source-checkout requirement
+- **AND** current effect admission and trusted-prior control replacement remain separate

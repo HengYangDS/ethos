@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from datetime import UTC
 from datetime import datetime
 from importlib import import_module
@@ -334,7 +335,9 @@ def emulator_evidence(
     paths = {
         "config": CONFIG_RELATIVE_PATH,
         "projected_file": str(entry["projection"]),
-        "template_file": str(entry["template"]),
+        "source_file": tomllib.loads((ROOT / CONFIG_RELATIVE_PATH).read_text())["compiler"][
+            "source"
+        ],
     }
     kind = f"local_{provider}_emulator"
     output_path = output or ROOT / "build/evidence/local-ci" / provider / f"{mode}.json"
@@ -460,9 +463,17 @@ cli_app = App(name="ethos-ci", help="ETHOS CI projection and local emulator help
 
 @cli_app.command(name="check-templates")
 def check_templates_command(
-    *, json_output: Annotated[bool, Parameter(name="--json")] = False
+    *, json_output: Annotated[bool, Parameter(name="--json")] = False, render: bool = False
 ) -> int:
-    """Check hosted CI template projections against their generated surfaces."""
+    """Check native CUE compilation against the hosted provider surfaces."""
+    if render:
+        rendered = _projection.compile_providers(ROOT)
+        outputs = {
+            entry["projection"]: rendered[entry["provider"]]
+            for entry in _projection.projection_entries()
+        }
+        sys.stdout.write(json.dumps(outputs, indent=2) + "\n")
+        return 0
     return check_templates(json_output=json_output)
 
 

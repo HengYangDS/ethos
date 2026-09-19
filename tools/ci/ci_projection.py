@@ -169,10 +169,12 @@ def _forge_surface_reports() -> tuple[list[dict[str, Any]], list[dict[str, str]]
 def check_templates(*, json_output: bool) -> int:
     failures: list[dict[str, str]] = []
     projections: list[dict[str, Any]] = []
-    relations = {item.output: item for item in observe_projections(ROOT)}
+    rendered: dict[str, str] = {}
+    relations = {}
     try:
+        relations = {item.output: item for item in observe_projections(ROOT)}
         validate_mise_installer(ROOT)
-        compile_providers(
+        rendered = compile_providers(
             ROOT,
             observations={
                 str(entry["provider"]): (ROOT / str(entry["projection"])).read_text(
@@ -183,51 +185,46 @@ def check_templates(*, json_output: bool) -> int:
         )
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
         failures.append({"provider": "compiler", "reason": str(error)})
-    for entry in projection_entries():
+    for entry in projection_entries() if relations else ():
         provider = str(entry["provider"])
-        template = ROOT / str(entry["template"])
         projection = ROOT / str(entry["projection"])
         try:
             emulation = emulator_declaration(entry)
         except SystemExit as exc:
             failures.append({"provider": provider, "reason": str(exc)})
             continue
-        missing = [
-            rel
-            for rel, path in [
-                (str(entry["template"]), template),
-                (str(entry["projection"]), projection),
-            ]
-            if not path.is_file()
-        ]
         owner_missing = [
             script
             for script in entry.get("required_owner_scripts", [])
             if not (ROOT / str(script)).is_file()
         ]
-        if missing:
-            reason = f"missing files: {', '.join(missing)}"
-            failures.append({"provider": provider, "reason": reason})
+        if not projection.is_file():
+            failures.append(
+                {"provider": provider, "reason": f"missing projection: {entry['projection']}"}
+            )
             continue
         if owner_missing:
             reason = f"missing owner scripts: {', '.join(owner_missing)}"
             failures.append({"provider": provider, "reason": reason})
         relation = relations[str(entry["projection"])]
-        match = (ROOT / relation.source).read_bytes() == projection.read_bytes()
-        if not match:
-            reason = (
-                f"projection drift: {projection.relative_to(ROOT)} != {template.relative_to(ROOT)}"
+        match = rendered.get(provider) == projection.read_text(encoding="utf-8")
+        if not match and rendered:
+            failures.append(
+                {"provider": provider, "reason": f"projection byte drift: {entry['projection']}"}
             )
-            failures.append({"provider": provider, "reason": reason})
         projections.append(
             {
                 "provider": provider,
-                "template": str(template.relative_to(ROOT)),
+                "source": relation.source,
                 "projection": str(projection.relative_to(ROOT)),
                 "emulation": emulation,
-                "template_sha256": _sha256(template),
+                "input_sha256": {
+                    path: _sha256(ROOT / path)
+                    for path in relation.materials
+                    if path != relation.output and (ROOT / path).is_file()
+                },
                 "projection_sha256": _sha256(projection),
-                "projection_matches_template": match,
+                "projection_matches_source": match,
                 "required_owner_scripts": list(entry.get("required_owner_scripts", [])),
                 "provider_specific_owner_scripts": dict(
                     entry.get("provider_specific_owner_scripts", {})

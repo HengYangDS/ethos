@@ -35,29 +35,21 @@ def test_format_selection_receipt_exposes_owner_for_every_tracked_file(carrier_r
         payload[key]
         for key in ("unowned_file_count", "multiply_owned_file_count", "unverified_file_count")
     )
-    assert all(
-        entry["format_owner"]
-        and entry["format_check"]
-        and entry["validation_owner"]
-        and entry["validation_command"]
-        and entry["mutation_policy"]
-        for entry in payload["assignments"]
+    fields = (
+        "format_owner",
+        "format_check",
+        "validation_owner",
+        "validation_command",
+        "mutation_policy",
     )
+    assert all(entry[field] for entry in payload["assignments"] for field in fields)
 
 
 def test_current_openspec_markdown_has_generic_and_semantic_validation(carrier_report) -> None:
     assignments = {entry["path"]: entry for entry in carrier_report["assignments"]}
-    active_tasks = sorted(
-        path.relative_to(ROOT).as_posix()
-        for path in (ROOT / "openspec" / "changes").glob("*/tasks.md")
-        if path.relative_to(ROOT).as_posix() in assignments
-    )
-
-    for relative in (
-        "openspec/config.yaml",
-        "openspec/specs/quality/spec.md",
-        *active_tasks,
-    ):
+    selected = {"openspec/config.yaml", "openspec/specs/quality/spec.md"}
+    selected.update(path for path in assignments if Path(path).match("openspec/changes/*/tasks.md"))
+    for relative in sorted(selected):
         assignment = assignments[relative]
         assert assignment["format_owner"] == "official-openspec"
         assert assignment["validation_owner"] == "official-openspec"
@@ -85,7 +77,7 @@ def test_native_carriers_separate_canonicalization_from_validation(carrier_repor
     expected = {
         "src/ethos/cli.py": ("ruff", "ruff"),
         "pyproject.toml": ("taplo", "taplo"),
-        ".github/workflows/ci.yml": ("prettier", "yamllint"),
+        ".github/workflows/ci.yml": ("cue", "cue"),
         "distributions/npm/bin/ethos.mjs": ("prettier", "prettier"),
         "tools/ci/scripts/bootstrap-python.sh": ("shfmt", "shellcheck"),
         "assets/brand/ethos-logo.svg": ("svgo", "svgo"),

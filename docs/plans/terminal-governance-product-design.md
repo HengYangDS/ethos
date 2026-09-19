@@ -67,14 +67,17 @@ product acceptance. A daemon is not a prerequisite for local stdio operation.
 Deliver the new projection compiler capability before activating CUE declarations
 that the installed predecessor cannot interpret. Keep source/runtime admission
 separate; an unavailable successor cannot be its own installation prerequisite.
-Native mise supply and the existing bootstrap now have local cold-start,
-staged-publication and failure-preservation evidence in the active Change.
-Finish provider/source correspondence and genuine coverage gaps before repeating
-exact compiler-capability acceptance. Execute candidate checks through the locked
-source CLI; preserve current effect admission for acceptance and installation.
-Then complete CUE declaration/consumer cutover and hosted qualification. Retire remaining installers rather than
-preserve parallel version owners. These are consecutive accepted boundaries
-within the same Change, not a second plan or a reason to postpone product delivery.
+Native mise supply, CUE compiler capability, CEL declaration checks and the
+provider/source execution guard are accepted at `6f14655e73a0`. Its source-bound
+35-gate proof passed in 706.18 seconds with 4,088 passing tests, one skip and
+95.01 percent combined coverage; the installed runtime matches its source/tree.
+The current CUE declaration/consumer cutover removes the two YAML templates and
+checks independently observed projection semantics plus exact native output.
+It remains unaccepted until its own exact proof and installation succeed.
+Complete that boundary, then independent product delivery. Remaining suppliers,
+hosted qualification and semantic CI/report obligations stay open rather than
+becoming indefinite product prerequisites. Candidate checks execute through the
+locked source CLI; acceptance and installation retain current effect admission.
 
 The typing gate currently covers product source only. The same-tool accepted
 baseline comparison found 423 diagnostics versus 419 in the candidate, all in

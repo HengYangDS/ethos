@@ -138,7 +138,7 @@ def test_public_projection_admission_reads_committed_native_owner(
 ) -> None:
     """A native script declaration survives snapshotting; an unselected script grants nothing."""
     root = prepared_work_lane(tmp_path).worktree
-    source, output = ".config/ci/templates/hosted/github-actions.yml", ".github/workflows/ci.yml"
+    source, output = "workflow-source.yml", ".github/workflows/ci.yml"
     script = "tools/ci/scripts/bootstrap.sh"
     original = "jobs:\n  check:\n    steps:\n      - run: ultraviolet --version\n"
     files = {

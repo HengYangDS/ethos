@@ -2321,17 +2321,21 @@ finds 423 diagnostics at accepted source and 419 in this candidate, all in
 tests/tools, with no new diagnostic signatures. Those remain an explicit coverage
 and typing gap, not permission to claim whole-repository typing clean.
 
-The cutover remains incomplete: the installed runtime recognizes only copy-based
-CI relations, and hosted qualification plus CI semantic/report obligations
-remain open. CUE now validates source semantics independently of candidate
-rendered/observations fields, and its regression requires the exact
-`cue_projection_drift` reason. Do not activate a new projection declaration using
-a runtime unable to understand it. Deliver compiler capability before the
-declaration cutover through the existing accepted transition boundary; do not make
-an already activated new runtime a prerequisite for proving its own successor.
-Exact proof has executed and failed; installation and hosted qualification remain
-unperformed for this candidate. The working-root mise declaration and lock are the sole editable
-native selections; removed evidence copies must not become alternate authorities.
+The compiler capability and provider/source execution guard are accepted at
+`6f14655e73a0`; its exact full proof and source-bound runtime installation passed.
+The installed runtime therefore understands the CUE relations used by this
+successor. The declaration/consumer cutover removes both hosted YAML templates;
+the native compiler owns their rendered bytes and independently decodes observed
+YAML after candidate evaluation. Candidate rendered/observations fields cannot
+supply their own verdict. CI checks reject both semantic drift and byte-only
+changes, while generated outputs have generator-only formatting ownership.
+Emulator evidence binds the declared CUE source instead of a removed template.
+Generic copy relations remain available for independently declared copy semantics;
+they no longer own ETHOS CI. The existing check-templates command can render both
+outputs without writing tracked files. No second projection command plane is added.
+This successor still requires its own exact proof and installation; hosted
+qualification and CI semantic/report obligations remain open. The working-root
+mise declaration and lock remain the sole editable native selections.
 
 Native Ruff D rules enforce module/package documentation across product, tests
 and tools, plus style for existing docstrings. Symbol-level missing-docstring
@@ -2514,5 +2518,7 @@ provider-native-boundaries.log and provider-budget-focused.log in the existing
 commit-integrity evidence directory. Native CUE counterexamples additionally
 reject wrong executable versions, unexpected provider sets and compilation
 failure. Duplicate archive-budget and provider-error fixture paths are merged
-without removing their distinct assertions. Focused green is not a new exact
-full proof; coverage and accepted runtime delivery remain open.
+without removing their distinct assertions. The successor `6f14655e73a0` passed
+its exact 35-gate proof in 706.18 seconds with 4,088 tests passing, one skip and
+95.01 percent combined coverage. Public acceptance and runtime installation passed;
+the separate CUE declaration cutover and hosted delivery remain open.

@@ -2,7 +2,7 @@ schema = "ethos-ci-template-consistency-v1"
 owner = "ethos-quality-gate-governance"
 [[projection]]
 provider = "github"
-template = ".config/ci/templates/hosted/github-actions.yml"
+kind = "cue"
 projection = ".github/workflows/ci.yml"
 emulator_tool = "act"
 emulator_event = "workflow_dispatch"
@@ -25,7 +25,7 @@ required_owner_scripts = [
 ]
 [[projection]]
 provider = "gitlab"
-template = ".config/ci/templates/hosted/gitlab-ci.yml"
+kind = "cue"
 projection = ".gitlab-ci.yml"
 emulator_tool = "gitlab-ci-local"
 emulator_event = "pipeline"

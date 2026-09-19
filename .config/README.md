@@ -43,9 +43,12 @@ configuration plane, not a truth center.
   Python bootstrap prepares missing mise with .config/ci/mise-install.sh,
   a version-bound official generator projection checked by ci_templates.
   Installation is staged and bounded; observation does not install tools.
-- `.config/ci/templates/hosted/` owns provider CI template sources.
-  `.github/workflows/ci.yml` and `.gitlab-ci.yml` are checked projections over
-  those templates; `uv run --frozen --offline python -m nox -s ci_templates` is the drift gate.
+- `.config/ci/pipeline.cue` composes both provider projections from native gate
+  and runtime inputs. `.github/workflows/ci.yml` and `.gitlab-ci.yml` are
+  generated, not editable sources. The `ci_templates` Nox gate verifies
+  native compilation, exact output bytes and input bindings.
+  `uv run --frozen --offline python tools/ci/ci_templates.py check-templates --render`
+  emits both outputs once without writing tracked files.
 - `.config/ci/emulators/` owns local provider emulator config for `act` and
   `gitlab-ci-local`. Emulator wrappers emit local evidence only and must not
   claim hosted GitHub or GitLab status.

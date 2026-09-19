@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import os
-from typing import TYPE_CHECKING
+from pathlib import Path
 
+from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
 from ethos.adapters.repo.commit.creation import configured_signer_fingerprint
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
@@ -13,15 +14,13 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import apply_accepted_closeout
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
 from tests.support.proof import seed_executed_proof
 from tests.support.signature import configure_signer
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 PROPOSAL = "terminal-convergence"
 PROPOSAL_REF = f"refs/heads/proposal/{PROPOSAL}"
@@ -60,9 +59,7 @@ def branch_publication_fixture(
     if accepted:
         git(repo, "checkout", "-b", "candidate/dev")
     (repo / "proposal.txt").write_text("signed proposal source\n", encoding="utf-8")
-    git(repo, "add", "proposal.txt", ".ethos/release.toml")
-    git(repo, "commit", "-m", "feat: sign proposal source")
-    head = git(repo, "rev-parse", "HEAD")
+    head = commit_fixture(repo, "feat: sign proposal source")
     if proof or accepted:
         seed_executed_proof(repo, head)
     if accepted:
@@ -116,18 +113,17 @@ def accepted_release_fixture(
     *,
     native_version: str = "package.json",
     retired_source: bool = False,
+    release_mirror: str = "independent",
 ):
     repo = init_git_repo(tmp_path / "repo", object_format=object_format)
-    adopt_and_commit(repo)
+    adopt_and_commit(repo, release_mirror=release_mirror)
     old = git(repo, "rev-parse", "HEAD")
     git(repo, "branch", "main", old)
     git(repo, "checkout", "-b", "candidate/dev")
+    # Keep an unsigned ancestor inside the old-release-to-accepted range.
+    git(repo, "commit", "--allow-empty", "-m", "legacy accepted source")
     configure_signer(repo, tmp_path)
     git(repo, "config", "commit.gpgsign", "true")
-    # This unsigned accepted ancestor predates the newly declared signing policy.
-    (repo / "legacy").write_text("pre-adoption source\n")
-    git(repo, "add", "legacy")
-    git(repo, "-c", "commit.gpgsign=false", "commit", "-m", "legacy accepted source")
     release = repo / ".ethos/release.toml"
     release.write_text(
         '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n' + release.read_text()
@@ -143,10 +139,7 @@ def accepted_release_fixture(
     )
     if retired_source:
         write_active_commitment(repo)
-        git(repo, "add", "openspec")
-    git(repo, "add", ".ethos", native_version)
-    git(repo, "commit", "-m", "fix: accept native release source")
-    head = git(repo, "rev-parse", "HEAD")
+    head = commit_fixture(repo, "fix: accept native release source")
     source = repo
     if retired_source:
         source = tmp_path / "authoring"
@@ -178,18 +171,57 @@ def accepted_release_fixture(
     return accepted, main, old, head
 
 
-def signed_publication_fixture(
-    tmp_path: Path,
-) -> tuple[Path, dict[str, Path], str, str, str, str, str]:
-    repo, _main, _old, commit = accepted_release_fixture(tmp_path, native_version="VERSION")
-    anchor = tmp_path / "trust/allowed-signers"
-    git(repo, "tag", "-s", "-m", "release v1.2.3", "v1.2.3")
-    return (
-        repo,
-        publication_peers(repo, tmp_path),
-        commit,
-        git(repo, "rev-parse", "refs/tags/v1.2.3"),
-        git(repo, "rev-parse", "HEAD^{tree}"),
-        configured_signer_fingerprint(repo),
-        hashlib.sha256(anchor.read_bytes()).hexdigest(),
+def assert_signed_publication(repo: Path, peers: dict[str, Path], head: str, tag: str) -> None:
+    """Consume the actual released tag; recheck trust before exact peer publication."""
+    anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+    dry_run = branch_publication(repo, head, target_ref="refs/tags/v1.2.3")
+    assert dry_run["data"]["remote_effect"]["source"] == {
+        "kind": "annotated-tag",
+        "object_oid": tag,
+        "peeled_commit": head,
+        "tree_oid": tree,
+        "signature": {
+            "verdict": "pass",
+            "principal": "test@example.invalid",
+            "fingerprint": configured_signer_fingerprint(repo),
+            "trust_anchor_sha256": hashlib.sha256(anchor.read_bytes()).hexdigest(),
+            "verifier": "git verify-tag",
+            "verifier_version": git(repo, "version"),
+        },
+    }
+    assert {
+        report["commit_policy_admission"]["baseline_source"]
+        for report in dry_run["data"]["push_admission"].values()
+    } == {"accepted_effect"}
+    receipt = dry_run["data"]["request_receipt"]
+    trust = anchor.read_text()
+    for name, signing, gap in (
+        ("lightweight", (), "not_annotated_tag:refs/tags/lightweight"),
+        ("v9.9.9", ("-s", "-m", "different version"), "version_mismatch:v9.9.9!=v1.2.3"),
+        ("v1.2.3", None, "signature_untrusted:refs/tags/v1.2.3"),
+    ):
+        if signing is None:
+            anchor.write_text("")
+        else:
+            git(repo, "tag", *signing, name, head)
+        ref = f"refs/tags/{name}"
+        assert observe_remote_publication_effect(
+            root=repo,
+            source_ref=ref,
+            target_refs=(ref,),
+            remotes={"gitlab": "origin"},
+            ref_admissions={},
+        ) == (None, {}, (f"publication_source_{gap}",))
+    blocked = apply_receipt(repo, receipt, head, blocked=True)
+    assert blocked["required_gaps"] == ["commit_signature_untrusted"]
+    assert all(
+        git(peer, "for-each-ref", "--format=%(objectname)", "refs/tags/v1.2.3") == ""
+        for peer in peers.values()
     )
+    anchor.write_text(trust)
+    assert apply_receipt(repo, receipt, head)["state"] == "published"
+    for peer in peers.values():
+        assert git(peer, "rev-parse", "refs/tags/v1.2.3") == tag
+        assert git(peer, "rev-parse", "refs/tags/v1.2.3^{}") == head
+        assert git(peer, "rev-parse", "refs/tags/v1.2.3^{tree}") == tree

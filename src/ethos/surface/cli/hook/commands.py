@@ -302,7 +302,9 @@ def ref_transaction(
         "hook ref-transaction",
         report,
         {"branch": report["branch"], "decision": _decision_action(report)},
-        lambda verdict: "ethos land --closeout" if verdict != "pass" else "",
+        lambda verdict: (
+            str(report.get("next_action") or "ethos land --closeout") if verdict != "pass" else ""
+        ),
     )
     emit(result, json_output=json_output, enforce=True)
 

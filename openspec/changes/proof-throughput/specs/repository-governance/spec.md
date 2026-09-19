@@ -1,5 +1,47 @@
 ## MODIFIED Requirements
 
+### Requirement: Release tags preserve native product version authority
+
+ETHOS SHALL create requested signed annotated tags from exact committed native
+version authority through the existing Git effect. Independent release may
+advance its declared branch; an accepted mirror SHALL already be aligned and
+remain an assertion. Malformed, conflicting or untrusted inputs SHALL block.
+An existing package version SHALL NOT require a parallel VERSION carrier.
+
+#### Scenario: Native package version owns release
+
+- **WHEN** package.json is the unambiguous committed version owner
+- **THEN** the tag matches that version and peels to accepted
+- **AND** its signature passes current protected trust verification
+- **AND** release changes and the new tag use one native transaction
+
+#### Scenario: Tag or version conflicts
+
+- **WHEN** the requested tag disagrees with version, already exists without a carried
+  request, is divergent or lacks a trusted signature
+- **THEN** neither release nor tag ref changes
+
+#### Scenario: Accepted mirror creates a release tag
+
+- **WHEN** accepted closeout has aligned the protected branches and the request
+  names that exact accepted object for both coordinates
+- **THEN** the release owner creates the tag while asserting both branch objects
+- **AND** a misaligned mirror is directed to accepted closeout without effects
+- **AND** a release-tag hook lacking executor intent selects the exact release preview
+
+#### Scenario: Aligned release has no requested change
+
+- **WHEN** the exact release branch already equals accepted and no tag is requested
+- **THEN** validation succeeds without a ref update or new effect Attestation
+
+#### Scenario: Interrupted or repeated release
+
+- **WHEN** release resumes after an observed or unknown effect in either mirror mode
+- **THEN** ETHOS observes exact refs and evidence before replay
+- **AND** an accepted tag object is reused without resigning
+- **AND** compensation reverses only changed refs and retains branch assertions
+- **AND** pending linked worktree synchronization remains explicit
+
 ### Requirement: Control replacement preserves trusted prior verification
 
 Control replacement SHALL read independent-verification policy from both exact

@@ -27,47 +27,6 @@ from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
-from tests.unit.cli.land.publication.support import signed_publication_fixture
-
-
-def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
-    tmp_path: Path,
-) -> None:
-    repo, remotes, commit, tag, tree, fingerprint, anchor_sha256 = signed_publication_fixture(
-        tmp_path
-    )
-    dry_run = branch_publication(repo, commit, target_ref="refs/tags/v1.2.3")
-    assert dry_run["data"]["remote_effect"]["source"] == {
-        "kind": "annotated-tag",
-        "object_oid": tag,
-        "peeled_commit": commit,
-        "tree_oid": tree,
-        "signature": {
-            "verdict": "pass",
-            "principal": "test@example.invalid",
-            "fingerprint": fingerprint,
-            "trust_anchor_sha256": anchor_sha256,
-            "verifier": "git verify-tag",
-            "verifier_version": git(repo, "version"),
-        },
-    }
-    assert {
-        report["commit_policy_admission"]["baseline_source"]
-        for report in dry_run["data"]["push_admission"].values()
-    } == {"accepted_effect"}
-    receipt = dry_run["data"]["request_receipt"]
-    anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-    trust = anchor.read_text()
-    anchor.write_text("")
-    blocked = apply_receipt(repo, receipt, commit, blocked=True)
-    assert blocked["required_gaps"] == ["commit_signature_untrusted"]
-    assert {proposal_ref(remote) for remote in remotes.values()} == {""}
-    anchor.write_text(trust)
-    assert apply_receipt(repo, receipt, commit)["state"] == "published"
-    for remote in remotes.values():
-        assert git(remote, "rev-parse", "refs/tags/v1.2.3") == tag
-        assert git(remote, "rev-parse", "refs/tags/v1.2.3^{}") == commit
-        assert git(remote, "rev-parse", "refs/tags/v1.2.3^{tree}") == tree
 
 
 def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_proof(

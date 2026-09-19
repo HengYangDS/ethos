@@ -31,6 +31,7 @@ from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.release import accepted_release_source
 from ethos.adapters.repo.release import release_checkout_gaps
 from ethos.adapters.repo.release import release_ref_subject
+from ethos.adapters.repo.release import release_selection_command
 from ethos.adapters.repo.release import release_tag_policy
 from ethos.adapters.repo.release import require_release
 from ethos.adapters.store.content_addressed import write_content_addressed
@@ -80,23 +81,23 @@ class _Selection:
         return self.stored.with_suffix(".signing")
 
     def command(self) -> str:
-        return shlex.join(
-            (
-                "ethos",
-                "land",
-                "--release",
-                "--expect-head",
-                self.head,
-                "--release-head",
-                self.previous,
-                *(("--tag", self.tag) if self.tag else ()),
-                "--apply",
-                "--authorize",
-                "--root",
-                str(self.root),
-                "--json",
-            )
+        return release_selection_command(
+            self.root, head=self.head, previous=self.previous, tag=self.tag, apply=True
         )
+
+    def effect(self, accepted_ref: str, tag_oid: str = "") -> GitEffect:
+        """Assert aligned branches; reserve updates for actual state changes."""
+        assertions = {accepted_ref: self.head}
+        updates = {}
+        if self.previous == self.head:
+            assertions[self.ref] = self.head
+        else:
+            updates[self.ref] = GitRefUpdate(expected=self.previous, desired=self.head)
+        if self.tag:
+            updates[f"refs/tags/{self.tag}"] = GitRefUpdate(
+                expected=zero_oid(self.root), desired=tag_oid
+            )
+        return GitEffect(updates=updates, assertions=assertions)
 
 
 def _release_paths(root: Path, branch: str) -> tuple[Path, ...]:
@@ -114,7 +115,11 @@ def _observe(selection: _Selection, *, apply: bool, authorized: bool, plan: Tran
     root, head = selection.root, selection.head
     policy = load_branch_role_policy(root)
     require_release(head and selection.previous, "release_exact_coordinates_required")
-    require_release(policy.release_mirror == "independent", "release_independent_policy_required")
+    if policy.release_mirror == "accepted_ff":
+        require_release(
+            selection.previous == head == ref_head(root, selection.ref),
+            "release_mirror_requires_accepted_closeout",
+        )
     require_release(not apply or authorized, "authorization_required")
     gaps = release_checkout_gaps(root, head) + hook_runtime_binding(root)["required_gaps"]
     require_release(not gaps, gaps[0] if gaps else "")
@@ -146,7 +151,7 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
         "release_request_actor_mismatch",
     )
     policy = load_branch_role_policy(selection.root)
-    expected = {selection.ref: GitRefUpdate(expected=selection.previous, desired=selection.head)}
+    tag_oid = ""
     if selection.tag:
         tag_ref = f"refs/tags/{selection.tag}"
         update = effect.updates.get(tag_ref)
@@ -154,10 +159,9 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
         assert update is not None
         require_release(update.expected == zero_oid(selection.root), "release_request_tag_invalid")
         release_ref_subject(selection.root, ref=tag_ref, old=update.expected, new=update.desired)
-        expected[tag_ref] = update
+        tag_oid = update.desired
     require_release(
-        effect.updates == expected
-        and effect.assertions == {f"refs/heads/{policy.accepted_branch}": selection.head}
+        effect == selection.effect(f"refs/heads/{policy.accepted_branch}", tag_oid)
         and plan.facts.get("head") == selection.head
         and plan.policy.get("transition") == "release.promote"
         and plan.policy.get("release_branch") == selection.branch
@@ -208,7 +212,7 @@ def _compile_plan(
 def _prepare_plan(selection: _Selection, accepted: dict[str, object], proof: Attestation):
     """Prepare exact native objects, then persist their single existing plan carrier."""
     root = selection.root
-    updates = {selection.ref: GitRefUpdate(expected=selection.previous, desired=selection.head)}
+    oid = ""
     if selection.tag:
         tag_ref = f"refs/tags/{selection.tag}"
         require_release(not ref_head(root, tag_ref), "release_tag_already_exists")
@@ -216,8 +220,7 @@ def _prepare_plan(selection: _Selection, accepted: dict[str, object], proof: Att
             root, name=selection.tag, head=selection.head, staging=selection.signing
         )
         release_ref_subject(root, ref=tag_ref, old=zero_oid(root), new=oid)
-        updates[tag_ref] = GitRefUpdate(expected=zero_oid(root), desired=oid)
-    effect = GitEffect(updates=updates, assertions={str(accepted["accepted_ref"]): selection.head})
+    effect = selection.effect(str(accepted["accepted_ref"]), oid)
     plan = _compile_plan(selection, effect, accepted, proof)
     raw = (
         json.dumps(
@@ -274,7 +277,7 @@ def promote_release(
     apply: bool = False,
     authorized: bool = False,
 ) -> dict[str, object]:
-    """Preview, execute or recover one proof-bound independent release selection."""
+    """Select an independent release or tag already aligned accepted-mirror content."""
     selection = _Selection(root, head, previous, tag, load_branch_role_policy(root).release_branch)
     data: dict[str, object] = {"source": head, "previous": previous, "tag": tag}
     try:
@@ -293,7 +296,7 @@ def promote_release(
             plan is not None or not tag or not ref_head(root, f"refs/tags/{tag}"),
             "release_tag_already_exists",
         )
-        if apply:
+        if apply and (tag or previous != head):
             assert proof is not None
             lock = selection.stored.parent / ".lock"
             lock.parent.mkdir(parents=True, exist_ok=True)
@@ -328,6 +331,8 @@ def promote_release(
             if unknown or waiting
             else f"ethos status --root {shlex.quote(str(root))} --json"
         )
+        if str(error) == "release_mirror_requires_accepted_closeout":
+            action = f"ethos land --closeout --root {shlex.quote(str(root))} --json"
         if str(error) == "release_tag_signing_outcome_unknown":
             action = shlex.join(
                 (

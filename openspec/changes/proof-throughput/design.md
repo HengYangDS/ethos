@@ -453,10 +453,11 @@ architecture-projection at 12.124, source-budget at 10.076 and module-layout at
 8.391; every other executed non-test gate took less than four seconds. Their
 overlap means summing them would inflate total cost. The existing machine
 breakdown retains all 35 gate results, including null timings for blocked gates.
-Even deleting all work outside pytest could not meet 600 seconds: test work
-alone needs a further reduction of more than 61.8 percent, before allowing for
-the required installed acceptance and other gates. Small lint changes are not
-the critical path.
+For this historical measurement, keeping pytest unchanged while deleting all
+other work would still exceed 600 seconds. The measured pytest duration would
+need a reduction of more than 61.8 percent before allowing for installed
+acceptance and other gates. This identifies that run's bottleneck, not a lower
+bound or evidence that the 600-second target is infeasible.
 
 Latest summed case time is 3,110.649 seconds. CLI consumes 1,243.938; lanes
 627.477; adapters 392.697; mutation 279.302; kernel 195.957; admission 185.889;
@@ -2031,9 +2032,13 @@ uncommitted configuration cannot change it. Control replacement no longer
 promotes policy mode from execution-identity differences. The existing local
 closeout owner requires the explicit candidate commit for changed gate floors,
 in addition to authorization, accepted-head freshness, current proof and CAS.
-This is local maintainer acceptance, not independent re-execution. Explicitly
-required independent verification remains fail-closed, including predecessor
-requirements and malformed, stale or wrongly bound receipts.
+This is explicit local caller confirmation: the decision reports
+`enforcement_boundary=local_process_guard` and `identity_basis=not_evaluated`.
+It establishes neither authenticated maintainer approval nor independent
+re-execution. Exact binding establishes which inputs were checked, not semantic
+correctness or the sufficiency of the checks. Explicitly required independent
+verification remains fail-closed, including predecessor requirements and
+malformed, stale or wrongly bound receipts.
 
 RED reproduced implicit host enrollment, uncommitted-policy selection and public
 closeout rejection. The first fixture also attempted an empty commit; that setup
@@ -2050,3 +2055,39 @@ configuration content, an absent broker executable and an allowlist naming it.
 Retirement must inspect consumers and exact resources; never resurrect this
 obsolete deployment as a prerequisite for repository acceptance. No credential
 material or protected state was read or changed by this diagnosis.
+
+### Release Selection Separates Assertions From Effects
+
+Signed-tag creation belongs to the existing release owner in both branch modes.
+An independent release may advance its ref. An accepted mirror first uses
+accepted closeout, then asserts both aligned branches while creating the tag.
+The shared command renderer supplies exact preview coordinates to rejected tag
+hooks and explicit apply coordinates to release continuation. Neither hook
+guidance nor local caller confirmation establishes authenticated maintainer identity.
+
+The first mirror implementation retained an aligned branch as a head-to-head
+update. Native interruption tests exposed two consequences: an unchanged request
+was mistaken for an already applied effect, and compensation tried to reuse the
+same ref intent in reverse. The release selector now builds one shared exact
+effect shape for preparation and recovery validation. Only changed refs are
+updates; aligned branches are assertions. No tag and no branch change means no
+effect or new effect Attestation. The generic CAS and ref-intent protocols remain
+the sole executors; they are not weakened to accommodate redundant updates.
+
+Verification retains both mirror modes, SHA-1 and SHA-256, native package and
+VERSION authority, retired authoring proof, lock contention, all refusal cases,
+lost acknowledgements, compensation, real process kills and exact peer tag bytes.
+One released-tag journey also exercises publication trust revocation, invalid
+objects and version mismatch instead of preparing duplicate signed repositories.
+An unsigned ancestor remains inside the prior-release-to-accepted range; moving
+it to the excluded baseline would weaken the historical-policy counterexample.
+Source execution evidence remains under the existing commit-integrity root;
+task completion requires the consolidated matrix and separate exact delivery.
+
+The consolidated native matrix passed 59 cases in 299.16 seconds. A final
+semantic-preservation review restored an unsigned ancestor inside the introduced
+release range rather than at its excluded baseline; the 24 affected public
+release, refusal and failure-observation cases then passed in 173.90 seconds.
+Owned temporary roots were removed. Product/test ELOC are 46,058/50,000, with
+unchanged 500-per-file limits. Static, type and official specification validation
+passed; exact-HEAD proof and runtime delivery remain separate outstanding claims.

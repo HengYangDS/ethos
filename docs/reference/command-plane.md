@@ -67,15 +67,21 @@ same command semantics; it is not a parallel lifecycle.
 `ethos land --release --expect-head <accepted-head> --release-head <old-main>
 --json` previews selection of the exact current accepted source for an
 independent release branch. Add `--tag v<version>` for a declared signed
-annotated tag. Only `--apply --authorize` permits the effect. A coupled
-accepted mirror instead follows its existing accepted-closeout operation.
+annotated tag. Only `--apply --authorize` permits the effect. With
+`release_mirror = "accepted_ff"`, accepted closeout first aligns the protected
+branches. The same release command then uses `<accepted-head>` for both exact
+coordinates and creates the requested tag without advancing either branch.
+A misaligned mirror directs the caller to accepted closeout. A release-tag hook
+without executor intent directs the caller to this exact release preview.
 
 Selection requires a clean accepted checkout, accepted-effect evidence, current
 repository proof, trusted source and safe linked release worktrees. Committed
 VERSION, package.json or static pyproject version supplies the native release
 identity; malformed or conflicting values fail closed. No duplicate VERSION
 file is required. One native Git transaction checks accepted and changes the
-release/tag refs together. Linked checkout synchronization is a subsequent,
+release/tag refs together. Already aligned branches are assertions, not updates;
+an aligned request without a tag has no ref effect or new effect Attestation.
+Linked checkout synchronization is a subsequent,
 explicitly observed effect, not part of Git's ref atomicity.
 
 Interrupted requests retain exact signed objects and the existing TransitionPlan

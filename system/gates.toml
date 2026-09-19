@@ -129,20 +129,20 @@ version_source = "product"
 [[gates]]
 id = "openspec"
 kind = "governance"
-command = ["openspec", "validate", "--all", "--strict", "--json"]
+providers = ["ethos.adapters.openspec.governance:openspec_validation_report"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"
 depends_on = ["schemas"]
 asset_classes = ["markdown-docs", "json-contracts"]
 dimensions = ["specification", "schema"]
-execution_mode = "adapter"
+execution_mode = "provider"
 evidence_class = "contract"
 trust_bearing = true
 tool_adapter = "openspec"
 writes_files = false
 network_policy = "offline"
-version_source = "host-toolchain"
+version_source = "locked-toolchain"
 
 [[gates]]
 id = "unit-architecture"

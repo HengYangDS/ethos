@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import shutil
 import subprocess
 from typing import TYPE_CHECKING
@@ -14,6 +16,7 @@ import ethos.adapters.openspec.governance as governance
 import ethos.adapters.openspec.lifecycle.report as lifecycle_report
 import tests.support.governed_repository as fixture
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -79,8 +82,9 @@ def test_governance_reports_cli_unavailable_and_optional_absent_workspace(monkey
     fixture.write_test_profile(absent, openspec={"material_paths": ["docs/**"]})
     not_applicable = governance.openspec_governance_report(absent, require_workspace=False)
 
-    assert unavailable["verdict"] == "block"
-    assert "openspec_official_cli_missing" in unavailable["required_gaps"]
+    for report in (unavailable, governance.openspec_validation_report(root)):
+        assert report["verdict"] == "block"
+        assert "openspec_official_cli_missing" in report["required_gaps"]
     assert (not_applicable["verdict"], not_applicable["state"]) == ("pass", "not_applicable")
 
 
@@ -171,9 +175,9 @@ def test_public_plan_batches_fresh_intent_and_preserves_native_failure(
 
 @pytest.mark.parametrize("mode", ["empty", "info", "mixed"])
 def test_locked_native_validation_preserves_empty_and_informational_results(
-    tmp_path: Path, mode: str
+    tmp_path: Path, mode: str, monkeypatch
 ) -> None:
-    """Replay unmodified official output; INFO must not hide or become an error."""
+    """The registered gate uses locked native supply even without ambient OpenSpec."""
     root = _repo(tmp_path)
     if mode != "empty":
         fixture.write_active_commitment(root)
@@ -184,9 +188,14 @@ def test_locked_native_validation_preserves_empty_and_informational_results(
             invalid = root / "openspec/specs/invalid/spec.md"
             invalid.parent.mkdir()
             invalid.write_text("# Invalid native specification\n")
-    command = cli.openspec_base_command()
-    assert command is not None
-    result = cli.run_json(root, command, ("validate", "--all", "--strict", "--json"))
+    monkeypatch.setenv("PATH", os.defpath)
+    observed = run_ethos_raw(
+        "prove", "--host", "--execute", "--gate", "openspec", "--json", cwd=root
+    )
+    assert observed.returncode == (1 if mode == "mixed" else 0), observed.stdout
+    checks = json.loads(observed.stdout)["data"]["checks"]
+    check = next(item for item in checks if item["action_id"] == "openspec")
+    result = json.loads(check["stdout"])["providers"][0]["report"]["validation"]
     items = result["json"]["items"]
     assert result["parse_error"] == ""
     assert result["exit_code"] == (1 if mode == "mixed" else 0)
@@ -236,9 +245,15 @@ def test_locked_native_archive_preserves_removal_meaning(tmp_path: Path, mode: s
     (change / ".openspec.yaml").write_text("schema: spec-driven\n")
     tasks = change / "tasks.md"
     tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
-    before = {
-        p.relative_to(root): p.read_bytes() for p in (root / "openspec").rglob("*") if p.is_file()
-    }
+
+    def snapshot():
+        return {
+            p.relative_to(root): p.read_bytes()
+            for p in (root / "openspec").rglob("*")
+            if p.is_file()
+        }
+
+    before = snapshot()
     command = cli.openspec_base_command()
     assert command is not None
     result = cli.run_json(root, command, ("archive", "fixture-change", "--yes", "--json"))
@@ -246,12 +261,7 @@ def test_locked_native_archive_preserves_removal_meaning(tmp_path: Path, mode: s
     if mode in {"near-miss", "conflict"}:
         assert result["exit_code"] != 0, result
         assert change.is_dir()
-        after = {
-            p.relative_to(root): p.read_bytes()
-            for p in (root / "openspec").rglob("*")
-            if p.is_file()
-        }
-        assert after == before
+        assert snapshot() == before
         return
     assert result["exit_code"] == 0, result
     assert not change.exists()

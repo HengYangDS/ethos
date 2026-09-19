@@ -82,6 +82,16 @@ def validation_failures(validate_payload: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(gaps))
 
 
+def validation_result_gaps(result: dict[str, Any]) -> list[str]:
+    """Combine native validation content, exit and transport at one boundary."""
+    gaps = validation_failures(result["json"])
+    if result["exit_code"] != 0 and not gaps:
+        gaps.append("openspec_validate_failed")
+    if result["parse_error"]:
+        gaps.append("openspec_validate_json_parse_failed")
+    return gaps
+
+
 def openspec_root_gaps(openspec_root: Path, official_config: dict[str, Any]) -> list[str]:
     return [
         *map(str, official_config["required_gaps"]),
@@ -178,13 +188,10 @@ def openspec_command_gaps(
         )
         if blocked
     ]
-    validation_gaps = validation_failures(validate["json"])
-    if validate["exit_code"] != 0 and not validation_gaps:
-        validation_gaps.append("openspec_validate_failed")
-    gaps.extend(validation_gaps)
+    gaps.extend(validation_result_gaps(validate))
     gaps.extend(
         f"openspec_{name}_json_parse_failed"
-        for name, result in (("doctor", doctor), ("list", list_result), ("validate", validate))
+        for name, result in (("doctor", doctor), ("list", list_result))
         if result["parse_error"]
     )
     if status and status.get("parse_error"):

@@ -365,3 +365,11 @@ artifact upload may satisfy those dependent checks.
 - **THEN** link checking uses the declared locked binary wheel in that environment
 - **AND** no separate installer writes host executable directories
 - **AND** valid local links pass and missing targets produce a failing observation
+
+#### Scenario: Specification validation has no ambient executable
+
+- **WHEN** a prepared checkout has locked OpenSpec supply but no OpenSpec command on PATH
+- **THEN** the gate invokes the existing verified official command resolver
+- **AND** governance and gate consumers apply the same native result interpretation
+- **AND** empty or informational valid results pass while invalid items, failed execution and unreadable output block
+- **AND** missing official supply blocks without substituting another executable

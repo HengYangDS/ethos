@@ -1994,7 +1994,8 @@ control-specific provider reader and guessed receipt path are removed.
 The 58-case owner/closeout matrix passed; its expanded 68-case consumer run exposed
 one test's incorrect assumption that read-only publish always exits nonzero for a
 JSON block. The test now preserves that native observation contract and checks
-the explicit full-ref rejection separately; the corrected public case passes.
+the explicit full-ref rejection separately. The final frozen 68-case matrix
+passes in 97.69 seconds with unchanged source hashes and owned scratch absent.
 The source CLI on actual host state now reports provider_config_unreadable and
 operator repair consistently in result, mutation decision and bootstrap projection.
 These are source observations, not restored provider or accepted-source delivery.
@@ -2006,3 +2007,12 @@ It completes in 14.58 seconds and removes its owned environment. Existing receip
 remain in the commit-integrity evidence root. Do not rerun the full expensive
 proof while the external prerequisite is unchanged; finish bounded source checks,
 then qualify the exact final candidate once a real provider path is available.
+
+The last portability check reproduced that chmod-zero does not inject a read
+denial under Linux root, although it does under UID 65534. Both isolated image
+probes used the declared pinned image without network and were removed. The
+fixture now injects PermissionError at the file-read boundary after the real
+configuration and identity checks; it no longer changes filesystem permissions
+to simulate an unrelated operation outcome. All 22 independent-verification
+cases pass in 0.52 seconds. Product/test ELOC remain 46,020/49,998; no product
+permission policy, signature requirement or execution threshold changed.

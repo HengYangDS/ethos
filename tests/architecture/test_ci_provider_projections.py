@@ -332,7 +332,18 @@ def test_cue_owner_rejects_agreeing_but_incorrect_copies(tmp_path, monkeypatch, 
         assert report["failures"] == [{"provider": "compiler", "reason": reason}]
 
 
-@pytest.mark.parametrize("fault", ["none", "missing-lock", "version-drift", "project-hook"])
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "none",
+        "missing-lock",
+        "version-drift",
+        "project-hook",
+        "native-version",
+        "providers",
+        "compile",
+    ],
+)
 def test_cue_compiler_consumes_exact_locked_supply(tmp_path, fault):
     """Missing or mismatched locks cannot be repaired by ambient installed tools."""
     config = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
@@ -342,15 +353,27 @@ def test_cue_compiler_consumes_exact_locked_supply(tmp_path, fault):
     files.update({path: (ROOT / path).read_text() for path in paths})
     if fault == "missing-lock":
         files.pop("mise.lock")
-    elif fault == "version-drift":
+    elif fault in {"version-drift", "native-version"}:
         files["mise.toml"] = files["mise.toml"].replace('cue = "0.17.1"', 'cue = "0.17.0"')
     elif fault == "project-hook":
         files["mise.toml"] += '\n[hooks]\nenter = "touch FORBIDDEN"\n'
+    executable = (
+        locked_tool(ROOT, "cue") if fault in {"native-version", "providers", "compile"} else None
+    )
+    if fault == "providers":
+        files[compiler["source"]] += "\ncompiled: providers: unexpected: {}\n"
+    elif fault == "compile":
+        files[compiler["source"]] = "invalid: ["
     before = dict(files)
     original_paths = tuple(tmp_path.iterdir())
-    if fault in {"missing-lock", "version-drift"}:
-        with pytest.raises((ValueError, KeyError)):
-            compile_projections(tmp_path, owner.CONFIG_RELATIVE_PATH, files)
+    if fault in {"missing-lock", "version-drift", "native-version", "providers", "compile"}:
+        expected = {
+            "native-version": "cue_version_mismatch",
+            "providers": "cue_projection_providers_mismatch",
+            "compile": "cue_compilation_failed",
+        }.get(fault)
+        with pytest.raises((ValueError, KeyError), match=expected):
+            compile_projections(tmp_path, owner.CONFIG_RELATIVE_PATH, files, executable=executable)
     else:
         assert set(compile_projections(tmp_path, owner.CONFIG_RELATIVE_PATH, files)) == {
             "github",

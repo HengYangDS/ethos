@@ -15,17 +15,20 @@ from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import replace
 from graphlib import TopologicalSorter
+from pathlib import Path
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+import ethos
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
@@ -35,10 +38,9 @@ from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import gate_execution_identity
+from ethos.repository.policy.gates import source_paths_for_gate
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos.contracts.gates import Gate
     from ethos.contracts.plan import PlanNode
 
@@ -237,6 +239,8 @@ def run_gate_graph(
         message = "proof_node_capacity_invalid"
         raise ValueError(message)
     TransitionPlan.closure(nodes)
+    if not isinstance(runner, DryRunRunner):
+        assert_provider_execution_source(root, tuple(gates[node.id] for node in nodes))
     writers = {node.id for node in nodes if gates[node.id].writes_files}
     graph = TopologicalSorter({node.id: node.depends_on for node in nodes})
     graph.prepare()
@@ -403,3 +407,36 @@ def _provider_report(reference: str, root: Path) -> Mapping[str, object]:
         message = f"gate provider must return a mapping: {reference}"
         raise TypeError(message)
     return cast("Mapping[str, object]", value)
+
+
+def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> None:
+    """Reject candidate-bound checks running from a different implementation before effects."""
+    bound = tuple(
+        (gate.id, reference)
+        for gate in gates
+        if gate.providers
+        for reference, relative in zip(gate.providers, source_paths_for_gate(gate), strict=True)
+        if (root / relative).is_file()
+    )
+    package = Path(ethos.__file__).resolve()
+    if not bound or package == (root / "src/ethos/__init__.py").resolve():
+        return
+    try:
+        identity = invoking_build_identity()
+        head = current_tracked_head(root)
+        if head == identity.source_commit and current_tree(root, head) == identity.source_tree:
+            return
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        pass
+    gate_id, reference = bound[0]
+    message = f"gate_provider_source_mismatch:{gate_id}:{reference}"
+    raise ProcessExecutionError(
+        message,
+        reason="candidate_provider_execution_requires_matching_source",
+        cwd=str(root),
+        observation={
+            "runner_module_path": str(package),
+            "required_gaps": [f"gate_provider_source_mismatch:{name}:{ref}" for name, ref in bound],
+            "next_action": "run proof from the admitted checkout's locked Python environment",
+        },
+    )

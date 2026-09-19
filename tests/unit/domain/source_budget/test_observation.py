@@ -17,48 +17,45 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize(
-    "mutation",
+    ("before", "after"),
     [
-        lambda text: text.replace("immutable_record_roots =", "invalid_record_roots ="),
-        lambda text: text.replace('  "toml", "json", "yaml", "ini", "shell",\n', ""),
-        lambda text: text.replace(
+        ("immutable_record_roots =", "invalid_record_roots ="),
+        ('  "toml", "json", "yaml", "ini", "shell",\n', ""),
+        (
             'python_total = ["python_product", "python_tests", "python_tools", "python_other"]',
             'python_total = ["python_tests", "python_product", "python_tools", "python_other"]',
         ),
-        lambda text: text.replace("python_product = 1000", "python_unknown = 1000"),
-        lambda text: text.replace('shebangs = ["sh", "bash", "zsh"]', 'shebangs = "sh"'),
-        lambda text: text.replace('comment_prefixes = ["#"]', 'comment_prefixes = "#"', 1),
-        lambda text: text.replace('extensions = [".py"]', 'extensions = ["py"]'),
-        lambda text: text.replace('extensions = [".py"]', 'extensions = [".py", ".py"]'),
-        lambda text: text.replace(
+        ("python_product = 1000", "python_unknown = 1000"),
+        ('shebangs = ["sh", "bash", "zsh"]', 'shebangs = "sh"'),
+        ('comment_prefixes = ["#"]', 'comment_prefixes = "#"'),
+        ('extensions = [".py"]', 'extensions = ["py"]'),
+        ('extensions = [".py"]', 'extensions = [".py", ".py"]'),
+        (
             "[source_budget.aggregates]\n",
             '[source_budget.aggregates]\nextra_total = ["python_product"]\n',
         ),
-        lambda text: text.replace(
+        (
             'global_total = [\n  "python_product",',
             'global_total = [\n  "python_product", "python_product",',
         ),
-        lambda text: text.replace(
+        (
             'category = "python_other", measure = "python_ast"',
             'category = "python_other", measure = "lines"',
         ),
-        lambda text: text.replace("timeout_seconds = 5", "timeout_seconds = true"),
-        lambda text: text.replace(
-            'comment_prefixes = ["#"]',
-            'comment_prefixes = ["#", ""]',
-        ),
-        lambda text: text.replace(
-            'budget = [\n  { category = "shell", comment_prefixes = ["#"] },\n]',
-            'budget = [\n  { category = "shell", comment_wrappers = [["/*", "*/", "extra"]] },\n]',
-        ),
+        ("timeout_seconds = 5", "timeout_seconds = true"),
+        ('comment_prefixes = ["#"]', 'comment_prefixes = ["#", ""]'),
+        ('comment_prefixes = ["#"]', 'comment_wrappers = [["/*", "*/", "extra"]]'),
     ],
 )
 def test_malformed_or_incomplete_policy_fails_closed(
     tmp_path: Path,
-    mutation,
+    before,
+    after,
 ) -> None:
     selection, _ = budget_repository(tmp_path)
-    selection.write_text(mutation(selection.read_text()), encoding="utf-8")
+    source = selection.read_text()
+    assert before in source
+    selection.write_text(source.replace(before, after, 1), encoding="utf-8")
 
     report = source_budget.source_budget_report(tmp_path)
 
@@ -93,21 +90,18 @@ def test_missing_or_malformed_policy_is_a_closed_report(
     assert report["inventory"] == {"file_count": 0}
 
 
-def test_inventory_parse_failure_is_reported_without_measuring(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.parametrize("inventory", ["", "malformed"])
+def test_inventory_failure_prevents_measurement(tmp_path, monkeypatch, inventory):
     budget_repository(tmp_path)
-    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_args: "malformed")
-
+    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_args: inventory)
     report = source_budget.source_budget_report(tmp_path)
-
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["source_budget_inventory_unavailable"]
 
 
 @pytest.mark.parametrize(
-    "fault", ["malformed", "warning", "nonzero", "duplicate", "noninteger", "duplicate-invalid"]
+    "fault",
+    ["malformed", "warning", "nonzero", "duplicate", "noninteger", "duplicate-invalid", "missing"],
 )
 def test_native_cross_check_failures_block_the_report(tmp_path, monkeypatch, fault):
     """Invalid native observations cannot certify source accounting."""
@@ -128,7 +122,9 @@ def test_native_cross_check_failures_block_the_report(tmp_path, monkeypatch, fau
         source_budget.shutil,
         "which",
         lambda command, **kwargs: (
-            "/fake-scc" if command == "fake-scc" else real_which(command, **kwargs)
+            (None if fault == "missing" else "/fake-scc")
+            if command == "fake-scc"
+            else real_which(command, **kwargs)
         ),
     )
     monkeypatch.setattr(
@@ -148,36 +144,12 @@ def test_native_cross_check_failures_block_the_report(tmp_path, monkeypatch, fau
     report = source_budget.source_budget_report(tmp_path)
     assert report["verdict"] == "block"
     assert report["cross_check"] == {}
-    assert report["required_gaps"] == ["source_budget_scc_invalid"]
-
-
-def test_missing_native_cross_check_is_actionable(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    budget_repository(tmp_path)
-    real_which = source_budget.shutil.which
-    monkeypatch.setattr(
-        source_budget.shutil,
-        "which",
-        lambda command, **kwargs: None if command == "fake-scc" else real_which(command, **kwargs),
+    expected = (
+        "source_budget_scc_unavailable:fake-scc"
+        if fault == "missing"
+        else "source_budget_scc_invalid"
     )
-
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["source_budget_scc_unavailable:fake-scc"]
-
-
-def test_source_budget_public_report_stops_when_inventory_is_unavailable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    write_budget_selection(tmp_path)
-    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_a: "")
-
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["required_gaps"] == ["source_budget_inventory_unavailable"]
+    assert report["required_gaps"] == [expected]
 
 
 def test_source_budget_public_report_preserves_measure_and_cross_check_gaps(

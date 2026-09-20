@@ -107,3 +107,19 @@ selection, independent versions, explicit-root handling, interruption recovery,
 upgrade/rollback and live-consumer-safe removal. Do not install aliases or
 adopter-local wrappers, create another Change, or edit existing immutable images.
 The full product path and existing installation tasks remain required.
+
+## Retained-Predecessor Installation Boundary
+
+Matching source, lock and wheel identities establishes provenance, not installed
+capability completeness. A predecessor materializer can construct a generation
+from the new wheel while still deleting its console entry. The current reuse
+fast path must not accept that generation solely because its manifest and
+identities are internally consistent. Required native entry semantics belong
+to the existing materialization and acceptance owners.
+
+Rebuild an incompatible generation through the normal immutable-generation
+path; do not patch its bytes, change its manifest or add an installation bypass.
+Keep valid reuse cheap and preserve live-consumer-safe retirement. Acceptance
+must exercise the retained-predecessor transition, then the public repair and
+actual installed entry, rather than only a fresh installation using the new
+materializer. POSIX requirements must not silently claim Windows qualification.

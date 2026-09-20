@@ -351,6 +351,7 @@ def test_runtime_reuse_requires_current_supply_and_entry(
     def with_entry(target, **kwargs):
         create_python(target, **kwargs)
         if entry_fault == "missing":
+            (target / "bin/ethos").unlink(missing_ok=True)
             return
         payload = runtime_materialization.render_console_script("ethos").encode()
         if entry_fault in {"content", "encoding"}:

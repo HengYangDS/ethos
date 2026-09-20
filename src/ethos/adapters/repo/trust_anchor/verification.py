@@ -43,13 +43,16 @@ def trust_anchor(root: Path, configured: str) -> tuple[Path | None, list[str]]:
     else:
         gaps = ["git_object_trust_anchor_inside_repository"]
     if resolved is not None and not gaps:
-        gaps = (
-            ["git_object_trust_anchor_missing"]
-            if not resolved.is_file()
-            else ["git_object_trust_anchor_unprotected"]
-            if not protected_from_untrusted_write(resolved)
-            else []
-        )
+        try:
+            gaps = (
+                ["git_object_trust_anchor_missing"]
+                if not resolved.is_file()
+                else ["git_object_trust_anchor_unprotected"]
+                if not protected_from_untrusted_write(resolved)
+                else []
+            )
+        except ValueError as error:
+            gaps = [str(error)]
     return resolved, gaps
 
 

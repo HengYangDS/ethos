@@ -94,8 +94,9 @@ cask "ethos" do
 
   preflight_steps do
     on_macos do
-      run "/usr/sbin/spctl",
-          args: ["--assess", "--type", "execute",
+      run "/usr/bin/codesign",
+          args: ["--verify", "--strict", "--all-architectures", "--check-notarization",
+                 "--test-requirement", "=notarized",
                  "{{{{staged_path}}}}/ethos/runtime/{selected.digest}/python/bin/python"],
           network_access: true
     end

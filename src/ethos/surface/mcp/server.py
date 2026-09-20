@@ -11,8 +11,10 @@ from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware import CallNext
 from fastmcp.server.middleware import Middleware
 from fastmcp.server.middleware import MiddlewareContext
+from fastmcp.tools import FunctionTool
 from fastmcp.tools import ToolResult
 from mcp.types import CallToolRequestParams
+from mcp.types import ToolAnnotations
 
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
@@ -67,11 +69,13 @@ def create_server(root: Path, *, timeout_seconds: float = 180.0) -> FastMCP:
         middleware=[_BoundCalls(timeout_seconds)],
     )
     for name, operation in (("status", inspect_repository), ("adopt", adopt_repository)):
-        server.tool(
-            partial(operation, target),
-            name=name,
-            description=operation.__doc__,
-            run_in_thread=True,
-            annotations={"readOnlyHint": name == "status", "openWorldHint": False},
+        server.add_tool(
+            FunctionTool.from_function(
+                partial(operation, target),
+                name=name,
+                description=operation.__doc__,
+                run_in_thread=True,
+                annotations=ToolAnnotations(read_only_hint=name == "status", open_world_hint=False),
+            )
         )
     return server

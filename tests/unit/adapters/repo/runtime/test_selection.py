@@ -264,7 +264,9 @@ def test_portable_archive_retains_exact_runtime_and_previous_output(tmp_path, mo
         assert destination.read_bytes() == b"previous"
         return
     result = distribution.package_runtime(selected.root, wheel, destination)
-    assert Path(result["homebrew_cask"]).is_file()
+    cask = Path(result["homebrew_cask"]).read_text()
+    assert all(token in cask for token in ('"/usr/bin/codesign"', '"=notarized"'))
+    assert "spctl" not in cask
     assert distribution.package_runtime(selected.root, wheel, destination) == result
     with tarfile.open(destination) as archive:
         archive.extractall(tmp_path / "relocated", filter="tar")

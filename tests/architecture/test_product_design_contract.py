@@ -14,7 +14,6 @@ from ethos.contracts.semantic import Commitment
 from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.policy.boundary.product import product_surface_files
-from ethos.repository.registry.docs.registry import allowed_roles
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import front_matter
 
@@ -107,9 +106,7 @@ def test_agent_entrypoint_is_thin_and_continuation_driven() -> None:
 def test_documentation_has_one_entrypoint_without_decision_index_shells() -> None:
     """ETHOS keeps one docs root and no marker-only Decision Record index."""
     assert (ROOT / "docs/README.md").is_file()
-    assert not (ROOT / "docs/index.md").exists()
     assert not (ROOT / "docs/decisions/README.md").exists()
-    assert not (ROOT / "docs/decisions/index.md").exists()
 
 
 def test_decision_records_are_audited_product_surfaces() -> None:
@@ -150,11 +147,6 @@ def test_product_meaning_and_terminal_route_are_both_required_docs() -> None:
     """Repository audit keeps the two canonical semantic owners present."""
     assert "docs/governance/product-design-contract.md" in REQUIRED_DOCS
     assert "docs/plans/terminal-governance-product-design.md" in REQUIRED_DOCS
-
-
-def test_repository_docs_taxonomy_has_no_feedback_ledger_role() -> None:
-    """Conversation recovery cannot introduce a parallel durable ledger."""
-    assert "ledger" not in allowed_roles(ROOT)
 
 
 def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> None:

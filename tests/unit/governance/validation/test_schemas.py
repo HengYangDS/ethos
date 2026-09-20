@@ -10,20 +10,15 @@ import pytest
 from pydantic import ValidationError
 
 from ethos.repository.audit import REQUIRED_SCHEMAS
+from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.policy.schema import load_schema
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.result import EthosResult
-from tests.support.literal_cases import literal_case
 
-ROLE_POLICY_SAMPLE = literal_case("governance.validation.test_schemas:assign:ROLE_POLICY_SAMPLE:0")
 ROOT = Path(__file__).resolve().parents[4]
-
-
-def _product_schema_names() -> set[str]:
-    return {path.name for path in (ROOT / "system/schemas").rglob("*.schema.json")}
 
 
 def test_schema_loader_uses_active_product_checkout_not_adopter_schema(tmp_path) -> None:
@@ -47,17 +42,12 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["mode"] == "product"
     assert set(REQUIRED_SCHEMAS) <= set(report["schemas"])
     assert report["required_gaps"] == []
-    assert all(item["verdict"] == "pass" for item in report["schemas"].values())
-    assert all("ok" not in item for item in report["schemas"].values())
-    assert all(item["verdict"] == "pass" for item in report["instances"].values())
-    assert all("ok" not in item for item in report["instances"].values())
+    for section in ("schemas", "instances"):
+        for item in report[section].values():
+            assert item["verdict"] == "pass"
+            assert "ok" not in item
     assert "evidence-boundaries.schema.json" in report["schemas"]
     assert "projection-input.schema.json" in report["schemas"]
-
-
-def test_container_contract_is_not_a_product_schema_or_profile_field() -> None:
-    report = schema_validation_report()
-
     assert "container-contract" not in report["schemas"]
     assert "container-contract" not in report["instances"]
     profile = RepositoryProfileDeclaration.bootstrap("example").model_dump(mode="python")
@@ -97,10 +87,10 @@ def test_schema_reports_keep_native_ownership_across_adopter_shapes(tmp_path, co
     docs.mkdir(parents=True)
     if condition == "native-doc":
         (tmp_path / ".ethos").mkdir()
-        (tmp_path / ".ethos/project.toml").write_text("[meta]\\nname = 'sample'\\n")
+        (tmp_path / ".ethos/project.toml").write_text("[meta]\nname = 'sample'\n")
         (docs / "README.md").write_text(
-            "---\\nsubject: docs:governance\\nrole: reference\\nstate: canonical\\n"
-            "relations: {}\\n---\\n# Governance Docs\\n"
+            "---\nsubject: docs:governance\nrole: reference\nstate: canonical\n"
+            "relations: {}\n---\n# Governance Docs\n"
         )
     report = schema_validation_report(tmp_path)
     assert report["mode"] == "product"
@@ -109,7 +99,9 @@ def test_schema_reports_keep_native_ownership_across_adopter_shapes(tmp_path, co
     assert report["required_gaps"] == (
         ["schema_retired:capability-profile.schema.json"] if retired else []
     )
-    expected = _product_schema_names() | ({"capability-profile.schema.json"} if retired else set())
+    expected = {path.name for path in (ROOT / "system/schemas").rglob("*.schema.json")}
+    if retired:
+        expected.add("capability-profile.schema.json")
     assert set(report["schemas"]) == expected
     assert report["schema_count"] == len(expected)
     assert "custom.schema.json" not in report["schemas"]
@@ -147,70 +139,48 @@ def test_result_payload_validates_native_governance_context(with_context) -> Non
 
 
 def test_gate_schema_accepts_quality_descriptor_fields() -> None:
-    payload = {
-        "id": "markdown-links",
-        "kind": "docs",
-        "command": ["lychee", "--offline", "docs"],
-        "policy": "required",
-        "profile": "product",
-        "toolchain": "quality-adapter",
-        "asset_classes": ["markdown-docs"],
-        "dimensions": ["links", "anchors"],
-        "execution_mode": "adapter",
-        "evidence_class": "diagnostic",
-        "trust_bearing": False,
-        "tool_adapter": "lychee",
-        "writes_files": False,
-        "network_policy": "offline",
-        "version_source": "adopter-toolchain",
-        "depends_on": [],
-    }
-
+    """Validate the real descriptor plus the supported command-adapter variation."""
+    payload = resolve_gate_policy().registry["markdown-links"].to_dict()
+    payload.pop("providers")
+    payload.update(
+        command=["lychee", "--offline", "docs"],
+        execution_mode="adapter",
+        evidence_class="diagnostic",
+        trust_bearing=False,
+    )
     validation = validate_schema_instance("gate.schema.json", payload)
-
     assert validation["verdict"] == "pass"
 
 
-def test_schema_report_blocks_malformed_live_skill_declarations(tmp_path) -> None:
-    activation = tmp_path / ".agents" / "skills" / "activation.toml"
-    activation.parent.mkdir(parents=True)
-    activation.write_text("[meta", encoding="utf-8")
+@pytest.mark.parametrize("scope", ["activation", "packages"])
+def test_schema_report_rejects_malformed_live_skill_inputs(tmp_path, scope) -> None:
+    """Actual native declarations and package metadata fail at the same report boundary."""
+    skills = tmp_path / ".agents/skills"
+    shutil.copytree(ROOT / ".agents/skills", skills)
+    if scope == "activation":
+        (skills / "activation.toml").write_text("[meta")
+        expected = (
+            "live-skill-activation-contract",
+            "live-skill-registry-contract",
+            "live-skill-package-manifests",
+        )
+    else:
+        for name, text in (("malformed", "[package"), ("invalid", "schema_version = 2\n")):
+            path = skills / name / "package.toml"
+            path.parent.mkdir()
+            path.write_text(text)
+        expected = ("live-skill-package-manifests",)
     (tmp_path / "docs").mkdir()
-
     report = schema_validation_report(tmp_path)
-
     assert report["verdict"] == "block"
-    for name in (
-        "live-skill-activation-contract",
-        "live-skill-registry-contract",
-        "live-skill-package-manifests",
-    ):
+    for name in expected:
         assert report["instances"][name]["verdict"] == "block"
         assert report["instances"][name]["required_gaps"]
-
-
-def test_schema_report_blocks_malformed_and_invalid_live_skill_packages(tmp_path) -> None:
-    skill_root = tmp_path / ".agents" / "skills"
-    shutil.copytree(ROOT / ".agents" / "skills", skill_root)
-    malformed = skill_root / "malformed" / "package.toml"
-    malformed.parent.mkdir()
-    malformed.write_text("[package", encoding="utf-8")
-    invalid = skill_root / "invalid" / "package.toml"
-    invalid.parent.mkdir()
-    invalid.write_text("schema_version = 2\n", encoding="utf-8")
-    (tmp_path / "docs").mkdir()
-
-    report = schema_validation_report(tmp_path)
-
-    package = report["instances"]["live-skill-package-manifests"]
-    assert package["verdict"] == "block"
-    assert len(package["required_gaps"]) >= 2
-    assert any(
-        gap.startswith(".agents/skills/malformed/package.toml:") for gap in package["required_gaps"]
-    )
-    assert any(
-        gap.startswith(".agents/skills/invalid/package.toml:") for gap in package["required_gaps"]
-    )
+    if scope == "packages":
+        gaps = report["instances"]["live-skill-package-manifests"]["required_gaps"]
+        assert len(gaps) >= 2
+        for name in ("malformed", "invalid"):
+            assert any(gap.startswith(f".agents/skills/{name}/package.toml:") for gap in gaps)
 
 
 def test_validate_schema_instance_reports_all_native_instance_gaps() -> None:

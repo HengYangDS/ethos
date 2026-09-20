@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.repository.design.integrity import design_integrity_report
+from ethos.repository.design.integrity import front_matter_ok
+from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.docs.health import ethos_command_tokens
 from ethos.repository.registry.docs.health import shell_commands
@@ -208,18 +211,26 @@ def test_docs_health_fails_closed_for_invalid_native_configuration(tmp_path, pat
     assert report["required_gaps"] == [gap]
 
 
+@pytest.mark.parametrize(
+    ("module", "consumer"),
+    [
+        ("ethos.repository.registry.docs.health", docs_health_report),
+        ("ethos.repository.design.integrity", design_integrity_report),
+        ("ethos.repository.policy.references.closure", repository_semantic_closure),
+    ],
+)
 def test_docs_health_does_not_reclassify_unrelated_registry_failures(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, module, consumer
 ) -> None:
     message = "unrelated native read failure"
 
     def fail(_root: Path) -> list[dict[str, str]]:
         raise ValueError(message)
 
-    monkeypatch.setattr("ethos.repository.registry.docs.health.build_docs_registry", fail)
-
+    (tmp_path / "docs").mkdir()
+    monkeypatch.setattr(f"{module}.build_docs_registry", fail)
     with pytest.raises(ValueError, match=message):
-        docs_health_report(tmp_path)
+        consumer(tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -232,6 +243,11 @@ def test_docs_health_does_not_reclassify_unrelated_registry_failures(
         ("relations: {}", "relations: [broken", "block"),
         ("subject: ethos:example", "subject: [ethos:example]", "block"),
         ("relations: {}", "relations: not-a-mapping", "block"),
+        (
+            "subject: ethos:example\\nrole: reference\\nstate: canonical\\nrelations: {}",
+            "[invalid]",
+            "block",
+        ),
         ("relations: {}", "relations:\\n  current_owner: missing.md", "block"),
         ("relations: {}", "relations:\\n  canonical_for: a descriptive scope", "pass"),
         ("Status: canonical.", "Status: superseded.", "block"),
@@ -257,6 +273,13 @@ def test_metadata_public_report_preserves_validity_and_rejects_ambiguity(
     report = docs_registry_report(tmp_path)
     assert report["verdict"] == verdict
     assert bool(report["required_gaps"]) == (verdict == "block")
+    if any(gap.startswith("docs_metadata_invalid:") for gap in report["required_gaps"]):
+        for consumer in (design_integrity_report, repository_semantic_closure):
+            assert any(
+                "docs_metadata_invalid:" in gap for gap in consumer(tmp_path)["required_gaps"]
+            )
+        if report["required_gaps"][0].endswith(":syntax"):
+            assert not front_matter_ok(path)
 
 
 def test_metadata_retains_structures_and_excludes_literal_guidance(tmp_path: Path) -> None:

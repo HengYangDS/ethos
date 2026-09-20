@@ -42,7 +42,7 @@ configuration plane, not a truth center.
   sole Python distribution and its locked supply.
 - `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `uv run --frozen --offline python -m nox -s schemas` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
 - `.config/checks/security/audit.toml` owns the native dependency audit boundary. The `vulnerabilities` Nox session calls `tools/ci/dependency_audit.py` to audit Python and npm locks, retaining bounded native observations and one input-bound verdict. Online security guards package delivery without making offline tests depend on advisory availability; hosted CI and publication remain separate claims.
-- The root `.gitleaks.toml` owns secret-scanning policy; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
+- [The secret-scanning policy](checks/secrets/gitleaks.toml) is reached through the root Gitleaks discovery reference; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
 - `tools/ci/repository_hygiene.py`, invoked through the `repository_hygiene` Nox session, owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, merge-conflict markers, and the zero-suppression invariant.
 - `.config/mise/config.toml` and `.config/mise/mise.lock` select native developer/CI supply through native discovery. The existing
   Python bootstrap prepares missing mise with .config/ci/mise-install.sh,
@@ -97,9 +97,10 @@ Placement follows the actual consumer, not a blanket root-file exemption.
 - `noxfile.py` is a small native entrypoint, not another session implementation.
 - `.gitlab-ci.yml` is a generated provider entrypoint. Its meaning comes from
   the CUE source and native inputs, not separately authored YAML.
-- `.gitleaks.toml` is still consumed by the installed ETHOS pre-commit hook.
-  Its eventual move must migrate that consumer before removing the old path;
-  explicit scanner arguments prove nested parsing, not a safe hook cutover.
+- `.gitleaks.toml` contains only a native reference to the nested secret policy.
+  It preserves discovery and the installed hook across the cutover without
+  duplicating rules. Consumers run from the repository root; a missing or
+  malformed referenced policy is rejected.
 - [The optional pre-commit configuration](checks/hooks/pre-commit.yaml) invokes
   existing Nox checks. Run it with an explicit `--config` path; no root copy
   is retained. Do not install it over the ETHOS-owned Git hook.

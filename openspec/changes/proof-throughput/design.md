@@ -2721,3 +2721,15 @@ execution and report unreadable index, missing supply, timeout and format reject
 separately. Retain partial-staging positive and negative cases and execute the
 installed runtime owner during package acceptance. This boundary does not claim
 all format-policy discovery layouts or hostile concurrent index writers solved.
+
+
+### Package Runtime File Closure
+
+Installed staged-format acceptance exposed a second supply path: copying an
+existing runtime preserved its library tree and reconstructed console entrypoints,
+but omitted distribution-owned native executables. Package-source construction
+now invokes the same verified distribution-file projection as locked construction.
+The [installed-project file record](https://packaging.python.org/en/latest/specifications/recording-installed-packages/)
+supplies ownership; no Ruff-specific filename list or second installer is added.
+Source identity and import success alone do not prove executable capability.
+Keep missing-tool refusal and installed partial-staging cases in package acceptance.

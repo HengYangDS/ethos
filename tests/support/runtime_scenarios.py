@@ -105,6 +105,10 @@ def create_fixture_python(target: Path, *, shared_executable: Path | None = None
     """Bind fixture children to the invoking candidate and shared dependencies."""
     scripts = target / ("Scripts" if os.name == "nt" else "bin")
     scripts.mkdir(parents=True)
+    if os.name != "nt":
+        entry = scripts / "ethos"
+        entry.write_text(runtime_materialization.render_console_script("ethos"))
+        entry.chmod(0o755)
     source_python = Path(sys.executable).absolute()
     fixture_python = scripts / ("python.exe" if os.name == "nt" else "python")
     if shared_executable is None:

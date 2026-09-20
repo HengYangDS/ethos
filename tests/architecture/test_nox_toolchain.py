@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -213,6 +215,16 @@ def test_config_selection_keeps_native_failures_and_ownership(
         {"root": "../outside"},
         {"root": " "},
         {"known_first_party": "not-a-list"},
+        (None, 0, "unknown", "unobservable"),
+        ("{", 0, "unknown", "unobservable"),
+        ("{}", 0, "unknown", "unobservable"),
+        ("[{}]", 0, "block", "findings_reported"),
+        ("[{}]", 1, "block", "findings_reported"),
+        ("[]", 1, "block", "execution_failed"),
+        ("[]", 2, "block", "execution_failed"),
+        (None, 2, "block", "execution_failed"),
+        (None, "spawn", "unknown", "execution_unavailable"),
+        (None, "timeout", "unknown", "execution_unavailable"),
     ],
 )
 def test_dependency_runner_consumes_declared_policy(tmp_path, monkeypatch, fault):
@@ -223,6 +235,7 @@ def test_dependency_runner_consumes_declared_policy(tmp_path, monkeypatch, fault
     package = data["package"][0]
     package["known_first_party"] = ["declared_fixture", "second_fixture"]
     package.update(fault if isinstance(fault, dict) else {})
+    outcome = fault if isinstance(fault, tuple) else ("[]", 0, "pass", "passed")
     if fault != "missing":
         policy.write_text("[broken" if fault == "malformed" else tomli_w.dumps(data))
     for name, value in {
@@ -234,16 +247,33 @@ def test_dependency_runner_consumes_declared_policy(tmp_path, monkeypatch, fault
     }.items():
         monkeypatch.setattr(dependency_hygiene, name, value)
     session = Mock()
-    session.run.side_effect = lambda *_args, **_kwargs: dependency_hygiene.OUTPUT.write_text("[]")
-    if fault is not None:
+
+    def execute(_root, command, **kwargs):
+        assert kwargs["timeout"] > 0
+        if outcome[1] == "spawn":
+            message = "missing deptry"
+            raise FileNotFoundError(message)
+        if outcome[1] == "timeout":
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"], stderr=b"partial error")
+        if outcome[0] is not None:
+            dependency_hygiene.OUTPUT.write_text(outcome[0])
+        return subprocess.CompletedProcess(command, outcome[1], "native stdout", "native stderr")
+
+    transport = Mock(side_effect=execute)
+    monkeypatch.setattr(dependency_hygiene, "run_command", transport, raising=False)
+    if fault is not None and not isinstance(fault, tuple):
         with pytest.raises((OSError, ValueError)):
             dependency_hygiene.run(session)
-        session.run.assert_not_called()
+        transport.assert_not_called()
         return
     dependency_hygiene.run(session)
-    session.run.assert_called_once()
-    session.error.assert_not_called()
-    args = session.run.call_args.args
+    transport.assert_called_once()
+    report = json.loads(dependency_hygiene.SUMMARY.read_text())
+    assert (report["verdict"], report["state"]) == outcome[2:]
+    assert report["exit_code"] == (outcome[1] if isinstance(outcome[1], int) else None)
+    assert report["stderr"]
+    assert session.error.called == (outcome[2] != "pass")
+    args = transport.call_args.args[1]
     assert [args[i + 1] for i, arg in enumerate(args) if arg == "--known-first-party"] == (
         package["known_first_party"]
     )

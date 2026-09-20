@@ -283,8 +283,11 @@ def module_name(path: str) -> str:
 def import_module(path: str, node: ast.ImportFrom) -> str:
     if node.level == 0:
         return node.module or ""
-    package = module_name(path).split(".")[: -node.level]
-    return ".".join((*package, *((node.module or "").split("."))))
+    package = module_name(path).split(".")
+    if not path.endswith("/__init__.py"):
+        package.pop()
+    package = package[: max(0, len(package) - node.level + 1)]
+    return ".".join((*package, *(node.module.split(".") if node.module else ())))
 
 
 def cyclopts_command_owners(
@@ -330,3 +333,38 @@ def _command_names(decorator: ast.AST, function_name: str) -> tuple[str, tuple[s
         if keyword.arg == "name" and (name := _string(keyword.value)):
             names = (name,)
     return reference.value.id, names or (function_name.replace("_", "-"),)
+
+
+def deleted_python_input_gaps(
+    files: Mapping[str, str], deleted: frozenset[str]
+) -> tuple[list[str], list[str]]:
+    """Join native import relations to deleted modules without guessing dynamic imports."""
+    current = {module_name(path) for path in files if path.endswith(".py")}
+    retired = {
+        module_name(path): path
+        for path in deleted
+        if path.endswith(".py") and module_name(path) not in current
+    }
+    gaps, unknown = [], []
+    if not retired:
+        return gaps, unknown
+    for path, text in files.items():
+        if not path.endswith(".py"):
+            continue
+        tree = complete_python_tree(text)
+        if tree is None:
+            unknown.append(f"deleted_input_observation_unknown:{path}:import")
+            continue
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                parent = import_module(path, node)
+                imported.add(parent)
+                imported.update(f"{parent}.{alias.name}" for alias in node.names)
+        gaps.extend(
+            f"deleted_input:{retired[module]}:{path}:import"
+            for module in sorted(imported & retired.keys())
+        )
+    return gaps, unknown

@@ -380,7 +380,7 @@ def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monk
 
     check.assert_called_once_with((), node=node, package_supply=supply)
     session.run.assert_called_once_with(
-        ci_sessions.RUNTIME.script("pre-commit"), "validate-config", ".pre-commit-config.yaml"
+        ci_sessions.RUNTIME.script("pre-commit"), "validate-config", ci_sessions.PRE_COMMIT_CONFIG
     )
 
 

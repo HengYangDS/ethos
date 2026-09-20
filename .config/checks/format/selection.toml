@@ -309,7 +309,6 @@ yaml_allowed_roots = [
   ".config/checks/",
   "openspec/",
   "system/projections/",
-  ".pre-commit-config.yaml",
 ]
 
 [policy.extension_paths]

@@ -229,12 +229,18 @@ def _verify_resources(wheel: Path) -> list[str]:
 
 def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str]:
     python, ethos = _venv_executable(smoke, "python"), _venv_executable(smoke, "ethos")
-    _run(str(ethos), "--help", cwd=WORK)
-    version = _run(str(ethos), "--version", cwd=WORK)
+    _run(str(ethos), "--help", "--root", str(adopter), cwd=WORK)
+    version = _run(str(ethos), "--version", "--root", str(adopter), cwd=WORK)
     origin = _run(
         str(python),
+        "-B",
+        "-I",
         "-c",
-        "from pathlib import Path; import ethos; print(Path(ethos.__file__).resolve())",
+        "from pathlib import Path; import ethos,sys; "
+        "from ethos.repository.release.identity import packaged_build_identity; "
+        "assert packaged_build_identity().distribution_version in sys.argv[1], "
+        "'installed_console_identity_mismatch'; print(Path(ethos.__file__).resolve())",
+        version,
         cwd=WORK,
     )
     if not Path(origin).is_relative_to(smoke):

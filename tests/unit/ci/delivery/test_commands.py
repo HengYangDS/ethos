@@ -143,7 +143,7 @@ def test_installed_sdk_check_observes_without_mutating_or_authoring_intent(
 
     def run(*command: str, **_kwargs: object) -> str:
         executed.append(command)
-        if command[-1] == "--version":
+        if "--version" in command:
             return "ethos 0.2.0-alpha.3"
         if "Path(ethos.__file__)" in " ".join(command):
             return (smoke / "site-packages/ethos/__init__.py").as_posix()

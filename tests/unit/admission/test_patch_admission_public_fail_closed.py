@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.admission.patch_admission as admission
+from ethos.repository.policy.references.observation import deleted_input_gaps
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -128,7 +129,7 @@ def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_clos
     assert report["state"] == "admitted"
 
 
-@pytest.mark.parametrize("change", ["body", "new-command", "prefix", "delete-app"])
+@pytest.mark.parametrize("change", ["body", "new-command", "prefix", "delete-app", "retire"])
 def test_patch_command_ownership_uses_exact_unchanged_context(tmp_path, change) -> None:
     """Changes retain imported namespaces but cannot inherit deleted or stale parents."""
     repo, _head = _repository(tmp_path)
@@ -155,17 +156,42 @@ def test_patch_command_ownership_uses_exact_unchanged_context(tmp_path, change) 
             "other" if change == "new-command" else "return 2",
         )
     )
-    paths = (handler, app) if change in {"prefix", "delete-app"} else (handler,)
+    paths = (handler, app) if change in {"prefix", "delete-app", "retire"} else (handler,)
     if change == "prefix":
         (repo / app).write_text(files[app].replace("ethos", "different"))
-    elif change == "delete-app":
+    elif change in {"delete-app", "retire"}:
         (repo / app).unlink()
+        if change == "retire":
+            target.unlink()
     patch = git(repo, "diff", "--", *paths) + "\n"
     for relative in paths:
         (repo / relative).write_text(files[relative])
     report = admission.patch_admission(
         root=repo, requested_paths=paths, baseline_head=head, patch=patch
     )
-    assert report["verdict"] == ("pass" if change == "body" else "block")
-    if change == "body":
-        assert report["references"]["command"] == ["ethos status"]
+    assert report["verdict"] == ("block" if change == "delete-app" else "pass")
+    assert not report["references"].get("command")
+    if change == "delete-app":
+        assert report["reason"] == "deleted_input:src/example/app.py:src/example/commands.py:import"
+
+
+@pytest.mark.parametrize(
+    ("source", "path", "replacement", "expected"),
+    [
+        ("import pkg.owner as local", "consumer.py", False, "block"),
+        ("from pkg import owner", "consumer.py", False, "block"),
+        ("from .owner import item", "consumer.py", False, "block"),
+        ("from . import owner", "consumer.py", False, "block"),
+        ("from . import owner", "__init__.py", False, "block"),
+        ("VALUE = 1", "consumer.py", False, "pass"),
+        ("def invalid(:", "consumer.py", False, "unknown"),
+        ("import pkg.owner", "consumer.py", True, "pass"),
+    ],
+)
+def test_deleted_python_input_retains_import_identity(source, path, replacement, expected):
+    files = {f"src/pkg/{path}": source}
+    if replacement:
+        files["src/pkg/owner/__init__.py"] = ""
+    gaps, unknown = deleted_input_gaps(files, frozenset({"src/pkg/owner.py"}))
+    assert bool(gaps) is (expected == "block")
+    assert bool(unknown) is (expected == "unknown")

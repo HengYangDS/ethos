@@ -481,8 +481,7 @@ def deleted_input_gaps(
     This bounded observation does not claim whole-program reference coverage.
     Unknown native input expressions stay distinct from known dangling inputs.
     """
-    gaps: list[str] = []
-    unknown: list[str] = []
+    gaps, unknown = python_references.deleted_python_input_gaps(files, deleted)
     if not deleted:
         return gaps, unknown
     for path, text in files.items():

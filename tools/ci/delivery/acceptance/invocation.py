@@ -21,7 +21,7 @@ def invoke(
     environment: Mapping[str, str],
 ) -> tuple[int, dict[str, object], str]:
     """Run one installed CLI request and preserve its result and stderr."""
-    completed = run_command(root, command, env=environment, remove_env_prefixes=("GIT_",))
+    completed = run_command(root, command, env=environment, inherit_environment=False, timeout=180)
     try:
         result = EthosResult.from_payload(json.loads(completed.stdout))
     except (json.JSONDecodeError, TypeError, ValueError) as error:

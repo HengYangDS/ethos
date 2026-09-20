@@ -28,7 +28,7 @@ def _git(root: Path, *args: str, environment: Mapping[str, str]) -> str:
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_TERMINAL_PROMPT": "0",
         },
-        remove_env_prefixes=("GIT_",),
+        inherit_environment=False,
         timeout=30,
     )
     if result.returncode:

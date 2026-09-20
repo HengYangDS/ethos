@@ -61,7 +61,9 @@ def _run(
     cwd: Path = ROOT,
     env: dict[str, str] | None = None,
 ) -> str:
-    completed = run_command(cwd, command, env=env, remove_env_prefixes=("GIT_",))
+    completed = run_command(
+        cwd, command, env=env, inherit_environment=env is None, remove_env_prefixes=("GIT_",)
+    )
     if completed.returncode:
         detail = completed.stderr.strip() or completed.stdout.strip()
         rendered = " ".join(command)
@@ -119,7 +121,7 @@ def observe_independent_command_plane(ethos: Path, adopter: Path) -> dict[str, o
         (git, "rev-parse", "HEAD"),
         env=env,
         check=True,
-        remove_env_prefixes=("GIT_",),
+        inherit_environment=False,
     ).stdout.strip()
     holder = "agent:test:package-only:independence"
     suffix = ("--root", str(adopter), "--json")

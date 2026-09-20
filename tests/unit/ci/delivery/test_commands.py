@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from ethos.result import EthosResult
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import invocation
@@ -79,20 +80,13 @@ def test_signature_acceptance_exercises_the_real_isolated_command_boundary(tmp_p
 
 
 def _blocked_command(command, gap, next_action):
-    return {
-        "schema_version": 2,
-        "command": command,
-        "verdict": "block",
-        "state": "blocked",
-        "summary": {},
-        "diagnostics": [],
-        "required_gaps": [gap],
-        "next_action": next_action,
-        "user_decision_required": False,
-        "data": {},
-        "continuation": "blocked",
-        "missing_facts_or_evidence": [],
-    }
+    return EthosResult(
+        command=command,
+        verdict="block",
+        state="blocked",
+        required_gaps=(gap,),
+        next_action=next_action,
+    ).to_dict()
 
 
 def test_lane_lifecycle_failure_preserves_the_command_result(
@@ -120,27 +114,30 @@ def test_lane_lifecycle_failure_preserves_the_command_result(
     assert '"next_action":"ethos lane repair --root /repo --json"' in str(error.value)
 
 
-def test_package_cli_invocation_preserves_result_and_stderr(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+@pytest.mark.parametrize("selection", ["", "adopter-change"])
+def test_package_cli_invocation_preserves_result_and_isolates_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, selection: str
 ) -> None:
+    """Actual child execution retains explicit context but not the parent repository."""
+    monkeypatch.setenv("ETHOS_CHANGE", "foreign-change")
+    monkeypatch.setenv("ETHOS_ACTOR", "foreign-actor")
     result = _blocked_command("status", "locked_environment_not_provisioned", "uv sync --frozen")
-    monkeypatch.setattr(
-        invocation,
-        "run_command",
-        lambda *_args, **_kwargs: SimpleNamespace(
-            returncode=2,
-            stdout=json.dumps(result),
-            stderr="locked dependency unavailable",
-        ),
+    code = (
+        "import os,json,sys; p=json.loads(sys.argv[1]); "
+        "p['data']={k:os.getenv(k,'') for k in ('ETHOS_CHANGE','ETHOS_ACTOR')}; "
+        "print(json.dumps(p)); print('locked dependency unavailable',file=sys.stderr); sys.exit(2)"
     )
-
     returncode, observed, diagnostic = invocation.invoke(
         tmp_path,
-        ("/runtime/ethos", "status", "--json"),
-        environment={"PATH": "/native"},
+        (sys.executable, "-I", "-c", code, json.dumps(result)),
+        environment={"ETHOS_CHANGE": selection, "ETHOS_ACTOR": "adopter-actor"}
+        if selection
+        else {},
     )
-
+    result["data"] = {
+        "ETHOS_CHANGE": selection,
+        "ETHOS_ACTOR": "adopter-actor" if selection else "",
+    }
     assert returncode == 2
     assert observed == result
     assert '"required_gaps":["locked_environment_not_provisioned"]' in diagnostic

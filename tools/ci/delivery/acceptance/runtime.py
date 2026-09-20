@@ -124,7 +124,7 @@ def require_production_dependencies(python: Path) -> dict[str, object]:
         python.parent,
         (python.as_posix(), "-B", "-I", "-c", probe),
         env={},
-        remove_env_prefixes=("GIT_",),
+        inherit_environment=False,
     )
     if completed.returncode:
         message = "package_runtime_development_dependency_present"

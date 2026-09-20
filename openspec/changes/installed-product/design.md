@@ -300,7 +300,7 @@ not another build/runtime implementation or dependency resolver.
 
 The existing install acceptance owns archive generation after its complete
 package lifecycle. Normalized archive metadata permits reproducible bytes without
-changing the payload manifest. A generated Homebrew formula installs that exact
+changing the payload manifest. A generated Homebrew Cask installs that exact
 archive with native ownership and its source/platform identity; local file URLs
 are qualification input, never a claim of remote publication. Keep the immutable
 payload outside the shell entry and preserve its hash-bound permissions.
@@ -310,3 +310,24 @@ Repository-local copies remain until the existing selection, activation and
 retirement owners support shared immutable supply with exact repository binding,
 concurrent activation, live-consumer fencing and safe removal. These incomplete
 obligations retain their current tasks and cannot be checked from a working CLI.
+
+The real formula experiment installed but rewrote native dylib identities;
+preserve_rpath retained one extension but not libpython. Exact payload verification
+rejected the result. Reject formula installation of prebuilt sealed images; use
+Homebrew's native Cask command_wrapper and binary ownership instead. It preserves
+the package's executable entry without teaching that entry to follow host symlinks
+or introducing a hand-written shell wrapper. Caskroom/entry uninstall and native
+platform acceptance remain required; basic --version does not prove payload integrity.
+
+Cask extraction preserves file bytes but adds owner-write permission. Use native
+structured preflight steps to restore the immutable modes, assess macOS execution
+policy before starting the delivered interpreter, and call the existing runtime
+manifest validator. Do not replace a manifest digest to accommodate installer
+rewrites. The observed ad-hoc interpreter was rejected by macOS; a Developer ID
+identity is available, but no notarytool profile was discovered in the bounded
+noninteractive metadata query. This does not prove all credential stores empty.
+Signing and notarization must occur before sealing the final distribution inputs;
+the shipped image, archive and installed bytes require a new exact identity.
+No quarantine removal or platform-policy disablement is an acceptance path.
+The qualification tap, failed installations and observed orphan process were
+removed. Homebrew delivery, native platforms and shared-store migration remain open.

@@ -16,8 +16,8 @@ import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.materialization.python_environment as runtime_python_environment
+import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.selection import activate_runtime
@@ -340,80 +340,69 @@ def test_runtime_finalization_requires_python_but_not_a_console_launcher(
         runtime_materialization.remove_generated_tree(runtime, ignore_errors=True)
 
 
-def test_runtime_reuse_rejects_dependency_lock_drift(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("fault", ["valid", "missing", "content", "encoding", "mode", "lock"])
+def test_runtime_reuse_requires_current_supply_and_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
 ) -> None:
-    repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
-    selected = activate_runtime(Path(git_common_dir(repo)), venv.parent)
-    drifted_lock = "e" * 64
-    drifted = load_runtime_manifest_bytes(selected.manifest.read_bytes()).environment._replace(
-        dependency_lock_sha256=drifted_lock
-    )
+    """Repair predecessor payloads without mutating them or reprovisioning valid ones."""
+    create_python = runtime_scenarios.create_fixture_python
+    entry_fault = fault
+
+    def with_entry(target, **kwargs):
+        create_python(target, **kwargs)
+        if entry_fault == "missing":
+            return
+        payload = runtime_materialization.render_console_script("ethos").encode()
+        if entry_fault in {"content", "encoding"}:
+            payload = b"obsolete" if entry_fault == "content" else b"\xff"
+        entry = _write(target / "bin/ethos", payload)
+        entry.chmod(0o644 if entry_fault == "mode" else 0o755)
+
+    monkeypatch.setattr(runtime_scenarios, "create_fixture_python", with_entry)
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    selected = activate_runtime(common, runtime.parent)
+    original = runtime_materialization.runtime_file_inventory(selected.root)
     digest = runtime_materialization.file_sha256
-    monkeypatch.setattr(
-        runtime_materialization,
-        "file_sha256",
-        lambda path: drifted_lock if path == REPOSITORY_ROOT / "uv.lock" else digest(path),
-    )
-    facts = _python_facts(selected.python.parent.parent)
-    facts.update(
-        executable=selected.python.resolve().as_posix(),
-        base_executable=selected.python.resolve().as_posix(),
-    )
-    facts.update(
-        {
-            key: getattr(selected, key)
-            for key in ("python_abi", "python_version", "python_implementation", "architecture")
-        }
-    )
-    monkeypatch.setattr(runtime_materialization, "require_python_image_source", lambda _: facts)
-    monkeypatch.setattr(
-        runtime_materialization, "observe_runtime_environment", lambda *_args, **_kwargs: drifted
-    )
-    requirements = _write(tmp_path / "locked-requirements.txt", b"fixture==1\n")
-    monkeypatch.setattr(
-        runtime_materialization,
-        "prepare_locked_requirements",
-        lambda *_args, **_kwargs: requirements,
-    )
-
-    def rebuild_required(*_args: object, **_kwargs: object) -> Path:
-        message = "dependency-lock rebuild required"
-        raise RuntimeError(message)
-
-    monkeypatch.setattr(runtime_materialization, "resolve_runtime_wheel", rebuild_required)
-
-    with pytest.raises(RuntimeError, match="dependency-lock rebuild required"):
-        runtime_materialization.materialize_runtime(
-            repo, selected.python, expected_build=selected.build
+    if fault == "lock":
+        monkeypatch.setattr(
+            runtime_materialization,
+            "file_sha256",
+            lambda path: "e" * 64 if path == REPOSITORY_ROOT / "uv.lock" else digest(path),
         )
 
+    def require_rebuild(_python):
+        message = "rebuild required"
+        raise AssertionError(message)
 
-def test_runtime_reuse_does_not_require_a_new_python_image_source(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
-    selected = activate_runtime(Path(git_common_dir(repo)), runtime.parent)
-
-    def image_source_not_needed(_python: Path) -> dict[str, str]:
-        msg = "existing runtime should be selected before provisioning"
-        raise AssertionError(msg)
-
-    monkeypatch.setattr(
-        runtime_materialization,
-        "require_python_image_source",
-        image_source_not_needed,
-    )
-
-    reused = runtime_materialization.materialize_runtime(
-        repo,
-        Path(sys.executable),
-        expected_build=selected.build,
-    )
-
-    assert reused == selected.root / "python"
+    invalid = fault == "lock" or (fault != "valid" and os.name != "nt")
+    with monkeypatch.context() as probe:
+        probe.setattr(runtime_materialization, "require_python_image_source", require_rebuild)
+        with pytest.raises(AssertionError, match="rebuild required") if invalid else nullcontext():
+            reused = runtime_materialization.materialize_runtime(
+                repo, Path(sys.executable), expected_build=selected.build
+            )
+            assert reused == selected.root / "python"
+    if invalid and fault != "lock":
+        entry_fault = "valid"
+        repaired = runtime_materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            build_source=REPOSITORY_ROOT,
+        )
+        assert repaired != runtime
+        assert repaired.joinpath("bin/ethos").read_text() == (
+            runtime_materialization.render_console_script("ethos")
+        )
+        activate_runtime(common, repaired.parent)
+        assert (
+            runtime_materialization.materialize_runtime(
+                repo, Path(sys.executable), expected_build=selected.build
+            )
+            == repaired
+        )
+    assert runtime_materialization.runtime_file_inventory(selected.root) == original
 
 
 @pytest.mark.parametrize("operation", ["seal", "remove"])

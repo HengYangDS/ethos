@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shlex
 import shutil
 import stat
@@ -40,6 +41,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 )
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.materialization.python_image import materialize_python_image
+from ethos.adapters.repo.runtime.materialization.python_image import render_console_script
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
@@ -128,6 +130,10 @@ def _reusable_runtime(
     try:
         selected = current_runtime(common, expected_build=expected_build)
         dependency_lock_sha256 = file_sha256(project / "uv.lock")
+        if os.name != "nt":
+            entry = selected.python.with_name("ethos")
+            if not os.access(entry, os.X_OK) or entry.read_text() != render_console_script("ethos"):
+                return None
     except (OSError, ValueError):
         return None
     if selected.dependency_lock_sha256 != dependency_lock_sha256:

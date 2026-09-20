@@ -252,7 +252,7 @@ truth_boundary = "generated append-only streams, not tracked source of truth"
 [[format]]
 extensions = [".sh"]
 carrier = "Generated native tool bootstrap"
-owner = "mise.toml"
+owner = ".config/mise/config.toml"
 execution = "uv run --frozen --offline python -m nox -s ci_templates"
 truth_boundary = "exact native installer projection; not hand-authored tool policy"
 budget = [{ category = "native_bootstrap", paths = [".config/ci/mise-install.sh"], comment_prefixes = ["#"], accounting = "generated_evidence" }]
@@ -354,7 +354,7 @@ mutation_policy = "generator-only"
 
 [[ownership]]
 id = "mise-lock"
-paths = ["mise.lock"]
+paths = [".config/mise/mise.lock"]
 format_owner = "mise"
 format_command = "mise lock"
 format_check = "uv run --frozen --offline python -m nox -s ci_templates"
@@ -365,7 +365,7 @@ mutation_policy = "official-owner-only"
 [[format]]
 extensions = [".cue"]
 carrier = "Native CUE configuration"
-owner = "mise.toml"
+owner = ".config/mise/config.toml"
 execution = "uv run --frozen --offline python -m nox -s ci_templates"
 truth_boundary = "authored constraints compiled into native provider projections"
 budget = [{ category = "cue", comment_prefixes = ["//"], comment_wrappers = [["/*", "*/"]] }]

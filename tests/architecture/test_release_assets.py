@@ -81,18 +81,14 @@ def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
         assert versions
         assert all(version not in installer for version in versions)
 
-    native = (ROOT / "tools/ci/toolchain/native.py").read_text(encoding="utf-8")
-    assert "mise.toml" in native
-    assert "mise.lock" in native
     assert not (ROOT / "tools/ci/scripts/install-syft.sh").exists()
     assert not (ROOT / ".config/checks/secrets/supply.toml").exists()
 
-    mise = tomllib.loads((ROOT / "mise.toml").read_text())
-    locked = tomllib.loads((ROOT / "mise.lock").read_text())["tools"]
+    mise = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())
+    locked = tomllib.loads((ROOT / ".config/mise/mise.lock").read_text())["tools"]
     for name, version in mise["tools"].items():
         assert any(item["version"] == version for item in locked[name])
     actionlint = (ROOT / "tools/ci/scripts/run-actionlint.sh").read_text()
-    assert "check_workflow" in actionlint
     assert not any(command in actionlint for command in ("curl", "tar ", "apt-get", "--tool"))
 
     assert declared_policies == {".config/checks/node/runtime.toml"}

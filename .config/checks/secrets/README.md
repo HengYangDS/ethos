@@ -8,7 +8,7 @@ concern directory. This folder records the ownership boundary so the concern is
 discoverable alongside the other `.config/checks/<concern>/` gates.
 
 - Policy: `/.gitleaks.toml` (`[extend] useDefault = true`)
-- Supply identity: repository `mise.toml` and `mise.lock` (selection and platform artifacts)
+- Supply identity: repository `.config/mise/config.toml` and `.config/mise/mise.lock` (selection and platform artifacts)
 - Integrity: `tools/ci/toolchain/native.py` verifies locked archives and installed bytes; no system installation
 - Runner: `tools/ci/scripts/run-secrets-scan.sh`
 - Scope: the runner materializes `git ls-files` into a temporary

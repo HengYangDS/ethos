@@ -22,6 +22,8 @@ from filelock import FileLock
 from filelock import Timeout
 
 from ethos.adapters.process import run_command
+from ethos.adapters.toolchain.mise import MISE_CONFIG
+from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import mise_executable
 from ethos.adapters.toolchain.mise import run_mise
 
@@ -51,14 +53,14 @@ class NativeSupply:
         if system not in {"Darwin", "Linux"} or arch is None:
             msg = f"native_tool_platform_unsupported:{system}:{machine}"
             raise ValueError(msg)
-        declarations = tomllib.loads((root / "mise.toml").read_text())["tools"]
+        declarations = tomllib.loads((root / MISE_CONFIG).read_text())["tools"]
         selected = [key for key in declarations if key.rsplit("/", 1)[-1] == name]
         if len(selected) != 1 or name not in {"scc", "gitleaks", "syft"}:
             msg = f"native_tool_undeclared:{name}"
             raise ValueError(msg)
         key = selected[0]
         version = declarations[key]
-        locked = tomllib.loads((root / "mise.lock").read_text())
+        locked = tomllib.loads((root / MISE_LOCK).read_text())
         records = [row for row in locked["tools"][key] if row["version"] == version]
         target = (
             f"{'macos' if system == 'Darwin' else 'linux'}-{'x64' if arch == 'x86_64' else arch}"
@@ -143,7 +145,7 @@ def _directory(path: Path) -> None:
 
 def render_mise_installer(root: Path) -> str:
     """Project the native installer with one semantics-preserving lint normalization."""
-    version = tomllib.loads((root / "mise.toml").read_text())["min_version"]
+    version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
     generated = run_command(
         root,
         (str(mise_executable(root)), "generate", "install-script", "--version", version),
@@ -163,7 +165,7 @@ def validate_mise_installer(root: Path) -> bytes:
     if not target.is_file() or target.is_symlink() or target.is_junction():
         raise ValueError(message)
     try:
-        version = tomllib.loads((root / "mise.toml").read_text())["min_version"]
+        version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
         record = tomllib.loads((root / ".config/checks/ci/templates.toml").read_text())["bootstrap"]
         content = target.read_bytes()
     except (OSError, KeyError, TypeError, ValueError) as error:
@@ -181,7 +183,7 @@ def validate_mise_installer(root: Path) -> bytes:
 def prepare_mise(root: Path) -> Path:
     """Reuse operator supply or stage the native installer before atomic publication."""
     root = root.resolve(strict=True)
-    version = tomllib.loads((root / "mise.toml").read_text())["min_version"]
+    version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
 
     def verify(executable: Path) -> None:
         observed = run_command(
@@ -272,8 +274,8 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30) -> Path:
             selected = archive
             if not archive.exists() and not archive.is_symlink():
                 isolated = Path(scratch)
-                for filename in ("mise.toml", "mise.lock"):
-                    (isolated / filename).write_bytes((root / filename).read_bytes())
+                for filename, source in (("mise.toml", MISE_CONFIG), ("mise.lock", MISE_LOCK)):
+                    (isolated / filename).write_bytes((root / source).read_bytes())
                 download(
                     (str(mise_executable(root)), "install", "--locked", supply.backend),
                     root=isolated,

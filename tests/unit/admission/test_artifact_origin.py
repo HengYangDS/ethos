@@ -482,8 +482,8 @@ def test_cue_index_admission_uses_exact_transitive_inputs(tmp_path, selected):
         ),
         "settings.toml": 'name = "Before"\n',
         "output.yml": "name: Before\n",
-        "mise.toml": (Path(__file__).resolve().parents[3] / "mise.toml").read_text(),
-        "mise.lock": (Path(__file__).resolve().parents[3] / "mise.lock").read_text(),
+        "mise.toml": (Path(__file__).resolve().parents[3] / ".config/mise/config.toml").read_text(),
+        "mise.lock": (Path(__file__).resolve().parents[3] / ".config/mise/mise.lock").read_text(),
     }
     for relative, text in files.items():
         target = root / relative

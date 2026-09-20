@@ -9,6 +9,7 @@ import sys
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -88,22 +89,9 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         },
     )
 
-    commands = []
-
-    def run(command, **_kwargs):
-        commands.append(command)
-        assert command == (
-            runtime_materialization.runtime_python(command[0].parent.parent),
-            "-B",
-            "-I",
-            "-m",
-            "ethos.cli",
-            "--version",
-        )
-        return subprocess.CompletedProcess(command, 0, "0.2.0-alpha.5\n", "")
-
-    monkeypatch.setattr(runtime_materialization.subprocess, "run", run)
-    return (runtime_root, work, source, interpreter, artifact, _environment()), observed, commands
+    command = Mock(return_value=subprocess.CompletedProcess([], 0, "0.2.0-alpha.5\n", ""))
+    monkeypatch.setattr(runtime_materialization.subprocess, "run", command)
+    return (runtime_root, work, source, interpreter, artifact, _environment()), observed, command
 
 
 @pytest.mark.parametrize("supply", ["packaged", "split-image", "source", "selected"])
@@ -200,7 +188,16 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     runtime_root, environment = args[0], args[5]
     target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
 
-    assert len(commands) == 1
+    commands.assert_called_once()
+    command = commands.call_args.args[0]
+    assert command == (
+        runtime_materialization.runtime_python(command[0].parent.parent),
+        "-B",
+        "-I",
+        "-m",
+        "ethos.cli",
+        "--version",
+    )
     assert len(observed) == 2
     assert observed[0].name.startswith(".runtime-build-")
     assert observed[1] == target
@@ -372,13 +369,10 @@ def test_runtime_reuse_requires_current_supply_and_entry(
             lambda path: "e" * 64 if path == REPOSITORY_ROOT / "uv.lock" else digest(path),
         )
 
-    def require_rebuild(_python):
-        message = "rebuild required"
-        raise AssertionError(message)
-
     invalid = fault == "lock" or (fault != "valid" and os.name != "nt")
     with monkeypatch.context() as probe:
-        probe.setattr(runtime_materialization, "require_python_image_source", require_rebuild)
+        rebuild = Mock(side_effect=AssertionError("rebuild required"))
+        probe.setattr(runtime_materialization, "require_python_image_source", rebuild)
         with pytest.raises(AssertionError, match="rebuild required") if invalid else nullcontext():
             reused = runtime_materialization.materialize_runtime(
                 repo, Path(sys.executable), expected_build=selected.build

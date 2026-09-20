@@ -90,3 +90,20 @@ These are source-level results, not installed SDK, MCP, complete command-family
 or host-installation acceptance. The delivery tasks remain open. Original
 preservation material remains until the restored content is committed and its
 unique semantics verified; it is not another source of product authority.
+
+## Installed Entry Recovery
+
+The adopter feedback identifies two distinct failures: immutable materialization
+deletes the product console script, and no host-installed dispatcher provides
+repository-selected execution in a fresh shell. Restore the POSIX image entry
+through the existing relocatable console-script renderer, including its argument
+and interpreter isolation rules. Installed version acceptance must execute that
+entry rather than only `python -m ethos.cli`, so a deleted entry cannot pass.
+
+This is a prerequisite, not host installation completion. Windows executable
+relocation remains unverified and must not inherit a POSIX claim. The host
+dispatcher still needs one official installation owner, exact repository
+selection, independent versions, explicit-root handling, interruption recovery,
+upgrade/rollback and live-consumer-safe removal. Do not install aliases or
+adopter-local wrappers, create another Change, or edit existing immutable images.
+The full product path and existing installation tasks remain required.

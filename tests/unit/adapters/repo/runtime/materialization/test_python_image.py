@@ -144,7 +144,7 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
     binary.unlink()
     rewrite(tmp_path / "runtime")
     assert not legacy.exists()
-    assert not ethos.exists()
+    assert ethos.is_file()
     assert python.read_bytes() == b"python"
     assert binary.stat().st_mode & 0o111
     assert str(tmp_path) not in binary.read_text()
@@ -152,7 +152,7 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
     python.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\n")
     python.chmod(0o755)
     executed = subprocess.run(
-        [str(binary), "argument with spaces"],
+        [str(ethos), "argument with spaces"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -160,7 +160,7 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
     )
     arguments = executed.stdout.splitlines()
     assert arguments[:3] == ["-B", "-I", "-c"]
-    assert arguments[-2:] == ["auxiliary", "argument with spaces"]
+    assert arguments[-2:] == ["ethos", "argument with spaces"]
 
 
 @pytest.mark.parametrize(
@@ -244,7 +244,7 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
             b"installed" if fault == "none" else b"x"
         )
         assert not tuple(target.rglob("__pycache__")) + tuple(target.rglob("*.pyc"))
-        assert not (target / "bin/ethos").exists()
+        assert (target / "bin/ethos").is_file()
         launcher = (target / "bin/uv").read_text()
         assert str(target) not in launcher
         assert '"$SCRIPT_DIR/python" -B -I' in launcher

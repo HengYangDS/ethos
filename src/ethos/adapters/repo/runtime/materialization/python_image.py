@@ -13,6 +13,7 @@ from ethos.adapters.repo.runtime.filesystem import make_owned_tree_writable
 from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
+from ethos.adapters.repo.runtime.materialization.dependency_supply import project_dependency_supply
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
 from ethos.adapters.repo.runtime.materialization.python_environment import (
@@ -66,6 +67,7 @@ def materialize_python_image(
         )
     else:
         _require_package_runtime_source(source, interpreter, wheel, facts)
+        project_dependency_supply(interpreter, python)
     _remove_non_runtime_residue(target)
     _rewrite_console_scripts(target)
 

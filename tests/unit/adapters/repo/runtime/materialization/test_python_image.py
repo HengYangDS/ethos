@@ -6,6 +6,7 @@ import json
 import subprocess
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -103,18 +104,14 @@ def test_console_script_discovery_binds_target_and_rejects_invalid_entries(
 ):
     python = _file(tmp_path / "runtime/python.exe", b"python")
 
-    def execute(command, **kwargs):
-        assert command[:4] == (str(python), "-B", "-I", "-c")
-        assert kwargs == {"capture_output": True, "check": False, "text": True}
-        return subprocess.CompletedProcess(
-            command, status, payload, "probe failed" if status else ""
-        )
-
+    execute = Mock(return_value=subprocess.CompletedProcess([], status, payload, "probe failed"))
     monkeypatch.setattr(python_image.subprocess, "run", execute)
     if gap:
         _fails(gap, python_image.console_script_entries, python)
     else:
         assert python_image.console_script_entries(python) == {"ethos": "ethos.cli:main"}
+    assert execute.call_args.args[0][:4] == (str(python), "-B", "-I", "-c")
+    assert execute.call_args.kwargs == {"capture_output": True, "check": False, "text": True}
 
 
 def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(monkeypatch, tmp_path):
@@ -226,6 +223,10 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
         _file(target / "lib/python3.14/obsolete.pyc")
 
     monkeypatch.setattr(python_image, "install_locked_runtime", install)
+    project = Mock(
+        side_effect=lambda _source, python: _file(python.parent / "native-tool", b"native")
+    )
+    monkeypatch.setattr(python_image, "project_dependency_supply", project)
 
     def materialize(requirements):
         python_image.materialize_python_image(
@@ -240,14 +241,7 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
 
     if fault in {"none", "package"}:
         materialize(lock if fault == "none" else None)
-        assert (target / "lib/python3.14/site-packages/_yaml/__init__.py").read_bytes() == (
-            b"installed" if fault == "none" else b"x"
-        )
-        assert not tuple(target.rglob("__pycache__")) + tuple(target.rglob("*.pyc"))
-        assert (target / "bin/ethos").is_file()
-        launcher = (target / "bin/uv").read_text()
-        assert str(target) not in launcher
-        assert '"$SCRIPT_DIR/python" -B -I' in launcher
+        _assert_materialized_image(target, fault, project)
     else:
         gap = {
             "supply": "dependency_supply_missing",
@@ -268,3 +262,17 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
         )
     else:
         assert not target.exists()
+
+
+def _assert_materialized_image(target, fault, project):
+    assert (target / "lib/python3.14/site-packages/_yaml/__init__.py").read_bytes() == (
+        b"installed" if fault == "none" else b"x"
+    )
+    assert not tuple(target.rglob("__pycache__")) + tuple(target.rglob("*.pyc"))
+    assert (target / "bin/ethos").is_file()
+    assert project.call_count == int(fault == "package")
+    if fault == "package":
+        assert (target / "bin/native-tool").read_bytes() == b"native"
+    launcher = (target / "bin/uv").read_text()
+    assert str(target) not in launcher
+    assert '"$SCRIPT_DIR/python" -B -I' in launcher

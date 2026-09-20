@@ -82,7 +82,7 @@ def test_entrypoint_audit_reads_the_nox_python_test_owner(tmp_path: Path) -> Non
     path = tmp_path / "tools/ci/python_test_gate.py"
     path.parent.mkdir(parents=True)
     path.write_text(
-        'PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.ini"\npytest\n',
+        'PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.toml"\npytest\n',
         encoding="utf-8",
     )
 

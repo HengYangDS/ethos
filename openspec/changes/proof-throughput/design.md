@@ -2598,3 +2598,18 @@ without removing their distinct assertions. The successor `6f14655e73a0` passed
 its exact 35-gate proof in 706.18 seconds with 4,088 tests passing, one skip and
 95.01 percent combined coverage. Public acceptance and runtime installation passed;
 the separate CUE declaration cutover and hosted delivery remain open.
+
+### Native Configuration Semantics
+
+Native TOML replaces the import-linter, coverage and pytest INI owners under
+the existing concern directories. Their tools parse these files directly;
+no converter or second configuration authority is introduced. Pytest's
+`pythonpath` resolves relative to its configuration directory, independently
+of `--rootdir`; its paths must identify the repository and source directory.
+The timeout plugin's registered string type remains a string in native TOML.
+The artifact entrypoint owner reads TOML values rather than canonical spelling
+and rejects missing, malformed or incorrectly routed cache settings.
+Root configuration moves require closure over CLI, hook, IDE and CI consumers.
+A secret policy move cannot precede its hook consumer migration: the predecessor
+hook treats a missing policy as absent capability. This boundary must remain
+enforced during installation, not merely after source tests pass.

@@ -26,16 +26,20 @@ def _write_policy(repo: Path) -> None:
     shutil.copyfile(ROOT / path, repo / path)
 
 
-def test_repository_hygiene_is_one_python_nox_owner() -> None:
+def test_repository_hygiene_is_one_python_nox_owner(pytestconfig: pytest.Config) -> None:
     policy = (ROOT / ".config/checks/repository-hygiene/policy.toml").read_text(encoding="utf-8")
     sessions = (ROOT / "tools/ci/sessions.py").read_text(encoding="utf-8")
 
+    assert [path.resolve() for path in pytestconfig.getini("pythonpath")] == [ROOT, ROOT / "src"]
     assert "root_host_residue = [" in policy
     assert '".DS_Store"' in policy
     assert "def repository_hygiene(session)" in sessions
     assert '"--ignore-noqa"' in sessions
-    coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
-    assert "exclude_lines =\n" in coverage
+    coverage = tomllib.loads(
+        (ROOT / ".config/checks/coverage/coverage.toml").read_text(encoding="utf-8")
+    )["tool"]["coverage"]
+    assert coverage["run"]["branch"] is True
+    assert coverage["report"]["exclude_lines"] == []
     assert not (ROOT / "tools/ci/scripts/run-repository-hygiene.sh").exists()
 
 

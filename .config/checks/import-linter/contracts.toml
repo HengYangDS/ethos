@@ -1,0 +1,11 @@
+# Native import-linter contracts for the sole ETHOS Python package.
+
+[tool.importlinter]
+root_packages = ["ethos"]
+
+[[tool.importlinter.contracts]]
+id = "ethos-internal-layers"
+name = "ETHOS dependency layers"
+type = "layers"
+layers = ["surface", "domain", "adapters", "repository"]
+containers = ["ethos"]

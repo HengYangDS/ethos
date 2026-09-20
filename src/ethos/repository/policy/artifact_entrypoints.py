@@ -143,10 +143,10 @@ def _denied_home_findings(rel: str, active_text: str) -> list[dict[str, str]]:
 
 def _tool_route_findings(rel: str, active: str, full_text: str) -> list[dict[str, str]]:
     if rel != ".gitlab-ci.yml" and not rel.startswith(("tools/", ".github/")):
-        return _pytest_config_findings(rel, active)
+        return _pytest_config_findings(rel, full_text)
     producer_text = "\n".join(line for line in active.splitlines() if not _is_cleanup_line(line))
     return [
-        *_pytest_config_findings(rel, active),
+        *_pytest_config_findings(rel, full_text),
         *_runtime_bootstrap_findings(rel, producer_text),
         *_ruff_route_findings(rel, producer_text, full_text),
         *_import_linter_route_findings(rel, producer_text, full_text),
@@ -193,19 +193,26 @@ def _runtime_bootstrap_findings(rel: str, producer_text: str) -> list[dict[str, 
     ]
 
 
-def _pytest_config_findings(rel: str, active_text: str) -> list[dict[str, str]]:
-    if (
-        rel != ".config/checks/pytest/pytest.ini"
-        or "cache_dir" not in active_text
-        or "cache_dir = build/runtime/tool-cache/pytest" in active_text
-    ):
+def _pytest_config_findings(rel: str, text: str) -> list[dict[str, str]]:
+    if rel != ".config/checks/pytest/pytest.toml":
         return []
+    gap = "pytest_cache_unrouted"
+    try:
+        config = tomllib.loads(text).get("pytest")
+    except tomllib.TOMLDecodeError:
+        gap = "pytest_config_invalid"
+    else:
+        if (
+            isinstance(config, dict)
+            and config.get("cache_dir") == "build/runtime/tool-cache/pytest"
+        ):
+            return []
     return [
         _entrypoint_finding(
             rel,
             check="pytest-cache-routing",
-            boundary="pytest cache_dir must route to build/runtime/tool-cache/pytest",
-            required_gap=f"generated_artifact_entrypoint_pytest_cache_unrouted:{rel}",
+            boundary="native pytest config must route cache_dir to build/runtime/tool-cache/pytest",
+            required_gap=f"generated_artifact_entrypoint_{gap}:{rel}",
         )
     ]
 
@@ -251,9 +258,9 @@ def _pytest_runner_findings(rel: str, producer_text: str, full_text: str) -> lis
         return []
     required_routes = {
         "pytest-config": (
-            'PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.ini"',
+            'PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.toml"',
             f"generated_artifact_entrypoint_pytest_config_unrouted:{rel}",
-            "pytest must use the explicit .config/checks/pytest/pytest.ini owner",
+            "pytest must use the explicit .config/checks/pytest/pytest.toml owner",
         ),
         "pytest-config-argument": (
             "str(PYTEST_CONFIG)",

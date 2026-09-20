@@ -83,14 +83,14 @@ def test_native_carriers_separate_canonicalization_from_validation(carrier_repor
         "assets/brand/ethos-logo.svg": ("svgo", "svgo"),
         "assets/brand/ethos-logo-1024.png": ("source-binary", "pillow"),
         ".gitattributes": ("repository-canonical-text", "repository-hygiene"),
-        ".config/checks/pytest/pytest.ini": ("repository-canonical-text", "tool-native-parser"),
+        ".config/checks/pytest/pytest.toml": ("taplo", "taplo"),
         "uv.lock": ("uv", "uv"),
     }
     for path, owners in expected.items():
         assignment = assignments[path]
         assert (assignment["format_owner"], assignment["validation_owner"]) == owners
     assert all("," not in entry["format_check"] for entry in assignments.values())
-    assert assignments[".config/checks/pytest/pytest.ini"]["validation_command"].endswith(
+    assert assignments[".config/checks/pytest/pytest.toml"]["validation_command"].endswith(
         "-s config_quality"
     )
 

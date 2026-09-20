@@ -6,7 +6,7 @@ configuration plane, not a truth center.
 ## Separation of concerns
 
 - `pyproject.toml` is limited to Python package/workspace metadata and uv wiring.
-- `.config/checks/pytest/pytest.ini` is the pytest config owner and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`. Owner scripts pass it with `-c` and `--rootdir=.` so pytest still evaluates the repository subject.
+- `.config/checks/pytest/pytest.toml` is the pytest config owner and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`. Owner scripts pass it with `-c` and `--rootdir=.`. Native `pythonpath` entries are relative to the configuration directory and explicitly resolve to the repository and its `src/`; `--rootdir` does not rebase those entries.
 - `ruff.toml` is the sole native Ruff policy owner for IDEs, hooks, CI, agents, and direct invocation. Its repository-root placement gives every per-file glob one truthful evaluation base while retaining checkout-relative runtime cache routing.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
 - Root `noxfile.py` owns the executable Python lint proof surface inside the
@@ -14,7 +14,7 @@ configuration plane, not a truth center.
   both bound to root `ruff.toml`. Nox creates no second
   environment, and Ruff caches remain under `build/runtime/tool-cache/ruff/`.
   Root `pyproject.toml` remains free of Ruff policy.
-- `.config/checks/coverage/coverage.ini` owns Python line-and-branch measurement; `.config/checks/coverage/policy.toml` owns the required hard floor. Default proof, full proof, and local CI enforce that same floor against current-HEAD evidence. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, pytest JUnit evidence goes to `build/evidence/quality/tests/pytest/`, pytest cache goes to ignored `build/runtime/tool-cache/pytest/`, and pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth. Pytest policy stays in `.config/checks/pytest/pytest.ini`; root `pyproject.toml` carries only the pytest discovery cache routing invariant for bare pytest and IDE invocation.
+- `.config/checks/coverage/coverage.toml` owns Python line-and-branch measurement; `.config/checks/coverage/policy.toml` owns the required hard floor. Default proof, full proof, and local CI enforce that same floor against current-HEAD evidence. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, pytest JUnit evidence goes to `build/evidence/quality/tests/pytest/`, pytest cache goes to ignored `build/runtime/tool-cache/pytest/`, and pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth. Pytest policy stays in `.config/checks/pytest/pytest.toml`; root `pyproject.toml` carries only the pytest discovery cache routing invariant for bare pytest and IDE invocation.
 - `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
 - `.config/checks/module-layout/policy.toml` owns all tracked Python as the
   repository-wide semantic scope, plus the narrower product-package topology

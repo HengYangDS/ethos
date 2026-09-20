@@ -92,7 +92,7 @@ Hidden content and a prior PASS cannot repair an unsupported current claim.
 Root configuration is allowed only when the tool or substrate requires root-native
 discovery and no explicit owner path can preserve the same behavior. `pyproject.toml`
 stays package/workspace metadata. Ruff and pytest are owned explicitly by
-`ruff.toml` and `.config/checks/pytest/pytest.ini`; owner
+`ruff.toml` and `.config/checks/pytest/pytest.toml`; owner
 scripts pass those paths. Root `ruff.toml` is intentional; a second pytest or
 Ruff configuration would be a competing owner.
 

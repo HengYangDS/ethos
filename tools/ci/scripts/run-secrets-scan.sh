@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Run the secret-scanning gate. Secret policy lives in the root .gitleaks.toml
-# (gitleaks requires the config at a git-discoverable location); the concern is
-# registered under .config/checks/secrets/.
+# Run the secret-scanning gate through Gitleaks native config inheritance.
+# The root discovery entry references the unique policy under .config/checks/secrets/.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

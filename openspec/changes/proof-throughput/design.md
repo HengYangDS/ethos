@@ -2638,3 +2638,11 @@ path; the repository does not retain a root forwarding copy. ETHOS remains the
 installed Git-hook owner. Configuration validation and a real config-lint hook
 execution must agree before and after relocation, without replacing Git hooks
 or creating another environment.
+
+Gitleaks rules live under the existing secrets concern. Its root discovery
+file contains only native `extend.path`, preserving both old and new installed
+hook consumers without another ETHOS parser or duplicated rule authority.
+The nested policy retains the complete original bytes, including default-rule
+extension. Direct and referenced policy runs must agree on clean input, native
+default rules and custom rules. Missing and malformed references must fail;
+a nonzero scanner exit without a valid finding is not evidence of detection.

@@ -14,6 +14,7 @@ import pytest
 
 import ethos.adapters.repo.hook.admission as hook_runtime
 import ethos.adapters.repo.runtime.binding as runtime_binding_module
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.contracts.branch.roles import BranchRolePolicy
@@ -407,10 +408,7 @@ def test_reference_transaction_dispatch_preserves_role_and_phase_semantics(
 
     assert result == expected
     error = capsys.readouterr().err
-    if expected:
-        assert state in error
-    else:
-        assert not error
+    assert (state in error) if expected else not error
 
 
 def test_execute_hook_converts_runtime_exception_to_json_gap(
@@ -501,9 +499,9 @@ def test_reference_transition_policy_failure_is_blocked(
     ("kind", "expected"),
     [("git-identity", 0), ("plain", 1), ("local", 1), ("instance", 1), ("legacy", 1)],
 )
+@pytest.mark.parametrize("policy", [".gitleaks.toml", ".config/checks/secrets/gitleaks.toml"])
 def test_native_secret_rule_distinguishes_credentials_from_git_identity(
-    kind: str,
-    expected: int,
+    kind: str, expected: int, policy: str
 ) -> None:
     """Native rules reject credential evidence without suppressing research source IDs."""
     executable = shutil.which("gitleaks")
@@ -518,20 +516,21 @@ def test_native_secret_rule_distinguishes_credentials_from_git_identity(
         "instance": prefix + digest[:16] + "_" + digest,
         "legacy": provider.upper() + "_TOKEN=" + digest,
     }
-    result = subprocess.run(
-        [
+    result = run_command(
+        REPOSITORY_ROOT,
+        (
             executable,
             "stdin",
             "--config",
-            str(REPOSITORY_ROOT / ".gitleaks.toml"),
+            str(REPOSITORY_ROOT / policy),
             "--redact=100",
             "--no-banner",
             "--timeout=20",
-        ],
-        input=fragments[kind] + "\n",
-        text=True,
-        capture_output=True,
+            "--report-format=json",
+            "--report-path=-",
+        ),
+        stdin=fragments[kind] + "\n",
         timeout=30,
-        check=False,
+        remove_env_prefixes=("GITLEAKS_",),
     )
-    assert result.returncode == expected, result.stderr
+    assert (result.returncode, bool(json.loads(result.stdout))) == (expected, bool(expected))

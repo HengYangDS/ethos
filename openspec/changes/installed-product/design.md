@@ -133,7 +133,6 @@ current effect admission and installed readback; no dirty candidate self-activat
 Remaining proof-throughput obligations retain their original Change. Current
 CUE local acceptance does not imply hosted qualification or complete CI reports.
 
-
 ## Shared Application Boundary Evidence
 
 Status and adoption composition now belong to `ethos.domain.inspection` and
@@ -247,6 +246,9 @@ activated merely because a framework supplies them. Background tasks stay
 disabled. Installation and native platform behavior require separate acceptance.
 
 Root binding uses functools.partial over the existing application functions.
+Register the callable through native FunctionTool.from_function and add_tool,
+not the decorator's version-dependent inspect.isroutine dispatch. Actual Python
+3.12 installation rejected that decorator path even though Python 3.14 passed.
 Their annotations must resolve at runtime: retaining actual public types avoids
 a duplicated adapter signature or custom annotation resolver. EthosResult owns
 omission of absent governance_context for all native serializers; MCP does not
@@ -320,14 +322,22 @@ or introducing a hand-written shell wrapper. Caskroom/entry uninstall and native
 platform acceptance remain required; basic --version does not prove payload integrity.
 
 Cask extraction preserves file bytes but adds owner-write permission. Use native
-structured preflight steps to restore the immutable modes, assess macOS execution
-policy before starting the delivered interpreter, and call the existing runtime
-manifest validator. Do not replace a manifest digest to accommodate installer
-rewrites. The observed ad-hoc interpreter was rejected by macOS; a Developer ID
-identity is available, but no notarytool profile was discovered in the bounded
-noninteractive metadata query. This does not prove all credential stores empty.
-Signing and notarization must occur before sealing the final distribution inputs;
-the shipped image, archive and installed bytes require a new exact identity.
-No quarantine removal or platform-policy disablement is an acceptance path.
+structured preflight steps to restore immutable modes and call the existing
+runtime manifest validator. Do not replace a manifest digest to accommodate
+installer rewrites. For the standalone interpreter, use native codesign signature
+and notarization requirements, not spctl's app assessment. The latter also rejects
+the valid system ls executable; its rejection does not diagnose a CLI startup
+failure. Signature integrity, notarization and actual execution are separate
+claims. Follow Apple's [real installation test](https://developer.apple.com/forums/thread/130560),
+including quarantine, rather than treating a static preflight as product acceptance.
+
+The ad-hoc interpreter does not satisfy the native notarized requirement. A
+Developer ID identity is available, but the bounded noninteractive metadata query
+found no notarytool profile; this does not prove all credential stores empty.
+Signing changes must precede payload inventory and sealing. Notarization submission
+uses the frozen signed payload; an outer notarization ticket is not runtime
+authorization. Any payload change requires a new exact identity and new acceptance.
+Do not infer the observed loader wait's sole cause from a missing notarization
+ticket. No quarantine removal or platform-policy disablement is an acceptance path.
 The qualification tap, failed installations and observed orphan process were
 removed. Homebrew delivery, native platforms and shared-store migration remain open.

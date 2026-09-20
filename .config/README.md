@@ -5,11 +5,14 @@ configuration plane, not a truth center.
 
 ## Separation of concerns
 
-- `pyproject.toml` is limited to Python package/workspace metadata and uv wiring.
+- `pyproject.toml` owns Python package/workspace metadata and uv wiring. Its
+  remaining native tool tables are not permission to duplicate policy owned
+  by an explicit configuration file.
 - `.config/checks/pytest/pytest.toml` is the pytest config owner and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`. Owner scripts pass it with `-c` and `--rootdir=.`. Native `pythonpath` entries are relative to the configuration directory and explicitly resolve to the repository and its `src/`; `--rootdir` does not rebase those entries.
 - `ruff.toml` is the sole native Ruff policy owner for IDEs, hooks, CI, agents, and direct invocation. Its repository-root placement gives every per-file glob one truthful evaluation base while retaining checkout-relative runtime cache routing.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
-- Root `noxfile.py` owns the executable Python lint proof surface inside the
+- Root `noxfile.py` is the native discovery entry for `tools/ci/sessions.py`,
+  which owns the executable Python lint proof surface inside the
   single uv-locked `.venv`: unsuppressed Ruff check and Ruff format check,
   both bound to root `ruff.toml`. Nox creates no second
   environment, and Ruff caches remain under `build/runtime/tool-cache/ruff/`.
@@ -34,7 +37,9 @@ configuration plane, not a truth center.
   generated and local outputs remain outside the declared source globs.
 - `.config/checks/prose/codespell.toml` owns report-first prose spelling policy;
   the `prose` Nox session runs locked `codespell` without rewriting files.
-- `.config/checks/deptry/policy.toml` owns dependency hygiene policy; `tools/ci/scripts/run-dependency-hygiene.sh` runs `deptry` per Python distribution so package metadata is checked without treating the workspace root as a runtime package.
+- `.config/checks/deptry/policy.toml` owns dependency hygiene policy. The
+  `dependencies` Nox session invokes `tools/ci/dependency_hygiene.py` for the
+  sole Python distribution and its locked supply.
 - `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `uv run --frozen --offline python -m nox -s schemas` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
 - `.config/checks/security/audit.toml` owns the native dependency audit boundary. The `vulnerabilities` Nox session calls `tools/ci/dependency_audit.py` to audit Python and npm locks, retaining bounded native observations and one input-bound verdict. Online security guards package delivery without making offline tests depend on advisory availability; hosted CI and publication remain separate claims.
 - The root `.gitleaks.toml` owns secret-scanning policy; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
@@ -51,9 +56,9 @@ configuration plane, not a truth center.
   native compilation, exact output bytes and input bindings.
   `uv run --frozen --offline python tools/ci/ci_templates.py check-templates --render`
   emits both outputs once without writing tracked files.
-- `.config/ci/emulators/` owns local provider emulator config for `act` and
-  `gitlab-ci-local`. Emulator wrappers emit local evidence only and must not
-  claim hosted GitHub or GitLab status.
+- `.config/checks/ci/templates.toml` declares provider emulator selection,
+  events, jobs, images and time limits. `tools/ci/ci_projection.py` consumes
+  that declaration; emulator output is local evidence, not hosted CI status.
 - `.config/checks/github/actionlint.toml` owns GitHub workflow syntax policy;
   `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate and
   resolves the exact installed tool through `.config/mise/config.toml` and `.config/mise/mise.lock`; missing
@@ -68,24 +73,41 @@ configuration plane, not a truth center.
 - `.config/checks/architecture/projection.toml` owns architecture projection
   drift checks from `.config/checks/architecture/models/` source to generated Mermaid. The generated
   diagram is review aid, not architecture truth.
-- `.config/checks/local-state/audit.toml` owns local/generated state boundary
-  checks. Runtime state remains ignored unless promoted into reviewed evidence.
-- `.config/release/supply-chain.toml` binds the Syft version and archive checksums to the exact built
-  wheel and SPDX 2.3 JSON output. Provenance and signing remain provider release
-  concerns until real hosted receipts exist.
+- `src/ethos/contracts/artifacts/topology.toml` owns generated-state location
+  and lifecycle rules, interpreted by its adjacent product module. No parallel
+  local-state configuration is maintained under this directory.
+- `.config/release/supply-chain.toml` selects the built-wheel subject, SPDX
+  output and claim boundary. Mise owns the Syft version and artifact checksums.
+  SBOM generation does not establish publication, signing or SLSA conformance.
 - `tools/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
   only a provider projection that calls these scripts.
 - `system/gates.toml` owns each gate's identity, profile, executable boundary,
   evidence class, and proof-floor membership. Native configuration and supply
   files remain the unique owners of tool-specific policy and versions.
 
-## Root exceptions
+## Root discovery and remaining migration boundaries
 
-Some root files remain because tools or repository substrates require root-native
-discovery: `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE`,
-`pyproject.toml`, `uv.lock`, `.gitignore`, `.gitleaks.toml`, `.pre-commit-config.yaml`,
-`.gitlab-ci.yml`, `package.json`, and `package-lock.json`. These are admitted root surfaces, not permission to move
-reusable gate policy back into the root.
+Placement follows the actual consumer, not a blanket root-file exemption.
+
+- Python and npm manifests remain beside their ecosystem lockfiles at the
+  workspace boundary. Native Git metadata and attributes retain their Git scope.
+- `ruff.toml` preserves bare CLI and editor discovery. Merely moving it under
+  `.config/` makes a plain Ruff invocation miss the policy; explicit invocation
+  alone does not prove editor parity.
+- `noxfile.py` is a small native entrypoint, not another session implementation.
+- `.gitlab-ci.yml` is a generated provider entrypoint. Its meaning comes from
+  the CUE source and native inputs, not separately authored YAML.
+- `.gitleaks.toml` is still consumed by the installed ETHOS pre-commit hook.
+  Its eventual move must migrate that consumer before removing the old path;
+  explicit scanner arguments prove nested parsing, not a safe hook cutover.
+- `.pre-commit-config.yaml` describes an optional pre-commit-framework entry.
+  The installed Git hook is ETHOS-owned, not this YAML. Native nested-file
+  validation is supported; its execution and retention decision remains open.
+- README, contribution guidance, license and changelog are reader entrypoints
+  or project records, not tool-policy configuration.
+
+Mise uses native nested discovery through [its configuration](mise/config.toml)
+and [lockfile](mise/mise.lock) in this directory. Root copies are not retained.
 
 ## Boundary rule
 

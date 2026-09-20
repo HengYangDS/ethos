@@ -2631,3 +2631,10 @@ filename inference is not retained as a fallback. The native mise files remain
 the sole owners of versions and artifact locks. Successor edits continue through
 the installed predecessor's exact-path admission after the explicit capability
 declaration is committed.
+
+The optional pre-commit-framework configuration lives under the hooks concern
+and invokes existing Nox owners. Native execution takes an explicit configuration
+path; the repository does not retain a root forwarding copy. ETHOS remains the
+installed Git-hook owner. Configuration validation and a real config-lint hook
+execution must agree before and after relocation, without replacing Git hooks
+or creating another environment.

@@ -100,14 +100,27 @@ Placement follows the actual consumer, not a blanket root-file exemption.
 - `.gitleaks.toml` is still consumed by the installed ETHOS pre-commit hook.
   Its eventual move must migrate that consumer before removing the old path;
   explicit scanner arguments prove nested parsing, not a safe hook cutover.
-- `.pre-commit-config.yaml` describes an optional pre-commit-framework entry.
-  The installed Git hook is ETHOS-owned, not this YAML. Native nested-file
-  validation is supported; its execution and retention decision remains open.
+- [The optional pre-commit configuration](checks/hooks/pre-commit.yaml) invokes
+  existing Nox checks. Run it with an explicit `--config` path; no root copy
+  is retained. Do not install it over the ETHOS-owned Git hook.
 - README, contribution guidance, license and changelog are reader entrypoints
   or project records, not tool-policy configuration.
 
 Mise uses native nested discovery through [its configuration](mise/config.toml)
 and [lockfile](mise/mise.lock) in this directory. Root copies are not retained.
+
+## Optional pre-commit checks
+
+The optional framework is a developer convenience, not the full proof or the
+installed Git hook. Its commands call existing Nox owners rather than defining
+another quality policy. From the repository root:
+
+```bash
+uv run --frozen --offline pre-commit run --config .config/checks/hooks/pre-commit.yaml --all-files
+```
+
+The source-bound `config_quality` Nox session validates this same native YAML.
+Git hook installation remains owned by `ethos hook install`.
 
 ## Boundary rule
 

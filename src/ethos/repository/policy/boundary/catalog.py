@@ -21,7 +21,6 @@ PRODUCT_SURFACES = (
     ".gitlab",
     ".gitlab-ci.yml",
     ".gitleaks.toml",
-    ".pre-commit-config.yaml",
     "assets",
     "packages",
     "distributions",

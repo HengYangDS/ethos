@@ -121,7 +121,6 @@ path_globs = [
   ".config/**",
   ".github/workflows/**",
   ".gitlab-ci.yml",
-  ".pre-commit-config.yaml",
   "pyproject.toml",
   "uv.lock",
   "pytest.toml",

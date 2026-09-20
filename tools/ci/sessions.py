@@ -17,6 +17,7 @@ from tools.ci.toolchain.environment import ProjectRuntime
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
+PRE_COMMIT_CONFIG = ".config/checks/hooks/pre-commit.yaml"
 PUBLIC_SESSIONS = (
     "lint",
     "format_check",
@@ -233,8 +234,8 @@ def config_quality(session) -> None:
     )
     if failures:
         session.error("configuration quality failed:\n" + "\n".join(failures))
-    if not session.posargs or ".pre-commit-config.yaml" in session.posargs:
-        session.run(RUNTIME.script("pre-commit"), "validate-config", ".pre-commit-config.yaml")
+    if not session.posargs or PRE_COMMIT_CONFIG in session.posargs:
+        session.run(RUNTIME.script("pre-commit"), "validate-config", PRE_COMMIT_CONFIG)
 
 
 def hosted_observation(session) -> None:

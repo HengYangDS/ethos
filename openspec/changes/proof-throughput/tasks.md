@@ -121,7 +121,7 @@
 - [x] Qualify native mise configuration and lock relocation through supply, CUE and installed-runtime consumers.
 - [ ] Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
 - [ ] Verify declaration-to-consumer wiring with disconnected, misbound and unavailable-capability cases through public entrypoints; preserve adverse results through receipt and admission.
-- [ ] Preserve dependency-tool exit status, unavailable execution, findings and malformed-report states through the existing receipt and Nox admission.
+- [x] Preserve dependency-tool exit status, unavailable execution, findings and malformed-report states through the existing receipt and Nox admission.
 - [ ] Replace duplicated manual contracts with existing strict native owners, compare mature substitutes against the same falsifying workload, and retire replaced paths without a parallel registry.
 - [x] Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
 - [x] Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.

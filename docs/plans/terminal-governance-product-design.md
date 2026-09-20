@@ -71,12 +71,12 @@ Native mise supply, CUE compiler capability, CEL declaration checks and the
 provider/source execution guard are accepted at `6f14655e73a0`. Its source-bound
 35-gate proof passed in 706.18 seconds with 4,088 passing tests, one skip and
 95.01 percent combined coverage; the installed runtime matches its source/tree.
-The current CUE declaration/consumer cutover removes the two YAML templates and
-checks independently observed projection semantics plus exact native output.
-It remains unaccepted until its own exact proof and installation succeed.
-Complete that boundary, then independent product delivery. Remaining suppliers,
-hosted qualification and semantic CI/report obligations stay open rather than
-becoming indefinite product prerequisites. Candidate checks execute through the
+The CUE declaration/consumer cutover subsequently removed the two YAML templates;
+exact local proof and installed parity are recorded by the existing official
+task. Do not repeat that completed source cutover or infer hosted acceptance from
+it. Continue independent product delivery while remaining suppliers, hosted
+qualification and semantic CI/report obligations stay open rather than becoming
+indefinite prerequisites. Candidate checks execute through the
 locked source CLI; acceptance and installation retain current effect admission.
 
 The typing gate currently covers product source only. The same-tool accepted
@@ -6891,37 +6891,48 @@ journeys, evidence reuse and sustained resource limits remain open.
 
 ### Current Bounded Continuation — September 20, 2026 (+08:00)
 
-Accepted source and installed runtime now bind
-`cd0dd396a80e5792741a6f8c75707efcce4f708f`. Its exact 35-gate proof passed in
-720.644 seconds with 4,116 passing tests, one skip and 95.046083% combined coverage.
-It includes the native Linux launcher identity repair and faithful Windows ACL
-failure diagnostics; the Windows root cause still requires native observation.
-Remote dev remains last verified at `13d7ca730`, and remote main at `88945e447`.
-Publication of the new source is unperformed: both configured SSH identities
-were rejected, including with the existing launch agent explicitly selected.
-Do not retry unchanged credentials, prompt for passwords or infer remote state
-from local tracking refs.
+The verified accepted baseline and installed runtime bind
+`81848f2fe50ef5ebea8f8e1dee75854a7be45c45`, tree
+`095ae97b117249031758817bfb0cbd6ba0ea9d06`. Its 35-gate full proof passed in
+804.632 seconds. Native installed invocation, smoke acceptance, dependency
+execution, repeat installation and prior-runtime cleanup were read back.
+This is a dated acceptance record, not a substitute for fresh effect admission.
+No new remote acceptance is claimed; credential-dependent publication remains
+separate and must not trigger unchanged retries or password prompts.
 
-Independent work continues in the existing installed-product Change. Status and
-adoption now have one typed application owner shared by direct callers and CLI;
-preserved tests are restored and 102 source-level cases pass. Complete its source
-proof and installed qualification before claiming delivery. Then build the native
-MCP transport and independent installation along that Change's existing order.
-No second route, broker, task ledger or identity mechanism is introduced.
+Accepted repairs preserve the POSIX console entry and native distribution files,
+reject reuse of incomplete predecessor entries, enforce installed formatting on
+Git index bytes, and keep dependency execution/report failure through Nox admission.
+The shared status/adoption application boundary is delivered. Remaining CLI
+families, real MCP client transport, host installation separate from repository
+binding, retained-state upgrade and native/hosted qualification remain owned by
+the existing installed-product Change. Completion marks belong only in its tasks.
 
-The [existing hosted correction](../../openspec/changes/proof-throughput/design.md#authenticated-bootstrap-supply-and-offline-checking)
-retains Linux, Windows, build-cache warning and incomplete-report obligations.
-Only credential-dependent publication is held; local implementation and acceptance
-continue. Global documentation/semantic recovery, adopter paths and ecosystem
-conformance retain their original scope.
+The [foundation comparison](../research/foundations/execution.md) now includes
+unchanged decision, native Git-worktree and public proof-boundary workloads.
+Pants reduces warm public-partition latency but not the measured light partitions;
+Dagger has bounded container execution evidence and Nix has source-only evidence.
+Continue the demonstrated dependency-complete replacement cut, not a new generic
+scheduler or a whole-suite wrapper. Resolve actual input, coverage, cancellation
+and portable-supply obligations before production reuse. This optimization must
+not suspend the independent product or quality gaps.
 
-Keep product and tests independently within 50,000 ELOC, Python files within 500,
-combined coverage at least 95%, and complete successful proof within 900 seconds;
-600 seconds remains an optimization direction. After this accepted repair,
-restore the preserved shared-API tests and continue the existing installed-product
-Change. Full historical intent recovery, documentation retrieval and structure,
-remaining quality/reporting and supply trials, complete adopter/ecosystem paths,
-hosted qualification and owned-resource retirement remain open.
+Evaluate repair, consolidation, replacement and deletion from terminal benefit,
+including migration, maintenance, runtime cost and failure behavior. Sunk code is
+not a reason to preserve an inferior mechanism. Once a foundation is qualified
+for its responsibility, use its relevant native capabilities fully and retire
+equivalent custom machinery in the same bounded sequence. Preserve compatibility
+only for demonstrated external obligations, not as a default. The existing
+research owner holds comparisons; this plan holds dependency order; official
+Change tasks alone hold implementation progress.
+
+Keep product/tests independently within 50,000 ELOC, Python files within 500,
+combined coverage at least 95%, and full proof within 900 seconds; 600 seconds
+remains a direction. Native Windows recovery, JavaScript semantics, test/tool
+typing, complete reports/warnings, actual hosted admission, historical-intent
+settlement, documentation comprehension/structure, adopter/ecosystem paths and
+owned-resource retirement remain required. Neither this comparison nor a local
+green subset closes the full product goal.
 
 #### Preceding Evidence And Retained Obligations
 

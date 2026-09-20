@@ -2,10 +2,10 @@
 
 The secret-scanning gate is [gitleaks](https://github.com/gitleaks/gitleaks).
 
-Its policy lives in the repository-root `.gitleaks.toml` because gitleaks
-resolves its configuration from a git-discoverable location, not from a nested
-concern directory. This folder records the ownership boundary so the concern is
-discoverable alongside the other `.config/checks/<concern>/` gates.
+The root policy is a current installed-hook binding, not a Gitleaks parser
+restriction. The scanner already receives its path explicitly. Relocation must
+update the ETHOS hook and scanner together: removing only the old file would
+make the predecessor hook treat secret scanning as an absent capability.
 
 - Policy: `/.gitleaks.toml` (`[extend] useDefault = true`)
 - Supply identity: repository `.config/mise/config.toml` and `.config/mise/mise.lock` (selection and platform artifacts)

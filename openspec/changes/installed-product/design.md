@@ -22,8 +22,8 @@ selections or merge their mutable state. Missing selection is actionable, not
 permission to run arbitrary checkout code or an ambient interpreter.
 
 CLI, SDK, MCP and Skills are coordinated delivery surfaces. CLI renders human or
-machine results; SDK exposes typed operations; the official MCP SDK provides
-protocol/session mechanics; Skills teach discovery and safe use of those same
+machine results; SDK exposes typed operations; FastMCP over the official MCP SDK
+provides protocol/session mechanics; Skills teach discovery and safe use of those same
 operations. Installed guidance includes its product identity, applicability and
 links to the target's accepted intent, rules and current continuation. Discovery
 does not grant authorization. Preserve authored adopter guidance, including
@@ -81,11 +81,12 @@ deployment boundaries, not prerequisites for local stdio.
   the returned EthosResult. SDK and MCP call that same operation directly.
   A subprocess CLI wrapper is rejected because it retains presentation coupling
   and adds parsing rather than removing it.
-- Use official MCP SDK 2.2.0, verified against release commit
-  9972c21aa42054fb1450c5fc614761ed11847ec6 on 2026-09-20.
-  Its MCPServer and Client APIs replace hand-written protocol/session handling.
-  The extra MCP CLI is unnecessary. Account for its transitive runtime closure,
-  supported Python floor and package cost before activation.
+- Select standalone FastMCP with strict input validation as the MCP framework,
+  over the official MCP SDK. Native tools, resources, schemas and transport
+  lifecycle replace manual Server callback assembly. Keep repository operations
+  and effect admission in their existing ETHOS owners. The isolated 4.0.5
+  comparison establishes input behavior, not installed-product qualification.
+  Account for its complete locked supply and use only required capabilities.
 - Bind one exact repository and the launcher process actor per MCP instance.
   Client arguments cannot select another root, change environment identity or
   turn an actor label into permission. Different repositories use independently
@@ -122,7 +123,7 @@ next action. Keep public result composition out of individual transports.
 
 Then complete extraction with CLI/SDK parity and no duplicated behavior.
 Then add the official protocol transport and real subprocess-client acceptance.
-Next qualify the installation builder through the common package workload,
+Next deliver the usable installed CLI through the common package workload,
 deliver the native Homebrew channel and matched Skills/context, and migrate
 shared host installation with exact repository version selection,
 prove retained-state upgrade/rollback/exit, and only then reclaim replaced
@@ -190,15 +191,91 @@ materializer. POSIX requirements must not silently claim Windows qualification.
 
 ## Product Presentation Projection
 
-Retain the established brand mark and consumer PNG paths. Replace the stale
-poster/social workflow claims with complete terminal product meaning, explicitly
-marked design intent. SVG masters and native librsvg rendering replace opaque
-raster-only authoring; they add no product authority or application dependency.
-Inspect actual raster sizes and visible content. Existing format gates remain
-distinct from semantic, aesthetic and hosted acceptance.
+Update meaning without replacing the original visual design. The poster retains
+its broad whitespace, thin left continuity axis and dominant right aperture mark;
+the social preview retains its left mark, right wordmark and quiet enclosing
+frame. Preserve proportions, restrained palette and typographic hierarchy.
+Replace only obsolete terminology, the fixed command sequence and the narrowed
+product definition. Do not substitute dense feature lists or generic text panels.
+
+Faithfulness preserves current product meaning and distinguishes terminal vision
+from delivered capability. Clarity requires understandable wording and readable
+relationships at the intended size. Elegance retains the original visual identity
+and removes needless detail. All three are required; format/schema success is
+not aesthetic acceptance. The preceding redesign was rejected and its presentation
+task is reopened. The revised assets remain candidates pending aesthetic review.
+
+SVG masters and native librsvg rendering retain the established PNG consumer paths;
+they add no product authority or application dependency. Actual raster inspection,
+source/output parity and hosted application are separate evidence boundaries.
 
 The adoption continuation repair has six original RED cases, 95 focused GREEN
 cases and six public subprocess CLI outcomes at the shared owner. Preview,
 missing authorization, stale HEAD, stale plan digest, conflict and applied state
 remain distinct; planner-owned next_action was removed. These source observations
 do not complete package, MCP, supported-platform or installed-client acceptance.
+
+## Strict Native MCP Boundary
+
+The official SDK 2.2.0 MCPServer and standalone FastMCP are distinct high-level
+implementations. The former's undeclared-argument observation cannot reject the
+latter. An isolated FastMCP 4.0.5 in-process client comparison exercised eight
+cases across flexible and strict modes. Both modes rejected undeclared root and
+actor fields before the probe body ran; strict mode additionally rejected a
+string Boolean, while valid typed output passed in both modes.
+
+Select FastMCP with strict_input_validation enabled. Remove the proposed manual
+Server callback assembly rather than layering both implementations. Reuse
+FastMCP's native registration, validation, schema generation, resources and
+transport handling; do not patch framework internals or maintain a second parser.
+This comparison has not exercised ETHOS effects, subprocess stdio, cancellation,
+recovery or packaged installation. Those remain mandatory acceptance boundaries.
+The existing fastmcp-contract-probe.log records the observations.
+
+Bind one exact root and the startup process actor. Verify framework-native
+execution and concurrency behavior before adding an adapter. No cancellation
+acknowledgement may imply completed cleanup while a worker can still mutate;
+protocol cancellation is not proof of effect rollback. Existing effect-time
+admission remains authoritative. The protocol
+adapter keeps application verdicts distinct from malformed requests and native
+transport failure. No global actor mutation, shell parser or task database.
+
+The native resolver locks FastMCP and its transitive closure. Direct AnyIO and
+MCP type imports are consumed by the thin protocol adapter, not a second runtime.
+HTTP, crypto, telemetry and optional task facilities are not automatically
+activated merely because a framework supplies them. Background tasks stay
+disabled. Installation and native platform behavior require separate acceptance.
+
+Root binding uses functools.partial over the existing application functions.
+Their annotations must resolve at runtime: retaining actual public types avoids
+a duplicated adapter signature or custom annotation resolver. EthosResult owns
+omission of absent governance_context for all native serializers; MCP does not
+maintain another output-shaping rule.
+
+The instance-local middleware rejects changed process identity and serializes
+its own tool calls. Native FastMCP/AnyIO synchronous execution drains before the
+next call. A request deadline includes queueing and checks cancellation again
+after native work drains; elapsed synchronous work cannot silently return
+success. Deadline or disconnect means the result was not acknowledged, not
+rollback. It is not a hard kill of native filesystem work, cross-process
+exclusion or forced-kill recovery. No custom thread supervisor or task store.
+
+The install-smoke owner runs a real client and server from the isolated installed
+wheel, checks discovery, strict root rejection, SDK parity and a fresh process
+reconnect. A unit test proving this probe is wired is not installed acceptance.
+
+Deliver the normal CLI installation and its version selection, upgrade and
+uninstall before expanding MCP beyond the current shared operations. Remaining
+SDK extraction and optional protocol capabilities must not indefinitely delay
+a usable CLI. Homebrew remains the required channel; do not substitute a shell
+alias or checkout-relative launcher.
+
+New command declarations and command consumers are distinct relations.
+Patch admission must permit an authorized native declaration without treating it
+as prior execution authority; undeclared consumers remain rejected. Repair this
+distinction at the existing patch/reference owner, not through alternate
+registration syntax, omitted checks or another command registry.
+
+In-process checks do not qualify stdio, installed lifecycle or hard-deadline
+behavior. Complete the real subprocess journey and retain every existing test
+obligation within the test budget before requesting complete acceptance.

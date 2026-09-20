@@ -43,7 +43,9 @@ configuration plane, not a truth center.
   the `prose` Nox session runs locked `codespell` without rewriting files.
 - `.config/checks/deptry/policy.toml` owns dependency hygiene policy. The
   `dependencies` Nox session invokes `tools/ci/dependency_hygiene.py` for the
-  sole Python distribution and its locked supply.
+  sole Python distribution and its locked supply. The runner passes the declared
+  first-party names, module mapping and per-rule exceptions to native Deptry;
+  root `pyproject.toml` remains the dependency manifest, not a second policy.
 - `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `uv run --frozen --offline python -m nox -s schemas` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
 - `.config/checks/security/audit.toml` owns the native dependency audit boundary. The `vulnerabilities` Nox session calls `tools/ci/dependency_audit.py` to audit Python and npm locks, retaining bounded native observations and one input-bound verdict. Online security guards package delivery without making offline tests depend on advisory availability; hosted CI and publication remain separate claims.
 - [The secret-scanning policy](checks/secrets/gitleaks.toml) is reached through the root Gitleaks discovery reference; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.

@@ -2663,3 +2663,42 @@ not establish installed-hook enforcement. Repair must bind declared tool supply
 and report unavailable capability truthfully; do not silently use an ambient
 binary or equate a skipped check with a passed check. This remains open beyond
 the configuration relocation.
+
+## Dependency Policy Execution
+
+The nested dependency policy owns first-party names, distribution-to-module
+mapping and the existing per-rule exception. Both semantic reference ownership
+and native dependency execution consume that declaration; the runner must not
+substitute its own mapping. The package manifest remains the native dependency
+source: Deptry uses its config path for both options and dependency discovery.
+Do not relocate that argument to a rule-only document or copy package metadata.
+The existing executor passes declared policy through native CLI options.
+
+Missing or malformed policy must stop before native execution and invalidate
+previous evidence. Verify modified mappings through the real consumer, retain
+native finding/error distinctions, and remove replaced root/runner declarations.
+
+## Executable Wiring And Mechanism Replacement
+
+Treat declaration, selection, invocation, result, admission and observed effect as
+separate relations of the existing semantic owners. Inventory declarations and
+their actual consumers together: a configured but unused value, a required
+provider without an implementation, an implementation selected with wrong
+arguments, or a failure lost before admission must have a distinguishing probe.
+Derive expected checks from the existing gate contract; never maintain another
+manually synchronized checklist of gate identities.
+
+Reuse strict Pydantic contracts for Python structure validation and generate a
+schema only when a consumer needs it. Retain native tool parsing for tool-owned
+semantics. Existing CUE projections and CEL predicates stay in their declared
+roles, not competing policy authorities. Stateful/property testing and targeted
+mutation testing challenge composed behavior; native Git/process/package tests
+still prove effects. Trace instrumentation may expose missed execution, but
+trace presence is not admission or correctness evidence.
+
+A replacement must remove a named manual mechanism, preserve its distinguishing
+cases, and demonstrate failure placement, execution cost and maintenance benefit.
+Use pluggy only for genuine multi-provider hook composition; standard entry
+points suffice for discovery. Trial OpenTelemetry as a nonauthorizing projection
+of existing operation identities, not a second receipt store or required broker.
+Do not add a universal plugin or workflow platform to solve a bounded wiring gap.

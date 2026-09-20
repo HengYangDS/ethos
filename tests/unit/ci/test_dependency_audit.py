@@ -7,7 +7,7 @@ import subprocess
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import cast
+from unittest.mock import Mock
 
 import pytest
 from filelock import FileLock
@@ -17,19 +17,6 @@ from tools.ci import dependency_audit as audit
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-    import nox
-
-
-class Session:
-    """Capture Nox's failure boundary without another executor."""
-
-    def log(self, _message: str) -> None:
-        """Accept the human projection of the recorded observation."""
-
-    def error(self, message: str) -> None:
-        """Mirror Nox's non-passing session result."""
-        raise RuntimeError(message)
 
 
 def _clean(ecosystem: str) -> dict:
@@ -66,8 +53,8 @@ def repository(tmp_path: Path) -> Path:
 
 def _invoke(root: Path) -> dict:
     """Read the actual persisted result even when Nox refuses the observation."""
-    with suppress(RuntimeError):
-        audit.run(cast("nox.Session", Session()), root=root)
+    with suppress(pytest.fail.Exception):
+        audit.run(Mock(error=pytest.fail), root=root)
     return json.loads((root / audit.EVIDENCE / "dependency-audit.json").read_text())
 
 
@@ -91,20 +78,10 @@ def _result(command, ecosystem):
     return subprocess.CompletedProcess(command, 0, json.dumps(_clean(ecosystem)), "")
 
 
-def test_security_entrypoint_observes_npm_after_clean_python(repository, monkeypatch) -> None:
-    """The original Python-only false-green regression exercises the new owner."""
-    observed = _transport(monkeypatch, lambda _root, cmd, ecosystem: _result(cmd, ecosystem))
-    payload = _invoke(repository)
-    assert len(observed) == 2, "The required npm lock was never audited"
-    assert payload["verdict"] == "pass", payload
-    assert [check["ecosystem"] for check in payload["checks"]] == ["python", "npm"]
-    assert "--frozen" in observed[0]
-    assert {"--package-lock-only", "--ignore-scripts", "--include=dev"} <= set(observed[1])
-    assert payload["inputs"]["package-lock.json"]
-
-
 @pytest.mark.parametrize("ecosystem", ["python", "npm"])
-@pytest.mark.parametrize("fault", ["finding", "malformed", "counts", "nonzero", "timeout", "spawn"])
+@pytest.mark.parametrize(
+    "fault", ["clean", "finding", "malformed", "counts", "nonzero", "timeout", "spawn"]
+)
 def test_nonpassing_ecosystem_does_not_hide_the_other(
     repository, monkeypatch, ecosystem, fault
 ) -> None:
@@ -141,41 +118,19 @@ def test_nonpassing_ecosystem_does_not_hide_the_other(
     observed = _transport(monkeypatch, respond)
     payload = _invoke(repository)
     assert len(observed) == 2
-    assert payload["verdict"] == ("block" if fault == "finding" else "unknown")
+    assert payload["verdict"] == (
+        "pass" if fault == "clean" else "block" if fault == "finding" else "unknown"
+    )
+    assert [check["ecosystem"] for check in payload["checks"]] == ["python", "npm"]
+    assert "--frozen" in observed[0]
+    assert {"--package-lock-only", "--ignore-scripts", "--include=dev"} <= set(observed[1])
+    assert payload["inputs"]["package-lock.json"]
     failed = next(check for check in payload["checks"] if check["ecosystem"] == ecosystem)
-    assert failed["verdict"] != "pass"
+    assert (failed["verdict"] == "pass") is (fault == "clean")
     assert failed["stderr"]
     if fault == "timeout":
         assert failed["stdout"] == "partial"
         assert "deadline" in failed["stderr"]
-
-
-@pytest.mark.parametrize("missing", ["uv.lock", "package-lock.json"])
-def test_missing_lock_still_observes_other_ecosystem(repository, monkeypatch, missing) -> None:
-    """Missing input is neither empty scope nor reason to skip other diagnostics."""
-    (repository / missing).unlink()
-    observed = _transport(monkeypatch, lambda _root, cmd, ecosystem: _result(cmd, ecosystem))
-    payload = _invoke(repository)
-    assert payload["verdict"] != "pass"
-    assert len(observed) == 1
-    assert len(payload["checks"]) == 2
-    assert missing in json.dumps(payload)
-
-
-@pytest.mark.parametrize("path", ["uv.lock", "package.json", audit.POLICY, "tools/ci/sessions.py"])
-def test_input_drift_invalidates_result(repository, monkeypatch, path) -> None:
-    """Clean native output cannot certify a different manifest, lock, policy or runner."""
-
-    def respond(root, command, ecosystem):
-        if ecosystem == "npm":
-            target = root / path
-            target.write_bytes(target.read_bytes() + b"\n")
-        return _result(command, ecosystem)
-
-    _transport(monkeypatch, respond)
-    payload = _invoke(repository)
-    assert payload["verdict"] == "block"
-    assert "dependency_audit_inputs_changed" in payload["required_gaps"]
 
 
 @pytest.mark.parametrize("fault", ["missing", "zero", "string", "unknown-field"])
@@ -212,95 +167,92 @@ def test_registry_has_one_security_owner_without_making_offline_tests_online() -
         }
 
 
-def test_concurrent_observer_cannot_replace_active_receipt(repository, monkeypatch) -> None:
-    """An already owned evidence slot rejects reentry without clobbering its result."""
+@pytest.mark.parametrize("fault", ["contention", "interrupt"])
+def test_active_evidence_is_preserved_and_interruption_recovers(repository, monkeypatch, fault):
+    """Concurrent readers preserve the slot; interrupted owners invalidate and recover."""
     observed = _transport(monkeypatch, lambda _root, cmd, ecosystem: _result(cmd, ecosystem))
+    assert _invoke(repository)["verdict"] == "pass"
     evidence = repository / audit.EVIDENCE
-    evidence.mkdir(parents=True)
     summary = evidence / "dependency-audit.json"
-    summary.write_text('{"state":"running","verdict":"unknown","owner":"first"}')
     previous = summary.read_bytes()
-    with (
-        FileLock(evidence / ".dependency-audit.lock", timeout=0),
-        pytest.raises(RuntimeError, match="dependency_audit_in_use"),
-    ):
-        audit.run(cast("nox.Session", Session()), root=repository)
-    assert not observed
-    assert summary.read_bytes() == previous
-
-
-def test_interruption_replaces_old_success_and_allows_recovery(repository, monkeypatch) -> None:
-    """A killed attempt has no green receipt and releases its coordination lock."""
-    _transport(monkeypatch, lambda _root, cmd, ecosystem: _result(cmd, ecosystem))
-    assert _invoke(repository)["verdict"] == "pass"
-
-    def interrupt(_root, _command, _ecosystem):
-        raise KeyboardInterrupt
-
-    _transport(monkeypatch, interrupt)
-    with pytest.raises(KeyboardInterrupt):
-        audit.run(cast("nox.Session", Session()), root=repository)
-    summary = repository / audit.EVIDENCE / "dependency-audit.json"
-    current = json.loads(summary.read_text())
-    assert current["state"] == "running"
-    assert current["verdict"] == "unknown"
-    assert current["checks"] == []
-    _transport(monkeypatch, lambda _root, cmd, ecosystem: _result(cmd, ecosystem))
-    assert _invoke(repository)["verdict"] == "pass"
-
-
-@pytest.mark.parametrize("ecosystem", ["python", "npm"])
-def test_workspace_manifest_drift_invalidates_native_result(repository, monkeypatch, ecosystem):
-    """Both native workspace graphs contribute local manifests to freshness."""
-    manifest = (
-        repository
-        / "packages/local"
-        / ("pyproject.toml" if ecosystem == "python" else "package.json")
-    )
-    manifest.parent.mkdir(parents=True)
-    manifest.write_text('name = "local"' if ecosystem == "python" else '{"name":"local"}')
-    if ecosystem == "python":
-        (repository / "uv.lock").write_text(
-            '[[package]]\nname="local"\n[package.source]\neditable="packages/local"\n'
-        )
+    observed.clear()
+    if fault == "contention":
+        with (
+            FileLock(evidence / ".dependency-audit.lock", timeout=0),
+            pytest.raises(pytest.fail.Exception, match="dependency_audit_in_use"),
+        ):
+            audit.run(Mock(error=pytest.fail), root=repository)
+        assert not observed
+        assert summary.read_bytes() == previous
     else:
-        (repository / "package-lock.json").write_text('{"packages":{"":{},"packages/local":{}}}')
+
+        def interrupt(_root, _command, _ecosystem):
+            raise KeyboardInterrupt
+
+        _transport(monkeypatch, interrupt)
+        with pytest.raises(KeyboardInterrupt):
+            audit.run(Mock(error=pytest.fail), root=repository)
+        current = json.loads(summary.read_text())
+        assert (current["state"], current["verdict"], current["checks"]) == (
+            "running",
+            "unknown",
+            [],
+        )
+        _transport(monkeypatch, lambda _root, cmd, ecosystem: _result(cmd, ecosystem))
+        assert _invoke(repository)["verdict"] == "pass"
+
+
+@pytest.mark.parametrize(
+    "path", ["uv.lock", "package.json", audit.POLICY, "tools/ci/sessions.py", "python", "npm"]
+)
+def test_native_input_drift_invalidates_result(repository, monkeypatch, path):
+    """Root and local-workspace inputs belong to the same native freshness closure."""
+    target = repository / path
+    ecosystem = path if path in {"python", "npm"} else "npm"
+    if path in {"python", "npm"}:
+        filename = "pyproject.toml" if path == "python" else "package.json"
+        target = repository / "packages/local" / filename
+        target.parent.mkdir(parents=True)
+        target.write_text('name="local"' if path == "python" else '{"name":"local"}')
+        lock, contents = (
+            ("uv.lock", '[[package]]\nname="local"\n[package.source]\neditable="packages/local"\n')
+            if path == "python"
+            else ("package-lock.json", '{"packages":{"":{},"packages/local":{}}}')
+        )
+        (repository / lock).write_text(contents)
 
     def respond(_root, command, current):
         if current == ecosystem:
-            manifest.write_text(manifest.read_text() + "\n")
+            target.write_bytes(target.read_bytes() + b"\n")
         return _result(command, current)
 
     _transport(monkeypatch, respond)
-    assert _invoke(repository)["verdict"] == "block"
+    payload = _invoke(repository)
+    assert payload["verdict"] == "block"
+    assert "dependency_audit_inputs_changed" in payload["required_gaps"]
 
 
 @pytest.mark.parametrize(
     ("lock", "text"),
     [
+        ("uv.lock", None),
+        ("package-lock.json", None),
         ("uv.lock", "[[package]]\nsource=17\n"),
+        ("uv.lock", "package=[17]\n"),
         ("package-lock.json", '{"packages":null}'),
     ],
 )
-def test_malformed_workspace_scope_is_unknown_not_an_unhandled_failure(
-    repository,
-    monkeypatch,
-    lock,
-    text,
-):
-    """Malformed local workspace scope preserves the other native observation."""
-    (repository / lock).write_text(text)
+def test_unavailable_native_scope_preserves_other_observation(repository, monkeypatch, lock, text):
+    """Missing and malformed scopes cannot become empty successful observations."""
+    target = repository / lock
+    if text is None:
+        target.unlink()
+    else:
+        target.write_text(text)
     observed = _transport(monkeypatch, lambda _root, cmd, ecosystem: _result(cmd, ecosystem))
     payload = _invoke(repository)
     assert payload["verdict"] == "unknown"
     assert len(payload["checks"]) == 2
     assert len(observed) == 1
-
-
-def test_python_workspace_source_must_be_a_mapping(repository, monkeypatch):
-    """Malformed package entries cannot crash native-input accounting."""
-    (repository / "uv.lock").write_text("package=[17]\n")
-    _transport(monkeypatch, lambda _root, cmd, ecosystem: _result(cmd, ecosystem))
-    payload = _invoke(repository)
-    assert payload["verdict"] == "unknown"
-    assert len(payload["checks"]) == 2
+    if text is None:
+        assert lock in json.dumps(payload)

@@ -93,9 +93,6 @@ include = [
 [tool.pytest.ini_options]
 cache_dir = "build/runtime/tool-cache/pytest"
 
-[tool.deptry.per_rule_ignores]
-DEP002 = ["uv"]
-
 [tool.mutmut]
 source_paths = ["src/ethos"]
 only_mutate = ["src/ethos/contracts/verdict.py"]

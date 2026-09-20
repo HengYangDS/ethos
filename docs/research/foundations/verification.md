@@ -20,6 +20,29 @@ See also: [Research Overview](../modern-engineering-foundations.md),
 
 ## Verification, Reporting And Observability
 
+### Executable Wiring Review
+
+The September 20, 2026 review separates declaration validity, provider presence,
+correct invocation, adverse-result propagation and actual effect observation.
+A registry entry or trace can show selection without proving the intended check
+ran. Derive obligations from existing gate contracts and inspect their actual
+consumer chain; do not add a second wiring inventory as an authority.
+
+| Mechanism | Use and limit |
+| --- | --- |
+| [Pydantic strict mode](https://pydantic.dev/docs/validation/latest/concepts/strict_mode/) and [extra-field refusal](https://pydantic.dev/docs/validation/latest/api/pydantic/config/) | Replace repetitive Python shape checks at the existing contract owner. A valid structure does not prove a consumer used its values. Derive required schemas from that owner rather than maintaining a second editable definition. |
+| [Hypothesis stateful testing](https://hypothesis.readthedocs.io/en/latest/stateful.html) | Generate interacting operation sequences and check invariants against an independent small model. Retain concrete regression traces and real effect-boundary tests; generated examples do not prove unbounded correctness. |
+| [pluggy validation](https://pluggy.readthedocs.io/en/stable/index.html) | Candidate replacement for actual multi-provider hook composition. Its pending-hook check rejects implementations without matching specifications; it does not prove every required specification has an implementation or that an implementation ran. No new plugin registry is justified for a single-owner call. |
+| [OpenTelemetry traces](https://opentelemetry.io/docs/concepts/signals/traces/) | Candidate replacement for bespoke execution tracing, projecting existing operation identities. Correlation exposes invocation paths; trace presence, sampling or export success cannot certify authorization, policy coverage or durable effects. |
+
+The current bounded implementation uses the already installed Pydantic dependency
+for the dependency-policy contract and native Deptry arguments for execution.
+Unknown fields, malformed values, missing policy and wrong path bindings require
+negative tests. Property/stateful testing, plugin composition and trace export
+remain distinct adoption decisions, not implementations established by this
+documentation review. Measure eliminated manual paths, missed/false admission,
+first-failure latency and maintenance cost against the same workload.
+
 [Hypothesis][hypothesis], targeted mutation testing and real effect traces should
 replace repetitive example scaffolding where they preserve or strengthen failure
 sensitivity. Keep semantic scope separate from resource cost. A pure rule test

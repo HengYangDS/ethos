@@ -9,7 +9,12 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Annotated
 from typing import cast
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
 
 from ethos.adapters.repo.git import current_tracked_head
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -58,22 +63,67 @@ def declaration_gaps() -> list[str]:
     return gaps
 
 
+PolicyText = Annotated[str, Field(pattern=r"^\S(?:.*\S)?$")]
+PolicyItem = Annotated[str, Field(pattern=r"^[^\s,]+$")]
+
+
+class DependencyPackagePolicy(BaseModel):
+    """The existing package table, validated without a second hand-written schema."""
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+    id: PolicyText
+    root: PolicyText
+    config: PolicyText
+    known_first_party: list[PolicyItem]
+    package_module_name_map: list[PolicyItem]
+    per_rule_ignores: list[PolicyItem]
+
+
+class DependencyPolicy(BaseModel):
+    """One policy declaration; its metadata does not create another executor."""
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+    owner: PolicyText
+    summary: PolicyText
+    runner: PolicyText
+    package: list[DependencyPackagePolicy] = Field(min_length=1, max_length=1)
+
+
+def _policy_arguments() -> tuple[str, ...]:
+    """Project validated configuration to Deptry's native argument protocol."""
+    policy = DependencyPolicy.model_validate(
+        tomllib.loads((ROOT / ".config/checks/deptry/policy.toml").read_text())
+    )
+    package = policy.package[0]
+    for value in (package.root, package.config):
+        if (
+            Path(value).is_absolute()
+            or value.startswith("-")
+            or not (ROOT / value).resolve().is_relative_to(ROOT.resolve())
+        ):
+            message = "dependency_hygiene_policy_path_invalid"
+            raise ValueError(message)
+    arguments = [package.root, "--config", package.config]
+    arguments.extend(
+        part for name in package.known_first_party for part in ("--known-first-party", name)
+    )
+    for field in ("package_module_name_map", "per_rule_ignores"):
+        if values := getattr(package, field):
+            arguments.extend(("--" + field.replace("_", "-"), ",".join(values)))
+    return tuple(arguments)
+
+
 def run(session: nox.Session) -> None:
     """Run deptry and write one bounded verdict over its JSON result."""
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.unlink(missing_ok=True)
     SUMMARY.unlink(missing_ok=True)
+    arguments = _policy_arguments()
     result = cast(
         "str",
         session.run(
             RUNTIME.script("deptry"),
-            "src/ethos",
-            "--config",
-            "pyproject.toml",
-            "--known-first-party",
-            "ethos",
-            "--package-module-name-map",
-            "cel-expr-python=cel_expr_python,pyyaml=yaml",
+            *arguments,
             "--json-output",
             str(OUTPUT),
             "--no-ansi",

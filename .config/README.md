@@ -12,8 +12,10 @@ configuration plane, not a truth center.
 - [The Ruff policy](checks/ruff/ruff.toml) owns lint and formatting rules. Root
   `ruff.toml` contains only native inheritance and the repository-relative cache
   binding; configured CLI, hook and editor consumers retain that discovery entry.
-  Native discovery parity does not prove editor integration or installed-hook
-  enforcement; the latter still needs its missing-tool behavior repaired.
+  The package runtime supplies Ruff for selected staged Python checks. These
+  checks consume index bytes through native stdin, not uncommitted worktree
+  contents. Missing bound supply is a failure, not an implicit skipped check.
+  Editor integration remains a separate acceptance boundary.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
 - Root `noxfile.py` is the native discovery entry for `tools/ci/sessions.py`,
   which owns the executable Python lint proof surface inside the

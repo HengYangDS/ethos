@@ -14,6 +14,7 @@ dependencies = [
   "packaging>=26.3",
   "pydantic>=2.13.5",
   "pyyaml>=6.0.3",
+  "ruff>=0.16.8",
   "tomli-w>=1.2.0",
   "uv>=0.12.16",
 ]
@@ -40,7 +41,6 @@ dev = [
   "pytest-cov>=7.1.0",
   "pytest-timeout>=2.4.0",
   "pytest-xdist>=3.8.0",
-  "ruff>=0.16.8",
   "shellcheck-py>=0.11.0.1",
   "shfmt-py>=4.2.0",
   "ty>=0.0.82",

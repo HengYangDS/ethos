@@ -265,7 +265,7 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str]:
         "-I",
         "-c",
         """
-import asyncio, sys
+import asyncio, os, sys
 from pathlib import Path
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
@@ -273,7 +273,10 @@ from ethos.domain.inspection import inspect_repository
 from ethos.domain.adoption import adopt_repository
 
 root = Path(sys.argv[2])
-transport = StdioTransport(sys.argv[1], ["mcp", "--root", str(root)], keep_alive=False)
+transport = StdioTransport(
+    sys.argv[1], ["mcp", "--root", str(root)], keep_alive=False,
+    env={"ETHOS_ACTOR": os.environ.get("ETHOS_ACTOR", "")},
+)
 
 
 async def verify():
@@ -285,7 +288,10 @@ async def verify():
         )
         for name, operation in (("status", inspect_repository), ("adopt", adopt_repository)):
             result = await client.call_tool(name)
-            assert result.structured_content == operation(root).to_dict()
+            expected = operation(root).to_dict()
+            assert result.structured_content == expected, (
+                name, result.structured_content, expected,
+            )
         rejected = await client.call_tool("adopt", {"root": str(root.parent)}, raise_on_error=False)
         assert rejected.is_error
     async with Client(transport, timeout=30) as client:

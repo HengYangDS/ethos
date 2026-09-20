@@ -31,9 +31,13 @@ The present distribution boundary is:
 - The Python `ethos` package owns the kernel, contracts, repository, assistants,
   adapters, and CLI behavior. Tests are not shipped.
 - Node package metadata owns npm `bin` exposure and launcher UX only.
-- Source checkout execution uses `uv run ethos`.
-- Installed execution uses `python -P -m ethos.cli` until a published Python
-  wheel is available for `uvx` or `pipx` based installs.
+- Explicit source execution uses `uv run python -m ethos.cli`; the installed
+  console selects a repository-bound runtime when present.
+- Installed execution uses `ethos`. `python -m ethos.cli` deliberately executes
+  the caller-selected package for development and recovery, not host dispatch.
+- Native distribution archives reuse the verified portable runtime and exact
+  wheel. Their Homebrew formula is a generated transport projection; archive,
+  installation and remote publication acceptance remain distinct.
 
 This keeps npm, PyPI, GitLab, and future package managers as adapters over one
 ETHOS command plane.

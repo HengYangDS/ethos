@@ -279,3 +279,34 @@ registration syntax, omitted checks or another command registry.
 In-process checks do not qualify stdio, installed lifecycle or hard-deadline
 behavior. Complete the real subprocess journey and retain every existing test
 obligation within the test budget before requesting complete acceptance.
+
+## Host Console And Portable Distribution
+
+The installed console entry selects the target repository's verified CURRENT
+runtime before invoking the existing command implementation. Explicit
+`python -m ethos.cli` runs the caller-selected package for development and recovery.
+Hook installation intentionally uses the invoking product to prepare an upgrade;
+ordinary observations and effects cannot silently float with a host upgrade.
+Invalid selectors and altered payloads fail closed, rather than fall back to the
+host version. No shell alias, adopter wrapper, copied parser or new lifecycle.
+
+Select the existing relocatable interpreter plus locked-wheel image for native
+distribution. Ordinary Homebrew framework Python is insufficient for the current
+image-construction contract without an external congruent interpreter; the earlier
+installed experiment could discover an existing uv interpreter. A frozen binary
+also failed the interpreter ABI boundary. Neither experiment proves a clean-host
+product. Reuse the already accepted portable image and retain its exact wheel,
+not another build/runtime implementation or dependency resolver.
+
+The existing install acceptance owns archive generation after its complete
+package lifecycle. Normalized archive metadata permits reproducible bytes without
+changing the payload manifest. A generated Homebrew formula installs that exact
+archive with native ownership and its source/platform identity; local file URLs
+are qualification input, never a claim of remote publication. Keep the immutable
+payload outside the shell entry and preserve its hash-bound permissions.
+
+This delivers distribution mechanics, not shared version-store migration.
+Repository-local copies remain until the existing selection, activation and
+retirement owners support shared immutable supply with exact repository binding,
+concurrent activation, live-consumer fencing and safe removal. These incomplete
+obligations retain their current tasks and cannot be checked from a working CLI.

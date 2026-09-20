@@ -378,6 +378,9 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     lifecycle = {stage: {"state": "passed"} for stage in _LIFECYCLE_STAGES}
     receipt = {"schema_version": 2, "verdict": "pass", "runtime_lifecycle": lifecycle}
     build = BuildIdentity("0.2.0-alpha.3", "0.2.0a3.dev0+ga.ta", "a" * 40, "b" * 40)
+    lifecycle["successor_activation"]["runtime_digest"] = "f" * 64
+    monkeypatch.setattr(effect, "package_runtime", lambda *_args: {"runtime_digest": "f" * 64})
+    monkeypatch.setattr(effect, "git_common_dir", lambda root: str(root / ".git"))
     observed: dict[str, object] = {}
     logs: list[str] = []
     cleanup_evidence_states: list[bool] = []

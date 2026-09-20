@@ -126,3 +126,46 @@ def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_clos
 
     assert report["verdict"] == "pass"
     assert report["state"] == "admitted"
+
+
+@pytest.mark.parametrize("change", ["body", "new-command", "prefix", "delete-app"])
+def test_patch_command_ownership_uses_exact_unchanged_context(tmp_path, change) -> None:
+    """Changes retain imported namespaces but cannot inherit deleted or stale parents."""
+    repo, _head = _repository(tmp_path)
+    files = {
+        "pyproject.toml": '[project]\nname="example"\nversion="1"\ndependencies=["cyclopts"]\n',
+        "src/example/app.py": 'from cyclopts import App\napp = App(name="ethos")\n',
+        "src/example/commands.py": (
+            "from example.app import app as cli\n@cli.command\ndef status():\n    return 1\n"
+        ),
+    }
+    for relative, text in files.items():
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "declare command context")
+    head = git(repo, "rev-parse", "HEAD")
+    handler = "src/example/commands.py"
+    app = "src/example/app.py"
+    target = repo / handler
+    target.write_text(
+        files[handler].replace(
+            "status" if change == "new-command" else "return 1",
+            "other" if change == "new-command" else "return 2",
+        )
+    )
+    paths = (handler, app) if change in {"prefix", "delete-app"} else (handler,)
+    if change == "prefix":
+        (repo / app).write_text(files[app].replace("ethos", "different"))
+    elif change == "delete-app":
+        (repo / app).unlink()
+    patch = git(repo, "diff", "--", *paths) + "\n"
+    for relative in paths:
+        (repo / relative).write_text(files[relative])
+    report = admission.patch_admission(
+        root=repo, requested_paths=paths, baseline_head=head, patch=patch
+    )
+    assert report["verdict"] == ("pass" if change == "body" else "block")
+    if change == "body":
+        assert report["references"]["command"] == ["ethos status"]

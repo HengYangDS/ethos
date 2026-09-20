@@ -406,16 +406,30 @@ def _superseded_current_carriers(
 ) -> list[SemanticClosureFinding]:
     if not (root / "docs").is_dir():
         return []
+    try:
+        registry = build_docs_registry(root)
+    except ValueError as exc:
+        if not str(exc).startswith("docs_metadata_invalid:"):
+            raise
+        return [
+            SemanticClosureFinding(
+                category="unknown",
+                relation="carrier",
+                kind="document",
+                identity=str(exc),
+                sources=("docs",),
+            )
+        ]
     return [
         SemanticClosureFinding(
             category="superseded",
             relation="carrier",
             kind="document",
-            identity=entry["subject"] or entry["path"],
+            identity=entry.get("subject") or entry["path"],
             sources=(entry["path"],),
         )
-        for entry in build_docs_registry(root)
-        if entry["state"] in {"archived", "superseded"} and entry["path"] in files
+        for entry in registry
+        if entry.get("state") in {"archived", "superseded"} and entry["path"] in files
     ]
 
 

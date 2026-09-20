@@ -11,9 +11,13 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
+from ethos.repository.policy.boundary.catalog import HISTORICAL_SURFACE_PREFIXES
+from ethos.repository.policy.boundary.catalog import SKIPPED_PRODUCT_DIR_PARTS
+
 POLICY_RELATIVE_PATH = Path(".config/checks/repository-hygiene/policy.toml")
 DEFAULT_POLICY: dict[str, Any] = {
     "max_tracked_bytes": 1024 * 1024,
+    "forbidden_document_names": [],
     "text_suffixes": [
         ".cfg",
         ".css",
@@ -56,7 +60,9 @@ def _string_list(policy: dict[str, Any], key: str) -> list[str]:
     return value
 
 
-def _load_policy(root: Path) -> tuple[int, frozenset[str], frozenset[str], tuple[str, ...]]:
+def _load_policy(
+    root: Path,
+) -> tuple[int, frozenset[str], frozenset[str], tuple[str, ...], frozenset[str]]:
     path = root / POLICY_RELATIVE_PATH
     policy = DEFAULT_POLICY | (
         tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
@@ -70,12 +76,15 @@ def _load_policy(root: Path) -> tuple[int, frozenset[str], frozenset[str], tuple
         frozenset(_string_list(policy, "text_suffixes")),
         frozenset(_string_list(policy, "text_names")),
         tuple(_string_list(policy, "root_host_residue")),
+        frozenset(_string_list(policy, "forbidden_document_names")),
     )
 
 
-def _tracked_paths(root: Path) -> tuple[Path, ...]:
-    raw = subprocess.check_output(("git", "ls-files", "-z"), cwd=root)
-    return tuple(root / item.decode() for item in raw.split(b"\0") if item)
+def _source_paths(root: Path) -> tuple[Path, ...]:
+    raw = subprocess.check_output(
+        ("git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"), cwd=root
+    )
+    return tuple(dict.fromkeys(root / item.decode() for item in raw.split(b"\0") if item))
 
 
 def _suppression_failures(relative: str, suffix: str, text: str) -> list[str]:
@@ -102,6 +111,8 @@ def _suppression_failures(relative: str, suffix: str, text: str) -> list[str]:
 
 
 def _text_failures(relative: str, suffix: str, data: bytes, text: str) -> list[str]:
+    if not data:
+        return []
     failures: list[str] = []
     if not data.endswith(b"\n"):
         failures.append(f"{relative}: missing final newline")
@@ -120,7 +131,7 @@ def _text_failures(relative: str, suffix: str, data: bytes, text: str) -> list[s
 def audit(root: Path) -> tuple[str, ...]:
     """Return deterministic repository hygiene failures."""
     root = root.resolve()
-    maximum, text_suffixes, text_names, root_residue = _load_policy(root)
+    maximum, text_suffixes, text_names, root_residue, forbidden_names = _load_policy(root)
     failures: list[str] = []
     for name in root_residue:
         path = Path(name)
@@ -131,10 +142,16 @@ def audit(root: Path) -> tuple[str, ...]:
             )
         elif (root / path).exists():
             failures.append(f"{name}: host-local root residue is not repository truth; remove it")
-    for path in _tracked_paths(root):
+    for path in _source_paths(root):
         if not path.is_file():
             continue
         relative = path.relative_to(root).as_posix()
+        if (
+            path.name in forbidden_names
+            and not relative.startswith(HISTORICAL_SURFACE_PREFIXES)
+            and not SKIPPED_PRODUCT_DIR_PARTS.intersection(path.relative_to(root).parts)
+        ):
+            failures.append(f"{relative}: directory navigation must use README.md, not {path.name}")
         if path.stat().st_size > maximum:
             failures.append(f"{relative}: tracked file exceeds {maximum} bytes")
         if path.suffix not in text_suffixes and path.name not in text_names:
@@ -144,6 +161,5 @@ def audit(root: Path) -> tuple[str, ...]:
             text = data.decode("utf-8")
         except UnicodeDecodeError:
             continue
-        if data:
-            failures.extend(_text_failures(relative, path.suffix, data, text))
+        failures.extend(_text_failures(relative, path.suffix, data, text))
     return tuple(failures)

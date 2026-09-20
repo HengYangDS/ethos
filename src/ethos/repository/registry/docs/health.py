@@ -6,10 +6,14 @@ import re
 import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
+
+from markdown_it import MarkdownIt
 
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.registry.docs.links import markdown_links
+from ethos.repository.registry.docs.registry import DEFAULT_ALLOWED_STATES
 from ethos.repository.registry.docs.registry import REQUIRED_FIELDS
 from ethos.repository.registry.docs.registry import VISIBLE_SECTION_LABELS
 from ethos.repository.registry.docs.registry import allowed_roles
@@ -31,31 +35,39 @@ def docs_health_report(
 ) -> dict[str, object]:
     """Report docs metadata, structure, and live-command-example health."""
     try:
+        root = root.resolve()
         registry = build_docs_registry(root)
         states = allowed_states(root)
         roles = allowed_roles(root)
     except ValueError as exc:
         gap = str(exc)
-        if gap != INVALID_PROFILE_ERROR and not gap.startswith("docs_taxonomy_invalid:"):
+        if gap != INVALID_PROFILE_ERROR and not gap.startswith(
+            ("docs_taxonomy_invalid:", "docs_metadata_invalid:")
+        ):
             raise
         return empty_docs_health_report(gap)
     missing = [
-        entry["path"] for entry in registry if any(not entry[field] for field in REQUIRED_FIELDS)
+        entry["path"]
+        for entry in registry
+        if any(
+            field not in entry or (field != "relations" and not entry[field])
+            for field in REQUIRED_FIELDS
+        )
     ]
     invalid_state = [
         f"invalid_state:{entry['path']}:{entry['state']}"
         for entry in registry
-        if states and entry["state"] and entry["state"] not in states
+        if states and entry.get("state", "") and entry.get("state", "") not in states
     ]
     invalid_role = [
         f"invalid_role:{entry['path']}:{entry['role']}"
         for entry in registry
-        if roles and entry["role"] and entry["role"] not in roles
+        if roles and entry.get("role", "") and entry.get("role", "") not in roles
     ]
     subject_paths: dict[str, list[str]] = {}
     for entry in registry:
-        if entry["subject"]:
-            subject_paths.setdefault(entry["subject"], []).append(entry["path"])
+        if entry.get("subject", ""):
+            subject_paths.setdefault(entry.get("subject", ""), []).append(entry["path"])
     duplicate_subjects = [
         f"duplicate_subject:{subject}:{','.join(paths)}"
         for subject, paths in sorted(subject_paths.items())
@@ -76,6 +88,7 @@ def docs_health_report(
         + invalid_command_examples
         + unindexed_plans
         + readme_disposition
+        + relation_gaps(root, registry)
     )
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
@@ -111,7 +124,7 @@ def empty_docs_health_report(gap: str) -> dict[str, object]:
     }
 
 
-def plan_index_gaps(root: Path, registry: list[dict[str, str]]) -> list[str]:
+def plan_index_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
     """Return active or planned documents absent from the plan index."""
     docs = docs_root(root)
     docs_prefix = docs.relative_to(root).as_posix().rstrip("/")
@@ -129,15 +142,15 @@ def plan_index_gaps(root: Path, registry: list[dict[str, str]]) -> list[str]:
         for entry in registry
         if entry["path"].startswith(plans_prefix)
         and entry["path"] != f"{plans_prefix}README.md"
-        and entry["role"] == "plan"
-        and entry["state"] in {"active", "planned"}
+        and entry.get("role", "") == "plan"
+        and entry.get("state", "") in {"active", "planned"}
         and (root / entry["path"]).resolve() not in indexed
     ]
 
 
-def readme_disposition_gaps(root: Path, registry: list[dict[str, str]]) -> list[str]:
+def readme_disposition_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
     """Reject README files that only mark a directory with no meaningful children."""
-    by_parent: dict[Path, list[dict[str, str]]] = {}
+    by_parent: dict[Path, list[dict[str, Any]]] = {}
     for entry in registry:
         path = root / entry["path"]
         by_parent.setdefault(path.parent, []).append(entry)
@@ -149,12 +162,12 @@ def readme_disposition_gaps(root: Path, registry: list[dict[str, str]]) -> list[
         children = [
             child for child in by_parent.get(path.parent, []) if child["path"] != entry["path"]
         ]
-        if not children and "canonical_for:" not in entry["relations"]:
+        if not children and "canonical_for" not in entry.get("relations", {}):
             gaps.append(f"docs_readme_without_children:{entry['path']}")
     return gaps
 
 
-def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, str]]) -> list[str]:
+def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, Any]]) -> list[str]:
     """Return missing visible-section gaps for active/canonical docs."""
     gaps: list[str] = []
     for entry in registry:
@@ -164,22 +177,39 @@ def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, str]]
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8")
+        body = text.split("\n---", 1)[1] if text.startswith("---\n") else text
+        paragraphs = [
+            token.content
+            for token in MarkdownIt("commonmark").parse(body)
+            if token.type == "inline"
+        ]
         gaps.extend(
             f"missing_visible_section:{entry['path']}:{label[:-1].lower()}"
             for label in VISIBLE_SECTION_LABELS
-            if label not in text
+            if not any(
+                paragraph.startswith(label) and paragraph.removeprefix(label).strip()
+                for paragraph in paragraphs
+            )
         )
+        for paragraph in paragraphs:
+            if paragraph.startswith("Status:"):
+                visible = paragraph.removeprefix("Status:").strip().partition(" ")[0].rstrip(".;,")
+                if visible in DEFAULT_ALLOWED_STATES and visible != entry.get("state"):
+                    gaps.append(f"docs_visible_state_conflict:{entry['path']}:{visible}")
     return gaps
 
 
-def requires_visible_sections(entry: dict[str, str]) -> bool:
+def requires_visible_sections(entry: dict[str, Any]) -> bool:
     """Return whether a registry entry must expose visible docs sections."""
-    return entry["state"] in {"canonical", "active"} and entry["role"] not in OBSERVATIONAL_ROLES
+    return (
+        entry.get("state", "") in {"canonical", "active"}
+        and entry.get("role", "") not in OBSERVATIONAL_ROLES
+    )
 
 
 def command_example_gaps(
     root: Path,
-    registry: list[dict[str, str]],
+    registry: list[dict[str, Any]],
     command_validator: Callable[[list[str]], str],
 ) -> list[str]:
     """Return active-doc examples absent from the live Cyclopts operation tree."""
@@ -243,3 +273,22 @@ def ethos_command_tokens(command: str) -> list[str]:
     if command_tokens[:3] == ["python", "-m", "ethos.cli"]:
         return command_tokens[3:]
     return []
+
+
+def relation_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
+    """Resolve local authority and containment references without guessing scope prose."""
+    required = {"current_owner", "projects", "derives", "derives_from", "constrained_by", "part_of"}
+    subjects = {entry["subject"] for entry in registry if entry.get("subject")}
+    gaps = []
+    for entry in registry:
+        for relation, value in entry.get("relations", {}).items():
+            if relation not in required:
+                continue
+            for target in value if isinstance(value, list) else [value]:
+                if target in subjects or "://" in target:
+                    continue
+                path = target.partition("#")[0]
+                resolved = (root / entry["path"]).parent / path
+                if not path or not resolved.is_file():
+                    gaps.append(f"docs_relation_target_missing:{entry['path']}:{relation}:{target}")
+    return gaps

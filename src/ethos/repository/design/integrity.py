@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING
+from typing import Any
 
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.registry.docs.registry import build_docs_registry
@@ -66,7 +67,7 @@ def _owner_links(path: Path, text: str, owner: Path) -> frozenset[str]:
     )
 
 
-def _current_carrier(relative: str, registry: dict[str, dict[str, str]]) -> bool:
+def _current_carrier(relative: str, registry: dict[str, dict[str, Any]]) -> bool:
     parts = relative.split("/")
     if (
         relative.startswith("openspec/changes/archive/")
@@ -85,7 +86,7 @@ def _current_carrier(relative: str, registry: dict[str, dict[str, str]]) -> bool
 
 def _documents(
     root: Path,
-    registry: dict[str, dict[str, str]],
+    registry: dict[str, dict[str, Any]],
     tracked_documents: tuple[str, ...],
 ) -> dict[str, tuple[Path, str, frozenset[str]]]:
     documents: dict[str, tuple[Path, str, frozenset[str]]] = {}
@@ -99,7 +100,7 @@ def _documents(
 
 def _owner_gaps(
     documents: dict[str, tuple[Path, str, frozenset[str]]],
-    registry: dict[str, dict[str, str]],
+    registry: dict[str, dict[str, Any]],
 ) -> list[str]:
     document = documents.get(DESIGN_OWNER)
     if document is None:
@@ -107,7 +108,7 @@ def _owner_gaps(
     _, _, anchors = document
     entry = registry.get(DESIGN_OWNER, {})
     gaps = []
-    if entry.get("state") != "canonical" or "canonical_for:" not in entry.get("relations", ""):
+    if entry.get("state") != "canonical" or "canonical_for" not in entry.get("relations", {}):
         gaps.append("design_canonical_owner_front_matter_invalid")
     gaps.extend(
         f"design_canonical_owner_anchor_missing:{anchor}"
@@ -119,7 +120,7 @@ def _owner_gaps(
 def _projection_gaps(
     root: Path,
     documents: dict[str, tuple[Path, str, frozenset[str]]],
-    registry: dict[str, dict[str, str]],
+    registry: dict[str, dict[str, Any]],
 ) -> list[str]:
     owner = (root / DESIGN_OWNER).resolve()
     gaps: list[str] = []
@@ -133,11 +134,16 @@ def _projection_gaps(
             gaps.append(f"design_projection_owner_link_missing:{relative}")
         if relative in METADATA_PROJECTIONS:
             entry = registry.get(relative, {})
-            relation = entry.get("relations", "")
+            relations = entry.get("relations", {})
+            projection = relations.get("projects", [])
+            targets = projection if isinstance(projection, list) else [projection]
             if (
                 entry.get("state") != "active"
-                or f"product-design-contract.md#{REQUIRED_PROJECTION_ANCHOR}" not in relation
-                or "canonical_for:" in relation
+                or not any(
+                    target.endswith(f"product-design-contract.md#{REQUIRED_PROJECTION_ANCHOR}")
+                    for target in targets
+                )
+                or "canonical_for" in relations
             ):
                 gaps.append(f"design_projection_front_matter_invalid:{relative}")
     return gaps
@@ -176,8 +182,9 @@ def _axiom_gaps(root: Path, documents: dict[str, tuple[Path, str, frozenset[str]
     owner = (root / DESIGN_OWNER).resolve()
     root_link = "root-constraint" in _owner_links(path, text, owner)
     gaps = []
-    if "derives: ../docs/governance/product-design-contract.md#root-constraint" not in metadata.get(
-        "relations", ""
+    if (
+        metadata.get("relations", {}).get("derives")
+        != "../docs/governance/product-design-contract.md#root-constraint"
     ):
         gaps.append("design_axioms_derivation_metadata_invalid")
     if not root_link:
@@ -207,7 +214,12 @@ def design_integrity_report(
     """Audit design ownership, relation grammar, and derivation boundaries."""
     forbidden_paths = [path for path in FORBIDDEN_ROOT_PATHS if (root / path).exists()]
     gaps = [f"design_integrity_forbidden_projection_path:{path}" for path in forbidden_paths]
-    registry = {entry["path"]: entry for entry in build_docs_registry(root)}
+    try:
+        registry = {entry["path"]: entry for entry in build_docs_registry(root)}
+    except ValueError as exc:
+        if not str(exc).startswith("docs_metadata_invalid:"):
+            raise
+        return {"verdict": "block", "references": [], "required_gaps": [str(exc)]}
     documents = _documents(root, registry, tracked_documents)
     references, reference_gaps = _reference_gaps(root, documents)
     gaps.extend(_owner_gaps(documents, registry))
@@ -226,5 +238,8 @@ def front_matter_ok(path: Path) -> bool:
     """Return whether a required governance document has the ETHOS front matter."""
     if not path.exists():
         return False
-    header = front_matter(path)
+    try:
+        header = front_matter(path)
+    except ValueError:
+        return False
     return all(key in header for key in ("subject", "role", "state", "relations"))

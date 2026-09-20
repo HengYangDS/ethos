@@ -4,6 +4,9 @@ context: |
   sole tracked Change intent. Source, tests and schemas implement its contracts;
   exact Git objects and selected Attestations establish implementation facts
   and bounded proof without replacing that intent.
+  Resolve semantic responsibilities through
+  docs/governance/docs-registry.md#semantic-authority-and-carrier-boundaries
+  and the Product Design Contract before authoring or projecting content.
 rules:
   proposal:
     - Explain the problem, intended change, and explicit out-of-scope boundary.
@@ -12,6 +15,8 @@ rules:
     - Use ADDED, MODIFIED, REMOVED, or RENAMED Requirements sections.
     - Include at least one Scenario with WHEN and THEN clauses for each
       requirement.
+    - Keep observable obligations and falsifiers here; reference the rationale
+      and implementation design rather than maintaining duplicate contracts.
   tasks:
     - Describe bounded actions and their completion checks using the official
       task checkboxes. Record progress here; reference existing evidence when
@@ -21,3 +26,16 @@ rules:
   design:
     - Record architecture, tradeoffs, authority boundaries, and migration risks
       for non-trivial changes.
+operations:
+  apply:
+    guidance:
+      - Resolve current ETHOS status and exact-path admission before writes;
+        instructions and artifact completeness are not mutation authority.
+      - Follow docs/governance/docs-registry.md for semantic ownership,
+        README-only directory navigation and human/agent reading consistency.
+  archive:
+    guidance:
+      - Use current ETHOS admission and official archive semantics; preserve
+        complete deltas, evidence bindings and migrated incoming references.
+      - Observe the actual result before retrying and reconcile affected
+        reader projections without copying task state into docs.

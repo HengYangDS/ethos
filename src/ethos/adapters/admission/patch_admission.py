@@ -328,13 +328,15 @@ def _patch_references(
             for path, text in postimages.items()
             if text is not None and any(carrier.matches(path) for carrier in REFERENCE_CARRIERS)
         }
+        context = {path: text for path, text in context_files.items() if path not in postimages}
+        context.update(files)
         references = product_references_from_files(
             files,
-            context_files=context_files,
+            context_files=context,
             declared_commands=declared_commands,
             include_declarations=False,
         )
-        references["command"].update(command_owner_sources_from_files(files))
+        references["command"].update(command_owner_sources_from_files(files, context_files=context))
         gaps, unknown, outputs = _source_effect_gaps(root, context_files, postimages)
         effects = {
             str(change["path"]): "delete"

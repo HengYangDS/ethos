@@ -2375,6 +2375,19 @@ quality, repository-proof and package jobs plus every Linux/macOS conformance
 case, but failed all three Windows versions. Its aggregate conclusion is failure.
 Source proof, reference publication and host qualification remain distinct.
 
+
+Windows trust observation must distinguish unsafe ACLs from missing, failed or
+unparseable native observations. The existing filesystem owner now propagates
+bounded native failure details; public trust admission returns that gap without
+authorizing anything. Foreign ownership and write grants retain their rejection
+predicate. This repairs a demonstrated diagnostic loss, not the unproved cause
+of the hosted Windows failure. The replacement keeps the same PowerShell resolver,
+ACL scripts and environment rather than guessing which host variables are absent.
+Public trust regressions fail on the old conflated result and pass on missing,
+process-creation, native-error and malformed-output cases. The related 107-case
+suite passes with one native-Windows-only skip. Exact proof and Windows replay
+remain required before calling the hosted problem fixed.
+
 The docstring raw-string migration exposed a genuine JSON-fixture escape change.
 Its native adopter configuration test failed and now passes after preserving the
 decoded input, demonstrating why AST shape and formatter green alone do not

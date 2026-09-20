@@ -114,19 +114,27 @@ def _posix_protected(path: Path) -> bool:
 
 
 def _windows_protected(path: Path) -> bool:
+    message = "git_object_trust_anchor_observation_unavailable"
     try:
         completed = _run_windows(path, _WINDOWS_OBSERVE)
-    except ProcessExecutionError:
-        return False
-    if completed is None or completed.returncode:
-        return False
+    except ProcessExecutionError as error:
+        diagnostic = f"{message}:{error.reason}"
+        raise ValueError(diagnostic) from error
+    if completed is None:
+        diagnostic = f"{message}:native_observer_unavailable_or_timeout"
+        raise ValueError(diagnostic)
+    if completed.returncode:
+        detail = " ".join(completed.stderr.split())[:512]
+        diagnostic = f"{message}:exit_code={completed.returncode}:stderr={detail}"
+        raise ValueError(diagnostic)
     try:
         payload = cast("dict[str, Any]", json.loads(completed.stdout))
         current = str(payload["current_sid"])
         owner = str(payload["owner_sid"])
         writers = {str(value) for value in cast("list[object]", payload["write_allow_sids"])}
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
-        return False
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        diagnostic = f"{message}:invalid_native_output"
+        raise ValueError(diagnostic) from error
     return owner == current and writers <= {current, _SYSTEM_SID, _ADMINISTRATORS_SID}
 
 

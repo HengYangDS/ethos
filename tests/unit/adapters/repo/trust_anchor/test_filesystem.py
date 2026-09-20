@@ -14,6 +14,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
+from ethos.adapters.repo.trust_anchor.verification import trust_anchor
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -30,79 +31,61 @@ def _fake_powershell(tmp_path: Path, payload: dict[str, object]) -> Path:
     return executable
 
 
-def test_windows_protection_accepts_only_trusted_write_authorities(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    current = "S-1-5-21-1000"
+@pytest.mark.parametrize(
+    ("owner", "writers", "expected"),
+    [
+        ("S-1-5-21-1000", ["S-1-5-21-1000", "S-1-5-18", "S-1-5-32-544"], True),
+        ("S-1-5-21-1000", ["S-1-5-21-1000", "S-1-5-32-545"], False),
+        ("S-1-5-21-2000", ["S-1-5-21-1000"], False),
+    ],
+)
+def test_windows_protection_distinguishes_owner_and_write_authority(
+    tmp_path, monkeypatch, owner, writers, expected
+):
+    """Real payload consumers distinguish safe ACLs from foreign owner or writer."""
     _fake_powershell(
         tmp_path,
         {
-            "current_sid": current,
-            "owner_sid": current,
-            "write_allow_sids": [current, "S-1-5-18", "S-1-5-32-544"],
+            "current_sid": "S-1-5-21-1000",
+            "owner_sid": owner,
+            "write_allow_sids": writers,
         },
     )
     monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
     parent = tmp_path / "trust"
     parent.mkdir()
     anchor = parent / "allowed-signers"
-    anchor.write_text("trusted\n", encoding="utf-8")
+    anchor.write_text("unchanged")
+    assert protected_from_untrusted_write(anchor, platform_name="nt") is expected
 
-    assert protected_from_untrusted_write(anchor, platform_name="nt")
 
-
-def test_windows_protection_rejects_foreign_write_authority(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    current = "S-1-5-21-1000"
-    _fake_powershell(
-        tmp_path,
-        {
-            "current_sid": current,
-            "owner_sid": current,
-            "write_allow_sids": [current, "S-1-5-32-545"],
-        },
+@pytest.mark.parametrize("failure", ["missing", "native-error", "malformed", "creation"])
+def test_windows_observation_failure_is_not_an_unprotected_acl(tmp_path, monkeypatch, failure):
+    """Public trust admission retains unavailable-observer reasons without accepting."""
+    parent = tmp_path / "trust"
+    parent.mkdir()
+    anchor = parent / "allowed-signers"
+    anchor.write_text("unchanged")
+    executable = _fake_powershell(tmp_path, {})
+    if failure == "missing":
+        executable.unlink()
+    elif failure == "creation":
+        executable.write_bytes(b"invalid executable")
+    elif failure == "native-error":
+        executable.write_text("#!/bin/sh\necho 'Get-Acl: module unavailable' >&2\nexit 7\n")
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
+    native = protected_from_untrusted_write
+    monkeypatch.setattr(
+        "ethos.adapters.repo.trust_anchor.verification.protected_from_untrusted_write",
+        lambda path: native(path, platform_name="nt"),
     )
-    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
-    parent = tmp_path / "trust"
-    parent.mkdir()
-    anchor = parent / "allowed-signers"
-    anchor.write_text("untrusted\n", encoding="utf-8")
-
-    assert not protected_from_untrusted_write(anchor, platform_name="nt")
-
-
-def test_windows_protection_rejects_foreign_owner(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    current = "S-1-5-21-1000"
-    _fake_powershell(
-        tmp_path,
-        {
-            "current_sid": current,
-            "owner_sid": "S-1-5-21-2000",
-            "write_allow_sids": [current],
-        },
-    )
-    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
-    parent = tmp_path / "trust"
-    parent.mkdir()
-    anchor = parent / "allowed-signers"
-    anchor.write_text("untrusted\n", encoding="utf-8")
-
-    assert not protected_from_untrusted_write(anchor, platform_name="nt")
-
-
-def test_windows_protection_fails_closed_without_native_observer(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
-    parent = tmp_path / "trust"
-    parent.mkdir()
-    anchor = parent / "allowed-signers"
-    anchor.write_text("unknown\n", encoding="utf-8")
-
-    assert not protected_from_untrusted_write(anchor, platform_name="nt")
+    _resolved, gaps = trust_anchor(tmp_path / "repo", str(anchor))
+    assert len(gaps) == 1
+    assert gaps[0].startswith("git_object_trust_anchor_observation_unavailable")
+    if failure == "native-error":
+        assert "exit_code=7" in gaps[0]
+        assert "module unavailable" in gaps[0]
+    assert anchor.read_text() == "unchanged"
 
 
 def test_windows_protection_failure_preserves_native_reason(

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import shlex
 import shutil
+import tarfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -11,6 +13,8 @@ import pytest
 
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.selection as runtime_selection
+import ethos.cli as cli
+import tools.ci.delivery.distribution as distribution
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
@@ -19,6 +23,7 @@ from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_command
 from tests.support.runtime_scenarios import git_process
@@ -203,3 +208,70 @@ def test_release_runtime_identity_rejects_a_second_closure_for_the_same_release(
         activate_runtime(common, second)
 
     assert current_runtime(common).root == first
+
+
+@pytest.mark.parametrize("mode", ["selected", "self", "missing", "broken", "tampered", "install"])
+def test_host_console_obeys_repository_selection(tmp_path, monkeypatch, mode):
+    """A host upgrade cannot replace selected bytes or bypass invalid selection."""
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    if mode != "missing":
+        activate_runtime(common, python.parent)
+    if mode == "broken":
+        (common / "ethos/runtime/CURRENT").write_text("invalid\\n")
+    if mode == "tampered":
+        target = python.parent / "manifest.json"
+        target.chmod(0o644)
+        target.write_text("{}")
+    calls = []
+    monkeypatch.setattr(cli, "main", lambda: calls.append("local"))
+    monkeypatch.setattr(
+        cli.sys, "executable", str(python / "bin/python") if mode == "self" else "/host/python"
+    )
+    args = ["hook", "install"] if mode == "install" else ["--version"]
+    monkeypatch.setattr(cli.sys, "argv", ["ethos", *args, "--root", str(repo)])
+    monkeypatch.setattr(os, "execv", lambda path, argv: calls.append((path, argv)))
+    if mode in {"broken", "tampered"}:
+        with pytest.raises(SystemExit, match="1"):
+            cli.console_main()
+        assert not calls
+    else:
+        cli.console_main()
+        if mode == "selected":
+            executable = str(runtime_filesystem.runtime_python(python))
+            assert calls == [
+                (
+                    executable,
+                    [executable, "-B", "-I", "-m", "ethos.cli", *args, "--root", str(repo)],
+                )
+            ]
+        else:
+            assert calls == ["local"]
+
+
+@pytest.mark.parametrize("drift", [False, True])
+def test_portable_archive_retains_exact_runtime_and_previous_output(tmp_path, monkeypatch, drift):
+    """A relocated archive preserves the image; mismatched inputs never replace output."""
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    wheel = Path(git_common_dir(repo)) / "ethos/packages" / selected.wheel_sha256 / "ethos-test.whl"
+    destination = tmp_path / "ethos.tar.gz"
+    destination.write_bytes(b"previous")
+    if drift:
+        wheel.write_bytes(b"changed")
+        with pytest.raises(ValueError, match="distribution_wheel_mismatch"):
+            distribution.package_runtime(selected.root, wheel, destination)
+        assert destination.read_bytes() == b"previous"
+        return
+    result = distribution.package_runtime(selected.root, wheel, destination)
+    assert Path(result["homebrew_formula"]).is_file()
+    assert distribution.package_runtime(selected.root, wheel, destination) == result
+    with tarfile.open(destination) as archive:
+        archive.extractall(tmp_path / "relocated", filter="tar")
+    assert (
+        require_selected_runtime(tmp_path / "relocated/ethos/runtime" / selected.digest).digest
+        == selected.digest
+    )
+    assert (
+        tmp_path / "relocated/ethos/packages" / selected.wheel_sha256 / wheel.name
+    ).read_bytes() == wheel.read_bytes()

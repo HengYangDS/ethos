@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ethos = "ethos.cli:main"
+ethos = "ethos.cli:console_main"
 
 [tool.uv]
 prerelease = "disallow"

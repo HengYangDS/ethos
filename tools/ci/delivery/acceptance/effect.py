@@ -19,6 +19,7 @@ import tools.ci.delivery.acceptance.lane as lane_acceptance
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
 from ethos.adapters.repo.runtime.materialization.dependency_supply import (
     prepare_locked_requirements,
@@ -27,6 +28,7 @@ from ethos.adapters.repo.runtime.materialization.effect import remove_generated_
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import wheel_build_identity
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
+from tools.ci.delivery.distribution import package_runtime
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -442,6 +444,16 @@ def run(session: nox.Session) -> None:
             wheel_sha256=wheel_sha256,
             environment=package_environment,
         )
+        runtime = (
+            Path(git_common_dir(adopter))
+            / "ethos/runtime"
+            / str(lifecycle["successor_activation"]["runtime_digest"])
+        )
+        distribution = package_runtime(
+            runtime,
+            wheel,
+            ROOT / "build/artifacts/native" / f"ethos-{build.distribution_version}.tar.gz",
+        )
         if current_tracked_head(ROOT) != head:
             session.error(f"local install smoke HEAD moved from {head}")
         payload = package_acceptance_evidence(
@@ -456,6 +468,7 @@ def run(session: nox.Session) -> None:
             runtime_lifecycle=lifecycle,
             generated_at=datetime.now(UTC),
         )
+        payload["distribution"] = distribution
     finally:
         remove_generated_tree(WORK)
     EVIDENCE.parent.mkdir(parents=True, exist_ok=True)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shlex
 import sys
 from importlib import import_module
@@ -9,11 +10,36 @@ from pathlib import Path
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
 from ethos.surface.cli.version import version_text
+
+
+def console_main() -> None:
+    """Dispatch the installed command through the target repository's exact selection."""
+    argv = sys.argv[1:]
+    command = "version" if "--version" in argv else root_command(argv) or "ethos"
+    try:
+        common = git_common_dir(_argument_root(argv))
+        selector = Path(common) / "ethos/runtime/CURRENT"
+        if (
+            common
+            and argv[:2] != ["hook", "install"]
+            and (selector.exists() or selector.is_symlink())
+        ):
+            selected = current_runtime(Path(common))
+            if Path(sys.executable).absolute() != selected.python.absolute():
+                executable = str(selected.python)
+                os.execv(executable, [executable, "-B", "-I", "-m", "ethos.cli", *argv])
+                return
+    except (OSError, ValueError) as exc:
+        _emit_contract_failure(command, argv, exc)
+        return
+    main()
 
 
 def main() -> None:

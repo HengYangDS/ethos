@@ -17,6 +17,8 @@ can be met through cached verdicts alone or narrower assurance.
 - Close the reproduced archive reference/proof-scope defects before completion.
 - Qualify the requested compatible stable supply through the same native consumers.
 - Close the reproduced official-artifact continuation and ambiguous recovery gaps.
+- Repair bounded documentation-authority and metadata observation defects through
+  native OpenSpec guidance and README-only semantic navigation.
 
 ## Capabilities
 
@@ -27,7 +29,8 @@ None.
 ### Modified Capabilities
 
 - `quality`: measured complete-proof throughput with unchanged assurance.
-- `repository-governance`: exact official-artifact continuation without parallel intent.
+- `repository-governance`: exact official-artifact continuation and documentation
+  authority without parallel intent.
 
 ## Impact
 

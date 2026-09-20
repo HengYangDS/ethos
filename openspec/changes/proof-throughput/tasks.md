@@ -96,10 +96,20 @@
 - [ ] Restore effective JavaScript semantic quality and native launcher behavior.
 - [x] Reject mixed provider/source execution before all gates and qualify matching package, source and adopter paths.
 - [ ] Migrate native developer/CI tool supply to mise locks and retire replaced installers.
-- [ ] Compile shared CI declarations through native CUE, remove independent template authority and qualify both Forge projections.
+- [x] Compile shared CI declarations through native CUE and remove independent template authority; exact local proof and installed parity passed.
+- [ ] Qualify both CUE-generated Forge projections through current hosted runs.
 - [x] Reject invalid and non-Boolean CEL predicates at declaration loading and qualify existing consumers.
 - [ ] Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 - [ ] Reject incomplete hosted results and missing, malformed or contradictory test artifacts through the existing receipt owner.
 - [ ] Enforce unapproved-warning rejection at native command adapters without treating informational output as failure.
 - [ ] Restore whole-module docstring enforcement at the native quality owner and remove the narrowed coverage substitute.
 - [ ] Verify complete per-property reports, cross-platform admission and warning propagation with native falsifying cases.
+
+## Documentation Comprehension And Research Delivery
+
+- [ ] Organize foundation research by semantic question; verify every original argument, source and incoming link is preserved without duplicating authority.
+- [ ] Repair native metadata parsing and typed relationships; replay quoted-scalar, duplicate-key, delimiter, dangling-owner and human/machine contradiction cases through the public report.
+- [ ] Derive human and agent navigation from one source; verify semantic hierarchy, reader orientation, prerequisites, section links, rename closure and independently understandable topics.
+- [ ] Calibrate document metrics against human and agent retrieval; reject cosmetic wrapping, hidden content and fragmented or duplicated meaning.
+- [ ] Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.
+- [ ] Settle source research into its topic owner and execute the existing framework comparisons; report adoption or rejection from actual replacement evidence.

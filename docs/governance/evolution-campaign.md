@@ -4,7 +4,7 @@ role: explanation
 state: active
 relations:
   projects:
-    - docs/governance/product-design-contract.md#semantic-kernel
+    - product-design-contract.md#semantic-kernel
 ---
 
 # Learning And Change Relations

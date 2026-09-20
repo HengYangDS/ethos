@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import tomllib
 from typing import TYPE_CHECKING
+from typing import Any
+from typing import override
+
+import yaml
+from yaml.constructor import ConstructorError
 
 from ethos.repository.profile import profile_root
 
@@ -47,45 +52,71 @@ def docs_root(root: Path) -> Path:
     return profile_root(root, "docs")
 
 
-def front_matter(path: Path) -> dict[str, str]:
-    """Parse the compact front matter fields used by docs registry entries."""
+class _UniqueSafeLoader(yaml.SafeLoader):
+    """Use native safe YAML while rejecting duplicate explicit mapping keys."""
+
+    @override
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict:
+        keys = [
+            self.construct_object(key, deep=deep)
+            for key, _value in node.value
+            if key.tag != "tag:yaml.org,2002:merge"
+        ]
+        if any(key in keys[:index] for index, key in enumerate(keys)):
+            message = "duplicate mapping key"
+            raise ConstructorError(None, None, message, node.start_mark)
+        return super().construct_mapping(node, deep=deep)
+
+
+def front_matter(path: Path) -> dict[str, Any]:
+    """Read native YAML metadata without flattening its structured values."""
     text = path.read_text(encoding="utf-8")
-    if not text.startswith("---\n"):
+    lines = text.splitlines()
+    if not lines or lines[0] != "---":
         return {}
-    header = text.split("---", 2)[1]
-    values: dict[str, str] = {}
-    current_key = ""
-    nested: list[str] = []
-    for line in header.splitlines():
-        if line.startswith((" ", "\t")) and current_key:
-            nested.append(line.strip())
-            continue
-        if current_key and nested:
-            values[current_key] = "; ".join(nested)
-            nested = []
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        current_key = key.strip()
-        values[current_key] = value.strip()
-    if current_key and nested:
-        values[current_key] = "; ".join(nested)
-    return values
+    try:
+        end = lines.index("---", 1)
+        payload = yaml.load("\n".join(lines[1:end]), Loader=_UniqueSafeLoader)
+    except (ValueError, yaml.YAMLError) as exc:
+        message = f"docs_metadata_invalid:{path}:syntax"
+        raise ValueError(message) from exc
+    if not isinstance(payload, dict) or not all(isinstance(key, str) for key in payload):
+        message = f"docs_metadata_invalid:{path}:mapping"
+        raise ValueError(message)
+    return payload
 
 
-def build_docs_registry(root: Path) -> list[dict[str, str]]:
-    """Build the repository documentation registry from front matter."""
+def build_docs_registry(root: Path) -> list[dict[str, Any]]:
+    """Retain typed metadata and reject invalid native declarations."""
+    root = root.resolve()
     entries = []
     for path in sorted(docs_root(root).rglob("*.md")):
-        metadata = front_matter(path)
         relative = path.relative_to(root).as_posix()
+        try:
+            metadata = front_matter(path)
+        except ValueError as exc:
+            message = f"docs_metadata_invalid:{relative}:syntax"
+            raise ValueError(message) from exc
+        for field in ("subject", "role", "state"):
+            if field in metadata and not isinstance(metadata[field], str):
+                message = f"docs_metadata_invalid:{relative}:{field}"
+                raise ValueError(message)
+        relations = metadata.get("relations", {})
+        if not isinstance(relations, dict) or any(
+            not isinstance(key, str)
+            or not key
+            or not (
+                isinstance(value, str)
+                or (isinstance(value, list) and all(isinstance(item, str) for item in value))
+            )
+            for key, value in relations.items()
+        ):
+            message = f"docs_metadata_invalid:{relative}:relations"
+            raise ValueError(message)
         entries.append(
             {
                 "path": relative,
-                "subject": metadata.get("subject", ""),
-                "role": metadata.get("role", ""),
-                "state": metadata.get("state", ""),
-                "relations": metadata.get("relations", ""),
+                **{field: metadata[field] for field in REQUIRED_FIELDS if field in metadata},
             }
         )
     return entries

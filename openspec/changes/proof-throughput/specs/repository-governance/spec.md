@@ -132,6 +132,69 @@ coexist. Only those outputs are admitted; directory-wide authority is excluded.
 - **AND** its next action inspects the official Change list rather than repeating status
 - **AND** explicit plan and proof selection remain bound to the named official intent
 
+### Requirement: Native Documentation Topology
+
+ETHOS SHALL organize governed documentation by function and authority rather
+than by `current`/`future` directory names, and SHALL use one explicit rule for
+documentation roots, onboarding placement, and README necessity. The physical
+shape of ETHOS's own docs is a product projection; adopter repositories retain
+their native subject layout under the portable Docs Registry contract.
+
+#### Scenario: Common docs kernel is audited
+
+- **WHEN** documentation governance audits the repository
+- **THEN** it checks declared subjects, purposes, authority and reachable
+  relationships without requiring evidence or lifecycle directories
+- **AND** product roots remain only for distinct subject responsibilities
+- **AND** retained evidence follows its producer, consumer, binding and lifetime
+- **AND** no ETHOS extension root is mandatory for an adopter
+
+#### Scenario: First-run guidance is placed by function
+
+- **WHEN** ETHOS has one first-run onboarding document
+- **THEN** it SHALL live under the `guides` function root as `docs/guides/quickstart.md`
+- **AND** links, stable-path metadata, taxonomy metadata, registry output, and
+  command examples SHALL resolve to that path
+- **AND** the former onboarding root SHALL not remain as a historical habit or
+  redirect root
+
+#### Scenario: A documentation directory needs a README
+
+- **WHEN** a documentation directory is evaluated for a README
+- **THEN** a README SHALL exist only when it provides real navigation, a
+  semantic boundary, or an index for multiple meaningful children
+- **AND** a directory with one substantive document SHALL not receive a
+  placeholder README merely because the directory exists
+- **AND** an empty directory or `.gitkeep` SHALL be removed
+
+#### Scenario: Documentation taxonomy is projected
+
+- **WHEN** the Docs Registry reads the ETHOS documentation tree
+- **THEN** role, state, subject, and relation metadata are validated by the
+  registry owner and directory names express subject/function rather than
+  lifecycle state
+- **AND** the registry SHALL report every broken link, stale stable path,
+  unindexed document, duplicate subject, and invalid README disposition
+
+#### Scenario: `current`/`future` roots do not become truth lanes
+
+- **WHEN** ETHOS audits docs topology or scaffolds an adopted repository
+- **THEN** ETHOS does not require physical `current` or `future` roots, and does
+  not accept `current` or `future` as documentation state values
+- **AND** present repository truth is proven by HEAD, authority order,
+  contracts, evidence, claims, and proof rather than by directory name
+- **AND** proposed behavior and acceptance belong in the selected official
+  Change; plans, research and revisit conditions supply linked context only
+- **AND** no generic intent directory becomes a second change authority
+
+#### Scenario: Product pseudo-lanes do not become common kernel
+
+- **WHEN** ETHOS reports product extension roots
+- **THEN** architecture, concepts, governance, plans, research, guides, and
+  metadata roots may appear as product extensions
+- **AND** contract and evolution labels do not become mandatory replacement
+  roots for the removed `current`/`future` lanes
+
 ## ADDED Requirements
 
 ### Requirement: Invocation-local intent selection
@@ -220,3 +283,64 @@ Optional unselected verification SHALL preserve local-first behavior.
 - **THEN** admission requests valid evidence from the configured provider
 - **AND** its configured store and issuer remain distinct from repository private state
 - **AND** valid signatures, freshness and exact bindings are all required for success
+
+### Requirement: Semantic carriers preserve singular authority
+
+ETHOS SHALL preserve one editable owner per proposition across requirements,
+design, tasks, implementation and evidence. Human and agent projections SHALL
+identify their source and preserve scope and limitations. They SHALL NOT grant
+acceptance, task progress, proof or permission by presentation alone.
+
+#### Scenario: A behavior obligation changes
+
+- **WHEN** a behavior changes relative to the accepted capability requirement
+- **THEN** the selected Change owns the delta, design and acceptance cases
+- **AND** docs and tools reference the owner rather than redefine the requirement
+- **AND** disagreement with product invariants or observed execution stays explicit
+
+#### Scenario: Research informs implementation
+
+- **WHEN** sourced research supports a bounded implementation decision
+- **THEN** research retains attribution and limits, while the Change owns the
+  decision, experiment procedure, acceptance and task progress
+- **AND** a summary does not become another editable requirement or result store
+
+### Requirement: Structured documentation metadata preserves meaning
+
+ETHOS SHALL preserve metadata identity, purpose, lifecycle and typed relationships
+under valid syntax variations. Invalid declarations and unresolved required
+authority targets SHALL be reported. Human-readable and machine-readable
+representations SHALL agree on the same declared meaning.
+
+#### Scenario: Equivalent and ambiguous metadata are distinguished
+
+- **WHEN** metadata uses valid quoted scalars or structured relationships
+- **THEN** public observation preserves the equivalent meaning
+- **AND** duplicate keys and unclosed frontmatter cannot silently pass
+
+#### Scenario: Required guidance is absent or contradictory
+
+- **WHEN** a required authority target is missing or visible state contradicts metadata
+- **THEN** public observation identifies the exact disagreement or missing target
+- **AND** literal examples cannot satisfy actual reader-guidance obligations
+
+### Requirement: ETHOS directory navigation uses README only
+
+Current ETHOS-authored directory navigation SHALL use a necessary README.md.
+Alternate index.md entrypoints and duplicate directory catalogs SHALL be rejected.
+Topic links, immutable historical references and unrelated machine indexing
+SHALL not be mistaken for authored directory entrypoints.
+
+#### Scenario: A nested directory gains an alternate entrypoint
+
+- **WHEN** authored directory navigation introduces an index.md carrier
+- **THEN** quality reports the exact path and README-only correction
+- **AND** it does not require a marker-only README as replacement
+
+#### Scenario: One source serves human and agent readers
+
+- **WHEN** rendered, raw or structured access resolves a current rule
+- **THEN** the same source, scope, prerequisites and limitations remain available
+- **AND** semantic hierarchy and meaningful links preserve progressive detail
+  without fragmenting one cohesive explanation or duplicating authority
+- **AND** a move repairs affected links without changing subject identity

@@ -52,6 +52,7 @@ def command_owner_sources_from_files(
     files: dict[str, str],
     *,
     parsed_files: Mapping[str, AST | None] | None = None,
+    context_files: dict[str, str] | None = None,
 ) -> dict[str, frozenset[str]]:
     """Return each command identity with every exact defining symbol."""
     sources = {
@@ -59,7 +60,12 @@ def command_owner_sources_from_files(
         for path, text in declaration_files(files, "commands").items()
         if "App(" in text or ".command" in text
     }
-    prefixes = python_references.cyclopts_prefixes(sources, parsed_files=parsed_files)
+    context = {
+        path: text
+        for path, text in declaration_files((context_files or {}) | files, "commands").items()
+        if "App(" in text or ".command" in text
+    }
+    prefixes = python_references.cyclopts_prefixes(context, parsed_files=parsed_files)
     owners: dict[str, set[str]] = {}
     module_paths = {python_references.module_name(path): path for path in sources}
     for (module, variable), command in prefixes.items():

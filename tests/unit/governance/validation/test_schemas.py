@@ -66,90 +66,81 @@ def test_container_contract_is_not_a_product_schema_or_profile_field() -> None:
         RepositoryProfileDeclaration.model_validate(profile)
 
 
-def test_schema_validation_report_uses_product_schemas_for_adopter_root(
-    tmp_path,
-) -> None:
-    (tmp_path / "docs").mkdir()
-
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "empty",
+        "shadow",
+        "copied-invalid",
+        "copied-malformed",
+        "retired",
+        "copied-retired",
+        "native-doc",
+    ],
+)
+def test_schema_reports_keep_native_ownership_across_adopter_shapes(tmp_path, condition) -> None:
+    """Adopter shadows never replace product schemas, while retired owners block."""
+    schema_dir = tmp_path / "system/schemas/kernel"
+    if condition.startswith("copied"):
+        shutil.copytree(ROOT / "system/schemas/kernel", schema_dir)
+    else:
+        schema_dir.mkdir(parents=True)
+    if condition in {"shadow", "copied-invalid", "copied-malformed"}:
+        (schema_dir / "custom.schema.json").write_text("{}")
+        (schema_dir / "result.schema.json").write_text(
+            '{"type":"not-a-json-schema-type"}' if condition == "copied-invalid" else "{"
+        )
+    retired = condition.endswith("retired")
+    if retired:
+        (schema_dir / "capability-profile.schema.json").write_text("{}")
+    docs = tmp_path / "docs/current"
+    docs.mkdir(parents=True)
+    if condition == "native-doc":
+        (tmp_path / ".ethos").mkdir()
+        (tmp_path / ".ethos/project.toml").write_text("[meta]\\nname = 'sample'\\n")
+        (docs / "README.md").write_text(
+            "---\\nsubject: docs:governance\\nrole: reference\\nstate: canonical\\n"
+            "relations: {}\\n---\\n# Governance Docs\\n"
+        )
     report = schema_validation_report(tmp_path)
-
     assert report["mode"] == "product"
-    assert report["verdict"] == "pass"
     assert "ok" not in report
-    assert report["schema_count"] == len(_product_schema_names())
-    assert set(report["schemas"]) == _product_schema_names()
-    assert report["required_gaps"] == []
-    assert report["instances"]["docs-registry"]["verdict"] == "pass"
-
-
-def test_schema_validation_adopter_schemas_do_not_replace_product_contracts(
-    tmp_path,
-) -> None:
-    schema_dir = tmp_path / "system" / "schemas" / "kernel"
-    schema_dir.mkdir(parents=True)
-    (schema_dir / "custom.schema.json").write_text(
-        json.dumps({"$schema": "https://json-schema.org/draft/2020-12/schema"}),
-        encoding="utf-8",
+    assert report["verdict"] == ("block" if retired else "pass")
+    assert report["required_gaps"] == (
+        ["schema_retired:capability-profile.schema.json"] if retired else []
     )
-    (schema_dir / "result.schema.json").write_text("{", encoding="utf-8")
-    (tmp_path / "docs").mkdir()
-
-    report = schema_validation_report(tmp_path)
-
-    assert report["mode"] == "product"
-    assert report["verdict"] == "pass"
-    assert "ok" not in report
-    assert report["schema_count"] == len(_product_schema_names())
-    assert set(report["schemas"]) == _product_schema_names()
+    expected = _product_schema_names() | ({"capability-profile.schema.json"} if retired else set())
+    assert set(report["schemas"]) == expected
+    assert report["schema_count"] == len(expected)
     assert "custom.schema.json" not in report["schemas"]
     assert report["schemas"]["result.schema.json"]["verdict"] == "pass"
     assert report["instances"]["docs-registry"]["verdict"] == "pass"
+    if retired:
+        assert report["schemas"]["capability-profile.schema.json"] == {
+            "verdict": "block",
+            "error": "retired semantic schema",
+        }
 
 
-def test_schema_validation_rejects_retired_capability_profile_schema(tmp_path) -> None:
-    schema_dir = tmp_path / "system" / "schemas" / "kernel"
-    schema_dir.mkdir(parents=True)
-    (schema_dir / "capability-profile.schema.json").write_text(
-        json.dumps({"$schema": "https://json-schema.org/draft/2020-12/schema"}),
-        encoding="utf-8",
-    )
-    (tmp_path / "docs").mkdir()
-
-    report = schema_validation_report(tmp_path)
-
-    assert report["verdict"] == "block"
-    assert "ok" not in report
-    assert report["required_gaps"] == ["schema_retired:capability-profile.schema.json"]
-    assert report["schemas"]["capability-profile.schema.json"]["verdict"] == "block"
-
-
-def test_result_payload_validates_against_schema() -> None:
-    result = EthosResult(command="status", verdict="pass", state="ready").to_dict()
-
-    validation = validate_ethos_result(result)
-
-    assert validation["verdict"] == "pass"
-    assert "ok" not in validation
-    json.dumps(validation)
-
-
-def test_result_payload_accepts_governed_repository_context() -> None:
-    result = EthosResult(
-        command="status",
-        verdict="pass",
-        state="ready",
-        governance_context={
+@pytest.mark.parametrize("with_context", [False, True])
+def test_result_payload_validates_native_governance_context(with_context) -> None:
+    """The same result schema admits absent and explicit governed-repository context."""
+    context = (
+        {
             "contract": "governed_repository",
             "profile": "generic",
             "repository": "/workspace/repo",
             "reader_projection_commands": ["ethos status"],
             "truth_boundary": "repository",
             "profile_boundary": "profile_or_adapter",
-        },
-    ).to_dict()
-
-    validation = validate_ethos_result(result)
-
+        }
+        if with_context
+        else {}
+    )
+    result = EthosResult(
+        command="status", verdict="pass", state="ready", governance_context=context
+    )
+    validation = validate_ethos_result(result.to_dict())
     assert validation["verdict"] == "pass"
     assert "ok" not in validation
     json.dumps(validation)
@@ -178,47 +169,6 @@ def test_gate_schema_accepts_quality_descriptor_fields() -> None:
     validation = validate_schema_instance("gate.schema.json", payload)
 
     assert validation["verdict"] == "pass"
-
-
-def test_schema_validation_uses_product_schemas_for_adopter_without_local_schemas(
-    tmp_path,
-) -> None:
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos" / "project.toml").write_text("[meta]\nname = 'sample'\n", encoding="utf-8")
-    (tmp_path / "docs" / "current").mkdir(parents=True)
-    (tmp_path / "docs" / "current" / "README.md").write_text(
-        "---\nsubject: docs:governance\nrole: reference\nstate: canonical\nrelations: test\n---\n"
-        "# Governance Docs\n",
-        encoding="utf-8",
-    )
-
-    report = schema_validation_report(tmp_path)
-
-    assert report["verdict"] == "pass"
-    assert "ok" not in report
-    assert report["mode"] == "product"
-    assert report["schema_count"] >= 19
-    assert report["instances"]["docs-registry"]["verdict"] == "pass"
-
-
-@pytest.mark.parametrize(
-    "contents",
-    [
-        "{",
-        json.dumps({"type": "not-a-json-schema-type"}),
-    ],
-)
-def test_schema_report_ignores_malformed_adopter_schema(tmp_path, contents: str) -> None:
-    target = tmp_path / "system" / "schemas" / "kernel"
-    shutil.copytree(ROOT / "system" / "schemas" / "kernel", target)
-    (target / "result.schema.json").write_text(contents, encoding="utf-8")
-    (tmp_path / "docs").mkdir()
-
-    report = schema_validation_report(tmp_path)
-
-    assert report["verdict"] == "pass"
-    assert report["schemas"]["result.schema.json"]["verdict"] == "pass"
-    assert report["required_gaps"] == []
 
 
 def test_schema_report_blocks_malformed_live_skill_declarations(tmp_path) -> None:
@@ -268,23 +218,6 @@ def test_validate_schema_instance_reports_all_native_instance_gaps() -> None:
 
     assert validation["verdict"] == "block"
     assert len(validation["required_gaps"]) > 1
-
-
-def test_schema_report_skips_retired_schema_during_native_iteration(
-    tmp_path,
-) -> None:
-    target = tmp_path / "system" / "schemas" / "kernel"
-    shutil.copytree(ROOT / "system" / "schemas" / "kernel", target)
-    (target / "capability-profile.schema.json").write_text("{}", encoding="utf-8")
-    (tmp_path / "docs").mkdir()
-
-    report = schema_validation_report(tmp_path)
-
-    assert report["required_gaps"] == ["schema_retired:capability-profile.schema.json"]
-    assert report["schemas"]["capability-profile.schema.json"] == {
-        "verdict": "block",
-        "error": "retired semantic schema",
-    }
 
 
 def test_validate_schema_instance_rejects_adopter_schema_shadowing(

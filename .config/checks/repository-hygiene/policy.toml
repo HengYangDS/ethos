@@ -5,6 +5,10 @@
 
 max_tracked_bytes = 1048576
 
+# Directory navigation uses README; inert history and dependency interiors keep
+# their source identity under the shared product/historical surface classifier.
+forbidden_document_names = ["index.md"]
+
 text_suffixes = [
   ".cfg",
   ".css",

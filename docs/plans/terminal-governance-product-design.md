@@ -521,7 +521,7 @@ Separate effect kinds and invariants, then absorb sequencing into their complete
 owners; directory width alone does not justify moving code. Remove old imports
 and facades in the same change and prove caller behavior through public paths.
 
-The [CUE trial](../research/modern-engineering-foundations.md#executed-cue-rule-trial)
+The [CUE trial](../research/foundations/semantics.md#executed-cue-rule-trial)
 now supplies actual rule-composition and carrier counterexamples. Continue that
 replacement through the existing P2/P5 route after the frozen validation repair:
 one declaration owner, native generated projections, explicit representation
@@ -5366,40 +5366,24 @@ credential, service or adopter was changed by this investigation.
 
 ##### Open Knowledge Format — Bounded Adoption Assessment
 
-The September 11 review examined [OKF v0.2](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md)
-at exact upstream commit `ad30107c31c06aec8a7d5636e0d1058118604e6f`.
-Recommendation: evaluate OKF as an optional knowledge exchange projection, not
-as a replacement for accepted intent, document governance or effect admission.
-The format requires no runtime and leaves domain organization to producers.
-This assessment introduces no dependency, document migration or second plan.
+The source assessment, metadata design and reproduced owner defects are in
+[Documentation And Knowledge Interchange](../research/foundations/documentation.md).
+The [Docs Registry](../governance/docs-registry.md) owns current obligations;
+the [official Change](../../openspec/changes/proof-throughput/tasks.md#documentation-comprehension-and-research-delivery)
+owns progress. Do not duplicate research or task state here.
 
-| Disposition | Source observation | ETHOS consequence |
-| --- | --- | --- |
-| Adopt the portable representation where needed | Markdown/YAML concepts, source references and ordinary links support human and tool interchange. | Derive a bounded bundle from existing owners; imported material remains input to interpretation and acceptance, never an instruction to mutate. |
-| Map, do not equate, metadata | OKF `type` classifies a concept; ETHOS Subject, Role, State and Relations express different responsibilities. | Preserve distinctions and unknown extension fields. Do not mechanically rename Role to type or duplicate manually maintained state. |
-| Separate consumption from admission | OKF consumers tolerate broken links and missing optional fields; missing status means stable. | Accept format-valid material without promoting it to accepted/current ETHOS meaning. Report unresolved references and apply the relevant native obligation before use. |
-| Preserve provenance without inheriting authority | Trust tiers are advisory and derived from actor labels in verified metadata. | Bind upstream claims to their original source and revision. Human-prefixed text, imported verification or successful parsing cannot establish local identity, authorization or currentness. |
-| Keep necessary identity distinctions | OKF concept identity is its bundle path without the Markdown suffix; link relation types remain prose. | File movement must not silently change ETHOS semantic identity. Preserve Subject and typed Relations in an explicit mapping or report the loss. |
-| Reuse existing navigation and history | index.md and log.md are optional. | Do not recreate directory indexes, duplicate README navigation, mirror external evidence or add a parallel change log merely for conformance. |
-| Defer executable integration | Executor packaging, attester ABI/sandboxing and full receipt/verdict wire formats are outside the current specification. | Attested Computation is not ETHOS Attestation. Never auto-execute imported resources; any future adapter uses the existing capability and fresh-admission boundaries. |
+Order: repair native metadata parsing and human/machine contradiction gaps;
+qualify required typed relationships and source-derived navigation; reorganize
+mixed responsibilities without losing meaning or incoming links; measure human
+and agent retrieval on the same source. This bounded documentation work does not
+require suspending other product delivery.
 
-Upstream [issue 15](https://github.com/GoogleCloudPlatform/open-knowledge-format/issues/15)
-reports ambiguous imported verification provenance and proposes an imported
-field. It was open at review time: it is supporting research, not a standardized
-field or evidence that the proposed repair works. Retain this boundary explicitly
-instead of silently treating foreign review as local verification.
-
-The smallest useful trial belongs to the existing P1/P7 context and ecosystem
-work after the current quality closeout. Select one actual external consumer
-and a bounded set covering a canonical definition, a decision and a guide;
-compare native consumption against export/import. Verify source/Subject binding,
-unchanged meaning and typed relations, explicit unresolved or lossy mappings,
-unknown-field preservation, rename behavior and no inherited trust or execution.
-Do not flatten document purpose into one template. No index or duplicated
-knowledge store is required. Measure reduction in consumer-specific glue and
-manual continuation effort before retaining an adapter. If there is no real
-consumer or no net reduction in complexity, retain the findings, not an unused
-implementation. This trial and conformance are not yet executed.
+The OKF trial remains P1/P7 work: canonical definition, decision and guide;
+explicit identity/scope/relation/source mappings; preserved unknown fields;
+rename and lossy-input counterexamples; no inherited authorization or automatic
+execution. Retain an adapter only when an actual consumer demonstrates less
+custom glue and continuation work. Exit requires legal and adverse public-path
+results, verified navigation, meaning preservation and installed qualification.
 
 ##### Hook And Extension Boundaries
 

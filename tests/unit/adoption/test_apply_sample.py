@@ -190,33 +190,23 @@ def test_adopt_preserves_existing_custom_openspec_config(tmp_path: Path) -> None
     )
 
 
-def test_adopt_rejects_profile_symlink_without_touching_its_target(tmp_path: Path) -> None:
-    external = tmp_path / "external.toml"
-    external.write_text("", encoding="utf-8")
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.symlink_to(external)
-
-    result = adoption_plan(tmp_path, apply=True)
-
-    assert result["applied"] is False
-    assert result["required_gaps"] == ["adoption_conflict:.ethos/profile.toml"]
-    assert external.read_text(encoding="utf-8") == ""
-    assert profile.is_symlink()
-
-
-def test_adopt_rejects_symlinked_profile_parent(tmp_path: Path) -> None:
+@pytest.mark.parametrize("parent_link", [False, True])
+def test_adopt_rejects_symlinked_binding_without_touching_target(tmp_path, parent_link):
     external = tmp_path / "external"
     external.mkdir()
-    (tmp_path / ".ethos").symlink_to(external, target_is_directory=True)
-
+    target = external / "profile.toml"
+    target.write_text("")
+    profile = tmp_path / ".ethos" / "profile.toml"
+    if parent_link:
+        profile.parent.symlink_to(external, target_is_directory=True)
+    else:
+        profile.parent.mkdir()
+        profile.symlink_to(target)
     result = adoption_plan(tmp_path, apply=True)
-
     assert result["applied"] is False
-    assert result["required_gaps"] == [
-        "adoption_conflict:.ethos/profile.toml",
-    ]
-    assert list(external.iterdir()) == []
+    assert result["required_gaps"] == ["adoption_conflict:.ethos/profile.toml"]
+    assert target.read_text() == ""
+    assert (profile.parent if parent_link else profile).is_symlink()
 
 
 def test_adopt_rejects_non_regular_profile_targets(tmp_path: Path) -> None:

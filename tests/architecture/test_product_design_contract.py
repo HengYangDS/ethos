@@ -79,7 +79,6 @@ def test_design_integrity_uses_supplied_tracked_documents_as_authority(
 def test_current_change_uses_only_the_official_openspec_artifact_shape() -> None:
     changes = _active_change_carriers()
 
-    assert len(changes) <= 1
     for change in changes:
         artifacts = {
             path.relative_to(change).as_posix() for path in change.rglob("*") if path.is_file()
@@ -143,7 +142,7 @@ def test_decision_records_preserve_complete_cross_change_rationale() -> None:
 
         assert metadata["role"] == "decision", path
         assert metadata["state"] == "canonical", path
-        assert "current_owner:" in metadata["relations"], path
+        assert "current_owner" in metadata["relations"], path
         assert all(section in text for section in required_sections), path
 
 

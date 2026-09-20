@@ -2338,7 +2338,9 @@ this local integrity check an independent verifier.
 
 Missing, malformed, version-mismatched or altered supply is rejected before
 bootstrap execution. The installer executes a temporary copy of the exact
-validated bytes, not a later reread of the mutable source path. Existing staged
+validated bytes, not a later reread of the mutable source path. That copy retains
+the native mise launcher identity: upstream passes its script name through
+`exec -a`, and Linux interprets a non-mise name as a tool shim. Existing staged
 publication, process deadline, lock and cleanup remain the effect owners.
 Native RED showed that the prior implementation executed a modified script
 before its eventual failure; the replacement rejects it without that effect.
@@ -2351,6 +2353,27 @@ retained test fixture consolidation preserves concurrent cold population and
 subsequent warm/damage checks in one native case instead of duplicate setup.
 These measurements do not establish current full proof, installation or hosted
 publication. Receipts remain in the existing commit-integrity evidence home.
+
+The accepted 13d7ca730 source passed its 35-gate proof in 748.547 seconds and
+95.027497% combined coverage, then reached installed runtime and both remote dev
+refs. This did not qualify hosted platforms. GitLab pipeline 7606 failed job
+42067 after downloading mise because the temporary name `install.sh` selected
+shim dispatch. Identical-byte Linux x64 replay reproduces that failure and succeeds
+with `mise-install.sh`; the actual corrected owner provisions cold in 8.841 seconds
+and reuses unchanged bytes/inode/mtime in 0.056 seconds. Its owned containers and
+scratch roots were removed. The new shell regression distinguishes the former
+wrong identity, while drift rejection and staged execution remain intact.
+
+GitHub run 35488265021 separately failed Windows host-conformance. Job
+106018497741 reports `git_object_trust_anchor_unprotected` during installed
+publication planning. Native ACL state versus incomplete isolated environment
+remains unresolved; do not weaken the protection predicate or claim a diagnosis
+from a Boolean failure. Its uv build also warns about an in-source cache location,
+and failed acceptance leaves no requested smoke report. These remain hosted
+quality/diagnostic obligations in this Change. The completed GitHub run passed
+quality, repository-proof and package jobs plus every Linux/macOS conformance
+case, but failed all three Windows versions. Its aggregate conclusion is failure.
+Source proof, reference publication and host qualification remain distinct.
 
 The docstring raw-string migration exposed a genuine JSON-fixture escape change.
 Its native adopter configuration test failed and now passes after preserving the

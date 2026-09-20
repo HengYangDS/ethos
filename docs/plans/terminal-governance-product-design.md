@@ -6878,22 +6878,27 @@ journeys, evidence reuse and sustained resource limits remain open.
 
 ### Current Bounded Continuation — September 20, 2026 (+08:00)
 
-The selected accepted source is `684823165b48c8d18ded89969fbfaeee15dd14f5`;
-the installed runtime is bound to that source. The owned work-lane HEAD is
-`920eb0179bdd36903590da895beee0e5dc6394eb`. Its documentation/metadata,
-command-context and isolated-environment repairs are committed, not accepted,
-installed or published. The exact full proof blocked in 608.491 seconds with
-four failed tests, 4,109 passes and one skip; later dependency-blocked gates do
-not establish additional independent root causes or a current coverage result.
+Accepted source and installed runtime now bind
+`13d7ca73001f31decc61539d01e0a87df4f03455`; candidate, local dev/main and both
+remote dev refs were read back at that commit. The exact 35-gate full proof passed
+in 748.547 seconds with 4,113 passing tests, one skip and 95.027497% combined
+coverage. Previous runtime generation was retired. Remote main was deliberately
+not advanced after current hosted failures appeared.
 
-Repeated network-bearing native mise generation was the immediate blocker.
-The candidate now checks existing committed bootstrap supply offline and rejects
-drift before executing a copy of validated bytes. The [toolchain finding](../research/foundations/toolchain.md#generation-is-supply-work-not-a-pure-read)
-and [execution lessons](../research/foundations/verification.md#september-20-execution-lessons)
-separate observed behavior, remaining uncertainty and the supply trust boundary.
-Finish the frozen consumer closure and one exact full proof; then follow fresh
-integration, installation and publication decisions. Do not rerun an unchanged
-failed suite, raise timeouts or introduce a parallel installer or cache.
+The current bounded work is hosted qualification at the existing native owners.
+GitLab pipeline 7606 exposes incorrect bootstrap process identity: the Linux
+launcher treats `install.sh` as a tool shim. The work-lane correction preserves
+`mise-install.sh` and has identical-byte RED/GREEN plus actual Linux cold/warm
+owner evidence. GitHub run 35488265021 separately fails Windows installation at
+trust-anchor protection; its ACL versus isolated-environment cause is not yet
+proved. Retain both failures and the build-cache warning, without relaxing trust.
+
+Follow the [existing Change decision](../../openspec/changes/proof-throughput/design.md#authenticated-bootstrap-supply-and-offline-checking)
+and [toolchain finding](../research/foundations/toolchain.md#generation-is-supply-work-not-a-pure-read).
+Finish native failing-boundary diagnosis and regressions before another expensive
+exact proof; then follow fresh integration, installation and publication decisions.
+Do not rerun the unchanged failed hosted workload, create another installer/cache,
+or infer platform completion from the passing local proof.
 
 Keep product and tests independently within 50,000 ELOC, Python files within 500,
 combined coverage at least 95%, and complete successful proof within 900 seconds;

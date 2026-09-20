@@ -7,6 +7,7 @@ import subprocess
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
+from unittest.mock import call
 
 import pytest
 
@@ -190,11 +191,7 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
     )
     monkeypatch.setattr(python_image, "require_selected_runtime", lambda _root: selected)
     monkeypatch.setattr(python_image, "console_script_entries", lambda _p: entries)
-    before = {
-        str(p.relative_to(home)): (p.read_bytes(), p.stat().st_mode)
-        for p in home.rglob("*")
-        if p.is_file()
-    }
+    before = _snapshot(home)
     facts = _facts(home)
     if fault in {"interpreter", "wheel", "lock"}:
         field = {
@@ -223,9 +220,7 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
         _file(target / "lib/python3.14/obsolete.pyc")
 
     monkeypatch.setattr(python_image, "install_locked_runtime", install)
-    project = Mock(
-        side_effect=lambda _source, python: _file(python.parent / "native-tool", b"native")
-    )
+    project = Mock()
     monkeypatch.setattr(python_image, "project_dependency_supply", project)
 
     def materialize(requirements):
@@ -249,11 +244,7 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
             "virtual": "interpreter_source_unavailable",
         }.get(fault, f"package_{fault}_stale")
         _fails(gap, materialize, lock if fault == "supply" else None)
-    assert {
-        str(p.relative_to(home)): (p.read_bytes(), p.stat().st_mode)
-        for p in home.rglob("*")
-        if p.is_file()
-    } == before
+    assert _snapshot(home) == before
     if fault != "virtual":
         assert (target / "bin/python").read_bytes() == b"python-runtime"
         assert (target / "lib/libpython3.14.dylib").read_bytes() == b"library"
@@ -270,9 +261,16 @@ def _assert_materialized_image(target, fault, project):
     )
     assert not tuple(target.rglob("__pycache__")) + tuple(target.rglob("*.pyc"))
     assert (target / "bin/ethos").is_file()
-    assert project.call_count == int(fault == "package")
-    if fault == "package":
-        assert (target / "bin/native-tool").read_bytes() == b"native"
+    expected = call(target.parent / "original/python/bin/python", target / "bin/python")
+    assert project.call_args_list == ([expected] if fault == "package" else [])
     launcher = (target / "bin/uv").read_text()
     assert str(target) not in launcher
     assert '"$SCRIPT_DIR/python" -B -I' in launcher
+
+
+def _snapshot(home):
+    return {
+        str(p.relative_to(home)): (p.read_bytes(), p.stat().st_mode)
+        for p in home.rglob("*")
+        if p.is_file()
+    }

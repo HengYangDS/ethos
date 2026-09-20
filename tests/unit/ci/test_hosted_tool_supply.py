@@ -195,9 +195,8 @@ def _native_supply(
     system = platform.system()
     arch = "arm64" if platform.machine() in {"arm64", "aarch64"} else "x86_64"
     version = {"scc": "4.1.0", "gitleaks": "8.30.1", "syft": "1.52.0"}[tool]
-    expected = {"scc": f"scc version {version}", "syft": json.dumps({"version": version})}.get(
-        tool, version
-    )
+    outputs = {"scc": f"scc version {version}", "syft": json.dumps({"version": version})}
+    expected = outputs.get(tool, version)
     body = f"#!/bin/sh\nprintf '%s\\n' '{'wrong' if fault == 'version' else expected}'\n".encode()
     if fault == "timeout":
         body = b"#!/bin/sh\nexec sleep 15\n"
@@ -226,11 +225,11 @@ def _native_supply(
     transfer_log = tmp_path / "transfer.log"
     (bins / "mise").write_text(
         f"#!{sys.executable}\nimport os, pathlib, shutil, sys\n"
-        'assert sys.argv[1:3] == ["install", "--locked"]\n'
-        f"assert sys.argv[3] == {backend!r}\n"
+        f'assert sys.argv[1:] == ["install", "--locked", {backend!r}]\n'
         'assert os.environ["MISE_SAFE"] == os.environ["MISE_LOCKED"] == "1"\n'
         'assert os.environ["MISE_ALWAYS_KEEP_DOWNLOAD"] == "1"\n'
-        'assert pathlib.Path("mise.toml").is_file() and pathlib.Path("mise.lock").is_file()\n'
+        'assert all((pathlib.Path(".config/mise")/p).is_file() '
+        'for p in ("config.toml", "mise.lock"))\n'
         f"with pathlib.Path({str(transfer_log)!r}).open('a') as f: f.write('download\\n')\n"
         + (
             "print('transport-down',file=sys.stderr); sys.exit(22)\n"

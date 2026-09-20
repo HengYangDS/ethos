@@ -2617,8 +2617,17 @@ enforced during installation, not merely after source tests pass.
 Mise configuration and its lock move together to `.config/mise/config.toml`
 and `.config/mise/mise.lock`, a native discovery layout. Repository consumers
 share the existing mise adapter's path constants. Explicit CUE material inputs
-retain their declared source paths; isolated native execution may materialize
-the same bytes as `mise.toml` and `mise.lock` without creating another authority.
+retain their declared source paths. Isolated native execution materializes
+the same nested layout, eliminating a needless translation between repository
+and scratch paths without creating another authority.
 No version, checksum, installation owner or tool selection changes in this move.
 Native discovery, malformed-lock rejection, exact executable selection, CUE
 output equivalence and project-hook nonexecution define the migration boundary.
+
+Runtime permission to invoke mise belongs to the existing runtime executable
+declaration, independently of where its native configuration is stored.
+Configuration presence no longer implicitly grants that capability; the removed
+filename inference is not retained as a fallback. The native mise files remain
+the sole owners of versions and artifact locks. Successor edits continue through
+the installed predecessor's exact-path admission after the explicit capability
+declaration is committed.

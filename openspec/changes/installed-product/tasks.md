@@ -13,6 +13,8 @@
 
 ## 3. Independent Installation
 
+- [ ] 3.0 Restore the immutable POSIX console entry and verify actual installed invocation; keep Windows entry and host dispatcher acceptance distinct.
+
 - [ ] 3.1 Separate host immutable supply from exact repository selection; verify two repositories reuse bytes without sharing mutable state.
 - [ ] 3.2 Prove retained-state upgrade, interruption, rollback and live-consumer-safe uninstall outside the source checkout.
 - [ ] 3.3 Migrate existing runtime consumers and remove replaced locators/generations after exact dependency and recovery checks.

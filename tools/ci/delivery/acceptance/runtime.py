@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -141,7 +142,12 @@ def require_version_identity(
     environment: Mapping[str, str],
 ) -> dict[str, object]:
     """Require the public version surface to expose the complete immutable identity."""
-    command = (python.as_posix(), "-B", "-I", "-m", "ethos.cli", "--version", "--json")
+    prefix = (
+        (python.as_posix(), "-B", "-I", "-m", "ethos.cli")
+        if os.name == "nt"
+        else (python.with_name("ethos").as_posix(),)
+    )
+    command = (*prefix, "--version", "--json")
     returncode, payload, diagnostic = invoke(python.parent, command, environment=environment)
     data = payload.get("data")
     identity = data.get("identity") if isinstance(data, dict) else {}

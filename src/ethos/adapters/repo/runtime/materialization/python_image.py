@@ -230,7 +230,7 @@ def _rewrite_console_scripts(runtime: Path) -> None:
             _fail("hook_runtime_console_script_invalid", error)
         if is_script:
             path.unlink()
-    for name in sorted(set(entries) - {"ethos"}):
+    for name in sorted(entries):
         script = scripts / name
         if script.exists():
             _fail("hook_runtime_console_script_invalid")

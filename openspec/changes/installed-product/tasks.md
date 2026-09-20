@@ -3,6 +3,8 @@
 - [x] 1.1 Move status and adoption result composition out of CLI handlers; verify direct SDK calls and CLI results agree without stdout or working-directory effects.
 - [x] 1.2 Preserve valid, denied, stale and conflicting adoption cases through the same shared admission owner.
 - [ ] 1.3 Route the remaining command family through typed application operations; verify public compatibility and remove replaced CLI-local composition.
+- [x] 1.4 Centralize root-bound adoption continuation; distinguish preview, applied, conflict, stale request and missing authorization through SDK/CLI with no planner-owned competing action.
+- [ ] 1.5 Deliver version-matched installed Skills/context and verify a fresh Agent-equivalent discovery, admitted change, failure, recovery and handoff without ETHOS source or user retelling.
 
 ## 2. Installed MCP Transport
 
@@ -14,12 +16,15 @@
 ## 3. Independent Installation
 
 - [x] 3.0 Restore the immutable POSIX console entry and verify actual installed invocation, including upgrade from a predecessor that removes it. Reject reuse of an identity-matching generation missing the required entry; preserve valid reuse, immutable old bytes and native recovery. Keep Windows entry and host dispatcher acceptance distinct.
-
 - [ ] 3.1 Separate host immutable supply from exact repository selection; verify two repositories reuse bytes without sharing mutable state.
 - [ ] 3.2 Prove retained-state upgrade, interruption, rollback and live-consumer-safe uninstall outside the source checkout.
 - [ ] 3.3 Migrate existing runtime consumers and remove replaced locators/generations after exact dependency and recovery checks.
+- [ ] 3.4 Compare native Homebrew Python, portable interpreter/wheel and frozen bundle on the same complete lifecycle; resolve build warnings and record one selected implementation with rejected alternatives.
+- [ ] 3.5 Publish the native Homebrew channel; verify clean install, CLI/MCP invocation, upgrade, selection preservation and uninstall from the actual delivered artifact.
+- [ ] 3.6 Qualify native macOS and Linux release targets, including declared architecture/OS baselines, hooks and recovery. Attempt native Windows without blocking required platforms; report unqualified targets explicitly.
 
 ## 4. Delivery
 
 - [ ] 4.1 Update installation, CLI/MCP and canonical plan projections from actual acceptance; keep unverified platform and hosted claims explicit.
 - [ ] 4.2 Run exact-source full proof, package and installed-client acceptance within existing budgets; finish normal integration and required publication.
+- [x] 4.3 Replace stale poster/social product semantics with editable native sources and regenerated images; inspect visible content and retain hosted publication as a separate claim.

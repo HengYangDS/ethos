@@ -125,3 +125,5 @@
 - [ ] Replace duplicated manual contracts with existing strict native owners, compare mature substitutes against the same falsifying workload, and retire replaced paths without a parallel registry.
 - [x] Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
 - [x] Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
+
+- [x] Preserve meaningful YAML scalar newlines while rejecting redundant structural blank lines through the native configuration owner; keep producer-owned and historical carriers unchanged.

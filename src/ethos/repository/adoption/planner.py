@@ -110,13 +110,6 @@ def adoption_plan(
         "write_plan": write_plan,
         "apply_criteria": list(APPLY_CRITERIA),
         "required_gaps": required_gaps,
-        "next_action": (
-            "resolve adoption conflicts before apply"
-            if conflict
-            else "ethos status"
-            if applied
-            else "review read-only write plan"
-        ),
         "rollback": {
             "mode": "remove_generated_binding_or_restore_git_state",
             "planned_files": [PROFILE_PATH, OPENSPEC_CONFIG_PATH],

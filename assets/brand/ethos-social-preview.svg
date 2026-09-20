@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" aria-labelledby="title desc" viewBox="0 0 1280 640">
+  <title>ETHOS — Reliable repository evolution</title>
+  <desc>
+    Terminal product vision. People and interchangeable Agents move from real problems and accepted intent to trustworthy delivery, actual outcomes and feedback. CLI, SDK, MCP and Skills share one application meaning. This is not a release or platform-support claim.
+  </desc>
+  <path fill="#10242c" d="M0 0h1280v640H0z"/>
+  <g fill="#f6f1e8" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+    <path stroke="#465a5c" d="M70 82h1140"/>
+    <text x="72" y="57" fill="#bdc8bf" font-size="14" letter-spacing="3">TERMINAL PRODUCT VISION</text>
+    <text x="1208" y="58" font-size="23" letter-spacing="4" text-anchor="end">问道</text>
+    <text x="64" y="221" font-size="106" font-weight="650" letter-spacing="3">ETHOS</text>
+    <text x="72" y="297" font-size="44" font-weight="500">Reliable repository evolution.</text>
+    <text x="72" y="351" fill="#bdc8bf" font-size="25">People and interchangeable Agents. From intent to actual benefit.</text>
+    <path stroke="#465a5c" d="M72 399h1136"/>
+    <circle cx="79" cy="445" r="7" fill="#b5523d"/>
+    <text x="104" y="453" font-size="26">Understand · Compose · Collaborate · Deliver · Learn</text>
+    <text x="72" y="506" fill="#bdc8bf" font-size="22">Preserve meaning. Verify effects. Recover and continue.</text>
+    <text x="72" y="583" font-size="20" letter-spacing="2">CLI · SDK · MCP · SKILLS</text>
+    <text x="1208" y="583" fill="#bdc8bf" font-size="15" text-anchor="end">DESIGN INTENT · NOT A RELEASE CLAIM</text>
+  </g>
+</svg>

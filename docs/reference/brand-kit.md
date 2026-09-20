@@ -32,16 +32,31 @@ See also: [Product Design Contract](../governance/product-design-contract.md),
 
 ## Positioning
 
-**ETHOS is Evidence-grounded Trust for Human-Agent Operational Stewardship.**
+**ETHOS enables reliable repository evolution for people and interchangeable Agents.**
 
-It gives a Git repository a safe operating loop for human-agent change:
-inspect where you are, plan the required proof, run that proof, land through a
-controlled review path, and publish only when local and hosted evidence remain
-separate.
+The product connects observed problems, research and intent alignment to capability
+composition, collaboration and exploration, verification and delivery, actual
+outcomes, feedback, recovery and exit. Its small trust kernel supports that full
+path; a fixed CLI sequence is not the product definition.
 
-The public message is deliberately bounded: ETHOS governs the passage from a
-question to repository law. It does not replace a repository's domain model,
-CI provider, assistant host, or issue tracker.
+The poster and social preview describe terminal design intent, not implemented
+features, current installation availability or qualified release platforms.
+Accepted intent, transient compilation, bounded effects and observed results have
+distinct authority and lifetime. CLI, SDK, MCP and Skills share application meaning.
+
+## Editable Sources And Native Rendering
+
+The [poster master](../../assets/brand/ethos-poster.svg) and
+[social master](../../assets/brand/ethos-social-preview.svg) are presentation
+sources subordinate to the Product Design Contract. The PNGs retain the
+established consumer paths and are rendered from those masters with native
+librsvg; no bespoke drawing or image-generation runtime is required.
+
+Run rsvg-convert with the corresponding SVG input and PNG output under
+assets/brand. When product meaning changes, review visible wording against its
+canonical owner, render and inspect the actual output at intended display sizes.
+Preserve logo geometry unless the identity itself changes. SVG/PNG format checks
+alone do not establish semantic accuracy, visual quality or hosted publication.
 
 ## Mark Rationale
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+import yaml
 from yamllint import config as yamllint_config
 from yamllint import linter as yamllint_linter
 
@@ -170,9 +171,22 @@ def _yaml_failures(paths: tuple[Path, ...]) -> list[str]:
     failures = []
     for path in paths:
         text = (ROOT / path).read_text(encoding="utf-8")
+        problems = tuple(yamllint_linter.run(text, policy, filepath=path.as_posix()))
+        scalar_lines: set[int] = set()
+        if any(problem.rule == "empty-lines" for problem in problems):
+            try:
+                scalar_lines = {
+                    line
+                    for token in yaml.scan(text)
+                    if isinstance(token, yaml.ScalarToken)
+                    for line in range(token.start_mark.line + 2, token.end_mark.line + 1)
+                }
+            except yaml.YAMLError:
+                scalar_lines = set()
         failures.extend(
             f"{path}:{problem.line}:{problem.column}: {problem.message}"
-            for problem in yamllint_linter.run(text, policy, filepath=path.as_posix())
+            for problem in problems
+            if problem.rule != "empty-lines" or problem.line not in scalar_lines
         )
     return failures
 

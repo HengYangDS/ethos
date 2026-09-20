@@ -44,3 +44,34 @@ be reported as complete installed-product acceptance.
 - **WHEN** package construction succeeds but no installed client journey has passed
 - **THEN** artifact construction is recorded separately
 - **AND** installed-product acceptance remains incomplete
+
+### Requirement: Homebrew is a delivered installation channel
+
+ETHOS SHALL support native Homebrew installation outside its source checkout.
+Package-manager ownership, product identity, repository selection and project
+toolchain SHALL remain distinct. Homebrew delivery SHALL NOT require one
+particular freezing tool or silently select a different repository runtime.
+
+#### Scenario: A clean host installs the published product
+
+- **WHEN** Homebrew installs the published ETHOS package
+- **THEN** installed CLI and MCP work without an ETHOS checkout or development environment
+- **AND** version-matched guidance and required product supply are discoverable
+
+#### Scenario: Package upgrade and uninstall preserve repository ownership
+
+- **WHEN** Homebrew upgrades or removes its owned package
+- **THEN** selected repository identities and user-authored content are not silently changed
+- **AND** live-use and recovery boundaries are verified rather than inferred from formula existence
+
+### Requirement: Platform support is established by native delivered behavior
+
+ETHOS SHALL deliver native macOS and Linux support on explicitly declared
+architecture and OS baselines. Windows support SHOULD be provided when qualified.
+Required-platform delivery SHALL NOT depend on an unqualified Windows path.
+
+#### Scenario: A release advertises supported platforms
+
+- **WHEN** a platform is included in the release support declaration
+- **THEN** its delivered artifact passes native installation, CLI/MCP, hooks, upgrade and exit
+- **AND** unsupported combinations remain explicit rather than inheriting another platform's proof

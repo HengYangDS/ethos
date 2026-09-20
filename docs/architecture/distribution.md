@@ -11,14 +11,22 @@ relations:
 ETHOS distribution adapters make the command plane reachable from ecosystem
 package managers without owning command semantics.
 
-`distributions/npm` is the npm launcher. It runs the Python command plane
-through `uv` only when the launcher is executing from this source checkout's
-own distribution path. Outside a checkout it falls back to an installed Python
+`distributions/npm` is the current transitional npm launcher. It discovers
+a checkout from either the working directory or its own distribution path,
+then runs the Python command plane through `uv`. Outside a checkout it falls back to an installed Python
 `ethos` module through `python -P -m ethos.cli`. The Node package does not
 implement governance logic, mutate repository truth, or define separate public
 commands.
 
-The distribution boundary is:
+The terminal boundary separates installed product identity, exact repository
+selection and the repository's own build toolchain. Homebrew is a required
+delivery channel; a native formula does not imply a frozen binary. CLI, MCP, SDK
+and version-matched Skills share application meaning. An adopter needs neither
+ETHOS source nor its development environment. Implementation and acceptance are
+tracked in the existing installed-product Change; these are not claims that
+Homebrew, portable Skills or installed MCP have shipped.
+
+The present distribution boundary is:
 
 - The Python `ethos` package owns the kernel, contracts, repository, assistants,
   adapters, and CLI behavior. Tests are not shipped.

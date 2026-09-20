@@ -6908,6 +6908,19 @@ families, real MCP client transport, host installation separate from repository
 binding, retained-state upgrade and native/hosted qualification remain owned by
 the existing installed-product Change. Completion marks belong only in its tasks.
 
+Product delivery is one integrated dependency boundary, not separate CLI, MCP,
+packaging and Skills projects. The existing installed-product design owns the
+separation of product supply, repository selection and project toolchain, native
+Homebrew delivery, portable guidance and the shared application/continuation path.
+Native macOS and Linux are required; Windows is desirable and independently
+qualified, not a blocker for required-platform delivery.
+Its tasks hold progress. PyInstaller is an experiment, not a user-selected optimum;
+qualify the package builder against complete installed use before selection.
+Resolve the known adoption-continuation defect first without delaying the package
+and context obligations. Verify a fresh Agent-equivalent change/recovery/handoff
+using only installed product and target repository. This does not claim an
+independent Agent study or replace the complete P0--P7 product route.
+
 The [foundation comparison](../research/foundations/execution.md) now includes
 unchanged decision, native Git-worktree and public proof-boundary workloads.
 Pants reduces warm public-partition latency but not the measured light partitions;

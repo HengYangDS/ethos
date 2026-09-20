@@ -10,7 +10,6 @@ repos:
         language: system
         types_or: [python, pyi]
         pass_filenames: false
-
       - id: module-layout
         name: semantic module layout
         entry: uv run --frozen --offline python -m nox -s module_layout

@@ -2751,3 +2751,26 @@ with controlled executables verifies downstream refusal separately from a real
 Deptry clean run; it does not claim upstream tools emit the injected contradictions.
 Runtime-supply tests belong at their existing semantic owner; duplicate delivery
 tests that directly call that same owner are removed after unique assertions move.
+
+## YAML Whitespace Semantic Boundary
+
+The existing yamllint empty-lines rule is line-based: the native probe rejects
+two structural blank lines correctly but also rejects the same newlines inside
+a literal scalar. Prettier preserves that scalar value. Keep the current rule
+for structural whitespace; use the existing PyYAML scanner only to identify
+scalar source ranges before interpreting the native lint result. No custom YAML
+parser, filename exception, global disable or destructive whitespace rewrite.
+
+Apply rules through each declared owner: authored configuration uses native
+configuration quality; official OpenSpec owns its metadata; CUE owns Forge
+projections; immutable history is not reformatted. The all-YAML diagnostic scan
+is not an admission verdict over those separate owners. Verify literal content
+remains byte-identical and structural duplicates still fail.
+
+The source repair passes 49 focused native configuration/selection cases.
+Structural duplicate newlines remain rejected; a literal scalar that previously
+failed now passes unchanged. The tracked scan observed 414 YAML files, including
+406 immutable archived carriers; no structural empty-lines findings occurred in
+those current bytes. Other raw style findings belong to their declared producer,
+not a mandate to reformat history or generated CUE/OpenSpec output. Peer entries
+in the authored pre-commit collection use consistent compact spacing.

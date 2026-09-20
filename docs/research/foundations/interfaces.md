@@ -60,6 +60,43 @@ framework can improve readable progress and diagnostics without creating another
 command plane. No language migration is justified by shifting handwritten code
 outside the Python budget; total maintenance surface remains visible.
 
+## Installed Product Comparison
+
+September 21, 2026, Asia/Shanghai: the existing accepted package at source
+abc5ab1541834032cd27a79b18d89f9a49f49266 executes outside the checkout.
+The installed-package probe resolved ETHOS and bundled OpenSpec from immutable
+production supply, not the source tree. This establishes source-independent
+execution, not host distribution or a complete Agent journey.
+
+An actual PyInstaller onedir build from that package took 18.901 seconds.
+Frozen and ordinary installed entries both adopted an isolated repository with
+Python, uv and npm absent from PATH. Frozen hook installation blocked with
+hook_runtime_python_abi_invalid; ordinary installed hook installation passed.
+The hook boundary treats sys.executable as Python, while a frozen executable is
+the application. This identifies a replaceable execution-boundary assumption,
+not evidence that freezing cannot work.
+
+The experiment used foreign site-packages with the Homebrew builder and emitted
+a deprecation warning. Its dependency collection was deliberately broad; optional
+module warnings, native platforms, signing, relocation and full client lifecycle
+remain unqualified. Evidence: product-packaging-lifecycle-probe.json,
+product-source-independence-observation.json and pyinstaller-product-build-bound.json
+under the existing build/evidence/quality/commit-integrity execution output.
+
+Homebrew installation is a user-required delivery channel. Native Python formula
+support is an alternative to freezing, while uv tool environments separate a
+Python tool from the project environment. Compare both with a portable
+interpreter/wheel image on the same full lifecycle; none wins by naming alone.
+The existing installed-product Change owns the selection and implementation,
+not this research note. Do not confuse internal npm supply for OpenSpec with
+user-facing ETHOS distribution.
+
+Official references: [Homebrew Python formula support][brew-python],
+[uv tool environments][uv-tools], and [PyInstaller runtime identity][frozen-runtime].
+The current AIGW source and installed OpenSpec package illustrate different
+delivery mechanics; neither is authority for ETHOS design or proof of a current
+hosted release.
+
 ## Sources
 
 Links identify inspected documents, not blanket endorsements. Source-level and
@@ -74,3 +111,7 @@ marketing claims were not used as evidence of comparative performance.
 [rust]: https://github.com/rust-lang/rust/blob/9c99d05505bccb67912d68e05fe7fc7c58afcb41/README.md
 [go]: https://github.com/golang/go/blob/fdcd66bb544d230a7eb0c2512e9e7a6ab191388b/README.md
 [rich]: https://github.com/Textualize/rich/blob/9d8f9a372cc5916fd4781fec207ced7ddac2f08f/README.md
+
+[brew-python]: https://docs.brew.sh/Language-Specific-Formulae
+[uv-tools]: https://docs.astral.sh/uv/concepts/tools/
+[frozen-runtime]: https://pyinstaller.org/en/stable/runtime-information.html

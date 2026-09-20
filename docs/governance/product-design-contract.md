@@ -61,7 +61,10 @@ ETHOS concentrates custom code on compiling repository intent and fresh facts
 into admitted, exact, attestable effects. Official carriers, native platform
 capabilities and mature tools supply supporting functions. Their admission rests
 on demonstrated reductions in total maintenance, operational risk and adopter
-burden while preserving required behavior.
+burden while preserving required behavior. Custom supporting machinery requires
+a demonstrated gap in existing owners or mature alternatives, a bounded semantic
+responsibility and an explicit net benefit. A selected replacement removes the
+equivalent custom path; wrapping both indefinitely is not convergence.
 
 Declarative inputs flow through pure extraction, normalization, compilation and
 evaluation into explicit effect adapters. Each invariant has one semantic owner,
@@ -432,7 +435,9 @@ The public product surface is deliberately small and capability-complete:
 | CLI | Human-readable progressive disclosure and stable machine JSON over the same result. |
 | Python SDK | Typed in-process access to kernel compilation, observation, evaluation, and projection without shell parsing. |
 | Schemas and conformance kit | Language-neutral contracts, fixtures, and expected verdicts for independent clients. |
-| MCP or A2A adapter | Optional stateless protocol projection over the SDK; it owns no task, lifecycle, session, or repository truth. |
+| MCP | Delivered, discoverable protocol access to the same application operations; activation is optional and protocol sessions own no repository truth. |
+| Skills | Version-matched, portable guidance and capability discovery, derived from current repository context rather than a second lifecycle. |
+| A2A adapter | Optional interoperability over explicit capability contracts, without another task or authority store. |
 | CI and forge projections | Native provider syntax that invokes the same declared proof capabilities and preserves proof-plane identity. |
 
 UX and DX are kernel properties, not documentation polish. A normal path asks
@@ -440,8 +445,15 @@ only for facts that change the next action; advanced detail is available without
 hiding a gap. Every block names what happened, why it blocks, its evidence or
 missing fact, the one safe next action, and whether a human decision is required.
 Human and JSON views preserve the same verdict and semantic identifiers. Local
-operation is deterministic and offline after bootstrap; commands bind the current
-worktree, project `.venv`, lock, and source, never a global installation. Adoption
+operation is deterministic and offline after bootstrap. An explicitly selected
+installed product supplies ETHOS; the target repository supplies its intent,
+policy, source and project toolchain. Product identity, repository selection and
+project environments are distinct. No adopter needs an ETHOS checkout or developer
+environment. Native macOS and Linux are required supported platforms; Windows
+support is desirable and claimed only after native qualification. Homebrew is a
+supported installation channel; packaging internals do not dictate repository
+semantics. CLI, SDK, MCP and Skills expose the same current
+context, available capabilities, gaps and safe continuation. Adoption
 is previewable, idempotent, minimally invasive, reversible before first governed
 effect, and cleanly uninstallable without leaving hooks, generated truth, or a
 second control plane.

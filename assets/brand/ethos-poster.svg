@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2400" aria-labelledby="title desc" viewBox="0 0 1800 2400">
+  <title>ETHOS — Reliable repository evolution</title>
+  <desc>
+    Terminal product vision, not a release claim. People and interchangeable Agents research and align intent, compile and compose capabilities, collaborate and explore, verify and deliver, observe and learn, recover and continue. CLI, SDK, MCP and Skills share meaning.
+  </desc>
+  <path fill="#f6f1e8" d="M0 0h1800v2400H0z"/>
+  <g fill="#10242c" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+    <text x="130" y="140" fill="#b5523d" font-size="20" letter-spacing="4">TERMINAL PRODUCT VISION</text>
+    <text x="1670" y="140" font-size="30" letter-spacing="6" text-anchor="end">问道</text>
+    <text x="120" y="325" font-size="154" font-weight="650" letter-spacing="2">ETHOS</text>
+    <text x="130" y="420" font-size="57" font-weight="500">Reliable repository evolution.</text>
+    <text x="130" y="480" fill="#54645e" font-size="29">From a real problem to verified change — and observed benefit.</text>
+    <text x="130" y="530" fill="#54645e" font-size="25">For people and interchangeable Agents. One coherent product, not more governance.</text>
+    <path fill="none" stroke="#c9cec4" stroke-width="2" d="M130 588h1540"/>
+    <text x="130" y="658" fill="#687771" font-size="20" letter-spacing="3">THE COMPLETE PRODUCT PATH</text>
+    <text x="130" y="752" fill="#b5523d" font-size="24">01</text>
+    <text x="190" y="754" font-size="37" font-weight="600">Research &amp; align</text>
+    <text x="190" y="810" font-size="26">Observe the problem. Challenge interpretations.</text>
+    <text x="190" y="853" font-size="26">Preserve constraints, trade-offs and accepted intent.</text>
+    <text x="970" y="752" fill="#b5523d" font-size="24">02</text>
+    <text x="1030" y="754" font-size="37" font-weight="600">Compile &amp; compose</text>
+    <text x="1030" y="810" font-size="26">Turn meaning into bounded obligations.</text>
+    <text x="1030" y="853" font-size="26">Select replaceable Skills, generators and tools.</text>
+    <path stroke="#d5d7ce" d="M130 911h1540"/>
+    <text x="130" y="1000" fill="#b5523d" font-size="24">03</text>
+    <text x="190" y="1002" font-size="37" font-weight="600">Collaborate &amp; explore</text>
+    <text x="190" y="1058" font-size="26">Combine contributions. Compete or decline all.</text>
+    <text x="190" y="1101" font-size="26">Preserve useful results before controlled retirement.</text>
+    <text x="970" y="1000" fill="#b5523d" font-size="24">04</text>
+    <text x="1030" y="1002" font-size="37" font-weight="600">Verify &amp; deliver</text>
+    <text x="1030" y="1058" font-size="26">Recheck authority and facts at each effect.</text>
+    <text x="1030" y="1101" font-size="26">Accept exact candidates; deliver to each target.</text>
+    <path stroke="#d5d7ce" d="M130 1159h1540"/>
+    <text x="130" y="1248" fill="#b5523d" font-size="24">05</text>
+    <text x="190" y="1250" font-size="37" font-weight="600">Observe &amp; learn</text>
+    <text x="190" y="1306" font-size="26">Distinguish deployment from actual benefit.</text>
+    <text x="190" y="1349" font-size="26">Feed grounded observations into new intent.</text>
+    <text x="970" y="1248" fill="#b5523d" font-size="24">06</text>
+    <text x="1030" y="1250" font-size="37" font-weight="600">Recover &amp; continue</text>
+    <text x="1030" y="1306" font-size="26">Resume through interruptions and handoffs.</text>
+    <text x="1030" y="1349" font-size="26">Form, adopt, upgrade and exit without loss.</text>
+    <path d="M130 1455h1540v400H130z"/>
+    <g fill="#f6f1e8">
+      <text x="185" y="1530" fill="#bdc8bf" font-size="20" letter-spacing="3">A SMALL TRUST KERNEL — NOT A SMALL PRODUCT</text>
+      <text x="185" y="1617" font-size="38" font-weight="500">Accepted intent → bounded effects → observed results</text>
+      <text x="185" y="1686" font-size="27">Compilation is transient. Admission is fresh at every effect.</text>
+      <text x="185" y="1734" font-size="27">OpenSpec owns accepted intent. Attestation records results, not authority.</text>
+      <text x="185" y="1796" fill="#bdc8bf" font-size="24">No diagram, signature, green check or cached result grants permission.</text>
+    </g>
+    <text x="130" y="1970" font-size="43" font-weight="500">CLI · SDK · MCP · SKILLS</text>
+    <text x="130" y="2030" font-size="28">One application meaning. Discoverable context. Actionable recovery.</text>
+    <text x="130" y="2077" fill="#54645e" font-size="26">Product supply, repository selection and project tools remain distinct.</text>
+    <path stroke="#c9cec4" stroke-width="2" d="M130 2150h1540"/>
+    <text x="130" y="2210" fill="#687771" font-size="20" letter-spacing="3">TARGET DELIVERY</text>
+    <text x="130" y="2258" font-size="28">Homebrew · Native macOS + Linux · Windows when qualified</text>
+    <text x="130" y="2320" fill="#687771" font-size="20">Design intent, not a claim of shipped capabilities or platform acceptance.</text>
+    <text x="1670" y="2320" fill="#687771" font-size="20" text-anchor="end">ETHOS / 问道</text>
+  </g>
+</svg>

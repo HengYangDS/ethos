@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.git as git
@@ -40,12 +41,32 @@ def adopt_repository(
     )
     required_gaps = tuple(gaps) + tuple(string_sequence(plan_payload.get("required_gaps")))
     ok = not required_gaps
+    applied = do_apply and ok
+    conflicts = tuple(gap for gap in required_gaps if gap.startswith("adoption_conflict:"))
+    action = ["ethos", "status" if applied else "adopt", "--root", str(target), "--json"]
+    if not apply and ok:
+        action.extend(
+            [
+                "--apply",
+                "--authorize",
+                "--expect-head",
+                current_head,
+                "--expect-plan-digest",
+                str(plan_payload["plan_digest"]),
+            ]
+        )
+    next_action = shlex.join(action)
+    if conflicts:
+        next_action = f"Resolve {', '.join(conflicts)} in {target}; then {next_action}"
     return EthosResult(
         command="adopt",
         verdict="pass" if ok else "block",
-        state="applied" if do_apply and ok else "blocked" if required_gaps else "planned",
+        state="applied" if applied else "blocked" if required_gaps else "planned",
         summary={"planned_file_count": len(object_sequence(plan_payload.get("planned_files")))},
-        next_action="ethos status",
+        next_action=next_action,
+        user_decision_required=bool(conflicts)
+        or "authorization_required" in required_gaps
+        or (not apply and ok),
         required_gaps=required_gaps,
         data=plan_payload
         | {

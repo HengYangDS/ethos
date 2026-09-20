@@ -253,7 +253,6 @@ def _native_supply(
     env = os.environ | {
         "PATH": f"{bins}{os.pathsep}{os.environ['PATH']}",
         "ETHOS_CI_TOOL_CACHE_DIR": "build/runtime/tool-cache/ci-tools",
-        "ETHOS_CI_DOWNLOAD_ATTEMPTS": "1",
     }
 
     command = (sys.executable, "-B", str(ROOT / "tools/ci/toolchain/native.py"))
@@ -454,6 +453,7 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(tmp_path, monke
         body += "echo unapproved-warning >&2\n"
     installer = _bootstrap_source(
         tmp_path,
+        "case ${0##*/} in mise|mise[-.]*) ;; *) echo shim-dispatch >&2; exit 29;; esac\n"
         'mkdir -p "$(dirname "$MISE_INSTALL_PATH")"\n'
         f'printf %s {shlex.quote(body)} >"$MISE_INSTALL_PATH"\n'
         'chmod +x "$MISE_INSTALL_PATH"\n'

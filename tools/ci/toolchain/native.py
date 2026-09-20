@@ -208,7 +208,7 @@ def prepare_mise(root: Path) -> Path:
         with TemporaryDirectory(prefix=".bootstrap-", dir=home) as directory:
             isolated = Path(directory)
             candidate = isolated / "mise"
-            installer = isolated / "install.sh"
+            installer = isolated / "mise-install.sh"
             installer.write_bytes(content)
             result = run_command(
                 root,

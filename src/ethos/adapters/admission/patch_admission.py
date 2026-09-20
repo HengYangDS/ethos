@@ -16,7 +16,6 @@ from ethos.repository.policy.projections import projection_effect_gaps
 from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.references.carriers import REFERENCE_CARRIERS
 from ethos.repository.policy.references.closure import product_reference_gaps
-from ethos.repository.policy.references.declarations import command_owner_sources_from_files
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.observation import deleted_input_gaps
 from ethos.repository.policy.references.observation import product_references_from_files
@@ -336,7 +335,6 @@ def _patch_references(
             declared_commands=declared_commands,
             include_declarations=False,
         )
-        references["command"].update(command_owner_sources_from_files(files, context_files=context))
         gaps, unknown, outputs = _source_effect_gaps(root, context_files, postimages)
         effects = {
             str(change["path"]): "delete"

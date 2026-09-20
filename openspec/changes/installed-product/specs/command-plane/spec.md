@@ -15,7 +15,7 @@ the existing verdict, gaps, continuation and evidence boundaries.
 
 ### Requirement: Installed MCP has bounded repository authority
 
-The installed product SHALL expose stdio MCP through the official SDK. Server
+The installed product SHALL expose stdio MCP through FastMCP over the official SDK. Server
 startup SHALL bind its repository and process actor. Tool arguments SHALL NOT
 replace that binding or grant authority. Each mutation SHALL retain fresh
 existing admission, exact request checks and failure recovery.
@@ -83,3 +83,22 @@ No specific Agent, model or ETHOS checkout SHALL be required.
 - **THEN** it can discover intent, constraints, capabilities and the next safe action
 - **AND** execute a real admitted change, recover a failure and hand off its result
 - **AND** this acceptance is distinct from schema validation or a scripted --help check
+
+### Requirement: Native command declarations are not execution references
+
+Exact patch admission SHALL distinguish adding a native command declaration
+from consuming a command. A declaration SHALL remain subject to current
+ownership, imports, effects and intent checks. It SHALL NOT grant baseline
+authority to execute newly declared commands in the same candidate.
+
+#### Scenario: A transport declares a new command
+
+- **WHEN** an owned Change adds a valid native command using admitted dependencies
+- **THEN** declaration alone is not rejected as an undeclared command invocation
+- **AND** an unadmitted import or executable in its body remains blocked
+
+#### Scenario: A candidate also consumes the new command
+
+- **WHEN** a patch declares a command and introduces a consumer requiring prior authority
+- **THEN** the new declaration does not silently expand the trusted baseline
+- **AND** the consumer remains blocked until its declaration is admitted

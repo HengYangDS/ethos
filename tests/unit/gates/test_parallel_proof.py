@@ -177,6 +177,7 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> 
         "import-boundaries",
         "docstrings",
         "shell-lint",
+        "skills",
     ],
 )
 def test_public_proof_stops_heavy_work_after_readiness_failure(

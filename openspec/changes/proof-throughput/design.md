@@ -2657,12 +2657,13 @@ No separate IDE configuration or ETHOS configuration interpreter is introduced.
 
 The installed-formatting probe exposes a separate predecessor defect:
 `_check_staged_python_format` returns without checking when the immutable
-runtime has no sibling Ruff executable. Current Ruff is a development dependency,
-not installed runtime supply. Native configuration equivalence therefore does
+runtime has no sibling Ruff executable. At the reproduced baseline, Ruff was
+a development dependency, not installed runtime supply. Native configuration equivalence therefore does
 not establish installed-hook enforcement. Repair must bind declared tool supply
 and report unavailable capability truthfully; do not silently use an ambient
 binary or equate a skipped check with a passed check. This remains open beyond
-the configuration relocation.
+the configuration relocation and is addressed by the installed staged-formatting
+slice below; package acceptance remains required.
 
 ## Dependency Policy Execution
 
@@ -2702,3 +2703,21 @@ Use pluggy only for genuine multi-provider hook composition; standard entry
 points suffice for discovery. Trial OpenTelemetry as a nonauthorizing projection
 of existing operation identities, not a second receipt store or required broker.
 Do not add a universal plugin or workflow platform to solve a bounded wiring gap.
+
+## Installed Staged Formatting
+
+The configured pre-commit formatting capability is a product dependency, not a
+development-only promise. Promote the already locked Ruff package into production
+supply without adding a tool installer, ambient PATH fallback or independent
+version declaration. Resolve its native binary through the official package and
+require the exact current interpreter's scripts directory. Missing capability
+must fail explicitly while repositories without selected Python formatting stay
+unaffected.
+
+Use the index's nondeleted Python paths and bytes, not working-tree existence or
+contents. Pass each blob to native Ruff stdin with its filename, preserve the
+declared configuration and do not rewrite either index or worktree. Bound child
+execution and report unreadable index, missing supply, timeout and format rejection
+separately. Retain partial-staging positive and negative cases and execute the
+installed runtime owner during package acceptance. This boundary does not claim
+all format-policy discovery layouts or hostile concurrent index writers solved.

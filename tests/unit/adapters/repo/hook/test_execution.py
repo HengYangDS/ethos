@@ -9,6 +9,8 @@ import subprocess
 import sys
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -92,12 +94,8 @@ def test_hook_execution_observes_the_full_runtime_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     selected_runtime = object()
-    observations: list[Path] = []
+    observe_runtime = Mock(return_value=selected_runtime)
     projections: list[object] = []
-
-    def observe_runtime(common: Path) -> object:
-        observations.append(common)
-        return selected_runtime
 
     def project_runtime(
         _root: Path, *, selected_runtime: object | None = None
@@ -111,7 +109,7 @@ def test_hook_execution_observes_the_full_runtime_once(
     assert git_process(repo, "add", "README.md").returncode == 0
 
     assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 1
-    assert observations == [Path(git_common_dir(repo))]
+    observe_runtime.assert_called_once_with(Path(git_common_dir(repo)))
     assert projections
     assert all(projection is selected_runtime for projection in projections)
 
@@ -251,7 +249,6 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
     python.write_text("runtime", encoding="utf-8")
     policy = BranchRolePolicy()
     selected_runtime = object()
-    projections: list[object | None] = []
     monkeypatch.setattr(
         hook_runtime,
         "current_runtime",
@@ -268,11 +265,7 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
         ),
     )
 
-    def project_runtime(
-        _root: Path, *, selected_runtime: object | None = None, **_kwargs: object
-    ) -> dict[str, object]:
-        projections.append(selected_runtime)
-        return {"required_gaps": [], "python": python.as_posix()}
+    project_runtime = Mock(return_value={"required_gaps": [], "python": python.as_posix()})
 
     monkeypatch.setattr(hook_runtime, "hook_runtime_binding", project_runtime)
     monkeypatch.setattr(
@@ -280,11 +273,7 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
         "run_git",
         lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, "", ""),
     )
-    commands: list[tuple[str, ...]] = []
-
-    def execute(_root: Path, command: tuple[str, ...], **_kwargs) -> subprocess.CompletedProcess:
-        commands.append(command)
-        return subprocess.CompletedProcess([], 0, stdout, "")
+    execute = Mock(return_value=subprocess.CompletedProcess([], 0, stdout, ""))
 
     monkeypatch.setattr(hook_runtime, "run_command", execute)
     update = f"{'a' * 40} {'b' * 40} refs/heads/dev\n"
@@ -300,9 +289,12 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
     error = capsys.readouterr().err
     assert (gap in error) if gap else not error
     if runner != "missing":
-        assert commands[0][1:3] == ("-B", "-I")
-        assert projections
-        assert all(projection is selected_runtime for projection in projections)
+        assert execute.call_args.args[1][1:3] == ("-B", "-I")
+        assert project_runtime.called
+        assert all(
+            call.kwargs["selected_runtime"] is selected_runtime
+            for call in project_runtime.call_args_list
+        )
 
 
 def test_hook_execution_rejects_a_noncanonical_current_selector(
@@ -322,42 +314,49 @@ def test_hook_execution_rejects_a_noncanonical_current_selector(
     [
         ("absent", ""),
         ("secrets", "staged_secret_gitleaks_missing"),
-        ("format", "pre_commit_python_format_failed"),
+        ("timeout", "pre_commit_python_format_timeout"),
+        ("missing-formatter", "pre_commit_python_formatter_unavailable"),
+        ("staged-invalid", "pre_commit_python_format_failed"),
+        ("staged-valid", ""),
+        ("worktree-deleted", "pre_commit_python_format_failed"),
+        ("index-deleted", ""),
     ],
 )
 def test_pre_commit_requires_only_selected_capabilities_to_prove_clean(
-    monkeypatch: pytest.MonkeyPatch,
-    repo: Path,
-    capsys: pytest.CaptureFixture[str],
-    capability: str,
-    gap: str,
+    monkeypatch, repo, capsys, capability, gap
 ) -> None:
+    """Native hook checks exact index bytes and preserves unselected working content."""
     staged = repo / "change.py"
-    staged.write_text("VALUE=1\n", encoding="utf-8")
+    staged.write_text("VALUE = 1\n" if capability == "staged-valid" else "VALUE=1\n")
     assert git_process(repo, "add", "change.py").returncode == 0
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
     monkeypatch.setattr(
         "ethos.adapters.admission.prewrite.prewrite_guard", lambda **_kwargs: {"verdict": "pass"}
     )
     if capability == "secrets":
-        (repo / ".gitleaks.toml").write_text("title = 'policy'\n", encoding="utf-8")
-        which = hook_runtime.shutil.which
-        monkeypatch.setattr(
-            hook_runtime.shutil,
-            "which",
-            lambda name, **kwargs: None if name == "gitleaks" else which(name, **kwargs),
-        )
-    elif capability == "format":
-        (repo / "ruff.toml").write_text("line-length = 100\n", encoding="utf-8")
-        monkeypatch.setattr(
-            hook_runtime,
-            "run_command",
-            lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", "format drift"),
-        )
-
+        (repo / ".gitleaks.toml").write_text("title = 'policy'\n")
+        monkeypatch.setattr(hook_runtime, "shutil", SimpleNamespace(which=lambda _name: None))
+    elif capability != "absent":
+        (repo / "ruff.toml").write_text("line-length = 100\n")
+        if capability == "missing-formatter":
+            monkeypatch.setattr(hook_runtime, "sys", SimpleNamespace(prefix=str(repo)))
+        elif capability == "timeout":
+            monkeypatch.setattr(
+                hook_runtime,
+                "run_command",
+                Mock(side_effect=subprocess.TimeoutExpired(cmd="ruff", timeout=120)),
+            )
+        elif capability in {"worktree-deleted", "index-deleted"}:
+            staged.unlink()
+            if capability == "index-deleted":
+                assert git_process(repo, "rm", "--cached", "--force", "change.py").returncode == 0
+        else:
+            staged.write_text("VALUE=1\n" if capability == "staged-valid" else "VALUE = 1\n")
+    before = staged.read_bytes() if staged.exists() else None
     assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == int(bool(gap))
     error = capsys.readouterr().err
     assert (gap in error) if gap else not error
+    assert (staged.read_bytes() if staged.exists() else None) == before
 
 
 @pytest.mark.parametrize(

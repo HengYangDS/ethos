@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -116,21 +117,49 @@ def require_manifest(
 
 def require_production_dependencies(python: Path) -> dict[str, object]:
     """Require the immutable package runtime to exclude development dependencies."""
-    probe = (
-        "import importlib.util; "
-        "assert importlib.util.find_spec('pytest') is None; "
-        "assert importlib.util.find_spec('ruff') is None"
-    )
+    probe = """
+import importlib.util
+import subprocess
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from ethos.adapters.repo.hook.admission import _check_staged_python_format
+
+assert importlib.util.find_spec("pytest") is None
+with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
+    root = Path(temporary)
+    subprocess.run(["git", "init", "--quiet", str(root)], check=True)
+    (root / "ruff.toml").write_text("line-length = 100\\n")
+    source = root / "change.py"
+    for staged, working, rejected in (("VALUE=1\\n", "VALUE = 1\\n", True),
+                                      ("VALUE = 1\\n", "VALUE=1\\n", False)):
+        source.write_text(staged)
+        subprocess.run(["git", "-C", str(root), "add", "change.py"], check=True)
+        source.write_text(working)
+        try:
+            _check_staged_python_format(root, ("change.py",))
+        except RuntimeError as error:
+            assert rejected and "pre_commit_python_format_failed" in str(error), str(error)
+        else:
+            assert not rejected, "installed formatter skipped invalid staged bytes"
+        assert source.read_text() == working
+        observed = subprocess.check_output(["git", "-C", str(root), "show", ":change.py"])
+        assert observed == staged.encode()
+"""
+    git = shutil.which("git")
+    if git is None:
+        message = "package_runtime_git_unavailable"
+        raise RuntimeError(message)
     completed = run_command(
         python.parent,
         (python.as_posix(), "-B", "-I", "-c", probe),
-        env={},
+        env={"PATH": str(Path(git).parent)},
         inherit_environment=False,
+        timeout=120,
     )
     if completed.returncode:
-        message = "package_runtime_development_dependency_present"
+        message = f"package_runtime_dependency_acceptance_failed:{completed.stderr.strip()}"
         raise RuntimeError(message)
-    return {"state": "passed", "excluded": ["pytest", "ruff"]}
+    return {"state": "passed", "excluded": ["pytest"], "staged_format": "passed"}
 
 
 def require_version_identity(

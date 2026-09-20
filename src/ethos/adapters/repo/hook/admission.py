@@ -5,10 +5,13 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import sys
 from importlib import import_module
 from pathlib import Path
 from typing import IO
+
+from ruff import find_ruff_bin
 
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
@@ -20,6 +23,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.hook.protocol import blocked_report
 from ethos.adapters.repo.hook.protocol import passed_report
+from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.workspace import worktree_records
@@ -121,29 +125,51 @@ def _scan_staged_secrets(root: Path) -> None:
 
 
 def _check_staged_python_format(root: Path, staged: tuple[str, ...]) -> None:
-    paths = tuple(
-        path for path in staged if path.endswith((".py", ".pyi")) and (root / path).exists()
-    )
-    executable = Path(sys.executable).with_name("ruff.exe" if os.name == "nt" else "ruff")
-    if not paths or not (root / "ruff.toml").is_file() or not executable.is_file():
+    paths = tuple(path for path in staged if path.endswith((".py", ".pyi")))
+    if not paths or not (root / "ruff.toml").is_file():
         return
-    completed = run_command(
-        root,
-        (
-            executable.as_posix(),
-            "format",
-            "--cache-dir",
-            str(root / "build/runtime/tool-cache/ruff"),
-            "--config",
-            "ruff.toml",
-            "--check",
-            *paths,
-        ),
-        remove_env_prefixes=("GIT_",),
-    )
-    if completed.returncode:
-        message = "pre_commit_python_format_failed"
-        raise RuntimeError(message)
+    indexed = set(_git_paths(root, "diff", "--cached", "--name-only", "--diff-filter=ACMRT"))
+    paths = tuple(path for path in paths if path in indexed)
+    if not paths:
+        return
+    try:
+        executable = Path(find_ruff_bin())
+        expected = runtime_scripts(Path(sys.prefix)) / ("ruff.exe" if os.name == "nt" else "ruff")
+        if executable.resolve() != expected.resolve() or not os.access(executable, os.X_OK):
+            raise FileNotFoundError
+    except (ImportError, OSError) as error:
+        message = "pre_commit_python_formatter_unavailable"
+        raise RuntimeError(message) from error
+    for path in paths:
+        source = run_git(root, "show", f":{path}", check=False, text=False, timeout=30)
+        if source.returncode:
+            message = f"pre_commit_python_index_unavailable:{path}"
+            raise RuntimeError(message)
+        try:
+            completed = run_command(
+                root,
+                (
+                    str(executable),
+                    "format",
+                    "--no-cache",
+                    "--config",
+                    "ruff.toml",
+                    "--check",
+                    "--stdin-filename",
+                    path,
+                    "-",
+                ),
+                stdin=source.stdout,
+                text=False,
+                timeout=120,
+                remove_env_prefixes=("GIT_",),
+            )
+        except subprocess.TimeoutExpired as error:
+            message = f"pre_commit_python_format_timeout:{path}"
+            raise RuntimeError(message) from error
+        if completed.returncode:
+            message = f"pre_commit_python_format_failed:{path}"
+            raise RuntimeError(message)
 
 
 def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[str, object], ...]:

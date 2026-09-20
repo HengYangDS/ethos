@@ -212,6 +212,7 @@ def _lane(tmp: Path, imports: tuple[str, ...]) -> Path:
     dependencies = [root.replace("_", "-") for root in imports]
     (repo / "system").mkdir()
     project = f'[project]\nname = "test-product"\nversion = "1"\ndependencies = {dependencies!r}\n'
+    project += '[project.scripts]\nethos = "sample:main"\n'
     (repo / "pyproject.toml").write_text(project.replace("'", '"'))
     (repo / "system/surfaces.toml").write_text(
         'schema = "system/schemas/contracts/surfaces.schema.json"\n\n'
@@ -228,7 +229,10 @@ def _patch(path: str, added: str, *, new: bool = False) -> str:
     header = f"diff --git a/{path} b/{path}\n"
     if new:
         return (
-            header + f"new file mode 100644\n--- /dev/null\n+++ b/{path}\n@@ -0,0 +1 @@\n+{added}\n"
+            header
+            + f"new file mode 100644\n--- /dev/null\n+++ b/{path}\n"
+            + f"@@ -0,0 +1,{len(added.splitlines())} @@\n"
+            + "".join(f"+{line}\n" for line in added.splitlines())
         )
     return header + f"--- a/{path}\n+++ b/{path}\n@@ -1 +1,2 @@\n VALUE = 1\n+{added}\n"
 
@@ -243,15 +247,23 @@ A = ("src/external_adapter.py",)
 T = ("system/surfaces.toml",)
 E_IMPORT = "product_reference_not_admitted_at_baseline:import:external_sdk"
 E_EXEC = "product_reference_not_admitted_at_baseline:executable:external-runner"
-E_COMMAND = "product_reference_not_admitted_at_baseline:command:external-operation"
+E_COMMAND = "product_reference_not_admitted_at_baseline:command:ethos external-operation"
 P_IMPORT = _patch(*M, "import external_sdk")
 P_EXEC = _patch(*M, 'COMMAND = ["external-runner"]')
-P_COMMAND = _patch(*M, '@app.command(name="external-operation")')
+C = ("src/commands.py",)
+P_COMMAND = _patch(
+    *C,
+    'from cyclopts import App\napp = App(name="ethos")\n'
+    "@app.command\ndef external_operation():\n    return None",
+    new=True,
+)
+P_CONSUMER = _patch("GUIDE.md", "`ethos external-operation`", new=True)
 P_NEW = _patch(*A, "VALUE = 1", new=True)
 PATCH_CASES = [
     ((), M, P_IMPORT, E_IMPORT),
     ((), M, P_EXEC, E_EXEC),
-    ((), M, P_COMMAND, E_COMMAND),
+    (("cyclopts",), C, P_COMMAND, "pass"),
+    (("cyclopts",), (*C, "GUIDE.md"), P_COMMAND + P_CONSUMER, E_COMMAND),
     (("external_sdk",), M, P_IMPORT, "head"),
     ((), A, P_NEW, "pass"),
     ((), T + M, DECL + P_EXEC, E_EXEC),

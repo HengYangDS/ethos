@@ -1,0 +1,17 @@
+[pytest]
+minversion = "9.0"
+addopts = ["--strict-config", "--strict-markers", "--import-mode=importlib", "--max-worker-restart=0"]
+cache_dir = "build/runtime/tool-cache/pytest"
+testpaths = ["tests"]
+pythonpath = ["../../..", "../../../src"]
+required_plugins = ["pytest-timeout", "pytest-cov", "pytest-xdist"]
+timeout = "120"
+timeout_method = "thread"
+markers = [
+  "unit: unit tests for deterministic product logic.",
+  "architecture: repository architecture and boundary tests.",
+  "integration: opt-in integration tests that may touch external providers.",
+  "slow: opt-in slow tests excluded from fast local lanes unless explicitly selected.",
+  "benchmark: opt-in performance benchmarks, never part of the default proof floor.",
+]
+filterwarnings = ["error"]

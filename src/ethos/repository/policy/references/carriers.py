@@ -90,7 +90,7 @@ REFERENCE_CARRIERS = (
             (".config/checks/ci/templates.toml", "providers"),
             ("mise.toml", "mise"),
         ),
-        entrypoints=(".config/checks/pytest/pytest.ini",),
+        entrypoints=(".config/checks/pytest/pytest.toml",),
         entrypoint_globs=(".config/ci/**/*.toml",),
     ),
 )

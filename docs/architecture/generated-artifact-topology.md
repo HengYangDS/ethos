@@ -138,7 +138,7 @@ package entrypoints, and tool configuration must route generated state before
 the command writes it:
 
 - `noxfile.py` and `tools/ci/python_test_gate.py` must call pytest with the explicit
-  `.config/checks/pytest/pytest.ini` owner, route pytest cache to
+  `.config/checks/pytest/pytest.toml` owner, route pytest cache to
   `build/runtime/tool-cache/pytest`, send coverage and JUnit machine evidence to
   `build/evidence/quality/tests/`, use an explicit scratch temp directory, and
   guard its generated coverage writer with a process-identity lock (PID plus

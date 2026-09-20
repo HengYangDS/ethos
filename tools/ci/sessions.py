@@ -264,7 +264,7 @@ def import_boundaries(session) -> None:
         "--cache-dir",
         str(cache),
         "--config",
-        ".config/checks/import-linter/contracts.ini",
+        ".config/checks/import-linter/contracts.toml",
         env={"PYTHONPATH": str(ROOT / "src")},
     )
 

@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[2]
 PYTHON = Path(sys.executable)
-PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.ini"
-COVERAGE_CONFIG = ROOT / ".config/checks/coverage/coverage.ini"
+PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.toml"
+COVERAGE_CONFIG = ROOT / ".config/checks/coverage/coverage.toml"
 COVERAGE_POLICY = ROOT / ".config/checks/coverage/policy.toml"
 TARGETS = ("tests/unit", "tests/architecture")
 

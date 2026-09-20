@@ -124,7 +124,7 @@ path_globs = [
   ".pre-commit-config.yaml",
   "pyproject.toml",
   "uv.lock",
-  "pytest.ini",
+  "pytest.toml",
   "ruff.toml",
   "system/gates.toml",
   "tools/ci/**",

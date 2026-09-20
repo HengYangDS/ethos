@@ -113,3 +113,10 @@
 - [ ] Calibrate document metrics against human and agent retrieval; reject cosmetic wrapping, hidden content and fragmented or duplicated meaning.
 - [ ] Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.
 - [ ] Settle source research into its topic owner and execute the existing framework comparisons; report adoption or rejection from actual replacement evidence.
+
+## Native Configuration Convergence
+
+- [x] Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.
+- [x] Repair pytest configuration-relative paths and qualify native TOML through real plugin consumers.
+- [ ] Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
+- [ ] Verify migrated configuration through focused native checks and exact-source full proof.

@@ -40,25 +40,36 @@ def test_entrypoint_audit_handles_every_public_pixi_task_shape(
     assert generated_artifact_entrypoint_audit(tmp_path)["verdict"] == verdict
 
 
-def test_entrypoint_audit_allows_the_runtime_bootstrap_to_own_python_execution(
-    tmp_path: Path,
-) -> None:
-    _write(
-        tmp_path,
-        "tools/ci/scripts/with-python-runtime.sh",
-        "python3 -c 'print(1)'\n",
-    )
-
-    assert generated_artifact_entrypoint_audit(tmp_path)["verdict"] == "pass"
-
-
 @pytest.mark.parametrize(
     ("relative", "text", "gap"),
     [
         (
-            ".config/checks/pytest/pytest.ini",
-            "[pytest]\ncache_dir = .pytest_cache\n",
+            ".config/checks/pytest/pytest.toml",
+            '[pytest]\ncache_dir = ".pytest_cache"\n',
             "generated_artifact_entrypoint_pytest_cache_unrouted",
+        ),
+        *(
+            (".config/checks/pytest/pytest.toml", document, gap)
+            for document, gap in (
+                ("[pytest]\ncache_dir='build/runtime/tool-cache/pytest'\n", ""),
+                (
+                    "[pytest]\ncache_dir='other'\n",
+                    "generated_artifact_entrypoint_pytest_cache_unrouted",
+                ),
+                ("[pytest]\n", "generated_artifact_entrypoint_pytest_cache_unrouted"),
+                ("[pytest]\ncache_dir=[]\n", "generated_artifact_entrypoint_pytest_cache_unrouted"),
+                ("[pytest\n", "generated_artifact_entrypoint_pytest_config_invalid"),
+            )
+        ),
+        ("tools/ci/scripts/with-python-runtime.sh", "python3 -c 'print(1)'\n", ""),
+        *(
+            ("tools/ci/scripts/package.sh", script, gap)
+            for script, gap in (
+                ("uv build\n", "generated_artifact_entrypoint"),
+                ('OUT=build/artifacts/wheel\nuv build --out-dir "$OUT"\n', ""),
+                ('uv build --out-dir "$MISSING"\n', "generated_artifact_entrypoint"),
+                ("rm -rf dist/ .ruff_cache\n", ""),
+            )
         ),
         (
             "tools/ci/scripts/quality.sh",
@@ -89,22 +100,5 @@ def test_entrypoint_audit_fails_closed_for_unrouted_public_tools(
 
     report = generated_artifact_entrypoint_audit(tmp_path)
 
-    assert report["verdict"] == "block"
-    assert any(str(item).startswith(f"{gap}:") for item in report["required_gaps"])
-
-
-@pytest.mark.parametrize(
-    ("script", "verdict"),
-    [
-        ("uv build\n", "block"),
-        ('OUT=build/artifacts/wheel\nuv build --out-dir "$OUT"\n', "pass"),
-        ('uv build --out-dir "$MISSING"\n', "block"),
-        ("rm -rf dist/ .ruff_cache\n", "pass"),
-    ],
-)
-def test_entrypoint_audit_resolves_package_outputs_and_ignores_cleanup(
-    tmp_path: Path, script: str, verdict: str
-) -> None:
-    _write(tmp_path, "tools/ci/scripts/package.sh", script)
-
-    assert generated_artifact_entrypoint_audit(tmp_path)["verdict"] == verdict
+    assert report["verdict"] == ("block" if gap else "pass")
+    assert not gap or any(str(item).startswith(gap) for item in report["required_gaps"])

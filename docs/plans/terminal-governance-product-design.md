@@ -6876,7 +6876,37 @@ unproved compatibility exception. Do not rewrite adopters or the two renderer
 repositories. Whole-repository structure, latest-stable supply, full adopter
 journeys, evidence reuse and sustained resource limits remain open.
 
-### Current Bounded Continuation — September 19, 2026 (+08:00)
+### Current Bounded Continuation — September 20, 2026 (+08:00)
+
+The selected accepted source is `684823165b48c8d18ded89969fbfaeee15dd14f5`;
+the installed runtime is bound to that source. The owned work-lane HEAD is
+`920eb0179bdd36903590da895beee0e5dc6394eb`. Its documentation/metadata,
+command-context and isolated-environment repairs are committed, not accepted,
+installed or published. The exact full proof blocked in 608.491 seconds with
+four failed tests, 4,109 passes and one skip; later dependency-blocked gates do
+not establish additional independent root causes or a current coverage result.
+
+Repeated network-bearing native mise generation was the immediate blocker.
+The candidate now checks existing committed bootstrap supply offline and rejects
+drift before executing a copy of validated bytes. The [toolchain finding](../research/foundations/toolchain.md#generation-is-supply-work-not-a-pure-read)
+and [execution lessons](../research/foundations/verification.md#september-20-execution-lessons)
+separate observed behavior, remaining uncertainty and the supply trust boundary.
+Finish the frozen consumer closure and one exact full proof; then follow fresh
+integration, installation and publication decisions. Do not rerun an unchanged
+failed suite, raise timeouts or introduce a parallel installer or cache.
+
+Keep product and tests independently within 50,000 ELOC, Python files within 500,
+combined coverage at least 95%, and complete successful proof within 900 seconds;
+600 seconds remains an optimization direction. After this accepted repair,
+restore the preserved shared-API tests and continue the existing installed-product
+Change. Full historical intent recovery, documentation retrieval and structure,
+remaining quality/reporting and supply trials, complete adopter/ecosystem paths,
+hosted qualification and owned-resource retirement remain open.
+
+#### Preceding Evidence And Retained Obligations
+
+The following dated observations preserve earlier results and failure distinctions.
+Their source identities do not describe the current work-lane readiness.
 
 CI completeness is the current priority. The user rejected registry counts and
 job consolidation as proof of quality preservation. The existing
@@ -6940,11 +6970,10 @@ post-archive proofs and candidate/accepted integration with both product files
 and both distinct requirements preserved. This source probe does not establish
 all-drop, independent verifier identity, retirement or installed behavior.
 
-The immediate order is final focused verification, exact full proof, immutable
-package replay and peer readback; then remaining process-loss/bootstrap and
-supported-supply obligations before this Change's archive and sole-lane exit.
-The 600-second performance direction remains open. Reuse exact prior evidence;
-do not restore the independent ambient audit or accumulate a new progress ledger.
+Remaining process-loss/bootstrap and supported-supply obligations precede
+this Change's archive and sole-lane exit. Follow the current bounded order above;
+reuse applicable exact evidence without restoring the independent ambient audit
+or accumulating a new progress ledger.
 
 ## Control Acceptance And Obsolete Host Deployment
 

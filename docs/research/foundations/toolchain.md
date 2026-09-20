@@ -99,6 +99,36 @@ is reproduced with native generation plus one equivalent quoted-tilde pattern
 normalization and shfmt; its drift is rejected. These observations do not prove
 Linux/Windows bootstrap, hosted CI or installed ETHOS product completion.
 
+### Generation Is Supply Work, Not A Pure Read
+
+On September 20, the exact `920eb0179bdd36903590da895beee0e5dc6394eb`
+proof failed four CI-projection cases at a 30-second native generation deadline.
+A bounded debug replay took 1.236 seconds and observed two HTTP requests: the
+versioned installer and its Minisign signature. The [upstream generator][mise-generator]
+downloads both and verifies the signature before constructing its output.
+A pinned version therefore does not make this command offline or deterministic
+with respect to network availability. The precise transport cause of the earlier
+timeouts remains unproved; neither a successful retry nor more workers fixes it.
+
+The repair must separate authenticated supply acquisition from repeated local
+projection checking at the existing owner. Reuse must bind all relevant generator,
+supply and transformation inputs, reject altered or incomplete material, and retain
+cold/warm result equality. Do not substitute the candidate launcher for its own
+reference, remove signature verification, invent a second installer template, or
+raise the deadline as the root fix. Bound concurrent population and owned cleanup;
+cold, warm, offline and interrupted consumers need distinguishing regressions.
+The implementation now reuses the already committed wrapper as supply: the
+existing CI declaration binds acquisition version and exact bytes, while the
+native generator remains the authenticated update path. It needs no extra
+persistent cache or template. Validation is offline; installation executes a
+temporary copy of validated bytes. Joint lock/material edits remain reviewed
+supply changes, not independent upstream verification. See the existing
+[Change decision](../../../openspec/changes/proof-throughput/design.md#authenticated-bootstrap-supply-and-offline-checking)
+for the trust boundary, measured consumers and outstanding delivery.
+The existing `mise-generation-baseline.json`,
+`mise-offline-cold-warm-concurrent.json` and
+`package-environment-full-proof.json` receipts retain the execution evidence.
+
 ## Sources
 
 Links identify inspected documents, not blanket endorsements. Source-level and
@@ -113,3 +143,5 @@ marketing claims were not used as evidence of comparative performance.
 [nix]: https://github.com/NixOS/nix/blob/203f85b2e851fc52e253e8e33eff5fb92936736a/README.md
 [pixi-environment]: https://github.com/prefix-dev/pixi/blob/56ae6f39b887a954242002deeda5372f80b34a87/docs/workspace/environment.md
 [mise-native-install]: https://github.com/jdx/mise/blob/v2026.9.11/src/backend/mod.rs
+
+[mise-generator]: https://github.com/jdx/mise/blob/v2026.9.11/src/cli/generate/install_script.rs

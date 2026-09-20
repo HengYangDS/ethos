@@ -156,11 +156,26 @@ def render_mise_installer(root: Path) -> str:
     return run_command(root, (str(formatter),), stdin=source, timeout=15, check=True).stdout
 
 
-def validate_mise_installer(root: Path) -> None:
-    """Reject edits or version drift in the native generated bootstrap."""
-    if (root / ".config/ci/mise-install.sh").read_text() != render_mise_installer(root):
-        message = "mise_bootstrap_drift"
+def validate_mise_installer(root: Path) -> bytes:
+    """Read locked bootstrap bytes without network, caches or candidate execution."""
+    message = "mise_bootstrap_drift"
+    target = root / ".config/ci/mise-install.sh"
+    if not target.is_file() or target.is_symlink() or target.is_junction():
         raise ValueError(message)
+    try:
+        version = tomllib.loads((root / "mise.toml").read_text())["min_version"]
+        record = tomllib.loads((root / ".config/checks/ci/templates.toml").read_text())["bootstrap"]
+        content = target.read_bytes()
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        raise ValueError(message) from error
+    if (
+        not isinstance(record, dict)
+        or record.keys() != {"version", "sha256"}
+        or record["version"] != version
+        or record["sha256"] != hashlib.sha256(content).hexdigest()
+    ):
+        raise ValueError(message)
+    return content
 
 
 def prepare_mise(root: Path) -> Path:
@@ -182,6 +197,7 @@ def prepare_mise(root: Path) -> Path:
         executable = Path(installed)
         verify(executable)
         return executable
+    content = validate_mise_installer(root)
     home = root / "build/runtime/tool-cache/mise/bin"
     _directory(home)
     executable = home / "mise"
@@ -192,9 +208,11 @@ def prepare_mise(root: Path) -> Path:
         with TemporaryDirectory(prefix=".bootstrap-", dir=home) as directory:
             isolated = Path(directory)
             candidate = isolated / "mise"
+            installer = isolated / "install.sh"
+            installer.write_bytes(content)
             result = run_command(
                 root,
-                ("bash", str(root / ".config/ci/mise-install.sh"), "--version"),
+                ("bash", str(installer), "--version"),
                 timeout=180,
                 remove_env_prefixes=("MISE_",),
                 env={

@@ -44,16 +44,14 @@ def package_runtime(
             raise ValueError(message)
         with archive_path.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
-        formula = _homebrew_formula(
-            selected, download_url or destination.resolve().as_uri(), digest
-        )
+        cask = homebrew_cask(selected, download_url or destination.resolve().as_uri(), digest)
         archive_path.replace(destination)
-        formula_path = destination.parent / "homebrew" / "ethos.rb"
-        formula_path.parent.mkdir(exist_ok=True)
-        formula_path.write_text(formula)
+        cask_path = destination.parent / "homebrew" / "Casks" / "ethos.rb"
+        cask_path.parent.mkdir(parents=True, exist_ok=True)
+        cask_path.write_text(cask)
     return {
         "path": str(destination),
-        "homebrew_formula": str(formula_path),
+        "homebrew_cask": str(cask_path),
         "published": False,
         "sha256": digest,
         "runtime_digest": selected.digest,
@@ -71,7 +69,7 @@ def _metadata(info: tarfile.TarInfo) -> tarfile.TarInfo:
     return info
 
 
-def _homebrew_formula(selected: SelectedRuntime, url: str, digest: str) -> str:
+def homebrew_cask(selected: SelectedRuntime, url: str, digest: str) -> str:
     """Project one platform-qualified archive into native Homebrew installation."""
     operating_system = "macos" if selected.platform == "darwin" else selected.platform
     architecture = "arm64" if selected.architecture == "aarch64" else selected.architecture
@@ -82,32 +80,34 @@ def _homebrew_formula(selected: SelectedRuntime, url: str, digest: str) -> str:
         message = "distribution_url_invalid"
         raise ValueError(message)
     return f'''# Generated from exact package acceptance; not a separate version authority.
-class Ethos < Formula
-  desc "Reliable human and agent repository evolution"
-  homepage "https://github.com/HengYangDS/ethos"
-  url {json.dumps(url)}
+cask "ethos" do
   version {json.dumps(selected.build.distribution_version)}
   sha256 "{digest}"
-  license "Apache-2.0"
+  url {json.dumps(url)}
+  name "ETHOS"
+  desc "Reliable human and agent repository evolution"
+  homepage "https://github.com/HengYangDS/ethos"
 
   depends_on :{operating_system}
   depends_on arch: :{architecture}
-  depends_on "git"
-  skip_clean "libexec"
+  depends_on formula: "git"
 
-  def install
-    libexec.install "runtime", "packages"
-    bin.write_exec_script libexec/"runtime/{selected.digest}/python/bin/ethos"
+  preflight_steps do
+    on_macos do
+      run "/usr/sbin/spctl",
+          args: ["--assess", "--type", "execute",
+                 "{{{{staged_path}}}}/ethos/runtime/{selected.digest}/python/bin/python"],
+          network_access: true
+    end
+    set_permissions "ethos/runtime/{selected.digest}", "a-w"
+    run "ethos/runtime/{selected.digest}/python/bin/python", base: :staged_path,
+        args: ["-B", "-I", "-c",
+               "from pathlib import Path; import sys; " \\
+               "from ethos.adapters.repo.runtime.selection import require_selected_runtime; " \\
+               "require_selected_runtime(Path(sys.prefix).parent)"]
   end
 
-  test do
-    assert_match {json.dumps(selected.build.source_commit[:12])},
-                 shell_output("#{{bin}}/ethos --version")
-    system libexec/"runtime/{selected.digest}/python/bin/python", "-B", "-I", "-c",
-           "from pathlib import Path; import sys; " \\
-           "from ethos.adapters.repo.runtime.selection import require_selected_runtime; " \\
-           "require_selected_runtime(Path(sys.argv[1]))",
-           libexec/"runtime/{selected.digest}"
-  end
+  command_wrapper "ethos",
+                  executable: "#{{staged_path}}/ethos/runtime/{selected.digest}/python/bin/ethos"
 end
 '''

@@ -36,7 +36,7 @@ The present distribution boundary is:
 - Installed execution uses `ethos`. `python -m ethos.cli` deliberately executes
   the caller-selected package for development and recovery, not host dispatch.
 - Native distribution archives reuse the verified portable runtime and exact
-  wheel. Their Homebrew formula is a generated transport projection; archive,
+  wheel. Their Homebrew Cask is a generated transport projection; archive,
   installation and remote publication acceptance remain distinct.
 
 This keeps npm, PyPI, GitLab, and future package managers as adapters over one

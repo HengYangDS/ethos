@@ -38,17 +38,16 @@ def run_mise(
 ) -> subprocess.CompletedProcess[str]:
     """Run native mise over exact inputs with no project hooks or ambient config."""
     materials = (
-        {
-            name: (root / path).read_text(encoding="utf-8")
-            for name, path in (("mise.toml", MISE_CONFIG), ("mise.lock", MISE_LOCK))
-        }
+        {path: (root / path).read_text(encoding="utf-8") for path in (MISE_CONFIG, MISE_LOCK)}
         if files is None
         else files
     )
     with TemporaryDirectory(prefix="ethos-mise-") as directory:
         isolated = Path(directory)
-        for path in ("mise.toml", "mise.lock"):
-            (isolated / path).write_text(materials[path], encoding="utf-8")
+        for path in (MISE_CONFIG, MISE_LOCK):
+            target = isolated / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(materials[path], encoding="utf-8")
         environment = {
             key: value
             for key, value in os.environ.items()

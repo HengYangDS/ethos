@@ -43,8 +43,8 @@ configuration plane, not a truth center.
   Python bootstrap prepares missing mise with .config/ci/mise-install.sh,
   a version-bound official generator projection checked by ci_templates.
   Installation is staged and bounded; observation does not install tools.
-  Isolated consumers materialize the selected bytes under native temporary
-  filenames; these disposable copies do not own versions or checksums.
+  Isolated consumers preserve this same nested layout; disposable copies do
+  not own versions or checksums.
 - `.config/ci/pipeline.cue` composes both provider projections from native gate
   and runtime inputs. `.github/workflows/ci.yml` and `.gitlab-ci.yml` are
   generated, not editable sources. The `ci_templates` Nox gate verifies

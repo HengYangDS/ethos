@@ -274,8 +274,10 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30) -> Path:
             selected = archive
             if not archive.exists() and not archive.is_symlink():
                 isolated = Path(scratch)
-                for filename, source in (("mise.toml", MISE_CONFIG), ("mise.lock", MISE_LOCK)):
-                    (isolated / filename).write_bytes((root / source).read_bytes())
+                for source in (MISE_CONFIG, MISE_LOCK):
+                    target_config = isolated / source
+                    target_config.parent.mkdir(parents=True, exist_ok=True)
+                    target_config.write_bytes((root / source).read_bytes())
                 download(
                     (str(mise_executable(root)), "install", "--locked", supply.backend),
                     root=isolated,

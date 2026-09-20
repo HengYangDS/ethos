@@ -10,6 +10,8 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
+from ethos.adapters.toolchain.mise import MISE_CONFIG
+from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import locked_tool
 
 if TYPE_CHECKING:
@@ -31,8 +33,8 @@ def compile_projections(
     inputs = {key: tomllib.loads(files[path]) for key, path in compiler["inputs"].items()}
     source = files[compiler["source"]]
     supply = compiler["supply"]
-    tool_files = {"mise.toml": files[supply["config"]], "mise.lock": files[supply["lock"]]}
-    version = tomllib.loads(tool_files["mise.toml"])["tools"]["cue"]
+    tool_files = {MISE_CONFIG: files[supply["config"]], MISE_LOCK: files[supply["lock"]]}
+    version = tomllib.loads(tool_files[MISE_CONFIG])["tools"]["cue"]
     selected = executable or locked_tool(root, "cue", tool_files)
     observed = run_command(root, (str(selected), "version"), timeout=10, check=True)
     if not observed.stdout.startswith(f"cue version v{version}\n"):

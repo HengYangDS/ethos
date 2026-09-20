@@ -208,8 +208,9 @@ def test_native_owner_closure_uses_only_selected_existing_authorities() -> None:
         ".config/mise/config.toml": '[tools]\ncue="0.17.1"\n"github:rhysd/actionlint"="1.7.12"\n',
     }
     owned = native_owned_references_from_files(files)
-    assert {"curl", "git", "provider-lint", "syft", "tar", "mise"} <= owned["executable"]
-    assert {"rogue-config-tool", "rogue-tool", "cue", "actionlint"}.isdisjoint(owned["executable"])
+    executables = owned["executable"]
+    assert {"curl", "git", "provider-lint", "syft", "tar"} <= executables
+    assert {"rogue-config-tool", "rogue-tool", "cue", "actionlint", "mise"}.isdisjoint(executables)
     assert owned["value"] == {"ETHOS_ACTOR"}
 
 

@@ -8,8 +8,8 @@
 
 ## 2. Installed MCP Transport
 
-- [ ] 2.1 Add locked FastMCP supply and the installed stdio entry; distinguish new command declarations from undeclared consumers in native admission, then verify discovery and structured schemas with a real subprocess client.
-- [ ] 2.2 Bind repository and actor at startup; verify untrusted root/actor arguments cannot escape the binding.
+- [x] 2.1 Add locked FastMCP supply and the installed stdio entry; distinguish new command declarations from undeclared consumers in native admission, then verify discovery and structured schemas with a real subprocess client.
+- [x] 2.2 Bind repository and actor at startup; verify untrusted root/actor arguments cannot escape the binding.
 - [ ] 2.3 Verify valid observations, admitted mutation, denied and unknown results through CLI, SDK and MCP.
 - [ ] 2.4 Verify cancellation, deadlines, protocol-only stdout, client exit and reconnect without duplicate effects or orphan execution.
 

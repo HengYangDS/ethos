@@ -189,7 +189,7 @@
     "learning_relations": {
       "path": "docs/governance/evolution-campaign.md",
       "authority": "current OpenSpec-native research and derived relation semantics",
-      "sha256": "22d253393a9b42f486366464dfc6ea925e39772c6888f802e2ba54fdaa352224"
+      "sha256": "de5333f10a56d47de7090022ef7f3730d0287b9333dd508a7dfd02845a3e3302"
     }
   },
   "nodes": {

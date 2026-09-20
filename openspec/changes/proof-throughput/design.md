@@ -2733,3 +2733,21 @@ The [installed-project file record](https://packaging.python.org/en/latest/speci
 supplies ownership; no Ruff-specific filename list or second installer is added.
 Source identity and import success alone do not prove executable capability.
 Keep missing-tool refusal and installed partial-staging cases in package acceptance.
+
+
+### Dependency Result Preservation
+
+The dependency owner uses the shared bounded process executor and its actual exit
+status. Native JSON is validated with the existing Pydantic dependency rather than
+a second hand-written parser. Findings, unreadable output, unavailable execution
+and declaration errors retain distinct states and all applicable required gaps.
+An empty result cannot override a failed process; an unreadable required report
+does not prove cleanliness. The shared execution-success predicate governs Nox
+failure, and the receipt retains command, root, exit and native output.
+
+The bounded regression exercises configured selection, missing/malformed reports,
+contradictory exit status, process creation failure and timeout. A real Nox replay
+with controlled executables verifies downstream refusal separately from a real
+Deptry clean run; it does not claim upstream tools emit the injected contradictions.
+Runtime-supply tests belong at their existing semantic owner; duplicate delivery
+tests that directly call that same owner are removed after unique assertions move.

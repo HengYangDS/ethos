@@ -79,6 +79,9 @@ def test_lock_current_environment_supplies_runtime_without_cache_authority(
     assert ("--no-dev" in commands[0]) is not build_tools
     assert "--no-dev" in commands[1]
     assert {"--require-hashes", "--strict", target_python.as_posix()} <= set(commands[2])
+    assert not any("venv" in command for command in commands)
+    assert commands[1][-2:] == ("--output-file", str(requirements))
+    assert commands[2][-1] == str(requirements)
     assert "--no-deps" in commands[3]
     assert commands[3][-1] == wheel.as_posix()
     assert all(

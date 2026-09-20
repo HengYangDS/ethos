@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import json
 import shlex
 import tomllib
@@ -132,60 +131,6 @@ def test_local_ci_uses_the_declared_full_quality_closure() -> None:
         shlex.join(gate_execution_identity(expected.registry[node.id])) for node in expected.nodes
     ]
     assert expected.gate_ids.count("local-install-smoke") == 1
-
-
-def test_runtime_supply_projects_the_lock_current_environment_without_cache_authority(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    supply = importlib.import_module(
-        "ethos.adapters.repo.runtime.materialization.dependency_supply"
-    )
-    requirements = tmp_path / "acceptance/locked-requirements.txt"
-    source_python = tmp_path / "project/.venv/bin/python"
-    environment_python = tmp_path / "acceptance/venv/bin/python"
-    commands: list[tuple[str, ...]] = []
-    projections: list[tuple[Path, Path]] = []
-
-    def run(_root: Path, *command: str, python: Path) -> None:
-        del python
-        commands.append(command)
-        if "--output-file" in command:
-            output = Path(command[command.index("--output-file") + 1])
-            output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text("package==1 --hash=sha256:abc\n", encoding="utf-8")
-
-    monkeypatch.setattr(supply, "run_runtime_tool", run)
-    monkeypatch.setattr(
-        supply,
-        "project_dependency_supply",
-        lambda source, target: projections.append((source, target)),
-        raising=False,
-    )
-
-    observed_requirements = supply.prepare_locked_requirements(
-        tmp_path,
-        requirements.parent,
-        source_python,
-    )
-    supply.install_locked_runtime(
-        tmp_path,
-        source_python,
-        environment_python,
-        tmp_path / "ethos.whl",
-        observed_requirements,
-    )
-
-    assert projections == [(source_python, environment_python)]
-    assert len(commands) == 4
-    assert all("--offline" in command for command in commands)
-    assert not any("venv" in command for command in commands)
-    assert not any("--cache-dir" in command for command in commands)
-    assert commands[1][-2:] == ("--output-file", str(requirements))
-    assert commands[2][:2] == ("pip", "sync")
-    assert "--require-hashes" in commands[2]
-    assert commands[2][commands[2].index("--python") + 1] == str(environment_python)
-    assert commands[2][-1] == str(requirements)
 
 
 def test_acceptance_failure_cleans_its_transaction_root_without_a_receipt(

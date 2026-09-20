@@ -7,6 +7,7 @@ import shlex
 from pathlib import Path
 
 import pytest
+import tomli_w
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.domain.adoption import adopt_repository
@@ -53,34 +54,32 @@ def test_declared_local_gate_registry_preserves_self_governance_floor() -> None:
 def test_profile_native_gate_owner_replaces_packaged_gates(tmp_path: Path) -> None:
     adoption_plan(tmp_path, apply=True)
     profile = tmp_path / ".ethos" / "profile.toml"
+    cases = (
+        ("sample-tests", "test", "tests", "behavior", "proof"),
+        ("sample-static", "typing", "types", "static-analysis", "contract"),
+    )
+    gates = [
+        {
+            "id": name,
+            "kind": kind,
+            "command": ["custom", command],
+            "dimensions": [dimension],
+            "evidence_class": evidence,
+            "trust_bearing": True,
+        }
+        for name, kind, command, dimension, evidence in cases
+    ]
     profile.write_text(
-        profile.read_text(encoding="utf-8")
-        + """
-
-[proof]
-code_correctness_gates = ["sample-tests", "sample-static"]
-
-[proof.code_correctness_map]
-behavior = "sample-tests"
-static-analysis = "sample-static"
-
-[[proof.gates]]
-id = "sample-tests"
-kind = "test"
-command = ["custom", "tests"]
-dimensions = ["behavior"]
-evidence_class = "proof"
-trust_bearing = true
-
-[[proof.gates]]
-id = "sample-static"
-kind = "typing"
-command = ["custom", "types"]
-dimensions = ["static-analysis"]
-evidence_class = "contract"
-trust_bearing = true
-""",
-        encoding="utf-8",
+        profile.read_text()
+        + tomli_w.dumps(
+            {
+                "proof": {
+                    "code_correctness_gates": [row[0] for row in cases],
+                    "code_correctness_map": {row[3]: row[0] for row in cases},
+                    "gates": gates,
+                }
+            }
+        )
     )
 
     assert set(resolve_gate_policy(tmp_path).registry) == {"sample-tests", "sample-static"}

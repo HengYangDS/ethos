@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import pytest
+import tomli_w
 from pydantic import ValidationError
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
@@ -14,6 +14,7 @@ from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_root
 from ethos.repository.profile import render_repository_profile
+from tests.support.governed_repository import git
 from tests.support.literal_cases import literal_case
 
 
@@ -81,47 +82,42 @@ def test_profile_rejects_retired_or_incomplete_proof_owners(tmp_path: Path, proo
 
 
 def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -> None:
-    subprocess.run(["git", "init", "-q", tmp_path], check=True)
-    subprocess.run(["git", "config", "user.name", "test"], cwd=tmp_path, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.invalid"], cwd=tmp_path, check=True
+    git(tmp_path, "init", "-q")
+    git(tmp_path, "config", "user.name", "test")
+    git(tmp_path, "config", "user.email", "test@example.invalid")
+    cases = (
+        ("python-quality", "static", "quality", "static-analysis"),
+        ("python-matrix", "test", "tests", "behavior"),
     )
+    gates = [
+        {
+            "id": name,
+            "kind": kind,
+            "command": ["nox", "-s", command],
+            "dimensions": [dimension],
+            "execution_mode": "subprocess",
+            "evidence_class": "proof",
+            "trust_bearing": True,
+            "tool_adapter": "repository-native",
+        }
+        for name, kind, command, dimension in cases
+    ]
     _write_profile(
         tmp_path,
-        'profile_id = "native-check-adopter"\n\n'
-        "[proof]\n"
-        'code_correctness_gates = ["python-quality", "python-matrix"]\n\n'
-        "[proof.code_correctness_map]\n"
-        'behavior = "python-matrix"\n'
-        'static-analysis = "python-quality"\n\n'
-        "[[proof.gates]]\n"
-        'id = "python-quality"\n'
-        'kind = "static"\n'
-        'command = ["nox", "-s", "quality"]\n'
-        'dimensions = ["static-analysis"]\n'
-        'execution_mode = "subprocess"\n'
-        'evidence_class = "proof"\n'
-        "trust_bearing = true\n"
-        'tool_adapter = "repository-native"\n\n'
-        "[[proof.gates]]\n"
-        'id = "python-matrix"\n'
-        'kind = "test"\n'
-        'command = ["nox", "-s", "tests"]\n'
-        'dimensions = ["behavior"]\n'
-        'execution_mode = "subprocess"\n'
-        'evidence_class = "proof"\n'
-        "trust_bearing = true\n"
-        'tool_adapter = "repository-native"\n',
+        tomli_w.dumps(
+            {
+                "profile_id": "native-check-adopter",
+                "proof": {
+                    "code_correctness_gates": [row[0] for row in cases],
+                    "code_correctness_map": {row[3]: row[0] for row in cases},
+                    "gates": gates,
+                },
+            }
+        ),
     )
-    subprocess.run(["git", "add", ".ethos/profile.toml"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "commit", "-q", "-m", "profile"], cwd=tmp_path, check=True)
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+    git(tmp_path, "add", ".ethos/profile.toml")
+    git(tmp_path, "commit", "-q", "-m", "profile")
+    head = git(tmp_path, "rev-parse", "HEAD")
 
     worktree = resolve_gate_policy(tmp_path)
     committed = resolve_gate_policy(tmp_path, tree_ref=head)
@@ -230,7 +226,7 @@ def test_invalid_profile_never_falls_back_to_default_roots(tmp_path: Path) -> No
 
 
 def test_profile_loader_never_falls_back_from_an_invalid_tree_ref(tmp_path: Path) -> None:
-    subprocess.run(["git", "init", "-q", tmp_path], check=True)
+    git(tmp_path, "init", "-q")
     _write_profile(tmp_path, "profile_id = 'working-tree'\n")
 
     with pytest.raises(ValueError, match="repository_tree_ref_invalid"):

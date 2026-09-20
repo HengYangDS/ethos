@@ -1,9 +1,7 @@
 """Compose adoption requests, exact admission and typed results for every surface."""
 
-from __future__ import annotations
-
 import shlex
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.decision import request_gaps
@@ -11,9 +9,6 @@ from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.result import EthosResult
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def adopt_repository(

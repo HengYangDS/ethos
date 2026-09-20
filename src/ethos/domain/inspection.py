@@ -1,8 +1,6 @@
 """Compose transport-independent repository observations and continuations."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import cast
 
 from ethos.adapters.admission.current.resolution import CurrentScope
@@ -19,9 +17,6 @@ from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.result import EthosResult
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _count(value: object) -> int:

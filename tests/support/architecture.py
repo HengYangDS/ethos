@@ -31,6 +31,18 @@ def write_reference_source(root: Path, relative: str, content: str) -> None:
     path.write_text(content.strip() + "\n", encoding="utf-8")
 
 
+def declare_reference_surface(
+    root: Path, name: str = "runtime", carrier: str = "src/example"
+) -> None:
+    """Declare a selected native surface while preserving its exact scope."""
+    write_reference_source(
+        root,
+        "system/surfaces.toml",
+        'schema = "system/schemas/contracts/surfaces.schema.json"\n'
+        f'[[surface]]\nname = "{name}"\ncarrier = "{carrier}"\n',
+    )
+
+
 def declare_reference_package(root: Path, *, entry_point: str = "") -> None:
     """Declare package ownership, including Cyclopts only for command surfaces."""
     metadata = '[project]\nname = "example"\nversion = "1"\n'

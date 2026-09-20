@@ -22,47 +22,25 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
 
 
 @pytest.mark.parametrize(
-    ("report", "expected_action"),
+    ("verdict", "state", "gap", "action", "expected_action"),
     [
-        (
-            {
-                "verdict": "block",
-                "state": "blocked",
-                "layer": "pre-tool",
-                "role": "work_lane",
-                "next_action": "set ETHOS_ACTOR=owner",
-                "required_gaps": ["actor_missing"],
-            },
-            "set ETHOS_ACTOR=owner",
-        ),
-        (
-            {
-                "verdict": "block",
-                "state": "blocked",
-                "layer": "pre-tool",
-                "role": "work_lane",
-                "required_gaps": ["path_uncovered"],
-            },
-            "ethos lane prewrite <path>",
-        ),
-        (
-            {
-                "verdict": "pass",
-                "state": "admitted",
-                "layer": "pre-tool",
-                "role": "work_lane",
-                "required_gaps": [],
-            },
-            "",
-        ),
+        ("block", "blocked", "actor_missing", "set ETHOS_ACTOR=owner", "set ETHOS_ACTOR=owner"),
+        ("block", "blocked", "path_uncovered", None, "ethos lane prewrite <path>"),
+        ("pass", "admitted", None, None, ""),
     ],
 )
 def test_hook_admit_projects_report_action_before_fallback(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    report: dict[str, object],
-    expected_action: str,
-) -> None:
+    tmp_path, monkeypatch, verdict, state, gap, action, expected_action
+):
+    report = {
+        "verdict": verdict,
+        "state": state,
+        "layer": "pre-tool",
+        "role": "work_lane",
+        "required_gaps": [gap] if gap else [],
+    }
+    if action is not None:
+        report["next_action"] = action
     monkeypatch.setattr(commands, "hook_admission_report", lambda **_kwargs: report)
 
     completed = run_ethos_raw(

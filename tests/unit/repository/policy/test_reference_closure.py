@@ -11,6 +11,7 @@ import pytest
 import ethos.repository.policy.references.closure as reference_closure
 from ethos.repository.policy.references.closure import repository_semantic_closure
 from tests.support.architecture import declare_reference_package
+from tests.support.architecture import declare_reference_surface
 from tests.support.architecture import write_reference_source
 
 if TYPE_CHECKING:
@@ -43,36 +44,11 @@ def _commit_current_tree(root: Path) -> None:
     _git(root, "commit", "-m", "test: retire reference owner")
 
 
-def _runtime_surface(root: Path) -> None:
-    """Declare the shared runtime boundary for reference ownership scenarios."""
-    write_reference_source(
-        root,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "runtime"
-carrier = "src/example"
-""",
-    )
-
-
 def test_repository_reference_closure_preserves_duplicate_command_owners(
     tmp_path: Path,
 ) -> None:
     """Set reduction must not hide two current owners of one command identity."""
-    write_reference_source(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "cli"
-carrier = "src/example"
-""",
-    )
+    declare_reference_surface(tmp_path, "cli", "src/example")
     declare_reference_package(tmp_path, entry_point="example.primary")
     write_reference_source(
         tmp_path,
@@ -125,7 +101,7 @@ def {function}() -> None:
 
 def test_repository_reference_closure_reports_orphan_consumers(tmp_path: Path) -> None:
     """A consumer without a native owner is one explicit orphan relation."""
-    _runtime_surface(tmp_path)
+    declare_reference_surface(tmp_path)
     declare_reference_package(tmp_path)
     write_reference_source(tmp_path, "src/example/runtime.py", "import external_sdk")
 
@@ -150,7 +126,7 @@ def test_repository_reference_closure_reports_orphan_consumers(tmp_path: Path) -
 
 def test_repository_reference_closure_rejects_deleted_path_consumers(tmp_path: Path) -> None:
     """An active carrier cannot keep consuming a path deleted after candidate."""
-    _runtime_surface(tmp_path)
+    declare_reference_surface(tmp_path)
     write_reference_source(tmp_path, "src/example/retired.py", "VALUE = 1")
     _commit_candidate_baseline(tmp_path)
     (tmp_path / "src/example/retired.py").unlink()
@@ -183,7 +159,7 @@ def test_retired_reference_audit_parses_each_carrier_once(
     retired_count: int,
 ) -> None:
     """Retirement volume cannot multiply parsing or lose exact consumers."""
-    _runtime_surface(tmp_path)
+    declare_reference_surface(tmp_path)
     retired = tuple(f"src/example/retired-{index}.txt" for index in range(retired_count))
     for path in retired:
         write_reference_source(tmp_path, path, "historical content")
@@ -229,7 +205,7 @@ def test_repository_reference_closure_does_not_treat_change_intent_as_a_live_con
     tmp_path: Path,
 ) -> None:
     """OpenSpec migration prose names old paths without consuming them."""
-    _runtime_surface(tmp_path)
+    declare_reference_surface(tmp_path)
     write_reference_source(tmp_path, "src/example/retired.py", "VALUE = 1")
     _commit_candidate_baseline(tmp_path)
     (tmp_path / "src/example/retired.py").unlink()
@@ -250,17 +226,7 @@ def test_repository_reference_closure_does_not_treat_negative_guards_as_consumer
     tmp_path: Path,
 ) -> None:
     """Policy prose and tests may prove a retired path absent without consuming it."""
-    write_reference_source(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "docs"
-carrier = "docs"
-""",
-    )
+    declare_reference_surface(tmp_path, "docs", "docs")
     write_reference_source(tmp_path, "docs/index.md", "# Duplicate documentation entrypoint")
     _commit_candidate_baseline(tmp_path)
     (tmp_path / "docs/index.md").unlink()
@@ -279,91 +245,48 @@ carrier = "docs"
     assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
 
 
-def test_repository_reference_closure_applies_active_removed_requirement(
-    tmp_path: Path,
-) -> None:
-    """An official REMOVED delta defines the current effective specification."""
-    retired_path = ".ethos" + "/commitment.toml"
-    write_reference_source(
-        tmp_path,
-        "system/surfaces.toml",
+@pytest.mark.parametrize(
+    "specification",
+    [
         """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "specs"
-carrier = "openspec/specs"
-""",
-    )
-    write_reference_source(tmp_path, retired_path, "schema_version = 1")
-    write_reference_source(
-        tmp_path,
-        "openspec/specs/repository-governance/spec.md",
-        f"""
 ## Requirements
 
 ### Requirement: Repository Commitment admission is precise and pre-effect
 
-The current tree reads `{retired_path}` before every effect.
+The current tree reads `{path}` before every effect.
 
 #### Scenario: Commitment exists
 
 - **WHEN** the carrier is present
 - **THEN** admission proceeds
 """,
-    )
-    _commit_candidate_baseline(tmp_path)
-    (tmp_path / retired_path).unlink()
-    write_reference_source(
-        tmp_path,
-        "openspec/changes/remove-commitment/specs/repository-governance/spec.md",
         """
-## REMOVED Requirements
-
-### Requirement: Repository Commitment admission is precise and pre-effect
-
-**Reason**: Official OpenSpec is the sole tracked intent.
-
-**Migration**: Compile transient acceptance from the active Change.
-""",
-    )
-    _commit_current_tree(tmp_path)
-
-    assert repository_semantic_closure(tmp_path)["verdict"] == "pass"
-
-
-def test_repository_reference_closure_does_not_treat_canonical_absence_requirement_as_consumer(
-    tmp_path: Path,
-) -> None:
-    """A canonical absence requirement is normative, not a live path use."""
-    retired_path = ".ethos" + "/commitment.toml"
-    write_reference_source(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "specs"
-carrier = "openspec/specs"
-""",
-    )
-    write_reference_source(tmp_path, retired_path, "schema_version = 1")
-    write_reference_source(
-        tmp_path,
-        "openspec/specs/repository-governance/spec.md",
-        f"""
 ## Requirements
 
 ### Requirement: Repository Commitment carrier is absent
 
-The retired `{retired_path}` path SHALL be absent.
+The retired `{path}` path SHALL be absent.
 
 #### Scenario: Retired carrier is checked
 
 - **WHEN** repository semantic closure runs
 - **THEN** the retired path remains absent
 """,
+    ],
+    ids=["active-removed", "canonical-absence"],
+)
+def test_repository_reference_closure_applies_active_removed_requirement(
+    tmp_path: Path,
+    specification: str,
+) -> None:
+    """An official REMOVED delta defines the current effective specification."""
+    retired_path = ".ethos" + "/commitment.toml"
+    declare_reference_surface(tmp_path, "specs", "openspec/specs")
+    write_reference_source(tmp_path, retired_path, "schema_version = 1")
+    write_reference_source(
+        tmp_path,
+        "openspec/specs/repository-governance/spec.md",
+        specification.format(path=retired_path),
     )
     _commit_candidate_baseline(tmp_path)
     (tmp_path / retired_path).unlink()
@@ -389,17 +312,7 @@ def test_repository_reference_closure_rejects_canonical_spec_link_to_retired_pat
     tmp_path: Path,
 ) -> None:
     """A navigable canonical-spec link remains a real path consumer."""
-    write_reference_source(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "specs"
-carrier = "openspec/specs"
-""",
-    )
+    declare_reference_surface(tmp_path, "specs", "openspec/specs")
     write_reference_source(tmp_path, "src/example/retired.py", "VALUE = 1")
     _commit_candidate_baseline(tmp_path)
     (tmp_path / "src/example/retired.py").unlink()
@@ -440,7 +353,7 @@ def test_repository_reference_closure_resolves_replaced_module_identity(
     tmp_path: Path, replacement: str
 ) -> None:
     """File retirement removes an import identity only without a current owner."""
-    _runtime_surface(tmp_path)
+    declare_reference_surface(tmp_path)
     declare_reference_package(tmp_path)
     source = (
         "src/example/legacy/__init__.py" if replacement == "collapse" else "src/example/legacy.py"
@@ -485,17 +398,7 @@ def test_repository_reference_closure_ignores_prohibited_command_examples(
     tmp_path: Path,
 ) -> None:
     """A negative requirement names a forbidden command without consuming it."""
-    write_reference_source(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "specs"
-carrier = "openspec/specs"
-""",
-    )
+    declare_reference_surface(tmp_path, "specs", "openspec/specs")
     write_reference_source(
         tmp_path,
         "openspec/specs/command-plane/spec.md",

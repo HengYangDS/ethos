@@ -50,3 +50,36 @@ information rather than trigger an automatic repeated effect.
 - **WHEN** the official client initializes, discovers tools, calls and reconnects
 - **THEN** protocol negotiation and structured results work outside the source checkout
 - **AND** repository truth survives without an MCP task database
+
+### Requirement: Adoption continuation preserves request meaning
+
+The shared adoption operation SHALL select one root-bound continuation from the
+actual request, binding plan and outcome. Preview SHALL require review before
+mutation; conflicts and stale input SHALL NOT appear as applied readiness.
+The planner SHALL NOT own a competing public next action.
+
+#### Scenario: Preview or blocked adoption is consumed by another client
+
+- **WHEN** a client receives a preview, conflict or denied adoption result
+- **THEN** the result preserves its review or recovery requirement and exact root
+- **AND** it does not direct the client to status as though adoption had succeeded
+
+#### Scenario: Adoption succeeds outside the target working directory
+
+- **WHEN** an authorized exact adoption applies successfully
+- **THEN** the next observation explicitly selects the adopted repository
+- **AND** the caller working directory does not change that selection
+
+### Requirement: Installed context enables portable Agent continuation
+
+Installed CLI, SDK, MCP and Skills SHALL expose coherent product identity,
+repository context, applicable capabilities and current continuation. Guidance
+SHALL reference native intent and policy owners and preserve authored content.
+No specific Agent, model or ETHOS checkout SHALL be required.
+
+#### Scenario: A new client takes over an admitted repository
+
+- **WHEN** a fresh client uses only the installed product and target repository
+- **THEN** it can discover intent, constraints, capabilities and the next safe action
+- **AND** execute a real admitted change, recover a failure and hand off its result
+- **AND** this acceptance is distinct from schema validation or a scripted --help check

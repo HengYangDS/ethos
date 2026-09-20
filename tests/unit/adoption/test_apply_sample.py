@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 from pathlib import Path
 
 import pytest
@@ -226,9 +227,9 @@ def test_atomic_profile_write_cleans_temporary_file_on_failure(tmp_path: Path, m
     assert list(target.parent.glob(".profile-*")) == []
 
 
-@pytest.mark.parametrize("condition", ["valid", "denied", "stale", "digest", "conflict"])
+@pytest.mark.parametrize("condition", ["valid", "denied", "stale", "digest", "conflict", "preview"])
 def test_application_adoption_preserves_admission_and_direct_result(tmp_path, capsys, condition):
-    repo = init_git_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo with spaces")
     head = git(repo, "rev-parse", "HEAD")
     if condition == "conflict":
         (repo / ".ethos").mkdir()
@@ -237,12 +238,12 @@ def test_application_adoption_preserves_admission_and_direct_result(tmp_path, ca
     assert preview.data["applied"] is False
     result = adopt_repository(
         repo,
-        apply=True,
+        apply=condition != "preview",
         authorize=condition != "denied",
         expect_head="0" * 40 if condition == "stale" else head,
         expect_plan_digest="0" * 64 if condition == "digest" else preview.data["plan_digest"],
     )
-    assert result.verdict == ("pass" if condition == "valid" else "block")
+    assert result.verdict == ("pass" if condition in {"valid", "preview"} else "block")
     assert result.data["applied"] is (condition == "valid")
     if condition == "valid":
         assert result.data["repository_id"] == preview.data["repository_id"]
@@ -252,4 +253,14 @@ def test_application_adoption_preserves_admission_and_direct_result(tmp_path, ca
         assert result.required_gaps == ("adoption_plan_digest_mismatch",)
         assert not (repo / ".ethos").exists()
     assert (repo / "openspec/config.yaml").exists() is (condition == "valid")
+    action = shlex.split(result.next_action)
+    if condition != "conflict":
+        assert action[:2] == ["ethos", "status" if condition == "valid" else "adopt"]
+        assert action[action.index("--root") + 1] == str(repo.resolve())
+    if condition == "preview":
+        assert {"--apply", "--authorize"} <= set(action)
+        assert action[action.index("--expect-head") + 1] == head
+        assert action[action.index("--expect-plan-digest") + 1] == preview.data["plan_digest"]
+    assert result.user_decision_required is (condition in {"preview", "denied", "conflict"})
+    assert "next_action" not in result.data
     assert not capsys.readouterr().out

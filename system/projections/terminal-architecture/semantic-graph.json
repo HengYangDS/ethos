@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "be3ea8d7e819728ee4377db5098326dc767e92e28a951571250d1d79883aae18"
+      "sha256": "36e44a6aad7632ec3d05892fb1225cdff3060718e98dc02fd747c79d191dccff"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -335,7 +335,7 @@
         "product_contract",
         "skills"
       ],
-      "semantics": "Replaceable domain capabilities make the full research-to-outcome path usable. One portfolio owner validates original activation, packages, routing, composition and retirement before projection. Skills never own acceptance, authority, progress or lifecycle state."
+      "semantics": "Replaceable domain capabilities make the full research-to-outcome path usable. One portfolio owner validates original activation, packages, routing, composition and retirement before projection. Skills never own acceptance, authority, progress or lifecycle state. Installed, version-matched guidance discovers current target context without requiring the ETHOS checkout or duplicating lifecycle decisions."
     },
     "owner_native_tools": {
       "kind": "capability",
@@ -798,13 +798,14 @@
     },
     "mcp_a2a": {
       "kind": "projection",
-      "maturity": "optional",
+      "maturity": "terminal",
       "label": "MCP / A2A",
       "layer": "projections",
       "required_visible": false,
       "evidence": [
         "product_contract"
-      ]
+      ],
+      "semantics": "MCP is a delivered product surface with optional activation; A2A remains optional interoperability. Both consume shared typed operations and own no repository lifecycle or authority. CLI, SDK and portable version-matched Skills expose the same context and continuation."
     },
     "ci_forge": {
       "kind": "projection",
@@ -1592,7 +1593,7 @@
       "evidence": [
         "product_contract"
       ],
-      "semantics": "Transfer owned work with exact recoverable results and fresh authority, retire only after value is accounted for, and remove owned installation/runtime projections when exiting without losing repository history."
+      "semantics": "Transfer owned work with exact recoverable results and fresh authority, retire only after value is accounted for, and remove owned installation/runtime projections when exiting without losing repository history. Product installation, exact repository selection and project toolchain are distinct. Homebrew is a required delivery channel, not a selected freezing tool. Native macOS/Linux delivery is required; Windows is desirable and independently qualified."
     }
   },
   "edges": [

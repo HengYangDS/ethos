@@ -163,6 +163,8 @@ def test_session_discovery_does_not_load_unselected_capabilities() -> None:
         ("invalid", True, True),
         ("valid", False, False),
         ("valid", True, False),
+        ("scalar", True, False),
+        ("blank", True, True),
         ("missing", True, True),
         ("deleted", False, False),
         ("deleted", True, True),
@@ -183,7 +185,13 @@ def test_config_selection_keeps_native_failures_and_ownership(
     relative = "openspec/config.yaml" if state == "external" else ".config/new-policy.yaml"
     target = root / relative
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("---\nvalue: true\n" if state == "valid" else "broken: [\n")
+    target.write_text(
+        {
+            "valid": "---\nvalue: true\n",
+            "scalar": "---\nvalue: |\n  first\n\n\n  second\n",
+            "blank": "---\nfirst: 1\n\n\nsecond: 2\n",
+        }.get(state, "broken: [\n")
+    )
     (root / ".gitignore").write_text(
         policy.relative_to(root).as_posix() + "\n" + (relative if state == "ignored" else "")
     )

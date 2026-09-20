@@ -12,6 +12,8 @@ transport from reusing behavior without importing presentation or parsing stdout
   explicit repository and actor binding, structured results and bounded failures.
 - Separate reusable host installation from repository-selected immutable supply;
   preserve current policy, exact source identity and fresh effect admission.
+- Deliver Homebrew installation and portable, version-matched Skills/context;
+  distinguish distribution channels from the package builder.
 - Prove clean installation, real client use, cross-repository isolation,
   interruption, upgrade, rollback and exit before retiring replaced runtime paths.
 

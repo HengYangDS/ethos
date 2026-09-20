@@ -6,6 +6,62 @@ Status and adoption already have mature lower-level owners, but their public
 result composition lives inside CLI handlers. Runtime materialization and
 selection still assume a Git common-directory installation.
 
+## Integrated Product Decision
+
+Product delivery follows one chain: installed capability discovery and repository
+context -> accepted OpenSpec intent -> typed application operation -> fresh
+admission -> bounded effect -> post-observation -> result and continuation.
+Research, interpretation, collaboration, delivery and actual-outcome obligations
+remain in the canonical plan; this Change supplies their usable product boundary,
+not a replacement lifecycle or a reduced compiler-only product.
+
+Three identities remain separate: the selected ETHOS product, the governed
+repository, and that repository's own build toolchain. Shared immutable supply
+may serve multiple repositories, but a host upgrade cannot silently change their
+selections or merge their mutable state. Missing selection is actionable, not
+permission to run arbitrary checkout code or an ambient interpreter.
+
+CLI, SDK, MCP and Skills are coordinated delivery surfaces. CLI renders human or
+machine results; SDK exposes typed operations; the official MCP SDK provides
+protocol/session mechanics; Skills teach discovery and safe use of those same
+operations. Installed guidance includes its product identity, applicability and
+links to the target's accepted intent, rules and current continuation. Discovery
+does not grant authorization. Preserve authored adopter guidance, including
+conflicts, instead of overwriting it with a product-owned tutorial.
+
+Native macOS and Linux delivery are required. Windows is desirable, not a
+prerequisite that delays those platforms; no native Windows claim follows from
+POSIX tests or WSL. Architecture/OS baseline, executable relocation, permissions,
+hooks, MCP, update and exit are verified per declared release target.
+
+Homebrew is a required supported installation channel, not a package-builder
+selection. Use native formula/bottle mechanics and one Homebrew installation owner;
+do not write another package manager. The Python wheel remains the SDK artifact.
+The current npm trampoline is not adequate product delivery: it delegates to
+ambient uv/Python or a checkout. Remove that path after its real consumers migrate;
+npm remains legitimate internal supply for official OpenSpec.
+
+PyInstaller is an evaluated option, not an endorsed optimum. The actual frozen
+package starts and adopts, but hook installation assumes sys.executable is a
+Python interpreter. Correct that product/interpreter boundary independently of
+builder selection. Its exploratory build also used foreign site-packages and
+emitted a deprecation warning; that build is not a qualified release recipe.
+
+Compare native Homebrew Python packaging, a portable interpreter plus wheel,
+and a frozen/native bundle against the same delivered workload. Compare complete
+dependency closure, cold/warm startup, size, hooks, MCP, SDK coexistence,
+offline operation, interruption, upgrade, rollback, signing and cleanup.
+One-file appearance, fewer Python lines and successful --help are not selection
+criteria. No tool is adopted merely because another product uses it.
+
+Existing mise/uv supply, CUE projection and quality owners remain below product
+meaning. Execution engines, CEL policy evaluation, reports and telemetry belong
+to their existing foundation/quality decisions; they must not become prerequisites
+for basic installed use or parallel policy, execution or proof authorities.
+A replacement must name deleted responsibility, preserved counterexamples,
+operational cost and migration exit. Missing evidence calls for one bounded
+comparison, not indefinite deferral or a speculative dependency stack.
+
 ## Goals / Non-Goals
 
 Provide one transport-independent application path and a real installed stdio
@@ -58,9 +114,17 @@ deployment boundaries, not prerequisites for local stdio.
 
 ## Migration Plan
 
-First extract existing operations with CLI/SDK parity and no duplicated behavior.
+First repair truthful root-bound continuation at the shared adoption owner:
+preview requires review of the exact plan; successful application selects status
+for the same root; conflicts, stale inputs and missing authorization retain their
+different recovery obligations. The binding planner returns facts, not a competing
+next action. Keep public result composition out of individual transports.
+
+Then complete extraction with CLI/SDK parity and no duplicated behavior.
 Then add the official protocol transport and real subprocess-client acceptance.
-Next migrate shared host installation and exact repository version selection,
+Next qualify the installation builder through the common package workload,
+deliver the native Homebrew channel and matched Skills/context, and migrate
+shared host installation with exact repository version selection,
 prove retained-state upgrade/rollback/exit, and only then reclaim replaced
 common-directory generations. Each accepted boundary uses normal source proof,
 current effect admission and installed readback; no dirty candidate self-activates.
@@ -123,3 +187,18 @@ Keep valid reuse cheap and preserve live-consumer-safe retirement. Acceptance
 must exercise the retained-predecessor transition, then the public repair and
 actual installed entry, rather than only a fresh installation using the new
 materializer. POSIX requirements must not silently claim Windows qualification.
+
+## Product Presentation Projection
+
+Retain the established brand mark and consumer PNG paths. Replace the stale
+poster/social workflow claims with complete terminal product meaning, explicitly
+marked design intent. SVG masters and native librsvg rendering replace opaque
+raster-only authoring; they add no product authority or application dependency.
+Inspect actual raster sizes and visible content. Existing format gates remain
+distinct from semantic, aesthetic and hosted acceptance.
+
+The adoption continuation repair has six original RED cases, 95 focused GREEN
+cases and six public subprocess CLI outcomes at the shared owner. Preview,
+missing authorization, stale HEAD, stale plan digest, conflict and applied state
+remain distinct; planner-owned next_action was removed. These source observations
+do not complete package, MCP, supported-platform or installed-client acceptance.

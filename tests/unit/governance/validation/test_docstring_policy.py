@@ -270,7 +270,8 @@ def test_docstring_report_never_passes_malformed_native_inputs(
         ('"""Explain the module."""\nvalue = 1\n', ""),
     ],
 )
-def test_native_ruff_requires_module_documentation(relative, source, expected):
+@pytest.mark.parametrize("config", ["ruff.toml", ".config/checks/ruff/ruff.toml"])
+def test_native_ruff_requires_module_documentation(relative, source, expected, config):
     """Every authored module has the same native documentation and style floor."""
     root = Path(__file__).resolve().parents[4]
     result = run_command(
@@ -280,12 +281,12 @@ def test_native_ruff_requires_module_documentation(relative, source, expected):
             "-m",
             "ruff",
             "check",
+            "--no-cache",
             "--config",
-            str(root / "ruff.toml"),
+            str(root / config),
             "--stdin-filename",
             relative,
-            "--output-format",
-            "json",
+            "--output-format=json",
             "-",
         ),
         stdin=source,

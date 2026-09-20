@@ -2646,3 +2646,20 @@ The nested policy retains the complete original bytes, including default-rule
 extension. Direct and referenced policy runs must agree on clean input, native
 default rules and custom rules. Missing and malformed references must fail;
 a nonzero scanner exit without a valid finding is not evidence of detection.
+
+Ruff keeps a native root discovery entry containing only `extend` and cache
+location; the nested policy owns all rule and formatter settings. Putting the
+relative cache path into the inherited file changes resolution between native
+discovery and explicit `--config`, so that path binding remains at the root.
+Automatic, explicit and child-directory discovery must yield identical settings,
+diagnostics and formatted bytes; missing or malformed inherited policy fails.
+No separate IDE configuration or ETHOS configuration interpreter is introduced.
+
+The installed-formatting probe exposes a separate predecessor defect:
+`_check_staged_python_format` returns without checking when the immutable
+runtime has no sibling Ruff executable. Current Ruff is a development dependency,
+not installed runtime supply. Native configuration equivalence therefore does
+not establish installed-hook enforcement. Repair must bind declared tool supply
+and report unavailable capability truthfully; do not silently use an ambient
+binary or equate a skipped check with a passed check. This remains open beyond
+the configuration relocation.

@@ -9,7 +9,11 @@ configuration plane, not a truth center.
   remaining native tool tables are not permission to duplicate policy owned
   by an explicit configuration file.
 - `.config/checks/pytest/pytest.toml` is the pytest config owner and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`. Owner scripts pass it with `-c` and `--rootdir=.`. Native `pythonpath` entries are relative to the configuration directory and explicitly resolve to the repository and its `src/`; `--rootdir` does not rebase those entries.
-- `ruff.toml` is the sole native Ruff policy owner for IDEs, hooks, CI, agents, and direct invocation. Its repository-root placement gives every per-file glob one truthful evaluation base while retaining checkout-relative runtime cache routing.
+- [The Ruff policy](checks/ruff/ruff.toml) owns lint and formatting rules. Root
+  `ruff.toml` contains only native inheritance and the repository-relative cache
+  binding; configured CLI, hook and editor consumers retain that discovery entry.
+  Native discovery parity does not prove editor integration or installed-hook
+  enforcement; the latter still needs its missing-tool behavior repaired.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
 - Root `noxfile.py` is the native discovery entry for `tools/ci/sessions.py`,
   which owns the executable Python lint proof surface inside the
@@ -91,9 +95,10 @@ Placement follows the actual consumer, not a blanket root-file exemption.
 
 - Python and npm manifests remain beside their ecosystem lockfiles at the
   workspace boundary. Native Git metadata and attributes retain their Git scope.
-- `ruff.toml` preserves bare CLI and editor discovery. Merely moving it under
-  `.config/` makes a plain Ruff invocation miss the policy; explicit invocation
-  alone does not prove editor parity.
+- `ruff.toml` preserves native discovery through `extend`. Its cache binding
+  stays root-relative because automatic discovery and explicit configuration
+  resolve inherited relative paths differently. Rules exist only in the nested
+  policy; the root entry does not copy them.
 - `noxfile.py` is a small native entrypoint, not another session implementation.
 - `.gitlab-ci.yml` is a generated provider entrypoint. Its meaning comes from
   the CUE source and native inputs, not separately authored YAML.

@@ -89,12 +89,14 @@ Hidden content and a prior PASS cannot repair an unsupported current claim.
 
 ## Root Configuration Boundary
 
-Root configuration is allowed only when the tool or substrate requires root-native
-discovery and no explicit owner path can preserve the same behavior. `pyproject.toml`
-stays package/workspace metadata. Ruff and pytest are owned explicitly by
-`ruff.toml` and `.config/checks/pytest/pytest.toml`; owner
-scripts pass those paths. Root `ruff.toml` is intentional; a second pytest or
-Ruff configuration would be a competing owner.
+Keep tool policy under its semantic configuration concern when native loading
+preserves direct, hook, CI and editor behavior. Root discovery files may contain
+native references and irreducible path bindings, never a second rule set.
+Ruff rules live in `.config/checks/ruff/ruff.toml`; root `ruff.toml` owns only
+inheritance and the repository-relative cache location. Pytest is invoked with
+its explicit `.config/checks/pytest/pytest.toml` owner. Verify relative paths
+through each native discovery mode before claiming a configuration move safe.
+Update skill package digests whenever included guidance changes.
 
 ## Learning And Failure Placement
 

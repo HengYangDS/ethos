@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from typing import cast
 
@@ -21,6 +22,21 @@ from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.literal_cases import literal_case
+
+
+def _invoke(monkeypatch, capsys, *args, exit_code=1):
+    """Capture the native public boundary without suppressing exit semantics."""
+    monkeypatch.setattr(sys, "argv", ["ethos", *args])
+    expected = (
+        pytest.raises(SystemExit, match=f"^{exit_code}$")
+        if exit_code is not None
+        else nullcontext()
+    )
+    with expected:
+        main()
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.err + captured.out
+    return json.loads(captured.out)
 
 
 @pytest.mark.parametrize(
@@ -63,76 +79,39 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> No
     assert json.loads(artifact.read_text(encoding="utf-8"))["data"] == result.data
 
 
-@pytest.mark.parametrize("command", ["status", "plan"])
-def test_invalid_profile_readercommand_names_emit_json_result(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    command: str,
-) -> None:
-    repo, _ = init_repo_with_candidate(tmp_path)
-    profile = repo / ".ethos" / "profile.toml"
-    profile.write_text(
-        'profile_id = "invalid"\n'
-        "[openspec]\n"
-        'material_paths = ["openspec/**"]\n'
-        "[roots]\n"
-        'rules = "."\n',
-        encoding="utf-8",
-    )
-    args = ["ethos", command, "--root", repo.as_posix(), "--json"]
-    monkeypatch.setattr(sys, "argv", args)
-
-    if command == "plan":
-        with pytest.raises(SystemExit, match="0"):
-            main()
-    else:
-        main()
-
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["verdict"] == "block"
-    assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
-
-
 @pytest.mark.parametrize(
-    "case",
-    cast(
-        "list[object]",
-        literal_case(
-            "cli.test_invalid_profile_boundary:parametrize:test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission:1"
+    ("command", "extra_args", "exit_code", "repository"),
+    [
+        ("status", (), None, True),
+        ("plan", (), 0, True),
+        *(
+            (command, args, 1 if enforcing else 0 if command == "land" else None, False)
+            for command, args, enforcing in literal_case(
+                "cli.test_invalid_profile_boundary:parametrize:test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission:1"
+            )
         ),
-    ),
+    ],
 )
 def test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    case: tuple[str, tuple[str, ...], bool],
-) -> None:
-    command, extra_args, enforcing = case
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
+    tmp_path, monkeypatch, capsys, command, extra_args, exit_code, repository
+):
+    root = init_repo_with_candidate(tmp_path)[0] if repository else tmp_path
+    profile = root / ".ethos/profile.toml"
+    profile.parent.mkdir(exist_ok=True)
     profile.write_text(
-        'profile_id = "invalid"\n'
-        "[openspec]\n"
-        'material_paths = ["openspec/**"]\n'
-        "[roots]\n"
-        'rules = "."\n',
-        encoding="utf-8",
+        'profile_id = "invalid"\n[openspec]\nmaterial_paths = ["openspec/**"]\n'
+        '[roots]\nrules = "."\n',
     )
-    command_args = ["ethos", command, *extra_args, "--root", tmp_path.as_posix(), "--json"]
-    monkeypatch.setattr(sys, "argv", command_args)
-
-    if enforcing:
-        with pytest.raises(SystemExit, match="1"):
-            main()
-    elif command == "land":
-        with pytest.raises(SystemExit, match="0"):
-            main()
-    else:
-        main()
-
-    payload = json.loads(capsys.readouterr().out)
+    payload = _invoke(
+        monkeypatch,
+        capsys,
+        command,
+        *extra_args,
+        "--root",
+        str(root),
+        "--json",
+        exit_code=exit_code,
+    )
     assert payload["command"] == command
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
@@ -164,18 +143,7 @@ def test_git_execution_failures_emit_structured_json_without_traceback(
         )
 
     monkeypatch.setattr("ethos.surface.cli.root.inspection.resolve_root", fail)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["ethos", "status", "--root", tmp_path.as_posix(), "--json"],
-    )
-
-    with pytest.raises(SystemExit, match="1"):
-        main()
-
-    captured = capsys.readouterr()
-    assert "Traceback" not in captured.err + captured.out
-    payload = json.loads(captured.out)
+    payload = _invoke(monkeypatch, capsys, "status", "--root", str(tmp_path), "--json")
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == [code]
     assert payload["data"]["reason"] == reason
@@ -206,12 +174,7 @@ def test_source_timeout_reaches_public_failure_without_reinstall_or_traceback(
 
     monkeypatch.setattr(runtime_authority, "expected_runtime_build", expire)
     monkeypatch.setattr(version_module, "invoking_build_identity", expire)
-    monkeypatch.setattr(sys, "argv", ["ethos", command, "--root", str(repo), "--json"])
-    with pytest.raises(SystemExit, match="1"):
-        main()
-    captured = capsys.readouterr()
-    assert "Traceback" not in captured.err + captured.out
-    payload = json.loads(captured.out)
+    payload = _invoke(monkeypatch, capsys, command, "--root", str(repo), "--json")
     assert payload["required_gaps"] == ["git_process_timed_out"]
     assert payload["data"]["observation"]["stderr"] == "waiting"
     assert payload["data"]["cwd"] == repo.as_posix()
@@ -233,10 +196,7 @@ def test_version_source_movement_is_reported_with_its_actual_root(
         )
 
     monkeypatch.setattr(version_module, "invoking_build_identity", moved)
-    monkeypatch.setattr(sys, "argv", ["ethos", "--version", "--json"])
-    with pytest.raises(SystemExit, match="1"):
-        main()
-    payload = json.loads(capsys.readouterr().out)
+    payload = _invoke(monkeypatch, capsys, "--version", "--json")
     assert payload["command"] == "version"
     assert payload["data"]["observation"]["observed_head"] == "b" * 40
     assert payload["next_action"] == f"ethos status --root {tmp_path.as_posix()} --json"
@@ -258,12 +218,7 @@ def test_process_execution_failure_emits_structured_json_without_git_classificat
         )
 
     monkeypatch.setattr(application, "load_command_groups", fail)
-    monkeypatch.setattr(sys, "argv", ["ethos", "hook", "install", "--json"])
-
-    with pytest.raises(SystemExit, match="1"):
-        main()
-
-    payload = json.loads(capsys.readouterr().out)
+    payload = _invoke(monkeypatch, capsys, "hook", "install", "--json")
     assert payload["required_gaps"] == ["native_windows_powershell_unavailable"]
     assert payload["data"] == {
         "error_boundary": "process_execution",
@@ -296,14 +251,7 @@ def test_public_boundary_normalizes_contract_failures_without_traceback(
         "load_command_groups" if phase == "registration" else "dispatch_arguments",
         fail,
     )
-    monkeypatch.setattr(sys, "argv", ["ethos", "status", "--json"])
-
-    with pytest.raises(SystemExit, match="1"):
-        main()
-
-    captured = capsys.readouterr()
-    assert "Traceback" not in captured.out + captured.err
-    payload = json.loads(captured.out)
+    payload = _invoke(monkeypatch, capsys, "status", "--json")
     assert (payload["verdict"], payload["state"], payload["continuation"]) == (
         "block",
         "gapped",

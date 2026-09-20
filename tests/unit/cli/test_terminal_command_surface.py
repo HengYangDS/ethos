@@ -180,86 +180,53 @@ def test_retired_inbox_attestations_cannot_select_coordination_state(tmp_path) -
         assert after["data"][key] == before["data"][key]
 
 
-@pytest.mark.parametrize("command", RETIRED_ROOT_COMMANDS)
-def test_retired_root_commands_are_not_registered(command: str) -> None:
-    completed = run_ethos_raw(command)
-
-    assert completed.returncode != 0
-    assert "Unknown command" in f"{completed.stdout}{completed.stderr}"
-
-
 @pytest.mark.parametrize(
     ("arguments", "native_error"),
-    cast(
-        "list[tuple[tuple[str, ...], str]]",
-        literal_case(
-            "cli.test_terminal_command_surface:parametrize:test_retired_claim_lane_surface_is_rejected_by_cyclopts:2"
-        ),
-    ),
-)
-def test_retired_claim_lane_surface_is_rejected_by_cyclopts(
-    arguments: tuple[str, ...],
-    native_error: str,
-) -> None:
-    completed = run_ethos_raw(*arguments)
-
-    assert completed.returncode != 0
-    output = f"{completed.stdout}{completed.stderr}"
-    assert native_error in output
-
-
-@pytest.mark.parametrize("command", ["decide", "apply", "inventory", "clear"])
-def test_retired_lane_resolution_surface_is_rejected_by_cyclopts(command: str) -> None:
-    completed = run_ethos_raw("lane", "resolution", command)
-
-    assert completed.returncode != 0
-    assert "Unknown command" in f"{completed.stdout}{completed.stderr}"
-
-
-@pytest.mark.parametrize(
-    "arguments",
     [
-        ("lane", "repair-identity"),
-        ("hook", "reconciliation-receipt"),
+        *(([command], "Unknown command") for command in RETIRED_ROOT_COMMANDS),
+        *cast(
+            "list[tuple[tuple[str, ...], str]]",
+            literal_case(
+                "cli.test_terminal_command_surface:parametrize:test_retired_claim_lane_surface_is_rejected_by_cyclopts:2"
+            ),
+        ),
+        *(
+            (["lane", "resolution", command], "Unknown command")
+            for command in ("decide", "apply", "inventory", "clear")
+        ),
+        (("lane", "repair-identity"), "Unknown command"),
+        (("hook", "reconciliation-receipt"), "Unknown command"),
+        (
+            (
+                "hook",
+                "pre-push",
+                "refs/heads/dev",
+                "a" * 40,
+                "--reconciliation-receipt",
+                "/tmp/retired.json",
+            ),
+            "Unknown option",
+        ),
+        (
+            (
+                "lane",
+                "archive-change",
+                "--change",
+                "sample-change",
+                "--expect-head",
+                "a" * 40,
+                "--rebuild-from",
+                "b" * 40,
+            ),
+            "Unknown option",
+        ),
     ],
 )
-def test_retired_git_object_reconstruction_commands_are_absent(
-    arguments: tuple[str, ...],
-) -> None:
+def test_retired_claim_lane_surface_is_rejected_by_cyclopts(arguments, native_error):
+    """Every retired spelling remains a distinct native parser counterexample."""
     completed = run_ethos_raw(*arguments)
-
     assert completed.returncode != 0
-    assert "Unknown command" in f"{completed.stdout}{completed.stderr}"
-
-
-def test_pre_push_rejects_retired_reconciliation_inputs() -> None:
-    completed = run_ethos_raw(
-        "hook",
-        "pre-push",
-        "refs/heads/dev",
-        "a" * 40,
-        "--reconciliation-receipt",
-        "/tmp/retired.json",
-    )
-
-    assert completed.returncode != 0
-    assert "Unknown option" in f"{completed.stdout}{completed.stderr}"
-
-
-def test_archive_change_rejects_the_retired_history_rebuild_option() -> None:
-    completed = run_ethos_raw(
-        "lane",
-        "archive-change",
-        "--change",
-        "sample-change",
-        "--expect-head",
-        "a" * 40,
-        "--rebuild-from",
-        "b" * 40,
-    )
-
-    assert completed.returncode != 0
-    assert "Unknown option" in f"{completed.stdout}{completed.stderr}"
+    assert native_error in f"{completed.stdout}{completed.stderr}"
 
 
 def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) -> None:

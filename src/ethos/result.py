@@ -61,7 +61,9 @@ class EthosResult(BaseModel):
     required_gaps: tuple[str, ...] = ()
     next_action: str = ""
     user_decision_required: bool = False
-    governance_context: JsonObject | None = None
+    governance_context: JsonObject | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     data: JsonObject = Field(default_factory=dict)
 
     @model_validator(mode="after")

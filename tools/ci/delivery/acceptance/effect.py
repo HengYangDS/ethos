@@ -259,6 +259,47 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str]:
         "assert r['verdict']=='pass' and r['package']==OFFICIAL_PACKAGE_SPEC",
         cwd=adopter,
     )
+    _run(
+        str(python),
+        "-B",
+        "-I",
+        "-c",
+        """
+import asyncio, sys
+from pathlib import Path
+from fastmcp import Client
+from fastmcp.client.transports import StdioTransport
+from ethos.domain.inspection import inspect_repository
+from ethos.domain.adoption import adopt_repository
+
+root = Path(sys.argv[2])
+transport = StdioTransport(sys.argv[1], ["mcp", "--root", str(root)], keep_alive=False)
+
+
+async def verify():
+    async with Client(transport, timeout=30) as client:
+        tools = {tool.name: tool for tool in await client.list_tools()}
+        assert set(tools) == {"status", "adopt"}
+        assert all(
+            tool.input_schema.get("additionalProperties") is False for tool in tools.values()
+        )
+        for name, operation in (("status", inspect_repository), ("adopt", adopt_repository)):
+            result = await client.call_tool(name)
+            assert result.structured_content == operation(root).to_dict()
+        rejected = await client.call_tool("adopt", {"root": str(root.parent)}, raise_on_error=False)
+        assert rejected.is_error
+    async with Client(transport, timeout=30) as client:
+        assert (await client.call_tool("status")).structured_content == inspect_repository(
+            root
+        ).to_dict()
+
+
+asyncio.run(verify())
+""",
+        str(ethos),
+        str(adopter),
+        cwd=WORK,
+    )
     return origin, version
 
 

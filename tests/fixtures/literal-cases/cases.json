@@ -473,11 +473,12 @@
           "prove",
           "land",
           "publish",
-          "adopt"
+          "adopt",
+          "mcp"
         ],
         "type": "tuple"
       },
-      "value_sha256": "72b947e9778497dbba502f2d0436a3ede5170fc24be66fe0df19bd718966214a"
+      "value_sha256": "abcceec7dbca79a8a83d1a843e7fc9d371014699cbd6274e489bb16996249d6c"
     },
     {
       "id": "cli.test_terminal_command_surface:assign:RETIRED_ROOT_COMMANDS:1",

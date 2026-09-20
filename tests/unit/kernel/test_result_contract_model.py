@@ -94,40 +94,40 @@ def test_ethos_result_projects_unknown_gaps_as_missing_facts_or_evidence() -> No
     assert result.missing_facts_or_evidence == ("facts_unavailable", "proof_missing")
 
 
-def test_ethos_result_requires_user_decision_for_authority_bearing_action() -> None:
-    result = _result(
-        command="lane housekeeping",
-        state="planned",
-        next_action="ethos lane housekeeping --authorize --apply --json",
-        user_decision_required=True,
+@pytest.mark.parametrize(
+    ("command", "state", "verdict", "gaps", "action", "decision", "expected"),
+    [
+        ("lane housekeeping", "planned", "pass", (), "housekeeping", True, "await-user"),
+        ("status", "planned", "pass", (), "housekeeping", False, "continue"),
+        (
+            "status",
+            "blocked",
+            "block",
+            ("maintainer_authority_required",),
+            "status",
+            False,
+            "blocked",
+        ),
+    ],
+)
+def test_user_decision_is_explicit_not_inferred_from_action_or_gap(
+    command, state, verdict, gaps, action, decision, expected
+):
+    action = (
+        "ethos lane housekeeping --authorize --apply --json"
+        if action == "housekeeping"
+        else "ethos status --json"
     )
-
-    assert result.user_decision_required is True
-    assert result.continuation == "await-user"
-
-
-def test_ethos_result_does_not_infer_user_decision_from_action_text() -> None:
     result = _result(
-        state="planned",
-        next_action="ethos lane housekeeping --authorize --apply --json",
-        user_decision_required=False,
+        command=command,
+        state=state,
+        verdict=verdict,
+        required_gaps=gaps,
+        next_action=action,
+        user_decision_required=decision,
     )
-
-    assert result.user_decision_required is False
-    assert result.continuation == "continue"
-
-
-def test_ethos_result_does_not_infer_user_decision_from_gap_spelling() -> None:
-    result = _result(
-        verdict="block",
-        state="blocked",
-        required_gaps=("maintainer_authority_required",),
-        next_action="ethos status --json",
-        user_decision_required=False,
-    )
-
-    assert result.user_decision_required is False
-    assert result.continuation == "blocked"
+    assert result.user_decision_required is decision
+    assert result.continuation == expected
 
 
 def test_ethos_result_round_trips_its_public_payload() -> None:
@@ -151,19 +151,14 @@ def test_ethos_result_rejects_forged_derived_payload() -> None:
         EthosResult.from_payload(payload)
 
 
-def test_ethos_result_rejects_incomplete_public_payload() -> None:
-    payload = _payload()
-    del payload["continuation"]
-
-    with pytest.raises(ValueError, match="result_payload_field_missing:continuation"):
-        EthosResult.from_payload(payload)
-
-
 @pytest.mark.parametrize(
     "field",
-    literal_case(
-        "kernel.test_result_contract_model:parametrize:test_ethos_result_rejects_truncated_wire_payload:3"
-    ),
+    [
+        "continuation",
+        *literal_case(
+            "kernel.test_result_contract_model:parametrize:test_ethos_result_rejects_truncated_wire_payload:3"
+        ),
+    ],
 )
 def test_ethos_result_rejects_truncated_wire_payload(field: str) -> None:
     payload = _payload()
@@ -239,14 +234,14 @@ def test_ethos_result_payload_is_deeply_immutable() -> None:
         data={"nested": {"value": 1}},
     )
 
-    with pytest.raises(TypeError):
-        result.summary["nested"]["value"] = 2
-    with pytest.raises(TypeError):
-        result.diagnostics[0]["details"]["value"] = 2
-    with pytest.raises(TypeError):
-        result.governance_context["authority"]["owner"] = "host"
-    with pytest.raises(TypeError):
-        result.data["nested"]["value"] = 2
+    for container, key, value in (
+        (result.summary["nested"], "value", 2),
+        (result.diagnostics[0]["details"], "value", 2),
+        (result.governance_context["authority"], "owner", "host"),
+        (result.data["nested"], "value", 2),
+    ):
+        with pytest.raises(TypeError):
+            container[key] = value
 
 
 def test_payload_budget_preserves_deep_immutability(tmp_path) -> None:

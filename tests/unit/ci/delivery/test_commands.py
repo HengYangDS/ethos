@@ -166,6 +166,8 @@ def test_installed_sdk_check_observes_without_mutating_or_authoring_intent(
     assert "archive-change" not in rendered
     assert "rebuild-from" not in rendered
     assert "Commitment" not in rendered
+    assert "from fastmcp import Client" in rendered
+    assert "StdioTransport" in rendered
 
 
 def test_independent_cli_checks_do_not_replace_a_blocked_request(

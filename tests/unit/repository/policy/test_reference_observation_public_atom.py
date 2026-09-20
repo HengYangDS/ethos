@@ -18,6 +18,7 @@ from ethos.repository.policy.references.python_syntax import cyclopts_command_ow
 from ethos.repository.policy.references.python_syntax import cyclopts_prefixes
 from ethos.repository.policy.references.python_syntax import module_name
 from tests.support.architecture import declare_reference_package
+from tests.support.architecture import declare_reference_surface
 from tests.support.architecture import write_reference_source
 
 if TYPE_CHECKING:
@@ -180,17 +181,7 @@ def test_repository_reference_closure_reports_unparseable_carrier_as_unknown(
     carrier: str,
 ) -> None:
     """A selected carrier parser failure cannot disappear as an empty observation."""
-    write_reference_source(
-        tmp_path,
-        "system/surfaces.toml",
-        f"""
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "docs"
-carrier = "{carrier}"
-""",
-    )
+    declare_reference_surface(tmp_path, "docs", carrier)
     write_reference_source(tmp_path, relative, content)
 
     if relative.endswith(".md"):
@@ -214,17 +205,7 @@ def test_repository_semantic_closure_parses_each_complete_python_carrier_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """One closure invocation shares each complete Python syntax tree."""
-    write_reference_source(
-        tmp_path,
-        "system/surfaces.toml",
-        """
-schema = "system/schemas/contracts/surfaces.schema.json"
-
-[[surface]]
-name = "cli"
-carrier = "src/example"
-""",
-    )
+    declare_reference_surface(tmp_path, "cli")
     declare_reference_package(tmp_path, entry_point="example.commands")
     command_text = (
         """

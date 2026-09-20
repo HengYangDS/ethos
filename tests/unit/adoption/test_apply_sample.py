@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.domain.adoption import adopt_repository
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.profile import load_repository_profile
 from tests.support.governed_repository import git
@@ -84,33 +85,6 @@ trust_bearing = true
     assert set(resolve_gate_policy(tmp_path).registry) == {"sample-tests", "sample-static"}
 
 
-def test_dry_run_plan_can_be_applied_without_changing_identity(tmp_path: Path) -> None:
-    plan = adoption_plan(tmp_path)
-    result = adoption_plan(
-        tmp_path,
-        apply=True,
-        expect_plan_digest=plan["plan_digest"],
-    )
-
-    assert result["repository_id"] == plan["repository_id"]
-    assert result["plan_digest"] == plan["plan_digest"]
-    profile = load_repository_profile(tmp_path)
-    assert profile.declaration is not None
-    assert profile.declaration.profile_id == tmp_path.name
-
-
-def test_apply_rejects_a_plan_digest_that_was_not_reviewed(tmp_path: Path) -> None:
-    result = adoption_plan(
-        tmp_path,
-        apply=True,
-        expect_plan_digest="0" * 64,
-    )
-
-    assert result["applied"] is False
-    assert result["required_gaps"] == ["adoption_plan_digest_mismatch"]
-    assert not (tmp_path / ".ethos").exists()
-
-
 def test_adoption_repository_identity_does_not_depend_on_checkout_path(tmp_path: Path) -> None:
     first = init_git_repo(tmp_path / "first")
     adoption_plan(first, apply=True)
@@ -141,53 +115,35 @@ def test_apply_is_idempotent_and_replaces_an_empty_binding(tmp_path: Path) -> No
     assert profile.read_text(encoding="utf-8")
 
 
-def test_existing_valid_minimal_profile_is_preserved(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text("profile_id = 'foreign'\n", encoding="utf-8")
-
+@pytest.mark.parametrize(
+    ("relative", "content"),
+    [
+        (".ethos/profile.toml", "profile_id = 'foreign'\n"),
+        ("AGENTS.md", "# Existing\n"),
+        (".gitlab-ci.yml", "stages: [test]\n"),
+        (
+            "openspec/config.yaml",
+            (
+                "schema: intent-to-proof\ncontext: preserve the adopter workflow\n"
+                "rules:\n  verification: [bind exact evidence]\n"
+            ),
+        ),
+    ],
+)
+def test_adoption_preserves_existing_authored_surfaces(tmp_path, relative, content):
+    """Neither bootstrap bindings nor unrelated authored surfaces are overwritten."""
+    target = tmp_path / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content)
     result = adoption_plan(tmp_path, apply=True)
-
     assert result["applied"] is True
     assert result["required_gaps"] == []
-    assert profile.read_text(encoding="utf-8") == "profile_id = 'foreign'\n"
-
-
-def test_existing_repository_surfaces_are_outside_bootstrap_scope(tmp_path: Path) -> None:
-    agent = tmp_path / "AGENTS.md"
-    provider = tmp_path / ".gitlab-ci.yml"
-    agent.write_text("# Existing\n", encoding="utf-8")
-    provider.write_text("stages: [test]\n", encoding="utf-8")
-
-    result = adoption_plan(tmp_path, apply=True)
-
-    assert result["applied"] is True
-    assert agent.read_text(encoding="utf-8") == "# Existing\n"
-    assert provider.read_text(encoding="utf-8") == "stages: [test]\n"
-
-
-def test_adopt_preserves_existing_custom_openspec_config(tmp_path: Path) -> None:
-    config = tmp_path / "openspec" / "config.yaml"
-    config.parent.mkdir()
-    custom = (
-        "schema: intent-to-proof\n"
-        "context: preserve the adopter workflow\n"
-        "rules:\n"
-        "  verification: [bind exact evidence]\n"
-    )
-    config.write_text(custom, encoding="utf-8")
-
-    result = adoption_plan(tmp_path, apply=True)
-
-    assert result["applied"] is True
-    assert result["required_gaps"] == []
-    assert config.read_text(encoding="utf-8") == custom
-    assert (
-        next(item for item in result["write_plan"] if item["path"] == "openspec/config.yaml")[
-            "action"
-        ]
-        == "keep_existing"
-    )
+    assert target.read_text() == content
+    if relative == "openspec/config.yaml":
+        assert (
+            next(row["action"] for row in result["write_plan"] if row["path"] == relative)
+            == "keep_existing"
+        )
 
 
 @pytest.mark.parametrize("parent_link", [False, True])
@@ -268,3 +224,32 @@ def test_atomic_profile_write_cleans_temporary_file_on_failure(tmp_path: Path, m
         adoption_plan(tmp_path, apply=True)
 
     assert list(target.parent.glob(".profile-*")) == []
+
+
+@pytest.mark.parametrize("condition", ["valid", "denied", "stale", "digest", "conflict"])
+def test_application_adoption_preserves_admission_and_direct_result(tmp_path, capsys, condition):
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    if condition == "conflict":
+        (repo / ".ethos").mkdir()
+        (repo / ".ethos/profile.toml").write_text("[invalid")
+    preview = adopt_repository(repo)
+    assert preview.data["applied"] is False
+    result = adopt_repository(
+        repo,
+        apply=True,
+        authorize=condition != "denied",
+        expect_head="0" * 40 if condition == "stale" else head,
+        expect_plan_digest="0" * 64 if condition == "digest" else preview.data["plan_digest"],
+    )
+    assert result.verdict == ("pass" if condition == "valid" else "block")
+    assert result.data["applied"] is (condition == "valid")
+    if condition == "valid":
+        assert result.data["repository_id"] == preview.data["repository_id"]
+        assert result.data["plan_digest"] == preview.data["plan_digest"]
+        assert load_repository_profile(repo).declaration.profile_id == repo.name
+    if condition == "digest":
+        assert result.required_gaps == ("adoption_plan_digest_mismatch",)
+        assert not (repo / ".ethos").exists()
+    assert (repo / "openspec/config.yaml").exists() is (condition == "valid")
+    assert not capsys.readouterr().out

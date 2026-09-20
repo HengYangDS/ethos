@@ -15,6 +15,7 @@ import pytest
 
 import tests.support.ethos_cli_runner as cli_runner
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.domain.inspection import inspect_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 from ethos.surface.cli.lane.lease import TakeoverOptions
@@ -98,7 +99,7 @@ def test_takeover_runtime_annotations_are_fully_resolvable() -> None:
 
 
 @pytest.mark.parametrize("condition", ["idle", "foreign", "candidate"])
-def test_readers_end_observation_or_select_a_real_boundary(tmp_path, condition) -> None:
+def test_readers_end_observation_or_select_a_real_boundary(tmp_path, condition, capsys) -> None:
     """Changing the reader fallback to self-observation must fail this public test."""
     if condition == "foreign":
         repo, candidate, _worktree = prepared_work_lane(tmp_path)
@@ -106,7 +107,14 @@ def test_readers_end_observation_or_select_a_real_boundary(tmp_path, condition) 
         repo, candidate = start_adopted_candidate(tmp_path)
     if condition == "candidate":
         commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
+    before = Path.cwd()
+    direct = inspect_repository(repo).to_dict()
+    assert not capsys.readouterr().out
+    assert Path.cwd() == before
     compact = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
+    assert {key: compact[key] for key in ("verdict", "required_gaps", "next_action")} == {
+        key: direct[key] for key in ("verdict", "required_gaps", "next_action")
+    }
     detail = run_ethos("lane", "status", "--root", repo.as_posix(), "--json", cwd=repo)
     if condition == "candidate":
         assert compact["next_action"].startswith("ethos land --closeout --apply --authorize ")

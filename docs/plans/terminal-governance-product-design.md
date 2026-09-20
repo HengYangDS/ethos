@@ -6879,26 +6879,28 @@ journeys, evidence reuse and sustained resource limits remain open.
 ### Current Bounded Continuation — September 20, 2026 (+08:00)
 
 Accepted source and installed runtime now bind
-`13d7ca73001f31decc61539d01e0a87df4f03455`; candidate, local dev/main and both
-remote dev refs were read back at that commit. The exact 35-gate full proof passed
-in 748.547 seconds with 4,113 passing tests, one skip and 95.027497% combined
-coverage. Previous runtime generation was retired. Remote main was deliberately
-not advanced after current hosted failures appeared.
+`cd0dd396a80e5792741a6f8c75707efcce4f708f`. Its exact 35-gate proof passed in
+720.644 seconds with 4,116 passing tests, one skip and 95.046083% combined coverage.
+It includes the native Linux launcher identity repair and faithful Windows ACL
+failure diagnostics; the Windows root cause still requires native observation.
+Remote dev remains last verified at `13d7ca730`, and remote main at `88945e447`.
+Publication of the new source is unperformed: both configured SSH identities
+were rejected, including with the existing launch agent explicitly selected.
+Do not retry unchanged credentials, prompt for passwords or infer remote state
+from local tracking refs.
 
-The current bounded work is hosted qualification at the existing native owners.
-GitLab pipeline 7606 exposes incorrect bootstrap process identity: the Linux
-launcher treats `install.sh` as a tool shim. The work-lane correction preserves
-`mise-install.sh` and has identical-byte RED/GREEN plus actual Linux cold/warm
-owner evidence. GitHub run 35488265021 separately fails Windows installation at
-trust-anchor protection; its ACL versus isolated-environment cause is not yet
-proved. Retain both failures and the build-cache warning, without relaxing trust.
+Independent work continues in the existing installed-product Change. Status and
+adoption now have one typed application owner shared by direct callers and CLI;
+preserved tests are restored and 102 source-level cases pass. Complete its source
+proof and installed qualification before claiming delivery. Then build the native
+MCP transport and independent installation along that Change's existing order.
+No second route, broker, task ledger or identity mechanism is introduced.
 
-Follow the [existing Change decision](../../openspec/changes/proof-throughput/design.md#authenticated-bootstrap-supply-and-offline-checking)
-and [toolchain finding](../research/foundations/toolchain.md#generation-is-supply-work-not-a-pure-read).
-Finish native failing-boundary diagnosis and regressions before another expensive
-exact proof; then follow fresh integration, installation and publication decisions.
-Do not rerun the unchanged failed hosted workload, create another installer/cache,
-or infer platform completion from the passing local proof.
+The [existing hosted correction](../../openspec/changes/proof-throughput/design.md#authenticated-bootstrap-supply-and-offline-checking)
+retains Linux, Windows, build-cache warning and incomplete-report obligations.
+Only credential-dependent publication is held; local implementation and acceptance
+continue. Global documentation/semantic recovery, adopter paths and ecosystem
+conformance retain their original scope.
 
 Keep product and tests independently within 50,000 ELOC, Python files within 500,
 combined coverage at least 95%, and complete successful proof within 900 seconds;

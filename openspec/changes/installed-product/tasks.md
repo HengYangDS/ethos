@@ -1,7 +1,7 @@
 ## 1. Shared Application Boundary
 
-- [ ] 1.1 Move status and adoption result composition out of CLI handlers; verify direct SDK calls and CLI results agree without stdout or working-directory effects.
-- [ ] 1.2 Preserve valid, denied, stale and conflicting adoption cases through the same shared admission owner.
+- [x] 1.1 Move status and adoption result composition out of CLI handlers; verify direct SDK calls and CLI results agree without stdout or working-directory effects.
+- [x] 1.2 Preserve valid, denied, stale and conflicting adoption cases through the same shared admission owner.
 - [ ] 1.3 Route the remaining command family through typed application operations; verify public compatibility and remove replaced CLI-local composition.
 
 ## 2. Installed MCP Transport

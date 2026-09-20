@@ -3325,6 +3325,19 @@ universally broken from the older adopter incident.
 
 #### Quality Execution And Input Closure Review
 
+Current execution direction: audit declaration-to-consumer wiring through the
+existing gate, native configuration, runtime and effect owners. Required
+coverage includes orphan declarations, missing/duplicate providers, wrong
+argument/path binding, unarmed required capability and adverse result loss.
+Use public-entry counterexamples and post-effect observations, not registration
+counts. Continue the bounded dependency-policy closure first; installed formatting
+supply remains a separate known gap. Compare mature substitutes at the existing
+[verification](../research/foundations/verification.md),
+[semantics](../research/foundations/semantics.md) and
+[extension](../research/foundations/interfaces.md) research owners, and remove
+the replaced manual path before claiming convergence. Official Change tasks
+retain execution status; this paragraph does not establish completed coverage.
+
 At `1d99b640f`, 42 additional historical paths were reviewed across policy
 compilation, source budgets, native quality sessions, artifact/evidence ownership,
 schemas, CI emulation and their tests. Every retained source hash and deletion

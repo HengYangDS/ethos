@@ -9,24 +9,17 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+import tomli_w
 
 import ethos.repository.policy.schema as schema_owner
 from ethos.adapters.process import run_command
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tools.ci import config_quality
+from tools.ci import dependency_hygiene
 from tools.ci import sessions
 
 ROOT = Path(__file__).resolve().parents[2]
-
-
-def _declared_nox_sessions() -> set[str]:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    return {
-        str(command[-1])
-        for item in declaration["gates"]
-        if (command := item.get("command", [])) and "nox" in command and "-s" in command
-    }
 
 
 def test_noxfile_is_only_a_projection_of_repository_sessions() -> None:
@@ -41,7 +34,12 @@ def test_noxfile_is_only_a_projection_of_repository_sessions() -> None:
 def test_machine_declared_nox_gates_are_implemented_by_sessions() -> None:
     public = set(sessions.PUBLIC_SESSIONS)
     assert len(public) == len(sessions.PUBLIC_SESSIONS)
-    assert _declared_nox_sessions() <= public
+    gates = tomllib.loads((ROOT / "system/gates.toml").read_text())["gates"]
+    assert {
+        command[-1]
+        for item in gates
+        if "nox" in (command := item.get("command", [])) and "-s" in command
+    } <= public
     assert all(callable(getattr(sessions, name)) for name in public)
 
 
@@ -203,3 +201,52 @@ def test_config_selection_keeps_native_failures_and_ownership(
         if fails:
             assert relative in "\n".join(failures)
             assert state != "external" or "another owner" in "\n".join(failures)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "missing",
+        "malformed",
+        {"known_first_parti": []},
+        {"root": "../outside"},
+        {"root": " "},
+        {"known_first_party": "not-a-list"},
+    ],
+)
+def test_dependency_runner_consumes_declared_policy(tmp_path, monkeypatch, fault):
+    """One executor consumes declared values and refuses invalid policy before execution."""
+    policy = tmp_path / ".config/checks/deptry/policy.toml"
+    policy.parent.mkdir(parents=True)
+    data = tomllib.loads((ROOT / policy.relative_to(tmp_path)).read_text())
+    package = data["package"][0]
+    package["known_first_party"] = ["declared_fixture", "second_fixture"]
+    package.update(fault if isinstance(fault, dict) else {})
+    if fault != "missing":
+        policy.write_text("[broken" if fault == "malformed" else tomli_w.dumps(data))
+    for name, value in {
+        "ROOT": tmp_path,
+        "OUTPUT": tmp_path / "out.json",
+        "SUMMARY": tmp_path / "summary.json",
+        "declaration_gaps": list,
+        "current_tracked_head": lambda _root: "a" * 40,
+    }.items():
+        monkeypatch.setattr(dependency_hygiene, name, value)
+    session = Mock()
+    session.run.side_effect = lambda *_args, **_kwargs: dependency_hygiene.OUTPUT.write_text("[]")
+    if fault is not None:
+        with pytest.raises((OSError, ValueError)):
+            dependency_hygiene.run(session)
+        session.run.assert_not_called()
+        return
+    dependency_hygiene.run(session)
+    session.run.assert_called_once()
+    session.error.assert_not_called()
+    args = session.run.call_args.args
+    assert [args[i + 1] for i, arg in enumerate(args) if arg == "--known-first-party"] == (
+        package["known_first_party"]
+    )
+    assert args[args.index("--package-module-name-map") + 1] == ",".join(
+        package["package_module_name_map"]
+    )

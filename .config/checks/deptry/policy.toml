@@ -7,6 +7,7 @@ id = "ethos"
 root = "src/ethos"
 config = "pyproject.toml"
 known_first_party = ["ethos", "noxfile"]
+per_rule_ignores = ["DEP002=uv"]
 package_module_name_map = [
   "cel-expr-python=cel_expr_python",
   "markdown-it-py=markdown_it",

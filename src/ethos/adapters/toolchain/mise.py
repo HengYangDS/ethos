@@ -15,6 +15,10 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
+MISE_CONFIG = ".config/mise/config.toml"
+MISE_LOCK = ".config/mise/mise.lock"
+
+
 def mise_executable(root: Path) -> Path:
     """Resolve native mise without installing or changing the operator's tool owner."""
     installed = shutil.which("mise")
@@ -34,7 +38,10 @@ def run_mise(
 ) -> subprocess.CompletedProcess[str]:
     """Run native mise over exact inputs with no project hooks or ambient config."""
     materials = (
-        {path: (root / path).read_text(encoding="utf-8") for path in ("mise.toml", "mise.lock")}
+        {
+            name: (root / path).read_text(encoding="utf-8")
+            for name, path in (("mise.toml", MISE_CONFIG), ("mise.lock", MISE_LOCK))
+        }
         if files is None
         else files
     )

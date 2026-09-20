@@ -84,12 +84,12 @@ jobs:
       - run: external-runner --check
 """,
             "openspec/changes/current/runner.yaml": "run: openspec validate --all --strict",
-            "mise.toml": '[tools]\ncue="0.17.1"\n',
+            ".config/mise/config.toml": '[tools]\ncue="0.17.1"\n',
         },
     )
 
     observation = observe_repository_references(tmp_path)
-    assert "mise.toml" in observation.files
+    assert ".config/mise/config.toml" in observation.files
     observed = product_references_from_files(observation.files)
 
     assert {"external_sdk", "extension_sdk"} <= observed["import"]
@@ -205,7 +205,7 @@ def test_native_owner_closure_uses_only_selected_existing_authorities() -> None:
         "system/surfaces.toml": '[runtime]\nexecutables=["git"]\ninputs=["ETHOS_ACTOR"]\n',
         ".config/release/supply-chain.toml": 'tool="syft"\n',
         "x.toml": 'tool="rogue-config-tool"\n',
-        "mise.toml": '[tools]\ncue="0.17.1"\n"github:rhysd/actionlint"="1.7.12"\n',
+        ".config/mise/config.toml": '[tools]\ncue="0.17.1"\n"github:rhysd/actionlint"="1.7.12"\n',
     }
     owned = native_owned_references_from_files(files)
     assert {"curl", "git", "provider-lint", "syft", "tar", "mise"} <= owned["executable"]

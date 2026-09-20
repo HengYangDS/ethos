@@ -190,15 +190,14 @@ def _native_supply(
 ) -> tuple[Callable[[], subprocess.CompletedProcess[str]], Path, Path, bytes]:
     """Run the real materializer with only the external download boundary controlled."""
     repo = tmp_path / "repo"
-    repo.mkdir()
     bins = tmp_path / "bin"
     bins.mkdir()
     system = platform.system()
     arch = "arm64" if platform.machine() in {"arm64", "aarch64"} else "x86_64"
     version = {"scc": "4.1.0", "gitleaks": "8.30.1", "syft": "1.52.0"}[tool]
-    expected = f"scc version {version}" if tool == "scc" else version
-    if tool == "syft":
-        expected = json.dumps({"version": version})
+    expected = {"scc": f"scc version {version}", "syft": json.dumps({"version": version})}.get(
+        tool, version
+    )
     body = f"#!/bin/sh\nprintf '%s\\n' '{'wrong' if fault == 'version' else expected}'\n".encode()
     if fault == "timeout":
         body = b"#!/bin/sh\nexec sleep 15\n"
@@ -216,9 +215,10 @@ def _native_supply(
         f"github:{ {'scc': 'boyter', 'gitleaks': 'gitleaks', 'syft': 'anchore'}[tool] }/{tool}"
     )
     target = f"{'macos' if system == 'Darwin' else 'linux'}-{'x64' if arch == 'x86_64' else arch}"
-    (repo / "mise.toml").write_text(f'[tools]\n"{backend}" = "{version}"\n')
+    (repo / ".config/mise").mkdir(parents=True, exist_ok=True)
+    (repo / ".config/mise/config.toml").write_text(f'[tools]\n"{backend}" = "{version}"\n')
     checksum = "0" * 64 if fault == "digest" else digest
-    (repo / "mise.lock").write_text(
+    (repo / ".config/mise/mise.lock").write_text(
         f'lockfile_version = 2\n[[tools."{backend}"]]\nversion = "{version}"\n'
         f'[tools."{backend}"."platforms.{target}"]\nchecksum = "sha256:{checksum}"\n'
         f'url = "https://github.com/fixture/{tool}/releases/download/v{version}/fixture.tar.gz"\n'
@@ -371,7 +371,8 @@ def test_native_supply_lock_timeout_preserves_prior_bytes_and_creates_no_scratch
 
 def _bootstrap_source(root: Path, script: str, version: str = "2026.9.11") -> Path:
     """Materialize one locked native input; each caller owns its mutable fixture."""
-    (root / "mise.toml").write_text(f'min_version = "{version}"\n')
+    (root / ".config/mise").mkdir(parents=True, exist_ok=True)
+    (root / ".config/mise/config.toml").write_text(f'min_version = "{version}"\n')
     installer = root / ".config/ci/mise-install.sh"
     installer.parent.mkdir(parents=True)
     installer.write_text(script)

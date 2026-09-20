@@ -2613,3 +2613,12 @@ Root configuration moves require closure over CLI, hook, IDE and CI consumers.
 A secret policy move cannot precede its hook consumer migration: the predecessor
 hook treats a missing policy as absent capability. This boundary must remain
 enforced during installation, not merely after source tests pass.
+
+Mise configuration and its lock move together to `.config/mise/config.toml`
+and `.config/mise/mise.lock`, a native discovery layout. Repository consumers
+share the existing mise adapter's path constants. Explicit CUE material inputs
+retain their declared source paths; isolated native execution may materialize
+the same bytes as `mise.toml` and `mise.lock` without creating another authority.
+No version, checksum, installation owner or tool selection changes in this move.
+Native discovery, malformed-lock rejection, exact executable selection, CUE
+output equivalence and project-hook nonexecution define the migration boundary.

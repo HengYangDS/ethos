@@ -88,7 +88,7 @@ REFERENCE_CARRIERS = (
             ("system/surfaces.toml", "surfaces"),
             (".ethos/release.toml", "release"),
             (".config/checks/ci/templates.toml", "providers"),
-            ("mise.toml", "mise"),
+            (".config/mise/config.toml", "mise"),
         ),
         entrypoints=(".config/checks/pytest/pytest.toml",),
         entrypoint_globs=(".config/ci/**/*.toml",),

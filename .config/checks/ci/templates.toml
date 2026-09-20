@@ -77,7 +77,7 @@ required_sections = ["summary", "evidence", "governance"]
 
 [compiler]
 source = ".config/ci/pipeline.cue"
-supply = { config = "mise.toml", lock = "mise.lock" }
+supply = { config = ".config/mise/config.toml", lock = ".config/mise/mise.lock" }
 inputs = { gate_registry = "system/gates.toml", node = ".config/checks/node/runtime.toml" }
 
 # Generated supply binding, not an independent source signature or version selector.

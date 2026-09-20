@@ -324,7 +324,7 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
         "output": output,
         "declaration": owner.CONFIG_RELATIVE_PATH,
         "bootstrap": ".config/ci/mise-install.sh",
-        "mise": "mise.toml",
+        "mise": config["compiler"]["supply"]["config"],
     }[target]
     if new is None:
         files.pop(relative)
@@ -374,7 +374,7 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
     ("fault", "error"),
     [
         ("none", None),
-        ("missing-lock", "mise.lock"),
+        ("missing-lock", ".config/mise/mise.lock"),
         ("version-drift", "mise_supply_unavailable"),
         ("project-hook", None),
         ("native-version", "cue_version_mismatch"),
@@ -387,11 +387,13 @@ def test_cue_compiler_consumes_exact_locked_supply(tmp_path, fault, error, ci_ma
     config, materials = ci_materials
     files, compiler = dict(materials), config["compiler"]
     if fault == "missing-lock":
-        files.pop("mise.lock")
+        files.pop(compiler["supply"]["lock"])
     elif fault in {"version-drift", "native-version"}:
-        files["mise.toml"] = files["mise.toml"].replace('cue = "0.17.1"', 'cue = "0.17.0"')
+        files[compiler["supply"]["config"]] = files[compiler["supply"]["config"]].replace(
+            'cue = "0.17.1"', 'cue = "0.17.0"'
+        )
     elif fault == "project-hook":
-        files["mise.toml"] += '\n[hooks]\nenter = "touch FORBIDDEN"\n'
+        files[compiler["supply"]["config"]] += '\n[hooks]\nenter = "touch FORBIDDEN"\n'
     executable = (
         locked_tool(ROOT, "cue") if fault in {"native-version", "providers", "compile"} else None
     )
@@ -418,7 +420,8 @@ def test_workflow_gate_uses_locked_native_tool_without_ambient_fallback(
     tmp_path, monkeypatch, fault
 ):
     """Run the real gate over a tiny workflow with a hostile ambient actionlint."""
-    for path in ("mise.toml", "mise.lock"):
+    for path in (".config/mise/config.toml", ".config/mise/mise.lock"):
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / path, tmp_path / path)
     workflow = tmp_path / ".github/workflows/ci.yml"
     workflow.parent.mkdir(parents=True)
@@ -429,9 +432,9 @@ def test_workflow_gate_uses_locked_native_tool_without_ambient_fallback(
     if fault == "syntax":
         workflow.write_text("on: push\njobs: [\n")
     elif fault == "missing-lock":
-        (tmp_path / "mise.lock").unlink()
+        (tmp_path / ".config/mise/mise.lock").unlink()
     elif fault == "version-drift":
-        config = tmp_path / "mise.toml"
+        config = tmp_path / ".config/mise/config.toml"
         config.write_text(config.read_text().replace('"1.7.12"', '"0.0.0"'))
     bins = tmp_path / "bin"
     bins.mkdir()

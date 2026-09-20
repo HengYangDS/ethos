@@ -118,5 +118,6 @@
 
 - [x] Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.
 - [x] Repair pytest configuration-relative paths and qualify native TOML through real plugin consumers.
+- [ ] Qualify native mise configuration and lock relocation through supply, CUE and installed-runtime consumers.
 - [ ] Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
 - [ ] Verify migrated configuration through focused native checks and exact-source full proof.

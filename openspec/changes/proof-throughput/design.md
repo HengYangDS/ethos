@@ -2312,6 +2312,46 @@ cases. Receipts are mise-bootstrap-real-cold-ci.json,
 mise-bootstrap-boundary-green.log and mise-reference-discovery-green.log under
 the same evidence root; none is full-proof or hosted qualification.
 
+
+#### Authenticated Bootstrap Supply And Offline Checking
+
+Native mise generation is an acquisition operation: it downloads a versioned
+installer and its Minisign signature before constructing the wrapper. Repeating
+it inside every CI-projection test made a local check depend on network delivery.
+The exact 920eb0179 proof had four 30-second generation failures. Debug replay
+confirmed both requests; the particular transport cause remains unproved.
+
+Retain the generated wrapper as the existing committed supply, not a template.
+The existing CI declaration binds its acquisition version and exact byte digest;
+mise.toml remains the requested-version owner. The native generator and shfmt
+remain the only update path. A bounded native replay reproduced the committed
+bytes after upstream signature verification; its receipt is
+`mise-bootstrap-native-authenticated-parity.json`.
+
+Ordinary validation compares the supplied version and bytes with that binding
+without networking, persistent caches or child execution. This digest is a lock,
+not an independent identity, signature or authorization proof. Joint edits of
+the lock and wrapper are supply/control changes requiring normal reviewed
+admission and new native acquisition evidence, not self-certified upstream trust.
+Existing .config/checks control-replacement admission still applies. Do not call
+this local integrity check an independent verifier.
+
+Missing, malformed, version-mismatched or altered supply is rejected before
+bootstrap execution. The installer executes a temporary copy of the exact
+validated bytes, not a later reread of the mutable source path. Existing staged
+publication, process deadline, lock and cleanup remain the effect owners.
+Native RED showed that the prior implementation executed a modified script
+before its eventual failure; the replacement rejects it without that effect.
+
+The 97-case focused run passed both native provider consumers, bootstrap faults,
+process timeout cleanup and package-command isolation. Offline cold and warm
+processes returned identical 13,932-byte material in 0.077/0.074 seconds;
+64 concurrent reads created no resources and returned the same bytes. The
+retained test fixture consolidation preserves concurrent cold population and
+subsequent warm/damage checks in one native case instead of duplicate setup.
+These measurements do not establish current full proof, installation or hosted
+publication. Receipts remain in the existing commit-integrity evidence home.
+
 The docstring raw-string migration exposed a genuine JSON-fixture escape change.
 Its native adopter configuration test failed and now passes after preserving the
 decoded input, demonstrating why AST shape and formatter green alone do not

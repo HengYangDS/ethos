@@ -14,6 +14,7 @@ import pytest
 import yaml
 
 import tools.ci.ci_projection as owner
+import tools.ci.toolchain.native as native
 from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
@@ -284,41 +285,53 @@ def test_native_projection_cli_is_deterministic_and_read_only(tmp_path):
         compile_providers(tmp_path)
 
 
+def _offline_generation(root, command, **kwargs):
+    """Allow native local compilation but reject a network-bearing generation call."""
+    if "install-script" in command:
+        message = "unexpected_network_generation"
+        raise ValueError(message)
+    return run_command(root, command, **kwargs)
+
+
 @pytest.mark.parametrize(
-    "fault",
+    ("fault", "target", "old", "new"),
     [
-        "none",
-        "drift",
-        "byte-drift",
-        "self-certified",
-        "malformed",
-        "missing",
-        "unformatted",
-        "bootstrap",
-        "missing-output",
+        ("none", "output", "", ""),
+        ("drift", "output", "name: ETHOS CI", "name: Unapproved"),
+        ("byte-drift", "output", None, "\n"),
+        ("self-certified", "output", "name: ETHOS CI", "name: Unapproved"),
+        ("malformed", "model", None, "invalid: ["),
+        ("missing", "model", None, None),
+        ("unformatted", "model", 'name: "ETHOS CI"', 'name:    "ETHOS CI"'),
+        ("bootstrap", "bootstrap", None, "#!/bin/sh\nexit 0\n"),
+        ("missing-output", "output", None, None),
+        ("bootstrap-version", "mise", "2026.9.11", "0.0.0"),
+        ("bootstrap-lock", "declaration", "sha256 =", "unsupported ="),
+        ("bootstrap-missing", "bootstrap", None, None),
+        ("bootstrap-link", "bootstrap", "", ""),
     ],
 )
 def test_cue_owner_requires_native_semantics_without_parallel_templates(
-    tmp_path, monkeypatch, capsys, fault, ci_materials
+    tmp_path, monkeypatch, capsys, fault, target, old, new, ci_materials
 ):
-    """A native CUE relation needs no YAML template and rejects forged output."""
+    """Offline native consumers reject forged projections and unbound supply."""
     config, materials = ci_materials
     files = dict(materials)
+    monkeypatch.setattr(native, "run_command", _offline_generation)
     model, output = config["compiler"]["source"], config["projection"][0]["projection"]
-    if fault in {"drift", "self-certified"}:
-        files[output] = files[output].replace("name: ETHOS CI", "name: Unapproved")
+    relative = {
+        "model": model,
+        "output": output,
+        "declaration": owner.CONFIG_RELATIVE_PATH,
+        "bootstrap": ".config/ci/mise-install.sh",
+        "mise": "mise.toml",
+    }[target]
+    if new is None:
+        files.pop(relative)
     elif fault == "byte-drift":
-        files[output] += "\n"
-    elif fault in {"bootstrap", "malformed"}:
-        relative, content = {
-            "bootstrap": (".config/ci/mise-install.sh", "#!/bin/sh\nexit 0\n"),
-            "malformed": (model, "invalid: ["),
-        }[fault]
-        files[relative] = content
-    elif fault in {"missing", "missing-output"}:
-        files.pop(model if fault == "missing" else output)
-    elif fault == "unformatted":
-        files[model] = files[model].replace('name: "ETHOS CI"', 'name:    "ETHOS CI"')
+        files[relative] += new
+    else:
+        files[relative] = files[relative].replace(old, new) if old is not None else new
     if fault == "self-certified":
         files[model] = run_command(
             ROOT,
@@ -335,17 +348,26 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
         destination = tmp_path / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(content)
+    if fault == "bootstrap-link":
+        installer = tmp_path / ".config/ci/mise-install.sh"
+        retained = tmp_path / "retained"
+        installer.rename(retained)
+        installer.symlink_to(retained)
     monkeypatch.setattr(owner, "ROOT", tmp_path)
     monkeypatch.setattr(owner, "CONFIG_PATH", tmp_path / owner.CONFIG_RELATIVE_PATH)
     assert (owner.check_templates(json_output=True) == 0) is (fault == "none")
     report = json.loads(capsys.readouterr().out)
-    if fault in {"drift", "self-certified", "bootstrap", "byte-drift"}:
+    if fault in {"drift", "self-certified", "byte-drift"} or fault.startswith("bootstrap"):
         provider = "github" if fault == "byte-drift" else "compiler"
-        reason = {
-            "bootstrap": "mise_bootstrap_drift",
-            "byte-drift": f"projection byte drift: {output}",
-        }.get(fault, "cue_projection_drift")
-        assert report["failures"] == [{"provider": provider, "reason": reason}]
+        reason = (
+            "mise_bootstrap_drift"
+            if fault.startswith("bootstrap")
+            else f"projection byte drift: {output}"
+            if fault == "byte-drift"
+            else "cue_projection_drift"
+        )
+        assert report["failures"][0] == {"provider": provider, "reason": reason}
+        assert len(report["failures"]) == (3 if fault == "bootstrap-missing" else 1)
 
 
 @pytest.mark.parametrize(

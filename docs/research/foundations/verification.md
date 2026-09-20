@@ -104,6 +104,27 @@ Receipts remain under the existing ignored evidence home as
 `authorized-reader-recovery-4dd2/`; their compact conclusions live here, not in a
 second quality-policy or feedback database.
 
+### September 20 Execution Lessons
+
+These conclusions come from the current work-lane failures and bounded replays,
+not a claim that the complete product or every verifier is qualified.
+
+| Mistaken assumption | Required correction at the existing owner | Observed limit |
+| --- | --- | --- |
+| A curated child environment excludes ambient context | Explicit replacement semantics for isolated processes; verify absent and supplied actor/Change values through a real child | The isolation repair and focused package replay passed; the current full proof remains blocked elsewhere. |
+| The selected changed files contain enough meaning for command admission | Resolve bindings against the exact postimage, including unchanged definitions and excluding deleted inputs | Public counterexamples distinguish valid aliases, new commands, changed prefixes and deleted owners; installed acceptance is pending. |
+| Flattened metadata or parser success proves preserved meaning | Retain typed mappings/lists and reject duplicate or malformed headers; make consumers propagate required relation failures | Local target existence is checked; fragment correctness, external freshness and complete retrieval quality remain unproved. |
+| More green tests or a faster failed run proves delivery | Bind source, complete proof, package, installed behavior and hosted publication separately; distinguish failed gates from dependency-blocked consumers | The latest 608.491-second attempt blocked; it is not a successful proof below the performance threshold. |
+| Writing a rule prevents recurrence | Connect the rule to the existing gate and a falsifying consumer test | README-only navigation is implemented with tracked/untracked cases, but not yet accepted or installed. |
+| A familiar formatter is the repository format owner | Read the native ownership declaration before invocation; do not reinterpret another tool's warnings as repository failures | An inappropriate Prettier run changed historical table formatting; those edits were removed and the declared Markdownlint owner passed all 1,849 selected files. |
+
+Run the smallest affected public boundary before the expensive suite. Freeze all
+identity-bearing inputs during native fixture and package execution. Reuse execution
+material only while its complete inputs and applicability remain valid; never reuse
+effect authorization. A failed repair must improve the causal model or be removed,
+not trigger an unchanged full-suite retry. Keep progress in official Change tasks,
+measured evidence in existing receipts, and reusable conclusions in their topic.
+
 ## Sources
 
 Links identify inspected documents, not blanket endorsements. Source-level and

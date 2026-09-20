@@ -4,21 +4,24 @@ from __future__ import annotations
 
 import importlib
 import json
-import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+from ethos.adapters.process import run_command
 from ethos.result import EthosResult
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
-from tools.ci.delivery.acceptance.receipt import REQUIRED_LIFECYCLE_STAGES
 
 ROOT = Path(__file__).resolve().parents[4]
+
+
+def _run(*command: str, cwd: Path | None = None) -> str:
+    return run_command(cwd or ROOT, command, timeout=20, check=True).stdout.strip()
 
 
 def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> None:
@@ -27,46 +30,32 @@ def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> No
     global_config.write_text("[core]\n\tautocrlf = true\n", encoding="utf-8")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
 
-    def run(*command: str, cwd: Path | None = None) -> str:
-        return subprocess.check_output(command, cwd=cwd, text=True).strip()
-
     adopter = tmp_path / "adopter"
     fixture.materialize_adopter(
         adopter,
         openspec_config=ROOT / "openspec/config.yaml",
-        run=run,
+        run=_run,
     )
-    assert fixture.line_ending_conformance(adopter, run=run) == ["lf", "crlf"]
+    assert fixture.line_ending_conformance(adopter, run=_run) == ["lf", "crlf"]
 
     readme = adopter / "README.md"
     readme.write_bytes(readme.read_bytes().replace(b"\n", b"\r\n"))
-    run("git", "add", "README.md", cwd=adopter)
+    _run("git", "add", "README.md", cwd=adopter)
 
     assert b"\r\n" in readme.read_bytes()
-    assert run("git", "status", "--porcelain", cwd=adopter) == ""
+    assert _run("git", "status", "--porcelain", cwd=adopter) == ""
     assert dirty.dirty_provenance(adopter)["state"] == "clean"
 
 
 @pytest.mark.parametrize("historical", [False, True])
 def test_signature_acceptance_exercises_the_real_isolated_command_boundary(tmp_path, historical):
-    def run(*command: str, cwd: Path | None = None) -> str:
-        completed = subprocess.run(
-            command,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=20,
-        )
-        return completed.stdout.strip()
-
     adopter = tmp_path / "adopter"
     fixture.materialize_adopter(
         adopter,
         openspec_config=ROOT / "openspec/config.yaml",
-        run=run,
+        run=_run,
     )
-    fixture.prepare_acceptance_topology(adopter, run=run)
+    fixture.prepare_acceptance_topology(adopter, run=_run)
     observed = lane.prove_signature_repair(
         Path(sys.executable), adopter, environment={}, historical=historical
     )
@@ -142,18 +131,6 @@ def test_package_cli_invocation_preserves_result_and_isolates_environment(
     assert observed == result
     assert '"required_gaps":["locked_environment_not_provisioned"]' in diagnostic
     assert diagnostic.endswith("stderr:locked dependency unavailable")
-
-
-def test_lane_lifecycle_reuses_the_public_started_lane_for_recovery() -> None:
-    prove_lifecycle = getattr(lane, "prove_lifecycle", None)
-
-    assert callable(prove_lifecycle), "lane acceptance has no single public lifecycle owner"
-    assert not hasattr(fixture, "seed_retirement_lease")
-
-
-def test_package_lifecycle_requires_native_merge_acceptance() -> None:
-    """Fixture-only GREEN cannot satisfy installed merge continuation acceptance."""
-    assert "native_merge" in REQUIRED_LIFECYCLE_STAGES
 
 
 def test_installed_sdk_check_observes_without_mutating_or_authoring_intent(

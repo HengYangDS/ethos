@@ -120,4 +120,5 @@
 - [x] Repair pytest configuration-relative paths and qualify native TOML through real plugin consumers.
 - [x] Qualify native mise configuration and lock relocation through supply, CUE and installed-runtime consumers.
 - [ ] Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
+- [ ] Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
 - [x] Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.

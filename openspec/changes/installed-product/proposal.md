@@ -8,7 +8,7 @@ transport from reusing behavior without importing presentation or parsing stdout
 ## What Changes
 
 - Extract existing application operations once and make CLI and SDK direct consumers.
-- Deliver the required installed stdio MCP surface using the official SDK, with
+- Deliver the required installed stdio MCP surface using FastMCP over the official SDK, with
   explicit repository and actor binding, structured results and bounded failures.
 - Separate reusable host installation from repository-selected immutable supply;
   preserve current policy, exact source identity and fresh effect admission.

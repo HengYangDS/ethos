@@ -58,6 +58,19 @@ canonical owner, render and inspect the actual output at intended display sizes.
 Preserve logo geometry unless the identity itself changes. SVG/PNG format checks
 alone do not establish semantic accuracy, visual quality or hosted publication.
 
+## Faithfulness, Clarity And Elegance
+
+Refresh meaning without redesigning the identity. Retain the poster's whitespace,
+left continuity axis and dominant aperture mark, and the social preview's
+left-mark/right-wordmark composition and quiet frame. Preserve proportions,
+typographic hierarchy and the restrained palette.
+
+Replace obsolete terms and misleading command sequences with concise current
+meaning. Do not turn either asset into a dense feature inventory. A visual
+describes terminal intent without implying shipped capability. Native format
+checks and source/output parity do not substitute for readable, faithful and
+aesthetically accepted presentation.
+
 ## Mark Rationale
 
 The mark presents three repository-grounded ideas, not a feature map:

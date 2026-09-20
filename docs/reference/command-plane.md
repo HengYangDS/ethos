@@ -34,10 +34,16 @@ ETHOS exposes exactly these public roots:
 | `ethos publish --ref <full-ref> --probe-remote --apply --authorize --expect-head <head> --json` | Derive and consume the same full-ref publication request. | Uses the same receipt-bound exact-CAS executor as explicit receipt apply. |
 | `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers. | Rechecks local trust, target obligations and refs before each peer effect; returns attested partial or unknown outcomes rather than implying cross-peer atomicity. |
 | `ethos adopt --root <repo> --json` | Plan adoption for one repository. | Applying requires explicit authorization and an expected head. |
+| `ethos mcp --root <repo>` | Serve MCP over stdio for one exact repository. | Tool calls retain native admission; launching the transport grants no authority. |
 
-The public root anchors are `status`, `plan`, `prove`, `land`, `publish`, and
-`adopt`. No reader, report, provider, or historical projection adds another
-public root.
+The workflow roots are `status`, `plan`, `prove`, `land`, `publish`, and
+`adopt`. The additional `mcp` root launches a transport, not a seventh lifecycle.
+Its first tools are status and adoption over the same typed application owners;
+it does not yet project every operation. Root and process actor bind at startup.
+Strict tool inputs cannot replace either binding. Diagnostics stay on stderr;
+stdout is reserved for the protocol. Cancellation and deadline expiry do not
+mean rollback: reobserve before retrying an effect. Synchronous work drains
+before a queued successor executes; this is not a hard filesystem timeout.
 
 `status.data.hook_runtime` is the single hook-runtime
 inspection surface. It reports installed and expected source commit/tree,

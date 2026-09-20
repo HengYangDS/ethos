@@ -97,6 +97,67 @@ The current AIGW source and installed OpenSpec package illustrate different
 delivery mechanics; neither is authority for ETHOS design or proof of a current
 hosted release.
 
+## MCP Framework Selection Evidence
+
+September 21, 2026, Asia/Shanghai: the standalone FastMCP 4.0.5 comparison used
+its real in-process client with one typed probe tool, not an ETHOS mutation.
+Eight cases compared flexible and strict modes. Undeclared root and actor
+arguments were rejected without executing the body in both modes. A string
+Boolean was coerced in flexible mode and rejected before execution in strict
+mode. Valid calls retained structured output in both modes.
+
+This refutes the inference that the official SDK MCPServer's extra-argument
+behavior also describes standalone FastMCP. The installed-product Change selects
+FastMCP strict mode instead of manual low-level callback assembly. The comparison
+does not qualify subprocess transport, cancellation, effect recovery, package
+delivery or platforms. Its 66-package isolated environment is an observed supply
+closure, not proof that every package is necessary for ETHOS deployment.
+
+Evidence remains in the existing build/evidence/quality/commit-integrity output:
+fastmcp-contract-probe.log and the owned script under the recorded mcp-sdk-scratch
+root. Official [FastMCP tool validation][fastmcp-tools] documents strict mode;
+the measured behavior, not the documentation alone, supports this choice.
+
+## MCP Adapter Implementation Observations
+
+The owned Work Lane committed FastMCP supply as e9bf7d27d and the command
+declaration/consumer correction as 2bfca40b8. The accepted checkout and installed
+runtime remain unchanged. Candidate implementation is not installed acceptance.
+
+The declaration defect was reproduced through exact prewrite and then covered
+by eight positive/negative cases. Declaration alone no longer counts as a
+consumer; a candidate declaration still cannot authorize its new consumer.
+The related admission/projection suite passed 63 tests before commit.
+
+A real stdio client now exercises discovery, strict unknown-field and Boolean
+rejection, explicit-root isolation, authorized adoption, stale request rejection
+and fresh-process reconnect. MCP plus CLI regressions passed 42 tests. Later
+focused runs cover fixture consolidation and native cancellation; their counts
+overlap and are not independent evidence totals.
+
+FastMCP's native synchronous tool timeout was measured with a 20 ms deadline
+and 100 ms body: it returned success after about 144 ms. The adapter therefore
+adds a post-drain cancellation checkpoint under the same AnyIO deadline.
+Queued requests expire without entering their bodies, active native work drains,
+and a new observation remains usable. Four MCP cases passed after this repair.
+This does not prove hard interruption of blocked filesystem calls or recovery
+from every process-kill window.
+
+Existing test fixtures were consolidated by semantic responsibility, preserving
+distinct cases and assertions rather than excluding obligations. The latest
+measurement is 46,661 product and 49,972 test ELOC; both limits are 50,000.
+Native Ruff, dependencies, import boundaries, schemas and focused typing passed.
+The direct module-layout provider passed; its host-proof wrapper rejected an
+unfrozen source/index pair, so it was not reported as executed proof.
+
+Raw outputs remain under the existing commit-integrity evidence root:
+mcp-command-owner-tests.log, mcp-command-relation-red.log,
+mcp-command-relation-green.log, mcp-stdio-integration.log,
+mcp-deadline-red.log, mcp-deadline-green.log, mcp-final-focused.log and
+mcp-native-static-gates.log. The existing installed-product tasks own remaining
+work. Full proof, accepted integration, Homebrew and platform qualification
+remain separate and unproved.
+
 ## Sources
 
 Links identify inspected documents, not blanket endorsements. Source-level and
@@ -115,3 +176,5 @@ marketing claims were not used as evidence of comparative performance.
 [brew-python]: https://docs.brew.sh/Language-Specific-Formulae
 [uv-tools]: https://docs.astral.sh/uv/concepts/tools/
 [frozen-runtime]: https://pyinstaller.org/en/stable/runtime-information.html
+
+[fastmcp-tools]: https://gofastmcp.com/servers/tools

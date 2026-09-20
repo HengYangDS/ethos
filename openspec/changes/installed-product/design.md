@@ -67,3 +67,26 @@ current effect admission and installed readback; no dirty candidate self-activat
 
 Remaining proof-throughput obligations retain their original Change. Current
 CUE local acceptance does not imply hosted qualification or complete CI reports.
+
+
+## Shared Application Boundary Evidence
+
+Status and adoption composition now belong to `ethos.domain.inspection` and
+`ethos.domain.adoption`. Their CLI handlers retain argument/root resolution and
+rendering only. Existing lower-level admission, repository and effect owners are
+unchanged; no command subprocess, second parser or alternate verdict implementation
+was added. Public source APIs require an explicit Path and return EthosResult.
+
+The preserved direct-API tests were restored after accepted runtime acquired
+context-complete command admission. The initial replay rejected the missing API
+modules. The implemented slice passes 102 related adoption/reader/invalid-profile
+cases and the native import-layer check. Direct reads do not write stdout or
+change cwd; results agree with CLI verdict, gaps and next action. Adoption covers
+valid, denied, stale, digest-mismatched and conflicting requests. Existing authored
+profile, OpenSpec, agent and Forge content remains preserved. Duplicate fixture
+setup was consolidated without deleting those distinct assertions.
+
+These are source-level results, not installed SDK, MCP, complete command-family
+or host-installation acceptance. The delivery tasks remain open. Original
+preservation material remains until the restored content is committed and its
+unique semantics verified; it is not another source of product authority.

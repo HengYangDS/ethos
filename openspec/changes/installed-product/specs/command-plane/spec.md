@@ -26,6 +26,19 @@ the existing verdict, gaps, continuation and evidence boundaries.
 - **THEN** its result is UNKNOWN with the original process evidence and an observation next action
 - **AND** it does not claim a known repository state or authorize mutation replay
 
+#### Scenario: Planning is consumed outside the CLI
+
+- **WHEN** SDK or bound MCP clients request changed-scope or explicitly selected planning
+- **THEN** they use the same current intent resolution, authority, gates and continuation as the CLI
+- **AND** result composition does not import a CLI handler, write stdout or change the caller working directory
+
+#### Scenario: An operation encounters an invalid-profile failure
+
+- **WHEN** the repository profile owner rejects an operation's configuration
+- **THEN** CLI, SDK and MCP retain the same blocking result and recovery guidance
+- **AND** a transport does not replace the known failure with a generic protocol error
+- **AND** adoption's authored-content conflicts retain their distinct operation-specific meaning
+
 ### Requirement: Installed MCP has bounded repository authority
 
 The installed product SHALL expose stdio MCP through FastMCP over the official SDK. Server
@@ -126,6 +139,7 @@ authority to execute newly declared commands in the same candidate.
 ## MODIFIED Requirements
 
 ### Requirement: Public Command Plane
+
 ETHOS SHALL keep the normal user workflow under six public commands:
 `ethos adopt`, `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 `ethos publish`. Accepted-head admission is an exact `ethos land --closeout`
@@ -134,18 +148,21 @@ The additional `ethos mcp --root <repo>` command SHALL launch a protocol transpo
 over the same application operations without creating lifecycle authority.
 
 #### Scenario: Cyclopts exposes the terminal root surface
+
 - **WHEN** the root CLI help is rendered
 - **THEN** it exposes the six workflow commands and the MCP transport launcher
 - **AND** `ethos status` is the single bounded reader
 - **AND** maintainer mechanics remain hidden or semantically namespaced
 
 #### Scenario: TransitionPlan is the single transition projection
+
 - **WHEN** `ethos plan --json` compiles the current Commitment, repository
   facts, and declared nodes
 - **THEN** it returns one deterministic `transition_plan`
 - **AND** no parallel workflow-runtime or domain-contract read model is emitted
 
 #### Scenario: Default payloads stay bounded
+
 - **WHEN** `ethos status --json` or `ethos plan --json` would exceed its declared
   default payload budget
 - **THEN** the command preserves `verdict`, `state`, `summary`, `required_gaps`,
@@ -155,6 +172,7 @@ over the same application operations without creating lifecycle authority.
 - **AND** no alternate reader command or truth source is introduced
 
 #### Scenario: a reader derives continuation
+
 - **WHEN** current authoritative facts are sufficient to select the next boundary
 - **THEN** the schema-version-`2` result preserves `state` and `required_gaps`,
   exposes one `next_action`, and derives exactly one `continuation`: `continue`,
@@ -164,6 +182,7 @@ over the same application operations without creating lifecycle authority.
 - **AND** Continuation is recomputed rather than stored as lifecycle truth
 
 #### Scenario: accepted closeout remediation is directly executable
+
 - **WHEN** accepted-head admission is blocked by missing proof, missing external
   verification, stale coordinates, or an unapplied exact effect
 - **THEN** status, plan, land, and hook projections SHALL expose the same single

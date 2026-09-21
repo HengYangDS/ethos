@@ -18,6 +18,7 @@ from mcp.types import ToolAnnotations
 
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
+from ethos.domain.plan import plan_repository
 
 
 class _BoundCalls(Middleware):
@@ -68,14 +69,20 @@ def create_server(root: Path, *, timeout_seconds: float = 180.0) -> FastMCP:
         mask_error_details=True,
         middleware=[_BoundCalls(timeout_seconds)],
     )
-    for name, operation in (("status", inspect_repository), ("adopt", adopt_repository)):
+    for name, operation in (
+        ("status", inspect_repository),
+        ("plan", plan_repository),
+        ("adopt", adopt_repository),
+    ):
         server.add_tool(
             FunctionTool.from_function(
                 partial(operation, target),
                 name=name,
                 description=operation.__doc__,
                 run_in_thread=True,
-                annotations=ToolAnnotations(read_only_hint=name == "status", open_world_hint=False),
+                annotations=ToolAnnotations(
+                    read_only_hint=name in {"status", "plan"}, open_world_hint=False
+                ),
             )
         )
     return server

@@ -1,4 +1,4 @@
-"""Preserve native execution failures as transport-independent application results."""
+"""Normalize known execution and profile failures across application transports."""
 
 from __future__ import annotations
 
@@ -10,10 +10,23 @@ from typing import TYPE_CHECKING
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+
+def profile_failure_result(command: str) -> EthosResult:
+    """Project the repository profile owner's stable failure without transport policy."""
+    return EthosResult(
+        command=command,
+        verdict="block",
+        state="gapped",
+        required_gaps=(INVALID_PROFILE_ERROR,),
+        next_action="repair .ethos/profile.toml and rerun the command",
+        data={"error_boundary": "repository_profile_validation"},
+    )
 
 
 def process_failure_result(
@@ -45,10 +58,10 @@ def process_failure_result(
     )
 
 
-def native_result[**P](
+def application_result[**P](
     command: str,
 ) -> Callable[[Callable[P, EthosResult]], Callable[P, EthosResult]]:
-    """Retain native signatures while sharing the failure boundary across transports."""
+    """Retain operation signatures while normalizing known application failures."""
 
     def decorate(
         operation: Callable[P, EthosResult],
@@ -62,6 +75,11 @@ def native_result[**P](
                 return process_failure_result(
                     command, error, root=root if isinstance(root, Path) else None
                 )
+
+            except ValueError as error:
+                if str(error) != INVALID_PROFILE_ERROR:
+                    raise
+                return profile_failure_result(command)
 
         return invoke
 

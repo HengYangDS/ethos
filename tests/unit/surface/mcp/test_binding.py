@@ -20,7 +20,7 @@ def test_bound_tools_reject_spoofing_and_preserve_results(tmp_path, monkeypatch)
     async def exercise():
         async with Client(server) as client:
             tools = {tool.name: tool for tool in await client.list_tools()}
-            assert set(tools) == {"status", "adopt"}
+            assert set(tools) == {"status", "plan", "adopt"}
             for tool in tools.values():
                 assert tool.input_schema["additionalProperties"] is False
                 assert not {"root", "actor"} & tool.input_schema.get("properties", {}).keys()

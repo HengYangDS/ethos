@@ -206,9 +206,8 @@ def test_plan_projects_the_compiled_skill_activation(
         _skill("repository-governance", path_globs=["**"], pre_reads=["AGENTS.md"]),
     )
     monkeypatch.setattr(
-        "ethos.surface.cli.root.planning.skill_portfolio_report",
+        "ethos.domain.plan.skill_portfolio_report",
         lambda _root: {"registry": registry, "required_gaps": []},
-        raising=False,
     )
 
     payload = run_ethos("plan", "--root", repo.as_posix(), "--json", cwd=repo)
@@ -260,8 +259,11 @@ undeclared = "forbidden"
 
 @pytest.mark.parametrize(
     ("old", "new", "gap"),
-    literal_case(
-        "governance.test_skill_projection:parametrize:test_skill_package_schema_owns_manifest_structure:0"
+    cast(
+        "list[tuple[str, str, str]]",
+        literal_case(
+            "governance.test_skill_projection:parametrize:test_skill_package_schema_owns_manifest_structure:0"
+        ),
     ),
 )
 def test_skill_package_schema_owns_manifest_structure(
@@ -307,7 +309,7 @@ def test_skill_novelty_requires_one_owner_per_semantic_boundary() -> None:
 def test_skill_capability_semantics_fail_closed_matrix(tmp_path: Path) -> None:
     package = tmp_path / "package"
     package.mkdir()
-    records = [
+    records: list[dict[str, object]] = [
         {"id": "mutating", "kind": "command_readonly", "command": ["ethos", "land"]},
         {"id": "unknown", "kind": "command_readonly", "command": ["external", "read"]},
         {"id": "empty", "kind": "script_readonly", "command": []},
@@ -332,7 +334,7 @@ def test_skill_capability_semantics_fail_closed_matrix(tmp_path: Path) -> None:
 
 
 def test_skill_portfolio_coverage_requires_one_active_primary_owner() -> None:
-    records = [
+    records: list[dict[str, object]] = [
         {
             "id": "first",
             "authority": "primary",
@@ -369,7 +371,7 @@ def test_skill_portfolio_coverage_requires_one_active_primary_owner() -> None:
 
 
 def test_skill_portfolio_design_reports_every_owner_collision() -> None:
-    records = [
+    records: list[dict[str, object]] = [
         {
             "id": skill_id,
             "primary_subject": "governance",
@@ -380,7 +382,7 @@ def test_skill_portfolio_design_reports_every_owner_collision() -> None:
         }
         for skill_id in ("first", "second", "third")
     ]
-    packages = [
+    packages: list[dict[str, object]] = [
         {
             "id": skill_id,
             "files": [str(index) for index in range(7)] if skill_id == "first" else [],
@@ -391,7 +393,7 @@ def test_skill_portfolio_design_reports_every_owner_collision() -> None:
 
     result = portfolio_design(records, packages)
 
-    assert set(result["required_gaps"]) == {
+    assert set(cast("list[str]", result["required_gaps"])) == {
         "skill_portfolio_primary_subject_not_routed:first",
         "skill_portfolio_package_overloaded:first:7",
         "skill_portfolio_path_glob_duplicate:src/**:first,second,third",

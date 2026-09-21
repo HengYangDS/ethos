@@ -5,14 +5,14 @@ from pathlib import Path
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.decision import request_gaps
-from ethos.domain.execution import native_result
+from ethos.domain.execution import application_result
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.result import EthosResult
 
 
-@native_result("adopt")
+@application_result("adopt")
 def adopt_repository(
     root: Path,
     *,

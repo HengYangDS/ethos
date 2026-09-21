@@ -198,33 +198,66 @@ def materialize_runtime_generation(
             python_facts=python_facts,
             locked_requirements=locked_requirements,
         )
-        _seal_runtime_payload(staging)
-        runtime_files = runtime_file_inventory(staging)
-        digest = runtime_digest(
-            wheel_sha256=artifact.sha256,
-            build=artifact.build,
-            environment=environment,
-            runtime_files=runtime_files,
-        )
-        target = runtime_root / digest
-        _finalize_runtime(staging, target, artifact, environment, runtime_files)
-        runtime_root.mkdir(parents=True, exist_ok=True)
-        if target.is_dir():
-            require_runtime_generation(target, artifact, environment)
-            return target
+        target, created = publish_runtime_generation(runtime_root, staging, artifact, environment)
         try:
-            staging.rename(target)
-        except FileExistsError:
-            require_runtime_generation(target, artifact, environment)
-        else:
-            try:
-                require_runtime_generation(target, artifact, environment, smoke=True)
-            except BaseException:
+            require_runtime_execution(target, smoke=created)
+        except BaseException:
+            if created:
                 remove_generated_tree(target, ignore_errors=True)
-                raise
+            raise
+        return target
     finally:
         remove_generated_tree(staging, ignore_errors=True)
-    return target
+
+
+def publish_runtime_generation(
+    runtime_root: Path,
+    staging: Path,
+    artifact: PackageArtifact,
+    environment: RuntimeEnvironment,
+) -> tuple[Path, bool]:
+    """Seal and atomically expose owned staged bytes without executing the candidate.
+
+    Return the exact target and whether this call created it; callers must not
+    remove a reused generation when their later executable qualification fails.
+    The caller owns staging cleanup and performs any required runtime execution
+    in its own, credential-free qualification boundary.
+    """
+    manifest = staging / "manifest.json"
+    if (
+        staging.is_symlink()
+        or not staging.is_dir()
+        or runtime_root.is_symlink()
+        or staging.parent.resolve() != runtime_root.resolve()
+        or manifest.exists()
+        or manifest.is_symlink()
+    ):
+        _fail("hook_runtime_staging_invalid")
+    _seal_runtime_payload(staging)
+    runtime_files = runtime_file_inventory(staging)
+    digest = runtime_digest(
+        wheel_sha256=artifact.sha256,
+        build=artifact.build,
+        environment=environment,
+        runtime_files=runtime_files,
+    )
+    target = runtime_root / digest
+    _finalize_runtime(staging, target, artifact, environment, runtime_files)
+    runtime_root.mkdir(parents=True, exist_ok=True)
+    if target.is_dir():
+        require_runtime_identity(target, artifact, environment)
+        return target, False
+    try:
+        staging.rename(target)
+    except FileExistsError:
+        require_runtime_identity(target, artifact, environment)
+        return target, False
+    try:
+        require_runtime_identity(target, artifact, environment)
+    except BaseException:
+        remove_generated_tree(target, ignore_errors=True)
+        raise
+    return target, True
 
 
 def _finalize_runtime(
@@ -276,15 +309,14 @@ def remove_generated_tree(path: Path, *, ignore_errors: bool = False) -> None:
             raise
 
 
-def require_runtime_generation(
+def require_runtime_identity(
     runtime: Path,
     artifact: PackageArtifact,
     environment: RuntimeEnvironment,
     *,
     expected_root: Path | None = None,
-    smoke: bool = False,
 ) -> None:
-    """Post-observe one exact immutable runtime generation."""
+    """Verify exact sealed bytes and metadata without launching their interpreter."""
     manifest = load_runtime_manifest_bytes((runtime / "manifest.json").read_bytes())
     digest = (expected_root or runtime).name
     if (
@@ -295,6 +327,10 @@ def require_runtime_generation(
         or manifest.runtime_files != runtime_file_inventory(runtime)
     ):
         _fail("hook_runtime_manifest_invalid")
+
+
+def require_runtime_execution(runtime: Path, *, smoke: bool = False) -> None:
+    """Qualify relocation and optional product behavior outside the signing boundary."""
     python = runtime_python(runtime / "python")
     facts = observe_python_facts(python)
     prefix = (runtime / "python").resolve().as_posix()

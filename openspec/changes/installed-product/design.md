@@ -383,6 +383,40 @@ References: [Apple API key scope][apple-api-scope],
 [apple-notary-workflow]: https://developer.apple.com/documentation/security/customizing-the-notarization-workflow
 [github-release-environments]: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
 
+## Native Release Envelope and Execution Boundary
+
+Native signing transforms an admitted disposable copy, never an installed
+generation or original candidate. Reuse the existing materialization and manifest
+owner to seal the changed bytes into a new identity. Do not add a signing
+manifest, credential platform or arbitrary pre-seal command callback.
+
+Select a notarizable, stapleable DMG for macOS release delivery. Retain portable
+archives for internal qualification and other platforms. ZIP cannot itself carry
+a stapled ticket for a standalone CLI; a flat installer package adds unnecessary
+installer-signing identity and installation policy. Homebrew projects the exact
+final native artifact. Submitted and stapled envelope identities differ without
+changing the sealed inner runtime.
+
+The signing domain must not run candidate Python, plugins or build commands.
+Runtime publication and identity checks inspect sealed bytes without executing
+them. Explicit runtime-execution qualification observes interpreter relocation
+and product behavior in a credential-free target. The normal builder composes
+these operations; no old combined check or generic callback remains. Publication
+reports whether a generation was created or reused, so a later execution failure
+can remove only newly created output, never a previously valid generation.
+
+An isolated 2026-09-21 probe of accepted ddc213d58 re-signed 23 Mach-O files ad hoc.
+Native verification passed; the old manifest rejected changed bytes; read-only
+DMG mounting preserved the full inventory. Original bytes remained unchanged,
+and the owned mount and temporary tree were removed. This establishes feasibility,
+not Developer ID trust, sufficient entitlements, Gatekeeper or notarization.
+
+This host deprecates hdiutil create and supports diskutil image create from.
+Select by native producer capability without redefining the product's OS floor.
+Preserve archive modes: the earlier data-filter probe changed file modes and
+failed manifest validation before signing. Use the already-qualified exact
+artifact extraction path, not relaxed manifest checks.
+
 ## Shared Installed Supply Activation
 
 Use the existing hook installation operation with an explicit runtime path to

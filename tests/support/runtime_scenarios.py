@@ -32,7 +32,6 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_identity
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import activate_runtime
-from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 
@@ -40,7 +39,6 @@ if TYPE_CHECKING:
     import pytest
 
     from ethos.adapters.repo.hook.observation import HookRuntimeBinding
-    from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _GOVERNANCE_PYTHON: Path | None = None
@@ -217,25 +215,14 @@ def materialize_runtime_case(
         package.parent.mkdir(parents=True, exist_ok=True)
         package.write_text("original\n", encoding="utf-8")
 
-    def require_runtime(
-        runtime: Path,
-        artifact: identity_transition.PackageArtifact,
-        _environment: RuntimeEnvironment,
-        **kwargs: object,
-    ) -> None:
-        expected_root = kwargs.get("expected_root")
-        assert expected_root is None or isinstance(expected_root, Path)
-        require_selected_runtime(
-            runtime,
-            expected_root=expected_root,
-            expected_build=artifact.build,
-        )
+    def require_runtime_execution(runtime: Path, *, smoke: bool) -> None:
+        """Model the lightweight fixture interpreter, not structural validation."""
         python = runtime_executable(runtime / "python", "python")
         facts = runtime_materialization.observe_python_facts(python)
         assert same_python_path(facts["executable"], python), facts
         assert same_python_path(facts["prefix"], runtime / "python"), facts
         assert same_python_identity(facts, python_facts), facts
-        if kwargs.get("smoke"):
+        if smoke:
             completed = subprocess.run(
                 (str(python), "-B", "-I", "-m", "ethos.cli", "--version"),
                 capture_output=True,
@@ -254,7 +241,7 @@ def materialize_runtime_case(
         "resolve_runtime_project": lambda _source: REPOSITORY_ROOT,
         "prepare_locked_requirements": prepare_requirements,
         "materialize_python_image": materialize_python,
-        "require_runtime_generation": require_runtime,
+        "require_runtime_execution": require_runtime_execution,
     }.items():
         monkeypatch.setattr(runtime_materialization, name, implementation)
     return repo, runtime_materialization.materialize_runtime(

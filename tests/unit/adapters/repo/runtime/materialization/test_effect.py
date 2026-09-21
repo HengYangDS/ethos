@@ -20,7 +20,6 @@ import ethos.adapters.repo.runtime.materialization.effect as materialization
 import ethos.adapters.repo.runtime.materialization.python_environment as runtime_python_environment
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.transition import PackageArtifact
@@ -215,8 +214,13 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     ):
         with monkeypatch.context() as context:
             context.setattr(materialization, name, lambda _path, value=value: value)
+            verify = (
+                partial(materialization.require_runtime_identity, target, args[4], environment)
+                if name == "runtime_file_inventory"
+                else partial(materialization.require_runtime_execution, target)
+            )
             with pytest.raises(ValueError, match=reason):
-                materialization.require_runtime_generation(target, args[4], environment)
+                verify()
 
 
 @pytest.mark.parametrize("failure", [ValueError, subprocess.TimeoutExpired, KeyboardInterrupt])
@@ -275,40 +279,49 @@ def test_runtime_generation_compares_windows_prefixes_as_paths(
             else pytest.raises(ValueError, match="hook_runtime_python_not_relocatable")
         )
         with expectation:
-            materialization.require_runtime_generation(target, args[4], args[5])
+            materialization.require_runtime_execution(target)
 
 
-@pytest.mark.parametrize("available", [False, True])
-def test_runtime_finalization_requires_python_but_not_a_console_launcher(
-    tmp_path: Path, *, available: bool
+@pytest.mark.parametrize("shape", ["missing", "present", "sealed", "symlink"])
+def test_runtime_publication_is_nonexecuting_and_requires_unbound_owned_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str
 ) -> None:
-    """Finalize only an interpreter-bearing generation and reclaim sealed output."""
+    """The signing boundary neither executes code nor changes bound or linked inputs."""
     runtime = tmp_path / "runtime"
     runtime.mkdir()
-    if available:
-        _write(materialization.runtime_python(runtime / "python"))
+    target = runtime
+    python = materialization.runtime_python(runtime / "python")
+    if shape != "missing":
+        _write(python)
+    if shape == "sealed":
+        _write(runtime / "manifest.json", b"previous identity")
+    staging = runtime
+    if shape == "symlink":
+        staging = tmp_path / "linked"
+        staging.symlink_to(runtime, target_is_directory=True)
     artifact = PackageArtifact(tmp_path / "wheel", "c" * 64, runtime_build("a" * 40, "b" * 40))
-    environment = _environment()
-    files = materialization.runtime_file_inventory(runtime)
-    target = tmp_path / runtime_digest(
-        wheel_sha256=artifact.sha256,
-        build=artifact.build,
-        environment=environment,
-        runtime_files=files,
-    )
-    expectation = (
-        nullcontext()
-        if available
-        else pytest.raises(ValueError, match="hook_runtime_python_missing")
-    )
+    for owner, name in (
+        (materialization, "observe_python_facts"),
+        (materialization.subprocess, "run"),
+    ):
+        monkeypatch.setattr(owner, name, Mock(side_effect=AssertionError("candidate executed")))
+    reason = "hook_runtime_python_missing" if shape == "missing" else "hook_runtime_staging_invalid"
+    expectation = nullcontext() if shape == "present" else pytest.raises(ValueError, match=reason)
     try:
         with expectation:
-            vars(materialization)["_finalize_runtime"](
-                runtime, target, artifact, environment, files
+            target, created = materialization.publish_runtime_generation(
+                tmp_path, staging, artifact, _environment()
             )
-        assert (runtime / "manifest.json").is_file() is available
+            assert created is True
+        assert (target / "manifest.json").is_file() is (shape in {"present", "sealed"})
+        if shape in {"sealed", "symlink"}:
+            assert python.read_bytes() == b"payload"
+            assert stat.S_IMODE(python.stat().st_mode) == 0o644
     finally:
-        materialization.remove_generated_tree(runtime, ignore_errors=True)
+        if staging.is_symlink():
+            staging.unlink()
+        for path in {runtime, target}:
+            materialization.remove_generated_tree(path, ignore_errors=True)
 
 
 @pytest.mark.parametrize(

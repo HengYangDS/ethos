@@ -16,7 +16,7 @@
 ## 3. Independent Installation
 
 - [x] 3.0 Restore the immutable POSIX console entry and verify actual installed invocation, including upgrade from a predecessor that removes it. Reject reuse of an identity-matching generation missing the required entry; preserve valid reuse, immutable old bytes and native recovery. Keep Windows entry and host dispatcher acceptance distinct.
-- [ ] 3.1 Separate host immutable supply from exact repository selection; verify two repositories reuse bytes without sharing mutable state.
+- [x] 3.1 Separate host immutable supply from exact repository selection; verify two repositories reuse bytes without sharing mutable state.
 - [ ] 3.2 Prove retained-state upgrade, interruption, rollback and live-consumer-safe uninstall outside the source checkout.
 - [ ] 3.3 Migrate existing runtime consumers and remove replaced locators/generations after exact dependency and recovery checks.
 - [ ] 3.4 Resolve the builder using native Homebrew Python, portable interpreter/wheel and frozen-bundle evidence against the same complete CLI lifecycle; record the selected implementation and rejected alternatives without blocking on optional MCP expansion.

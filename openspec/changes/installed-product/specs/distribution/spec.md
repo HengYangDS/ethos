@@ -163,6 +163,21 @@ authority or transfer another project's acceptance.
 - **AND** profile naming, shared-user ACLs and CI environment labels do not establish isolation
 - **AND** secret-free construction and unrelated verification may continue
 
+#### Scenario: Native signing is performed in a credential-capable environment
+
+- **WHEN** an admitted native candidate is prepared for signing and sealing
+- **THEN** the signer modifies only an exclusively owned disposable copy
+- **AND** the existing runtime owner binds the transformed payload to a new identity
+- **AND** structural checks do not execute candidate interpreters, plugins or build commands
+- **AND** final executable qualification occurs in a separate credential-free target
+
+#### Scenario: macOS release media is prepared
+
+- **WHEN** a native macOS candidate is delivered outside the App Store
+- **THEN** its release envelope supports native notarization and stapled ticket delivery
+- **AND** submitted and final envelope identities remain bound to the same sealed inner runtime
+- **AND** a portable archive or ad-hoc signature alone does not establish release qualification
+
 ### Requirement: Credential transitions preserve exact release evidence
 
 ETHOS SHALL distinguish code-signing identity, notarization authentication,

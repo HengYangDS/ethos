@@ -229,7 +229,7 @@ def _verify_resources(wheel: Path) -> list[str]:
     return sorted(declared.values())
 
 
-def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str]:
+def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str, dict[str, object]]:
     python, ethos = _venv_executable(smoke, "python"), _venv_executable(smoke, "ethos")
     _run(str(ethos), "--help", "--root", str(adopter), cwd=WORK)
     version = _run(str(ethos), "--version", "--root", str(adopter), cwd=WORK)
@@ -269,16 +269,18 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str]:
         "assert r['verdict']=='pass' and r['package']==OFFICIAL_PACKAGE_SPEC",
         cwd=adopter,
     )
-    _run(
-        str(python),
-        "-B",
-        "-I",
-        str(Path(__file__).with_name("mcp.py")),
-        str(ethos),
-        str(WORK),
-        cwd=WORK,
+    command_plane = json.loads(
+        _run(
+            str(python),
+            "-B",
+            "-I",
+            str(Path(__file__).with_name("mcp.py")),
+            str(ethos),
+            str(WORK),
+            cwd=WORK,
+        )
     )
-    return origin, version
+    return origin, version, command_plane
 
 
 def _activation_observation(report: Mapping[str, object]) -> dict[str, object]:
@@ -404,7 +406,7 @@ def run(
             run=_run,
         )
         line_endings = adopter_fixture.line_ending_conformance(adopter, run=_run)
-        origin, version = observe_installed_package(smoke, adopter)
+        origin, version, command_plane = observe_installed_package(smoke, adopter)
         installed_ethos = _venv_executable(smoke, "ethos")
         independent_host = observe_independent_command_plane(installed_ethos, adopter)
         _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
@@ -445,6 +447,7 @@ def run(
             version=version,
             line_endings=line_endings,
             independent_host=independent_host,
+            command_plane=command_plane,
             resources=resources,
             runtime_lifecycle=lifecycle,
             generated_at=datetime.now(UTC),

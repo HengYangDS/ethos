@@ -34,6 +34,7 @@ def package_acceptance_evidence(
     version: str,
     line_endings: list[str],
     independent_host: Mapping[str, object],
+    command_plane: Mapping[str, object],
     resources: list[str],
     runtime_lifecycle: Mapping[str, Mapping[str, object]],
     generated_at: datetime,
@@ -43,6 +44,9 @@ def package_acceptance_evidence(
     passed = all(stage.get("state") == "passed" for stage in runtime_lifecycle.values())
     if stages != REQUIRED_LIFECYCLE_STAGES or not passed:
         message = "package_runtime_lifecycle_incomplete"
+        raise ValueError(message)
+    if command_plane.get("state") != "passed":
+        message = "package_command_plane_incomplete"
         raise ValueError(message)
     try:
         wheel_path = wheel.relative_to(root).as_posix()
@@ -63,6 +67,7 @@ def package_acceptance_evidence(
             "line_endings": line_endings,
         },
         "conformance": {
+            "command_plane": dict(command_plane),
             "subprocess_json": True,
             "host_product_independence": dict(independent_host),
             "python_sdk": True,

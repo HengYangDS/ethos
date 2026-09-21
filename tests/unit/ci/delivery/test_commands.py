@@ -149,6 +149,8 @@ def test_installed_observation_runs_shared_isolated_conformance(
             return (smoke / "site-packages/ethos/__init__.py").as_posix()
         if "status" in command:
             return "{}"
+        if len(command) > 3 and Path(command[3]).name == "mcp.py":
+            return '{"state":"passed","native_git_loss":"not_qualified"}'
         return ""
 
     monkeypatch.setattr(effect, "_run", run)
@@ -161,6 +163,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
     assert effect.observe_installed_package(smoke, adopter) == (
         (smoke / "site-packages/ethos/__init__.py").as_posix(),
         "ethos 0.2.0-alpha.3",
+        {"state": "passed", "native_git_loss": "not_qualified"},
     )
     rendered = "\n".join(" ".join(command) for command in executed)
     assert "archive-change" not in rendered

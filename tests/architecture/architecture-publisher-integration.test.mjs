@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -83,4 +85,28 @@ test("the migration baseline binds exact Publisher and ETHOS inputs", () => {
       "Exact migration inputs only; no generated artifact, acceptance, publication, or off-host recovery claim.",
   });
   assert.equal(sha256(join(INTEGRATION, "package.json")), baseline.publisher.packageSha256);
+});
+
+test("the optional package contains only its declared source-owned delivery", (t) => {
+  const cache = mkdtempSync(join(tmpdir(), "ethos-architecture-publisher-npm-"));
+  t.after(() => rmSync(cache, { recursive: true, force: true }));
+  const result = spawnSync("npm", ["pack", "--dry-run", "--json", INTEGRATION], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, npm_config_cache: cache, npm_config_update_notifier: "false" },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const [packed] = JSON.parse(result.stdout);
+  const files = packed.files.map(({ path }) => path);
+
+  assert.equal(packed.id, "@architecture-publisher/ethos@0.2.0-alpha.0");
+  assert.equal(files.includes("package.json"), true);
+  assert.equal(files.includes("README.md"), true);
+  assert.equal(files.includes("src/runtime.mjs"), true);
+  assert.equal(files.includes("src/edition/authoring/edition.json"), true);
+  assert.equal(files.includes("migration-baseline.json"), false);
+  assert.equal(
+    files.some((path) => path.startsWith("tests/")),
+    false,
+  );
 });

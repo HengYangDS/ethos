@@ -6,7 +6,7 @@
 ## 2. Source-owned package
 
 - [x] 2.1 Create `integrations/architecture-publisher` as the sole mutable `@architecture-publisher/ethos` package and migrate the adapter, Edition, renderer inputs, and bounded source-owned assets without compatibility wrappers.
-- [ ] 2.2 Integrate the package's JavaScript, JSON, Markdown, dependency, secret, and package checks into existing ETHOS quality owners without a second registry or command plane.
+- [x] 2.2 Integrate the package's JavaScript, JSON, Markdown, dependency, secret, and package checks into existing ETHOS quality owners without a second registry or command plane.
 - [ ] 2.3 Add source-repository tests for projection intake, complete semantic preservation, Edition construction, Candidate preparation, static and interactive generation, qualification boundaries, and rejection of implicit repository or authority inputs.
 
 ## 3. Portable parity and handoff

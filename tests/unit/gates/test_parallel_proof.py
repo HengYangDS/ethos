@@ -18,13 +18,34 @@ from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
-from ethos.repository.policy.gates import gate_execution_identity
+from ethos.repository.policy.gates import ResolvedGatePolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def _proof_plan(repo, nodes, policy=None):
+    """Bind a test graph to its actual immutable repository subject."""
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+    commitment = commitment_fixture(id="repository:test", acceptance=("acceptance:fixture",))
+    return compile_plan(
+        commitment,
+        Facts(
+            repository=commitment.id,
+            head=git(repo, "rev-parse", "HEAD"),
+            tree=tree,
+            observed_at=datetime.now(UTC),
+            values={
+                "execution_source": {"worktree": tree, "index": tree},
+                **({"gate_ids": tuple(node.id for node in nodes)} if policy else {}),
+            },
+        ),
+        nodes,
+        policy=policy.projection if policy else {},
+    )
 
 
 @pytest.mark.parametrize("parallel", [False, True])
@@ -82,22 +103,8 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    head = git(repo, "rev-parse", "HEAD")
-    tree = git(repo, "rev-parse", "HEAD^{tree}")
     nodes = tuple(PlanNode(id=node_id, kind="check", command=(node_id,)) for node_id in ("a", "b"))
-    commitment = commitment_fixture(id="repository:test", acceptance=("acceptance:fixture",))
-    plan = compile_plan(
-        commitment,
-        Facts(
-            repository=commitment.id,
-            head=head,
-            tree=tree,
-            observed_at=datetime.now(UTC),
-            values={"execution_source": {"worktree": tree, "index": tree}},
-        ),
-        nodes,
-        policy={},
-    )
+    plan = _proof_plan(repo, nodes)
     registry = {
         node.id: Gate(
             id=node.id,
@@ -110,15 +117,15 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
     }
     barrier = threading.Barrier(2)
 
-    policy = SimpleNamespace(registry=registry)
-
     class Runner:
         def run(self, node, _gate, *, root: Path):
             root.resolve(strict=True)
             barrier.wait(timeout=2)
             return ActionRunResult(node.id, node.command, "pass", 0)
 
-    monkeypatch.setattr(proof_cli, "resolve_gate_policy", lambda *_a, **_k: policy)
+    monkeypatch.setattr(
+        proof_cli, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
+    )
     monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
 
     checks, passed = proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
@@ -163,6 +170,10 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> 
 
 @pytest.mark.parametrize("verdict", ["block", "unknown"])
 @pytest.mark.parametrize(
+    ("execution_kind", "postexecution_dependency"),
+    [("test", "unit-architecture"), ("package", "coverage-floor")],
+)
+@pytest.mark.parametrize(
     "readiness_gate",
     [
         gate.id
@@ -171,32 +182,23 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> 
     ],
 )
 def test_public_proof_stops_heavy_work_after_readiness_failure(
-    monkeypatch, tmp_path, verdict, readiness_gate
+    monkeypatch, tmp_path, verdict, readiness_gate, execution_kind, postexecution_dependency
 ):
-    """A real registry edge must stop the public proof transport before testing."""
+    """Selected source failures stop public proof without expanding its scope."""
     repo = init_git_repo(tmp_path / "repo")
-    tree = git(repo, "rev-parse", "HEAD^{tree}")
-    selected = load_gate_registry_declaration().proof_gates(full=True)
+    declaration = load_gate_registry_declaration()
+    selected = tuple(
+        gate.model_copy(update={"kind": execution_kind})
+        if gate.id == "unit-architecture"
+        else gate.model_copy(update={"depends_on": (postexecution_dependency,)})
+        if gate.id == "generated-artifacts"
+        else gate
+        for gate in declaration.proof_gates(full=True)
+    )
     registry = {gate.id: gate for gate in selected}
-    nodes = tuple(
-        PlanNode(id=g.id, kind="check", command=gate_execution_identity(g), depends_on=g.depends_on)
-        for g in selected
-    )
-    commitment = commitment_fixture(
-        id="repository:readiness", acceptance=("no-heavy-after-failure",)
-    )
-    plan = compile_plan(
-        commitment,
-        Facts(
-            repository=commitment.id,
-            head=git(repo, "rev-parse", "HEAD"),
-            tree=tree,
-            observed_at=datetime.now(UTC),
-            values={"execution_source": {"worktree": tree, "index": tree}},
-        ),
-        nodes,
-        policy={},
-    )
+    policy = ResolvedGatePolicy(declaration, None, selected)
+    nodes = policy.nodes
+    plan = _proof_plan(repo, nodes, policy)
     executed = []
 
     class Runner(gate_runner.LocalGateRunner):
@@ -211,9 +213,7 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
                 1 if node.id == readiness_gate else 0,
             )
 
-    monkeypatch.setattr(
-        proof_cli, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
-    )
+    monkeypatch.setattr(proof_cli, "resolve_gate_policy", lambda *_a, **_k: policy)
     monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
     checks, passed = proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
     assert passed is False
@@ -230,7 +230,7 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
         f"gate_dependency_not_proven:{readiness_gate}" in tests["diagnostics"][0]["required_gaps"]
     )
     assert registry["generated-artifacts"].providers == registry["repository-audit"].providers[1:]
-    assert "unit-architecture" in registry["generated-artifacts"].depends_on
+    assert registry["generated-artifacts"].depends_on == (postexecution_dependency,)
 
 
 def test_ready_writer_waits_for_running_reader_and_precedes_queued_reader(tmp_path, monkeypatch):

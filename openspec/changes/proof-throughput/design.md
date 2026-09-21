@@ -1210,6 +1210,16 @@ before the final cheap preflight; prior observations do not cover newly tracked
 inputs. The registry/public-proof regressions verify the edge and retained
 failure cause without adding a second scheduler or a fake data dependency.
 
+Gate selection and selected-check ordering are distinct. Keep genuine
+`depends_on` prerequisites in the declaration. The existing graph executor
+derives scheduling prerequisites only within that selected closure: `test` and `package`
+entrypoints wait for source-side checks; their transitive consumers remain
+post-execution. These execution-order edges neither rewrite the proof policy
+nor expand gate selection. No gate-name exception, network override, new field or second
+registry is needed. Default/focused offline selection stays offline, while full
+proof and delivery retain online security. Exercise the real policy projection,
+plan validation and public proof transport together, not a substitute graph.
+
 Coverage was 94.954 percent, with 35 additional missed observations concentrated
 in unchanged runtime materialization. A fixed two-case `pytest -n 1` replay
 reproduced the cause: the supply fixture rewrote the live module's `__file__`,

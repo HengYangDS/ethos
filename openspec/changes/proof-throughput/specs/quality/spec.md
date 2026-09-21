@@ -58,11 +58,29 @@ diagnostic, and allow the surviving gate owner to reclaim owned test scratch.
 
 ### Requirement: Verification preparation preserves its measured subject
 
-ETHOS SHALL complete required source-side checks before behavior tests or
-delivery, including carrier ownership, repository/product boundaries, docs,
+ETHOS SHALL complete the selected proof's required source-side checks before
+behavior tests or delivery, including carrier ownership, repository/product boundaries, docs,
 dependencies, formats and secrets. Test preparation SHALL preserve executing-module
 identity across workers so coverage remains attributable. Initial generated-artifact
 drift SHALL block expensive work; the same owner SHALL check post-execution drift again.
+
+#### Scenario: Focused offline verification is selected
+
+- **WHEN** the caller selects offline tests or the offline default proof
+- **THEN** readiness ordering does not select otherwise unrequested online checks
+- **AND** full proof and delivery retain their declared security requirements
+
+#### Scenario: A selected online source check fails
+
+- **WHEN** the selected proof includes an online source check that fails or is unknown
+- **THEN** dependent behavior and delivery do not execute
+- **AND** their results retain the failed prerequisite rather than claiming execution
+
+#### Scenario: A source observer depends on executed behavior
+
+- **WHEN** an observation transitively consumes test or package results
+- **THEN** it remains downstream and does not become its own prerequisite
+- **AND** a passing selected graph remains executable without additional gates
 
 #### Scenario: A native adapter has no admitted carrier home
 

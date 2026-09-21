@@ -34,6 +34,12 @@ only explicit paths and digests. Repository-relative paths are permitted only in
 authoring and tests before packaging; installed execution receives portable
 inputs.
 
+Installed conformance resolves exported package specifiers through Node rather
+than importing internal source-file URLs as public entrypoints. Candidate and
+sibling-media delivery consume the existing input-file APIs; intermediate model
+comparisons remain explicitly white-box. A missing export target must reject
+installation qualification even when its former internal implementation exists.
+
 ## Physical ownership
 
 ```text
@@ -44,7 +50,9 @@ integrations/architecture-publisher/
     adapter/
     edition/
     runtime.mjs
-  tests/
+tests/architecture/
+  architecture-publisher-integration.test.mjs
+  architecture-publisher-installed.test.mjs
 ```
 
 The existing `system/projections/terminal-architecture` remains the source

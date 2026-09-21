@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -86,18 +87,17 @@ async function installPackages(
   assert.equal(installed.status, 0, installed.stderr);
   const coreRoot = path.join(project, "node_modules", "architecture-publisher");
   const integrationRoot = path.join(project, "node_modules", "@architecture-publisher", "ethos");
+  const resolvePackage = createRequire(path.join(project, "package.json")).resolve;
+  const importPublic = async (specifier) => import(pathToFileURL(resolvePackage(specifier)).href);
   return {
     project,
     coreRoot,
     integrationRoot,
-    sourceApi: await import(pathToFileURL(path.join(coreRoot, "src", "source", "index.mjs")).href),
-    adapter: await import(
-      pathToFileURL(path.join(integrationRoot, "src", "adapter", "index.mjs")).href
-    ),
-    edition: await import(
-      pathToFileURL(path.join(integrationRoot, "src", "edition", "index.mjs")).href
-    ),
-    runtime: await import(pathToFileURL(path.join(integrationRoot, "src", "runtime.mjs")).href),
+    importPublic,
+    sourceApi: await importPublic("architecture-publisher/source"),
+    adapter: await importPublic("@architecture-publisher/ethos/adapter"),
+    edition: await importPublic("@architecture-publisher/ethos/edition"),
+    runtime: await importPublic("@architecture-publisher/ethos/runtime"),
   };
 }
 
@@ -217,8 +217,11 @@ function fixture() {
 }
 
 test("independently packed integration consumes explicit projection input offline", async (t) => {
-  const { project, integrationRoot, sourceApi, adapter, edition, runtime } =
+  const { project, integrationRoot, sourceApi, adapter, edition, runtime, importPublic } =
     await installPackages(t);
+  await assert.rejects(importPublic("@architecture-publisher/ethos/src/adapter/index.mjs"), {
+    code: "ERR_PACKAGE_PATH_NOT_EXPORTED",
+  });
   const value = fixture();
   const written = await sourceApi.writeSourceBundle(
     path.join(project, "source-bundle"),
@@ -288,27 +291,21 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
       "utf8",
     ),
   );
-  const { project, coreRoot, integrationRoot, sourceApi, adapter } = await installPackages(t);
-  const svgApi = await import(
-    pathToFileURL(path.join(coreRoot, "renderers", "svg", "index.mjs")).href
-  );
-  const qualificationApi = await import(
-    pathToFileURL(path.join(coreRoot, "src", "qualification", "index.mjs")).href
-  );
+  const { project, coreRoot, integrationRoot, sourceApi, adapter, edition, importPublic } =
+    await installPackages(t);
+  const svgApi = await importPublic("architecture-publisher/renderers/svg");
+  const qualificationApi = await importPublic("architecture-publisher/qualification");
+  const callInput = async (operation, plan) => {
+    const file = path.join(project, `${path.basename(plan.output)}.input.json`);
+    await fs.writeFile(file, JSON.stringify(plan));
+    return edition[operation](file);
+  };
+  // Intermediate-model comparisons are white-box; delivery effects use the public entry below.
   const atlas = await import(
     pathToFileURL(path.join(integrationRoot, "src", "edition", "atlas.mjs")).href
   );
   const evolutionApi = await import(
     pathToFileURL(path.join(integrationRoot, "src", "edition", "evolution.mjs")).href
-  );
-  const candidateApi = await import(
-    pathToFileURL(path.join(integrationRoot, "src", "edition", "candidate.mjs")).href
-  );
-  const posterApi = await import(
-    pathToFileURL(path.join(integrationRoot, "src", "edition", "poster.mjs")).href
-  );
-  const standaloneApi = await import(
-    pathToFileURL(path.join(integrationRoot, "src", "edition", "standalone.mjs")).href
   );
   const naturalOverviewApi = await import(
     pathToFileURL(path.join(integrationRoot, "src", "edition", "static", "natural-overview.mjs"))
@@ -401,7 +398,7 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
   assert.equal(evolution.obligations.publication[0].action, "replace");
 
   const authoring = path.join(integrationRoot, "src", "edition", "refresh.json");
-  const prepared = await candidateApi.prepareEthosCandidate({
+  const prepared = await callInput("prepareEthosCandidateInput", {
     previous: {
       sourceManifest: beforeImport.manifestPath,
       sourceSha256: beforeImport.manifestSha256,
@@ -424,13 +421,13 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
   assert.deepEqual(prepared.evolution.ethos.changed, evolution.ethos.changed);
   assert.equal((await atlas.readEthosAtlasSelection(prepared.atlas)).pages.length, 13);
 
-  const renderedAtlas = await atlas.renderEthosAtlas({
+  const renderedAtlas = await callInput("renderEthosAtlasInput", {
     ...prepared.atlas,
     output: path.join(project, "accepted-atlas"),
   });
   assert.equal(renderedAtlas.pages.length, 13);
   assert.equal(renderedAtlas.semanticAcceptance, "not-performed");
-  const standalone = await standaloneApi.renderStandaloneAtlas({
+  const standalone = await callInput("renderStandaloneAtlasInput", {
     atlas: {
       ...prepared.atlas,
       outputManifest: path.join(renderedAtlas.output, "manifest.json"),
@@ -595,7 +592,7 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
     { id: "ethos:poster-authoring", revision: baseline.ethos.terminalAcceptedProjection.commit },
     [...posterMembers].map(([memberPath, content]) => ({ path: memberPath, content })),
   );
-  const poster = await posterApi.renderEthosPoster({
+  const poster = await callInput("renderEthosPosterInput", {
     sourceManifest: afterImport.manifestPath,
     sourceSha256: afterImport.manifestSha256,
     projectionDigest: baseline.ethos.terminalAcceptedProjection.projectionDigest,
@@ -617,11 +614,11 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
     editionManifest,
     editionSha256: sha256(await fs.readFile(editionManifest)),
   };
-  const sourceOwnedAcceptedAtlas = await atlas.renderEthosAtlas({
+  const sourceOwnedAcceptedAtlas = await callInput("renderEthosAtlasInput", {
     ...acceptedSelection,
     output: path.join(project, "source-owned-accepted-atlas"),
   });
-  const sourceOwnedAcceptedStandalone = await standaloneApi.renderStandaloneAtlas({
+  const sourceOwnedAcceptedStandalone = await callInput("renderStandaloneAtlasInput", {
     atlas: {
       ...acceptedSelection,
       outputManifest: path.join(sourceOwnedAcceptedAtlas.output, "manifest.json"),
@@ -637,7 +634,7 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
     "authoring",
     "manifest.json",
   );
-  const sourceOwnedAcceptedPoster = await posterApi.renderEthosPoster({
+  const sourceOwnedAcceptedPoster = await callInput("renderEthosPosterInput", {
     sourceManifest: beforeImport.manifestPath,
     sourceSha256: beforeImport.manifestSha256,
     projectionDigest: baseline.ethos.editionSource.projectionDigest,

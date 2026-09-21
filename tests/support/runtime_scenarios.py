@@ -59,22 +59,15 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
     try:
         create_fixture_python(staging / "python", shared_executable=_GOVERNANCE_PYTHON)
         runtime_files = runtime_file_inventory(staging)
-        digest = runtime_digest(
-            wheel_sha256=wheel_sha256,
-            build=build,
-            environment=environment,
-            runtime_files=runtime_files,
-        )
+        identity = {
+            "wheel_sha256": wheel_sha256,
+            "build": build,
+            "environment": environment,
+            "runtime_files": runtime_files,
+        }
+        digest = runtime_digest(**identity)
         target = runtime_root / digest
-        (staging / "manifest.json").write_bytes(
-            runtime_manifest_bytes(
-                digest=digest,
-                wheel_sha256=wheel_sha256,
-                build=build,
-                environment=environment,
-                runtime_files=runtime_files,
-            )
-        )
+        (staging / "manifest.json").write_bytes(runtime_manifest_bytes(digest=digest, **identity))
         runtime_root.mkdir(parents=True, exist_ok=True)
         if target.exists():
             shutil.rmtree(staging)
@@ -183,8 +176,6 @@ def materialize_runtime_case(
     repo = tmp_path / "repo"
     repo.mkdir()
     assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    source = tmp_path / "installed" / "a" / "b" / "c" / "d"
-    source.mkdir(parents=True)
     wheel = tmp_path / "ethos-test.whl"
     wheel.write_bytes(b"wheel")
     source_python = Path(sys.executable)
@@ -194,43 +185,18 @@ def materialize_runtime_case(
         assert project == REPOSITORY_ROOT
         return source_python
 
-    monkeypatch.setattr(
-        runtime_materialization, "resolve_locked_environment_python", resolve_fixture_python
-    )
-
     def require_python_image_source(interpreter: Path) -> dict[str, str]:
         assert interpreter.samefile(source_python)
         return python_facts
 
-    monkeypatch.setattr(
-        runtime_materialization,
-        "require_python_image_source",
-        require_python_image_source,
-    )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "resolve_runtime_wheel",
-        lambda *_args, **_kwargs: wheel,
-    )
     identity = package_identity or runtime_build_identity(REPOSITORY_ROOT)
     monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda *_args: identity)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "resolve_runtime_project",
-        lambda _source: REPOSITORY_ROOT,
-    )
     locked_requirements = tmp_path / "locked-requirements.txt"
     locked_requirements.write_text("fixture==1\n", encoding="utf-8")
 
     def prepare_requirements(project: Path, *_args: object, **_kwargs: object) -> Path:
         assert project == REPOSITORY_ROOT
         return locked_requirements
-
-    monkeypatch.setattr(
-        runtime_materialization,
-        "prepare_locked_requirements",
-        prepare_requirements,
-    )
 
     def materialize_python(
         target: Path,
@@ -250,8 +216,6 @@ def materialize_runtime_case(
         package = target / "lib/python3.14/site-packages/ethos/module.py"
         package.parent.mkdir(parents=True, exist_ok=True)
         package.write_text("original\n", encoding="utf-8")
-
-    monkeypatch.setattr(runtime_materialization, "materialize_python_image", materialize_python)
 
     def require_runtime(
         runtime: Path,
@@ -283,7 +247,16 @@ def materialize_runtime_case(
                 message = f"fixture_runtime_module_smoke_failed:{completed.stderr.strip()}"
                 raise ValueError(message)
 
-    monkeypatch.setattr(runtime_materialization, "require_runtime_generation", require_runtime)
+    for name, implementation in {
+        "resolve_locked_environment_python": resolve_fixture_python,
+        "require_python_image_source": require_python_image_source,
+        "resolve_runtime_wheel": lambda *_a, **_k: wheel,
+        "resolve_runtime_project": lambda _source: REPOSITORY_ROOT,
+        "prepare_locked_requirements": prepare_requirements,
+        "materialize_python_image": materialize_python,
+        "require_runtime_generation": require_runtime,
+    }.items():
+        monkeypatch.setattr(runtime_materialization, name, implementation)
     return repo, runtime_materialization.materialize_runtime(
         repo,
         source_python,
@@ -314,21 +287,9 @@ def linked_runtime_case(
     )
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
     assert git_process(repo, "add", "tracked.txt").returncode == 0
-    assert (
-        git_process(
-            repo,
-            "-c",
-            "core.hooksPath=/dev/null",
-            "-c",
-            "user.name=test",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "base",
-        ).returncode
-        == 0
-    )
+    overrides = ("core.hooksPath=/dev/null", "user.name=test", "user.email=test@example.com")
+    options = tuple(argument for value in overrides for argument in ("-c", value))
+    assert git_process(repo, *options, "commit", "-m", "base").returncode == 0
     linked = tmp_path / "linked"
     assert git_process(repo, "worktree", "add", "-q", "-b", "work/linked", linked).returncode == 0
     common = Path(git_common_dir(repo))
@@ -355,19 +316,14 @@ def candidate_runtime(
             "role_for_branch": lambda _self, _branch: "accepted",
         },
     )()
-    monkeypatch.setattr(hook_runtime, "resolve_ref_move_policy", lambda *_args: policy)
-    monkeypatch.setattr(
-        hook_runtime,
-        "worktree_records",
-        lambda *_args, **_kwargs: [
+    for name, implementation in {
+        "resolve_ref_move_policy": lambda *_args: policy,
+        "worktree_records": lambda *_args, **_kwargs: [
             {"branch": "candidate/dev", "path": candidate, "head": "b" * 40}
         ],
-    )
-    monkeypatch.setattr(
-        hook_runtime,
-        "run_git",
-        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, status, ""),
-    )
+        "run_git": lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, status, ""),
+    }.items():
+        monkeypatch.setattr(hook_runtime, name, implementation)
     return candidate
 
 

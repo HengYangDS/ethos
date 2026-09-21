@@ -40,10 +40,16 @@ def test_windows_standalone_runtime_preserves_native_python_layout(
     assert runtime_filesystem.runtime_python(interpreter_home) == interpreter_home / "python.exe"
 
 
+@pytest.mark.parametrize("external", [False, True])
 def test_activation_authenticates_the_package_under_lock_and_renders_exact_command(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, external: bool
 ) -> None:
     repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
+    if external:
+        destination = tmp_path / "host supply" / venv.parent.name
+        destination.parent.mkdir()
+        shutil.copytree(venv.parent, destination)
+        venv = destination / "python"
     common = Path(git_common_dir(repo))
     lock_type = runtime_selection.FileLock
     validate = runtime_selection.require_selected_runtime
@@ -77,6 +83,12 @@ def test_activation_authenticates_the_package_under_lock_and_renders_exact_comma
     assert selected.root == venv.parent
     assert selected.python.is_file()
     assert current_runtime(common) == selected
+    if external:
+        second = tmp_path / "second-common"
+        assert activate_runtime(second, selected.root) == selected
+        restore_runtime_selection(common, None, expected_current=original)
+        assert current_runtime(second) == selected
+        assert activate_runtime(common, selected.root) == selected
     alias = selected.root.parent / "alias"
     alias.symlink_to(selected.root, target_is_directory=True)
     for candidate in (alias, tmp_path / selected.digest):
@@ -157,6 +169,9 @@ def test_current_runtime_rejects_symlinked_selection_components(tmp_path, relati
         (b"\xff", "hook_runtime_current_invalid"),
         (b"a" * 64, "hook_runtime_current_invalid"),
         (b"a" * 64 + b"\n", "hook_runtime_current_target_invalid"),
+        (b"a" * 64 + b"\nrelative\n", "hook_runtime_current_target_invalid"),
+        (b"a" * 64 + b"\n/invalid\n", "hook_runtime_current_target_invalid"),
+        (b"a" * 64 + b"\n/x/" + b"a" * 64 + b"\nextra\n", "hook_runtime_current_invalid"),
     ],
 )
 def test_current_runtime_rejects_missing_or_noncanonical_selection(tmp_path, raw, reason):

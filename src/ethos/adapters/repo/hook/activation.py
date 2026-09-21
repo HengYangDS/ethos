@@ -26,6 +26,7 @@ from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.retirement import retire_generations
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.store.state.schema import prepare_state_transition
 from ethos.adapters.store.state.schema import state_database
 
@@ -52,6 +53,7 @@ def install_hook_launchers(
     root: Path,
     *,
     python: Path | None = None,
+    installed_runtime: Path | None = None,
     reset_state: bool = False,
     authorized: bool = False,
 ) -> HookRuntimeBinding:
@@ -65,7 +67,11 @@ def install_hook_launchers(
     expected = expected_runtime_build(repo)
     expected_build, build_source = expected.identity, expected.source
     runtime = runtime_materialization.materialize_runtime(
-        repo, source_python, expected_build=expected_build, build_source=build_source
+        repo,
+        source_python,
+        expected_build=expected_build,
+        build_source=build_source,
+        installed_runtime=installed_runtime,
     )
     common = Path(git_common_dir(repo))
     hooks = materialize_hook_launchers(common / "ethos" / "hooks")
@@ -148,7 +154,7 @@ def _activate_with_state(
                 common_before,
                 worktrees_before,
                 current_before,
-                selected_runtime=f"{runtime.name}\n".encode("ascii"),
+                selected_runtime=runtime_selection_bytes(common, runtime),
             )
         if not database_existed:
             database.unlink(missing_ok=True)

@@ -341,3 +341,32 @@ Do not infer the observed loader wait's sole cause from a missing notarization
 ticket. No quarantine removal or platform-policy disablement is an acceptance path.
 The qualification tap, failed installations and observed orphan process were
 removed. Homebrew delivery, native platforms and shared-store migration remain open.
+
+## Shared Installed Supply Activation
+
+Use the existing hook installation operation with an explicit runtime path to
+admit external immutable supply. CURRENT remains the single repository selector:
+its digest line is unchanged; external selection adds one canonical absolute
+runtime path. Local digest-only selectors retain their existing behavior. The
+launcher reads these bounded location fields only; Python still owns manifest,
+platform, build and admission checks.
+
+The supplied runtime must match the invoking/accepted product build, its carried
+dependency lock and its exact wheel. Reject symbolic links, junctions, invalid
+paths and altered payloads before selector or state changes. This is explicit
+installation ownership, not permission to execute a path inferred from PATH,
+an environment variable or another repository. No host-wide mutable selection,
+catalogue, source copy or additional package manager is introduced.
+
+Two independent repositories can select the same external bytes while retaining
+separate hooks, policy, state and selector CAS. Compensation restores the prior
+selector exactly. Repository retirement observes the selected external identity
+but never enumerates that external store for deletion. Missing or replaced supply
+blocks use rather than floating to a host upgrade. The package-manager owner must
+still prove live-consumer-safe upgrade/uninstall before its channel is qualified.
+
+Implement in the existing selection, materialization, hook activation/observation
+and launcher owners. Prove external selection, native launcher resolution,
+exact rollback and non-deletion with focused counterexamples; then execute two
+installed adopter paths, source proof and current runtime acceptance. Shared-store
+reclamation and published Homebrew remain separate open tasks.

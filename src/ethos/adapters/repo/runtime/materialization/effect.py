@@ -43,10 +43,13 @@ from ethos.adapters.repo.runtime.materialization.python_environment import same_
 from ethos.adapters.repo.runtime.materialization.python_image import materialize_python_image
 from ethos.adapters.repo.runtime.materialization.python_image import render_console_script
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 
 if TYPE_CHECKING:
+    from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.repository.release.identity import BuildIdentity
 
 
@@ -60,10 +63,17 @@ def materialize_runtime(
     *,
     expected_build: BuildIdentity,
     build_source: Path | None = None,
+    installed_runtime: Path | None = None,
 ) -> Path:
-    """Build and atomically install one wheel-qualified common-dir runtime."""
+    """Select admitted installed supply or materialize an exact repository runtime."""
     package_source = build_source or Path(__file__).resolve().parents[6]
     project = build_source or resolve_runtime_project(package_source)
+    if installed_runtime is not None:
+        runtime_selection_bytes(Path(git_common_dir(repo)), installed_runtime)
+        selected = require_selected_runtime(installed_runtime, expected_build=expected_build)
+        if not _runtime_supply_current(selected, project):
+            _fail("hook_runtime_installed_supply_invalid")
+        return selected.root / "python"
     runtime_root = Path(git_common_dir(repo)) / "ethos" / "runtime"
     if runtime_root.parent.is_symlink() or runtime_root.is_symlink():
         _fail("hook_runtime_root_invalid")
@@ -126,29 +136,30 @@ def _reusable_runtime(
     expected_build: BuildIdentity,
     project: Path,
 ) -> Path | None:
-    common = Path(git_common_dir(repo))
     try:
-        selected = current_runtime(common, expected_build=expected_build)
-        dependency_lock_sha256 = file_sha256(project / "uv.lock")
-        if os.name != "nt":
-            entry = selected.python.with_name("ethos")
-            if not os.access(entry, os.X_OK) or entry.read_text() != render_console_script("ethos"):
-                return None
+        selected = current_runtime(Path(git_common_dir(repo)), expected_build=expected_build)
+        return selected.root if _runtime_supply_current(selected, project) else None
     except (OSError, ValueError):
         return None
-    if selected.dependency_lock_sha256 != dependency_lock_sha256:
-        return None
-    package_root = common / "ethos" / "packages" / selected.wheel_sha256
+
+
+def _runtime_supply_current(selected: SelectedRuntime, project: Path) -> bool:
+    """Check the installed entry, lock and exact wheel without copying supply."""
+    if selected.dependency_lock_sha256 != file_sha256(project / "uv.lock"):
+        return False
+    if os.name != "nt":
+        entry = selected.python.with_name("ethos")
+        if not os.access(entry, os.X_OK) or entry.read_text() != render_console_script("ethos"):
+            return False
+    package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():
-        return None
+        return False
     wheels = tuple(
         path
         for path in package_root.glob("ethos-*.whl")
         if path.is_file() and not path.is_symlink()
     )
-    if len(wheels) != 1 or file_sha256(wheels[0]) != selected.wheel_sha256:
-        return None
-    return selected.root
+    return len(wheels) == 1 and file_sha256(wheels[0]) == selected.wheel_sha256
 
 
 def materialize_runtime_generation(

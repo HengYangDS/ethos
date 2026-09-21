@@ -9,13 +9,20 @@ CURRENT="$RUNTIME_ROOT/CURRENT"
 if [ -L "$CURRENT" ] || [ ! -f "$CURRENT" ]; then exit 1; fi
 exec 3<"$CURRENT" || exit 1
 IFS= read -r RUNTIME_DIGEST <&3 || exit 1
+RUNTIME=
+if IFS= read -r RUNTIME <&3; then
+  case "$RUNTIME" in /*|[A-Za-z]:/*) :;; *) exit 1;; esac
+  [ "${RUNTIME##*/}" = "$RUNTIME_DIGEST" ] || exit 1
+else
+  [ -z "$RUNTIME" ] || exit 1
+  RUNTIME="$RUNTIME_ROOT/$RUNTIME_DIGEST"
+fi
 RUNTIME_SELECTOR_EXTRA=
 IFS= read -r RUNTIME_SELECTOR_EXTRA <&3 && exit 1
 [ -z "$RUNTIME_SELECTOR_EXTRA" ] || exit 1
 exec 3<&-
 case "$RUNTIME_DIGEST" in *[!0-9a-f]*|"") exit 1;; esac
 [ "${#RUNTIME_DIGEST}" -eq 64 ] || exit 1
-RUNTIME="$RUNTIME_ROOT/$RUNTIME_DIGEST"
 if [ -L "$RUNTIME" ] || [ ! -d "$RUNTIME" ]; then exit 1; fi
 exec "$RUNTIME/@PYTHON@" -B -I -m ethos.adapters.repo.hook.protocol @HOOK@ "$@"
 '''

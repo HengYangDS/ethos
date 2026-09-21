@@ -312,6 +312,7 @@ def ref_transaction(
 @_app.command
 def install(
     *,
+    installed_runtime: Annotated[pathlib.Path | None, Parameter(name="--runtime")] = None,
     reset_state: Annotated[bool, Parameter(name="--reset-state")] = False,
     authorize: bool = False,
     root: RootOption | None = None,
@@ -322,6 +323,7 @@ def install(
     try:
         runtime = install_hook_launchers(
             repo,
+            installed_runtime=installed_runtime,
             reset_state=reset_state,
             authorized=authorize,
         )

@@ -6,12 +6,14 @@ import json
 import os
 import shlex
 import shutil
+import tarfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tools.ci.delivery.acceptance.invocation import invoke
 
 if TYPE_CHECKING:
@@ -49,8 +51,10 @@ def _activate(
     repo: Path,
     *,
     environment: Mapping[str, str],
+    installed_runtime: Path | None = None,
 ) -> dict[str, object]:
-    command = (*prefix, "hook", "install", "--root", repo.as_posix(), "--json")
+    selection = ("--runtime", str(installed_runtime)) if installed_runtime is not None else ()
+    command = (*prefix, "hook", "install", *selection, "--root", repo.as_posix(), "--json")
     returncode, payload, diagnostic = invoke(repo, command, environment=environment)
     if returncode or payload.get("verdict") != "pass":
         message = f"package_runtime_activation_failed:{diagnostic}"
@@ -227,3 +231,67 @@ def prove_repair(
         message = "package_runtime_proof_surface_invalid"
         raise RuntimeError(message)
     return {"state": "passed", "repair_command": repair}
+
+
+def prove_shared_supply(
+    archive: Path,
+    work: Path,
+    *,
+    environment: Mapping[str, str],
+) -> dict[str, object]:
+    """Exercise independent repositories against the same delivered immutable supply."""
+    installed = work / "shared-installation"
+    with tarfile.open(archive) as packed:
+        packed.extractall(installed, filter="tar")
+    generations = tuple((installed / "ethos/runtime").iterdir())
+    if len(generations) != 1:
+        message = "shared_supply_generation_ambiguous"
+        raise ValueError(message)
+    selected = require_selected_runtime(generations[0])
+    prefix = (str(selected.python), "-B", "-I", "-m", "ethos.cli")
+    repositories = [work / f"shared-adopter-{ordinal}" for ordinal in range(2)]
+    selectors, databases = [], []
+    for repo in repositories:
+        run_command(work, ("git", "init", "--quiet", "--initial-branch=dev", str(repo)), check=True)
+        data = _activate(prefix, repo, environment=environment, installed_runtime=selected.root)
+        common = Path(git_common_dir(repo))
+        selector = common / "ethos/runtime/CURRENT"
+        selectors.append(selector)
+        databases.append(common / "ethos/state.sqlite")
+        if any(path.is_dir() for path in selector.parent.iterdir()) or data.get(
+            "runtime_manifest_path"
+        ) != str(selected.manifest):
+            message = "shared_supply_was_copied_or_reselected"
+            raise RuntimeError(message)
+    original = selectors[0].read_bytes()
+    if (
+        databases[0].samefile(databases[1])
+        or selectors[0].samefile(selectors[1])
+        or original != selectors[1].read_bytes()
+    ):
+        message = "shared_repository_selection_or_state_invalid"
+        raise RuntimeError(message)
+    selectors[0].write_bytes(b"invalid\n")
+    for ordinal, repo in enumerate(repositories):
+        _code, report, detail = invoke(
+            repo, (*prefix, "status", "--root", str(repo), "--json"), environment=environment
+        )
+        data = report.get("data")
+        runtime = data.get("hook_runtime") if isinstance(data, dict) else None
+        if not isinstance(runtime, dict) or runtime.get("current") is not (ordinal != 0):
+            message = f"shared_repository_isolation_failed:{detail}"
+            raise RuntimeError(message)
+    _activate(prefix, repositories[0], environment=environment, installed_runtime=selected.root)
+    if selectors[0].read_bytes() != original or require_selected_runtime(selected.root) != selected:
+        message = "shared_supply_recovery_or_integrity_failed"
+        raise RuntimeError(message)
+    return {
+        "state": "passed",
+        "runtime_digest": selected.digest,
+        "repository_count": len(repositories),
+        "shared_bytes": True,
+        "independent_state": True,
+        "damaged_selector_isolated": True,
+        "recovered": True,
+        "package_manager_uninstall_qualified": False,
+    }

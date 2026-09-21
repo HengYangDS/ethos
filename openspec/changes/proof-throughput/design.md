@@ -25,6 +25,11 @@ only measured throughput improvements and their correctness boundaries.
    circular prerequisites, repeated judgments, unused parameters and pass-through
    wrappers at their semantic owner; another facade is not simplification.
    Keep a boundary only when it owns a distinct invariant, lifetime or effect.
+   Repository audit composes the existing artifact observer before expensive
+   verification. The post-execution artifact gate remains after tests because
+   those effects can create new drift; both observations use the same owner.
+   Scoped tool invocations retain their native configuration and cache bindings,
+   rather than treating a bare executable or config path as the complete entry.
 5. Keep immutable runtime inventory and corruption rejection. A faster source
    observation must include unstaged, staged, untracked, mode and index-flag
    changes and preserve the caller's index.

@@ -9,7 +9,7 @@ full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "s
 [[gates]]
 id = "repository-audit"
 kind = "governance"
-providers = ["ethos.domain.status:audit_for_root"]
+providers = ["ethos.domain.status:audit_for_root", "ethos.adapters.gates.generated_artifacts:generated_artifact_gate_report"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"
@@ -147,7 +147,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "unit-architecture"
 kind = "test"
-depends_on = ["ruff", "schemas", "config-quality", "python-types", "python-size", "source-budget", "architecture-projection", "format-selection", "module-layout", "import-boundaries", "docstrings", "shell-lint", "skills"]
+depends_on = ["repository-audit", "ruff", "schemas", "config-quality", "python-types", "python-size", "source-budget", "architecture-projection", "format-selection", "module-layout", "import-boundaries", "docstrings", "shell-lint", "skills"]
 command = ["{python}", "-m", "nox", "-s", "tests"]
 policy = "required"
 profile = "product-toolchain"

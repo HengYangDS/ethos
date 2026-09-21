@@ -61,12 +61,26 @@ diagnostic, and allow the surviving gate owner to reclaim owned test scratch.
 ETHOS SHALL validate declared carrier ownership before executing tests that
 consume it. Test preparation SHALL preserve the executing module's source
 identity so coverage remains attributable regardless of worker assignment.
+Existing generated-artifact drift SHALL block expensive checks before they
+start; the same owner SHALL still check post-execution drift.
 
 #### Scenario: A native adapter has no admitted carrier home
 
 - **WHEN** the carrier gate rejects a candidate adapter's placement
 - **THEN** the dependent test suite is not executed
 - **AND** its result identifies the failed prerequisite without claiming execution
+
+#### Scenario: Generated residue exists before verification
+
+- **WHEN** the repository already contains generated files outside their admitted homes
+- **THEN** repository audit reports the existing artifact owner's failure
+- **AND** tests, coverage, packaging and installed acceptance do not start
+
+#### Scenario: Verification creates new generated residue
+
+- **WHEN** initial artifact observation passes but executed checks create misplaced output
+- **THEN** the existing post-execution artifact gate rejects it
+- **AND** early readiness is not reused as evidence of the later filesystem state
 
 #### Scenario: Runtime supply variants share one test worker
 

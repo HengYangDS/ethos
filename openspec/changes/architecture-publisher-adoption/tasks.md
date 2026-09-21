@@ -1,7 +1,7 @@
 ## 1. Baseline and ownership
 
 - [x] 1.1 Record the exact Architecture Publisher commit, package manifest, migration-package tree digest, ETHOS projection identity, and current package behavior without copying generated delivery history.
-- [ ] 1.2 Add failing boundary tests proving the integration is optional, imports only public Publisher exports, consumes explicit projection inputs, and exposes no ETHOS command, authority, proof, Lane, or CAS effect.
+- [x] 1.2 Add failing boundary tests proving the integration is optional, imports only public Publisher exports, consumes explicit projection inputs, and exposes no ETHOS command, authority, proof, Lane, or CAS effect.
 
 ## 2. Source-owned package
 

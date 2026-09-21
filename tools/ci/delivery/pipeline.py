@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.release import accepted_release_source
 from ethos.adapters.repo.runtime.source import build_input_identity
 from ethos.adapters.repo.runtime.source import source_build_identity
+from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
@@ -83,9 +84,17 @@ class DeliveryPipeline:
                     self.runtime.root, staging, self.runtime.root / "build/artifacts/python"
                 )
 
-    def prove_install(self, session: nox.Session) -> None:
-        """Install and exercise the built wheel without source-checkout fallback."""
-        acceptance_effect.run(session)
+    def prove_install(self, session: nox.Session, *, release_head: str = "") -> None:
+        """Exercise the explicitly selected candidate through the single package workload."""
+        if release_head:
+            artifact = prepare_release_candidate(self.runtime.root, release_head)
+            acceptance_effect.run(
+                session,
+                artifact=artifact,
+                evidence=self.runtime.root / "build/evidence/local-install/release-smoke.json",
+            )
+        else:
+            acceptance_effect.run(session)
 
     def prove_host(self, session: nox.Session) -> None:
         """Run the complete package-only acceptance sequence on this host."""
@@ -137,6 +146,18 @@ def publish_built_wheel(
         shutil.rmtree(replacement, ignore_errors=True)
     shutil.rmtree(backup, ignore_errors=True)
     return artifacts / wheel.name
+
+
+def prepare_release_candidate(repo: Path, head: str) -> PackageArtifact:
+    """Select exact accepted-source release bytes without accepting or publishing a release."""
+    expected = _release_source_identity(repo, head)
+    wheels = tuple((repo / "build/artifacts/release/python").glob("ethos-*.whl"))
+    if len(wheels) != 1 or wheels[0].is_symlink() or not wheels[0].is_file():
+        message = "release_wheel_output_invalid"
+        raise ValueError(message)
+    return materialize_package_wheel(
+        repo, wheels[0], expected_build=expected, collision="release_wheel_digest_collision"
+    )
 
 
 def release_build_head(arguments: tuple[str, ...]) -> str:

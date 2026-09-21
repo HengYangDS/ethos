@@ -344,6 +344,45 @@ ticket. No quarantine removal or platform-policy disablement is an acceptance pa
 The qualification tap, failed installations and observed orphan process were
 removed. Homebrew delivery, native platforms and shared-store migration remain open.
 
+## Publisher Identity and Release Authorization
+
+Separate publisher identity, operator execution access, project release admission
+and artifact evidence. Reuse the operator's existing credential authority and
+native secret store; each project's release configuration carries only its own
+public constraints and credential references. Do not embed this workstation's
+team, certificate, profile, recovery path or another project's name in ETHOS.
+
+For Apple delivery, Developer ID code-signing keys and notarization API keys have
+different purposes. A Keychain profile is a locator, not an authorization rule.
+Team API keys are not app-scoped: separate keys permit independent revocation,
+not product isolation. Reuse a publisher within an admitted trust boundary;
+separate access when hosts, maintainers, CI trust or revocation needs differ.
+Do not infer trust merely because projects share an owner or operating-system user.
+
+Secret-free builders produce candidates. A trusted release controller validates
+the exact request and invokes fixed native signing operations, not candidate-owned
+commands. Sign before payload sealing and bind transformed output to the original
+admitted input. Keep per-project evidence, submission IDs and temporary resources;
+serialize only genuinely shared mutable credential operations, not all builds.
+Native protected environments help control access but do not by themselves
+isolate a self-hosted runner. Verify the actual boundary with unauthorized and
+cross-project requests before declaring release qualification.
+
+Credentials remain provider-specific; this model does not make Apple keys valid
+for Git, Windows or package-registry signing. Reuse existing release adapters
+rather than adding a generic credential service. Local profile migration,
+provider rotation and revocation have separate effects and recovery obligations.
+The existing platform and release tasks own these implementation and acceptance
+gaps; this design is not evidence that protected signing has been delivered.
+
+References: [Apple API key scope][apple-api-scope],
+[Apple notarization workflow][apple-notary-workflow] and
+[GitHub execution environment limits][github-release-environments].
+
+[apple-api-scope]: https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api
+[apple-notary-workflow]: https://developer.apple.com/documentation/security/customizing-the-notarization-workflow
+[github-release-environments]: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
+
 ## Shared Installed Supply Activation
 
 Use the existing hook installation operation with an explicit runtime path to
@@ -439,6 +478,22 @@ carrier to the same uv/Hatch builder. Revalidate source and proof before project
 the candidate wheel; failure removes temporary build roots and preserves previous
 output. Ordinary builds remain development builds. Release construction is not
 acceptance or publication.
+
+The existing install_smoke session accepts the same explicit release arguments.
+It selects one regular release wheel, verifies its exact source identity and
+materializes it through the existing content-addressed package owner. The same
+offline lifecycle workload verifies that artifact; it never rebuilds a substitute
+or records publisher release acceptance. Recheck selected bytes before effects
+and before producing evidence. A missing, redirected, changed or identity-mismatched
+wheel cannot produce passing installation evidence.
+
+Explicit release-candidate observations use build/evidence/local-install/release-smoke.json
+without replacing the default development smoke receipt. Both retain their actual
+build identity and invocation. This distinguishes qualification from release
+acceptance; the remaining signing and native delivery obligations still apply.
+The current acceptance work root is single-operation state within one checkout:
+do not claim concurrent smoke execution or cross-project signer isolation from
+this session's passing tests.
 
 The explicit release materializer still has no production acceptance caller.
 Connect it only after exact installed-artifact observation; do not manufacture an

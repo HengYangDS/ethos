@@ -70,26 +70,18 @@ def test_release_identity_rejects_conflicts(prior, candidate, gap: str) -> None:
     assert release_identity_admission_gaps(candidate, (prior,)) == (gap,)
 
 
-def test_release_attestation_round_trips_the_canonical_identity() -> None:
+@pytest.mark.parametrize("legacy", [False, True])
+def test_release_attestation_preserves_schema_identity_authority(*, legacy: bool) -> None:
     release = _release("0.2.0-alpha.1")
-    attestation = accepted_release_attestation(
-        release,
-        issued_at=datetime(2026, 8, 25, tzinfo=UTC),
-    )
-
-    assert accepted_release_identities((attestation,)) == (release,)
-
-
-def test_release_attestation_preserves_prior_schema_identity_authority() -> None:
-    release = _release("0.2.0-alpha.1")
-    issued_at = datetime(2026, 8, 25, tzinfo=UTC)
-    legacy = accepted_release_attestation(release, issued_at=issued_at).model_dump(mode="json")
-    identity = legacy["payload"]["body"]["identity"]
-    identity["schema_version"] = 1
-    identity["channel"] = "accepted"
-    identity["acceptance_state"] = "accepted"
-    attestation = Attestation.issue({key: value for key, value in legacy.items() if key != "id"})
-
+    attestation = accepted_release_attestation(release, issued_at=datetime(2026, 8, 25, tzinfo=UTC))
+    if legacy:
+        payload = attestation.model_dump(mode="json")
+        payload["payload"]["body"]["identity"].update(
+            schema_version=1, channel="accepted", acceptance_state="accepted"
+        )
+        attestation = Attestation.issue(
+            {key: value for key, value in payload.items() if key != "id"}
+        )
     assert accepted_release_identities((attestation,)) == (release,)
 
 

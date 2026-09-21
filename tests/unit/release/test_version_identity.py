@@ -84,6 +84,9 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
     assert released.distribution_version == "0.2.0a5"
     assert released.source_commit == source_head
     assert released.source_tree == second.source_tree
+    candidate = pipeline.prepare_release_candidate(repo, source_head)
+    assert candidate.build == released
+    assert candidate.sha256 == hashlib.sha256(candidate.path.read_bytes()).hexdigest()
     assert not tuple((repo / "build/runtime/work").iterdir())
     assert subprocess.check_output(("git", "status", "--porcelain"), cwd=repo) == before
     for proof, gaps in ((None, []), (object(), ["release_source_not_proven"])):
@@ -93,6 +96,8 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
             )
             with pytest.raises(ValueError, match="release_source_not_proven"):
                 sessions.build(BuildSession())
+            with pytest.raises(ValueError, match="release_source_not_proven"):
+                pipeline.prepare_release_candidate(repo, source_head)
         assert (
             wheel_build_identity(next((repo / "build/artifacts/release/python").glob("*.whl")))
             == released

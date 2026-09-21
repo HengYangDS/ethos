@@ -116,11 +116,72 @@ upgrade versions. Pre-release and stable delivery SHALL remain distinct.
 - **AND** native signing precedes payload sealing and exact installed acceptance
 - **AND** the release, signed tag and channel projections identify the same frozen source
 
+#### Scenario: A release candidate is selected for installation qualification
+
+- **WHEN** explicit release arguments select exact accepted-source candidate bytes
+- **THEN** the existing offline installation workload verifies those bytes without substitution
+- **AND** its separate receipt binds build identity and preserves default development evidence
+- **AND** qualification does not accept, notarize or publish the release
+
+#### Scenario: Selected package bytes change during qualification
+
+- **WHEN** a selected wheel is missing, redirected or differs from its bound bytes or build
+- **THEN** qualification rejects it before effects or before producing passing evidence
+- **AND** pre-execution rejection preserves existing work and unrelated development evidence
+
 #### Scenario: A newer published version is selected
 
 - **WHEN** a channel offers a subsequent accepted release
 - **THEN** the target package manager orders it after the prior release
 - **AND** a pre-release does not replace a stable installation without explicit selection
+
+### Requirement: Credential access does not authorize a product release
+
+ETHOS SHALL admit each signing request against its project, source, version,
+target, publisher, identifiers, entitlements and exact candidate bytes.
+Operator-owned credentials MAY serve multiple projects within an authorized
+execution boundary. Their availability or profile name SHALL NOT grant release
+authority or transfer another project's acceptance.
+
+#### Scenario: Two projects share a publisher
+
+- **WHEN** independent projects use the same authorized publisher identity
+- **THEN** each signs only its admitted candidate through the existing release owner
+- **AND** temporary resources, submission IDs, evidence and publication targets remain distinct
+- **AND** neither project can satisfy its acceptance with the other's successful submission
+
+#### Scenario: An unauthorized or altered candidate reaches the signer
+
+- **WHEN** a request changes the admitted project, publisher, target, identifiers, entitlements or bytes
+- **THEN** signing is rejected before credential-backed effects
+- **AND** previous accepted artifacts and the other project's state remain unchanged
+
+#### Scenario: The signing execution boundary is not established
+
+- **WHEN** untrusted build code can invoke the signer or select its executable commands
+- **THEN** release qualification reports the missing execution boundary
+- **AND** profile naming, shared-user ACLs and CI environment labels do not establish isolation
+- **AND** secret-free construction and unrelated verification may continue
+
+### Requirement: Credential transitions preserve exact release evidence
+
+ETHOS SHALL distinguish code-signing identity, notarization authentication,
+submission result, installation and publication. Each signing or packaging
+transformation SHALL bind its input and output bytes. Credential transitions
+SHALL use the operator's existing native store without secret copies in projects.
+
+#### Scenario: Notarization acknowledgement is lost
+
+- **WHEN** a bounded submission attempt ends without a known result
+- **THEN** the operation retains UNKNOWN and reconciles its exact submission when identifiable
+- **AND** team-wide history or another project's result does not authorize a repeated upload
+
+#### Scenario: A shared credential is replaced
+
+- **WHEN** an operator migrates or rotates a shared credential
+- **THEN** each known consumer verifies its replacement before routine retirement of old access
+- **AND** provider revocation, local-profile deletion and recovery-material retirement remain separate effects
+- **AND** compromise follows immediate revocation and recovery rather than routine overlap
 
 ## MODIFIED Requirements
 

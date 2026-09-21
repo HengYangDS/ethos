@@ -12,6 +12,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 import tools.ci.delivery.acceptance.adopter as adopter_fixture
 import tools.ci.delivery.acceptance.invocation as cli_invocation
@@ -25,6 +26,7 @@ from ethos.adapters.repo.runtime.materialization.dependency_supply import (
     prepare_locked_requirements,
 )
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
+from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import wheel_build_identity
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
@@ -407,15 +409,23 @@ def observe_runtime_lifecycle(
     }
 
 
-def run(session: nox.Session) -> None:
-    """Install the built wheel into a fresh offline environment and attest it."""
+def run(
+    session: nox.Session, *, artifact: PackageArtifact | None = None, evidence: Path | None = None
+) -> None:
+    """Verify one exact wheel through the shared workload without publishing a release."""
     head = current_tracked_head(ROOT)
+    output = evidence if evidence is not None else EVIDENCE
+    wheel = artifact.path if artifact is not None else _single_wheel()
+    selected = artifact or PackageArtifact(
+        wheel, hashlib.sha256(wheel.read_bytes()).hexdigest(), wheel_build_identity(wheel)
+    )
+    _require_artifact_current(selected, head=head)
     if WORK.exists():
         remove_generated_tree(WORK)
-    EVIDENCE.unlink(missing_ok=True)
+    output.unlink(missing_ok=True)
     WORK.mkdir(parents=True)
     try:
-        wheel, smoke, adopter = _single_wheel(), WORK / "venv", WORK / "adopter"
+        smoke, adopter = WORK / "venv", WORK / "adopter"
         uv, source_python = RUNTIME.script("uv"), RUNTIME.python
         _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
         requirements = prepare_locked_requirements(ROOT, WORK, source_python)
@@ -437,8 +447,7 @@ def run(session: nox.Session) -> None:
         independent_host = observe_independent_command_plane(installed_ethos, adopter)
         _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
         resources = _verify_resources(wheel)
-        build = wheel_build_identity(wheel)
-        wheel_sha256 = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        build, wheel_sha256 = selected.build, selected.sha256
         package_environment, _git = _independent_host_environment()
         package_environment["UV_OFFLINE"] = "1"
         lifecycle = observe_runtime_lifecycle(
@@ -463,6 +472,7 @@ def run(session: nox.Session) -> None:
         distribution["shared_supply"] = runtime_acceptance.prove_shared_supply(
             Path(str(distribution["path"])), WORK, environment=package_environment
         )
+        _require_artifact_current(selected, head=head)
         if current_tracked_head(ROOT) != head:
             session.error(f"local install smoke HEAD moved from {head}")
         payload = package_acceptance_evidence(
@@ -478,11 +488,29 @@ def run(session: nox.Session) -> None:
             generated_at=datetime.now(UTC),
         )
         payload["distribution"] = distribution
+        payload["build_identity"] = build.projection()
+        if artifact is not None:
+            payload["command"] = (
+                cast("str", payload["command"]) + f" -- --release --expect-head {head}"
+            )
     finally:
         remove_generated_tree(WORK)
-    EVIDENCE.parent.mkdir(parents=True, exist_ok=True)
-    EVIDENCE.write_text(
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     session.log(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def _require_artifact_current(artifact: PackageArtifact, *, head: str) -> None:
+    """Reject changed or redirected selected bytes before effects and evidence."""
+    if (
+        artifact.build.source_commit != head
+        or artifact.path.is_symlink()
+        or not artifact.path.is_file()
+        or hashlib.sha256(artifact.path.read_bytes()).hexdigest() != artifact.sha256
+        or wheel_build_identity(artifact.path) != artifact.build
+    ):
+        message = "package_acceptance_artifact_changed"
+        raise ValueError(message)

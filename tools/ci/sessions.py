@@ -135,9 +135,9 @@ def build(session) -> None:
 
 
 def install_smoke(session) -> None:
-    import_module("tools.ci.delivery.pipeline").DeliveryPipeline.from_runtime(
-        RUNTIME
-    ).prove_install(session)
+    owner = import_module("tools.ci.delivery.pipeline")
+    head = owner.release_build_head(tuple(session.posargs))
+    owner.DeliveryPipeline.from_runtime(RUNTIME).prove_install(session, release_head=head)
 
 
 def host_conformance(session) -> None:

@@ -6,6 +6,80 @@
       "replay": "Unpublished: replay; then re-prove",
       "merge": "Preserve history: merge; then re-prove",
       "pending": "Merge: exact continuation or preserved rollback"
+    },
+    "carriers": {
+      "edits": [
+        {
+          "id": "thesis",
+          "before": "Plan selects official/mature Skills/tools; people/Agents in session.",
+          "after": "Plan selects versioned Skills/tools; people/Agents in session."
+        },
+        {
+          "id": "responsibility-views-value",
+          "before": "From native source/evidence; same verdict/gaps; optional MCP/A2A.",
+          "after": "One context/verdict/continuation; MCP delivered; A2A optional."
+        },
+        {
+          "id": "verification-applicability",
+          "before": "Falsifiable; separate trust; optional unless risk/policy requires.",
+          "after": "Action policy: disabled / optional / required; separate trust."
+        },
+        {
+          "id": "exit-discharge",
+          "before": "Discharged runtime/install projections",
+          "after": "Discharged native install/runtime projections"
+        }
+      ],
+      "meaning": [
+        {
+          "kind": "node",
+          "id": "adoption_exit",
+          "sha256": "4659c3c59d12fda0215c306b209901c59ad1595ee324973ea407d42cd970e611",
+          "carriers": [
+            "exit-discharge"
+          ]
+        },
+        {
+          "kind": "node",
+          "id": "mcp_a2a",
+          "sha256": "31ea67abed591c39086b1f0d0d3091fe3050e7e83a210fa6b1206ff4db449eb0",
+          "carriers": [
+            "responsibility-views-value"
+          ]
+        },
+        {
+          "kind": "node",
+          "id": "skills",
+          "sha256": "428fd18abf0eaddf4834bb3bd4ca88581b28c83010bf18d77fec64e5cac21fe8",
+          "carriers": [
+            "thesis"
+          ]
+        },
+        {
+          "kind": "relation",
+          "id": "candidate-state-to-independent",
+          "sha256": "0a0324d73c8ec0556e0282d5a9701cc553aab636db3f479aa353e82777f5c5f7",
+          "carriers": [
+            "verification-applicability"
+          ]
+        },
+        {
+          "kind": "assertion",
+          "id": "projection",
+          "sha256": "204c8a6535f3a8aa72ae15bbbabed6b7a27427e6c6c2fb0953867d43cd60fc50",
+          "carriers": [
+            "responsibility-views-value"
+          ]
+        },
+        {
+          "kind": "assertion",
+          "id": "verification",
+          "sha256": "c80d7cae429242705afb1a48b387e5529da5b748a54c2f6005b64db9062d7214",
+          "carriers": [
+            "verification-applicability"
+          ]
+        }
+      ]
     }
   },
   "interactive": {
@@ -32,6 +106,26 @@
             "carrier": "cards/1/items/4",
             "before": null,
             "after": "An advanced candidate base requires reconciliation and fresh proof before integration. Unpublished replay and history-preserving merge share this boundary; a pending merge requires exact-state continuation or preserved rollback."
+          },
+          {
+            "carrier": "nodes/methods/sublabel",
+            "before": "Selected by the bounded Plan",
+            "after": "Version-matched; no authority"
+          },
+          {
+            "carrier": "nodes/interfaces/sublabel",
+            "before": "CLI / SDK / CI / MCP",
+            "after": "CLI · SDK · MCP · Skills"
+          },
+          {
+            "carrier": "cards/3/items/2",
+            "before": "CLI/JSON, SDK, CI/Forge and optional MCP/A2A expose the same verdict/gaps. Code graphs and dashboards are rebuildable observations, never intent or authority.",
+            "after": "CLI/JSON, SDK, delivered MCP and portable Skills expose one context, verdict and continuation; A2A is optional. Installed product, repository selection and project toolchain remain distinct. Homebrew delivery needs no ETHOS checkout. Views grant no authority."
+          },
+          {
+            "carrier": "cards/2/items/0",
+            "before": "Falsify exact candidates and combinations. Local / independent / hosted stay distinct. Independent per risk/policy; optional composite needs a responsible verifier and explicit rule. Evidence is not permission.",
+            "after": "Prove exact candidates and combinations with falsifiable checks. Committed action policy selects disabled, optional or required independent verification; execution identity changes alone do not select a provider. Control replacement keeps the stricter accepted/proposed requirement. Local, independent and hosted claims stay distinct; a composite needs a responsible verifier and explicit rule. Evidence does not authorize effects."
           }
         ],
         "meaning": [
@@ -41,6 +135,38 @@
             "sha256": "c671261335d7565a54facf3c8d36eb73d238b9e3b3d35e8f92bb53bca1364443",
             "carriers": [
               "cards/1/items/4"
+            ]
+          },
+          {
+            "kind": "node",
+            "id": "mcp_a2a",
+            "sha256": "31ea67abed591c39086b1f0d0d3091fe3050e7e83a210fa6b1206ff4db449eb0",
+            "carriers": [
+              "nodes/interfaces/sublabel"
+            ]
+          },
+          {
+            "kind": "node",
+            "id": "skills",
+            "sha256": "428fd18abf0eaddf4834bb3bd4ca88581b28c83010bf18d77fec64e5cac21fe8",
+            "carriers": [
+              "nodes/methods/sublabel"
+            ]
+          },
+          {
+            "kind": "assertion",
+            "id": "projection",
+            "sha256": "204c8a6535f3a8aa72ae15bbbabed6b7a27427e6c6c2fb0953867d43cd60fc50",
+            "carriers": [
+              "cards/3/items/2"
+            ]
+          },
+          {
+            "kind": "assertion",
+            "id": "verification",
+            "sha256": "c80d7cae429242705afb1a48b387e5529da5b748a54c2f6005b64db9062d7214",
+            "carriers": [
+              "cards/2/items/0"
             ]
           }
         ]
@@ -99,6 +225,46 @@
               "nodes/expected/label",
               "nodes/expected/sublabel",
               "nodes/expected/tag"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "verification",
+        "edits": [
+          {
+            "carrier": "nodes/independent-verifier/tag",
+            "before": "Optional; required by risk or policy",
+            "after": "Selected by committed action policy"
+          }
+        ],
+        "meaning": [
+          {
+            "kind": "relation",
+            "id": "candidate-state-to-independent",
+            "sha256": "0a0324d73c8ec0556e0282d5a9701cc553aab636db3f479aa353e82777f5c5f7",
+            "carriers": [
+              "nodes/independent-verifier/tag"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "continuity",
+        "edits": [
+          {
+            "carrier": "cards/2/items/0",
+            "before": "A new Agent continues from exact results with fresh authority. Stop writers, account for unique work, preserve useful findings, retire exact owned resources and remove discharged runtime projections.",
+            "after": "A new Agent continues from exact results with fresh authority. Stop writers; account for unique work; preserve findings; retire only owned resources. Product installation, repository selection and project toolchain remain distinct. Homebrew is delivery, not a freezing tool; native macOS/Linux are required and Windows is independently qualified."
+          }
+        ],
+        "meaning": [
+          {
+            "kind": "node",
+            "id": "adoption_exit",
+            "sha256": "4659c3c59d12fda0215c306b209901c59ad1595ee324973ea407d42cd970e611",
+            "carriers": [
+              "cards/2/items/0"
             ]
           }
         ]

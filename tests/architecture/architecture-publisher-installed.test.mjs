@@ -734,8 +734,11 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
   const handoffOutput = process.env.ARCHITECTURE_PUBLISHER_HANDOFF_OUTPUT;
   if (handoffOutput) {
     assert.equal(path.isAbsolute(handoffOutput), true);
-    const gitValue = (...args) => {
-      const result = spawnSync(git, ["-C", SOURCE_ROOT, ...args], { encoding: "utf8" });
+    const publisherRepository = await selectedPath("ARCHITECTURE_PUBLISHER_REPOSITORY", {
+      directory: true,
+    });
+    const gitValue = (repositoryPath, ...args) => {
+      const result = spawnSync(git, ["-C", repositoryPath, ...args], { encoding: "utf8" });
       assert.equal(result.status, 0, result.stderr);
       return result.stdout.trim();
     };
@@ -746,14 +749,21 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
         {
           schema: "ethos.architecture-publisher-handoff/v1",
           publisher: {
-            commit: baseline.publisher.commit,
-            corePackageSha256: sha256(await fs.readFile(coreArchive)),
-            stagingPackageSha256: sha256(await fs.readFile(stagingArchive)),
+            core: {
+              tree: gitValue(publisherRepository, "rev-parse", "HEAD:packages/publisher"),
+              packageSha256: sha256(await fs.readFile(coreArchive)),
+            },
+            retiredEthosStaging: {
+              commit: baseline.publisher.commit,
+              tree: baseline.publisher.migrationTree,
+              packageSha256: sha256(await fs.readFile(stagingArchive)),
+            },
           },
           ethos: {
-            commit: gitValue("rev-parse", "HEAD"),
-            integrationTree: gitValue("rev-parse", "HEAD:integrations/architecture-publisher"),
-            integrationPackageSha256: sha256(await fs.readFile(sourceOwnedArchive)),
+            integration: {
+              tree: gitValue(SOURCE_ROOT, "rev-parse", "HEAD:integrations/architecture-publisher"),
+              packageSha256: sha256(await fs.readFile(sourceOwnedArchive)),
+            },
           },
           acceptedParity: {
             sourceManifestSha256: beforeImport.manifestSha256,

@@ -13,7 +13,7 @@
 
 - [x] 3.1 Pack the exact Publisher core and ETHOS integration independently, install both under a relocated empty home, and prove offline execution without adjacent checkout discovery.
 - [x] 3.2 Compare the source-owned package with Publisher migration staging over the same immutable inputs; record identical Candidate and sibling-media digests or an explicitly reviewed semantic successor.
-- [ ] 3.3 Produce a compact digest-bound handoff for the Publisher Work Lane; after it removes the mutable central ETHOS package, verify the ETHOS repository remains the only mutable implementation owner.
+- [x] 3.3 Produce a compact digest-bound handoff for the Publisher Work Lane; after it removes the mutable central ETHOS package, verify the ETHOS repository remains the only mutable implementation owner.
 
 ## 4. Acceptance and closeout
 

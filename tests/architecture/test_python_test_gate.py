@@ -310,9 +310,10 @@ def test_killed_python_attempt_cannot_reuse_previous_completion(tmp_path, monkey
     gate.head_file.write_text(gate.s.head + "\n")
     ready = tmp_path / "ready"
     script = """
-import sys, time
+import sys
 from pathlib import Path
 from types import SimpleNamespace
+from tests.support.subprocesses import pause_after_effect
 from tools.ci.python_test_gate import PythonTestGate, Settings
 root = Path(sys.argv[1])
 gate = PythonTestGate(Settings(
@@ -320,10 +321,9 @@ gate = PythonTestGate(Settings(
     basetemp_owned=True, workers=1, shards=1, durations=0, timeout=None,
     lock_wait=0, uv_cache=None, node_package_supply=root / 'node_modules',
 ))
-def execute(*args, **kwargs):
-    (root / 'ready').write_text('executing')
-    time.sleep(60)
-gate.run_tests(SimpleNamespace(run=execute))
+session = SimpleNamespace(run=lambda *args, **kwargs: 'executing')
+pause_after_effect(session, 'run', root / 'ready')
+gate.run_tests(session)
 """
     assert kill_after_marker(tmp_path, script, (str(tmp_path),), ready, timeout=15) == "executing"
 

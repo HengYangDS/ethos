@@ -34,6 +34,14 @@ prerequisite that delays those platforms; no native Windows claim follows from
 POSIX tests or WSL. Architecture/OS baseline, executable relocation, permissions,
 hooks, MCP, update and exit are verified per declared release target.
 
+Host qualification starts with the existing executable and native ACL checks,
+before package construction. The Windows trust owner reads owner and access-rule
+SIDs directly from the security descriptor; account names are not an intermediate
+authority. Native execution retains missing environment, unavailable executable,
+creation and timeout reasons instead of returning an ambiguous empty result.
+This does not establish that a historical runner failure was caused by name
+resolution: the full installed workload must pass on that exact native platform.
+
 Homebrew is a required supported installation channel, not a package-builder
 selection. Use native formula/bottle mechanics and one Homebrew installation owner;
 do not write another package manager. The Python wheel remains the SDK artifact.

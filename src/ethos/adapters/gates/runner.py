@@ -225,6 +225,29 @@ def observe_gate_execution(
     }
 
 
+def _scheduled_nodes(
+    nodes: tuple[PlanNode, ...],
+    gates: Mapping[str, Gate],
+) -> tuple[PlanNode, ...]:
+    """Derive selected preflight ordering without changing proof-policy inputs."""
+    ordered = TransitionPlan.closure(nodes)
+    postexecution: set[str] = set()
+    execution_roots: set[str] = set()
+    for node in ordered:
+        if postexecution.intersection(node.depends_on):
+            postexecution.add(node.id)
+        elif gates[node.id].kind in {"test", "package"}:
+            postexecution.add(node.id)
+            execution_roots.add(node.id)
+    readiness = tuple(node.id for node in ordered if node.id not in postexecution)
+    return tuple(
+        node.model_copy(update={"depends_on": tuple(dict.fromkeys((*node.depends_on, *readiness)))})
+        if node.id in execution_roots
+        else node
+        for node in nodes
+    )
+
+
 def run_gate_graph(
     runner: DryRunRunner | LocalGateRunner,
     nodes: tuple[PlanNode, ...],
@@ -238,24 +261,9 @@ def run_gate_graph(
     if capacity < 1:
         message = "proof_node_capacity_invalid"
         raise ValueError(message)
-    ordered = TransitionPlan.closure(nodes)
+    scheduled = _scheduled_nodes(nodes, gates)
     if not isinstance(runner, DryRunRunner):
         assert_provider_execution_source(root, tuple(gates[node.id] for node in nodes))
-    postexecution: set[str] = set()
-    execution_roots: set[str] = set()
-    for node in ordered:
-        if postexecution.intersection(node.depends_on):
-            postexecution.add(node.id)
-        elif gates[node.id].kind in {"test", "package"}:
-            postexecution.add(node.id)
-            execution_roots.add(node.id)
-    readiness = tuple(node.id for node in ordered if node.id not in postexecution)
-    scheduled = tuple(
-        node.model_copy(update={"depends_on": tuple(dict.fromkeys((*node.depends_on, *readiness)))})
-        if node.id in execution_roots
-        else node
-        for node in nodes
-    )
     writers = {node.id for node in nodes if gates[node.id].writes_files}
     graph = TopologicalSorter({node.id: node.depends_on for node in scheduled})
     graph.prepare()

@@ -57,6 +57,14 @@ the existing verdict, gaps, continuation and evidence boundaries.
 - **AND** ambiguous evidence or dirty affected worktrees cannot become successful
   recovery; current authorization and coordinate admission still apply
 
+#### Scenario: Publication is consumed outside the CLI
+
+- **WHEN** CLI, SDK or a bound MCP client previews or applies an exact publication receipt
+- **THEN** all transports invoke the same publication application operation and native effect owners
+- **AND** missing authorization, stale inputs and unknown observations retain their original refusal
+- **AND** confirmed peer effects and independently admitted local retirement remain distinct
+- **AND** direct SDK use does not write stdout or change the process working directory
+
 ### Requirement: Installed MCP has bounded repository authority
 
 The installed product SHALL expose stdio MCP through FastMCP over the official SDK. Server

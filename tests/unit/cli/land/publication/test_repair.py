@@ -7,6 +7,7 @@ from pathlib import Path
 
 import ethos.adapters.mutation.accepted.signature as repair
 import ethos.adapters.repo.commit.signature as signature_observation
+from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
@@ -82,6 +83,18 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
     assert {
         git(peer, "for-each-ref", "--format=%(objectname)", PROPOSAL_REF) for peer in peers
     } == {""}
+    local = retire_absorbed_ref(
+        root=repo,
+        branch="proposal/old-signature",
+        expect_head=old,
+        accepted_head=accepted,
+        apply=True,
+        authorize=True,
+        confirm_irreversible=True,
+    )
+    assert local["state"] == "retired_absorbed_ref"
+    assert local["contribution"]["state"] == "repaired"
+    assert not git(repo, "branch", "--list", "proposal/old-signature")
 
 
 def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_path: Path) -> None:

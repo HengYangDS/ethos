@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from fastmcp import Client
 
 import ethos.adapters.mutation.proof as proof_owner
 import ethos.adapters.mutation.publication.attestation as publication_attestation
@@ -15,6 +19,8 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.value import mutable_json
+from ethos.domain.publication.operation import publish_repository
+from ethos.surface.mcp.server import create_server
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture
@@ -53,6 +59,16 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
         cwd=repo,
     )
     dry_run = branch_publication(repo, head)
+    cwd = Path.cwd()
+    with redirect_stdout(StringIO()) as output:
+        direct_preview = publish_repository(
+            repo, target_refs=(PROPOSAL_REF,), probe_remote=True, expect_head=head
+        ).to_dict()
+    assert not output.getvalue()
+    assert Path.cwd() == cwd
+    for key in ("verdict", "state", "required_gaps", "next_action"):
+        assert direct_preview[key] == dry_run[key]
+    assert direct_preview["data"]["transition_plan"] == dry_run["data"]["transition_plan"]
     applied = apply_receipt(repo, dry_run["data"]["request_receipt"], head)
 
     assert report["verdict"] == "pass"
@@ -101,7 +117,22 @@ def test_publish_branch_dry_run_and_apply_share_one_plan_and_attestation(
             with pytest.raises(RuntimeError, match="interrupted"):
                 apply_receipt(repo, receipt, head)
     else:
-        direct = branch_publication(repo, head, "--apply", "--authorize")
+
+        async def apply_through_mcp():
+            async with Client(create_server(repo)) as client:
+                arguments = {
+                    "receipt": receipt["path"],
+                    "receipt_sha256": receipt["sha256"],
+                    "apply": True,
+                    "expect_head": head,
+                }
+                denied = await client.call_tool("publish", arguments)
+                assert "authorization_required" in denied.structured_content["required_gaps"]
+                assert {proposal_ref(peer) for peer in remotes.values()} == {""}
+                result = await client.call_tool("publish", arguments | {"authorize": True})
+                return result.structured_content
+
+        direct = asyncio.run(apply_through_mcp())
         assert direct["data"]["transition_plan"] == dry_run["data"]["transition_plan"]
     assert {proposal_ref(remotes[peer]) for peer in peer_ids} == {head}
     applied = apply_receipt(repo, receipt, head)

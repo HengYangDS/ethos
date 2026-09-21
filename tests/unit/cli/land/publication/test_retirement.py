@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 from contextlib import redirect_stderr
 from io import StringIO
@@ -15,6 +16,8 @@ import ethos.adapters.mutation.publication.execution as publication_execution
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.mutation.publication.retirement as retirement
 import ethos.adapters.repo.commit.rewrite as rewrite
+import ethos.adapters.repo.git_effect_attestation as git_effect_attestation
+from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
@@ -97,23 +100,49 @@ def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1", refreshed
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
 @pytest.mark.parametrize("refreshed", [False, True])
+@pytest.mark.parametrize("local", ["absent", "present", "compensate"])
 def test_public_retirement_after_dev_absorption_does_not_wait_for_main(
-    tmp_path: Path, monkeypatch, object_format: str, *, refreshed: bool
+    tmp_path: Path, monkeypatch, object_format: str, local: str, *, refreshed: bool
 ) -> None:
-    """Reject the old nonzero-only effect model through the real public CLI."""
+    """Converge peer and local effects separately, retaining the exact recoverable preimage."""
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    tmp_path = tmp_path / "work space"
+    tmp_path.mkdir()
     repo, peers, proposal, accepted = retirement_fixture(
         tmp_path, object_format=object_format, refreshed=refreshed
     )
+    if local != "absent":
+        git(repo, "branch", PROPOSAL_REF.removeprefix("refs/heads/"), proposal)
+    if local == "compensate":
+        install_fixture_hook_runtime(repo)
     main = git(repo, "rev-parse", "main")
     preview = branch_publication(repo, accepted, "--retire")
     assert preview["state"] == "ready_to_retire"
     assert {proposal_ref(peer) for peer in peers.values()} == {proposal}
-
     applied = apply_receipt(repo, preview["data"]["request_receipt"], accepted)
-
-    assert applied["state"] == "retired"
+    assert applied["state"] == ("retired" if local == "absent" else "retirement_pending")
+    assert applied["summary"]["remote_push"] == "applied"
     assert {proposal_ref(peer) for peer in peers.values()} == {""}
+    if local != "absent":
+        assert proposal_ref(repo) == proposal
+        command = shlex.split(applied["next_action"])[1:]
+        if local == "compensate":
+            issue = git_effect_attestation.issue
+
+            def fail_retirement(effect, **kwargs):
+                if kwargs["plan"].policy.get("transition") == "lane.retire":
+                    message = "attestation unavailable"
+                    raise ValueError(message)
+                return issue(effect, **kwargs)
+
+            with monkeypatch.context() as fault:
+                fault.setattr(git_effect_attestation, "issue", fail_retirement)
+                blocked = run_ethos_blocked(*command, cwd=repo)
+            assert blocked["required_gaps"] == ["attestation unavailable"]
+            assert proposal_ref(repo) == proposal
+        followup = run_ethos(*command, cwd=repo)
+        assert followup["state"] == "retired_absorbed_ref"
+        assert proposal_ref(repo) == ""
     assert git(repo, "rev-parse", "dev") == accepted
     assert git(repo, "rev-parse", "main") == main
     replay = apply_receipt(repo, preview["data"]["request_receipt"], accepted)
@@ -296,6 +325,18 @@ def test_refreshed_retirement_requires_current_complete_evidence(tmp_path, monke
         record_attestations(repo, retained)
     report = branch_publication(repo, accepted, "--retire", blocked=fault != "native_timeout")
     assert report["verdict"] == ("unknown" if fault == "native_timeout" else "block")
+    git(repo, "branch", PROPOSAL_REF.removeprefix("refs/heads/"), proposal)
+    local = retire_absorbed_ref(
+        root=repo,
+        branch=PROPOSAL_REF.removeprefix("refs/heads/"),
+        expect_head=proposal,
+        accepted_head=accepted,
+        apply=True,
+        authorize=True,
+        confirm_irreversible=True,
+    )
+    assert local["verdict"] == report["verdict"]
+    assert proposal_ref(repo) == proposal
     if fault == "nonconserving":
         assert {
             v["contribution"]["conservation"]["reason"]

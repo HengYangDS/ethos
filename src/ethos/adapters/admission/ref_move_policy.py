@@ -9,6 +9,7 @@ from typing import cast
 
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.commit.conservation import accepted_contribution
 from ethos.adapters.repo.commit.signature import validate_signature_result
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
@@ -21,6 +22,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -212,7 +214,10 @@ def _absorbed_ref_transition_policy(
         accepted_policy is None
         or git_stdout(repo, "rev-parse", "HEAD") != accepted_head
         or not accepted_policy.is_topic_branch(branch)
-        or (compensating and not is_ancestor(repo, new_value, accepted_head))
+        or (
+            compensating
+            and report_verdict(accepted_contribution(repo, new_value, accepted_head)) != "pass"
+        )
     ):
         return None
     intent = claim_ref_intent(

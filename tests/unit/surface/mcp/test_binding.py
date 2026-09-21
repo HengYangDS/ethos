@@ -20,20 +20,20 @@ def test_bound_tools_reject_spoofing_and_preserve_results(tmp_path, monkeypatch)
     async def exercise():
         async with Client(server) as client:
             tools = {tool.name: tool for tool in await client.list_tools()}
-            assert set(tools) == {"status", "plan", "adopt", "land"}
+            assert set(tools) == {"status", "plan", "adopt", "land", "publish"}
             for tool in tools.values():
                 assert tool.input_schema["additionalProperties"] is False
                 assert not {"root", "actor"} & tool.input_schema.get("properties", {}).keys()
                 assert tool.output_schema["type"] == "object"
             for arguments in ({"root": str(tmp_path)}, {"actor": "other"}, {"apply": "true"}):
-                for name in ("adopt", "land"):
+                for name in ("adopt", "land", "publish"):
                     result = await client.call_tool(name, arguments, raise_on_error=False)
                     assert result.is_error
                     assert not (root / ".ethos").exists()
             observed = await client.call_tool("adopt")
             assert observed.structured_content == adopt_repository(root).to_dict()
             monkeypatch.setenv("ETHOS_ACTOR", "changed-actor")
-            for name in ("adopt", "land"):
+            for name in ("adopt", "land", "publish"):
                 rejected = await client.call_tool(name, raise_on_error=False)
                 assert rejected.is_error
                 assert not (root / ".ethos").exists()

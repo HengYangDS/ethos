@@ -20,6 +20,7 @@ from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
 from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
+from ethos.domain.publication.operation import publish_repository
 
 
 class _BoundCalls(Middleware):
@@ -75,6 +76,7 @@ def create_server(root: Path, *, timeout_seconds: float = 180.0) -> FastMCP:
         ("plan", plan_repository),
         ("adopt", adopt_repository),
         ("land", land_repository),
+        ("publish", publish_repository),
     ):
         server.add_tool(
             FunctionTool.from_function(

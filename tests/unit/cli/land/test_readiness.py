@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-import ethos.domain.land.publication as publication_domain
+import ethos.domain.publication.inspection as publication_domain
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.domain.land.publication import local_ci_owner_scripts
-from ethos.domain.land.publication import publication_readiness
+from ethos.domain.publication.inspection import local_ci_owner_scripts
+from ethos.domain.publication.inspection import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture

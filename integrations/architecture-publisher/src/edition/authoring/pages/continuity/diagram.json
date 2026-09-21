@@ -1,0 +1,431 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ETHOS · 问道 — Continuity Without Inherited Permission",
+    "subtitle": "Target architecture, not a claim of current implementation.",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "visual_preset": "editorial",
+    "viewBox": [
+      2050,
+      1810
+    ],
+    "legend": {
+      "mode": "hidden"
+    },
+    "views": [
+      {
+        "id": "preserve",
+        "label": "Lose context, preserve results",
+        "focus": [
+          "session",
+          "loss",
+          "accepted",
+          "attestation",
+          "anchor"
+        ],
+        "note": "Execution can disappear without erasing reachable Git or durable evidence."
+      },
+      {
+        "id": "continue",
+        "label": "Observe and re-admit",
+        "focus": [
+          "anchor",
+          "facts",
+          "plan",
+          "admit",
+          "refused",
+          "actor"
+        ],
+        "note": "Current facts and new admission are necessary; historical success is never reusable permission."
+      },
+      {
+        "id": "exit",
+        "label": "Account and retire",
+        "focus": [
+          "anchor",
+          "handoff",
+          "retire"
+        ],
+        "note": "Declining integration does not admit destruction; preserve useful value and retire only owned, discharged resources."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "session",
+      "type": "external",
+      "label": "Execution context",
+      "sublabel": "Actor / session / host",
+      "tag": "Replaceable; may disappear",
+      "pos": [
+        80,
+        80
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "loss",
+      "type": "external",
+      "label": "Execution interrupted",
+      "sublabel": "Stop unsafe writers",
+      "tag": "Loss does not erase durable roots",
+      "pos": [
+        780,
+        80
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "accepted",
+      "type": "external",
+      "label": "Reachable accepted Git",
+      "sublabel": "Exact object and history",
+      "tag": "Preserve independently of the actor",
+      "pos": [
+        1470,
+        80
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "handoff",
+      "type": "external",
+      "label": "Account for owned work",
+      "sublabel": "Preserve unique work and findings",
+      "tag": "Handoff requires fresh authority",
+      "pos": [
+        80,
+        440
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "anchor",
+      "type": "external",
+      "label": "Re-observe current state",
+      "sublabel": "Git and necessary Attestations",
+      "tag": "Re-observe; never blindly replay",
+      "pos": [
+        780,
+        440
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "attestation",
+      "type": "external",
+      "label": "Durable Attestation",
+      "sublabel": "Predicate / bindings / verifier",
+      "tag": "Historical result, not permission",
+      "pos": [
+        1470,
+        440
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "retire",
+      "type": "external",
+      "label": "Retire only owned resources",
+      "sublabel": "Quiescent; useful value accounted",
+      "tag": "All-drop is not permission to delete",
+      "pos": [
+        80,
+        820
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "facts",
+      "type": "external",
+      "label": "Observe fresh Facts",
+      "sublabel": "Exact current repository state",
+      "tag": "Uncertain attempt: observe first",
+      "pos": [
+        780,
+        820
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "context",
+      "type": "external",
+      "label": "Rebuild, do not resume blindly",
+      "sublabel": "Transient Commitment / Facts / Plan",
+      "tag": "No workflow or memory-backed truth",
+      "pos": [
+        1470,
+        820
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "refused",
+      "type": "external",
+      "label": "BLOCK / UNKNOWN",
+      "sublabel": "No new action",
+      "tag": "Resolve conditions; fresh observation",
+      "pos": [
+        80,
+        1180
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "admit",
+      "type": "external",
+      "label": "Evaluate current admission",
+      "sublabel": "Subject + policy + intent",
+      "tag": "Facts + Plan; all required; own PASS",
+      "pos": [
+        780,
+        1180
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "plan",
+      "type": "external",
+      "label": "Compile a new bounded Plan",
+      "sublabel": "Accepted intent + applicable evidence",
+      "tag": "Checks / decisions / effects",
+      "pos": [
+        1470,
+        1180
+      ],
+      "size": [
+        500,
+        170
+      ]
+    },
+    {
+      "id": "actor",
+      "type": "external",
+      "label": "Continue with admitted actor",
+      "sublabel": "Own lane and current prewrite",
+      "tag": "Fresh authority; no inherited PASS",
+      "pos": [
+        780,
+        1560
+      ],
+      "size": [
+        500,
+        170
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "interrupt",
+      "from": "session",
+      "to": "loss",
+      "label": "context lost",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default"
+    },
+    {
+      "id": "recover-loss",
+      "from": "loss",
+      "to": "anchor",
+      "label": "preserve; recover",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1168,
+        350
+      ]
+    },
+    {
+      "id": "preserve-git",
+      "from": "accepted",
+      "to": "anchor",
+      "label": "reachable state",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default",
+      "labelDx": 170,
+      "labelDy": -5
+    },
+    {
+      "id": "preserve-evidence",
+      "from": "attestation",
+      "to": "anchor",
+      "label": "necessary evidence",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default",
+      "labelDy": 130
+    },
+    {
+      "id": "account-owned",
+      "from": "anchor",
+      "to": "handoff",
+      "label": "account before exit",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default",
+      "labelAt": [
+        680,
+        655
+      ]
+    },
+    {
+      "id": "retire-owned",
+      "from": "handoff",
+      "to": "retire",
+      "label": "value accounted",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        470,
+        730
+      ]
+    },
+    {
+      "id": "observe-fresh",
+      "from": "anchor",
+      "to": "facts",
+      "label": "observe anew",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1150,
+        730
+      ]
+    },
+    {
+      "id": "compile-fresh",
+      "from": "facts",
+      "to": "plan",
+      "label": "fresh inputs",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "evaluate-fresh",
+      "from": "plan",
+      "to": "admit",
+      "label": "new Plan",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default"
+    },
+    {
+      "id": "admit-actor",
+      "from": "admit",
+      "to": "actor",
+      "label": "own PASS",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1130,
+        1460
+      ]
+    },
+    {
+      "id": "refuse-action",
+      "from": "admit",
+      "to": "refused",
+      "label": "non-PASS",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "dashed"
+    },
+    {
+      "id": "resolve-refusal",
+      "from": "refused",
+      "to": "facts",
+      "label": "resolve; re-observe",
+      "fromSide": "top",
+      "toSide": "left",
+      "variant": "dashed",
+      "via": [
+        [
+          330,
+          1100
+        ],
+        [
+          680,
+          1100
+        ],
+        [
+          680,
+          905
+        ]
+      ],
+      "labelAt": [
+        520,
+        1050
+      ]
+    }
+  ],
+  "boundaries": [],
+  "cards": [
+    {
+      "dot": "slate",
+      "title": "Three things that must not be conflated",
+      "items": [
+        "BLOCK prevents a future effect; UNKNOWN may describe an already attempted effect. Preserve reachable Git and necessary Attestations through actor or host loss. Re-observe uncertain outcomes, recompile and reauthorize before continuation; never replay blindly.",
+        "Attestation is the sole durable semantic result, scoped by predicate, bindings, validity and verifier, never permission. Commitment, Facts and Plan are transient. Change relations and experiments are derived: no persistent workflow graph, compatibility residue, feedback ledger or memory-backed truth."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Fresh admission, not inherited permission",
+      "items": [
+        "Required inputs: Authorized subject; Applicable authority; Compiled Commitment; Fresh observations; TransitionPlan.",
+        "Applicable claims: all applicable scoped prior Attestations selected by the current plan and policy.",
+        "The graph ends at an admitted actor, not an effect. Fresh lane prewrite and the resource-local effect protocol remain mandatory."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Preserve value before controlled exit",
+      "items": [
+        "A new Agent continues from exact results with fresh authority. Stop writers, account for unique work, preserve useful findings, retire exact owned resources and remove discharged runtime projections.",
+        "Before controlled retirement, reconcile all unique work and useful positive, negative or inconclusive results into current owners or exact recoverable evidence. Declining integration never authorizes destruction; discharged retention obligations end."
+      ]
+    }
+  ]
+}

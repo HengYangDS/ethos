@@ -1,0 +1,298 @@
+{
+  "sourceRevision": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "effectAuthority": false,
+  "semanticAcceptance": "UNVERIFIED",
+  "nodes": {
+    "research": [
+      "problem_observation",
+      "research"
+    ],
+    "interpret": [
+      "intent_alignment"
+    ],
+    "accepted": [
+      "openspec_carrier"
+    ],
+    "unaccepted": [
+      "intent_alignment"
+    ],
+    "commitment": [
+      "commitment_n"
+    ],
+    "facts": [
+      "fresh_facts",
+      "authority_reference",
+      "prior_attestations"
+    ],
+    "compiler": [
+      "compile_plan"
+    ],
+    "plan": [
+      "transition_plan"
+    ],
+    "admit": [
+      "action_evaluation",
+      "action_pass",
+      "authorized_subject",
+      "authority_reference"
+    ],
+    "work": [
+      "actor",
+      "work_lane",
+      "prewrite_admission"
+    ],
+    "refused": [
+      "action_block",
+      "action_unknown",
+      "recovery_anchor"
+    ],
+    "repair": [
+      "model_gap",
+      "model_promotion"
+    ]
+  },
+  "connections": {
+    "investigate": [
+      "intent"
+    ],
+    "accept": [
+      "intent"
+    ],
+    "disposition": [
+      "intent"
+    ],
+    "revisit": [
+      "intent",
+      "feedback"
+    ],
+    "normalize": [
+      "compile"
+    ],
+    "bind-commitment": [
+      "compile"
+    ],
+    "fresh-facts": [
+      "compile",
+      "evidence"
+    ],
+    "compile": [
+      "compile"
+    ],
+    "evaluate": [
+      "authority"
+    ],
+    "pass": [
+      "authority",
+      "lanes"
+    ],
+    "nonpass": [
+      "authority",
+      "recovery"
+    ],
+    "model-gap": [
+      "model"
+    ],
+    "repair-compile": [
+      "model"
+    ],
+    "observe-again": [
+      "recovery"
+    ]
+  },
+  "relations": {
+    "investigate": {
+      "sourceRelations": [
+        "problem-informs-research",
+        "research-informs-alignment"
+      ],
+      "sourceAssertions": [
+        "intent"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "accept": {
+      "sourceRelations": [
+        "alignment-proposes-accepted-intent"
+      ],
+      "sourceAssertions": [
+        "intent"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "disposition": {
+      "sourceRelations": [],
+      "sourceAssertions": [
+        "intent"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-assertion-consequence",
+      "explanation": "The three non-current dispositions come from the exact intent assertion and Feedback Intent Preservation source section; not a fabricated kernel edge or automatic status machine."
+    },
+    "revisit": {
+      "sourceRelations": [],
+      "sourceAssertions": [
+        "intent",
+        "feedback"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-assertion-consequence",
+      "explanation": "Non-current meaning cannot enter compilation. Reconsideration is a new inquiry and explicit adjudication, not direct reactivation of rejected or superseded intent."
+    },
+    "normalize": {
+      "sourceRelations": [
+        "carrier-realizes-commitment"
+      ],
+      "sourceAssertions": [
+        "compile"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "bind-commitment": {
+      "sourceRelations": [
+        "commitment-compile"
+      ],
+      "sourceAssertions": [
+        "compile"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "fresh-facts": {
+      "sourceRelations": [
+        "facts-compile",
+        "prior-attestations-compile"
+      ],
+      "sourceAssertions": [
+        "compile",
+        "evidence"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority.",
+      "additionalSourcePredicate": {
+        "node": "compile_plan",
+        "field": "attributes.semantics",
+        "text": "Deterministic compilation from explicit Commitment, Facts, applicable Attestations and policy.",
+        "explanation": "Policy is an explicit compiler input in the source node semantics. This is not a claim that the source graph contains a separate authority-to-compiler edge."
+      }
+    },
+    "compile": {
+      "sourceRelations": [
+        "compile-plan"
+      ],
+      "sourceAssertions": [
+        "compile"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "evaluate": {
+      "sourceRelations": [
+        "plan-evaluate-action"
+      ],
+      "sourceAssertions": [
+        "authority"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "pass": {
+      "sourceRelations": [
+        "action-pass-branch",
+        "pass-admits-actor",
+        "subject-admits-actor",
+        "actor-executes-lane"
+      ],
+      "sourceAssertions": [
+        "authority",
+        "lanes"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "nonpass": {
+      "sourceRelations": [
+        "action-block-branch",
+        "action-unknown-branch"
+      ],
+      "sourceAssertions": [
+        "authority",
+        "recovery"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "model-gap": {
+      "sourceRelations": [
+        "action-block-to-model-gap",
+        "model-gap-to-promotion"
+      ],
+      "sourceAssertions": [
+        "model"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "repair-compile": {
+      "sourceRelations": [
+        "promotion-to-compile"
+      ],
+      "sourceAssertions": [
+        "model"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    },
+    "observe-again": {
+      "sourceRelations": [
+        "action-unknown-to-recovery",
+        "recovery-reobserves"
+      ],
+      "sourceAssertions": [
+        "recovery"
+      ],
+      "effectAuthority": false,
+      "mode": "source-relation-or-composed-path",
+      "explanation": "Presentation of accepted source meaning; graph reachability never grants authority."
+    }
+  },
+  "scopes": [],
+  "cards": [
+    {
+      "index": 0,
+      "sourceAssertions": [
+        "intent",
+        "compile"
+      ]
+    },
+    {
+      "index": 1,
+      "sourceAssertions": [
+        "authority",
+        "evidence",
+        "lanes"
+      ]
+    },
+    {
+      "index": 2,
+      "sourceAssertions": [
+        "model",
+        "recovery"
+      ]
+    }
+  ]
+}

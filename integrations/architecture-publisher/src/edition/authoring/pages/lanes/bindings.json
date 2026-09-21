@@ -1,0 +1,1074 @@
+{
+  "sourceRevision": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "effectAuthority": false,
+  "semanticAcceptance": "UNVERIFIED",
+  "nodes": {
+    "coordination": [
+      "git_common_state",
+      "git_common_activation"
+    ],
+    "inputs": [
+      "transition_plan",
+      "fresh_facts",
+      "commitment_n",
+      "authority_reference",
+      "authorized_subject"
+    ],
+    "modes": [
+      "collaboration_selection"
+    ],
+    "admission-a": [
+      "action_evaluation",
+      "action_pass",
+      "action_block",
+      "action_unknown"
+    ],
+    "actor-a": [
+      "actor"
+    ],
+    "base-a": [
+      "exact_base"
+    ],
+    "lease-a": [
+      "lease"
+    ],
+    "lane-a": [
+      "work_lane"
+    ],
+    "worktree-a": [
+      "linked_worktree"
+    ],
+    "proof-a": [
+      "lane_proof_claim"
+    ],
+    "prewrite-a": [
+      "prewrite_admission"
+    ],
+    "admission-b": [
+      "action_evaluation",
+      "action_pass",
+      "action_block",
+      "action_unknown"
+    ],
+    "actor-b": [
+      "actor"
+    ],
+    "base-b": [
+      "exact_base"
+    ],
+    "lease-b": [
+      "lease"
+    ],
+    "lane-b": [
+      "work_lane"
+    ],
+    "worktree-b": [
+      "linked_worktree"
+    ],
+    "proof-b": [
+      "lane_proof_claim"
+    ],
+    "prewrite-b": [
+      "prewrite_admission"
+    ],
+    "admission-c": [
+      "action_evaluation",
+      "action_pass",
+      "action_block",
+      "action_unknown"
+    ],
+    "actor-c": [
+      "actor"
+    ],
+    "base-c": [
+      "exact_base"
+    ],
+    "lease-c": [
+      "lease"
+    ],
+    "lane-c": [
+      "work_lane"
+    ],
+    "worktree-c": [
+      "linked_worktree"
+    ],
+    "proof-c": [
+      "lane_proof_claim"
+    ],
+    "prewrite-c": [
+      "prewrite_admission"
+    ],
+    "selection": [
+      "collaboration_selection"
+    ],
+    "proven-object": [
+      "candidate_bundle"
+    ],
+    "candidate": [
+      "candidate_integration_evaluation",
+      "candidate_integration_pass",
+      "candidate_effect_recheck",
+      "candidate_admitted_runner",
+      "candidate_cas",
+      "candidate_next"
+    ],
+    "accepted": [
+      "candidate_next",
+      "effect_evaluation",
+      "effect_recheck",
+      "repo_cas",
+      "accepted_next"
+    ],
+    "claim": [
+      "candidate_post_observation",
+      "candidate_effect_attestation"
+    ],
+    "retained": [
+      "durable_evidence"
+    ],
+    "exit": [
+      "adoption_exit",
+      "lane_retirement"
+    ],
+    "learning": [
+      "feedback_learning",
+      "problem_observation"
+    ]
+  },
+  "connections": {
+    "pass-a": [
+      "authority"
+    ],
+    "execute-a": [
+      "lanes",
+      "authority"
+    ],
+    "base-a": [
+      "lanes"
+    ],
+    "lease-a": [
+      "lanes",
+      "authority"
+    ],
+    "worktree-a": [
+      "lanes"
+    ],
+    "proof-a": [
+      "lanes",
+      "verification"
+    ],
+    "tree-prewrite-a": [
+      "lanes",
+      "authority"
+    ],
+    "offer-a": [
+      "selection"
+    ],
+    "pass-b": [
+      "authority"
+    ],
+    "execute-b": [
+      "lanes",
+      "authority"
+    ],
+    "base-b": [
+      "lanes"
+    ],
+    "lease-b": [
+      "lanes",
+      "authority"
+    ],
+    "worktree-b": [
+      "lanes"
+    ],
+    "proof-b": [
+      "lanes",
+      "verification"
+    ],
+    "tree-prewrite-b": [
+      "lanes",
+      "authority"
+    ],
+    "offer-b": [
+      "selection"
+    ],
+    "pass-c": [
+      "authority"
+    ],
+    "execute-c": [
+      "lanes",
+      "authority"
+    ],
+    "base-c": [
+      "lanes"
+    ],
+    "lease-c": [
+      "lanes",
+      "authority"
+    ],
+    "worktree-c": [
+      "lanes"
+    ],
+    "proof-c": [
+      "lanes",
+      "verification"
+    ],
+    "tree-prewrite-c": [
+      "lanes",
+      "authority"
+    ],
+    "offer-c": [
+      "selection"
+    ],
+    "select-object": [
+      "selection",
+      "candidate"
+    ],
+    "integrate-object": [
+      "candidate",
+      "authority"
+    ],
+    "keep": [
+      "selection",
+      "evidence"
+    ],
+    "review": [
+      "accepted"
+    ],
+    "attest": [
+      "candidate",
+      "evidence"
+    ],
+    "account": [
+      "selection",
+      "exit"
+    ],
+    "retire-integrated": [
+      "exit"
+    ],
+    "learn": [
+      "feedback"
+    ]
+  },
+  "relations": {
+    "pass-a": {
+      "sourceRelations": [
+        "action-pass-branch",
+        "pass-admits-actor"
+      ],
+      "sourceAssertions": [
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "execute-a": {
+      "sourceRelations": [
+        "actor-executes-lane"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "The Actor node states scoped execution. Its directed edge enters only its own Lane; a second execute-within-scope caption adds no condition or action."
+    },
+    "base-a": {
+      "sourceRelations": [
+        "base-binds-lane"
+      ],
+      "sourceAssertions": [
+        "lanes"
+      ],
+      "effectAuthority": false,
+      "explanation": "The directed binding connects the explicitly labeled Base/current Lease to its own Lane. Repeating the endpoint label adds no new action, condition or scope; source guards and exact identity remain bound."
+    },
+    "lease-a": {
+      "sourceRelations": [
+        "lease-coordinates-lane"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "The directed binding connects the explicitly labeled Base/current Lease to its own Lane. Repeating the endpoint label adds no new action, condition or scope; source guards and exact identity remain bound."
+    },
+    "worktree-a": {
+      "sourceRelations": [
+        "lane-coordinates-worktree"
+      ],
+      "sourceAssertions": [
+        "lanes"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "proof-a": {
+      "sourceRelations": [
+        "lane-witnesses-proof"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "verification"
+      ],
+      "effectAuthority": false,
+      "explanation": "The destination is explicitly a Proof claim executed at HEAD, returned from this Lane. No separate edge caption is needed to identify execution or claim production."
+    },
+    "tree-prewrite-a": {
+      "sourceRelations": [
+        "worktree-binds-prewrite"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "offer-a": {
+      "sourceRelations": [
+        "lanes-offer-results"
+      ],
+      "sourceAssertions": [
+        "selection"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "pass-b": {
+      "sourceRelations": [
+        "action-pass-branch",
+        "pass-admits-actor"
+      ],
+      "sourceAssertions": [
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "execute-b": {
+      "sourceRelations": [
+        "actor-executes-lane"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "The Actor node states scoped execution. Its directed edge enters only its own Lane; a second execute-within-scope caption adds no condition or action."
+    },
+    "base-b": {
+      "sourceRelations": [
+        "base-binds-lane"
+      ],
+      "sourceAssertions": [
+        "lanes"
+      ],
+      "effectAuthority": false,
+      "explanation": "The directed binding connects the explicitly labeled Base/current Lease to its own Lane. Repeating the endpoint label adds no new action, condition or scope; source guards and exact identity remain bound."
+    },
+    "lease-b": {
+      "sourceRelations": [
+        "lease-coordinates-lane"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "The directed binding connects the explicitly labeled Base/current Lease to its own Lane. Repeating the endpoint label adds no new action, condition or scope; source guards and exact identity remain bound."
+    },
+    "worktree-b": {
+      "sourceRelations": [
+        "lane-coordinates-worktree"
+      ],
+      "sourceAssertions": [
+        "lanes"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "proof-b": {
+      "sourceRelations": [
+        "lane-witnesses-proof"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "verification"
+      ],
+      "effectAuthority": false,
+      "explanation": "The destination is explicitly a Proof claim executed at HEAD, returned from this Lane. No separate edge caption is needed to identify execution or claim production."
+    },
+    "tree-prewrite-b": {
+      "sourceRelations": [
+        "worktree-binds-prewrite"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "offer-b": {
+      "sourceRelations": [
+        "lanes-offer-results"
+      ],
+      "sourceAssertions": [
+        "selection"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "pass-c": {
+      "sourceRelations": [
+        "action-pass-branch",
+        "pass-admits-actor"
+      ],
+      "sourceAssertions": [
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "execute-c": {
+      "sourceRelations": [
+        "actor-executes-lane"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "The Actor node states scoped execution. Its directed edge enters only its own Lane; a second execute-within-scope caption adds no condition or action."
+    },
+    "base-c": {
+      "sourceRelations": [
+        "base-binds-lane"
+      ],
+      "sourceAssertions": [
+        "lanes"
+      ],
+      "effectAuthority": false,
+      "explanation": "The directed binding connects the explicitly labeled Base/current Lease to its own Lane. Repeating the endpoint label adds no new action, condition or scope; source guards and exact identity remain bound."
+    },
+    "lease-c": {
+      "sourceRelations": [
+        "lease-coordinates-lane"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "The directed binding connects the explicitly labeled Base/current Lease to its own Lane. Repeating the endpoint label adds no new action, condition or scope; source guards and exact identity remain bound."
+    },
+    "worktree-c": {
+      "sourceRelations": [
+        "lane-coordinates-worktree"
+      ],
+      "sourceAssertions": [
+        "lanes"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "proof-c": {
+      "sourceRelations": [
+        "lane-witnesses-proof"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "verification"
+      ],
+      "effectAuthority": false,
+      "explanation": "The destination is explicitly a Proof claim executed at HEAD, returned from this Lane. No separate edge caption is needed to identify execution or claim production."
+    },
+    "tree-prewrite-c": {
+      "sourceRelations": [
+        "worktree-binds-prewrite"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "offer-c": {
+      "sourceRelations": [
+        "lanes-offer-results"
+      ],
+      "sourceAssertions": [
+        "selection"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "select-object": {
+      "sourceRelations": [
+        "selection-binds-combination"
+      ],
+      "sourceAssertions": [
+        "selection",
+        "candidate"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "integrate-object": {
+      "sourceRelations": [
+        "candidate-bundle-binds-integration",
+        "candidate-integration-pass-branch"
+      ],
+      "sourceAssertions": [
+        "candidate",
+        "authority"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "keep": {
+      "sourceRelations": [
+        "selection-preserves-knowledge"
+      ],
+      "sourceAssertions": [
+        "selection",
+        "evidence"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "review": {
+      "sourceRelations": [
+        "candidate-next-to-effect-evaluation",
+        "candidate-next-to-recheck"
+      ],
+      "sourceAssertions": [
+        "accepted"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "attest": {
+      "sourceRelations": [
+        "candidate-cas-to-post-observation",
+        "candidate-post-observation-attests"
+      ],
+      "sourceAssertions": [
+        "candidate",
+        "evidence"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "account": {
+      "sourceRelations": [],
+      "sourceAssertions": [
+        "selection",
+        "exit"
+      ],
+      "effectAuthority": false,
+      "explanation": "Declining integration does not admit destruction. Preserve unique work and useful findings before owned retirement."
+    },
+    "retire-integrated": {
+      "sourceRelations": [
+        "candidate-attestation-binds-retirement"
+      ],
+      "sourceAssertions": [
+        "exit"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    },
+    "learn": {
+      "sourceRelations": [
+        "evidence-informs-learning",
+        "feedback-revisits-problem"
+      ],
+      "sourceAssertions": [
+        "feedback"
+      ],
+      "effectAuthority": false,
+      "explanation": "Exact source relation or scoped explanatory path; graph reachability never grants authority."
+    }
+  },
+  "scopes": [],
+  "cards": [
+    {
+      "index": 0,
+      "sourceAssertions": [
+        "lanes",
+        "selection",
+        "candidate",
+        "accepted"
+      ]
+    },
+    {
+      "index": 1,
+      "sourceAssertions": [
+        "authority",
+        "coordination",
+        "verification"
+      ]
+    },
+    {
+      "index": 2,
+      "sourceAssertions": [
+        "evidence",
+        "exit",
+        "feedback",
+        "recovery"
+      ]
+    }
+  ],
+  "predicates": [
+    {
+      "id": "plan-a",
+      "mode": "exact-binding",
+      "node": "lane-a",
+      "field": "sublabel",
+      "subject": "inputs",
+      "expression": "Own Plan; current Lease",
+      "sourceRelations": [
+        "plan-binds-lane"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "lane-prewrite-a",
+      "mode": "exact-binding",
+      "node": "prewrite-a",
+      "field": "sublabel",
+      "subject": "lane-a",
+      "expression": "Own lane / Worktree / Lease",
+      "sourceRelations": [
+        "lane-evaluates-prewrite"
+      ],
+      "effectAuthority": false,
+      "condition": "This lane evaluates its own fresh prewrite; not a reusable admission."
+    },
+    {
+      "id": "lease-prewrite-a",
+      "mode": "exact-binding",
+      "node": "prewrite-a",
+      "field": "sublabel",
+      "subject": "lease-a",
+      "expression": "Own lane / Worktree / Lease",
+      "sourceRelations": [
+        "lease-binds-prewrite"
+      ],
+      "effectAuthority": false,
+      "condition": "The current four-field Lease is required by this lane prewrite; it is not permission."
+    },
+    {
+      "id": "common-lease-a",
+      "mode": "exact-binding",
+      "node": "lease-a",
+      "field": "label",
+      "subject": "coordination",
+      "expression": "Lease A",
+      "sourceRelations": [
+        "local-state-coordinates-lease"
+      ],
+      "effectAuthority": false,
+      "condition": "Repository-common coordination observes this separate lane-to-holder relation."
+    },
+    {
+      "id": "common-worktree-a",
+      "mode": "exact-binding",
+      "node": "worktree-a",
+      "field": "tag",
+      "subject": "coordination",
+      "expression": "Common runtime",
+      "sourceRelations": [
+        "common-activation-governs-linked-worktree"
+      ],
+      "effectAuthority": false,
+      "condition": "One common runtime serves every linked worktree, never a common PASS."
+    },
+    {
+      "id": "stale-a",
+      "node": "lane-a",
+      "field": "tag",
+      "subject": "candidate",
+      "expression": "Stale: refresh/prove/admit",
+      "sourceRelations": [
+        "candidate-advance-stales-remaining-lanes",
+        "stale-lane-refreshes-from-candidate"
+      ],
+      "effectAuthority": false,
+      "condition": "If candidate advancement invalidates this exact expected base, refresh and prove again before a new admission."
+    },
+    {
+      "id": "plan-b",
+      "mode": "exact-binding",
+      "node": "lane-b",
+      "field": "sublabel",
+      "subject": "inputs",
+      "expression": "Own Plan; current Lease",
+      "sourceRelations": [
+        "plan-binds-lane"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "lane-prewrite-b",
+      "mode": "exact-binding",
+      "node": "prewrite-b",
+      "field": "sublabel",
+      "subject": "lane-b",
+      "expression": "Own lane / Worktree / Lease",
+      "sourceRelations": [
+        "lane-evaluates-prewrite"
+      ],
+      "effectAuthority": false,
+      "condition": "This lane evaluates its own fresh prewrite; not a reusable admission."
+    },
+    {
+      "id": "lease-prewrite-b",
+      "mode": "exact-binding",
+      "node": "prewrite-b",
+      "field": "sublabel",
+      "subject": "lease-b",
+      "expression": "Own lane / Worktree / Lease",
+      "sourceRelations": [
+        "lease-binds-prewrite"
+      ],
+      "effectAuthority": false,
+      "condition": "The current four-field Lease is required by this lane prewrite; it is not permission."
+    },
+    {
+      "id": "common-lease-b",
+      "mode": "exact-binding",
+      "node": "lease-b",
+      "field": "label",
+      "subject": "coordination",
+      "expression": "Lease B",
+      "sourceRelations": [
+        "local-state-coordinates-lease"
+      ],
+      "effectAuthority": false,
+      "condition": "Repository-common coordination observes this separate lane-to-holder relation."
+    },
+    {
+      "id": "common-worktree-b",
+      "mode": "exact-binding",
+      "node": "worktree-b",
+      "field": "tag",
+      "subject": "coordination",
+      "expression": "Common runtime",
+      "sourceRelations": [
+        "common-activation-governs-linked-worktree"
+      ],
+      "effectAuthority": false,
+      "condition": "One common runtime serves every linked worktree, never a common PASS."
+    },
+    {
+      "id": "stale-b",
+      "node": "lane-b",
+      "field": "tag",
+      "subject": "candidate",
+      "expression": "Stale: refresh/prove/admit",
+      "sourceRelations": [
+        "candidate-advance-stales-remaining-lanes",
+        "stale-lane-refreshes-from-candidate"
+      ],
+      "effectAuthority": false,
+      "condition": "If candidate advancement invalidates this exact expected base, refresh and prove again before a new admission."
+    },
+    {
+      "id": "plan-c",
+      "mode": "exact-binding",
+      "node": "lane-c",
+      "field": "sublabel",
+      "subject": "inputs",
+      "expression": "Own Plan; current Lease",
+      "sourceRelations": [
+        "plan-binds-lane"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "lane-prewrite-c",
+      "mode": "exact-binding",
+      "node": "prewrite-c",
+      "field": "sublabel",
+      "subject": "lane-c",
+      "expression": "Own lane / Worktree / Lease",
+      "sourceRelations": [
+        "lane-evaluates-prewrite"
+      ],
+      "effectAuthority": false,
+      "condition": "This lane evaluates its own fresh prewrite; not a reusable admission."
+    },
+    {
+      "id": "lease-prewrite-c",
+      "mode": "exact-binding",
+      "node": "prewrite-c",
+      "field": "sublabel",
+      "subject": "lease-c",
+      "expression": "Own lane / Worktree / Lease",
+      "sourceRelations": [
+        "lease-binds-prewrite"
+      ],
+      "effectAuthority": false,
+      "condition": "The current four-field Lease is required by this lane prewrite; it is not permission."
+    },
+    {
+      "id": "common-lease-c",
+      "mode": "exact-binding",
+      "node": "lease-c",
+      "field": "label",
+      "subject": "coordination",
+      "expression": "Lease C",
+      "sourceRelations": [
+        "local-state-coordinates-lease"
+      ],
+      "effectAuthority": false,
+      "condition": "Repository-common coordination observes this separate lane-to-holder relation."
+    },
+    {
+      "id": "common-worktree-c",
+      "mode": "exact-binding",
+      "node": "worktree-c",
+      "field": "tag",
+      "subject": "coordination",
+      "expression": "Common runtime",
+      "sourceRelations": [
+        "common-activation-governs-linked-worktree"
+      ],
+      "effectAuthority": false,
+      "condition": "One common runtime serves every linked worktree, never a common PASS."
+    },
+    {
+      "id": "stale-c",
+      "node": "lane-c",
+      "field": "tag",
+      "subject": "candidate",
+      "expression": "Stale: refresh/prove/admit",
+      "sourceRelations": [
+        "candidate-advance-stales-remaining-lanes",
+        "stale-lane-refreshes-from-candidate"
+      ],
+      "effectAuthority": false,
+      "condition": "If candidate advancement invalidates this exact expected base, refresh and prove again before a new admission."
+    },
+    {
+      "id": "selected-base-a",
+      "mode": "exact-binding",
+      "node": "proven-object",
+      "field": "sublabel",
+      "subject": "base-a",
+      "expression": "Selected bases/prewrite/proofs",
+      "sourceRelations": [
+        "exact-base-to-candidate"
+      ],
+      "effectAuthority": false,
+      "condition": "Applies only to selected contributions; not all displayed lanes. Exact combination proof is required. No shared permission."
+    },
+    {
+      "id": "selected-prewrite-a",
+      "mode": "exact-binding",
+      "node": "proven-object",
+      "field": "sublabel",
+      "subject": "prewrite-a",
+      "expression": "Selected bases/prewrite/proofs",
+      "sourceRelations": [
+        "lane-to-candidate-bundle"
+      ],
+      "effectAuthority": false,
+      "condition": "Applies only to selected contributions; not all displayed lanes. Exact combination proof is required. No shared permission."
+    },
+    {
+      "id": "selected-proof-a",
+      "mode": "exact-binding",
+      "node": "proven-object",
+      "field": "sublabel",
+      "subject": "proof-a",
+      "expression": "Selected bases/prewrite/proofs",
+      "sourceRelations": [
+        "lane-proof-admits-candidate"
+      ],
+      "effectAuthority": false,
+      "condition": "Applies only to selected contributions; not all displayed lanes. Exact combination proof is required. No shared permission."
+    },
+    {
+      "id": "selected-base-b",
+      "mode": "exact-binding",
+      "node": "proven-object",
+      "field": "sublabel",
+      "subject": "base-b",
+      "expression": "Selected bases/prewrite/proofs",
+      "sourceRelations": [
+        "exact-base-to-candidate"
+      ],
+      "effectAuthority": false,
+      "condition": "Applies only to selected contributions; not all displayed lanes. Exact combination proof is required. No shared permission."
+    },
+    {
+      "id": "selected-prewrite-b",
+      "mode": "exact-binding",
+      "node": "proven-object",
+      "field": "sublabel",
+      "subject": "prewrite-b",
+      "expression": "Selected bases/prewrite/proofs",
+      "sourceRelations": [
+        "lane-to-candidate-bundle"
+      ],
+      "effectAuthority": false,
+      "condition": "Applies only to selected contributions; not all displayed lanes. Exact combination proof is required. No shared permission."
+    },
+    {
+      "id": "selected-proof-b",
+      "mode": "exact-binding",
+      "node": "proven-object",
+      "field": "sublabel",
+      "subject": "proof-b",
+      "expression": "Selected bases/prewrite/proofs",
+      "sourceRelations": [
+        "lane-proof-admits-candidate"
+      ],
+      "effectAuthority": false,
+      "condition": "Applies only to selected contributions; not all displayed lanes. Exact combination proof is required. No shared permission."
+    },
+    {
+      "id": "selected-base-c",
+      "mode": "exact-binding",
+      "node": "proven-object",
+      "field": "sublabel",
+      "subject": "base-c",
+      "expression": "Selected bases/prewrite/proofs",
+      "sourceRelations": [
+        "exact-base-to-candidate"
+      ],
+      "effectAuthority": false,
+      "condition": "Applies only to selected contributions; not all displayed lanes. Exact combination proof is required. No shared permission."
+    },
+    {
+      "id": "selected-prewrite-c",
+      "mode": "exact-binding",
+      "node": "proven-object",
+      "field": "sublabel",
+      "subject": "prewrite-c",
+      "expression": "Selected bases/prewrite/proofs",
+      "sourceRelations": [
+        "lane-to-candidate-bundle"
+      ],
+      "effectAuthority": false,
+      "condition": "Applies only to selected contributions; not all displayed lanes. Exact combination proof is required. No shared permission."
+    },
+    {
+      "id": "selected-proof-c",
+      "mode": "exact-binding",
+      "node": "proven-object",
+      "field": "sublabel",
+      "subject": "proof-c",
+      "expression": "Selected bases/prewrite/proofs",
+      "sourceRelations": [
+        "lane-proof-admits-candidate"
+      ],
+      "effectAuthority": false,
+      "condition": "Applies only to selected contributions; not all displayed lanes. Exact combination proof is required. No shared permission."
+    },
+    {
+      "id": "common-activation",
+      "mode": "exact-binding",
+      "node": "coordination",
+      "field": "label",
+      "subject": "coordination",
+      "expression": "One Git-common runtime",
+      "sourceRelations": [
+        "git-common-state-selects-activation"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "shared-input-a",
+      "mode": "exact-binding",
+      "node": "admission-a",
+      "field": "sublabel",
+      "subject": "inputs",
+      "expression": "Own PASS",
+      "sourceRelations": [
+        "plan-evaluate-action"
+      ],
+      "effectAuthority": false,
+      "condition": "Every Lane evaluates its own fresh subject, policy, Commitment, Facts and Plan. BLOCK / UNKNOWN cannot execute; this is not one shared PASS."
+    },
+    {
+      "id": "shared-input-b",
+      "mode": "exact-binding",
+      "node": "admission-b",
+      "field": "sublabel",
+      "subject": "inputs",
+      "expression": "Own PASS",
+      "sourceRelations": [
+        "plan-evaluate-action"
+      ],
+      "effectAuthority": false,
+      "condition": "Every Lane evaluates its own fresh subject, policy, Commitment, Facts and Plan. BLOCK / UNKNOWN cannot execute; this is not one shared PASS."
+    },
+    {
+      "id": "shared-input-c",
+      "mode": "exact-binding",
+      "node": "admission-c",
+      "field": "sublabel",
+      "subject": "inputs",
+      "expression": "Own PASS",
+      "sourceRelations": [
+        "plan-evaluate-action"
+      ],
+      "effectAuthority": false,
+      "condition": "Every Lane evaluates its own fresh subject, policy, Commitment, Facts and Plan. BLOCK / UNKNOWN cannot execute; this is not one shared PASS."
+    }
+  ],
+  "writeBoundaryRequired": {
+    "sourceId": "runner_mutation",
+    "sourceSha256": "9eaa32d7ebab62f5db76702d11b94dfb0425b3fc8614ea60bd8948483ed55d3d",
+    "appliesTo": [
+      "lane-a",
+      "lane-b",
+      "lane-c"
+    ],
+    "effectAuthority": false
+  },
+  "presentation": {
+    "annotationNodes": [
+      "coordination",
+      "inputs",
+      "modes"
+    ]
+  },
+  "leaseRule": {
+    "node": "coordination",
+    "appliesTo": [
+      "lease-a",
+      "lease-b",
+      "lease-c"
+    ],
+    "sourceRelations": [
+      "local-state-coordinates-lease"
+    ],
+    "effectAuthority": false
+  },
+  "modeRule": {
+    "node": "modes",
+    "appliesTo": "selection",
+    "sourceAssertions": [
+      "selection"
+    ],
+    "effectAuthority": false
+  },
+  "horizontalGrammar": {
+    "note": "inputs",
+    "lanes": [
+      "a",
+      "b",
+      "c"
+    ],
+    "effectAuthority": false
+  }
+}

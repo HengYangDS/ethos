@@ -1,0 +1,154 @@
+{
+  "schema": "architecture.source-bundle/v1",
+  "source": {
+    "id": "ethos-accepted-atlas-authoring",
+    "revision": "8f2e829fed3877c5375cd8636bea45bee583f6c4"
+  },
+  "files": [
+    {
+      "path": "catalog.json",
+      "bytes": 1587,
+      "sha256": "1874f31aa67ce3e2d7295a5bdf63a24ed0071a5726b84fb876ddebd5f6dbd803"
+    },
+    {
+      "path": "pages/overview/diagram.json",
+      "bytes": 26008,
+      "sha256": "4ff69fb19a6f7f990e31d3a3b8b0885e10c6e80410204f56bb884799d72504bd"
+    },
+    {
+      "path": "pages/overview/bindings.json",
+      "bytes": 26387,
+      "sha256": "7e83e2bc7916e8ee008850f47f15f6ffd3f2357e083694a23be4638bf474aa12"
+    },
+    {
+      "path": "pages/intent/diagram.json",
+      "bytes": 10655,
+      "sha256": "85fbb512eb75791b9d7e9f42083ed00ac77715dde0938bed25c09f40af3fe06c"
+    },
+    {
+      "path": "pages/intent/bindings.json",
+      "bytes": 7741,
+      "sha256": "c944756b7629a6e2c4870fd1c72bdf766ad65e74b079909c5b6b08b8446a6eaa"
+    },
+    {
+      "path": "pages/lanes/diagram.json",
+      "bytes": 23039,
+      "sha256": "dd48b8e1b9f05222df00b1a497de8a18af17042656fcfb30f74e6d65238de136"
+    },
+    {
+      "path": "pages/lanes/bindings.json",
+      "bytes": 29778,
+      "sha256": "3a0b1825c91f443ba056b83165f244f8b8cb4004a7f0b3e12568f84e4a4177b8"
+    },
+    {
+      "path": "pages/verification/diagram.json",
+      "bytes": 8234,
+      "sha256": "6ba99963f7628bbd6a313126e458a35c8d19bdc652644fbcf5e673bc4436dc70"
+    },
+    {
+      "path": "pages/verification/bindings.json",
+      "bytes": 6966,
+      "sha256": "d067ffa1fc9e11bab1f18cdf0d191e08cd6fd4c558ae2320e88be1e9ae0fa9ab"
+    },
+    {
+      "path": "pages/runtime/diagram.json",
+      "bytes": 8509,
+      "sha256": "9526e078662f6279423a915017e2fbcf82fef858a5654a3b25ac23cb5cb40adc"
+    },
+    {
+      "path": "pages/runtime/bindings.json",
+      "bytes": 4861,
+      "sha256": "aea878b799c47c105f1f5b009dc8dd2a366f063179602b290c766f67b0c20928"
+    },
+    {
+      "path": "pages/continuity/diagram.json",
+      "bytes": 10119,
+      "sha256": "9e685a04711de84a0d6ec8564f966a680ab9e2d220886bbd1faf18560aa029fb"
+    },
+    {
+      "path": "pages/continuity/bindings.json",
+      "bytes": 6093,
+      "sha256": "6ed81fc437103a493d850291951391508f98263c439094f65854be88897cc91d"
+    },
+    {
+      "path": "pages/ownership/diagram.json",
+      "bytes": 6559,
+      "sha256": "c2e12be1428a69b7829d983c2c1b76e7cbe91c2baaf40951c6fdd47c8073245f"
+    },
+    {
+      "path": "pages/ownership/bindings.json",
+      "bytes": 2872,
+      "sha256": "186d0a80816deb4b7d9a94889ad33d502a397d9a81155f1ac7a8bad6472f2dd0"
+    },
+    {
+      "path": "pages/candidate/diagram.json",
+      "bytes": 11974,
+      "sha256": "723fc75cb11c74002a25e3572767eba0faa6d9bb32906235190f765fe5e16b23"
+    },
+    {
+      "path": "pages/candidate/bindings.json",
+      "bytes": 10718,
+      "sha256": "084310ae683d827f9ef2c8efca0b5c01c715e14c8126e4c675c943cfa4c2b224"
+    },
+    {
+      "path": "pages/accepted/diagram.json",
+      "bytes": 12053,
+      "sha256": "a6f3e74272f0aa09a79c9861b49677706d3b0629c823cd5fcf0223f8ffc83bc0"
+    },
+    {
+      "path": "pages/accepted/bindings.json",
+      "bytes": 11270,
+      "sha256": "dcbda9dc6b7d372d6698e7563869325603aadc7c9d0519e7e74428c45fdc7ba7"
+    },
+    {
+      "path": "pages/greenfield/diagram.json",
+      "bytes": 16982,
+      "sha256": "f006b522cf38339a747d5147089ee66e725af1704f2c27771287daec58cb3b60"
+    },
+    {
+      "path": "pages/greenfield/bindings.json",
+      "bytes": 14486,
+      "sha256": "76a36fb1edf7205833d36d0acb420655eaec72069011e5b96871898d690d63a0"
+    },
+    {
+      "path": "pages/brownfield/diagram.json",
+      "bytes": 17003,
+      "sha256": "8dc393d025338d848d11ee58e4506b911c790d4f637557988962fddd821eea02"
+    },
+    {
+      "path": "pages/brownfield/bindings.json",
+      "bytes": 14432,
+      "sha256": "a7d8cff2f1c47758c5f169d8e88a6afe38e37a14c7ba05287a0301f822551640"
+    },
+    {
+      "path": "pages/peers/diagram.json",
+      "bytes": 12122,
+      "sha256": "826e67349ad3f2881b9cbed52d4684578673223c82145272995e7f195cd0c8ea"
+    },
+    {
+      "path": "pages/peers/bindings.json",
+      "bytes": 10584,
+      "sha256": "48be9ca277cd5d758ee8dfeb00ad8f28d14d8bb298db7788a53b8a6b112fff1f"
+    },
+    {
+      "path": "pages/publication/diagram.json",
+      "bytes": 13213,
+      "sha256": "233cd62590ce8c1e1335b7aed80bfc11247dc4e17f19d1a6f6dd039bdc20f8e7"
+    },
+    {
+      "path": "pages/publication/bindings.json",
+      "bytes": 10538,
+      "sha256": "b8d947390e7c6fa60388abe1942312baa080ff0ddbabf215a893267dc1d6ce3c"
+    },
+    {
+      "path": "original-font-selection.json",
+      "bytes": 2088,
+      "sha256": "e19e62f945eecda152cf155ba80c82401c20f92714eb13764f6c6c1e74af0fb6"
+    },
+    {
+      "path": "edition.json",
+      "bytes": 9908,
+      "sha256": "01a7d7c297c91987792bfa744669807ddcb4e272d95d25b249b34d61eb2062af"
+    }
+  ]
+}

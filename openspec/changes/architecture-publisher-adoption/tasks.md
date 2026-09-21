@@ -1,11 +1,11 @@
 ## 1. Baseline and ownership
 
-- [ ] 1.1 Record the exact Architecture Publisher commit, package manifest, migration-package tree digest, ETHOS projection identity, and current package behavior without copying generated delivery history.
+- [x] 1.1 Record the exact Architecture Publisher commit, package manifest, migration-package tree digest, ETHOS projection identity, and current package behavior without copying generated delivery history.
 - [ ] 1.2 Add failing boundary tests proving the integration is optional, imports only public Publisher exports, consumes explicit projection inputs, and exposes no ETHOS command, authority, proof, Lane, or CAS effect.
 
 ## 2. Source-owned package
 
-- [ ] 2.1 Create `integrations/architecture-publisher` as the sole mutable `@architecture-publisher/ethos` package and migrate the adapter, Edition, renderer inputs, and bounded source-owned assets without compatibility wrappers.
+- [x] 2.1 Create `integrations/architecture-publisher` as the sole mutable `@architecture-publisher/ethos` package and migrate the adapter, Edition, renderer inputs, and bounded source-owned assets without compatibility wrappers.
 - [ ] 2.2 Integrate the package's JavaScript, JSON, Markdown, dependency, secret, and package checks into existing ETHOS quality owners without a second registry or command plane.
 - [ ] 2.3 Add source-repository tests for projection intake, complete semantic preservation, Edition construction, Candidate preparation, static and interactive generation, qualification boundaries, and rejection of implicit repository or authority inputs.
 

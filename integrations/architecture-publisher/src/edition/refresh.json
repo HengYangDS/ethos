@@ -1,0 +1,109 @@
+{
+  "schema": "architecture.ethos-authored-edits/v1",
+  "static": {
+    "refresh": {
+      "sha256": "c671261335d7565a54facf3c8d36eb73d238b9e3b3d35e8f92bb53bca1364443",
+      "replay": "Unpublished: replay; then re-prove",
+      "merge": "Preserve history: merge; then re-prove",
+      "pending": "Merge: exact continuation or preserved rollback"
+    }
+  },
+  "interactive": {
+    "order": [
+      "overview",
+      "intent",
+      "lanes",
+      "verification",
+      "runtime",
+      "continuity",
+      "ownership",
+      "candidate",
+      "accepted",
+      "greenfield",
+      "brownfield",
+      "peers",
+      "publication"
+    ],
+    "pages": [
+      {
+        "id": "overview",
+        "edits": [
+          {
+            "carrier": "cards/1/items/4",
+            "before": null,
+            "after": "An advanced candidate base requires reconciliation and fresh proof before integration. Unpublished replay and history-preserving merge share this boundary; a pending merge requires exact-state continuation or preserved rollback."
+          }
+        ],
+        "meaning": [
+          {
+            "kind": "node",
+            "id": "candidate_base_stale",
+            "sha256": "c671261335d7565a54facf3c8d36eb73d238b9e3b3d35e8f92bb53bca1364443",
+            "carriers": [
+              "cards/1/items/4"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lanes",
+        "edits": [
+          {
+            "carrier": "cards/0/items/7",
+            "before": null,
+            "after": "An advanced candidate base requires reconciliation and fresh proof before integration. Unpublished replay and history-preserving merge share this boundary; a pending merge requires exact-state continuation or preserved rollback."
+          }
+        ],
+        "meaning": [
+          {
+            "kind": "node",
+            "id": "candidate_base_stale",
+            "sha256": "c671261335d7565a54facf3c8d36eb73d238b9e3b3d35e8f92bb53bca1364443",
+            "carriers": [
+              "cards/0/items/7"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "candidate",
+        "edits": [
+          {
+            "carrier": "cards/0/items/1",
+            "before": null,
+            "after": "An advanced candidate base requires reconciliation and fresh proof before integration. Unpublished replay and history-preserving merge share this boundary; a pending merge requires exact-state continuation or preserved rollback."
+          },
+          {
+            "carrier": "nodes/expected/label",
+            "before": "Candidate head",
+            "after": "Candidate head"
+          },
+          {
+            "carrier": "nodes/expected/sublabel",
+            "before": "Observe this resource, not another",
+            "after": "If stale: replay or merge; re-prove"
+          },
+          {
+            "carrier": "nodes/expected/tag",
+            "before": "Drift invalidates the old attempt",
+            "after": "Unpublished replay / preserved history"
+          }
+        ],
+        "meaning": [
+          {
+            "kind": "node",
+            "id": "candidate_base_stale",
+            "sha256": "c671261335d7565a54facf3c8d36eb73d238b9e3b3d35e8f92bb53bca1364443",
+            "carriers": [
+              "cards/0/items/1",
+              "nodes/expected/label",
+              "nodes/expected/sublabel",
+              "nodes/expected/tag"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scope": "Source-bound authored interpretation, not canonical source meaning or implementation acceptance"
+}

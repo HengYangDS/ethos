@@ -1,0 +1,273 @@
+{
+  "schema": "architecture.ethos-edition-input/v1",
+  "source": {
+    "commit": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+    "projectionDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+    "manifestSha256": "58121ad168a314af94b55f557435ffb7d9828ca7c476411f18467731ae9d1db0"
+  },
+  "acceptedAtlasManifestSha256": "8370735b1f368360b757754ff93a51beb6b2754045cbc0248b970640d6f185e2",
+  "fontSelectionSha256": "e19e62f945eecda152cf155ba80c82401c20f92714eb13764f6c6c1e74af0fb6",
+  "pages": [
+    {
+      "id": "overview",
+      "label": "Overview",
+      "path": "index.html",
+      "spec": "pages/overview/diagram.json",
+      "bindings": "pages/overview/bindings.json",
+      "specSha256": "4ff69fb19a6f7f990e31d3a3b8b0885e10c6e80410204f56bb884799d72504bd",
+      "bindingsSha256": "7e83e2bc7916e8ee008850f47f15f6ffd3f2357e083694a23be4638bf474aa12",
+      "acceptedHtmlSha256": "050c1de990f84e9061e1d337cc3f5fafb299ff950c3bed13234328a4a03e624f",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": true,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "intent",
+      "label": "Intent",
+      "path": "mechanisms/intent/index.html",
+      "spec": "pages/intent/diagram.json",
+      "bindings": "pages/intent/bindings.json",
+      "specSha256": "85fbb512eb75791b9d7e9f42083ed00ac77715dde0938bed25c09f40af3fe06c",
+      "bindingsSha256": "c944756b7629a6e2c4870fd1c72bdf766ad65e74b079909c5b6b08b8446a6eaa",
+      "acceptedHtmlSha256": "6a5a6a76c7220caa8538378c76954c107f57e51fb4675e670b7db0142f60b6c0",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "lanes",
+      "label": "Parallel work",
+      "path": "mechanisms/lanes/index.html",
+      "spec": "pages/lanes/diagram.json",
+      "bindings": "pages/lanes/bindings.json",
+      "specSha256": "dd48b8e1b9f05222df00b1a497de8a18af17042656fcfb30f74e6d65238de136",
+      "bindingsSha256": "3a0b1825c91f443ba056b83165f244f8b8cb4004a7f0b3e12568f84e4a4177b8",
+      "acceptedHtmlSha256": "070a37c2bf4749ec6aab225cd2c67d14b6877f45fb618f037307f5ca89d635e2",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": true
+    },
+    {
+      "id": "verification",
+      "label": "Evidence",
+      "path": "mechanisms/verification/index.html",
+      "spec": "pages/verification/diagram.json",
+      "bindings": "pages/verification/bindings.json",
+      "specSha256": "6ba99963f7628bbd6a313126e458a35c8d19bdc652644fbcf5e673bc4436dc70",
+      "bindingsSha256": "d067ffa1fc9e11bab1f18cdf0d191e08cd6fd4c558ae2320e88be1e9ae0fa9ab",
+      "acceptedHtmlSha256": "86aa4b588f9ba98555cee27a13e85c315eb8eb11571e564b1a6b445040f5dbd5",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": true,
+      "writeBoundary": false
+    },
+    {
+      "id": "runtime",
+      "label": "Runtime",
+      "path": "mechanisms/runtime/index.html",
+      "spec": "pages/runtime/diagram.json",
+      "bindings": "pages/runtime/bindings.json",
+      "specSha256": "9526e078662f6279423a915017e2fbcf82fef858a5654a3b25ac23cb5cb40adc",
+      "bindingsSha256": "aea878b799c47c105f1f5b009dc8dd2a366f063179602b290c766f67b0c20928",
+      "acceptedHtmlSha256": "1d662a0c5574e4fc356d5cab94e43306463c280cdc67ee8a2492dff5079d4214",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "continuity",
+      "label": "Continuity",
+      "path": "mechanisms/continuity/index.html",
+      "spec": "pages/continuity/diagram.json",
+      "bindings": "pages/continuity/bindings.json",
+      "specSha256": "9e685a04711de84a0d6ec8564f966a680ab9e2d220886bbd1faf18560aa029fb",
+      "bindingsSha256": "6ed81fc437103a493d850291951391508f98263c439094f65854be88897cc91d",
+      "acceptedHtmlSha256": "d6a19fa92b8c212cfee5a8076d5e429fe8496cbc6aabf4280e60b504118b8db4",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "ownership",
+      "label": "Native owners",
+      "path": "mechanisms/ownership/index.html",
+      "spec": "pages/ownership/diagram.json",
+      "bindings": "pages/ownership/bindings.json",
+      "specSha256": "c2e12be1428a69b7829d983c2c1b76e7cbe91c2baaf40951c6fdd47c8073245f",
+      "bindingsSha256": "186d0a80816deb4b7d9a94889ad33d502a397d9a81155f1ac7a8bad6472f2dd0",
+      "acceptedHtmlSha256": "525aa4a44bb2886422d5d81b77ce4f190d30931d688606975e604fbeafc600a8",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "candidate",
+      "label": "Candidate",
+      "path": "resources/candidate/index.html",
+      "spec": "pages/candidate/diagram.json",
+      "bindings": "pages/candidate/bindings.json",
+      "specSha256": "723fc75cb11c74002a25e3572767eba0faa6d9bb32906235190f765fe5e16b23",
+      "bindingsSha256": "084310ae683d827f9ef2c8efca0b5c01c715e14c8126e4c675c943cfa4c2b224",
+      "acceptedHtmlSha256": "a5aa7a8d7ae43465b7576a1515a81c7c5b185e806ad1c0b71957fd8b6dd72a67",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "accepted",
+      "label": "Accepted root",
+      "path": "resources/accepted/index.html",
+      "spec": "pages/accepted/diagram.json",
+      "bindings": "pages/accepted/bindings.json",
+      "specSha256": "a6f3e74272f0aa09a79c9861b49677706d3b0629c823cd5fcf0223f8ffc83bc0",
+      "bindingsSha256": "dcbda9dc6b7d372d6698e7563869325603aadc7c9d0519e7e74428c45fdc7ba7",
+      "acceptedHtmlSha256": "257003f16662888f0707353608a0321486c1dcd207a05b7ac39b2357fd9571c1",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "greenfield",
+      "label": "Greenfield",
+      "path": "resources/greenfield/index.html",
+      "spec": "pages/greenfield/diagram.json",
+      "bindings": "pages/greenfield/bindings.json",
+      "specSha256": "f006b522cf38339a747d5147089ee66e725af1704f2c27771287daec58cb3b60",
+      "bindingsSha256": "76a36fb1edf7205833d36d0acb420655eaec72069011e5b96871898d690d63a0",
+      "acceptedHtmlSha256": "b4bdd676c72762fc4a9890ccaacb197af1b33de4a7eb0098a4fa7955294adf61",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "brownfield",
+      "label": "Brownfield",
+      "path": "resources/brownfield/index.html",
+      "spec": "pages/brownfield/diagram.json",
+      "bindings": "pages/brownfield/bindings.json",
+      "specSha256": "8dc393d025338d848d11ee58e4506b911c790d4f637557988962fddd821eea02",
+      "bindingsSha256": "a7d8cff2f1c47758c5f169d8e88a6afe38e37a14c7ba05287a0301f822551640",
+      "acceptedHtmlSha256": "13daa883ad2e024d721104d915d6f35ee432358bf0bebf88d78037f4397a9b2f",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "peers",
+      "label": "Peers",
+      "path": "resources/peers/index.html",
+      "spec": "pages/peers/diagram.json",
+      "bindings": "pages/peers/bindings.json",
+      "specSha256": "826e67349ad3f2881b9cbed52d4684578673223c82145272995e7f195cd0c8ea",
+      "bindingsSha256": "48be9ca277cd5d758ee8dfeb00ad8f28d14d8bb298db7788a53b8a6b112fff1f",
+      "acceptedHtmlSha256": "eafc98fd3a0a8386204677f4e499e956c95b771c8e2d6c1d787ed7b8b65fe7ba",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    },
+    {
+      "id": "publication",
+      "label": "Remotes",
+      "path": "resources/publication/index.html",
+      "spec": "pages/publication/diagram.json",
+      "bindings": "pages/publication/bindings.json",
+      "specSha256": "233cd62590ce8c1e1335b7aed80bfc11247dc4e17f19d1a6f6dd039bdc20f8e7",
+      "bindingsSha256": "b8d947390e7c6fa60388abe1942312baa080ff0ddbabf215a893267dc1d6ce3c",
+      "acceptedHtmlSha256": "476dbfe1715dea38df138386ab2d4f87267b560c5697e8ae25d3b375a906d6d8",
+      "typography": {
+        "diagramArea": [
+          1320,
+          784
+        ],
+        "fit": "document-width"
+      },
+      "resourceComparison": false,
+      "verificationDetails": false,
+      "writeBoundary": false
+    }
+  ],
+  "scope": "Exact authoring inputs and expected HTML identities; no embedded acceptance grant or runtime observation"
+}

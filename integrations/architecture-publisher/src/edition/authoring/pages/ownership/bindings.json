@@ -1,0 +1,129 @@
+{
+  "sourceRevision": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "effectAuthority": false,
+  "semanticAcceptance": "UNVERIFIED",
+  "nodes": {
+    "ownership-rule": [
+      "repository_norms"
+    ],
+    "sources": [
+      "owner_native_artifacts"
+    ],
+    "repository": [
+      "ethos_repo"
+    ],
+    "outputs": [
+      "rebuildable_outputs"
+    ],
+    "attestation": [
+      "attestation_n"
+    ],
+    "evidence": [
+      "durable_evidence"
+    ],
+    "projection-rule": [
+      "cli_json",
+      "sdk_agent",
+      "ci_forge",
+      "mcp_a2a"
+    ]
+  },
+  "connections": {
+    "owns-sources": [
+      "norms",
+      "self",
+      "projection",
+      "evidence"
+    ],
+    "keeps-evidence": [
+      "norms",
+      "self",
+      "projection",
+      "evidence"
+    ],
+    "attests-evidence": [
+      "norms",
+      "self",
+      "projection",
+      "evidence"
+    ],
+    "source-views": [
+      "norms",
+      "self",
+      "projection",
+      "evidence"
+    ],
+    "evidence-views": [
+      "norms",
+      "self",
+      "projection",
+      "evidence"
+    ]
+  },
+  "relations": {
+    "owns-sources": {
+      "sourceRelations": [
+        "ethos-contains-native-artifacts"
+      ],
+      "effectAuthority": false,
+      "explanation": "Repository anatomy or evidence preservation, not mutation permission or temporal execution order."
+    },
+    "keeps-evidence": {
+      "sourceRelations": [
+        "ethos-preserves-durable-evidence"
+      ],
+      "effectAuthority": false,
+      "explanation": "Repository anatomy or evidence preservation, not mutation permission or temporal execution order."
+    },
+    "attests-evidence": {
+      "sourceRelations": [
+        "attestation-preserves-evidence"
+      ],
+      "effectAuthority": false,
+      "explanation": "Repository anatomy or evidence preservation, not mutation permission or temporal execution order."
+    },
+    "source-views": {
+      "sourceRelations": [
+        "native-artifacts-project-outputs"
+      ],
+      "effectAuthority": false,
+      "explanation": "Read-only derivation from a native source or durable result. No reverse source ownership."
+    },
+    "evidence-views": {
+      "sourceRelations": [
+        "evidence-projects-outputs"
+      ],
+      "effectAuthority": false,
+      "explanation": "Read-only derivation from a native source or durable result. No reverse source ownership."
+    }
+  },
+  "scopes": [],
+  "cards": [
+    {
+      "index": 0,
+      "sourceAssertions": [
+        "norms",
+        "self"
+      ]
+    },
+    {
+      "index": 1,
+      "sourceAssertions": [
+        "evidence"
+      ]
+    },
+    {
+      "index": 2,
+      "sourceAssertions": [
+        "projection"
+      ]
+    }
+  ],
+  "presentation": {
+    "annotationNodes": [
+      "ownership-rule",
+      "projection-rule"
+    ]
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "schema": "ethos.native-atlas/v1",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "pages": [
+    {
+      "id": "overview",
+      "label": "Overview",
+      "path": "index.html"
+    },
+    {
+      "id": "intent",
+      "label": "Intent",
+      "path": "mechanisms/intent/index.html"
+    },
+    {
+      "id": "lanes",
+      "label": "Parallel work",
+      "path": "mechanisms/lanes/index.html"
+    },
+    {
+      "id": "verification",
+      "label": "Evidence",
+      "path": "mechanisms/verification/index.html"
+    },
+    {
+      "id": "runtime",
+      "label": "Runtime",
+      "path": "mechanisms/runtime/index.html"
+    },
+    {
+      "id": "continuity",
+      "label": "Continuity",
+      "path": "mechanisms/continuity/index.html"
+    },
+    {
+      "id": "ownership",
+      "label": "Native owners",
+      "path": "mechanisms/ownership/index.html"
+    },
+    {
+      "id": "candidate",
+      "label": "Candidate",
+      "path": "resources/candidate/index.html"
+    },
+    {
+      "id": "accepted",
+      "label": "Accepted root",
+      "path": "resources/accepted/index.html"
+    },
+    {
+      "id": "greenfield",
+      "label": "Greenfield",
+      "path": "resources/greenfield/index.html"
+    },
+    {
+      "id": "brownfield",
+      "label": "Brownfield",
+      "path": "resources/brownfield/index.html"
+    },
+    {
+      "id": "peers",
+      "label": "Peers",
+      "path": "resources/peers/index.html"
+    },
+    {
+      "id": "publication",
+      "label": "Remotes",
+      "path": "resources/publication/index.html"
+    }
+  ]
+}

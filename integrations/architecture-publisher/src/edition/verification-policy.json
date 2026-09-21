@@ -1,0 +1,93 @@
+{
+  "schema": "architecture.ethos-authored-edits/v1",
+  "static": {
+    "refresh": {
+      "sha256": "c671261335d7565a54facf3c8d36eb73d238b9e3b3d35e8f92bb53bca1364443",
+      "replay": "Unpublished: replay; then re-prove",
+      "merge": "Preserve history: merge; then re-prove",
+      "pending": "Merge: exact continuation or preserved rollback"
+    },
+    "carriers": {
+      "edits": [
+        {
+          "id": "verification-applicability",
+          "before": "Falsifiable; separate trust; optional unless risk/policy requires.",
+          "after": "separate trust; optional unless risk/policy requires; local first"
+        }
+      ],
+      "meaning": [
+        {
+          "kind": "document",
+          "id": "independent_verification",
+          "sha256": "c1cb2b060765f65a8f9c38de16c9700c1edc6aad0ab5c64e9272e84a4839509a",
+          "excerpt": "Control replacement reads the accepted and proposed action policies from their\nexact committed objects and retains the stricter requirement for that acceptance.\nChanged execution identities do not select a provider. Disabled verification\ndoes not inspect host configuration; optional verification without a supplied\nreceipt remains local. Local closeout separately requires explicit authorization,\ncurrent proof and exact Git preconditions. A changed gate floor additionally\nrequires the explicit candidate commit. None of these local observations claims\nindependent identity or proves behavioral equivalence.\n",
+          "carriers": [
+            "verification-applicability"
+          ]
+        }
+      ]
+    }
+  },
+  "interactive": {
+    "order": [
+      "overview",
+      "intent",
+      "lanes",
+      "verification",
+      "runtime",
+      "continuity",
+      "ownership",
+      "candidate",
+      "accepted",
+      "greenfield",
+      "brownfield",
+      "peers",
+      "publication"
+    ],
+    "pages": [
+      {
+        "id": "overview",
+        "edits": [
+          {
+            "carrier": "cards/2/items/0",
+            "before": "Falsify exact candidates and combinations. Local / independent / hosted stay distinct. Independent per risk/policy; optional composite needs a responsible verifier and explicit rule. Evidence is not permission.",
+            "after": "Falsify exact candidates and combinations. Local / independent / hosted stay distinct. Committed policy selects independent verification; disabled skips provider lookup, optional without a receipt stays local. Required verification needs a configured provider and signed exact receipt. Evidence is not permission."
+          }
+        ],
+        "meaning": [
+          {
+            "kind": "document",
+            "id": "independent_verification",
+            "sha256": "c1cb2b060765f65a8f9c38de16c9700c1edc6aad0ab5c64e9272e84a4839509a",
+            "excerpt": "Control replacement reads the accepted and proposed action policies from their\nexact committed objects and retains the stricter requirement for that acceptance.\nChanged execution identities do not select a provider. Disabled verification\ndoes not inspect host configuration; optional verification without a supplied\nreceipt remains local. Local closeout separately requires explicit authorization,\ncurrent proof and exact Git preconditions. A changed gate floor additionally\nrequires the explicit candidate commit. None of these local observations claims\nindependent identity or proves behavioral equivalence.\n",
+            "carriers": [
+              "cards/2/items/0"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "verification",
+        "edits": [
+          {
+            "carrier": "nodes/independent-verifier/tag",
+            "before": "Optional; required by risk or policy",
+            "after": "Selected by committed policy"
+          }
+        ],
+        "meaning": [
+          {
+            "kind": "document",
+            "id": "independent_verification",
+            "sha256": "c1cb2b060765f65a8f9c38de16c9700c1edc6aad0ab5c64e9272e84a4839509a",
+            "excerpt": "Control replacement reads the accepted and proposed action policies from their\nexact committed objects and retains the stricter requirement for that acceptance.\nChanged execution identities do not select a provider. Disabled verification\ndoes not inspect host configuration; optional verification without a supplied\nreceipt remains local. Local closeout separately requires explicit authorization,\ncurrent proof and exact Git preconditions. A changed gate floor additionally\nrequires the explicit candidate commit. None of these local observations claims\nindependent identity or proves behavioral equivalence.\n",
+            "carriers": [
+              "nodes/independent-verifier/tag"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scope": "Authored interpretation of the canonical independent-verification document at 7e80972e97e55b37134728ec4d9b941ee631c503; not graph-encoded condition coverage, source mutation or implementation acceptance."
+}

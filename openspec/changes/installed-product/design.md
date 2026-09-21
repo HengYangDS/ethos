@@ -448,6 +448,14 @@ Preserve archive modes: the earlier data-filter probe changed file modes and
 failed manifest validation before signing. Use the already-qualified exact
 artifact extraction path, not relaxed manifest checks.
 
+The existing distribution owner selects native macOS media through a `.dmg`
+destination; internal qualification retains deterministic `.tar.gz` archives.
+Native construction copies and revalidates the sealed runtime without executing
+it, selects the available native image producer, and bounds creation time. A
+creation failure does not retry a different producer or replace prior output.
+Mounted inventory and wheel-byte checks qualify this carrier transformation,
+not signing, notarization, installed behavior or release acceptance.
+
 ## Shared Installed Supply Activation
 
 Use the existing hook installation operation with an explicit runtime path to

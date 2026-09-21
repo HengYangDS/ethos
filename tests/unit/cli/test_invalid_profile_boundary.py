@@ -16,6 +16,7 @@ import ethos.surface.cli.version as version_module
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.cli import console_main
 from ethos.cli import main
 from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
@@ -24,19 +25,20 @@ from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.literal_cases import literal_case
 
 
-def _invoke(monkeypatch, capsys, *args, exit_code=1):
+def _invoke(monkeypatch, capsys, *args, exit_code=1, entrypoint=main):
     """Capture the native public boundary without suppressing exit semantics."""
     monkeypatch.setattr(sys, "argv", ["ethos", *args])
-    expected = (
+    with (
         pytest.raises(SystemExit, match=f"^{exit_code}$")
         if exit_code is not None
         else nullcontext()
-    )
-    with expected:
-        main()
+    ):
+        entrypoint()
     captured = capsys.readouterr()
     assert "Traceback" not in captured.err + captured.out
-    return json.loads(captured.out)
+    protocol = root_command(list(args)) == "mcp"
+    assert not (captured.out if protocol else captured.err)
+    return json.loads(captured.err if protocol else captured.out)
 
 
 @pytest.mark.parametrize(
@@ -119,37 +121,62 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
 
 @pytest.mark.parametrize(
     ("code", "reason"),
-    cast(
-        "list[object]",
-        literal_case(
-            "cli.test_invalid_profile_boundary:parametrize:test_git_execution_failures_emit_structured_json_without_traceback:2"
+    [
+        *cast(
+            "list[object]",
+            literal_case(
+                "cli.test_invalid_profile_boundary:parametrize:test_git_execution_failures_emit_structured_json_without_traceback:2"
+            ),
         ),
-    ),
+        ("native_windows_powershell_unavailable", "native_executable_missing"),
+    ],
 )
-def test_git_execution_failures_emit_structured_json_without_traceback(
+@pytest.mark.parametrize("arguments", [("status",), ("mcp",), ("hook", "install")])
+@pytest.mark.parametrize("entrypoint", [main, console_main])
+def test_native_execution_failures_preserve_evidence_and_transport(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     code: str,
     reason: str,
+    arguments: tuple[str, ...],
+    entrypoint,
 ) -> None:
+    git_failure = code.startswith("git_")
+    error_type = GitExecutionError if git_failure else ProcessExecutionError
+    executed = (
+        ("/usr/bin/git", "status")
+        if git_failure
+        else ("C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",)
+    )
+    cause = "OSError: denied" if git_failure else "FileNotFoundError: missing"
+
     def fail(_root: Path | None) -> Path:
-        raise GitExecutionError(
+        raise error_type(
             code,
             reason=reason,
-            command=("/usr/bin/git", "status"),
+            command=executed,
             cwd=tmp_path.resolve().as_posix(),
-            cause="OSError: denied",
+            cause=cause,
         )
 
-    monkeypatch.setattr("ethos.surface.cli.root.inspection.resolve_root", fail)
-    payload = _invoke(monkeypatch, capsys, "status", "--root", str(tmp_path), "--json")
+    if entrypoint is console_main:
+        monkeypatch.setattr("ethos.cli.git_common_dir", fail)
+    else:
+        monkeypatch.setattr(application, "load_command_groups", fail)
+    payload = _invoke(
+        monkeypatch, capsys, *arguments, "--root", str(tmp_path), "--json", entrypoint=entrypoint
+    )
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == [code]
-    assert payload["data"]["reason"] == reason
-    assert payload["data"]["command"] == ["/usr/bin/git", "status"]
-    assert payload["data"]["cwd"] == tmp_path.resolve().as_posix()
-    assert payload["data"]["cause"] == "OSError: denied"
+    assert payload["data"] == {
+        "error_boundary": "git_execution" if git_failure else "process_execution",
+        "code": code,
+        "reason": reason,
+        "command": list(executed),
+        "cwd": tmp_path.resolve().as_posix(),
+        "cause": cause,
+    }
 
 
 @pytest.mark.parametrize("command", ["status", "--version"])
@@ -200,34 +227,6 @@ def test_version_source_movement_is_reported_with_its_actual_root(
     assert payload["command"] == "version"
     assert payload["data"]["observation"]["observed_head"] == "b" * 40
     assert payload["next_action"] == f"ethos status --root {tmp_path.as_posix()} --json"
-
-
-def test_process_execution_failure_emits_structured_json_without_git_classification(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    def fail(*_args: object, **_kwargs: object) -> None:
-        code = "native_windows_powershell_unavailable"
-        raise ProcessExecutionError(
-            code,
-            reason="native_executable_missing",
-            command=("C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",),
-            cwd=tmp_path.resolve().as_posix(),
-            cause="FileNotFoundError: missing",
-        )
-
-    monkeypatch.setattr(application, "load_command_groups", fail)
-    payload = _invoke(monkeypatch, capsys, "hook", "install", "--json")
-    assert payload["required_gaps"] == ["native_windows_powershell_unavailable"]
-    assert payload["data"] == {
-        "error_boundary": "process_execution",
-        "code": "native_windows_powershell_unavailable",
-        "reason": "native_executable_missing",
-        "command": ["C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"],
-        "cwd": tmp_path.resolve().as_posix(),
-        "cause": "FileNotFoundError: missing",
-    }
 
 
 @pytest.mark.parametrize(

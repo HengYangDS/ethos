@@ -19,16 +19,6 @@ from tests.support.governed_repository import write_role_policy
 from tests.support.proof import seed_executed_proof
 
 
-def _write_local_only_publication(repo: Path) -> None:
-    release = repo / ".ethos" / "release.toml"
-    release.write_text(
-        "[publication]\n"
-        'local_verification_command = "dev/verify"\n'
-        'local_installation_command = "dev/install"\n',
-        encoding="utf-8",
-    )
-
-
 def _publish_fixture(tmp_path: Path) -> tuple[Path, str]:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
@@ -95,34 +85,38 @@ def test_publish_fallback_evidence_matrix(tmp_path: Path, case: str) -> None:
         )
 
 
+@pytest.mark.parametrize("probe_remote", [False, True])
 @pytest.mark.parametrize("mode", ["dual", "local", "single", "tracking"])
-def test_publish_peer_topology_matrix(tmp_path: Path, mode: str) -> None:
+def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote: bool) -> None:
     repo, head = _publish_fixture(tmp_path)
-    if mode == "local":
-        _write_local_only_publication(repo)
-        head = commit_fixture(repo, "declare local-only publication")
-        seed_executed_proof(repo, head)
-    else:
-        if mode == "single":
-            release = repo / ".ethos/release.toml"
-            parts = release.read_text().split("[[publication.peers]]", 2)
-            release.write_text(parts[0] + "[[publication.peers]]" + parts[1])
-            head = commit_fixture(repo, "declare GitLab-only publication")
-            seed_executed_proof(repo, head)
-        peers = (
-            (("gitlab", "origin"), ("github", "github"))
-            if mode == "dual"
-            else (("gitlab", "origin"),)
+    peer_count = {"local": 0, "single": 1}.get(mode, 2)
+    if peer_count < 2:
+        release = repo / ".ethos/release.toml"
+        release.write_text(
+            "[[publication.peers]]".join(
+                release.read_text().split("[[publication.peers]]")[: peer_count + 1]
+            )
         )
-        for peer, remote in peers:
-            target = tmp_path / f"{peer}.git"
-            git(tmp_path, "init", "--bare", target.as_posix())
-            git(repo, "remote", "add", remote, target.as_posix())
-            git(repo, "push", "--set-upstream", remote, "dev")
-    payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
+        head = commit_fixture(repo, f"declare {mode} publication")
+        seed_executed_proof(repo, head)
+    peers = (("gitlab", "origin"), ("github", "github"))[
+        : min(peer_count, 2 if mode == "dual" else 1)
+    ]
+    for peer, remote in peers:
+        target = tmp_path / f"{peer}.git"
+        git(tmp_path, "init", "--bare", target.as_posix())
+        git(repo, "remote", "add", remote, target.as_posix())
+        git(repo, "push", "--set-upstream", remote, "dev")
+    payload = run_ethos(
+        "publish", *(("--probe-remote",) if probe_remote else ()), "--json", cwd=repo
+    )
     if mode == "local":
         assert payload["verdict"] == "pass"
         return
+    if not probe_remote:
+        assert payload["next_action"] == (
+            f"ethos publish --ref refs/heads/dev --probe-remote --expect-head {head} --json"
+        )
     observations = payload["data"]["remote_observations"]
     assert set(observations) == (
         {"gitlab", "github"} if mode in {"dual", "tracking"} else {"gitlab"}
@@ -147,6 +141,7 @@ def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_
     for evidence_status in ({}, None):
         publication = publication_readiness(
             branch="dev",
+            head="a" * 40,
             local_ok=True,
             policy=policy,
             local_ci_fallback={"evidence_status": evidence_status},

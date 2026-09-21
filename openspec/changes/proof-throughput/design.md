@@ -627,6 +627,13 @@ Complete proof, installed acceptance and the 600-second target remain open.
 
 ### Share Proof Selection Within Each Publication Admission
 
+Readiness distinguishes unprobed configured peers from unavailable ones. An
+unprobed peer selects the existing exact-ref observation command with the current
+branch and HEAD; neither stale fallback evidence nor synchronized local tracking
+requires another full verification run. Local-only and unavailable-peer fallback
+remain separate. Explicit Change selection must match the intended proof query;
+changing that invocation input does not justify regenerating valid evidence.
+
 The covered multi-ref publication and recovery path at `c3332a715` made 51
 repository-proof selections, costing 16.812 inclusive seconds out of 41.191
 seconds. Each effect admission repeated the same proof across four peer/ref

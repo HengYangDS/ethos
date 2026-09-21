@@ -197,6 +197,26 @@ their native subject layout under the portable Docs Registry contract.
 
 ## ADDED Requirements
 
+### Requirement: Publication continuation requests only missing observations
+
+Locally ready publication with an unprobed configured peer SHALL select exact
+remote observation before suggesting repeated local verification. The command
+SHALL bind the current source ref and HEAD. Cached tracking, local proof and
+remote effects SHALL remain distinct evidence; observation grants no authority.
+
+#### Scenario: A configured peer has not been probed
+
+- **WHEN** local publication readiness passes with an unprobed peer
+- **THEN** continuation selects the public exact-ref remote observation command
+- **AND** cached synchronized tracking cannot replace that observation
+- **AND** no local verification or remote publication effect is repeated
+
+#### Scenario: No remote observation is available
+
+- **WHEN** publication is local-only or its peers are unconfigured or unavailable
+- **THEN** existing local fallback guidance and its evidence state remain available
+- **AND** local readiness failure still blocks publication
+
 ### Requirement: Invocation-local intent selection
 
 ETHOS SHALL resolve an explicit command or API Change before the invocation's

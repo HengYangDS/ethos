@@ -8,7 +8,7 @@
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [ ] 1.9 Measure complete proof within the temporary 900-second threshold without weakening gates.
+- [x] 1.9 Measure complete proof within the temporary 900-second threshold without weakening gates.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
@@ -37,6 +37,7 @@
 - [x] 3.8 Complete multi-contribution lifecycle integration without losing unselected intent.
 - [x] 3.9 Reproduce and close official batch large-output backpressure through the existing transport.
 - [x] 3.10 Route specification validation through the existing locked official owner and shared result interpretation.
+- [x] 3.11 Route unprobed publication peers to exact remote observation without repeating local verification or treating cached tracking as live evidence.
 
 ## 4. Archive and Integration Integrity
 

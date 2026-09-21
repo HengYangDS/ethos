@@ -87,8 +87,13 @@ class _TrustInputs:
             if separator
         )
         paths: dict[str, Path | None] = {}
+        configured_values = dict(configuration)
         for key in (_ANCHOR, _REVOCATION):
-            configured = run_git(root, "config", "--path", "--get", key, check=False).stdout.strip()
+            configured = configured_values.get(key, "")
+            if configured and not Path(configured).is_absolute():
+                configured = run_git(
+                    root, "config", "--path", "--get", key, check=False
+                ).stdout.strip()
             if not configured and key == _REVOCATION:
                 paths[key] = None
                 continue

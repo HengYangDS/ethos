@@ -118,7 +118,7 @@
 - [x] 9.6 Initialize quality capabilities on demand and verify native missing-supply and fresh-selection behavior.
 - [x] 9.7 Compare exact discovery interfaces and imported work against the committed baseline.
 - [x] 9.8 Qualify and deliver the exact demand-driven capability candidate.
-- [ ] 9.9 Replace duplicated manual contracts with existing strict native owners, compare mature substitutes against the same falsifying workload, and retire replaced paths without a parallel registry.
+- [ ] 9.9 Remove dependency cycles, unnecessary conversion round trips and duplicate contracts at their semantic owners; compare mature native substitutes with the same falsifiers, preserve necessary trust boundaries, prove reduced work and retire replaced paths without a parallel registry.
 
 ## 10. Native Quality Rules and Early Failure
 

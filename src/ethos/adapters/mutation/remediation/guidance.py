@@ -5,6 +5,12 @@ from __future__ import annotations
 import shlex
 
 
+def proof_recovery_command(expect_head: str, *, change: str = "") -> str:
+    """Request the full admission floor; equal default/full floors select the same work."""
+    selected = f" --change {shlex.quote(change)}" if change else ""
+    return f"ethos prove --full --execute --expect-head {expect_head}{selected} --json"
+
+
 def archive_recovery_command(change: str, expect_head: str, *, subject: str | None = None) -> str:
     """Return the sole public continuation for an observed archive effect."""
     subject_argument = f" --subject {shlex.quote(subject)}" if subject is not None else ""

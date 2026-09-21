@@ -33,7 +33,7 @@
 - [x] 3.4 Repair exact official-artifact continuation after a second Change is created.
 - [x] 3.5 Preserve explicit choice and eliminate recursive status recovery for ambiguous ordinary work.
 - [x] 3.6 Qualify and deliver the exact Change-continuation candidate.
-- [x] 3.7 Verify explicit archive selection against independently selected proof and native hooks.
+- [x] 3.7 Verify explicit archive selection against independently selected proof and native hooks; make missing or insufficient proof continue directly to the exact admission floor without an intermediate weaker run.
 - [x] 3.8 Complete multi-contribution lifecycle integration without losing unselected intent.
 - [x] 3.9 Reproduce and close official batch large-output backpressure through the existing transport.
 - [x] 3.10 Route specification validation through the existing locked official owner and shared result interpretation.

@@ -17,6 +17,7 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_effe
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
+from ethos.adapters.mutation.remediation.guidance import proof_recovery_command
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
@@ -459,8 +460,8 @@ def archive_preflight_report(
         if user_decision_required is None
         else user_decision_required
     )
-    if next_action is None and first == "proof_not_proven":
-        resolved_action = f"ethos prove --change {change} --expect-head {head} --execute --json"
+    if next_action is None and first in {"proof_not_proven", "full_proof_required"}:
+        resolved_action = proof_recovery_command(head, change=change)
     elif next_action is None and state == "different_holder":
         resolved_action = (
             "ethos attestation query --predicate lane-resolution:takeover "

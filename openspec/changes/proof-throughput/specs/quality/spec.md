@@ -76,6 +76,12 @@ drift SHALL block expensive work; the same owner SHALL check post-execution drif
 - **THEN** dependent behavior and delivery do not execute
 - **AND** their results retain the failed prerequisite rather than claiming execution
 
+#### Scenario: A transition lacks its required proof
+
+- **WHEN** land or archive admission finds missing proof or only a weaker default proof
+- **THEN** its continuation requests executed full proof for the exact subject
+- **AND** explicit Change selection is preserved without an intermediate weaker run
+
 #### Scenario: A source observer depends on executed behavior
 
 - **WHEN** an observation transitively consumes test or package results

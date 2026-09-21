@@ -154,7 +154,7 @@ def _assert_archived_land_readiness(
             "blocked",
             ["proof_not_proven"],
         )
-        assert payload["next_action"] == f"ethos prove --execute --expect-head {head} --json"
+        assert payload["next_action"] == f"ethos prove --full --execute --expect-head {head} --json"
         assert "proof_readiness" not in payload["data"]
         return
     seed_executed_proof(fixture.worktree, head, full=claim == LAND_CASES[8])

@@ -17,6 +17,7 @@ import ethos
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.status
 from ethos.adapters.mutation.proof import proof_admission_report
+from ethos.adapters.mutation.remediation.guidance import proof_recovery_command
 from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.workspace import worktree_records
@@ -351,8 +352,8 @@ def land_next_action(
         return "ethos land --closeout --json"
     if "candidate_base_stale" in gaps:
         return f"ethos lane refresh-base --apply --authorize --expect-head {current_head} --json"
-    if "proof_not_proven" in gaps:
-        return f"ethos prove --execute --expect-head {current_head} --json"
+    if {"proof_not_proven", "full_proof_required"}.intersection(gaps):
+        return proof_recovery_command(current_head)
     return "ethos prove --json"
 
 

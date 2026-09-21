@@ -75,3 +75,57 @@ Required-platform delivery SHALL NOT depend on an unqualified Windows path.
 - **WHEN** a platform is included in the release support declaration
 - **THEN** its delivered artifact passes native installation, CLI/MCP, hooks, upgrade and exit
 - **AND** unsupported combinations remain explicit rather than inheriting another platform's proof
+
+### Requirement: Public channels consume explicitly accepted release artifacts
+
+ETHOS SHALL project one accepted product-release version to public channels and
+its matching signed tag. Published artifacts SHALL be immutable. Development
+build identities SHALL remain exact local selections, not automatic channel
+upgrade versions. Pre-release and stable delivery SHALL remain distinct.
+
+#### Scenario: A development archive is proposed for publication
+
+- **WHEN** an archive carries a source-development identity
+- **THEN** public release admission rejects it before publication
+- **AND** local artifact qualification does not become a release claim
+
+#### Scenario: Release artifacts are prepared
+
+- **WHEN** an explicit release request selects accepted source and a product version
+- **THEN** the existing builder produces that release identity before artifact verification
+- **AND** native signing precedes payload sealing and exact installed acceptance
+- **AND** the release, signed tag and channel projections identify the same frozen source
+
+#### Scenario: A newer published version is selected
+
+- **WHEN** a channel offers a subsequent accepted release
+- **THEN** the target package manager orders it after the prior release
+- **AND** a pre-release does not replace a stable installation without explicit selection
+
+## MODIFIED Requirements
+
+### Requirement: Product version has one repository authority
+
+ETHOS SHALL keep one tracked SemVer next product-release target and derive
+publishable versions and manifest projections from it. Unpublished source
+iterations MAY share that target. Once an explicit release identity is accepted,
+changed released semantics SHALL require a greater product version; source and
+artifact digests SHALL NOT replace that release boundary.
+
+#### Scenario: Repository manifests are inspected
+
+- **WHEN** Python, root workspace, and launcher package metadata are compared
+- **THEN** they resolve to the one product-version authority
+- **AND** no manifest retains an independently editable product-version literal
+
+#### Scenario: Unpublished source iterations share a release target
+
+- **WHEN** several accepted source commits precede explicit release
+- **THEN** they may retain the same next product-release target
+- **AND** their exact development build identities remain distinct
+
+#### Scenario: Accepted prerelease semantics advance
+
+- **WHEN** newly accepted product semantics are selected after an explicitly released prerelease
+- **THEN** the product version advances according to the compatibility policy
+- **AND** the existing release version and artifacts remain unchanged

@@ -20,8 +20,9 @@
 - [ ] 3.2 Prove retained-state upgrade, interruption, rollback and live-consumer-safe uninstall outside the source checkout.
 - [ ] 3.3 Migrate existing runtime consumers and remove replaced locators/generations after exact dependency and recovery checks.
 - [ ] 3.4 Resolve the builder using native Homebrew Python, portable interpreter/wheel and frozen-bundle evidence against the same complete CLI lifecycle; record the selected implementation and rejected alternatives without blocking on optional MCP expansion.
-- [ ] 3.5 Publish the native Homebrew channel; verify clean install, CLI/MCP invocation, upgrade, selection preservation and uninstall from the actual delivered artifact.
+- [ ] 3.5 Publish the native Homebrew channel from explicitly accepted release artifacts; verify clean install, CLI/MCP invocation, native upgrade ordering, selection preservation and uninstall.
 - [ ] 3.6 Qualify native macOS and Linux release targets, including declared architecture/OS baselines, hooks and recovery. Attempt native Windows without blocking required platforms; report unqualified targets explicitly.
+- [ ] 3.7 Connect explicit release construction and identity admission at the existing owners; reject development publication, verify immutable version/source/artifact/tag correspondence, and reconcile the unpublished-target policy.
 
 ## 4. Delivery
 

@@ -331,10 +331,12 @@ failure. Signature integrity, notarization and actual execution are separate
 claims. Follow Apple's [real installation test](https://developer.apple.com/forums/thread/130560),
 including quarantine, rather than treating a static preflight as product acceptance.
 
-The ad-hoc interpreter does not satisfy the native notarized requirement. A
-Developer ID identity is available, but the bounded noninteractive metadata query
-found no notarytool profile; this does not prove all credential stores empty.
-Signing changes must precede payload inventory and sealing. Notarization submission
+The ad-hoc interpreter does not satisfy the native notarized requirement.
+Resolve signing and notarization credentials from the operator's existing native
+store and verify the exact consumer noninteractively. A metadata listing without
+a match does not establish credential absence; do not copy credentials or encode
+host-specific profile names in the product. Signing changes must precede payload
+inventory and sealing. Notarization submission
 uses the frozen signed payload; an outer notarization ticket is not runtime
 authorization. Any payload change requires a new exact identity and new acceptance.
 Do not infer the observed loader wait's sole cause from a missing notarization
@@ -381,3 +383,60 @@ and launcher owners. Prove external selection, native launcher resolution,
 exact rollback and non-deletion with focused counterexamples; then execute two
 installed adopter paths, source proof and current runtime acceptance. Shared-store
 reclamation and published Homebrew remain separate open tasks.
+
+## Release Version And Artifact Boundary
+
+VERSION remains the single next product-release target. Several unpublished
+source builds may share that target; an explicitly accepted release identity is
+immutable even before remote publication, and changed released semantics require
+a new version. Pre-release progression communicates
+readiness, not commit count. Acceptance of source, alpha distribution and stable
+delivery are distinct; do not infer product maturity from the accepted branch.
+
+The compatibility surface includes public CLI arguments, exit codes and JSON,
+SDK contracts, MCP tools and resources, and persisted repository state. State
+schema and protocol versions retain their own compatibility meaning; do not bump
+them merely because the product version changes. Define release maturity from
+verified supported journeys, not the age of the alpha label. Do not jump to 1.0
+or reset published numbering merely to make installation look complete.
+
+The current development identity distinguishes exact source but provides no
+chronological upgrade order: the successor 1b951028f sorts below c4d6de106 under
+both native Python packaging and Homebrew comparisons. Keep such builds on exact
+selection and local qualification paths, not an automatic publication channel.
+Source commit/tree, wheel digest and platform runtime digest remain provenance;
+they must not be substituted for public version ordering. PyPI does not accept
+local version labels; the current +g...t... wheel is not an upstream PyPI release.
+
+Use the existing identity compiler for canonical SemVer and its PEP 440
+projection. Released channel metadata, signed tag and product display derive from
+that one product version. A pre-release requires explicit channel selection and
+must not displace stable delivery. Do not add an epoch, package-manager revision
+or timestamp merely to conceal the current misuse of development identities.
+If a future development channel is required, its ordering needs a separate
+demonstrated requirement, not an implicit hash order.
+
+Connect explicit release preparation to the existing build and admission owners:
+freeze the accepted source and release target, construct release-identity wheels,
+sign native payloads before sealing, then verify the exact delivered artifacts.
+Record release identity after observation; publish immutable artifacts and their
+matching signed tag only after required installation acceptance. No environment
+flag, tag presence or renamed development wheel may bypass release admission.
+A normal development build must remain non-releasing.
+
+The current explicit release materializer has test consumers but no production
+caller; the ordinary build path still selects development identity. Close that
+wiring gap rather than adding another release framework. Verify development
+rejection at public channels, native version ordering, version reuse conflicts,
+exact artifact/tag correspondence and interrupted per-peer publication. Runtime
+rollback with preserved repository selection is distinct from publishing an older
+version as a new release.
+
+Official references: [Python packaging versioning][release-python-versioning]
+and [Semantic Versioning][release-semver]. Registry ownership and occupied public
+versions require live checks before choosing the next published number. Include
+existing local release Attestations: an empty Git tag list does not establish
+that no release exists or that package registries are empty.
+
+[release-python-versioning]: https://packaging.python.org/en/latest/specifications/version-specifiers/
+[release-semver]: https://semver.org/spec/v2.0.0.html

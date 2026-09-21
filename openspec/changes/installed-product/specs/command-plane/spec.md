@@ -13,6 +13,19 @@ the existing verdict, gaps, continuation and evidence boundaries.
 - **THEN** their application verdict, gaps and continuation agree
 - **AND** SDK invocation does not write stdout or change the process working directory
 
+#### Scenario: A native capability fails after transport initialization
+
+- **WHEN** a supported application operation cannot resolve a required native executable
+- **THEN** CLI, SDK and MCP preserve the same typed blocking reason and root-bound failure evidence
+- **AND** restoring that capability allows the same MCP instance to observe again
+- **AND** transport adapters do not substitute generic protocol errors for known application failures
+
+#### Scenario: A native Git observation times out
+
+- **WHEN** a supported application operation receives a native Git observation timeout
+- **THEN** its result is UNKNOWN with the original process evidence and an observation next action
+- **AND** it does not claim a known repository state or authorize mutation replay
+
 ### Requirement: Installed MCP has bounded repository authority
 
 The installed product SHALL expose stdio MCP through FastMCP over the official SDK. Server

@@ -273,54 +273,9 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str]:
         str(python),
         "-B",
         "-I",
-        "-c",
-        """
-import asyncio, os, subprocess, sys
-from pathlib import Path
-from fastmcp import Client
-from fastmcp.client.transports import StdioTransport
-from ethos.domain.inspection import inspect_repository
-from ethos.domain.adoption import adopt_repository
-
-root = Path(sys.argv[2])
-failed = subprocess.run(
-    [sys.argv[1], "mcp", "--root", str(root)],
-    env=dict(os.environ, PATH=str(root / "missing-native-tools")),
-    stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=20,
-)
-assert failed.returncode == 1 and not failed.stdout, (failed.returncode, failed.stdout)
-assert "install Git" in failed.stderr and "Traceback" not in failed.stderr, failed.stderr
-transport = StdioTransport(
-    sys.argv[1], ["mcp", "--root", str(root)], keep_alive=False,
-    env={"ETHOS_ACTOR": os.environ.get("ETHOS_ACTOR", "")},
-)
-
-
-async def verify():
-    async with Client(transport, timeout=30) as client:
-        tools = {tool.name: tool for tool in await client.list_tools()}
-        assert set(tools) == {"status", "adopt"}
-        assert all(
-            tool.input_schema.get("additionalProperties") is False for tool in tools.values()
-        )
-        for name, operation in (("status", inspect_repository), ("adopt", adopt_repository)):
-            result = await client.call_tool(name)
-            expected = operation(root).to_dict()
-            assert result.structured_content == expected, (
-                name, result.structured_content, expected,
-            )
-        rejected = await client.call_tool("adopt", {"root": str(root.parent)}, raise_on_error=False)
-        assert rejected.is_error
-    async with Client(transport, timeout=30) as client:
-        assert (await client.call_tool("status")).structured_content == inspect_repository(
-            root
-        ).to_dict()
-
-
-asyncio.run(verify())
-""",
+        str(Path(__file__).with_name("mcp.py")),
         str(ethos),
-        str(adopter),
+        str(WORK),
         cwd=WORK,
     )
     return origin, version

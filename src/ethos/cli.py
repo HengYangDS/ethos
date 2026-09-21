@@ -38,7 +38,7 @@ def console_main() -> None:
                 return
     except ProcessExecutionError as exc:
         import_module("ethos.surface.cli.output").emit_process_execution_failure(
-            command=command, error=exc, json_output="--json" in argv
+            command=command, error=exc, json_output="--json" in argv, root=_argument_root(argv)
         )
         return
     except (OSError, ValueError) as exc:
@@ -63,6 +63,7 @@ def main() -> None:
             command=command,
             error=exc,
             json_output="--json" in argv,
+            root=_argument_root(argv),
         )
     except ValueError as exc:
         if str(exc) == "repository_profile_invalid:.ethos/profile.toml":

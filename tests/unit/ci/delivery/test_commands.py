@@ -133,7 +133,7 @@ def test_package_cli_invocation_preserves_result_and_isolates_environment(
     assert diagnostic.endswith("stderr:locked dependency unavailable")
 
 
-def test_installed_sdk_check_observes_without_mutating_or_authoring_intent(
+def test_installed_observation_runs_shared_isolated_conformance(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -166,8 +166,14 @@ def test_installed_sdk_check_observes_without_mutating_or_authoring_intent(
     assert "archive-change" not in rendered
     assert "rebuild-from" not in rendered
     assert "Commitment" not in rendered
-    assert "from fastmcp import Client" in rendered
-    assert "StdioTransport" in rendered
+    probe = executed[-1]
+    assert Path(probe[0]).is_relative_to(smoke)
+    assert Path(probe[0]).stem == "python"
+    assert probe[1:3] == ("-B", "-I")
+    assert probe[3] == str(Path(effect.__file__).with_name("mcp.py"))
+    assert Path(probe[4]).is_relative_to(smoke)
+    assert Path(probe[4]).stem == "ethos"
+    assert probe[5] == str(effect.WORK)
 
 
 def test_independent_cli_checks_do_not_replace_a_blocked_request(

@@ -270,9 +270,23 @@ success. Deadline or disconnect means the result was not acknowledged, not
 rollback. It is not a hard kill of native filesystem work, cross-process
 exclusion or forced-kill recovery. No custom thread supervisor or task store.
 
-The install-smoke owner runs a real client and server from the isolated installed
-wheel, checks discovery, strict root rejection, SDK parity and a fresh process
-reconnect. A unit test proving this probe is wired is not installed acceptance.
+Source tests and install-smoke consume one conformance workload. It creates
+separate disposable repositories for real CLI, SDK and MCP adoption, verifies
+authorization and stale-request refusals, checks exact planned bytes and
+unchanged inode/mtime on replay, then reconnects. No existing adopter is mutated.
+The installed invocation uses its own interpreter in isolated mode; the test
+driver is not a product-source dependency. Wiring checks are not acceptance.
+
+Known native-process failure meaning belongs to the shared application boundary,
+not a transport. Root-bound operations preserve their signatures and return the
+same typed failure as CLI startup. Missing capability remains BLOCK; a native
+Git observation timeout is UNKNOWN and requires observation, not repeated
+mutation. CLI alone selects the output stream and retains failure exit status.
+On POSIX, the shared workload withdraws and restores a private Git locator after
+MCP initialization, checking CLI/SDK/MCP agreement and same-server recovery.
+That fault injector does not qualify native Windows or installed timeout/unknown
+effect recovery. Controlled timeout regressions and real cancellation, lost-ACK
+and forced-disconnect acceptance are distinct obligations.
 
 Protocol stdout remains reserved during startup failure as well as connected
 calls. The existing CLI output owner sends MCP diagnostics to stderr. Console
@@ -280,8 +294,8 @@ selection and direct module dispatch consume the same native-process failure
 projection, preserving Git-specific recovery and evidence without a second
 exception classifier. Missing Git must fail startup, not bypass repository
 selection or emit ordinary CLI text into JSON-RPC. The installed workload checks
-that negative boundary before connecting normally; it does not establish admitted
-MCP mutation, unknown-effect recovery or cancellation acceptance by itself.
+that negative boundary before connecting normally; startup checks alone do not
+establish mutation, unknown-effect recovery or cancellation acceptance.
 
 Deliver the normal CLI installation and its version selection, upgrade and
 uninstall before expanding MCP beyond the current shared operations. Remaining

@@ -19,6 +19,8 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.cli import console_main
 from ethos.cli import main
 from ethos.contracts.admission import root_command
+from ethos.domain.adoption import adopt_repository
+from ethos.domain.inspection import inspect_repository
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.governed_repository import init_repo_with_candidate
@@ -39,6 +41,25 @@ def _invoke(monkeypatch, capsys, *args, exit_code=1, entrypoint=main):
     protocol = root_command(list(args)) == "mcp"
     assert not (captured.out if protocol else captured.err)
     return json.loads(captured.err if protocol else captured.out)
+
+
+@pytest.mark.parametrize("operation", [inspect_repository, adopt_repository])
+@pytest.mark.parametrize("code", ["git_executable_unavailable", GIT_PROCESS_TIMED_OUT])
+@pytest.mark.parametrize("keyword", [False, True])
+def test_application_native_failure_preserves_result(
+    tmp_path, monkeypatch, capsys, operation, code, keyword
+):
+    """Native failures are typed application results, not transport-dependent exceptions."""
+
+    def fail(*_args, **_kwargs):
+        raise GitExecutionError(code, reason="unavailable")
+
+    monkeypatch.setattr("ethos.adapters.repo.git.git_executable", fail)
+    result = operation(root=tmp_path) if keyword else operation(tmp_path)
+    assert result.verdict == ("unknown" if code == GIT_PROCESS_TIMED_OUT else "block")
+    assert result.required_gaps == (code,)
+    assert result.data["cwd"] == str(tmp_path.resolve())
+    assert not capsys.readouterr().out
 
 
 @pytest.mark.parametrize(

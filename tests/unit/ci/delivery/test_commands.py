@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[4]
 
 
 def _run(*command: str, cwd: Path | None = None) -> str:
+    assert "--json" not in command, "Structured tools must use their semantic owner"
     return run_command(cwd or ROOT, command, timeout=20, check=True).stdout.strip()
 
 
@@ -198,29 +199,18 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
 
     def invoke(_root: Path, command: tuple[str, ...], **_kwargs: object):
         commands.append(command)
-        payload: dict[str, object] = {
-            "schema_version": 2,
-            "command": command[1],
-            "verdict": "pass",
-            "state": "ready",
-            "required_gaps": [],
-            "next_action": "",
-            "data": {},
-        }
-        returncode = 0
+        payload = EthosResult(command=command[1], verdict="pass", state="ready").to_dict()
         if command[1:3] == ("plan", "--changed"):
-            payload.update(
-                verdict="block",
-                state="blocked",
-                required_gaps=["change_generation_binding_invalid"],
-                next_action="ethos lane repair --root /repo --json",
+            payload = _blocked_command(
+                command[1],
+                "change_generation_binding_invalid",
+                "ethos lane repair --root /repo --json",
             )
-            returncode = 1
         elif command[1:3] == ("publish", "--ref"):
             payload["data"] = {
                 "transition_plan": {"effect": {"operation": "git.ref.compare-and-swap"}}
             }
-        return returncode, payload, json.dumps(payload)
+        return int(payload["verdict"] != "pass"), payload, json.dumps(payload)
 
     monkeypatch.setattr(effect, "run_command", run_command)
     monkeypatch.setattr(effect.cli_invocation, "invoke", invoke)

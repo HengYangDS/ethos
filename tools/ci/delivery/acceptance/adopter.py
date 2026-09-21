@@ -6,7 +6,9 @@ import shutil
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.cli import archive_result
 from ethos.adapters.openspec.cli import openspec_base_command
+from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 
@@ -177,7 +179,10 @@ def prepare_acceptance_topology(
     if openspec is None:
         message = "package_acceptance_openspec_unavailable"
         raise RuntimeError(message)
-    run(*openspec, "archive", "smoke-change", "--yes", "--json", cwd=root)
+    archived = run_json(root, openspec, ("archive", "smoke-change", "--yes", "--json"), timeout=20)
+    if archive_result(root, "smoke-change", archived)[0]:
+        message = f"package_acceptance_openspec_archive_failed:{archived}"
+        raise RuntimeError(message)
     run(git, "add", "--all", "--", "openspec", cwd=root)
     run(git, "commit", "--quiet", "-m", "complete package smoke change", cwd=root)
     candidate = root.parent / "repo-candidate-dev"

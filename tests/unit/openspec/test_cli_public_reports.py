@@ -94,52 +94,63 @@ def test_run_json_reports_object_malformed_array_and_empty_stdout(
     assert (report["json"], report["parse_error"]) == (payload, error)
 
 
-@pytest.mark.parametrize(
-    ("stdout", "stderr", "expected_stdout", "expected_stderr"),
-    [
-        (b"partial", b"", "", "openspec command timed out after 60 seconds"),
-        ("partial", "late stderr", "partial", "late stderr"),
-    ],
-)
-def test_run_json_reports_timeout_without_claiming_payload(
-    monkeypatch, tmp_path, stdout, stderr, expected_stdout, expected_stderr
-):
-    def timeout(*_args, **_kwargs):
-        raise subprocess.TimeoutExpired(("openspec",), 60, output=stdout, stderr=stderr)
+@pytest.mark.parametrize("seconds", [20, 60, 0, 61, float("inf"), float("nan")])
+@pytest.mark.parametrize("binary", [False, True])
+def test_run_json_reports_timeout_without_claiming_payload(monkeypatch, tmp_path, seconds, binary):
+    body = '{"state":"done"}'
+
+    def timeout(*_args, **kwargs):
+        assert kwargs["timeout"] == seconds
+        raise subprocess.TimeoutExpired(
+            ("openspec",),
+            seconds,
+            output=body.encode() if binary else body,
+            stderr=b"" if binary else "late stderr",
+        )
 
     monkeypatch.setattr(cli, "run_command", timeout)
-    report = cli.run_json(tmp_path, ("openspec",), ("list", "--json"))
-
+    if not 0 < seconds <= 60:
+        with pytest.raises(ValueError, match="openspec_command_timeout_invalid"):
+            cli.run_json(tmp_path, ("openspec",), ("list", "--json"), timeout=seconds)
+        return
+    report = cli.run_json(tmp_path, ("openspec",), ("list", "--json"), timeout=seconds)
     assert report == {
         "command": ["openspec", "list", "--json"],
         "exit_code": 124,
-        "stdout": expected_stdout,
-        "stderr": expected_stderr,
+        "stdout": body,
+        "stderr": f"openspec command timed out after {seconds:g} seconds"
+        if binary
+        else "late stderr",
         "json": {},
         "parse_error": "openspec_command_timeout",
     }
 
 
 def test_run_json_rejects_hostile_inherited_shell_locations(tmp_path, monkeypatch):
+    hostile = {
+        "PWD": "/hostile/pwd",
+        "OLDPWD": "/hostile/oldpwd",
+        "OPENSPEC_TELEMETRY": "1",
+        "OPENSPEC_NO_UPDATE_CHECK": "0",
+    }
     probe = tmp_path / "environment.py"
     probe.write_text(
         "import json, os\n"
-        "print(json.dumps({key: os.environ.get(key) for key in ('PWD', 'OLDPWD', 'TZ')}))\n",
+        f"print(json.dumps({{key: os.environ.get(key) for key in {(*hostile, 'TZ')!r}}}))\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("PWD", "/hostile/pwd")
-    monkeypatch.setenv("OLDPWD", "/hostile/oldpwd")
-
+    for name, value in hostile.items():
+        monkeypatch.setenv(name, value)
     report = cli.run_json(tmp_path, (sys.executable, probe.as_posix()), ())
-
     assert report["exit_code"] == 0
     assert report["json"] == {
         "PWD": tmp_path.as_posix(),
         "OLDPWD": tmp_path.as_posix(),
         "TZ": "UTC",
+        "OPENSPEC_TELEMETRY": "0",
+        "OPENSPEC_NO_UPDATE_CHECK": "1",
     }
-    assert os.environ["PWD"] == "/hostile/pwd"
-    assert os.environ["OLDPWD"] == "/hostile/oldpwd"
+    assert {name: os.environ[name] for name in hostile} == hostile
 
 
 def test_official_cli_public_resolution_and_report_fail_closed(monkeypatch, tmp_path):
@@ -233,27 +244,35 @@ def test_archive_command_uses_only_the_official_change_declaration(tmp_path, met
 
 
 @pytest.mark.parametrize(
-    ("path", "change", "exit_code", "parse_error", "bound"),
+    ("path", "change", "exit_code", "parse_error", "bound", "alias"),
     [
-        ("openspec/changes/archive/2026-08-29-change", "change", 0, "", True),
-        ("openspec/changes/archive/2026-08-29-change", "change", 1, "", True),
-        ("openspec/changes/archive/2026-08-29-change", "change", 0, "truncated", True),
-        ("openspec/changes/archive/2026-08-29-change", "other", 0, "", False),
-        ("openspec/changes/archive/2026-08-29-other-change", "change", 0, "", False),
-        ("openspec/changes/archive/2026-08-29-change/nested-change", "change", 0, "", False),
-        ("openspec/changes/archive/2026-02-30-change", "change", 0, "", False),
-        ("openspec/changes/archive/invalid-change", "change", 0, "", False),
-        ("openspec/changes/archive", "change", 0, "", False),
-        (".", "change", 0, "", False),
-        ("unrelated", "change", 0, "", False),
-        ("/outside", "other", 0, "", False),
-        ("", "change", 0, "", False),
-        (None, "change", 1, "", False),
+        ("openspec/changes/archive/2026-08-29-change", "change", 0, "", True, False),
+        ("openspec/changes/archive/2026-08-29-change", "change", 1, "", True, False),
+        ("openspec/changes/archive/2026-08-29-change", "change", 0, "truncated", True, False),
+        ("openspec/changes/archive/2026-08-29-change", "other", 0, "", False, False),
+        ("openspec/changes/archive/2026-08-29-other-change", "change", 0, "", False, False),
+        ("openspec/changes/archive/2026-08-29-change/nested-change", "change", 0, "", False, False),
+        ("openspec/changes/archive/2026-02-30-change", "change", 0, "", False, False),
+        ("openspec/changes/archive/invalid-change", "change", 0, "", False, False),
+        ("openspec/changes/archive", "change", 0, "", False, False),
+        (".", "change", 0, "", False, False),
+        ("unrelated", "change", 0, "", False, False),
+        ("/outside", "other", 0, "", False, False),
+        ("", "change", 0, "", False, False),
+        (None, "change", 1, "", False, False),
+        ("alias", "change", 0, "", False, True),
+        ("openspec/changes/archive/2026-08-30-change", "change", 0, "", False, True),
     ],
 )
 def test_archive_result_accepts_only_the_exact_repository_archive(
-    tmp_path, path, change, exit_code, parse_error, bound
+    tmp_path, path, change, exit_code, parse_error, bound, alias
 ):
+    target = tmp_path / "openspec/changes/archive/2026-08-28-change"
+    target.mkdir(parents=True)
+    marker = target / "proposal.md"
+    marker.write_text("preserve unrelated archive\n")
+    if alias:
+        (tmp_path / path).symlink_to(target, target_is_directory=True)
     result = {
         "exit_code": exit_code,
         "parse_error": parse_error,
@@ -265,22 +284,6 @@ def test_archive_result_accepts_only_the_exact_repository_archive(
         [] if bound and exit_code == 0 and not parse_error else ["openspec_archive_result_invalid"]
     )
     assert cli.archive_result(tmp_path, "change", result) == (gaps, path if bound else "")
-
-
-@pytest.mark.parametrize("alias_path", ["alias", "openspec/changes/archive/2026-08-30-change"])
-def test_archive_receipt_cannot_authorize_a_symlink_alias(tmp_path, alias_path):
-    target = tmp_path / "openspec/changes/archive/2026-08-29-change"
-    target.mkdir(parents=True)
-    marker = target / "proposal.md"
-    marker.write_text("preserve unrelated archive\n")
-    alias = tmp_path / alias_path
-    alias.symlink_to(target, target_is_directory=True)
-    result = {"exit_code": 0, "json": {"archive": {"change": "change", "path": str(alias)}}}
-
-    assert cli.archive_result(tmp_path, "change", result) == (
-        ["openspec_archive_result_invalid"],
-        "",
-    )
     assert marker.read_text() == "preserve unrelated archive\n"
 
 
@@ -317,6 +320,9 @@ def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tai
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         ) as child:
+            assert child.stdin is not None
+            assert child.stdout is not None
+            assert child.stderr is not None
             try:
                 child.stdin.write(json.dumps([commands[2]]).encode())
                 child.stdin.close()

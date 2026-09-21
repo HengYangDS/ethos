@@ -36,6 +36,11 @@ def console_main() -> None:
                 executable = str(selected.python)
                 os.execv(executable, [executable, "-B", "-I", "-m", "ethos.cli", *argv])
                 return
+    except ProcessExecutionError as exc:
+        import_module("ethos.surface.cli.output").emit_process_execution_failure(
+            command=command, error=exc, json_output="--json" in argv
+        )
+        return
     except (OSError, ValueError) as exc:
         _emit_contract_failure(command, argv, exc)
         return
@@ -53,12 +58,6 @@ def main() -> None:
         commands = import_module("ethos.surface.cli.application")
         commands.load_command_groups(argv)
         commands.app(commands.dispatch_arguments(argv))
-    except GitExecutionError as exc:
-        import_module("ethos.surface.cli.output").emit_git_execution_failure(
-            command=command,
-            error=exc,
-            json_output="--json" in argv,
-        )
     except ProcessExecutionError as exc:
         import_module("ethos.surface.cli.output").emit_process_execution_failure(
             command=command,

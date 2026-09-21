@@ -274,6 +274,15 @@ The install-smoke owner runs a real client and server from the isolated installe
 wheel, checks discovery, strict root rejection, SDK parity and a fresh process
 reconnect. A unit test proving this probe is wired is not installed acceptance.
 
+Protocol stdout remains reserved during startup failure as well as connected
+calls. The existing CLI output owner sends MCP diagnostics to stderr. Console
+selection and direct module dispatch consume the same native-process failure
+projection, preserving Git-specific recovery and evidence without a second
+exception classifier. Missing Git must fail startup, not bypass repository
+selection or emit ordinary CLI text into JSON-RPC. The installed workload checks
+that negative boundary before connecting normally; it does not establish admitted
+MCP mutation, unknown-effect recovery or cancellation acceptance by itself.
+
 Deliver the normal CLI installation and its version selection, upgrade and
 uninstall before expanding MCP beyond the current shared operations. Remaining
 SDK extraction and optional protocol capabilities must not indefinitely delay

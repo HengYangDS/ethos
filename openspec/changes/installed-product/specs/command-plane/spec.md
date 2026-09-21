@@ -51,6 +51,13 @@ information rather than trigger an automatic repeated effect.
 - **THEN** protocol negotiation and structured results work outside the source checkout
 - **AND** repository truth survives without an MCP task database
 
+#### Scenario: A native prerequisite prevents MCP startup
+
+- **WHEN** the installed console or module entry cannot establish its native execution boundary
+- **THEN** startup exits unsuccessfully without writing diagnostics to protocol stdout
+- **AND** stderr preserves the failure and recovery guidance without a traceback
+- **AND** the console dispatcher preserves the same native failure evidence as direct invocation
+
 ### Requirement: Adoption continuation preserves request meaning
 
 The shared adoption operation SHALL select one root-bound continuation from the

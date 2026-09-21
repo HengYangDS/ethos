@@ -29,18 +29,19 @@ def emit(
     enforce: bool = True,
     artifact_root: Path | None = None,
 ) -> None:
-    """Render a result and fail closed when an enforced verdict is not okay."""
+    """Render CLI results without writing diagnostics into an MCP protocol stream."""
     if json_output and artifact_root is not None:
         common_dir = git_common_dir(artifact_root)
         receipt_root = Path(common_dir) / "ethos" if common_dir else artifact_root / ".ethos"
         result = apply_payload_budget(result, root=receipt_root)
+    stream = sys.stderr if result.command == "mcp" else sys.stdout
     try:
         if json_output:
-            sys.stdout.write(f"{result.to_json()}\n")
+            stream.write(f"{result.to_json()}\n")
         else:
-            sys.stdout.write(f"{result.command}: {result.state}\n")
+            stream.write(f"{result.command}: {result.state}\n")
             if result.next_action:
-                sys.stdout.write(f"next: {result.next_action}\n")
+                stream.write(f"next: {result.next_action}\n")
     except (BrokenPipeError, BlockingIOError):
         return
     if enforce and result.verdict != "pass":
@@ -66,25 +67,8 @@ def emit_invalid_repository_profile(*, command: str, json_output: bool, enforce:
 def emit_process_execution_failure(
     *, command: str, error: ProcessExecutionError, json_output: bool
 ) -> None:
-    """Emit one stable fail-closed envelope for external process creation."""
-    emit(
-        EthosResult(
-            command=command,
-            verdict="block",
-            state="gapped",
-            required_gaps=(error.code,),
-            next_action="repair the reported process boundary and rerun the command",
-            data={"error_boundary": "process_execution", **error.evidence()},
-        ),
-        json_output=json_output,
-        enforce=True,
-    )
-
-
-def emit_git_execution_failure(
-    *, command: str, error: GitExecutionError, json_output: bool
-) -> None:
-    """Emit one stable fail-closed envelope for Git execution infrastructure."""
+    """Preserve native failure evidence across console and module entrypoints."""
+    git_failure = isinstance(error, GitExecutionError)
     emit(
         EthosResult(
             command=command,
@@ -92,13 +76,18 @@ def emit_git_execution_failure(
             state="gapped",
             required_gaps=(error.code,),
             next_action=(
-                shlex.join(("ethos", "status", "--root", error.cwd, "--json"))
+                "repair the reported process boundary and rerun the command"
+                if not git_failure
+                else shlex.join(("ethos", "status", "--root", error.cwd, "--json"))
                 if error.code in {GIT_PROCESS_TIMED_OUT, "build_source_identity_changed"}
                 else "install Git on the effective PATH and rerun the command"
                 if error.code == "git_executable_unavailable"
                 else "verify the repository root and rerun the command"
             ),
-            data={"error_boundary": "git_execution", **error.evidence()},
+            data={
+                "error_boundary": "git_execution" if git_failure else "process_execution",
+                **error.evidence(),
+            },
         ),
         json_output=json_output,
         enforce=True,

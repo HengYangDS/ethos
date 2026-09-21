@@ -16,6 +16,7 @@ import ethos.adapters.repo.runtime.selection as runtime_selection
 import ethos.cli as cli
 import tools.ci.delivery.distribution as distribution
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -184,21 +185,30 @@ def test_current_runtime_rejects_missing_or_noncanonical_selection(tmp_path, raw
     assert (selector.read_bytes() if selector.exists() else None) == raw
 
 
+@pytest.mark.parametrize("changed_source", ["closure", "source", "wheel", "target", "rollback"])
+@pytest.mark.parametrize("external", [False, True])
 def test_release_runtime_identity_rejects_a_second_closure_for_the_same_release(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    changed_source: str,
+    external: bool,
 ) -> None:
     identity = runtime_build("a" * 40, "b" * 40, release=True)
     repo, venv = materialize_runtime_case(tmp_path, monkeypatch, package_identity=identity)
     common = Path(git_common_dir(repo))
     first = venv.parent
+    if external:
+        destination = tmp_path / "installed" / first.name
+        destination.parent.mkdir()
+        first.chmod(0o755)
+        first.rename(destination)
+        destination.chmod(0o555)
+        first = destination
     assert git_process(repo, "update-ref", "-d", ATTESTATION_SET_REF).returncode == 0
-    with pytest.raises(ValueError, match="accepted_release_identity_unattested"):
-        activate_runtime(common, first)
-    assert not (common / "ethos/runtime/CURRENT").exists()
-    monkeypatch.setattr(runtime_selection, "require_release_identity_attested", lambda *_a: None)
     (first.parent / ("f" * 64)).mkdir()
     activate_runtime(common, first)
+    assert read_attestation_set(repo)[1] == ()
     second_staging = tmp_path / "second-runtime"
     shutil.copytree(first, second_staging)
     second_staging.chmod(0o755)
@@ -206,10 +216,19 @@ def test_release_runtime_identity_rejects_a_second_closure_for_the_same_release(
     package.chmod(0o644)
     package.write_text("different accepted closure\n", encoding="utf-8")
     manifest = load_runtime_manifest_bytes((first / "manifest.json").read_bytes())
+    if changed_source == "source":
+        identity = identity._replace(source_commit="e" * 40)
+    if changed_source == "rollback":
+        identity = identity._replace(
+            product_version="0.2.0-alpha.1", distribution_version="0.2.0a1"
+        )
+    environment = manifest.environment
+    if changed_source in {"source", "wheel", "target"}:
+        environment = environment._replace(python_abi="cpython-313")
     closure = {
-        "wheel_sha256": manifest.wheel_sha256,
+        "wheel_sha256": "d" * 64 if changed_source == "wheel" else manifest.wheel_sha256,
         "build": identity,
-        "environment": manifest.environment,
+        "environment": environment,
         "runtime_files": runtime_file_inventory(second_staging),
     }
     digest = runtime_digest(**closure)
@@ -219,10 +238,14 @@ def test_release_runtime_identity_rejects_a_second_closure_for_the_same_release(
     manifest.chmod(0o644)
     manifest.write_bytes(runtime_manifest_bytes(digest=digest, **closure))
 
-    with pytest.raises(ValueError, match="release_runtime_identity_conflict"):
-        activate_runtime(common, second)
-
+    if changed_source in {"target", "rollback"}:
+        assert activate_runtime(common, second).root == second
+        assert activate_runtime(common, first).root == first
+    else:
+        with pytest.raises(ValueError, match="release_runtime_identity_conflict"):
+            activate_runtime(common, second)
     assert current_runtime(common).root == first
+    assert read_attestation_set(repo)[1] == ()
 
 
 @pytest.mark.parametrize("mode", ["selected", "self", "missing", "broken", "tampered", "install"])
@@ -272,6 +295,12 @@ def test_portable_archive_retains_exact_runtime_and_previous_output(tmp_path, mo
     wheel = Path(git_common_dir(repo)) / "ethos/packages" / selected.wheel_sha256 / "ethos-test.whl"
     destination = tmp_path / "ethos.tar.gz"
     destination.write_bytes(b"previous")
+    with pytest.raises(ValueError, match="distribution_release_build_required"):
+        distribution.package_runtime(
+            selected.root, wheel, destination, download_url="https://example.invalid/ethos.tar.gz"
+        )
+    assert destination.read_bytes() == b"previous"
+    assert not (tmp_path / "homebrew").exists()
     if drift:
         wheel.write_bytes(b"changed")
         with pytest.raises(ValueError, match="distribution_wheel_mismatch"):

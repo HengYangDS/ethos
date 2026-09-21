@@ -32,6 +32,26 @@ SHALL prevent deletion without erasing successful activation evidence.
 - **THEN** the consumer's selected bytes remain available
 - **AND** cleanup reports the exact remaining dependency
 
+### Requirement: Installing released supply is not publishing a release
+
+Repository runtime selection SHALL validate the exact supplied package without
+requiring or creating the publisher's release Attestation in the adopter.
+Same-version source and wheel conflicts SHALL be rejected across runtime targets;
+same-target closure conflicts SHALL preserve the previous selection. Explicit
+runtime rollback SHALL NOT be treated as publication of an older version.
+
+#### Scenario: A fresh adopter selects a released runtime
+
+- **WHEN** an admitted installation selects a valid released package in a repository with no product-release Attestations
+- **THEN** it selects the exact runtime without creating a product-release claim
+- **AND** package validation, selector CAS and repository-local policy remain enforced
+
+#### Scenario: A release version is presented with incompatible bytes
+
+- **WHEN** another available runtime reuses the release version with different source, wheel or same-target closure
+- **THEN** activation rejects the conflict and preserves the previous selector
+- **AND** changing the interpreter target does not excuse source or wheel disagreement
+
 ### Requirement: Independent product acceptance exercises delivered artifacts
 
 Acceptance SHALL execute installed CLI and real MCP client paths outside ETHOS

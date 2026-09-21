@@ -26,6 +26,9 @@ from ethos.repository.release.identity import load_build_identity_bytes
 from ethos.repository.release.identity import product_version
 from ethos.repository.release.identity import projected_package_versions
 from ethos.repository.release.identity import wheel_build_identity
+from tools.ci import sessions
+from tools.ci.delivery import pipeline
+from tools.ci.toolchain.environment import ProjectRuntime
 
 
 def test_version_file_is_the_single_product_owner_and_manifests_are_projections() -> None:
@@ -44,28 +47,9 @@ def test_version_file_is_the_single_product_owner_and_manifests_are_projections(
     assert "0.1.0a2" not in (root / "pyproject.toml").read_text(encoding="utf-8")
 
 
-def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> None:
+def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monkeypatch) -> None:
     root = Path.cwd()
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    tracked = subprocess.check_output(
-        ("git", "ls-files", "-co", "--exclude-standard", "-z"), cwd=root
-    ).split(b"\0")
-    for raw in tracked:
-        if not raw:
-            continue
-        relative = Path(os.fsdecode(raw))
-        source = root / relative
-        if not source.exists():
-            continue
-        target = repo / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target, follow_symlinks=False)
-    _git(repo, "init", "--quiet", "--initial-branch=work/build-identity")
-    _git(repo, "config", "user.name", "ETHOS Test")
-    _git(repo, "config", "user.email", "ethos@example.invalid")
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "--quiet", "-m", "first source")
+    repo = _build_repository(root, tmp_path / "repo")
     first = _build_wheel(repo, tmp_path / "first")
 
     readme = repo / "README.md"
@@ -80,51 +64,81 @@ def test_two_source_commits_produce_distinct_wheel_metadata(tmp_path: Path) -> N
     assert Version(first.distribution_version) < Version("0.2.0a5")
     assert Version(second.distribution_version) < Version("0.2.0a5")
 
+    source_head = second.source_commit
+    monkeypatch.setattr(pipeline, "accepted_release_source", lambda _root, head: {"head": head})
+    monkeypatch.setattr(pipeline, "proof_for_repository_transition", lambda *_: (object(), []))
+    before = subprocess.check_output(("git", "status", "--porcelain"), cwd=repo)
+
+    class BuildSession:
+        posargs = ("--release", "--expect-head", source_head)
+
+        def run(self, *command, env):
+            subprocess.run(command, cwd=repo, env={**os.environ, **env}, check=True, timeout=90)
+
+    monkeypatch.setattr(sessions, "RUNTIME", ProjectRuntime.discover(repo))
+    monkeypatch.setattr(
+        ProjectRuntime, "node_package_supply", lambda _: resolve_node_package_supply(root)
+    )
+    sessions.build(BuildSession())
+    released = wheel_build_identity(next((repo / "build/artifacts/release/python").glob("*.whl")))
+    assert released.distribution_version == "0.2.0a5"
+    assert released.source_commit == source_head
+    assert released.source_tree == second.source_tree
+    assert not tuple((repo / "build/runtime/work").iterdir())
+    assert subprocess.check_output(("git", "status", "--porcelain"), cwd=repo) == before
+    for proof, gaps in ((None, []), (object(), ["release_source_not_proven"])):
+        with monkeypatch.context() as denied:
+            denied.setattr(
+                pipeline, "proof_for_repository_transition", lambda *_, value=(proof, gaps): value
+            )
+            with pytest.raises(ValueError, match="release_source_not_proven"):
+                sessions.build(BuildSession())
+        assert (
+            wheel_build_identity(next((repo / "build/artifacts/release/python").glob("*.whl")))
+            == released
+        )
+        assert not tuple((repo / "build/runtime/work").iterdir())
+    with (
+        pytest.raises(ValueError, match="release_build_source_stale"),
+        pipeline.release_build_source(repo, tmp_path / "stale", head=first.source_commit),
+    ):
+        pytest.fail("stale source admitted")
+    with (
+        pytest.raises(ValueError, match="release_build_source_dirty"),
+        pipeline.release_build_source(repo, tmp_path / "changed", head=source_head) as prepared,
+    ):
+        readme.write_text("dirty source\n")
+    assert not prepared.exists()
+    with (
+        pytest.raises(ValueError, match="release_build_source_dirty"),
+        pipeline.release_build_source(repo, tmp_path / "dirty", head=source_head),
+    ):
+        pytest.fail("dirty source admitted")
+
+
+def test_release_build_requires_explicit_exact_arguments() -> None:
+    assert pipeline.release_build_head(("--release", "--expect-head", "a" * 40)) == "a" * 40
+    assert pipeline.release_build_head(()) == ""
+    for args in (
+        ("--release",),
+        ("--expect-head", "a" * 40),
+        ("--release", "--expect-head", "bad"),
+        ("--release", "--expect-head"),
+        ("--release", "--expect-head", "a" * 40, "--unknown"),
+    ):
+        with pytest.raises(ValueError, match="release_build_arguments_invalid"):
+            pipeline.release_build_head(args)
+
 
 def test_sdist_rebuild_reuses_the_identical_node_package_supply(tmp_path: Path) -> None:
     artifacts = tmp_path / "artifacts"
-    supply = resolve_node_package_supply(Path.cwd())
-    subprocess.run(
-        (
-            str(Path(sys.executable).with_name("uv")),
-            "build",
-            "--offline",
-            "--no-build-isolation",
-            "--python",
-            sys.executable,
-            "--wheel",
-            "--sdist",
-            "--out-dir",
-            str(artifacts),
-            "--no-create-gitignore",
-        ),
-        env={**os.environ, "ETHOS_NODE_PACKAGE_SUPPLY": supply.as_posix()},
-        check=True,
-    )
+    _build_wheel(Path.cwd(), artifacts, sdist=True)
     direct_wheel = next(artifacts.glob("*.whl"))
     source_root = tmp_path / "source"
     shutil.unpack_archive(next(artifacts.glob("*.tar.gz")), source_root, filter="data")
     source = next(path for path in source_root.iterdir() if path.is_dir())
     rebuilt = tmp_path / "rebuilt"
-    environment = os.environ.copy()
-    environment.pop("ETHOS_NODE_PACKAGE_SUPPLY", None)
-    subprocess.run(
-        (
-            str(Path(sys.executable).with_name("uv")),
-            "build",
-            "--offline",
-            "--no-build-isolation",
-            "--python",
-            sys.executable,
-            "--wheel",
-            "--out-dir",
-            str(rebuilt),
-            "--no-create-gitignore",
-            str(source),
-        ),
-        env=environment,
-        check=True,
-    )
+    _build_wheel(source, rebuilt, embedded_supply=True)
     rebuilt_wheel = next(rebuilt.glob("*.whl"))
 
     assert (
@@ -194,16 +208,9 @@ def test_product_version_rejects_noncanonical_semver(tmp_path: Path, raw: str) -
 def test_projected_package_version_drift_is_reported(tmp_path: Path) -> None:
     (tmp_path / "VERSION").write_text("1.2.3\n", encoding="utf-8")
     (tmp_path / "package.json").write_text('{"version":"1.2.2"}\n', encoding="utf-8")
+    packages = {"": {}, "distributions/npm": {"version": "1.2.3"}}
     (tmp_path / "package-lock.json").write_text(
-        json.dumps(
-            {
-                "packages": {
-                    "": {},
-                    "distributions/npm": {"version": "1.2.3"},
-                }
-            }
-        ),
-        encoding="utf-8",
+        json.dumps({"packages": packages}), encoding="utf-8"
     )
     package = tmp_path / "distributions/npm/package.json"
     package.parent.mkdir(parents=True)
@@ -240,9 +247,14 @@ def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
             load_build_identity_bytes(raw)
 
 
-def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
+def _build_wheel(
+    repo: Path, output: Path, *, sdist: bool = False, embedded_supply: bool = False
+) -> BuildIdentity:
     output.mkdir()
-    supply = resolve_node_package_supply(Path.cwd())
+    environment = os.environ.copy()
+    environment.pop("ETHOS_NODE_PACKAGE_SUPPLY", None)
+    if not embedded_supply:
+        environment["ETHOS_NODE_PACKAGE_SUPPLY"] = str(resolve_node_package_supply(Path.cwd()))
     subprocess.run(
         (
             str(Path(sys.executable).with_name("uv")),
@@ -255,13 +267,12 @@ def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
             "--out-dir",
             str(output),
             "--no-create-gitignore",
+            *(("--sdist",) if sdist else ()),
         ),
         cwd=repo,
-        env={
-            **os.environ,
-            "ETHOS_NODE_PACKAGE_SUPPLY": supply.as_posix(),
-        },
+        env=environment,
         check=True,
+        timeout=90,
     )
     wheel = next(output.glob("ethos-*.whl"))
     identity = wheel_build_identity(wheel)
@@ -276,3 +287,27 @@ def _build_wheel(repo: Path, output: Path) -> BuildIdentity:
 
 def _git(repo: Path, *args: str) -> None:
     subprocess.run(("git", *args), cwd=repo, check=True)
+
+
+def _build_repository(root: Path, repo: Path) -> Path:
+    """Create an independent candidate snapshot without sharing Git or mutable files."""
+    repo.mkdir()
+    tracked = subprocess.check_output(
+        ("git", "ls-files", "-co", "--exclude-standard", "-z"), cwd=root
+    ).split(b"\0")
+    for raw in tracked:
+        if not raw:
+            continue
+        relative = Path(os.fsdecode(raw))
+        source = root / relative
+        if not source.exists():
+            continue
+        target = repo / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target, follow_symlinks=False)
+    _git(repo, "init", "--quiet", "--initial-branch=work/build-identity")
+    _git(repo, "config", "user.name", "ETHOS Test")
+    _git(repo, "config", "user.email", "ethos@example.invalid")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "--quiet", "-m", "first source")
+    return repo

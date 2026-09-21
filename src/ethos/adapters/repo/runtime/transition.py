@@ -91,17 +91,6 @@ def materialize_explicit_release(
     return observed
 
 
-def require_release_identity_attested(
-    repo: Path, candidate: AcceptedReleaseIdentity | None
-) -> None:
-    """Require accepted package provenance before activating its runtime projection."""
-    if not candidate:
-        return
-    _root, attestations = read_attestation_set(repo)
-    if candidate not in accepted_release_identities(attestations):
-        _fail("accepted_release_identity_unattested")
-
-
 def _observe_release_wheel(path: Path) -> AcceptedReleaseIdentity:
     return accepted_release_identity(wheel_build_identity(path), wheel_sha256=_sha256(path))
 

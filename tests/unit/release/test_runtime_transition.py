@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 
 import pytest
@@ -56,12 +57,14 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
         record_runtime_tool,
     )
     monkeypatch.setattr(dependency_supply, "project_dependency_supply", lambda *_args: None)
-    artifact = identity_transition.materialize_package_wheel(
+    materialize = partial(
+        identity_transition.materialize_package_wheel,
         repo,
         volatile_wheel,
         expected_build=_BUILD_IDENTITY,
         collision="hook_runtime_wheel_digest_collision",
     )
+    artifact = materialize()
 
     requirements = tmp_path / "work/locked-requirements.txt"
     requirements.parent.mkdir()
@@ -87,12 +90,7 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     assert durable.read_bytes() == b"wheel"
     durable.write_bytes(b"different")
     with pytest.raises(ValueError, match="hook_runtime_wheel_digest_collision"):
-        identity_transition.materialize_package_wheel(
-            repo,
-            volatile_wheel,
-            expected_build=_BUILD_IDENTITY,
-            collision="hook_runtime_wheel_digest_collision",
-        )
+        materialize()
     durable.write_bytes(b"wheel")
     stale = _BUILD_IDENTITY._replace(source_commit="e" * 40)
     monkeypatch.setattr(
@@ -101,14 +99,10 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
         lambda path: _BUILD_IDENTITY if path == volatile_wheel else stale,
     )
     with pytest.raises(ValueError, match="identity_transition_post_observation_mismatch"):
-        identity_transition.materialize_package_wheel(
-            repo, volatile_wheel, expected_build=_BUILD_IDENTITY, collision="collision"
-        )
+        materialize(collision="collision")
     monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda _path: _BUILD_IDENTITY)
     with pytest.raises(ValueError, match="release_wheel_build_identity_stale"):
-        identity_transition.materialize_package_wheel(
-            repo, volatile_wheel, expected_build=stale, collision="collision"
-        )
+        materialize(expected_build=stale, collision="collision")
     volatile_wheel.unlink()
 
 
@@ -193,16 +187,3 @@ def test_release_transition_attests_only_after_matching_post_observation(
             transition()
         expected = {"attestation": ["effect", "observe", "attest"], "admission": []}
         assert events == expected.get(observation, ["effect", "observe"])
-
-
-def test_accepted_release_activation_requires_attestation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    release = accepted_release_identity(
-        _BUILD_IDENTITY._replace(distribution_version="0.2.0a2"),
-        wheel_sha256="c" * 64,
-    )
-    monkeypatch.setattr(identity_transition, "read_attestation_set", lambda _repo: ("", ()))
-    identity_transition.require_release_identity_attested(Path(), None)
-    with pytest.raises(ValueError, match="accepted_release_identity_unattested"):
-        identity_transition.require_release_identity_attested(Path(), release)

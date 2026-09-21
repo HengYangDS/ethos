@@ -39,9 +39,12 @@ async function selectedPath(name, { directory = false } = {}) {
   return selected;
 }
 
-async function installPackages(t) {
+async function installPackages(
+  t,
+  integrationArchiveVariable = "ETHOS_ARCHITECTURE_PUBLISHER_PACKAGE",
+) {
   const coreArchive = await selectedArchive("ARCHITECTURE_PUBLISHER_PACKAGE");
-  const ethosArchive = await selectedArchive("ETHOS_ARCHITECTURE_PUBLISHER_PACKAGE");
+  const ethosArchive = await selectedArchive(integrationArchiveVariable);
   const root = await fs.realpath(
     await fs.mkdtemp(path.join(tmpdir(), "ethos-architecture-publisher-installed-")),
   );
@@ -605,5 +608,126 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
   assert.equal(
     Object.values(poster.checks).every(({ failures }) => failures.length === 0),
     true,
+  );
+
+  const acceptedSelection = {
+    sourceManifest: beforeImport.manifestPath,
+    sourceSha256: beforeImport.manifestSha256,
+    projectionDigest: baseline.ethos.editionSource.projectionDigest,
+    editionManifest,
+    editionSha256: sha256(await fs.readFile(editionManifest)),
+  };
+  const sourceOwnedAcceptedAtlas = await atlas.renderEthosAtlas({
+    ...acceptedSelection,
+    output: path.join(project, "source-owned-accepted-atlas"),
+  });
+  const sourceOwnedAcceptedStandalone = await standaloneApi.renderStandaloneAtlas({
+    atlas: {
+      ...acceptedSelection,
+      outputManifest: path.join(sourceOwnedAcceptedAtlas.output, "manifest.json"),
+      outputSha256: sourceOwnedAcceptedAtlas.manifestSha256,
+    },
+    output: path.join(project, "source-owned-accepted.html"),
+  });
+  const acceptedPosterManifest = path.join(
+    integrationRoot,
+    "src",
+    "edition",
+    "static",
+    "authoring",
+    "manifest.json",
+  );
+  const sourceOwnedAcceptedPoster = await posterApi.renderEthosPoster({
+    sourceManifest: beforeImport.manifestPath,
+    sourceSha256: beforeImport.manifestSha256,
+    projectionDigest: baseline.ethos.editionSource.projectionDigest,
+    editionManifest: acceptedPosterManifest,
+    editionSha256: sha256(await fs.readFile(acceptedPosterManifest)),
+    output: path.join(project, "source-owned-accepted-poster"),
+  });
+
+  const sourceOwnedArchive = await selectedArchive("ETHOS_ARCHITECTURE_PUBLISHER_PACKAGE");
+  const stagingArchive = await selectedArchive("PUBLISHER_STAGING_ETHOS_PACKAGE");
+  assert.notEqual(await fs.realpath(sourceOwnedArchive), await fs.realpath(stagingArchive));
+  assert.notEqual(
+    sha256(await fs.readFile(sourceOwnedArchive)),
+    sha256(await fs.readFile(stagingArchive)),
+  );
+  const staging = await installPackages(t, "PUBLISHER_STAGING_ETHOS_PACKAGE");
+  const stagingAtlasApi = await import(
+    pathToFileURL(path.join(staging.integrationRoot, "src", "edition", "atlas.mjs")).href
+  );
+  const stagingPosterApi = await import(
+    pathToFileURL(path.join(staging.integrationRoot, "src", "edition", "poster.mjs")).href
+  );
+  const stagingStandaloneApi = await import(
+    pathToFileURL(path.join(staging.integrationRoot, "src", "edition", "standalone.mjs")).href
+  );
+  const stagingCandidateApi = await import(
+    pathToFileURL(path.join(staging.integrationRoot, "src", "edition", "candidate.mjs")).href
+  );
+  const stagingEditionManifest = path.join(
+    staging.integrationRoot,
+    "src",
+    "edition",
+    "authoring",
+    "manifest.json",
+  );
+  const stagingSelection = {
+    ...acceptedSelection,
+    editionManifest: stagingEditionManifest,
+    editionSha256: sha256(await fs.readFile(stagingEditionManifest)),
+  };
+  const stagingAcceptedAtlas = await stagingAtlasApi.renderEthosAtlas({
+    ...stagingSelection,
+    output: path.join(staging.project, "staging-accepted-atlas"),
+  });
+  const stagingAcceptedStandalone = await stagingStandaloneApi.renderStandaloneAtlas({
+    atlas: {
+      ...stagingSelection,
+      outputManifest: path.join(stagingAcceptedAtlas.output, "manifest.json"),
+      outputSha256: stagingAcceptedAtlas.manifestSha256,
+    },
+    output: path.join(staging.project, "staging-accepted.html"),
+  });
+  const stagingPosterManifest = path.join(
+    staging.integrationRoot,
+    "src",
+    "edition",
+    "static",
+    "authoring",
+    "manifest.json",
+  );
+  const stagingAcceptedPoster = await stagingPosterApi.renderEthosPoster({
+    sourceManifest: beforeImport.manifestPath,
+    sourceSha256: beforeImport.manifestSha256,
+    projectionDigest: baseline.ethos.editionSource.projectionDigest,
+    editionManifest: stagingPosterManifest,
+    editionSha256: sha256(await fs.readFile(stagingPosterManifest)),
+    output: path.join(staging.project, "staging-accepted-poster"),
+  });
+  assert.equal(stagingAcceptedAtlas.manifestSha256, sourceOwnedAcceptedAtlas.manifestSha256);
+  assert.equal(stagingAcceptedStandalone.sha256, sourceOwnedAcceptedStandalone.sha256);
+  assert.equal(stagingAcceptedPoster.svg.sha256, sourceOwnedAcceptedPoster.svg.sha256);
+  assert.equal(stagingAcceptedPoster.sceneSha256, sourceOwnedAcceptedPoster.sceneSha256);
+  assert.equal(
+    stagingAcceptedPoster.output.manifestSha256,
+    sourceOwnedAcceptedPoster.output.manifestSha256,
+  );
+
+  const stagingAuthoring = path.join(staging.integrationRoot, "src", "edition", "refresh.json");
+  await assert.rejects(
+    stagingCandidateApi.prepareEthosCandidate({
+      previous: stagingSelection,
+      source: {
+        sourceManifest: afterImport.manifestPath,
+        sourceSha256: afterImport.manifestSha256,
+        projectionDigest: baseline.ethos.terminalAcceptedProjection.projectionDigest,
+      },
+      authoring: stagingAuthoring,
+      authoringSha256: sha256(await fs.readFile(stagingAuthoring)),
+      output: path.join(staging.project, "unsupported-current-candidate"),
+    }),
+    /Unsupported semantic delta requires authored mapping/,
   );
 });

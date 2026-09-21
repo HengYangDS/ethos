@@ -11,12 +11,14 @@ from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_ref_worktrees import ref_worktree_paths
 from ethos.adapters.repo.git_ref_worktrees import sync_linked_ref_worktree
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
+from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -28,6 +30,41 @@ if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
     from ethos.contracts.semantic import Attestation
     from ethos.contracts.value import JsonObject
+
+
+def current_acceptance(*, root, policy, current_head, candidate_head, status):
+    """Observe completed refs and their original effect without minting another transition."""
+    if current_head != candidate_head or has_changed_paths(root):
+        return None
+    if policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF:
+        release_head = run_git(root, "rev-parse", policy.release_branch, check=False).stdout.strip()
+        if release_head != candidate_head:
+            return None
+        if gap := worktree_sync_gap(
+            root,
+            ref_worktree_paths(status.get("worktrees", []), policy.release_branch),
+            policy.release_branch,
+            release_head,
+            release_head,
+            candidate_head,
+        ):
+            return _accepted_block(policy, current_head, [f"release_mirror_{gap}"])
+    try:
+        recorded = accepted_closeout_attestation(
+            root,
+            accepted_ref=f"refs/heads/{policy.accepted_branch}",
+            candidate_ref=f"refs/heads/{policy.candidate_branch}",
+            candidate_head=candidate_head,
+        )
+    except ValueError as error:
+        return _accepted_block(policy, current_head, [str(error)])
+    return {
+        **accepted_payload(policy, current_head),
+        "verdict": "pass",
+        "state": "accepted_current",
+        "candidate_head": candidate_head,
+        "attestation": recorded[1].model_dump(mode="json") if recorded else {},
+    }
 
 
 def promote_candidate(

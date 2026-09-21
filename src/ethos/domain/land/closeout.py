@@ -55,7 +55,7 @@ class CloseoutProof(BaseModel):
 
 
 class CloseoutEffect(BaseModel):
-    """The applied exact-effect identity, absent before mutation."""
+    """The observed exact-effect identity, absent when no attested transition exists."""
 
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
@@ -164,7 +164,7 @@ def closeout_resolution(
         candidate_head=candidate_head,
         candidate_tree=git_adapter.current_tree(audit_root, candidate_head),
     )
-    if verdict == "pass" and apply and candidate_head == accepted_head:
+    if verdict == "pass" and update.get("state") == "accepted_current":
         next_action = "ethos publish"
     elif verdict == "pass" and apply:
         next_action = (

@@ -155,6 +155,14 @@ repository and effect owners are
 unchanged; no command subprocess, second parser or alternate verdict implementation
 was added. Public source APIs require an explicit Path and return EthosResult.
 
+Repeated accepted closeout is an observation of current refs, affected worktrees
+and the original Git-backed effect, not a new identity-ref transaction. One
+accepted-state observer serves preview and authorized retry; the existing
+Attestation selector owns effect identity and ambiguity checks. A bootstrap with
+aligned refs but no prior effect remains an unattested no-op. Dirty or stale
+coordinates retain their ordinary admission and synchronization boundaries.
+This does not establish recovery from a crash before Attestation persistence.
+
 The preserved direct-API tests were restored after accepted runtime acquired
 context-complete command admission. The initial replay rejected the missing API
 modules. That initial replay passed 102 related adoption/reader/invalid-profile

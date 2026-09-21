@@ -8,7 +8,7 @@
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [x] 1.9 Measure complete proof within the temporary 900-second threshold without weakening gates.
+- [ ] 1.9 Measure complete proof within the temporary 900-second threshold without weakening gates.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse

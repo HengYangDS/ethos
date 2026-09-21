@@ -15,6 +15,9 @@ only measured throughput improvements and their correctness boundaries.
 3. Preserve fresh mutable ref, source, Lease and trust observation at each
    effect. Pure computation may reuse exact immutable inputs; LRU eviction
    cannot establish validity. Avoid a generic cache around arbitrary Git calls.
+   Within one trust-input observation, reuse absolute paths already returned
+   in the native Git configuration; delegate other forms to Git path expansion.
+   Reobserve configuration and material after verification, without caching verdicts.
 4. Reduce repeated preparation and IPC through existing native mechanisms and
    explicit operation-local values. Do not replace native acceptance tests
    with mocks or share mutable repositories between cases.

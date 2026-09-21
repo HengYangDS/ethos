@@ -227,29 +227,49 @@ def test_native_trust_rejects_changed_inputs_after_verification(tmp_path, monkey
     assert report["required_gaps"] == ["git_object_trust_changed_during_verification"]
 
 
-@pytest.mark.parametrize("kind", ["commit", "annotated-tag"])
+@pytest.mark.parametrize(
+    ("kind", "changed", "path_mode"),
+    [
+        ("commit", "anchor", "absolute"),
+        ("annotated-tag", "anchor", "absolute"),
+        ("commit", "default", "absolute"),
+        ("commit", "anchor", "home"),
+    ],
+)
 def test_native_trust_uses_frozen_material_during_temporary_source_change(
-    tmp_path, monkeypatch, kind
+    tmp_path, monkeypatch, kind, changed, path_mode
 ):
-    """A transient edit of the source anchor cannot alter the bytes consumed by Git."""
+    """Read one native configuration per boundary; keep material and defaults frozen."""
     repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
     public = (tmp_path / "signer.pub").read_text()
     original = f'owner@example.com namespaces="git" {public}'.encode()
     anchor.write_bytes(original)
+    if path_mode == "home":
+        monkeypatch.setenv("HOME", str(tmp_path))
+        git(repo, "config", "gpg.ssh.allowedSignersFile", "/missing")
+        git(repo, "config", "--add", "gpg.ssh.allowedSignersFile", "~/trust/allowed-signers")
     if kind == "annotated-tag":
         git(repo, "tag", "-s", "-m", "signed release", "release", target)
         target = git(repo, "rev-parse", "refs/tags/release")
     native = verification.run_git
+    commands = []
 
     def temporary_source_change(root, *args, **kwargs):
+        commands.append(args)
         verifying = "verify-commit" in args or "verify-tag" in args
         if verifying:
-            anchor.write_bytes(b"")
+            if changed == "anchor":
+                anchor.write_bytes(b"")
+            else:
+                git(repo, "config", "gpg.minTrustLevel", "ultimate")
         try:
             return native(root, *args, **kwargs)
         finally:
             if verifying:
-                anchor.write_bytes(original)
+                if changed == "anchor":
+                    anchor.write_bytes(original)
+                else:
+                    git(repo, "config", "--unset", "gpg.minTrustLevel")
 
     monkeypatch.setattr(verification, "run_git", temporary_source_change)
     report = verification.verify_git_object_trust(repo, target, kind)
@@ -257,6 +277,7 @@ def test_native_trust_uses_frozen_material_during_temporary_source_change(
     assert report["trust_anchor_sha256"] == hashlib.sha256(original).hexdigest()
     assert report["principal"] == "owner@example.com"
     assert anchor.read_bytes() == original
+    assert sum(args[0] == "config" for args in commands) == (4 if path_mode == "home" else 2)
 
 
 @pytest.mark.parametrize("invalid_tail", [False, True])
@@ -278,27 +299,6 @@ def test_native_trust_empty_selection_is_not_success(tmp_path):
     report = verification.verify_commit_trust(repo, ())
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["git_object_trust_selection_empty"]
-
-
-def test_native_trust_freezes_an_undeclared_native_default(tmp_path, monkeypatch):
-    """A temporarily added configuration must not override the captured native default."""
-    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
-    anchor.write_text(f'owner@example.com namespaces="git" {(tmp_path / "signer.pub").read_text()}')
-    native = verification.run_git
-
-    def change_default(root, *args, **kwargs):
-        verifying = "verify-commit" in args
-        if verifying:
-            git(repo, "config", "gpg.minTrustLevel", "ultimate")
-        try:
-            return native(root, *args, **kwargs)
-        finally:
-            if verifying:
-                git(repo, "config", "--unset", "gpg.minTrustLevel")
-
-    monkeypatch.setattr(verification, "run_git", change_default)
-    report = verification.verify_commit_trust(repo, target)
-    assert report["verdict"] == "pass", report
 
 
 def test_native_trust_unreadable_configuration_is_a_structured_failure(tmp_path):

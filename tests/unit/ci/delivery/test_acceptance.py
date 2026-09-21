@@ -280,7 +280,11 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         (
             effect,
             "observe_installed_package",
-            ("/installed/ethos/__init__.py", "ethos 0.2.0-alpha.3"),
+            (
+                "/installed/ethos/__init__.py",
+                "ethos 0.2.0-alpha.3",
+                {"state": "passed", "native_git_loss": "not_qualified"},
+            ),
         ),
         (effect, "observe_independent_command_plane", {"external_governance_available": False}),
         (effect, "_verify_resources", ["ethos/data/gates.toml"]),
@@ -410,6 +414,14 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
     ):
         assert payload[field] is False
     assert isinstance(payload["conformance"], dict)
+    assert payload["conformance"]["command_plane"] == {
+        "state": "passed",
+        "native_git_loss": "not_qualified",
+    }
+    with pytest.raises(ValueError, match="package_command_plane_incomplete"):
+        receipt.package_acceptance_evidence(
+            **(case.receipt.call_args.kwargs | {"command_plane": {"state": "blocked"}})
+        )
     assert "sdk_commitment_digest" not in payload["conformance"]
     assert payload["wheels"][0]["path"] == selected.relative_to(tmp_path).as_posix()
     incomplete = dict(case.lifecycle)

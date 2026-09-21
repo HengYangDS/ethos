@@ -362,8 +362,19 @@ Two independent repositories can select the same external bytes while retaining
 separate hooks, policy, state and selector CAS. Compensation restores the prior
 selector exactly. Repository retirement observes the selected external identity
 but never enumerates that external store for deletion. Missing or replaced supply
-blocks use rather than floating to a host upgrade. The package-manager owner must
-still prove live-consumer-safe upgrade/uninstall before its channel is qualified.
+blocks use rather than floating to a host upgrade or silently rebuilding a private
+copy. The native selector reader owns location parsing even when its payload is
+unavailable. Recovery names the selected location; the operator restores it or
+explicitly chooses new supply. The package-manager owner must still prove
+live-consumer-safe upgrade/uninstall before its channel is qualified.
+
+The retained predecessor migration probe preserves one live Lease and five
+authored files while changing from repository-local to shared installed supply.
+An old-runtime process retains its generation until it exits; a fresh cleanup then
+removes that local generation. Rollback to the predecessor and reactivation of
+shared supply preserve the same state. These are isolated native package
+observations, not authorization to migrate unrelated repositories or evidence
+that package-manager removal already protects shared consumers.
 
 Implement in the existing selection, materialization, hook activation/observation
 and launcher owners. Prove external selection, native launcher resolution,

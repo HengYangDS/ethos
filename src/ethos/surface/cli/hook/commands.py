@@ -409,6 +409,9 @@ def install(
 
 def _hook_install_recovery_command(repo: pathlib.Path, gap: str) -> str:
     command = ["ethos", "hook", "install", "--root", repo.resolve().as_posix()]
+    if "hook_runtime_installed_supply_unavailable:" in gap:
+        runtime = gap.split("hook_runtime_installed_supply_unavailable:", 1)[1]
+        command.extend(("--runtime", runtime))
     if gap in {"state_schema_migration_requires_reset", "state_reset_authorization_required"}:
         command.extend(("--reset-state", "--authorize"))
     command.append("--json")

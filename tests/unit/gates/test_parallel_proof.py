@@ -165,6 +165,7 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> 
 @pytest.mark.parametrize(
     "readiness_gate",
     [
+        "repository-audit",
         "ruff",
         "schemas",
         "config-quality",
@@ -185,10 +186,8 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
 ):
     """A real registry edge must stop the public proof transport before testing."""
     repo = init_git_repo(tmp_path / "repo")
-    head = git(repo, "rev-parse", "HEAD")
     tree = git(repo, "rev-parse", "HEAD^{tree}")
-    declaration = load_gate_registry_declaration()
-    selected = declaration.proof_gates(full=True)
+    selected = load_gate_registry_declaration().proof_gates(full=True)
     registry = {gate.id: gate for gate in selected}
     nodes = tuple(
         PlanNode(id=g.id, kind="check", command=gate_execution_identity(g), depends_on=g.depends_on)
@@ -201,7 +200,7 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
         commitment,
         Facts(
             repository=commitment.id,
-            head=head,
+            head=git(repo, "rev-parse", "HEAD"),
             tree=tree,
             observed_at=datetime.now(UTC),
             values={"execution_source": {"worktree": tree, "index": tree}},
@@ -242,6 +241,8 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
             "required_gaps": [f"gate_dependency_not_proven:{readiness_gate}"],
         }
     ]
+    assert registry["generated-artifacts"].providers == registry["repository-audit"].providers[1:]
+    assert "unit-architecture" in registry["generated-artifacts"].depends_on
 
 
 def test_ready_writer_waits_for_running_reader_and_precedes_queued_reader(tmp_path, monkeypatch):

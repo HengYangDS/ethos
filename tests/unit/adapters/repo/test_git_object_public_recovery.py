@@ -241,8 +241,7 @@ def test_native_trust_uses_frozen_material_during_temporary_source_change(
 ):
     """Read one native configuration per boundary; keep material and defaults frozen."""
     repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
-    public = (tmp_path / "signer.pub").read_text()
-    original = f'owner@example.com namespaces="git" {public}'.encode()
+    original = b'owner@example.com namespaces="git" ' + (tmp_path / "signer.pub").read_bytes()
     anchor.write_bytes(original)
     if path_mode == "home":
         monkeypatch.setenv("HOME", str(tmp_path))

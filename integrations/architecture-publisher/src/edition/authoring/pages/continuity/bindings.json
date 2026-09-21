@@ -1,0 +1,253 @@
+{
+  "sourceRevision": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "effectAuthority": false,
+  "semanticAcceptance": "UNVERIFIED",
+  "nodes": {
+    "session": [
+      "session_host"
+    ],
+    "loss": [
+      "executor_loss"
+    ],
+    "accepted": [
+      "accepted_next"
+    ],
+    "handoff": [
+      "adoption_exit"
+    ],
+    "anchor": [
+      "recovery_anchor"
+    ],
+    "attestation": [
+      "attestation_n"
+    ],
+    "retire": [
+      "lane_retirement"
+    ],
+    "facts": [
+      "fresh_facts"
+    ],
+    "context": [
+      "commitment_n",
+      "transition_plan",
+      "prior_attestations"
+    ],
+    "refused": [
+      "action_block",
+      "action_unknown"
+    ],
+    "admit": [
+      "action_evaluation",
+      "action_pass",
+      "authorized_subject",
+      "authority_reference",
+      "commitment_n",
+      "fresh_facts",
+      "transition_plan"
+    ],
+    "plan": [
+      "compile_plan",
+      "transition_plan"
+    ],
+    "actor": [
+      "actor"
+    ]
+  },
+  "connections": {
+    "interrupt": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "recover-loss": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "preserve-git": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "preserve-evidence": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "account-owned": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "retire-owned": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "observe-fresh": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "compile-fresh": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "evaluate-fresh": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "admit-actor": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "refuse-action": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ],
+    "resolve-refusal": [
+      "recovery",
+      "exit",
+      "authority",
+      "evidence"
+    ]
+  },
+  "relations": {
+    "interrupt": {
+      "sourceRelations": [
+        "loss-interrupts-session"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "recover-loss": {
+      "sourceRelations": [
+        "loss-to-recovery-anchor"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "preserve-git": {
+      "sourceRelations": [
+        "accepted-to-recovery-anchor"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "preserve-evidence": {
+      "sourceRelations": [
+        "attestation-to-recovery-anchor"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "account-owned": {
+      "sourceRelations": [
+        "evidence-supports-handoff-exit"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "retire-owned": {
+      "sourceRelations": [
+        "exit-controls-retirement"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "observe-fresh": {
+      "sourceRelations": [
+        "recovery-reobserves"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "compile-fresh": {
+      "sourceRelations": [
+        "facts-compile",
+        "compile-plan"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "evaluate-fresh": {
+      "sourceRelations": [
+        "plan-evaluate-action"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "admit-actor": {
+      "sourceRelations": [
+        "action-pass-branch",
+        "pass-admits-actor"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "refuse-action": {
+      "sourceRelations": [
+        "action-block-branch",
+        "action-unknown-branch"
+      ],
+      "effectAuthority": false,
+      "explanation": "Source-bound continuation or preservation relation. Historical evidence does not authorize action."
+    },
+    "resolve-refusal": {
+      "sourceRelations": [
+        "action-unknown-to-recovery",
+        "recovery-reobserves"
+      ],
+      "effectAuthority": false,
+      "explanation": "For missing facts, resolve and re-observe. Contradictions or model gaps require bounded repair before recompilation. This return does not authorize an actor or blindly replay an attempted effect.",
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "resource": "current continuation scope"
+    }
+  },
+  "scopes": [],
+  "cards": [
+    {
+      "index": 0,
+      "sourceAssertions": [
+        "recovery",
+        "evidence"
+      ]
+    },
+    {
+      "index": 1,
+      "sourceAssertions": [
+        "authority",
+        "lanes",
+        "effect"
+      ]
+    },
+    {
+      "index": 2,
+      "sourceAssertions": [
+        "exit",
+        "selection"
+      ]
+    }
+  ],
+  "presentation": {
+    "annotationNodes": [
+      "context"
+    ]
+  }
+}

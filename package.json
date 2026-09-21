@@ -6,7 +6,8 @@
   ],
   "scripts": {
     "ethos": "node distributions/npm/bin/ethos.mjs",
-    "test:npm": "npm pack --dry-run --workspace @agentic-workflow/ethos"
+    "test:architecture-publisher": "node --test tests/architecture/architecture-publisher-integration.test.mjs",
+    "test:npm": "npm run test:architecture-publisher && npm pack --dry-run --workspace @agentic-workflow/ethos"
   },
   "dependencies": {
     "@fission-ai/openspec": "1.13.1",

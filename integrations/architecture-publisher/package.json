@@ -1,0 +1,22 @@
+{
+  "name": "@architecture-publisher/ethos",
+  "version": "0.2.0-alpha.0",
+  "description": "ETHOS source adapter and Architecture Edition",
+  "type": "module",
+  "exports": {
+    "./adapter": "./src/adapter/index.mjs",
+    "./edition": "./src/edition/index.mjs",
+    "./runtime": "./src/runtime.mjs"
+  },
+  "files": [
+    "src/",
+    "README.md"
+  ],
+  "dependencies": {
+    "architecture-publisher": "0.2.0-alpha.0"
+  },
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  }
+}

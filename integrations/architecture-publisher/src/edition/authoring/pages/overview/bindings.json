@@ -1,0 +1,1031 @@
+{
+  "sourceRevision": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "effectAuthority": false,
+  "semanticAcceptance": "UNVERIFIED",
+  "nodes": {
+    "research": [
+      "problem_observation",
+      "research",
+      "intent_alignment"
+    ],
+    "meaning": [
+      "openspec_carrier"
+    ],
+    "methods": [
+      "capability_contract",
+      "owner_native_tools",
+      "skills"
+    ],
+    "action-admission": [
+      "action_block",
+      "action_evaluation",
+      "action_pass",
+      "action_unknown",
+      "authority_reference",
+      "authorized_subject"
+    ],
+    "verification": [
+      "composite_claim",
+      "composite_verifier",
+      "hosted_claim",
+      "independent_claim",
+      "independent_verifier",
+      "local_claim"
+    ],
+    "plan": [
+      "commitment_n",
+      "compile_plan",
+      "fresh_facts",
+      "prior_attestations",
+      "transition_plan"
+    ],
+    "admission-a": [
+      "action_evaluation",
+      "action_pass",
+      "action_block",
+      "action_unknown"
+    ],
+    "actor-a": [
+      "actor",
+      "session_host"
+    ],
+    "lane-a": [
+      "exact_base",
+      "lane_proof_claim",
+      "lease",
+      "linked_worktree",
+      "prewrite_admission",
+      "work_lane"
+    ],
+    "admission-b": [
+      "action_evaluation",
+      "action_pass",
+      "action_block",
+      "action_unknown"
+    ],
+    "actor-b": [
+      "actor",
+      "session_host"
+    ],
+    "lane-b": [
+      "exact_base",
+      "lane_proof_claim",
+      "lease",
+      "linked_worktree",
+      "prewrite_admission",
+      "work_lane"
+    ],
+    "admission-c": [
+      "action_evaluation",
+      "action_pass",
+      "action_block",
+      "action_unknown"
+    ],
+    "actor-c": [
+      "actor",
+      "session_host"
+    ],
+    "lane-c": [
+      "exact_base",
+      "lane_proof_claim",
+      "lease",
+      "linked_worktree",
+      "prewrite_admission",
+      "work_lane"
+    ],
+    "selection": [
+      "collaboration_selection"
+    ],
+    "candidate": [
+      "candidate_admitted_runner",
+      "candidate_base_stale",
+      "candidate_bundle",
+      "candidate_cas",
+      "candidate_effect_attestation",
+      "candidate_effect_recheck",
+      "candidate_integration_block",
+      "candidate_integration_evaluation",
+      "candidate_integration_pass",
+      "candidate_integration_unknown",
+      "candidate_next",
+      "candidate_post_observation",
+      "candidate_state"
+    ],
+    "retained": [
+      "durable_evidence"
+    ],
+    "accepted": [
+      "accepted_n",
+      "accepted_next",
+      "effect_block",
+      "effect_evaluation",
+      "effect_pass",
+      "effect_unknown",
+      "admitted_runner",
+      "effect_recheck",
+      "post_observation",
+      "repo_cas"
+    ],
+    "attestation": [
+      "attestation_n"
+    ],
+    "recovery": [
+      "executor_loss",
+      "outcome_unknown",
+      "recovery_anchor"
+    ],
+    "model": [
+      "model_gap",
+      "model_promotion"
+    ],
+    "use": [
+      "use_outcome"
+    ],
+    "learning": [
+      "feedback_learning"
+    ],
+    "exit": [
+      "adoption_exit",
+      "lane_retirement"
+    ],
+    "interfaces": [
+      "ci_forge",
+      "cli_json",
+      "mcp_a2a",
+      "rebuildable_outputs",
+      "sdk_agent"
+    ],
+    "publication": [
+      "publication_admitted_runner",
+      "publication_effect_attestation",
+      "publication_effect_recheck",
+      "publication_post_observation",
+      "publication_remote",
+      "publication_remote_cas",
+      "publication_remote_observation"
+    ],
+    "peers": [
+      "adopter_peer_admitted_runner",
+      "adopter_peer_cas",
+      "adopter_peer_effect_attestation",
+      "adopter_peer_effect_recheck",
+      "adopter_peer_expected_state",
+      "adopter_peer_post_observation",
+      "adopter_peer_repo",
+      "protocol_grammar"
+    ],
+    "norms": [
+      "repository_norms",
+      "owner_native_artifacts",
+      "git_substrate"
+    ],
+    "greenfield": [
+      "greenfield_admitted_runner",
+      "greenfield_cas",
+      "greenfield_effect_attestation",
+      "greenfield_effect_recheck",
+      "greenfield_expected_state",
+      "greenfield_post_observation",
+      "greenfield_repo"
+    ],
+    "brownfield": [
+      "brownfield_admitted_runner",
+      "brownfield_cas",
+      "brownfield_effect_attestation",
+      "brownfield_effect_recheck",
+      "brownfield_expected_state",
+      "brownfield_post_observation",
+      "brownfield_repo"
+    ],
+    "self": [
+      "ethos_repo"
+    ],
+    "local-effects": [
+      "protocol_grammar"
+    ],
+    "publication-source": [
+      "git_substrate"
+    ],
+    "coordination": [
+      "git_common_activation",
+      "git_common_state",
+      "repository_family_convergence",
+      "runtime_generation_retirement"
+    ]
+  },
+  "connections": {
+    "align": [
+      "intent"
+    ],
+    "compile": [
+      "compile"
+    ],
+    "prepare-a": [
+      "lanes",
+      "authority"
+    ],
+    "pass-a": [
+      "authority"
+    ],
+    "execute-a": [
+      "lanes",
+      "authority"
+    ],
+    "offer-a": [
+      "selection"
+    ],
+    "prepare-b": [
+      "lanes",
+      "authority"
+    ],
+    "pass-b": [
+      "authority"
+    ],
+    "execute-b": [
+      "lanes",
+      "authority"
+    ],
+    "offer-b": [
+      "selection"
+    ],
+    "prepare-c": [
+      "lanes",
+      "authority"
+    ],
+    "pass-c": [
+      "authority"
+    ],
+    "execute-c": [
+      "lanes",
+      "authority"
+    ],
+    "offer-c": [
+      "selection"
+    ],
+    "retain": [
+      "selection"
+    ],
+    "combine": [
+      "candidate"
+    ],
+    "accept": [
+      "accepted"
+    ],
+    "attest": [
+      "evidence",
+      "effect"
+    ],
+    "unknown": [
+      "recovery",
+      "effect"
+    ],
+    "recover": [
+      "recovery"
+    ],
+    "repair": [
+      "model"
+    ],
+    "handoff": [
+      "exit"
+    ],
+    "use": [
+      "outcomes"
+    ],
+    "learn-use": [
+      "feedback"
+    ],
+    "learn-findings": [
+      "feedback"
+    ],
+    "revisit": [
+      "feedback"
+    ],
+    "project": [
+      "projection"
+    ],
+    "publish": [
+      "publication"
+    ],
+    "exchange": [
+      "peers"
+    ],
+    "form": [
+      "norms",
+      "greenfield"
+    ],
+    "adopt": [
+      "norms",
+      "brownfield"
+    ]
+  },
+  "relations": {
+    "align": {
+      "sourceRelations": [
+        "research-informs-alignment",
+        "alignment-proposes-accepted-intent"
+      ],
+      "sourceAssertions": [
+        "intent"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "compile": {
+      "sourceRelations": [
+        "carrier-realizes-commitment",
+        "commitment-compile",
+        "compile-plan"
+      ],
+      "sourceAssertions": [
+        "compile"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "prepare-a": {
+      "sourceRelations": [
+        "plan-evaluate-action"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "pass-a": {
+      "sourceRelations": [
+        "action-pass-branch",
+        "pass-admits-actor"
+      ],
+      "sourceAssertions": [
+        "authority"
+      ],
+      "explanation": "Own PASS is explicit in this admission endpoint; it admits only this actor. No shared permission."
+    },
+    "execute-a": {
+      "sourceRelations": [
+        "actor-executes-lane"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "explanation": "This Actor executes within scope/current Lease into its own Lane. The endpoint and directed relation retain the operation without duplicate execute text."
+    },
+    "offer-a": {
+      "sourceRelations": [
+        "lanes-offer-results"
+      ],
+      "sourceAssertions": [
+        "selection"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "prepare-b": {
+      "sourceRelations": [
+        "plan-evaluate-action"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "pass-b": {
+      "sourceRelations": [
+        "action-pass-branch",
+        "pass-admits-actor"
+      ],
+      "sourceAssertions": [
+        "authority"
+      ],
+      "explanation": "Own PASS is explicit in this admission endpoint; it admits only this actor. No shared permission."
+    },
+    "execute-b": {
+      "sourceRelations": [
+        "actor-executes-lane"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "explanation": "This Actor executes within scope/current Lease into its own Lane. The endpoint and directed relation retain the operation without duplicate execute text."
+    },
+    "offer-b": {
+      "sourceRelations": [
+        "lanes-offer-results"
+      ],
+      "sourceAssertions": [
+        "selection"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "prepare-c": {
+      "sourceRelations": [
+        "plan-evaluate-action"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "pass-c": {
+      "sourceRelations": [
+        "action-pass-branch",
+        "pass-admits-actor"
+      ],
+      "sourceAssertions": [
+        "authority"
+      ],
+      "explanation": "Own PASS is explicit in this admission endpoint; it admits only this actor. No shared permission."
+    },
+    "execute-c": {
+      "sourceRelations": [
+        "actor-executes-lane"
+      ],
+      "sourceAssertions": [
+        "lanes",
+        "authority"
+      ],
+      "explanation": "This Actor executes within scope/current Lease into its own Lane. The endpoint and directed relation retain the operation without duplicate execute text."
+    },
+    "offer-c": {
+      "sourceRelations": [
+        "lanes-offer-results"
+      ],
+      "sourceAssertions": [
+        "selection"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "retain": {
+      "sourceRelations": [
+        "selection-preserves-knowledge"
+      ],
+      "sourceAssertions": [
+        "selection"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "combine": {
+      "sourceRelations": [
+        "selection-binds-combination",
+        "candidate-bundle-binds-integration"
+      ],
+      "sourceAssertions": [
+        "candidate"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "accept": {
+      "sourceRelations": [
+        "candidate-next-to-effect-evaluation",
+        "candidate-next-to-recheck"
+      ],
+      "sourceAssertions": [
+        "accepted"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "attest": {
+      "sourceRelations": [
+        "cas-to-post-observation",
+        "post-to-attestation"
+      ],
+      "sourceAssertions": [
+        "evidence",
+        "effect"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "unknown": {
+      "sourceRelations": [],
+      "sourceAssertions": [
+        "recovery",
+        "effect"
+      ],
+      "explanation": "Candidate-local instance of source recovery rule; not a claimed literal cross-resource source edge."
+    },
+    "recover": {
+      "sourceRelations": [
+        "recovery-reobserves",
+        "facts-compile"
+      ],
+      "sourceAssertions": [
+        "recovery"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "repair": {
+      "sourceRelations": [
+        "model-gap-to-promotion",
+        "promotion-to-compile"
+      ],
+      "sourceAssertions": [
+        "model"
+      ],
+      "explanation": "The source model-gap node explicitly names counterexample and recompilation; the directed edge returns to Plan compilation, never a runner."
+    },
+    "handoff": {
+      "sourceRelations": [
+        "evidence-supports-handoff-exit"
+      ],
+      "sourceAssertions": [
+        "exit"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "use": {
+      "sourceRelations": [
+        "accepted-identifies-use"
+      ],
+      "sourceAssertions": [
+        "outcomes"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "learn-use": {
+      "sourceRelations": [
+        "use-informs-feedback"
+      ],
+      "sourceAssertions": [
+        "feedback"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "learn-findings": {
+      "sourceRelations": [
+        "evidence-informs-learning"
+      ],
+      "sourceAssertions": [
+        "feedback"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "revisit": {
+      "sourceRelations": [
+        "feedback-revisits-problem",
+        "feedback-proposes-intent"
+      ],
+      "sourceAssertions": [
+        "feedback"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "project": {
+      "sourceRelations": [
+        "attestation-projects-cli",
+        "attestation-projects-sdk",
+        "attestation-projects-ci",
+        "attestation-projects-mcp"
+      ],
+      "sourceAssertions": [
+        "projection"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "publish": {
+      "sourceRelations": [
+        "git-projects-publication-object"
+      ],
+      "sourceAssertions": [
+        "publication"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "exchange": {
+      "sourceRelations": [
+        "attestation-exchanges-with-adopter-peer"
+      ],
+      "sourceAssertions": [
+        "peers"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "form": {
+      "sourceRelations": [
+        "norms-constrain-formation"
+      ],
+      "sourceAssertions": [
+        "norms",
+        "greenfield"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    },
+    "adopt": {
+      "sourceRelations": [
+        "norms-constrain-adoption"
+      ],
+      "sourceAssertions": [
+        "norms",
+        "brownfield"
+      ],
+      "explanation": "Source relation or declared composed path; reachability is not permission."
+    }
+  },
+  "scopes": [],
+  "cards": [
+    {
+      "index": 0,
+      "assertions": [
+        "purpose",
+        "intent",
+        "compile",
+        "authority"
+      ]
+    },
+    {
+      "index": 1,
+      "assertions": [
+        "lanes",
+        "selection",
+        "candidate",
+        "accepted"
+      ]
+    },
+    {
+      "index": 2,
+      "assertions": [
+        "verification",
+        "effect",
+        "evidence"
+      ]
+    },
+    {
+      "index": 3,
+      "assertions": [
+        "norms",
+        "capabilities",
+        "projection",
+        "self"
+      ]
+    },
+    {
+      "index": 4,
+      "assertions": [
+        "greenfield",
+        "brownfield",
+        "peers",
+        "publication"
+      ]
+    },
+    {
+      "index": 5,
+      "assertions": [
+        "outcomes",
+        "feedback",
+        "model",
+        "recovery",
+        "coordination",
+        "exit",
+        "faithfulness"
+      ]
+    }
+  ],
+  "predicates": [
+    {
+      "id": "base-validity-a",
+      "node": "lane-a",
+      "visibleField": "tag",
+      "subjectLabel": "Candidate ref",
+      "subject": "candidate",
+      "effectAuthority": false,
+      "sourceRelations": [
+        "candidate-advance-stales-remaining-lanes",
+        "stale-lane-refreshes-from-candidate"
+      ],
+      "condition": "Candidate advancement invalidates stale attempts. The affected lane refreshes and rechecks before new work; no blind replay.",
+      "expression": "Plan; candidate drift: refresh/prove"
+    },
+    {
+      "id": "plan-binding-a",
+      "mode": "exact-binding",
+      "node": "lane-a",
+      "field": "tag",
+      "subject": "plan",
+      "expression": "Plan; candidate drift: refresh/prove",
+      "sourceRelations": [
+        "plan-binds-lane"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "preparation-a",
+      "mode": "scoped-preparation-aggregate",
+      "node": "lane-a",
+      "field": "sublabel",
+      "subject": "lane-a",
+      "expression": "Own worktree; prewrite + proof",
+      "sourceRelations": [
+        "lane-coordinates-worktree",
+        "lane-evaluates-prewrite",
+        "worktree-binds-prewrite",
+        "lane-witnesses-proof"
+      ],
+      "effectAuthority": false,
+      "condition": "This lane coordinates its linked worktree. Its fresh prewrite and lane-bound proof are distinct conjunctive obligations; neither transfers permission. This is a visible local aggregate, not four drawn internal edges."
+    },
+    {
+      "id": "base-validity-b",
+      "node": "lane-b",
+      "visibleField": "tag",
+      "subjectLabel": "Candidate ref",
+      "subject": "candidate",
+      "effectAuthority": false,
+      "sourceRelations": [
+        "candidate-advance-stales-remaining-lanes",
+        "stale-lane-refreshes-from-candidate"
+      ],
+      "condition": "Candidate advancement invalidates stale attempts. The affected lane refreshes and rechecks before new work; no blind replay.",
+      "expression": "Plan; candidate drift: refresh/prove"
+    },
+    {
+      "id": "plan-binding-b",
+      "mode": "exact-binding",
+      "node": "lane-b",
+      "field": "tag",
+      "subject": "plan",
+      "expression": "Plan; candidate drift: refresh/prove",
+      "sourceRelations": [
+        "plan-binds-lane"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "preparation-b",
+      "mode": "scoped-preparation-aggregate",
+      "node": "lane-b",
+      "field": "sublabel",
+      "subject": "lane-b",
+      "expression": "Own worktree; prewrite + proof",
+      "sourceRelations": [
+        "lane-coordinates-worktree",
+        "lane-evaluates-prewrite",
+        "worktree-binds-prewrite",
+        "lane-witnesses-proof"
+      ],
+      "effectAuthority": false,
+      "condition": "This lane coordinates its linked worktree. Its fresh prewrite and lane-bound proof are distinct conjunctive obligations; neither transfers permission. This is a visible local aggregate, not four drawn internal edges."
+    },
+    {
+      "id": "base-validity-c",
+      "node": "lane-c",
+      "visibleField": "tag",
+      "subjectLabel": "Candidate ref",
+      "subject": "candidate",
+      "effectAuthority": false,
+      "sourceRelations": [
+        "candidate-advance-stales-remaining-lanes",
+        "stale-lane-refreshes-from-candidate"
+      ],
+      "condition": "Candidate advancement invalidates stale attempts. The affected lane refreshes and rechecks before new work; no blind replay.",
+      "expression": "Plan; candidate drift: refresh/prove"
+    },
+    {
+      "id": "plan-binding-c",
+      "mode": "exact-binding",
+      "node": "lane-c",
+      "field": "tag",
+      "subject": "plan",
+      "expression": "Plan; candidate drift: refresh/prove",
+      "sourceRelations": [
+        "plan-binds-lane"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "preparation-c",
+      "mode": "scoped-preparation-aggregate",
+      "node": "lane-c",
+      "field": "sublabel",
+      "subject": "lane-c",
+      "expression": "Own worktree; prewrite + proof",
+      "sourceRelations": [
+        "lane-coordinates-worktree",
+        "lane-evaluates-prewrite",
+        "worktree-binds-prewrite",
+        "lane-witnesses-proof"
+      ],
+      "effectAuthority": false,
+      "condition": "This lane coordinates its linked worktree. Its fresh prewrite and lane-bound proof are distinct conjunctive obligations; neither transfers permission. This is a visible local aggregate, not four drawn internal edges."
+    },
+    {
+      "id": "capabilities-enable-a",
+      "mode": "exact-binding",
+      "node": "actor-a",
+      "field": "tag",
+      "subject": "methods",
+      "expression": "Human/agent uses Skills + tools",
+      "sourceRelations": [
+        "skills-enable-actor",
+        "tools-enable-actor"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "capabilities-enable-b",
+      "mode": "exact-binding",
+      "node": "actor-b",
+      "field": "tag",
+      "subject": "methods",
+      "expression": "Human/agent uses Skills + tools",
+      "sourceRelations": [
+        "skills-enable-actor",
+        "tools-enable-actor"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "capabilities-enable-c",
+      "mode": "exact-binding",
+      "node": "actor-c",
+      "field": "tag",
+      "subject": "methods",
+      "expression": "Human/agent uses Skills + tools",
+      "sourceRelations": [
+        "skills-enable-actor",
+        "tools-enable-actor"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "runtime-activation",
+      "mode": "exact-binding",
+      "node": "coordination",
+      "field": "label",
+      "subject": "coordination",
+      "expression": "One Git-common runtime: every worktree",
+      "sourceRelations": [
+        "git-common-state-selects-activation"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "runtime-worktree-a",
+      "mode": "exact-binding",
+      "node": "lane-a",
+      "field": "sublabel",
+      "subject": "coordination",
+      "expression": "Own worktree; prewrite + proof",
+      "sourceRelations": [
+        "common-activation-governs-linked-worktree"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "runtime-worktree-b",
+      "mode": "exact-binding",
+      "node": "lane-b",
+      "field": "sublabel",
+      "subject": "coordination",
+      "expression": "Own worktree; prewrite + proof",
+      "sourceRelations": [
+        "common-activation-governs-linked-worktree"
+      ],
+      "effectAuthority": false
+    },
+    {
+      "id": "runtime-worktree-c",
+      "mode": "exact-binding",
+      "node": "lane-c",
+      "field": "sublabel",
+      "subject": "coordination",
+      "expression": "Own worktree; prewrite + proof",
+      "sourceRelations": [
+        "common-activation-governs-linked-worktree"
+      ],
+      "effectAuthority": false
+    }
+  ],
+  "actionRule": {
+    "node": "action-admission",
+    "appliesTo": [
+      "lane-a",
+      "lane-b",
+      "lane-c"
+    ],
+    "effectAuthority": false,
+    "sourceRelations": [
+      "action-pass-branch",
+      "action-block-branch",
+      "action-unknown-branch",
+      "pass-admits-actor"
+    ],
+    "explanation": "A rule applied independently per lane, not an admission result or shared PASS."
+  },
+  "verificationRule": {
+    "node": "verification",
+    "effectAuthority": false,
+    "sourceRelations": [
+      "candidate-state-to-independent",
+      "independent-to-claim",
+      "local-claim-to-effect-evaluation",
+      "independent-claim-to-effect-evaluation",
+      "hosted-claim-to-effect-evaluation"
+    ],
+    "explanation": "Separate scoped claims inform evaluation. Composite claims still need a responsible verifier and an explicit rule; no permission follows from evidence."
+  },
+  "localEffectRule": {
+    "node": "local-effects",
+    "appliesTo": [
+      "candidate",
+      "accepted",
+      "publication",
+      "greenfield",
+      "brownfield",
+      "peers"
+    ],
+    "effectAuthority": false,
+    "sourceContracts": [
+      "adopter_peer_effect",
+      "brownfield_effect",
+      "candidate_integration_effect",
+      "ethos_effect",
+      "greenfield_effect",
+      "publication_effect"
+    ],
+    "explanation": "Shared grammar only. Each resource retains its exact gate, prestate, runner, local CAS and result; publication does not inherit an intent/Plan gate."
+  },
+  "methodSelection": {
+    "node": "methods",
+    "visibleField": "sublabel",
+    "subject": "plan",
+    "sourceRelations": [
+      "plan-selects-skills",
+      "plan-selects-native-tools"
+    ],
+    "effectAuthority": false,
+    "explanation": "Default-visible selection predicate. Selected methods do not grant permission."
+  },
+  "leaseRule": {
+    "node": "coordination",
+    "appliesTo": [
+      "lane-a",
+      "lane-b",
+      "lane-c"
+    ],
+    "sourceRelations": [
+      "lease-coordinates-lane",
+      "local-state-coordinates-lease"
+    ],
+    "effectAuthority": false
+  },
+  "presentation": {
+    "annotationNodes": [
+      "methods",
+      "action-admission",
+      "verification",
+      "coordination",
+      "self",
+      "local-effects"
+    ],
+    "emphasisNodes": [
+      "candidate",
+      "accepted",
+      "attestation"
+    ]
+  },
+  "selfConformance": {
+    "node": "self",
+    "visibleField": "sublabel",
+    "sourceRelations": [
+      "ethos-self-governs",
+      "ethos-conforms-locally"
+    ],
+    "effectAuthority": false
+  },
+  "repositoryJudgments": [
+    {
+      "node": "peers",
+      "repository": "adopter_peer_repo",
+      "conformance": "adopter_peer_conformance",
+      "sourceRelation": "adopter-peer-conforms-locally",
+      "carrier": "resource-comparison",
+      "effectAuthority": false
+    },
+    {
+      "node": "greenfield",
+      "repository": "greenfield_repo",
+      "conformance": "greenfield_conformance",
+      "sourceRelation": "greenfield-conforms-locally",
+      "carrier": "resource-comparison",
+      "effectAuthority": false
+    },
+    {
+      "node": "brownfield",
+      "repository": "brownfield_repo",
+      "conformance": "brownfield_conformance",
+      "sourceRelation": "brownfield-conforms-locally",
+      "carrier": "resource-comparison",
+      "effectAuthority": false
+    },
+    {
+      "node": "self",
+      "repository": "ethos_repo",
+      "conformance": "ethos_conformance",
+      "sourceRelation": "ethos-conforms-locally",
+      "carrier": "resource-comparison",
+      "effectAuthority": false
+    }
+  ]
+}

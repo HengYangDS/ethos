@@ -1,0 +1,410 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ETHOS · 问道 — Evidence Does Not Grant Authority",
+    "subtitle": "Target architecture, not a claim of current implementation.",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "visual_preset": "editorial",
+    "viewBox": [
+      2040,
+      1360
+    ],
+    "legend": {
+      "mode": "hidden"
+    },
+    "views": [
+      {
+        "id": "production",
+        "label": "Bind subject; verify; return claims",
+        "focus": [
+          "proof-subject",
+          "independent-verifier",
+          "claims"
+        ],
+        "note": "Subject, verifier and claims differ. Separate trust identity; no effects. Hosted evidence remains a distinct observation plane."
+      },
+      {
+        "id": "direct",
+        "label": "Use scoped evidence directly",
+        "focus": [
+          "claims",
+          "admit",
+          "eligible"
+        ],
+        "note": "Raw applicable claims bypass optional composition, never fresh admission."
+      },
+      {
+        "id": "composite",
+        "label": "Compose under an explicit rule",
+        "focus": [
+          "claims",
+          "composite-verifier",
+          "composite",
+          "admit"
+        ],
+        "note": "A responsible verifier produces a new bounded claim. No vote, scope amplification or reusable PASS."
+      },
+      {
+        "id": "recovery",
+        "label": "Resolve missing or stale evidence",
+        "focus": [
+          "admit",
+          "refused",
+          "resolve",
+          "proof-subject"
+        ],
+        "note": "Re-observe, select the exact subject and re-execute required proof; never relabel history."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "proof-subject",
+      "type": "external",
+      "label": "Exact candidate state",
+      "sublabel": "Candidate ref / HEAD / tree",
+      "tag": "Bind the selected proof subject",
+      "pos": [
+        80,
+        80
+      ],
+      "size": [
+        520,
+        170
+      ]
+    },
+    {
+      "id": "independent-verifier",
+      "type": "external",
+      "label": "Independent verification",
+      "sublabel": "Separate trust identity; no effects",
+      "tag": "Optional; required by risk or policy",
+      "pos": [
+        80,
+        390
+      ],
+      "size": [
+        520,
+        170
+      ]
+    },
+    {
+      "id": "composite-verifier",
+      "type": "external",
+      "label": "Optional composition",
+      "sublabel": "Explicit rule + named input claims",
+      "tag": "Responsible verifier; no scope gain",
+      "pos": [
+        1440,
+        80
+      ],
+      "size": [
+        520,
+        170
+      ]
+    },
+    {
+      "id": "claims",
+      "type": "external",
+      "label": "Returned proof claims",
+      "sublabel": "Local / independent / hosted",
+      "tag": "Distinct scope / validity / verifier",
+      "pos": [
+        760,
+        390
+      ],
+      "size": [
+        520,
+        170
+      ]
+    },
+    {
+      "id": "admit",
+      "type": "external",
+      "label": "Fresh effect admission",
+      "sublabel": "All inputs + applicable scoped claims",
+      "tag": "Evidence never grants permission",
+      "pos": [
+        760,
+        780
+      ],
+      "size": [
+        520,
+        170
+      ]
+    },
+    {
+      "id": "composite",
+      "type": "external",
+      "label": "Composite claim",
+      "sublabel": "New bounded claim; inputs retained",
+      "tag": "Never a PASS",
+      "pos": [
+        1440,
+        390
+      ],
+      "size": [
+        520,
+        170
+      ]
+    },
+    {
+      "id": "resolve",
+      "type": "external",
+      "label": "Resolve the exact requirement",
+      "sublabel": "Fresh Facts + Plan select checks",
+      "tag": "Keep history; recheck applicability",
+      "pos": [
+        80,
+        1100
+      ],
+      "size": [
+        520,
+        170
+      ]
+    },
+    {
+      "id": "refused",
+      "type": "external",
+      "label": "BLOCK / UNKNOWN",
+      "sublabel": "Missing or invalid required evidence",
+      "tag": "No effect; preserve reason and history",
+      "pos": [
+        760,
+        1100
+      ],
+      "size": [
+        520,
+        170
+      ]
+    },
+    {
+      "id": "eligible",
+      "type": "external",
+      "label": "Own PASS → fresh recheck",
+      "sublabel": "One resource; one admitted attempt",
+      "tag": "Not a global or reusable permission",
+      "pos": [
+        1440,
+        1100
+      ],
+      "size": [
+        520,
+        170
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "local-proof",
+      "from": "proof-subject",
+      "to": "claims",
+      "label": "local executed claim",
+      "fromSide": "right",
+      "toSide": "top",
+      "variant": "default",
+      "via": [
+        [
+          1020,
+          165
+        ]
+      ],
+      "labelAt": [
+        800,
+        305
+      ]
+    },
+    {
+      "id": "independent-input",
+      "from": "proof-subject",
+      "to": "independent-verifier",
+      "label": "exact subject",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        505,
+        325
+      ]
+    },
+    {
+      "id": "independent-result",
+      "from": "independent-verifier",
+      "to": "claims",
+      "label": "independent claim",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        680,
+        610
+      ]
+    },
+    {
+      "id": "raw-admit",
+      "from": "claims",
+      "to": "admit",
+      "label": "applicable raw claims",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1200,
+        715
+      ]
+    },
+    {
+      "id": "compose",
+      "from": "claims",
+      "to": "composite-verifier",
+      "label": "local + independent",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "via": [
+        [
+          1350,
+          475
+        ],
+        [
+          1350,
+          165
+        ]
+      ],
+      "labelAt": [
+        1500,
+        335
+      ]
+    },
+    {
+      "id": "composite-result",
+      "from": "composite-verifier",
+      "to": "composite",
+      "label": "attest bounded claim",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1850,
+        320
+      ]
+    },
+    {
+      "id": "composite-admit",
+      "from": "composite",
+      "to": "admit",
+      "label": "applicable composite",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "variant": "dashed",
+      "via": [
+        [
+          1700,
+          660
+        ],
+        [
+          1350,
+          660
+        ],
+        [
+          1350,
+          865
+        ]
+      ],
+      "labelAt": [
+        1550,
+        750
+      ]
+    },
+    {
+      "id": "nonpass",
+      "from": "admit",
+      "to": "refused",
+      "label": "otherwise",
+      "fromSide": "left",
+      "toSide": "top",
+      "variant": "default",
+      "via": [
+        [
+          680,
+          865
+        ],
+        [
+          680,
+          1040
+        ],
+        [
+          1020,
+          1040
+        ]
+      ],
+      "labelAt": [
+        545,
+        1020
+      ]
+    },
+    {
+      "id": "pass",
+      "from": "admit",
+      "to": "eligible",
+      "label": "own PASS",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "via": [
+        [
+          1020,
+          1000
+        ],
+        [
+          1700,
+          1000
+        ]
+      ],
+      "labelAt": [
+        1450,
+        1060
+      ]
+    },
+    {
+      "id": "resolve",
+      "from": "refused",
+      "to": "resolve",
+      "label": "resolve requirement",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default",
+      "labelAt": [
+        680,
+        1315
+      ]
+    },
+    {
+      "id": "reprove",
+      "from": "resolve",
+      "to": "proof-subject",
+      "label": "re-execute selected proof",
+      "fromSide": "left",
+      "toSide": "left",
+      "variant": "dashed",
+      "via": [
+        [
+          35,
+          1185
+        ],
+        [
+          35,
+          165
+        ]
+      ],
+      "labelAt": [
+        255,
+        750
+      ]
+    }
+  ],
+  "boundaries": [],
+  "cards": []
+}

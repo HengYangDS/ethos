@@ -1,0 +1,233 @@
+{
+  "sourceRevision": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "effectAuthority": false,
+  "semanticAcceptance": "UNVERIFIED",
+  "verificationDetailsRequired": true,
+  "nodes": {
+    "proof-subject": [
+      "candidate_state"
+    ],
+    "independent-verifier": [
+      "independent_verifier",
+      "capability_contract"
+    ],
+    "composite-verifier": [
+      "composite_verifier"
+    ],
+    "claims": [
+      "local_claim",
+      "independent_claim",
+      "hosted_claim"
+    ],
+    "admit": [
+      "effect_evaluation",
+      "authorized_subject",
+      "authority_reference",
+      "commitment_n",
+      "fresh_facts",
+      "transition_plan",
+      "candidate_next"
+    ],
+    "composite": [
+      "composite_claim"
+    ],
+    "resolve": [
+      "recovery_anchor",
+      "fresh_facts",
+      "transition_plan",
+      "prior_attestations"
+    ],
+    "refused": [
+      "effect_block",
+      "effect_unknown"
+    ],
+    "eligible": [
+      "effect_pass",
+      "effect_recheck"
+    ]
+  },
+  "connections": {
+    "local-proof": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "independent-input": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "independent-result": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "raw-admit": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "compose": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "composite-result": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "composite-admit": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "nonpass": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "pass": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "resolve": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ],
+    "reprove": [
+      "verification",
+      "evidence",
+      "authority",
+      "recovery"
+    ]
+  },
+  "relations": {
+    "local-proof": {
+      "sourceRelations": [
+        "candidate-state-witnesses-local"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Source-bound evidence dependency, not effect permission. The visible claim plane remains distinct from subject and verifier."
+    },
+    "independent-input": {
+      "sourceRelations": [
+        "candidate-state-to-independent"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Source-bound evidence dependency, not effect permission. The visible claim plane remains distinct from subject and verifier."
+    },
+    "independent-result": {
+      "sourceRelations": [
+        "independent-to-claim"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Source-bound evidence dependency, not effect permission. The visible claim plane remains distinct from subject and verifier."
+    },
+    "raw-admit": {
+      "sourceRelations": [
+        "local-claim-to-effect-evaluation",
+        "independent-claim-to-effect-evaluation",
+        "hosted-claim-to-effect-evaluation"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Source-bound evidence dependency, not effect permission. The visible claim plane remains distinct from subject and verifier."
+    },
+    "compose": {
+      "sourceRelations": [
+        "local-claim-to-composite",
+        "independent-claim-to-composite"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Source-bound evidence dependency, not effect permission. The visible claim plane remains distinct from subject and verifier."
+    },
+    "composite-result": {
+      "sourceRelations": [
+        "composite-verifier-attests"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Source-bound evidence dependency, not effect permission. The visible claim plane remains distinct from subject and verifier."
+    },
+    "composite-admit": {
+      "sourceRelations": [
+        "composite-claim-to-effect-evaluation"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Source-bound evidence dependency, not effect permission. The visible claim plane remains distinct from subject and verifier."
+    },
+    "nonpass": {
+      "sourceRelations": [
+        "effect-block-branch",
+        "effect-unknown-branch"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Source-bound evidence dependency, not effect permission. The visible claim plane remains distinct from subject and verifier."
+    },
+    "pass": {
+      "sourceRelations": [
+        "effect-pass-branch",
+        "effect-pass-to-recheck"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Source-bound evidence dependency, not effect permission. The visible claim plane remains distinct from subject and verifier."
+    },
+    "resolve": {
+      "sourceRelations": [
+        "effect-unknown-to-recovery",
+        "recovery-reobserves"
+      ],
+      "effectAuthority": false,
+      "mode": "explicit-source-relation-or-composed-path",
+      "explanation": "Non-PASS cannot admit an effect. Resolve missing facts or model defects; BLOCK and UNKNOWN are not silently promoted to success."
+    },
+    "reprove": {
+      "sourceRelations": [],
+      "effectAuthority": false,
+      "mode": "source-text-proof-selection-explanation",
+      "explanation": "Re-observed Facts and a freshly compiled Plan select required checks and exact subject. Execute or check that proof again; the subject is not the returned claim. Compilation alone is not proof. History remains; independence is required only by applicable policy, risk or requested plane. This explanatory edge is not a literal path in the exported graph.",
+      "sourceTextBindings": [
+        "independent_verification",
+        "transition_plan",
+        "product_contract"
+      ]
+    }
+  },
+  "scopes": [],
+  "cards": [],
+  "predicates": [
+    {
+      "id": "verifier-contract",
+      "mode": "exact-binding",
+      "node": "independent-verifier",
+      "field": "sublabel",
+      "subject": "independent-verifier",
+      "expression": "Separate trust identity; no effects",
+      "sourceRelations": [
+        "contracts-constrain-verification"
+      ],
+      "effectAuthority": false
+    }
+  ]
+}

@@ -99,7 +99,6 @@ def test_wheel_build_reuses_the_locked_project_environment(
     session = Mock()
 
     monkeypatch.setattr(pipeline, "publish_built_wheel", lambda *_args: tmp_path / "ethos.whl")
-    monkeypatch.chdir(tmp_path)
     runtime = ProjectRuntime(tmp_path, Path("/locked/bin/python"), Path("/locked/bin"))
     monkeypatch.setattr(ProjectRuntime, "script", lambda _self, name: f"/locked/bin/{name}")
 
@@ -127,24 +126,31 @@ def test_wheel_build_reuses_the_locked_project_environment(
 def test_host_conformance_reuses_the_single_package_acceptance_effect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls = Mock()
-    session = Mock()
-    for name, target in (
-        ("build", pipeline.DeliveryPipeline),
-        ("prove_install", pipeline.DeliveryPipeline),
-    ):
-        monkeypatch.setattr(target, name, getattr(calls, name))
+    calls, session = Mock(), Mock()
+    for name in ("build", "prove_install"):
+        monkeypatch.setattr(pipeline.DeliveryPipeline, name, getattr(calls, name))
     calls.attach_mock(session.run, "run")
-    pipeline.DeliveryPipeline(
+    delivery = pipeline.DeliveryPipeline(
         ProjectRuntime(ROOT, Path("/locked/python"), Path("/locked")), ROOT / "node_modules"
-    ).prove_host(session)
-    assert calls.mock_calls == [
-        call.build(session),
-        call.prove_install(session),
-        call.run(
-            "/locked/python", "-m", "pytest", "-q", "tests/architecture/test_portable_toolchain.py"
-        ),
-    ]
+    )
+    preflight = call.run(
+        "/locked/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-c",
+        str(ROOT / ".config/checks/pytest/pytest.toml"),
+        "tests/architecture/test_portable_toolchain.py",
+        "tests/unit/adapters/repo/trust_anchor/test_filesystem.py"
+        "::test_windows_native_acl_protection_rejects_foreign_writer",
+    )
+    delivery.prove_host(session)
+    assert calls.mock_calls == [preflight, call.build(session), call.prove_install(session)]
+    calls.reset_mock()
+    session.run.side_effect = RuntimeError("native preflight failed")
+    with pytest.raises(RuntimeError, match="native preflight failed"):
+        delivery.prove_host(session)
+    assert calls.mock_calls == [preflight]
 
 
 def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
@@ -361,17 +367,15 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
 
 
 def test_failed_package_supply_cleans_owned_work(monkeypatch, acceptance_case):
-    work = effect.WORK
-
     def fail_supply(*_args):
-        (work / "partial-supply").mkdir()
+        (effect.WORK / "partial-supply").mkdir()
         message = "expected supply failure"
         raise RuntimeError(message)
 
     monkeypatch.setattr(effect, "install_locked_runtime", fail_supply)
     with pytest.raises(RuntimeError, match="expected supply failure"):
         effect.run(cast("nox.Session", object()))
-    assert not work.exists()
+    assert not effect.WORK.exists()
     assert not effect.EVIDENCE.exists()
     assert not acceptance_case.observed
 

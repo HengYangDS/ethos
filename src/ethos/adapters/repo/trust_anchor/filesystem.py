@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.adapters.process import NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.process import windows_powershell
@@ -24,9 +25,7 @@ $ErrorActionPreference = 'Stop'
 $path = $env:ETHOS_TRUST_ANCHOR_PATH
 $acl = Get-Acl -LiteralPath $path
 $current = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-$owner = ([System.Security.Principal.NTAccount]$acl.Owner).Translate(
-  [System.Security.Principal.SecurityIdentifier]
-).Value
+$owner = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
 $writeMask = [int64](
   [System.Security.AccessControl.FileSystemRights]::WriteData -bor
   [System.Security.AccessControl.FileSystemRights]::AppendData -bor
@@ -38,13 +37,11 @@ $writeMask = [int64](
   [System.Security.AccessControl.FileSystemRights]::TakeOwnership
 )
 $writers = @(
-  $acl.Access | Where-Object {
+  $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | Where-Object {
     $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
     (([int64]$_.FileSystemRights -band $writeMask) -ne 0)
   } | ForEach-Object {
-    $_.IdentityReference.Translate(
-      [System.Security.Principal.SecurityIdentifier]
-    ).Value
+    $_.IdentityReference.Value
   } | Sort-Object -Unique
 )
 [pscustomobject]@{
@@ -92,16 +89,17 @@ def protect_for_current_identity(path: Path, *, platform_name: str | None = None
     if (platform_name or os.name) != "nt":
         path.chmod(0o700 if path.is_dir() else 0o600)
         return
-    completed = _run_windows(path, _WINDOWS_PROTECT)
-    if completed is None or completed.returncode:
-        if completed is None:
-            message = "git_object_trust_anchor_protection_failed:native_observer_unavailable"
-        else:
-            stderr = " ".join(completed.stderr.split())[:512]
-            message = (
-                "git_object_trust_anchor_protection_failed:"
-                f"exit_code={completed.returncode}:stderr={stderr}"
-            )
+    try:
+        completed = _run_windows(path, _WINDOWS_PROTECT)
+    except ProcessExecutionError as error:
+        message = f"git_object_trust_anchor_protection_failed:{error.reason}"
+        raise OSError(message) from error
+    if completed.returncode:
+        stderr = " ".join(completed.stderr.split())[:512]
+        message = (
+            "git_object_trust_anchor_protection_failed:"
+            f"exit_code={completed.returncode}:stderr={stderr}"
+        )
         raise OSError(message)
 
 
@@ -120,9 +118,6 @@ def _windows_protected(path: Path) -> bool:
     except ProcessExecutionError as error:
         diagnostic = f"{message}:{error.reason}"
         raise ValueError(diagnostic) from error
-    if completed is None:
-        diagnostic = f"{message}:native_observer_unavailable_or_timeout"
-        raise ValueError(diagnostic)
     if completed.returncode:
         detail = " ".join(completed.stderr.split())[:512]
         diagnostic = f"{message}:exit_code={completed.returncode}:stderr={detail}"
@@ -138,27 +133,23 @@ def _windows_protected(path: Path) -> bool:
     return owner == current and writers <= {current, _SYSTEM_SID, _ADMINISTRATORS_SID}
 
 
-def _run_windows(path: Path, script: str) -> subprocess.CompletedProcess[str] | None:
-    try:
-        executable = windows_powershell()
-    except ProcessExecutionError:
-        return None
+def _run_windows(path: Path, script: str) -> subprocess.CompletedProcess[str]:
+    command = (windows_powershell(), "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script)
     try:
         return run_command(
             path.parent,
-            (
-                executable,
-                "-NoLogo",
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                script,
-            ),
+            command,
             check=False,
             env={"ETHOS_TRUST_ANCHOR_PATH": str(path)},
             remove_env=("PSModulePath",),
             remove_env_prefixes=("GIT_",),
             timeout=30,
         )
-    except subprocess.TimeoutExpired:
-        return None
+    except subprocess.TimeoutExpired as error:
+        raise ProcessExecutionError(
+            NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE,
+            reason="timeout",
+            command=command,
+            cwd=str(path.parent),
+            observation={"timeout_seconds": error.timeout},
+        ) from error

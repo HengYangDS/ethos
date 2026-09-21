@@ -98,15 +98,19 @@ class DeliveryPipeline:
 
     def prove_host(self, session: nox.Session) -> None:
         """Run the complete package-only acceptance sequence on this host."""
-        self.build(session)
-        self.prove_install(session)
         session.run(
             str(self.runtime.python),
             "-m",
             "pytest",
             "-q",
+            "-c",
+            str(self.runtime.root / ".config/checks/pytest/pytest.toml"),
             "tests/architecture/test_portable_toolchain.py",
+            "tests/unit/adapters/repo/trust_anchor/test_filesystem.py"
+            "::test_windows_native_acl_protection_rejects_foreign_writer",
         )
+        self.build(session)
+        self.prove_install(session)
 
 
 def publish_built_wheel(

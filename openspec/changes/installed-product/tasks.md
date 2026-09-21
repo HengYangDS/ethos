@@ -23,6 +23,7 @@
 - [ ] 3.5 Publish the native Homebrew channel from explicitly accepted release artifacts; verify clean install, CLI/MCP invocation, native upgrade ordering, selection preservation and uninstall.
 - [ ] 3.6 Qualify native macOS and Linux release targets, including hooks, recovery and credential-backed delivery. Verify shared-publisher project isolation, altered-request denial, bounded UNKNOWN recovery and consumer-safe credential transitions. Attempt native Windows without blocking required platforms; report unqualified targets explicitly.
 - [ ] 3.7 Connect explicit release construction and identity admission at the existing owners; reject development publication, verify immutable version/source/artifact/tag correspondence, and reconcile the unpublished-target policy.
+- [ ] 3.8 Move native trust preflight before package work, preserve precise failure reasons, and qualify direct SID admission through real Windows installed acceptance.
 
 ## 4. Delivery
 

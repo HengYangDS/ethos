@@ -1,5 +1,25 @@
 ## ADDED Requirements
 
+### Requirement: Native trust preflight preserves identity and failure meaning
+
+Host qualification SHALL check required native trust primitives before building
+or installing candidate packages. Windows ACL admission SHALL compare native SIDs
+without account-name round trips. Missing environment, missing executable, process
+creation, timeout and ACL rejection SHALL remain distinguishable; none permits
+signing or publication. Native platform acceptance remains independently required.
+
+#### Scenario: A native prerequisite fails
+
+- **WHEN** native trust or executable preflight fails on a selected platform
+- **THEN** no candidate build or installation starts
+- **AND** the native failure reason remains visible without retry or permissive fallback
+
+#### Scenario: A foreign SID has no resolvable account name
+
+- **WHEN** an ACL grants write access to a foreign SID without a resolvable account name
+- **THEN** admission rejects the foreign write authority directly from the SID
+- **AND** valid current-user protection remains admissible on the native platform
+
 ### Requirement: Host installation and repository selection are distinct
 
 ETHOS SHALL be installable outside its source checkout. Host installation SHALL

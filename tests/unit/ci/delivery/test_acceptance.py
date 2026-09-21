@@ -143,29 +143,26 @@ def test_acceptance_failure_cleans_its_transaction_root_without_a_receipt(
     artifacts.mkdir()
     (artifacts / "ethos-0.2.0a3-py3-none-any.whl").write_bytes(b"wheel")
 
-    monkeypatch.setattr(effect, "ROOT", tmp_path)
-    monkeypatch.setattr(effect, "ARTIFACTS", artifacts)
-    monkeypatch.setattr(effect, "WORK", work)
-    monkeypatch.setattr(effect, "EVIDENCE", evidence)
-    monkeypatch.setattr(
-        effect,
-        "RUNTIME",
-        SimpleNamespace(python=tmp_path / "project-python", script=lambda _name: "/locked/uv"),
-    )
-    monkeypatch.setattr(effect, "current_tracked_head", lambda _root: "a" * 40)
+    for name, value in {
+        "ROOT": tmp_path,
+        "ARTIFACTS": artifacts,
+        "WORK": work,
+        "EVIDENCE": evidence,
+        "RUNTIME": SimpleNamespace(
+            python=tmp_path / "project-python", script=lambda _name: "/locked/uv"
+        ),
+        "current_tracked_head": lambda _root: "a" * 40,
+        "prepare_locked_requirements": lambda *_args: work / "locked-requirements.txt",
+        "_run": lambda *_args, **_kwargs: "",
+    }.items():
+        monkeypatch.setattr(effect, name, value)
 
     def fail_supply(*_args: object, **_kwargs: object) -> None:
         (work / "partial-supply").mkdir(parents=True)
         message = "expected supply failure"
         raise RuntimeError(message)
 
-    monkeypatch.setattr(
-        effect,
-        "prepare_locked_requirements",
-        lambda *_args: work / "locked-requirements.txt",
-    )
     monkeypatch.setattr(effect, "install_locked_runtime", fail_supply)
-    monkeypatch.setattr(effect, "_run", lambda *_args, **_kwargs: "")
     session = SimpleNamespace(error=pytest.fail, log=pytest.fail)
 
     with pytest.raises(RuntimeError, match="expected supply failure"):
@@ -247,9 +244,6 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    accept = getattr(effect, "observe_runtime_lifecycle", None)
-    assert callable(accept), "package acceptance has no single lifecycle effect"
-
     bootstrap_environment = tmp_path / "bootstrap-environment"
     bootstrap_repository = tmp_path / "bootstrap-repository"
     repository = tmp_path / "adopter"
@@ -279,48 +273,31 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
         return bootstrap_python if report is bootstrap_report else runtime_python
 
     monkeypatch.setattr(effect.runtime_acceptance, "require_manifest", require_manifest)
-    for owner, declarations in (
-        (
-            effect.adopter_fixture,
-            (
-                ("materialize_bootstrap_repository", "materialize_bootstrap_repository", None),
-                (
-                    "prepare_acceptance_topology",
-                    "prepare_acceptance_topology",
-                    tmp_path / "candidate",
-                ),
+    declarations = {
+        effect.adopter_fixture: {
+            "materialize_bootstrap_repository": ("materialize_bootstrap_repository", None),
+            "prepare_acceptance_topology": ("prepare_acceptance_topology", tmp_path / "candidate"),
+        },
+        effect.runtime_acceptance: {
+            "activate_from_entrypoint": ("hook_activation", bootstrap_report),
+            "activate_from_runtime": ("successor_activation", successor_report),
+            "require_production_dependencies": ("development_dependencies", {"state": "passed"}),
+            "require_version_identity": ("immutable_identity", {"state": "passed"}),
+            "prove_repair": ("relocation_repair", {"state": "passed"}),
+        },
+        effect.lane_acceptance: {
+            "prove_signature_repair": ("signature_repair", {"state": "passed"}),
+            "prove_lifecycle": (
+                "lane_lifecycle",
+                {
+                    stage: {"state": "passed"}
+                    for stage in ("lane_bootstrap", "retirement_recovery", "native_merge")
+                },
             ),
-        ),
-        (
-            effect.runtime_acceptance,
-            (
-                ("activate_from_entrypoint", "hook_activation", bootstrap_report),
-                ("activate_from_runtime", "successor_activation", successor_report),
-                (
-                    "require_production_dependencies",
-                    "development_dependencies",
-                    {"state": "passed"},
-                ),
-                ("require_version_identity", "immutable_identity", {"state": "passed"}),
-                ("prove_repair", "relocation_repair", {"state": "passed"}),
-            ),
-        ),
-        (
-            effect.lane_acceptance,
-            (
-                ("prove_signature_repair", "signature_repair", {"state": "passed"}),
-                (
-                    "prove_lifecycle",
-                    "lane_lifecycle",
-                    {
-                        stage: {"state": "passed"}
-                        for stage in ("lane_bootstrap", "retirement_recovery", "native_merge")
-                    },
-                ),
-            ),
-        ),
-    ):
-        for method, stage, result in declarations:
+        },
+    }
+    for owner, methods in declarations.items():
+        for method, (stage, result) in methods.items():
             monkeypatch.setattr(
                 owner,
                 method,
@@ -329,7 +306,7 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
                 ),
             )
 
-    lifecycle = accept(
+    lifecycle = effect.observe_runtime_lifecycle(
         installed_ethos=tmp_path / "wheel-environment/bin/ethos",
         bootstrap_environment=bootstrap_environment,
         bootstrap_repository=bootstrap_repository,
@@ -395,31 +372,19 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         "current_tracked_head": lambda _root: "a" * 40,
         "wheel_build_identity": lambda _wheel: build,
         "_run": lambda *_command, **_kwargs: "",
-    }.items():
-        monkeypatch.setattr(effect, name, value)
-    monkeypatch.setattr(
-        effect,
-        "prepare_locked_requirements",
-        lambda root, work, python: (
-            observed.update(
-                supply_root=root,
-                supply_work=work,
-                supply_source_python=python,
-            )
-            or work / "locked-requirements.txt"
+        "prepare_locked_requirements": lambda _root, work, _python: (
+            work / "locked-requirements.txt"
         ),
-    )
-    monkeypatch.setattr(
-        effect,
-        "install_locked_runtime",
-        lambda root, source, target, wheel, requirements: observed.update(
+        "install_locked_runtime": lambda root, source, target, wheel, requirements: observed.update(
             supply_root=root,
             supply_source_python=source,
             supply_python=target,
             supply_wheel=wheel,
             supply_constraints=requirements,
         ),
-    )
+        "observe_runtime_lifecycle": lambda **kwargs: observed.update(kwargs) or lifecycle,
+    }.items():
+        monkeypatch.setattr(effect, name, value)
     for owner, method, value in (
         (effect, "package_runtime", {"path": "archive", "runtime_digest": "f" * 64}),
         (effect.runtime_acceptance, "prove_shared_supply", {"state": "passed"}),
@@ -434,11 +399,6 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         (effect, "_verify_resources", ["ethos/data/gates.toml"]),
     ):
         monkeypatch.setattr(owner, method, lambda *_args, value=value, **_kwargs: value)
-    monkeypatch.setattr(
-        effect,
-        "observe_runtime_lifecycle",
-        lambda **kwargs: observed.update(kwargs) or lifecycle,
-    )
 
     def issue_receipt(**kwargs):
         observed["receipt"] = kwargs

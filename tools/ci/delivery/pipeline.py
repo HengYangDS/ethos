@@ -2,17 +2,31 @@
 
 from __future__ import annotations
 
+import argparse
+import io
 import shutil
+import tarfile
 import tempfile
+from contextlib import contextmanager
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import tools.ci.delivery.acceptance.effect as acceptance_effect
+from ethos.adapters.mutation.proof import proof_for_repository_transition
+from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.release import accepted_release_source
+from ethos.adapters.repo.runtime.source import build_input_identity
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
+from ethos.repository.release.identity import BuildIdentity
+from ethos.repository.release.identity import build_identity
+from ethos.repository.release.identity import build_identity_bytes
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     import nox
 
     from tools.ci.toolchain.environment import ProjectRuntime
@@ -30,32 +44,44 @@ class DeliveryPipeline:
         """Bind delivery inputs only when a delivery operation is selected."""
         return cls(runtime, runtime.node_package_supply())
 
-    def build(self, session: nox.Session) -> None:
+    def build(self, session: nox.Session, *, release_head: str = "") -> None:
         """Materialize exactly one offline wheel through Hatchling and uv."""
-        work = Path("build/runtime/work")
+        work = self.runtime.root / "build/runtime/work"
         work.mkdir(parents=True, exist_ok=True)
+        source = (
+            release_build_source(self.runtime.root, work, head=release_head)
+            if release_head
+            else nullcontext(self.runtime.root)
+        )
         with tempfile.TemporaryDirectory(prefix="ethos-wheel-build-", dir=work) as directory:
             staging = Path(directory)
-            session.run(
-                self.runtime.script("uv"),
-                "build",
-                "--offline",
-                "--no-build-isolation",
-                "--python",
-                str(self.runtime.python),
-                "--wheel",
-                "--out-dir",
-                str(staging),
-                "--no-create-gitignore",
-                env={
-                    "ETHOS_NODE_PACKAGE_SUPPLY": str(self.node_package_supply),
-                },
-            )
-            publish_built_wheel(
-                self.runtime.root,
-                staging,
-                self.runtime.root / "build/artifacts/python",
-            )
+            with source as prepared:
+                expected = build_input_identity(prepared) if release_head else None
+                session.run(
+                    self.runtime.script("uv"),
+                    "build",
+                    "--offline",
+                    "--no-build-isolation",
+                    "--python",
+                    str(self.runtime.python),
+                    "--wheel",
+                    "--out-dir",
+                    str(staging),
+                    "--no-create-gitignore",
+                    *((str(prepared),) if release_head else ()),
+                    env={"ETHOS_NODE_PACKAGE_SUPPLY": str(self.node_package_supply)},
+                )
+            if release_head:
+                publish_built_wheel(
+                    self.runtime.root,
+                    staging,
+                    self.runtime.root / "build/artifacts/release/python",
+                    expected_build=expected,
+                )
+            else:
+                publish_built_wheel(
+                    self.runtime.root, staging, self.runtime.root / "build/artifacts/python"
+                )
 
     def prove_install(self, session: nox.Session) -> None:
         """Install and exercise the built wheel without source-checkout fallback."""
@@ -74,7 +100,9 @@ class DeliveryPipeline:
         )
 
 
-def publish_built_wheel(repo: Path, staging: Path, artifacts: Path) -> Path:
+def publish_built_wheel(
+    repo: Path, staging: Path, artifacts: Path, *, expected_build: BuildIdentity | None = None
+) -> Path:
     """Admit and project exactly one wheel built from the current source identity."""
     wheels = tuple(path for path in staging.glob("ethos-*.whl") if path.is_file())
     if len(wheels) != 1:
@@ -84,7 +112,7 @@ def publish_built_wheel(repo: Path, staging: Path, artifacts: Path) -> Path:
     durable = materialize_package_wheel(
         repo,
         wheel,
-        expected_build=source_build_identity(repo),
+        expected_build=expected_build or source_build_identity(repo),
         collision="release_wheel_digest_collision",
     )
     artifacts = artifacts.resolve()
@@ -109,3 +137,68 @@ def publish_built_wheel(repo: Path, staging: Path, artifacts: Path) -> Path:
         shutil.rmtree(replacement, ignore_errors=True)
     shutil.rmtree(backup, ignore_errors=True)
     return artifacts / wheel.name
+
+
+def release_build_head(arguments: tuple[str, ...]) -> str:
+    """Parse explicit Nox build inputs without allowing ambient release promotion."""
+    if not arguments:
+        return ""
+    parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
+    parser.add_argument("--release", action="store_true")
+    parser.add_argument("--expect-head")
+    try:
+        options, unknown = parser.parse_known_args(arguments)
+    except argparse.ArgumentError as error:
+        message = "release_build_arguments_invalid"
+        raise ValueError(message) from error
+    head = options.expect_head or ""
+    if (
+        unknown
+        or not options.release
+        or len(head) not in (40, 64)
+        or set(head) - set("0123456789abcdef")
+    ):
+        message = "release_build_arguments_invalid"
+        raise ValueError(message)
+
+    return head
+
+
+def _release_source_identity(repo: Path, head: str) -> BuildIdentity:
+    """Require a clean exact accepted source and its applicable repository proof."""
+    source = source_build_identity(repo)
+    if source.source_commit != head:
+        message = "release_build_source_stale"
+        raise ValueError(message)
+    if source != source_build_identity(repo, include_overlay=False):
+        message = "release_build_source_dirty"
+        raise ValueError(message)
+    accepted_release_source(repo, head)
+    proof, gaps = proof_for_repository_transition(repo, head)
+    if proof is None or gaps:
+        raise ValueError(gaps[0] if gaps else "release_source_not_proven")
+    return build_identity(
+        product=source.product_version,
+        source_commit=head,
+        source_tree=source.source_tree,
+        release=True,
+    )
+
+
+@contextmanager
+def release_build_source(repo: Path, work: Path, *, head: str) -> Iterator[Path]:
+    """Project admitted Git bytes and release identity into one disposable build source."""
+    identity = _release_source_identity(repo, head)
+    work.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="ethos-release-source-", dir=work) as directory:
+        prepared = Path(directory)
+        archive = run_git(repo, "archive", "--format=tar", head, text=False, timeout=30).stdout
+        with tarfile.open(fileobj=io.BytesIO(archive)) as packed:
+            packed.extractall(prepared, filter="data")
+        carried = prepared / "src/ethos/data/build/identity.json"
+        carried.parent.mkdir(parents=True, exist_ok=True)
+        carried.write_bytes(build_identity_bytes(identity))
+        yield prepared
+        if _release_source_identity(repo, head) != identity:
+            message = "release_build_source_changed"
+            raise ValueError(message)

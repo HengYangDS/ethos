@@ -8,9 +8,11 @@ import json
 import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import urlsplit
 
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.repository.release.identity import is_release_build
 
 
 def package_runtime(
@@ -18,6 +20,8 @@ def package_runtime(
 ) -> dict[str, object]:
     """Archive exact installed bytes without rebuilding or changing their identity."""
     selected = require_selected_runtime(runtime)
+    url = download_url or destination.resolve().as_uri()
+    _require_distribution_version(selected, url)
     payload = wheel.read_bytes()
     if wheel.is_symlink() or hashlib.sha256(payload).hexdigest() != selected.wheel_sha256:
         message = "distribution_wheel_mismatch"
@@ -44,7 +48,7 @@ def package_runtime(
             raise ValueError(message)
         with archive_path.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
-        cask = homebrew_cask(selected, download_url or destination.resolve().as_uri(), digest)
+        cask = homebrew_cask(selected, url, digest)
         archive_path.replace(destination)
         cask_path = destination.parent / "homebrew" / "Casks" / "ethos.rb"
         cask_path.parent.mkdir(parents=True, exist_ok=True)
@@ -71,6 +75,7 @@ def _metadata(info: tarfile.TarInfo) -> tarfile.TarInfo:
 
 def homebrew_cask(selected: SelectedRuntime, url: str, digest: str) -> str:
     """Project one platform-qualified archive into native Homebrew installation."""
+    _require_distribution_version(selected, url)
     operating_system = "macos" if selected.platform == "darwin" else selected.platform
     architecture = "arm64" if selected.architecture == "aarch64" else selected.architecture
     if operating_system not in {"macos", "linux"} or architecture not in {"arm64", "x86_64"}:
@@ -79,9 +84,14 @@ def homebrew_cask(selected: SelectedRuntime, url: str, digest: str) -> str:
     if "#{" in url:
         message = "distribution_url_invalid"
         raise ValueError(message)
+    version = (
+        selected.build.product_version
+        if is_release_build(selected.build)
+        else selected.build.distribution_version
+    )
     return f'''# Generated from exact package acceptance; not a separate version authority.
 cask "ethos" do
-  version {json.dumps(selected.build.distribution_version)}
+  version {json.dumps(version)}
   sha256 "{digest}"
   url {json.dumps(url)}
   name "ETHOS"
@@ -112,3 +122,10 @@ cask "ethos" do
                   executable: "#{{staged_path}}/ethos/runtime/{selected.digest}/python/bin/ethos"
 end
 '''
+
+
+def _require_distribution_version(selected: SelectedRuntime, url: str) -> None:
+    """Keep source-development packages out of remote release-channel projections."""
+    if urlsplit(url).scheme != "file" and not is_release_build(selected.build):
+        message = "distribution_release_build_required"
+        raise ValueError(message)

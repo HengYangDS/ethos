@@ -20,8 +20,8 @@ from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
-from ethos.adapters.repo.runtime.transition import require_release_identity_attested
 from ethos.repository.release.admission import accepted_release_identity
+from ethos.repository.release.admission import release_identity_admission_gaps
 from ethos.repository.release.identity import is_release_build
 
 if TYPE_CHECKING:
@@ -126,12 +126,6 @@ def activate_runtime(
     runtime_root.mkdir(parents=True, exist_ok=True)
     with _selection_lock(common_root):
         selected = require_selected_runtime(candidate)
-        release = (
-            accepted_release_identity(selected.build, wheel_sha256=selected.wheel_sha256)
-            if is_release_build(selected.build)
-            else None
-        )
-        require_release_identity_attested(common_root, release)
         current = _selector_bytes(runtime_root / _SELECTOR)
         if expected_current is not _UNSPECIFIED and current != expected_current:
             raise ValueError(_CURRENT_STALE)
@@ -305,6 +299,7 @@ def _require_release_runtime_closure_unique(
 ) -> None:
     if not is_release_build(candidate.build):
         return
+    release = accepted_release_identity(candidate.build, wheel_sha256=candidate.wheel_sha256)
     runtime_root = common / "ethos" / "runtime"
     paths = set(runtime_root.iterdir())
     with suppress(ValueError):
@@ -317,11 +312,18 @@ def _require_release_runtime_closure_unique(
         except ValueError:
             continue
         if (
-            existing.build == candidate.build
-            and existing.python_abi == candidate.python_abi
+            not is_release_build(existing.build)
+            or existing.build.product_version != candidate.build.product_version
+        ):
+            continue
+        prior = accepted_release_identity(existing.build, wheel_sha256=existing.wheel_sha256)
+        same_target = (
+            existing.python_abi == candidate.python_abi
             and existing.platform == candidate.platform
             and existing.architecture == candidate.architecture
-            and existing.digest != candidate.digest
+        )
+        if release_identity_admission_gaps(release, (prior,)) or (
+            same_target and existing.digest != candidate.digest
         ):
             message = "release_runtime_identity_conflict"
             raise ValueError(message)

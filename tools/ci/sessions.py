@@ -129,9 +129,9 @@ def coverage_floor(session) -> None:
 
 
 def build(session) -> None:
-    import_module("tools.ci.delivery.pipeline").DeliveryPipeline.from_runtime(RUNTIME).build(
-        session
-    )
+    owner = import_module("tools.ci.delivery.pipeline")
+    head = owner.release_build_head(tuple(session.posargs))
+    owner.DeliveryPipeline.from_runtime(RUNTIME).build(session, release_head=head)
 
 
 def install_smoke(session) -> None:

@@ -424,13 +424,29 @@ matching signed tag only after required installation acceptance. No environment
 flag, tag presence or renamed development wheel may bypass release admission.
 A normal development build must remain non-releasing.
 
-The current explicit release materializer has test consumers but no production
-caller; the ordinary build path still selects development identity. Close that
-wiring gap rather than adding another release framework. Verify development
-rejection at public channels, native version ordering, version reuse conflicts,
-exact artifact/tag correspondence and interrupted per-peer publication. Runtime
-rollback with preserved repository selection is distinct from publishing an older
-version as a new release.
+Publisher release acceptance and adopter runtime selection are different effects.
+An adopter validates the exact package, manifest, platform and selected identity;
+it does not need a copy of the publisher's Attestation set and does not create a
+release claim during hook installation. Reuse the existing release identity
+admission owner for same-version source and wheel conflicts across runtime targets.
+Retain same-target closure uniqueness and selector CAS. Explicit installation
+rollback remains distinct from forbidden publication rollback.
+
+The existing Nox build owner accepts explicit --release --expect-head inputs.
+It requires exact clean accepted source and applicable proof, archives those Git
+bytes into a disposable source tree, and supplies the existing build-identity
+carrier to the same uv/Hatch builder. Revalidate source and proof before projecting
+the candidate wheel; failure removes temporary build roots and preserves previous
+output. Ordinary builds remain development builds. Release construction is not
+acceptance or publication.
+
+The explicit release materializer still has no production acceptance caller.
+Connect it only after exact installed-artifact observation; do not manufacture an
+accepted release merely to let a fresh adopter install it. Public channels still
+need native version ordering, version reuse rejection, exact artifact/tag
+correspondence and interrupted per-peer publication. These obligations remain in
+task 3.7. Runtime rollback with preserved repository selection is distinct from
+publishing an older version as a new release.
 
 Official references: [Python packaging versioning][release-python-versioning]
 and [Semantic Versioning][release-semver]. Registry ownership and occupied public

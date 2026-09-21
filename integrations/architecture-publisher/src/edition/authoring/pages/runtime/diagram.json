@@ -1,0 +1,345 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ETHOS · 问道 — One Runtime, Independent Admission",
+    "subtitle": "Target architecture, not a claim of current implementation.",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "visual_preset": "editorial",
+    "viewBox": [
+      2160,
+      1110
+    ],
+    "legend": {
+      "mode": "hidden"
+    },
+    "views": [
+      {
+        "id": "runtime",
+        "label": "Share runtime, not authority",
+        "focus": [
+          "common",
+          "activation",
+          "lease",
+          "worktrees"
+        ],
+        "note": "One Git-common activation and a bounded Lease coordinate every linked worktree. Each lane keeps independent admission."
+      },
+      {
+        "id": "observation",
+        "label": "Observe the complete family",
+        "focus": [
+          "activation",
+          "report",
+          "worktrees"
+        ],
+        "note": "Runtime identity, common hooks and every linked worktree must be checked; this projection grants no permission."
+      },
+      {
+        "id": "retirement",
+        "label": "Reclaim after activation",
+        "focus": [
+          "activation",
+          "retirement",
+          "retained",
+          "retired"
+        ],
+        "note": "Recheck live dependencies and exact directory before each removal. UNKNOWN retains the generation, not a rollback of successful activation."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "common",
+      "type": "external",
+      "label": "Git-common coordination",
+      "sublabel": "One repository-common owner",
+      "tag": "No semantic truth or write permission",
+      "pos": [
+        80,
+        200
+      ],
+      "size": [
+        530,
+        160
+      ]
+    },
+    {
+      "id": "activation",
+      "type": "external",
+      "label": "Activate one immutable runtime",
+      "sublabel": "Locked toolchain · state · hooks",
+      "tag": "Activation failure: exact rollback",
+      "pos": [
+        780,
+        200
+      ],
+      "size": [
+        560,
+        160
+      ]
+    },
+    {
+      "id": "worktrees",
+      "type": "external",
+      "label": "Every linked worktree",
+      "sublabel": "Common runtime, independent admission",
+      "tag": "Each lane: own PASS · base · proof",
+      "pos": [
+        780,
+        530
+      ],
+      "size": [
+        560,
+        160
+      ]
+    },
+    {
+      "id": "lease",
+      "type": "external",
+      "label": "Lease coordinates a holder",
+      "sublabel": "Lane · holder · generation · expiry",
+      "tag": "Neither intent nor permission",
+      "pos": [
+        80,
+        530
+      ],
+      "size": [
+        530,
+        160
+      ]
+    },
+    {
+      "id": "report",
+      "type": "external",
+      "label": "Observe the whole family",
+      "sublabel": "Runtime identity · hooks · worktrees",
+      "tag": "Checked / repaired / retained / removed",
+      "pos": [
+        1510,
+        200
+      ],
+      "size": [
+        560,
+        160
+      ]
+    },
+    {
+      "id": "retirement",
+      "type": "external",
+      "label": "Recheck before each removal",
+      "sublabel": "Fresh operational dependencies",
+      "tag": "Exact owned directory · selector fence",
+      "pos": [
+        1510,
+        530
+      ],
+      "size": [
+        560,
+        160
+      ]
+    },
+    {
+      "id": "retained",
+      "type": "external",
+      "label": "Defer this removal",
+      "sublabel": "Activation + partial results preserved",
+      "tag": "UNKNOWN defers deletion",
+      "pos": [
+        780,
+        860
+      ],
+      "size": [
+        560,
+        160
+      ]
+    },
+    {
+      "id": "retired",
+      "type": "external",
+      "label": "Reclaim unused generation",
+      "sublabel": "No operational dependency",
+      "tag": "Exact owned directory; record partials",
+      "pos": [
+        1510,
+        860
+      ],
+      "size": [
+        560,
+        160
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "select-activation",
+      "from": "common",
+      "to": "activation",
+      "label": "select activation",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        695,
+        140
+      ]
+    },
+    {
+      "id": "coordinate-lease",
+      "from": "common",
+      "to": "lease",
+      "label": "coordinate Lease",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        515,
+        445
+      ]
+    },
+    {
+      "id": "activate-worktrees",
+      "from": "activation",
+      "to": "worktrees",
+      "label": "all linked worktrees",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        890,
+        445
+      ]
+    },
+    {
+      "id": "lease-prewrite",
+      "from": "lease",
+      "to": "worktrees",
+      "label": "holder / generation / expiry",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        695,
+        490
+      ]
+    },
+    {
+      "id": "family-report",
+      "from": "activation",
+      "to": "report",
+      "label": "observe and report",
+      "fromSide": "top",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1425,
+        140
+      ],
+      "via": [
+        [
+          1060,
+          80
+        ],
+        [
+          1790,
+          80
+        ]
+      ]
+    },
+    {
+      "id": "retirement-binding",
+      "from": "activation",
+      "to": "retirement",
+      "label": "after successful activation",
+      "fromSide": "right",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          1430,
+          280
+        ],
+        [
+          1430,
+          470
+        ],
+        [
+          1790,
+          470
+        ]
+      ],
+      "labelAt": [
+        1670,
+        425
+      ]
+    },
+    {
+      "id": "retain-generation",
+      "from": "retirement",
+      "to": "retained",
+      "label": "in use or UNKNOWN",
+      "fromSide": "left",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          1430,
+          610
+        ],
+        [
+          1430,
+          790
+        ],
+        [
+          1060,
+          790
+        ]
+      ],
+      "labelAt": [
+        1200,
+        750
+      ]
+    },
+    {
+      "id": "retire-generation",
+      "from": "retirement",
+      "to": "retired",
+      "label": "fresh checks pass",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1985,
+        790
+      ]
+    }
+  ],
+  "boundaries": [],
+  "cards": [
+    {
+      "dot": "slate",
+      "title": "Activation is one transaction",
+      "items": [
+        "Preflight the complete offline closure and state-schema compatibility. Stage the public versioned migration or safe reset; construct and verify a new immutable generation.",
+        "Atomically switch CURRENT, rebind hooks, then verify every linked worktree. Activation failure restores selector, hooks, state and generation ownership to their exact pre-state. After successful activation, later reclamation may be deferred without rolling activation back."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Reclaim from current dependencies",
+      "items": [
+        "After successful activation, the sole retirement owner re-observes selected runtime and hooks, effective repository config, live process commands and linked interpreter bindings before each removal. Bind the exact owned directory under a bounded selector fence.",
+        "Historical observations are not executable leases. UNKNOWN defers deletion and preserves successful activation plus removed, retained and pending resources. The selector fence is not global process isolation. Immutable bytes remain immutable; runtime reclamation and Work Lane retirement are different scopes."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "One runtime does not mean one permission",
+      "items": [
+        "The Git-common owner binds core.hooksPath and gc.packRefs. A linked worktree does not become another activation owner. The family report names common hooks, immutable runtime, each worktree checked or repaired, and exact generations retained or removed.",
+        "Each lane independently observes authority, intent, Facts, Plan, exact base and proof. The Lease coordinates only lane, holder, generation and expiry. Neither the shared runtime nor a report replaces fresh admission."
+      ]
+    }
+  ]
+}

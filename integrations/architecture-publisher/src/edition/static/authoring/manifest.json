@@ -1,0 +1,19 @@
+{
+  "schema": "architecture.source-bundle/v1",
+  "source": {
+    "id": "ethos:poster",
+    "revision": "selected-source-8f2e829"
+  },
+  "files": [
+    {
+      "path": "edition.json",
+      "bytes": 719,
+      "sha256": "abf415aa8ac4ea22d3743ef6f5ac07e633576cd352259c97d8597e8660e99bad"
+    },
+    {
+      "path": "metrics.json",
+      "bytes": 139280,
+      "sha256": "c3361ad22e2262732852f31f0fa2daaa83757b086a82d365d232c941e5be7307"
+    }
+  ]
+}

@@ -1,0 +1,1080 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ETHOS · 问道 — Reliable Repository Evolution",
+    "subtitle": "Target architecture, not a claim of current implementation.",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "visual_preset": "editorial",
+    "viewBox": [
+      2160,
+      2670
+    ],
+    "legend": {
+      "mode": "hidden"
+    },
+    "views": [
+      {
+        "id": "intent",
+        "label": "Intent and capabilities",
+        "focus": [
+          "research",
+          "meaning",
+          "plan",
+          "methods",
+          "model"
+        ],
+        "note": "Investigate, accept meaning, compile, select methods. No capability grants authority."
+      },
+      {
+        "id": "work",
+        "label": "Independent work and selection",
+        "focus": [
+          "plan",
+          "admission-a",
+          "admission-b",
+          "admission-c",
+          "actor-a",
+          "actor-b",
+          "actor-c",
+          "lane-a",
+          "lane-b",
+          "lane-c",
+          "selection",
+          "retained"
+        ],
+        "note": "Each lane owns admission and proof. Candidate-ref changes require refresh and recheck."
+      },
+      {
+        "id": "effects",
+        "label": "Exact objects and local effects",
+        "focus": [
+          "candidate",
+          "accepted",
+          "attestation",
+          "recovery"
+        ],
+        "note": "Separate CAS; same reviewed object; observation precedes the durable result."
+      },
+      {
+        "id": "outcomes",
+        "label": "Use, learning and continuation",
+        "focus": [
+          "use",
+          "learning",
+          "research",
+          "recovery",
+          "exit"
+        ],
+        "note": "Actual benefit and counterexamples inform fresh inquiry, never silent authority change."
+      },
+      {
+        "id": "ecosystem",
+        "label": "Agentic-native repositories",
+        "focus": [
+          "norms",
+          "greenfield",
+          "brownfield",
+          "self",
+          "interfaces",
+          "publication",
+          "peers"
+        ],
+        "note": "Native adoption and interoperable results preserve independent authority."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "research",
+      "type": "external",
+      "label": "Investigate",
+      "sublabel": "Examples / counterexamples",
+      "pos": [
+        70,
+        100
+      ],
+      "size": [
+        430,
+        115
+      ]
+    },
+    {
+      "id": "meaning",
+      "type": "external",
+      "label": "Accept meaning",
+      "sublabel": "Scope / exceptions / guarantees",
+      "pos": [
+        832.5,
+        87.5
+      ],
+      "size": [
+        485,
+        140
+      ],
+      "tag": "Same Change; delivery stays open"
+    },
+    {
+      "id": "methods",
+      "type": "external",
+      "label": "Skills and native tools",
+      "sublabel": "Selected by the bounded Plan",
+      "pos": [
+        70,
+        310
+      ],
+      "size": [
+        430,
+        115
+      ]
+    },
+    {
+      "id": "action-admission",
+      "type": "external",
+      "label": "Admission to act",
+      "sublabel": "Subject + policy + intent + Facts + Plan",
+      "tag": "Each: own PASS; BLOCK / UNKNOWN stop",
+      "pos": [
+        1430,
+        65
+      ],
+      "size": [
+        690,
+        170
+      ]
+    },
+    {
+      "id": "verification",
+      "type": "external",
+      "label": "Local / independent / hosted stay distinct",
+      "sublabel": "Independent when risk or policy requires",
+      "tag": "Optional composite: verifier + rule + named claims",
+      "pos": [
+        70,
+        1390
+      ],
+      "size": [
+        700,
+        145
+      ]
+    },
+    {
+      "id": "plan",
+      "type": "external",
+      "label": "Compile Plan",
+      "sublabel": "Fresh Facts / prior claims",
+      "pos": [
+        850,
+        310
+      ],
+      "size": [
+        450,
+        125
+      ]
+    },
+    {
+      "id": "admission-a",
+      "type": "external",
+      "label": "Action admission A",
+      "sublabel": "Only own PASS admits action",
+      "tag": "BLOCK / UNKNOWN: no execution",
+      "pos": [
+        70,
+        560
+      ],
+      "size": [
+        550,
+        150
+      ]
+    },
+    {
+      "id": "actor-a",
+      "type": "external",
+      "label": "Actor A in session",
+      "sublabel": "Within scope and current Lease",
+      "tag": "Human/agent uses Skills + tools",
+      "pos": [
+        70,
+        748
+      ],
+      "size": [
+        550,
+        135
+      ]
+    },
+    {
+      "id": "lane-a",
+      "type": "external",
+      "label": "Lane A",
+      "sublabel": "Own worktree; prewrite + proof",
+      "tag": "Plan; candidate drift: refresh/prove",
+      "pos": [
+        70,
+        950
+      ],
+      "size": [
+        550,
+        150
+      ]
+    },
+    {
+      "id": "admission-b",
+      "type": "external",
+      "label": "Action admission B",
+      "sublabel": "Only own PASS admits action",
+      "tag": "BLOCK / UNKNOWN: no execution",
+      "pos": [
+        800,
+        560
+      ],
+      "size": [
+        550,
+        150
+      ]
+    },
+    {
+      "id": "actor-b",
+      "type": "external",
+      "label": "Actor B in session",
+      "sublabel": "Within scope and current Lease",
+      "tag": "Human/agent uses Skills + tools",
+      "pos": [
+        800,
+        748
+      ],
+      "size": [
+        550,
+        135
+      ]
+    },
+    {
+      "id": "lane-b",
+      "type": "external",
+      "label": "Lane B",
+      "sublabel": "Own worktree; prewrite + proof",
+      "tag": "Plan; candidate drift: refresh/prove",
+      "pos": [
+        800,
+        950
+      ],
+      "size": [
+        550,
+        150
+      ]
+    },
+    {
+      "id": "admission-c",
+      "type": "external",
+      "label": "Action admission C",
+      "sublabel": "Only own PASS admits action",
+      "tag": "BLOCK / UNKNOWN: no execution",
+      "pos": [
+        1530,
+        560
+      ],
+      "size": [
+        550,
+        150
+      ]
+    },
+    {
+      "id": "actor-c",
+      "type": "external",
+      "label": "Actor C in session",
+      "sublabel": "Within scope and current Lease",
+      "tag": "Human/agent uses Skills + tools",
+      "pos": [
+        1530,
+        748
+      ],
+      "size": [
+        550,
+        135
+      ]
+    },
+    {
+      "id": "lane-c",
+      "type": "external",
+      "label": "Lane C",
+      "sublabel": "Own worktree; prewrite + proof",
+      "tag": "Plan; candidate drift: refresh/prove",
+      "pos": [
+        1530,
+        950
+      ],
+      "size": [
+        550,
+        150
+      ]
+    },
+    {
+      "id": "selection",
+      "type": "external",
+      "label": "Select contributions",
+      "sublabel": "Compatible many / synthesis",
+      "tag": "Competition: 0 or 1",
+      "pos": [
+        870,
+        1210
+      ],
+      "size": [
+        410,
+        145
+      ]
+    },
+    {
+      "id": "candidate",
+      "type": "external",
+      "label": "Candidate ref",
+      "sublabel": "Own PASS + local CAS",
+      "tag": "Prove / recheck / observe",
+      "pos": [
+        870,
+        1485
+      ],
+      "size": [
+        410,
+        145
+      ]
+    },
+    {
+      "id": "retained",
+      "type": "external",
+      "label": "Retain findings",
+      "sublabel": "All-drop: no integration",
+      "pos": [
+        1686,
+        1225
+      ],
+      "size": [
+        374,
+        115
+      ]
+    },
+    {
+      "id": "accepted",
+      "type": "external",
+      "label": "Accepted root",
+      "sublabel": "Own PASS + separate CAS",
+      "tag": "Same reviewed object",
+      "pos": [
+        870,
+        1755
+      ],
+      "size": [
+        410,
+        145
+      ]
+    },
+    {
+      "id": "attestation",
+      "type": "external",
+      "label": "Scoped Attestation",
+      "sublabel": "Identity / predicate / verifier",
+      "pos": [
+        847.5,
+        1995
+      ],
+      "size": [
+        455,
+        115
+      ]
+    },
+    {
+      "id": "recovery",
+      "type": "external",
+      "label": "Re-observe current state",
+      "sublabel": "Re-observe before fresh admission",
+      "pos": [
+        70,
+        1770
+      ],
+      "size": [
+        500,
+        115
+      ]
+    },
+    {
+      "id": "model",
+      "type": "external",
+      "label": "Resolve model gaps",
+      "sublabel": "Block / counterexample / recompile",
+      "pos": [
+        1460,
+        335
+      ],
+      "size": [
+        650,
+        145
+      ]
+    },
+    {
+      "id": "use",
+      "type": "external",
+      "label": "Actual use",
+      "sublabel": "Deployed ID / environment",
+      "pos": [
+        1701,
+        1755
+      ],
+      "size": [
+        368,
+        145
+      ],
+      "tag": "Baseline / time window"
+    },
+    {
+      "id": "learning",
+      "type": "external",
+      "label": "Learn and challenge",
+      "sublabel": "Observed benefit",
+      "pos": [
+        1710,
+        1980
+      ],
+      "size": [
+        350,
+        145
+      ],
+      "tag": "Not delivery"
+    },
+    {
+      "id": "exit",
+      "type": "external",
+      "label": "Handoff and owned exit",
+      "sublabel": "Preserve work; fresh authority",
+      "pos": [
+        70,
+        1995
+      ],
+      "size": [
+        450,
+        115
+      ]
+    },
+    {
+      "id": "interfaces",
+      "type": "external",
+      "label": "Derived interfaces",
+      "sublabel": "CLI / SDK / CI / MCP",
+      "pos": [
+        650,
+        2250
+      ],
+      "size": [
+        330,
+        115
+      ]
+    },
+    {
+      "id": "publication",
+      "type": "external",
+      "label": "Remote ref updates",
+      "sublabel": "Recheck trust / proof / policy / refs",
+      "tag": "Keep partial and UNKNOWN results",
+      "pos": [
+        1555,
+        2250
+      ],
+      "size": [
+        530,
+        145
+      ]
+    },
+    {
+      "id": "peers",
+      "type": "external",
+      "label": "Autonomous repositories",
+      "sublabel": "Claims and artifacts, not PASS",
+      "tag": "Own CAS / observe / attest",
+      "pos": [
+        1040,
+        2250
+      ],
+      "size": [
+        450,
+        145
+      ]
+    },
+    {
+      "id": "norms",
+      "type": "external",
+      "label": "Agentic-native norms",
+      "sublabel": "Native artifacts / quality rules",
+      "pos": [
+        70,
+        2250
+      ],
+      "size": [
+        505,
+        115
+      ]
+    },
+    {
+      "id": "greenfield",
+      "type": "external",
+      "label": "Greenfield formation",
+      "sublabel": "Preview native scaffold",
+      "tag": "Own CAS / observe / attest",
+      "pos": [
+        70,
+        2480
+      ],
+      "size": [
+        420,
+        145
+      ]
+    },
+    {
+      "id": "brownfield",
+      "type": "external",
+      "label": "Brownfield adoption",
+      "sublabel": "Preserve; bind gradually",
+      "tag": "Own CAS / observe / attest",
+      "pos": [
+        560,
+        2480
+      ],
+      "size": [
+        420,
+        145
+      ]
+    },
+    {
+      "id": "self",
+      "type": "external",
+      "label": "ETHOS itself",
+      "sublabel": "Same local proof / effect rules",
+      "pos": [
+        1050,
+        2480
+      ],
+      "size": [
+        460,
+        115
+      ]
+    },
+    {
+      "id": "local-effects",
+      "type": "external",
+      "label": "Each resource acts locally",
+      "sublabel": "PASS / recheck / apply once / observe / attest",
+      "tag": "Exact prestate; UNKNOWN: re-observe, no blind replay",
+      "pos": [
+        1320,
+        1450
+      ],
+      "size": [
+        720,
+        145
+      ]
+    },
+    {
+      "id": "publication-source",
+      "type": "external",
+      "label": "Trusted Git object",
+      "sublabel": "Exact OID + introduced range",
+      "tag": "Review is not acceptance",
+      "pos": [
+        1615,
+        2480
+      ],
+      "size": [
+        410,
+        135
+      ]
+    },
+    {
+      "id": "coordination",
+      "type": "external",
+      "label": "One Git-common runtime: every worktree",
+      "sublabel": "Lease: lane / holder / generation / expiry",
+      "tag": "Coordinates; grants no permission",
+      "pos": [
+        70,
+        1200
+      ],
+      "size": [
+        680,
+        145
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "align",
+      "from": "research",
+      "to": "meaning",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default"
+    },
+    {
+      "id": "compile",
+      "from": "meaning",
+      "to": "plan",
+      "label": "accepted intent",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1260,
+        265
+      ]
+    },
+    {
+      "id": "prepare-a",
+      "from": "plan",
+      "to": "admission-a",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "pass-a",
+      "from": "admission-a",
+      "to": "actor-a",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "execute-a",
+      "from": "actor-a",
+      "to": "lane-a",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "offer-a",
+      "from": "lane-a",
+      "to": "selection",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "prepare-b",
+      "from": "plan",
+      "to": "admission-b",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "pass-b",
+      "from": "admission-b",
+      "to": "actor-b",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "execute-b",
+      "from": "actor-b",
+      "to": "lane-b",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "offer-b",
+      "from": "lane-b",
+      "to": "selection",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "prepare-c",
+      "from": "plan",
+      "to": "admission-c",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "pass-c",
+      "from": "admission-c",
+      "to": "actor-c",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "execute-c",
+      "from": "actor-c",
+      "to": "lane-c",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "offer-c",
+      "from": "lane-c",
+      "to": "selection",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "retain",
+      "from": "selection",
+      "to": "retained",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed"
+    },
+    {
+      "id": "combine",
+      "from": "selection",
+      "to": "candidate",
+      "label": "prove combination",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1245,
+        1425
+      ],
+      "width": 2.2
+    },
+    {
+      "id": "accept",
+      "from": "candidate",
+      "to": "accepted",
+      "label": "same object",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1245,
+        1695
+      ],
+      "width": 2.2
+    },
+    {
+      "id": "attest",
+      "from": "accepted",
+      "to": "attestation",
+      "label": "post-observe",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1245,
+        1950
+      ]
+    },
+    {
+      "id": "unknown",
+      "from": "candidate",
+      "to": "recovery",
+      "label": "uncertain outcome",
+      "fromSide": "left",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          790,
+          1557.5
+        ],
+        [
+          790,
+          1650
+        ],
+        [
+          320,
+          1650
+        ]
+      ],
+      "labelAt": [
+        590,
+        1620
+      ]
+    },
+    {
+      "id": "recover",
+      "from": "recovery",
+      "to": "plan",
+      "label": "fresh facts",
+      "fromSide": "left",
+      "toSide": "left",
+      "variant": "dashed",
+      "via": [
+        [
+          25,
+          1827.5
+        ],
+        [
+          25,
+          480
+        ],
+        [
+          735,
+          480
+        ],
+        [
+          735,
+          372.5
+        ]
+      ],
+      "labelAt": [
+        165,
+        1690
+      ]
+    },
+    {
+      "id": "repair",
+      "from": "model",
+      "to": "plan",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "dashed"
+    },
+    {
+      "id": "handoff",
+      "from": "recovery",
+      "to": "exit",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed"
+    },
+    {
+      "id": "use",
+      "from": "accepted",
+      "to": "use",
+      "label": "object identity",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        1490,
+        1785
+      ],
+      "width": 2.2
+    },
+    {
+      "id": "learn-use",
+      "from": "use",
+      "to": "learning",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed"
+    },
+    {
+      "id": "learn-findings",
+      "from": "retained",
+      "to": "learning",
+      "label": "findings",
+      "fromSide": "right",
+      "toSide": "right",
+      "variant": "dashed",
+      "via": [
+        [
+          2095,
+          1282.5
+        ],
+        [
+          2095,
+          2052.5
+        ]
+      ],
+      "labelAt": [
+        1960,
+        1640
+      ]
+    },
+    {
+      "id": "revisit",
+      "from": "learning",
+      "to": "research",
+      "label": "revisit inquiry",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          1885,
+          2180
+        ],
+        [
+          2135,
+          2180
+        ],
+        [
+          2135,
+          40
+        ],
+        [
+          285,
+          40
+        ]
+      ],
+      "labelAt": [
+        1930,
+        1155
+      ]
+    },
+    {
+      "id": "project",
+      "from": "attestation",
+      "to": "interfaces",
+      "label": "derive",
+      "fromSide": "left",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          675,
+          2052.5
+        ],
+        [
+          675,
+          2190
+        ],
+        [
+          815,
+          2190
+        ]
+      ],
+      "labelAt": [
+        785,
+        2150
+      ]
+    },
+    {
+      "id": "publish",
+      "from": "publication-source",
+      "to": "publication",
+      "label": "offer object",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "variant": "dashed",
+      "labelAt": [
+        1970,
+        2440
+      ]
+    },
+    {
+      "id": "exchange",
+      "from": "attestation",
+      "to": "peers",
+      "label": "scoped claims",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          1075,
+          2180
+        ],
+        [
+          1265,
+          2180
+        ]
+      ],
+      "labelAt": [
+        1420,
+        2150
+      ]
+    },
+    {
+      "id": "form",
+      "from": "norms",
+      "to": "greenfield",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed"
+    },
+    {
+      "id": "adopt",
+      "from": "norms",
+      "to": "brownfield",
+      "fromSide": "right",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          600,
+          2307.5
+        ],
+        [
+          600,
+          2430
+        ],
+        [
+          770,
+          2430
+        ]
+      ]
+    }
+  ],
+  "boundaries": [],
+  "cards": [
+    {
+      "dot": "slate",
+      "title": "Meaning before action",
+      "items": [
+        "Problem → accepted intent → repository change → use → learning. A complete product path; a small trust kernel.",
+        "Challenge examples; settle scope, assumptions, exceptions and guarantees. Accept / supersede / pending verification / reject. Only accepted meaning enters OpenSpec; compilation is not understanding.",
+        "Accepted intent → transient Commitment; fresh Facts and applicable Attestations → bounded Plan and proof obligations. Source acceptance, delivery and Change completion are distinct. The same active Change keeps outstanding duties; archive after they settle. No-spec/archive changes retain proof identity.",
+        "Subject + policy + intent + Facts + Plan are conjunctive. Only own PASS admits action; BLOCK / UNKNOWN cannot execute."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Independent work, selected objects",
+      "items": [
+        "Each worktree prepares and proves from its exact base. Fresh prewrite binds actor, lane and facts; a four-field Lease coordinates, never grants permission.",
+        "Cooperate: compatible many or synthesis. Compete: zero or one. Explore: knowledge only, including negative results; all-drop integrates no code; retain useful findings if any.",
+        "Prove the combined object; recheck; CAS the candidate ref; observe and attest. Candidate drift requires fresh combination checks before another attempt.",
+        "Work authors; candidate integrates; proposal reviews; dev accepts; main releases. MR/PR or authorized maintainer selects the same object for separate accepted-root CAS. Retire proposal after dev acceptance and review closure, not main release."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Evidence and local effects",
+      "items": [
+        "Falsify exact candidates and combinations. Local / independent / hosted stay distinct. Independent per risk/policy; optional composite needs a responsible verifier and explicit rule. Evidence is not permission.",
+        "Exact prestate → evaluate → own PASS → fresh recheck → apply once → post-observe → attest. One local linearization point; no global or cross-provider CAS.",
+        "Attestation is the sole durable semantic result: predicate, bindings, validity, verifier; never permission. Commitment/Facts/Plan are transient. Experiments and change relations derive; no workflow ledger, compatibility residue or memory-backed truth."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Native owners, open capabilities",
+      "items": [
+        "Source/tests/specs/docs/rules/Skills: one owner, current consumers, executable quality and bounded lifecycle. Profiles retain domain/layout/provider freedom; mutation requires verified OpenSpec. OpenSpec and Git are carriers, not semantic roots.",
+        "People and replaceable agents compose Skills, generators, verifiers and native tools; prefer mature official capabilities. Names identify responsibilities; versions mark interpretation boundaries. Contracts bind I/O, identity, permission, cancellation and failure. Pure semantics, bounded effects; no capability grants authority.",
+        "CLI/JSON, SDK, CI/Forge and optional MCP/A2A expose the same verdict/gaps. Code graphs and dashboards are rebuildable observations, never intent or authority.",
+        "ETHOS obeys the same local rules as adopters. Native source, durable results and derived views remain distinct."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Formation and exchange",
+      "items": [
+        "Observe founding state and expected absence; preview a minimal Skills scaffold. Preserve customization and upgrade provenance; first acceptance follows the same local protocol.",
+        "Inventory inherited state; preserve native layout/customization; expose conflicts; bind gradually. Previewable, idempotent, reversible before first effect; no retroactive approval of history.",
+        "Each repository keeps local authority and judgment. Exchange scoped claims, artifacts and conformance, never permission; small capability contracts enable an interchangeable ecosystem.",
+        "Zero, one or many declared remotes receive the same local OIDs. Trusted Git objects and introduced ranges may be offered for review without accepted-product proof. Accepted/release destinations retain applicable proof and closeout; prior policy classifies targets. Each peer rechecks trust, proof, policy and old refs. Peer-local ref sets are atomic, never cross-peer; preserve partial results; distinguish absent, unavailable, pending, divergent and UNKNOWN observations. Earlier success or equality is not fresh authority."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Learning and continuity",
+      "items": [
+        "Delivery is not benefit. Observe deployed identity, environment, baseline and time window. Counterexamples may invalidate applicability, never rewrite historical evidence.",
+        "Use and retained experiments challenge goals, intent, code and assumptions; return to inquiry and accepted meaning, never silently change authority.",
+        "Contradiction or missing meaning blocks the affected effect. Keep the counterexample; repair the smallest model boundary; recompile.",
+        "BLOCK prevents a future effect; UNKNOWN may concern an attempted one. Preserve reachable Git and necessary Attestations through actor/host loss. Re-observe, recompile, reauthorize; no blind replay.",
+        "One Git-common activation serves every worktree through a locked immutable runtime, state migration, hooks and activation rollback. After successful activation, reclaim unused generations from fresh operational dependencies and exact owned directory identity before each removal. UNKNOWN defers deletion and preserves activation and partial results. Historical observations are not executable leases; the bounded selector fence is not global process isolation.",
+        "Continue from exact results with fresh authority. Stop writers; account for unique work; preserve useful findings; hand off; retire only owned resources and discharged projections.",
+        "Required meaning must be readable in the main view or meaningful aggregates. Hidden data and hover are not coverage; rendered evidence must establish legibility."
+      ]
+    }
+  ]
+}

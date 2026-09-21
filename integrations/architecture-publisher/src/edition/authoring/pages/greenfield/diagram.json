@@ -1,0 +1,723 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ETHOS · 问道 — Greenfield formation",
+    "subtitle": "Target architecture, not a claim of current implementation.",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "visual_preset": "editorial",
+    "viewBox": [
+      1980,
+      2170
+    ],
+    "legend": {
+      "mode": "hidden"
+    },
+    "views": [
+      {
+        "id": "adoption",
+        "label": "Form a native repository",
+        "focus": [
+          "inventory",
+          "prepare",
+          "preview",
+          "binding-conflict",
+          "inputs",
+          "expected"
+        ],
+        "note": "Native tools prepare; ETHOS binds and constrains. Conflicts preserve state. Nothing bypasses fresh admission."
+      },
+      {
+        "id": "inputs",
+        "label": "Bind and admit",
+        "focus": [
+          "inputs",
+          "expected",
+          "admit",
+          "recheck"
+        ],
+        "note": "Applicable claims support evaluation; they do not grant permission."
+      },
+      {
+        "id": "effect",
+        "label": "One local attempt",
+        "focus": [
+          "recheck",
+          "runner",
+          "cas",
+          "observe",
+          "attest"
+        ],
+        "note": "Only a fresh admitted runner can attempt this exact local effect."
+      },
+      {
+        "id": "recovery",
+        "label": "Refuse, reject or re-observe",
+        "focus": [
+          "refused",
+          "conditions",
+          "recheck-refused",
+          "cas-rejected",
+          "unknown",
+          "reobserve",
+          "inputs"
+        ],
+        "note": "Pre-action refusal, a definite CAS rejection and an uncertain result require different accounting."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "inputs",
+      "type": "external",
+      "label": "Own subject / current policy",
+      "sublabel": "Own Commitment / Facts / Plan / candidate",
+      "tag": "Own executed local proof",
+      "pos": [
+        100,
+        740
+      ],
+      "size": [
+        540,
+        150
+      ]
+    },
+    {
+      "id": "expected",
+      "type": "external",
+      "label": "Founding state",
+      "sublabel": "Founding object and expected absence",
+      "tag": "Scaffold preview; own acceptance",
+      "pos": [
+        760,
+        740
+      ],
+      "size": [
+        480,
+        150
+      ]
+    },
+    {
+      "id": "admit",
+      "type": "external",
+      "label": "Evaluate declared proof claims",
+      "sublabel": "Exact subject · predicate · scope",
+      "tag": "bindings · validity · verifier",
+      "pos": [
+        100,
+        1050
+      ],
+      "size": [
+        540,
+        150
+      ]
+    },
+    {
+      "id": "recheck",
+      "type": "external",
+      "label": "Fresh effect-time recheck",
+      "sublabel": "Rebind authority and exact prestate",
+      "tag": "This resource; this admitted attempt",
+      "pos": [
+        760,
+        1050
+      ],
+      "size": [
+        480,
+        150
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "external",
+      "label": "Single-use runner",
+      "sublabel": "Bound to the admitted operation",
+      "tag": "No stale execution or blind replay",
+      "pos": [
+        1390,
+        1050
+      ],
+      "size": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "cas",
+      "type": "external",
+      "label": "Founding local CAS",
+      "sublabel": "Apply against exact expected state",
+      "tag": "No cross-provider transaction",
+      "pos": [
+        1390,
+        1360
+      ],
+      "size": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "observe",
+      "type": "external",
+      "label": "Post-observe",
+      "sublabel": "Read the actual resulting state",
+      "tag": "An attempt is not proof of success",
+      "pos": [
+        760,
+        1360
+      ],
+      "size": [
+        480,
+        150
+      ]
+    },
+    {
+      "id": "attest",
+      "type": "external",
+      "label": "Scoped Attestation",
+      "sublabel": "Predicate · bindings · validity · verifier",
+      "tag": "Durable result, never future permission",
+      "pos": [
+        100,
+        1930
+      ],
+      "size": [
+        540,
+        140
+      ]
+    },
+    {
+      "id": "refused",
+      "type": "external",
+      "label": "No new attempt",
+      "sublabel": "BLOCK or UNKNOWN before execution",
+      "tag": "Resolve conditions; evaluate afresh",
+      "pos": [
+        100,
+        1360
+      ],
+      "size": [
+        540,
+        150
+      ]
+    },
+    {
+      "id": "unknown",
+      "type": "external",
+      "label": "Outcome unknown",
+      "sublabel": "The effect may already have happened",
+      "tag": "Actor or host loss: preserve state",
+      "pos": [
+        760,
+        1930
+      ],
+      "size": [
+        480,
+        140
+      ]
+    },
+    {
+      "id": "reobserve",
+      "type": "external",
+      "label": "Re-observe current state",
+      "sublabel": "Re-observe; never replay blindly",
+      "tag": "Fresh Facts, Plan and new admission",
+      "pos": [
+        1390,
+        1930
+      ],
+      "size": [
+        490,
+        140
+      ]
+    },
+    {
+      "id": "recheck-refused",
+      "type": "external",
+      "label": "Freshness check refused",
+      "sublabel": "No admitted runner for stale inputs",
+      "tag": "Resolve; observe; evaluate afresh",
+      "pos": [
+        1390,
+        740
+      ],
+      "size": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "cas-rejected",
+      "type": "external",
+      "label": "CAS precondition rejected",
+      "sublabel": "No update by this CAS attempt",
+      "tag": "Other effects are not rolled back",
+      "pos": [
+        1390,
+        1625
+      ],
+      "size": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "conditions",
+      "type": "external",
+      "label": "Resolve the actual cause",
+      "sublabel": "If model gap: preserve counterexample",
+      "tag": "Repair smallest boundary; recompile",
+      "pos": [
+        100,
+        1625
+      ],
+      "size": [
+        540,
+        150
+      ]
+    },
+    {
+      "id": "inventory",
+      "type": "external",
+      "label": "Inspect founding state",
+      "sublabel": "Observe before creating anything",
+      "tag": "Prove expected absence; preserve provenance",
+      "pos": [
+        100,
+        80
+      ],
+      "size": [
+        540,
+        160
+      ]
+    },
+    {
+      "id": "prepare",
+      "type": "external",
+      "label": "Preview Skills scaffold",
+      "sublabel": "Minimal native assets; no write",
+      "tag": "Native tools own generation",
+      "pos": [
+        760,
+        80
+      ],
+      "size": [
+        480,
+        160
+      ]
+    },
+    {
+      "id": "preview",
+      "type": "external",
+      "label": "Preview binding plan",
+      "sublabel": ".ethos/profile.toml",
+      "tag": "No write; review conflicts / rollback",
+      "pos": [
+        1390,
+        80
+      ],
+      "size": [
+        490,
+        160
+      ]
+    },
+    {
+      "id": "binding-conflict",
+      "type": "external",
+      "label": "Binding conflict: stop",
+      "sublabel": "Different nonempty binding stays intact",
+      "tag": "No overwrite; resolve under its owner",
+      "pos": [
+        760,
+        390
+      ],
+      "size": [
+        540,
+        160
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "evaluate",
+      "from": "inputs",
+      "to": "admit",
+      "label": "evaluate all inputs",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        500,
+        975
+      ]
+    },
+    {
+      "id": "pass",
+      "from": "admit",
+      "to": "recheck",
+      "label": "own PASS",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        700,
+        995
+      ]
+    },
+    {
+      "id": "bind-prestate",
+      "from": "expected",
+      "to": "recheck",
+      "label": "bind exact state",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1130,
+        970
+      ]
+    },
+    {
+      "id": "admit-runner",
+      "from": "recheck",
+      "to": "runner",
+      "label": "fresh",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelDx": 0,
+      "labelDy": 65
+    },
+    {
+      "id": "apply",
+      "from": "runner",
+      "to": "cas",
+      "label": "apply",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1735,
+        1280
+      ]
+    },
+    {
+      "id": "postobserve",
+      "from": "cas",
+      "to": "observe",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default"
+    },
+    {
+      "id": "attest-result",
+      "from": "observe",
+      "to": "attest",
+      "label": "observed result",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default",
+      "labelAt": [
+        535,
+        1860
+      ]
+    },
+    {
+      "id": "refuse",
+      "from": "admit",
+      "to": "refused",
+      "label": "non-PASS",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        485,
+        1282
+      ]
+    },
+    {
+      "id": "unknown-result",
+      "from": "observe",
+      "to": "unknown",
+      "label": "inconclusive",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1130,
+        1830
+      ]
+    },
+    {
+      "id": "recover",
+      "from": "unknown",
+      "to": "reobserve",
+      "label": "observe again",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        1310,
+        1880
+      ]
+    },
+    {
+      "id": "recompile",
+      "from": "reobserve",
+      "to": "inventory",
+      "label": "new attempt",
+      "fromSide": "right",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          1950,
+          2000
+        ],
+        [
+          1950,
+          20
+        ],
+        [
+          370,
+          20
+        ]
+      ],
+      "labelAt": [
+        1690,
+        650
+      ]
+    },
+    {
+      "id": "resolve",
+      "from": "conditions",
+      "to": "inputs",
+      "label": "resolve; fresh inputs",
+      "fromSide": "left",
+      "toSide": "left",
+      "variant": "dashed",
+      "via": [
+        [
+          40,
+          1700
+        ],
+        [
+          40,
+          815
+        ]
+      ],
+      "labelAt": [
+        205,
+        945
+      ]
+    },
+    {
+      "id": "freshness-refusal",
+      "from": "recheck",
+      "to": "recheck-refused",
+      "label": "stale / invalid",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelDx": 140,
+      "labelDy": 0
+    },
+    {
+      "id": "cas-refusal",
+      "from": "cas",
+      "to": "cas-rejected",
+      "label": "known mismatch",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1745,
+        1576
+      ]
+    },
+    {
+      "id": "rejected-reobserve",
+      "from": "cas-rejected",
+      "to": "reobserve",
+      "label": "observe fresh state",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1770,
+        1858
+      ]
+    },
+    {
+      "id": "resolve-cause",
+      "from": "refused",
+      "to": "conditions",
+      "label": "resolve conditions",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        485,
+        1572
+      ]
+    },
+    {
+      "id": "fresh-inputs",
+      "from": "recheck-refused",
+      "to": "inputs",
+      "fromSide": "top",
+      "toSide": "right",
+      "variant": "dashed",
+      "via": [
+        [
+          1635,
+          705
+        ],
+        [
+          710,
+          705
+        ],
+        [
+          710,
+          815
+        ]
+      ]
+    },
+    {
+      "id": "inventory-prepare",
+      "from": "inventory",
+      "to": "prepare",
+      "label": "prepare minimal scaffold",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        700,
+        290
+      ]
+    },
+    {
+      "id": "prepare-preview",
+      "from": "prepare",
+      "to": "preview",
+      "label": "review owner-native changes",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        1330,
+        285
+      ]
+    },
+    {
+      "id": "preview-inputs",
+      "from": "preview",
+      "to": "inputs",
+      "label": "authorized, compatible binding",
+      "fromSide": "right",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          1930,
+          160
+        ],
+        [
+          1930,
+          620
+        ],
+        [
+          370,
+          620
+        ]
+      ],
+      "labelAt": [
+        1590,
+        580
+      ]
+    },
+    {
+      "id": "preview-conflict",
+      "from": "preview",
+      "to": "binding-conflict",
+      "label": "differing nonempty binding",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          1635,
+          320
+        ],
+        [
+          1030,
+          320
+        ]
+      ],
+      "labelAt": [
+        1440,
+        365
+      ]
+    },
+    {
+      "id": "reinspect",
+      "from": "binding-conflict",
+      "to": "inventory",
+      "label": "resolve; inspect again",
+      "fromSide": "left",
+      "toSide": "bottom",
+      "variant": "dashed",
+      "via": [
+        [
+          370,
+          470
+        ]
+      ],
+      "labelAt": [
+        510,
+        425
+      ]
+    }
+  ],
+  "boundaries": [],
+  "cards": [
+    {
+      "dot": "slate",
+      "title": "Formation without product cloning",
+      "items": [
+        "Greenfield: inspect the founding state and expected absence, then preview a minimal native scaffold through Skills. Preserve customization and upgrade provenance from first generation; first acceptance uses the same local protocol.",
+        "ETHOS plans the tracked .ethos/profile.toml binding. A differing nonempty binding is a conflict: no implicit merge, overlay, alias or migration. Existing unrelated files stay outside adoption scope.",
+        "Optional capabilities retain their owners: Skills and generators prepare native assets; OpenSpec owns its carrier; docs, skill governance and provider tools own their projections. A profile points at native roots without imposing ETHOS product layout, branch names or provider configuration."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Admission and result are different claims",
+      "items": [
+        "All required inputs: Authorized subject; Applicable authority; Compiled Commitment; Fresh observations; TransitionPlan; Integrated candidate; Local executed claim.",
+        "Required claim selector: all declared proof-plane claims whose exact subject, predicate, scope, bindings, validity and verifier apply.",
+        "Attestation is the sole durable semantic result, scoped by predicate, bindings, validity and verifier, never permission. Commitment, Facts and Plan are transient. Change relations and experiments are derived: no persistent workflow graph, compatibility residue, feedback ledger or memory-backed truth.",
+        "Own candidate, policy, fresh authority and proof belong to this repository. Shared admission grammar does not import the ETHOS accepted root, another repository’s objects or its permission."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Refusal and uncertainty are different",
+      "items": [
+        "A stale effect-time check admits no runner. A definite CAS mismatch means this local CAS did not update its ref; it does not undo earlier effects or other resources. An uncertain outcome must be observed before any further attempt.",
+        "Contradiction or missing meaning blocks the affected effect. Preserve the counterexample, promote the smallest model boundary and recompile; no exception route around authority."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Binding is not permission or historical approval",
+      "items": [
+        "Preview is reviewable and idempotent; adoption is reversible before first governed effect. Retain customization and upgrade provenance. No retroactive approval is conferred on inherited history.",
+        "The present binding command requires explicit authorization and exact HEAD. Terminal mutation-capable adoption additionally initializes and verifies official OpenSpec; without that carrier, a repository remains observation-only. The explanatory preparation path does not claim that every terminal behavior is implemented today.",
+        "A first effect still binds current subject, policy, intent, Facts, Plan, exact object and applicable proof. Missing facts, conflicts or stale state block it. Neither successful scaffold generation nor an installed profile grants a reusable PASS."
+      ]
+    }
+  ]
+}

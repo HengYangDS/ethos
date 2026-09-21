@@ -1,0 +1,543 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ETHOS · 问道 — Accepted-root closeout",
+    "subtitle": "Target architecture, not a claim of current implementation.",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "visual_preset": "editorial",
+    "viewBox": [
+      1980,
+      1510
+    ],
+    "legend": {
+      "mode": "hidden"
+    },
+    "views": [
+      {
+        "id": "inputs",
+        "label": "Bind and admit",
+        "focus": [
+          "inputs",
+          "expected",
+          "admit",
+          "recheck"
+        ],
+        "note": "Applicable claims support evaluation; they do not grant permission."
+      },
+      {
+        "id": "effect",
+        "label": "One local attempt",
+        "focus": [
+          "recheck",
+          "runner",
+          "cas",
+          "observe",
+          "attest"
+        ],
+        "note": "Only a fresh admitted runner can attempt this exact local effect."
+      },
+      {
+        "id": "recovery",
+        "label": "Refuse, reject or re-observe",
+        "focus": [
+          "refused",
+          "conditions",
+          "recheck-refused",
+          "cas-rejected",
+          "unknown",
+          "reobserve",
+          "inputs"
+        ],
+        "note": "Pre-action refusal, a definite CAS rejection and an uncertain result require different accounting."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "inputs",
+      "type": "external",
+      "label": "Subject · policy · Commitment",
+      "sublabel": "Fresh Facts · Plan · integrated candidate",
+      "tag": "Executed local proof",
+      "pos": [
+        100,
+        80
+      ],
+      "size": [
+        540,
+        150
+      ]
+    },
+    {
+      "id": "expected",
+      "type": "external",
+      "label": "Accepted root",
+      "sublabel": "Accepted Git ref / HEAD / tree",
+      "tag": "Drift invalidates the old attempt",
+      "pos": [
+        760,
+        80
+      ],
+      "size": [
+        480,
+        150
+      ]
+    },
+    {
+      "id": "admit",
+      "type": "external",
+      "label": "Evaluate declared proof claims",
+      "sublabel": "Exact subject · predicate · scope",
+      "tag": "bindings · validity · verifier",
+      "pos": [
+        100,
+        390
+      ],
+      "size": [
+        540,
+        150
+      ]
+    },
+    {
+      "id": "recheck",
+      "type": "external",
+      "label": "Fresh effect-time recheck",
+      "sublabel": "Rebind authority and exact prestate",
+      "tag": "This resource; this admitted attempt",
+      "pos": [
+        760,
+        390
+      ],
+      "size": [
+        480,
+        150
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "external",
+      "label": "Single-use runner",
+      "sublabel": "Bound to the admitted operation",
+      "tag": "No stale execution or blind replay",
+      "pos": [
+        1390,
+        390
+      ],
+      "size": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "cas",
+      "type": "external",
+      "label": "Accepted-root CAS",
+      "sublabel": "Apply against exact expected state",
+      "tag": "No cross-provider transaction",
+      "pos": [
+        1390,
+        700
+      ],
+      "size": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "observe",
+      "type": "external",
+      "label": "Post-observe",
+      "sublabel": "Read the actual resulting state",
+      "tag": "An attempt is not proof of success",
+      "pos": [
+        760,
+        700
+      ],
+      "size": [
+        480,
+        150
+      ]
+    },
+    {
+      "id": "attest",
+      "type": "external",
+      "label": "Scoped Attestation",
+      "sublabel": "Predicate · bindings · validity · verifier",
+      "tag": "Exact Commitment; never permission",
+      "pos": [
+        100,
+        1270
+      ],
+      "size": [
+        540,
+        140
+      ]
+    },
+    {
+      "id": "refused",
+      "type": "external",
+      "label": "No new attempt",
+      "sublabel": "BLOCK or UNKNOWN before execution",
+      "tag": "Resolve conditions; evaluate afresh",
+      "pos": [
+        100,
+        700
+      ],
+      "size": [
+        540,
+        150
+      ]
+    },
+    {
+      "id": "unknown",
+      "type": "external",
+      "label": "Outcome unknown",
+      "sublabel": "The effect may already have happened",
+      "tag": "Actor or host loss: preserve state",
+      "pos": [
+        760,
+        1270
+      ],
+      "size": [
+        480,
+        140
+      ]
+    },
+    {
+      "id": "reobserve",
+      "type": "external",
+      "label": "Re-observe current state",
+      "sublabel": "Re-observe; never replay blindly",
+      "tag": "Fresh Facts, Plan and new admission",
+      "pos": [
+        1390,
+        1270
+      ],
+      "size": [
+        490,
+        140
+      ]
+    },
+    {
+      "id": "recheck-refused",
+      "type": "external",
+      "label": "Freshness check refused",
+      "sublabel": "No admitted runner for stale inputs",
+      "tag": "Resolve; observe; evaluate afresh",
+      "pos": [
+        1390,
+        80
+      ],
+      "size": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "cas-rejected",
+      "type": "external",
+      "label": "CAS precondition rejected",
+      "sublabel": "No update by this CAS attempt",
+      "tag": "Other effects are not rolled back",
+      "pos": [
+        1390,
+        965
+      ],
+      "size": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "conditions",
+      "type": "external",
+      "label": "Resolve the actual cause",
+      "sublabel": "If model gap: preserve counterexample",
+      "tag": "Repair smallest boundary; recompile",
+      "pos": [
+        100,
+        965
+      ],
+      "size": [
+        540,
+        150
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "evaluate",
+      "from": "inputs",
+      "to": "admit",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "label": "evaluate all inputs",
+      "labelAt": [
+        500,
+        315
+      ]
+    },
+    {
+      "id": "pass",
+      "from": "admit",
+      "to": "recheck",
+      "label": "own PASS",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        700,
+        335
+      ]
+    },
+    {
+      "id": "bind-prestate",
+      "from": "expected",
+      "to": "recheck",
+      "label": "bind exact state",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1130,
+        310
+      ]
+    },
+    {
+      "id": "admit-runner",
+      "from": "recheck",
+      "to": "runner",
+      "label": "fresh",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelDx": 0,
+      "labelDy": 65
+    },
+    {
+      "id": "apply",
+      "from": "runner",
+      "to": "cas",
+      "label": "apply",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        1735,
+        620
+      ]
+    },
+    {
+      "id": "postobserve",
+      "from": "cas",
+      "to": "observe",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default"
+    },
+    {
+      "id": "attest-result",
+      "from": "observe",
+      "to": "attest",
+      "label": "observed result",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default",
+      "labelAt": [
+        535,
+        1200
+      ]
+    },
+    {
+      "id": "refuse",
+      "from": "admit",
+      "to": "refused",
+      "label": "non-PASS",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        485,
+        622
+      ]
+    },
+    {
+      "id": "unknown-result",
+      "from": "observe",
+      "to": "unknown",
+      "label": "inconclusive",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1130,
+        1170
+      ]
+    },
+    {
+      "id": "recover",
+      "from": "unknown",
+      "to": "reobserve",
+      "label": "observe again",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        1310,
+        1220
+      ]
+    },
+    {
+      "id": "recompile",
+      "from": "reobserve",
+      "to": "inputs",
+      "label": "new attempt",
+      "fromSide": "right",
+      "toSide": "top",
+      "variant": "dashed",
+      "via": [
+        [
+          1930,
+          1340
+        ],
+        [
+          1930,
+          35
+        ],
+        [
+          370,
+          35
+        ]
+      ],
+      "labelAt": [
+        1670,
+        305
+      ]
+    },
+    {
+      "id": "resolve",
+      "from": "conditions",
+      "to": "inputs",
+      "label": "resolve; fresh inputs",
+      "fromSide": "left",
+      "toSide": "left",
+      "variant": "dashed",
+      "via": [
+        [
+          40,
+          1040
+        ],
+        [
+          40,
+          155
+        ]
+      ],
+      "labelAt": [
+        205,
+        285
+      ]
+    },
+    {
+      "id": "freshness-refusal",
+      "from": "recheck",
+      "to": "recheck-refused",
+      "label": "stale / invalid",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelDx": 140,
+      "labelDy": 0
+    },
+    {
+      "id": "cas-refusal",
+      "from": "cas",
+      "to": "cas-rejected",
+      "label": "known mismatch",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1745,
+        916
+      ]
+    },
+    {
+      "id": "rejected-reobserve",
+      "from": "cas-rejected",
+      "to": "reobserve",
+      "label": "observe fresh state",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        1770,
+        1198
+      ]
+    },
+    {
+      "id": "resolve-cause",
+      "from": "refused",
+      "to": "conditions",
+      "label": "resolve conditions",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        485,
+        912
+      ]
+    },
+    {
+      "id": "fresh-inputs",
+      "from": "recheck-refused",
+      "to": "inputs",
+      "fromSide": "top",
+      "toSide": "right",
+      "variant": "dashed",
+      "via": [
+        [
+          1635,
+          45
+        ],
+        [
+          710,
+          45
+        ],
+        [
+          710,
+          155
+        ]
+      ]
+    }
+  ],
+  "boundaries": [],
+  "cards": [
+    {
+      "dot": "slate",
+      "title": "Accepted-root closeout — local scope",
+      "items": [
+        "Distinct roles: work authors; candidate integrates; proposal reviews; dev accepts; main releases. Candidate proof and expected accepted state bind a separate CAS. Developer MR/PR or authorized maintainer closeout selects the same object. Retire proposal after dev acceptance and review closure, not main release."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Admission and result are different claims",
+      "items": [
+        "All required inputs: Authorized subject; Applicable authority; Compiled Commitment; Fresh observations; TransitionPlan; Integrated candidate; Local executed claim.",
+        "Required claim selector: all declared proof-plane claims whose exact subject, predicate, scope, bindings, validity and verifier apply.",
+        "Attestation is the sole durable semantic result, scoped by predicate, bindings, validity and verifier, never permission. Commitment, Facts and Plan are transient. Change relations and experiments are derived: no persistent workflow graph, compatibility residue, feedback ledger or memory-backed truth."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Refusal and uncertainty are different",
+      "items": [
+        "A stale effect-time check admits no runner. A definite CAS mismatch means this local CAS did not update its ref; it does not undo earlier effects or other resources. An uncertain outcome must be observed before any further attempt.",
+        "Contradiction or missing meaning blocks the affected effect. Preserve the counterexample, promote the smallest model boundary and recompile; no exception route around authority."
+      ]
+    }
+  ]
+}

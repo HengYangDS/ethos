@@ -1,0 +1,191 @@
+{
+  "sourceRevision": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "effectAuthority": false,
+  "semanticAcceptance": "UNVERIFIED",
+  "nodes": {
+    "common": [
+      "git_common_state"
+    ],
+    "activation": [
+      "git_common_activation"
+    ],
+    "worktrees": [
+      "linked_worktree",
+      "work_lane",
+      "prewrite_admission",
+      "action_pass",
+      "lane_proof_claim"
+    ],
+    "lease": [
+      "lease"
+    ],
+    "report": [
+      "repository_family_convergence"
+    ],
+    "retirement": [
+      "runtime_generation_retirement"
+    ],
+    "retained": [
+      "runtime_generation_retirement",
+      "git_common_activation"
+    ],
+    "retired": [
+      "runtime_generation_retirement",
+      "adoption_exit"
+    ]
+  },
+  "connections": {
+    "select-activation": [
+      "coordination",
+      "lanes",
+      "authority",
+      "exit"
+    ],
+    "coordinate-lease": [
+      "coordination",
+      "lanes",
+      "authority",
+      "exit"
+    ],
+    "activate-worktrees": [
+      "coordination",
+      "lanes",
+      "authority",
+      "exit"
+    ],
+    "lease-prewrite": [
+      "coordination",
+      "lanes",
+      "authority",
+      "exit"
+    ],
+    "family-report": [
+      "coordination",
+      "lanes",
+      "authority",
+      "exit"
+    ],
+    "retirement-binding": [
+      "coordination",
+      "lanes",
+      "authority",
+      "exit"
+    ],
+    "retain-generation": [
+      "coordination",
+      "lanes",
+      "authority",
+      "exit"
+    ],
+    "retire-generation": [
+      "coordination",
+      "lanes",
+      "authority",
+      "exit"
+    ]
+  },
+  "relations": {
+    "select-activation": {
+      "sourceRelations": [
+        "git-common-state-selects-activation"
+      ],
+      "effectAuthority": false,
+      "explanation": "Repository-common selection coordinates one activation. It grants no permission."
+    },
+    "coordinate-lease": {
+      "sourceRelations": [
+        "local-state-coordinates-lease"
+      ],
+      "effectAuthority": false,
+      "explanation": "Lease binds only lane, holder, generation and expiry; authority remains separate."
+    },
+    "activate-worktrees": {
+      "sourceRelations": [
+        "common-activation-governs-linked-worktree"
+      ],
+      "effectAuthority": false,
+      "explanation": "The visible worktree aggregate means every linked worktree, not one selected lane or a shared PASS."
+    },
+    "lease-prewrite": {
+      "sourceRelations": [
+        "lease-coordinates-lane",
+        "lease-binds-prewrite"
+      ],
+      "effectAuthority": false,
+      "explanation": "Coordination facts are inputs to each local prewrite decision, never sufficient authority."
+    },
+    "family-report": {
+      "sourceRelations": [
+        "common-activation-projects-family-report"
+      ],
+      "effectAuthority": false,
+      "explanation": "The report projects checked runtime and worktree facts; it is not activation authority."
+    },
+    "retirement-binding": {
+      "sourceRelations": [
+        "common-activation-binds-retirement"
+      ],
+      "effectAuthority": false,
+      "explanation": "After successful activation, subsequent reclamation evaluates unused generations. Deferral preserves activation and exact partial results; it is not an activation rollback."
+    },
+    "retain-generation": {
+      "sourceRelations": [],
+      "effectAuthority": false,
+      "explanation": "Conditional source predicate: current operational use or UNKNOWN retains this exact generation. Historical path mentions are not executable leases."
+    },
+    "retire-generation": {
+      "sourceRelations": [],
+      "effectAuthority": false,
+      "explanation": "Conditional source predicate: re-observe dependencies and exact owned directory under the bounded selector fence before each removal; the fence is not global process isolation."
+    }
+  },
+  "scopes": [],
+  "cards": [
+    {
+      "index": 0,
+      "sourceAssertions": [
+        "coordination",
+        "lanes",
+        "authority",
+        "exit"
+      ],
+      "sourceNodes": [
+        "git_common_activation",
+        "runtime_generation_retirement",
+        "repository_family_convergence",
+        "lease"
+      ]
+    },
+    {
+      "index": 1,
+      "sourceAssertions": [
+        "coordination",
+        "lanes",
+        "authority",
+        "exit"
+      ],
+      "sourceNodes": [
+        "git_common_activation",
+        "runtime_generation_retirement",
+        "repository_family_convergence",
+        "lease"
+      ]
+    },
+    {
+      "index": 2,
+      "sourceAssertions": [
+        "coordination",
+        "lanes",
+        "authority",
+        "exit"
+      ],
+      "sourceNodes": [
+        "git_common_activation",
+        "runtime_generation_retirement",
+        "repository_family_convergence",
+        "lease"
+      ]
+    }
+  ]
+}

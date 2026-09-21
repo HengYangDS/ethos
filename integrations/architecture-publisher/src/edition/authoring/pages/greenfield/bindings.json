@@ -1,0 +1,539 @@
+{
+  "sourceRevision": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "effectAuthority": false,
+  "semanticAcceptance": "UNVERIFIED",
+  "nodes": {
+    "inputs": [
+      "authorized_subject",
+      "authority_reference",
+      "commitment_n",
+      "fresh_facts",
+      "transition_plan",
+      "candidate_next",
+      "local_claim"
+    ],
+    "expected": [
+      "greenfield_expected_state"
+    ],
+    "admit": [
+      "effect_evaluation",
+      "effect_pass"
+    ],
+    "recheck": [
+      "greenfield_effect_recheck"
+    ],
+    "runner": [
+      "greenfield_admitted_runner"
+    ],
+    "cas": [
+      "greenfield_cas"
+    ],
+    "observe": [
+      "greenfield_post_observation"
+    ],
+    "attest": [
+      "greenfield_effect_attestation"
+    ],
+    "refused": [
+      "effect_block",
+      "effect_unknown"
+    ],
+    "unknown": [
+      "outcome_unknown",
+      "executor_loss"
+    ],
+    "reobserve": [
+      "recovery_anchor"
+    ],
+    "recheck-refused": [
+      "greenfield_effect_recheck"
+    ],
+    "cas-rejected": [
+      "greenfield_cas",
+      "greenfield_expected_state"
+    ],
+    "conditions": [
+      "model_gap",
+      "model_promotion",
+      "recovery_anchor"
+    ],
+    "inventory": [
+      "greenfield_expected_state",
+      "greenfield_repo"
+    ],
+    "prepare": [
+      "skills",
+      "owner_native_tools",
+      "repository_norms",
+      "owner_native_artifacts"
+    ],
+    "preview": [
+      "greenfield_conformance",
+      "repository_norms"
+    ],
+    "binding-conflict": [
+      "greenfield_expected_state",
+      "greenfield_conformance"
+    ]
+  },
+  "connections": {
+    "evaluate": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "pass": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "bind-prestate": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "admit-runner": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "apply": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "postobserve": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "attest-result": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "refuse": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "unknown-result": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "recover": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "recompile": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "resolve": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "freshness-refusal": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "cas-refusal": [
+      "effect",
+      "candidate",
+      "recovery"
+    ],
+    "rejected-reobserve": [
+      "recovery"
+    ],
+    "resolve-cause": [
+      "model",
+      "recovery"
+    ],
+    "fresh-inputs": [
+      "recovery",
+      "authority"
+    ],
+    "inventory-prepare": [
+      "greenfield",
+      "norms",
+      "capabilities",
+      "authority"
+    ],
+    "prepare-preview": [
+      "greenfield",
+      "norms",
+      "capabilities",
+      "authority"
+    ],
+    "preview-inputs": [
+      "greenfield",
+      "norms",
+      "capabilities",
+      "authority"
+    ],
+    "preview-conflict": [
+      "greenfield",
+      "norms",
+      "capabilities",
+      "authority"
+    ],
+    "reinspect": [
+      "greenfield",
+      "norms",
+      "capabilities",
+      "authority"
+    ]
+  },
+  "relations": {
+    "evaluate": {
+      "sourceRelations": [
+        "local-claim-to-effect-evaluation",
+        "commitment-to-effect-evaluation",
+        "subject-authorizes-effect-evaluation",
+        "authority-binds-effect-evaluation",
+        "facts-bind-effect-evaluation",
+        "plan-binds-effect-evaluation",
+        "candidate-next-to-effect-evaluation"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "pass": {
+      "sourceRelations": [
+        "greenfield-pass-to-recheck"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "bind-prestate": {
+      "sourceRelations": [
+        "greenfield-state-binds-recheck"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "admit-runner": {
+      "sourceRelations": [
+        "greenfield-recheck-admits-runner"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "apply": {
+      "sourceRelations": [
+        "greenfield-runner-applies-cas"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "postobserve": {
+      "sourceRelations": [
+        "greenfield-cas-to-post-observation"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "attest-result": {
+      "sourceRelations": [
+        "greenfield-post-to-attestation"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "refuse": {
+      "sourceRelations": [
+        "effect-block-branch",
+        "effect-unknown-branch"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "unknown-result": {
+      "sourceRelations": [
+        "post-to-outcome-unknown"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "The source recovery rule is instantiated for this exact resource; its source node identity is not a shared runtime result or permission.",
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "resource": "greenfield_repo"
+    },
+    "recover": {
+      "sourceRelations": [
+        "outcome-unknown-to-recovery"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "The source recovery rule is instantiated for this exact resource; its source node identity is not a shared runtime result or permission.",
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "resource": "greenfield_repo"
+    },
+    "recompile": {
+      "sourceRelations": [
+        "recovery-reobserves",
+        "facts-compile",
+        "compile-plan"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "After uncertain execution, re-observe and restart the read-only adoption inventory, then preview and fresh admission. Re-entering preparation does not execute a scaffold or replay a write; the checked owner-native preview remains non-effecting.",
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "resource": "greenfield_repo"
+    },
+    "resolve": {
+      "sourceRelations": [
+        "promotion-to-compile",
+        "recovery-reobserves"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Conditional model repair or fresh observation returns to compilation and admission. Never a shortcut to a runner.",
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "resource": "greenfield_repo"
+    },
+    "freshness-refusal": {
+      "mode": "conditional-consequence-of-source-contract",
+      "sourceRelations": [],
+      "assertions": [
+        "effect",
+        "authority",
+        "recovery"
+      ],
+      "resource": "greenfield_repo",
+      "sourceContract": "greenfield_effect",
+      "effectAuthority": false,
+      "explanation": "A non-fresh check cannot admit the contract-bound runner. This conditional is inferred from the effect_time_freshness guard, not a new literal source edge."
+    },
+    "cas-refusal": {
+      "mode": "conditional-consequence-of-source-contract",
+      "sourceRelations": [],
+      "assertions": [
+        "effect",
+        "candidate",
+        "recovery"
+      ],
+      "resource": "greenfield_repo",
+      "sourceContract": "greenfield_effect",
+      "effectAuthority": false,
+      "explanation": "A definite expected-state rejection does not update this exact resource through this CAS. It neither proves global rollback nor describes an unobserved outcome. This conditional follows the exact-CAS contract."
+    },
+    "rejected-reobserve": {
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "sourceRelations": [
+        "recovery-reobserves"
+      ],
+      "assertions": [
+        "recovery"
+      ],
+      "resource": "greenfield_repo",
+      "sourceContract": "greenfield_effect",
+      "effectAuthority": false,
+      "explanation": "A known local rejection leads to fresh observation, not replay; previous effects on other resources remain separately accounted."
+    },
+    "resolve-cause": {
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "sourceRelations": [
+        "effect-block-to-model-gap",
+        "model-gap-to-promotion"
+      ],
+      "assertions": [
+        "model",
+        "recovery"
+      ],
+      "resource": "greenfield_repo",
+      "sourceContract": "greenfield_effect",
+      "effectAuthority": false,
+      "explanation": "Only a contradiction or model gap requires model promotion; ordinary missing facts require observation. The visible conditional does not force every refusal through model changes."
+    },
+    "fresh-inputs": {
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "sourceRelations": [
+        "recovery-reobserves",
+        "facts-compile",
+        "compile-plan"
+      ],
+      "assertions": [
+        "recovery",
+        "authority"
+      ],
+      "resource": "greenfield_repo",
+      "sourceContract": "greenfield_effect",
+      "effectAuthority": false,
+      "explanation": "The refusal text already names resolution, observation and fresh evaluation; the return reaches complete inputs, never the old runner. No extra edge label is needed."
+    },
+    "inventory-prepare": {
+      "mode": "source-text-preflight-explanation",
+      "sourceRelations": [],
+      "sourceTextBindings": [
+        "adoption",
+        "product_contract"
+      ],
+      "sourceAssertions": [
+        "greenfield",
+        "norms",
+        "capabilities"
+      ],
+      "resource": "greenfield_repo",
+      "effectAuthority": false,
+      "explanation": "The product contract calls for observed founding state and a minimal native scaffold through Skills. This arrow prepares a preview, not permission to mutate a repository."
+    },
+    "prepare-preview": {
+      "mode": "source-text-preflight-explanation",
+      "sourceRelations": [],
+      "sourceTextBindings": [
+        "adoption",
+        "product_contract"
+      ],
+      "sourceAssertions": [
+        "greenfield",
+        "norms",
+        "capabilities"
+      ],
+      "resource": "greenfield_repo",
+      "effectAuthority": false,
+      "explanation": "The adoption source names one declaration-first profile plan. OpenSpec, docs, Skills and CI remain owned by their native tools."
+    },
+    "preview-inputs": {
+      "mode": "source-text-preflight-explanation",
+      "sourceRelations": [],
+      "sourceTextBindings": [
+        "adoption",
+        "product_contract"
+      ],
+      "sourceAssertions": [
+        "greenfield",
+        "norms",
+        "capabilities"
+      ],
+      "resource": "greenfield_repo",
+      "effectAuthority": false,
+      "explanation": "An admissible binding and owner-native preparation enter the same local proof/effect protocol. This conceptual relation does not equate the current adopt command with the entire terminal first-effect protocol."
+    },
+    "preview-conflict": {
+      "mode": "source-text-preflight-explanation",
+      "sourceRelations": [],
+      "sourceTextBindings": [
+        "adoption",
+        "product_contract"
+      ],
+      "sourceAssertions": [
+        "greenfield",
+        "norms",
+        "capabilities"
+      ],
+      "resource": "greenfield_repo",
+      "effectAuthority": false,
+      "explanation": "The current adoption contract refuses implicit merging, overlay, aliasing or migration of a conflicting nonempty profile."
+    },
+    "reinspect": {
+      "mode": "source-text-preflight-explanation",
+      "sourceRelations": [],
+      "sourceTextBindings": [
+        "adoption",
+        "product_contract"
+      ],
+      "sourceAssertions": [
+        "greenfield",
+        "norms",
+        "capabilities"
+      ],
+      "resource": "greenfield_repo",
+      "effectAuthority": false,
+      "explanation": "Conflicts preserve inherited state. Resolution is owned and explicit, followed by fresh inspection rather than force or replay."
+    }
+  },
+  "scopes": [],
+  "cards": [
+    {
+      "index": 0,
+      "assertions": [
+        "greenfield"
+      ],
+      "sourceContract": "greenfield_effect"
+    },
+    {
+      "index": 1,
+      "assertions": [
+        "authority",
+        "evidence"
+      ],
+      "sourceGate": "effect_admission_gate"
+    },
+    {
+      "index": 2,
+      "assertions": [
+        "effect",
+        "recovery",
+        "model"
+      ],
+      "sourceContract": "greenfield_effect",
+      "mode": "explicit-source-contract-consequence",
+      "semanticAcceptance": "UNVERIFIED"
+    },
+    {
+      "index": 3,
+      "assertions": [
+        "greenfield",
+        "norms",
+        "authority",
+        "capabilities"
+      ],
+      "sourceTextBindings": [
+        "adoption",
+        "product_contract"
+      ]
+    }
+  ],
+  "continuationPredicates": [
+    {
+      "node": "recheck-refused",
+      "field": "tag",
+      "target": "inputs",
+      "text": "Resolve; observe; evaluate afresh",
+      "sourceRelations": [
+        "recovery-reobserves",
+        "facts-compile",
+        "compile-plan"
+      ],
+      "effectAuthority": false
+    }
+  ]
+}

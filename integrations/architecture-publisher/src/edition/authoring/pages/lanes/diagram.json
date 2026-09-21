@@ -1,0 +1,1026 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ETHOS · 问道 — Parallel Work, Selective Integration",
+    "subtitle": "Target architecture, not a claim of current implementation.",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "visual_preset": "editorial",
+    "viewBox": [
+      2790,
+      2760
+    ],
+    "legend": {
+      "mode": "hidden"
+    },
+    "views": [
+      {
+        "id": "parallel",
+        "label": "Separate lane-local identities",
+        "focus": [
+          "inputs",
+          "lane-a",
+          "base-a",
+          "lease-a",
+          "worktree-a",
+          "prewrite-a",
+          "proof-a",
+          "lane-b",
+          "base-b",
+          "lease-b",
+          "worktree-b",
+          "prewrite-b",
+          "proof-b",
+          "lane-c",
+          "base-c",
+          "lease-c",
+          "worktree-c",
+          "prewrite-c",
+          "proof-c"
+        ],
+        "note": "Each lane has its own Base, Lease, Worktree, Prewrite and proof. Neither coordination nor proof grants permission."
+      },
+      {
+        "id": "selection",
+        "label": "Choose contributions, not a fixed winner",
+        "focus": [
+          "modes",
+          "selection",
+          "proven-object",
+          "retained"
+        ],
+        "note": "Cooperate, compete or explore. All-drop retains findings; selected-only provenance does not require every lane."
+      },
+      {
+        "id": "integration",
+        "label": "Prove object, then advance candidate",
+        "focus": [
+          "proven-object",
+          "candidate",
+          "claim",
+          "accepted"
+        ],
+        "note": "Proven combination, one candidate CAS attempt and separate accepted-root closeout are distinct boundaries."
+      },
+      {
+        "id": "continuity",
+        "label": "Account for value before disposal",
+        "focus": [
+          "retained",
+          "claim",
+          "exit",
+          "learning"
+        ],
+        "note": "Stop writers, preserve unique results and retire only discharged owned resources under fresh authority."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "coordination",
+      "type": "external",
+      "label": "One Git-common runtime",
+      "sublabel": "Coordinates worktrees and lane Leases",
+      "tag": "No semantic truth or write permission",
+      "pos": [
+        50,
+        20
+      ],
+      "size": [
+        840,
+        200
+      ]
+    },
+    {
+      "id": "inputs",
+      "type": "external",
+      "label": "Each Lane: fresh inputs, own PASS",
+      "sublabel": "Subject / policy / Commitment / Facts / Plan",
+      "tag": "BLOCK / UNKNOWN: no execution",
+      "pos": [
+        940,
+        20
+      ],
+      "size": [
+        840,
+        200
+      ]
+    },
+    {
+      "id": "modes",
+      "type": "external",
+      "label": "Choose how work contributes",
+      "sublabel": "Cooperate: compatible many / synthesis",
+      "tag": "Compete: zero or one; explore findings",
+      "pos": [
+        1860,
+        20
+      ],
+      "size": [
+        890,
+        200
+      ]
+    },
+    {
+      "id": "admission-a",
+      "type": "external",
+      "label": "Admit A",
+      "sublabel": "Own PASS",
+      "pos": [
+        180,
+        550
+      ],
+      "size": [
+        270,
+        150
+      ]
+    },
+    {
+      "id": "actor-a",
+      "type": "external",
+      "label": "Actor A",
+      "sublabel": "Human / agent",
+      "tag": "Scoped execution",
+      "pos": [
+        550,
+        550
+      ],
+      "size": [
+        330,
+        190
+      ]
+    },
+    {
+      "id": "base-a",
+      "type": "external",
+      "label": "Base A",
+      "sublabel": "Candidate ref",
+      "tag": "HEAD / tree",
+      "pos": [
+        800,
+        280
+      ],
+      "size": [
+        290,
+        190
+      ]
+    },
+    {
+      "id": "lease-a",
+      "type": "external",
+      "label": "Lease A",
+      "sublabel": "Lane / holder",
+      "tag": "Generation/expiry",
+      "pos": [
+        1140,
+        280
+      ],
+      "size": [
+        360,
+        190
+      ]
+    },
+    {
+      "id": "lane-a",
+      "type": "external",
+      "label": "Lane A",
+      "sublabel": "Own Plan; current Lease",
+      "tag": "Stale: refresh/prove/admit",
+      "pos": [
+        1020,
+        550
+      ],
+      "size": [
+        500,
+        190
+      ]
+    },
+    {
+      "id": "worktree-a",
+      "type": "external",
+      "label": "Worktree A",
+      "sublabel": "Isolated work",
+      "tag": "Common runtime",
+      "pos": [
+        1760,
+        550
+      ],
+      "size": [
+        340,
+        190
+      ]
+    },
+    {
+      "id": "proof-a",
+      "type": "external",
+      "label": "Proof claim A",
+      "sublabel": "Executed at HEAD",
+      "pos": [
+        1760,
+        800
+      ],
+      "size": [
+        340,
+        150
+      ]
+    },
+    {
+      "id": "prewrite-a",
+      "type": "external",
+      "label": "Prewrite A",
+      "sublabel": "Own lane / Worktree / Lease",
+      "tag": "Fresh; before tracked writes",
+      "pos": [
+        2240,
+        550
+      ],
+      "size": [
+        520,
+        190
+      ]
+    },
+    {
+      "id": "admission-b",
+      "type": "external",
+      "label": "Admit B",
+      "sublabel": "Own PASS",
+      "pos": [
+        180,
+        1070
+      ],
+      "size": [
+        270,
+        150
+      ]
+    },
+    {
+      "id": "actor-b",
+      "type": "external",
+      "label": "Actor B",
+      "sublabel": "Human / agent",
+      "tag": "Scoped execution",
+      "pos": [
+        550,
+        1070
+      ],
+      "size": [
+        330,
+        190
+      ]
+    },
+    {
+      "id": "base-b",
+      "type": "external",
+      "label": "Base B",
+      "sublabel": "Candidate ref",
+      "tag": "HEAD / tree",
+      "pos": [
+        800,
+        800
+      ],
+      "size": [
+        290,
+        190
+      ]
+    },
+    {
+      "id": "lease-b",
+      "type": "external",
+      "label": "Lease B",
+      "sublabel": "Lane / holder",
+      "tag": "Generation/expiry",
+      "pos": [
+        1140,
+        800
+      ],
+      "size": [
+        360,
+        190
+      ]
+    },
+    {
+      "id": "lane-b",
+      "type": "external",
+      "label": "Lane B",
+      "sublabel": "Own Plan; current Lease",
+      "tag": "Stale: refresh/prove/admit",
+      "pos": [
+        1020,
+        1070
+      ],
+      "size": [
+        500,
+        190
+      ]
+    },
+    {
+      "id": "worktree-b",
+      "type": "external",
+      "label": "Worktree B",
+      "sublabel": "Isolated work",
+      "tag": "Common runtime",
+      "pos": [
+        1760,
+        1070
+      ],
+      "size": [
+        340,
+        190
+      ]
+    },
+    {
+      "id": "proof-b",
+      "type": "external",
+      "label": "Proof claim B",
+      "sublabel": "Executed at HEAD",
+      "pos": [
+        1760,
+        1320
+      ],
+      "size": [
+        340,
+        150
+      ]
+    },
+    {
+      "id": "prewrite-b",
+      "type": "external",
+      "label": "Prewrite B",
+      "sublabel": "Own lane / Worktree / Lease",
+      "tag": "Fresh; before tracked writes",
+      "pos": [
+        2240,
+        1070
+      ],
+      "size": [
+        520,
+        190
+      ]
+    },
+    {
+      "id": "admission-c",
+      "type": "external",
+      "label": "Admit C",
+      "sublabel": "Own PASS",
+      "pos": [
+        180,
+        1590
+      ],
+      "size": [
+        270,
+        150
+      ]
+    },
+    {
+      "id": "actor-c",
+      "type": "external",
+      "label": "Actor C",
+      "sublabel": "Human / agent",
+      "tag": "Scoped execution",
+      "pos": [
+        550,
+        1590
+      ],
+      "size": [
+        330,
+        190
+      ]
+    },
+    {
+      "id": "base-c",
+      "type": "external",
+      "label": "Base C",
+      "sublabel": "Candidate ref",
+      "tag": "HEAD / tree",
+      "pos": [
+        800,
+        1320
+      ],
+      "size": [
+        290,
+        190
+      ]
+    },
+    {
+      "id": "lease-c",
+      "type": "external",
+      "label": "Lease C",
+      "sublabel": "Lane / holder",
+      "tag": "Generation/expiry",
+      "pos": [
+        1140,
+        1320
+      ],
+      "size": [
+        360,
+        190
+      ]
+    },
+    {
+      "id": "lane-c",
+      "type": "external",
+      "label": "Lane C",
+      "sublabel": "Own Plan; current Lease",
+      "tag": "Stale: refresh/prove/admit",
+      "pos": [
+        1020,
+        1590
+      ],
+      "size": [
+        500,
+        190
+      ]
+    },
+    {
+      "id": "worktree-c",
+      "type": "external",
+      "label": "Worktree C",
+      "sublabel": "Isolated work",
+      "tag": "Common runtime",
+      "pos": [
+        1760,
+        1590
+      ],
+      "size": [
+        340,
+        190
+      ]
+    },
+    {
+      "id": "proof-c",
+      "type": "external",
+      "label": "Proof claim C",
+      "sublabel": "Executed at HEAD",
+      "pos": [
+        1760,
+        1840
+      ],
+      "size": [
+        340,
+        150
+      ]
+    },
+    {
+      "id": "prewrite-c",
+      "type": "external",
+      "label": "Prewrite C",
+      "sublabel": "Own lane / Worktree / Lease",
+      "tag": "Fresh; before tracked writes",
+      "pos": [
+        2240,
+        1590
+      ],
+      "size": [
+        520,
+        190
+      ]
+    },
+    {
+      "id": "selection",
+      "type": "external",
+      "label": "Select contributions",
+      "sublabel": "Modes apply to any lane",
+      "tag": "Zero, one or compatible many",
+      "pos": [
+        150,
+        2080
+      ],
+      "size": [
+        650,
+        190
+      ]
+    },
+    {
+      "id": "proven-object",
+      "type": "external",
+      "label": "Proven selected object",
+      "sublabel": "Selected bases/prewrite/proofs",
+      "tag": "Prove combination before CAS",
+      "pos": [
+        970,
+        2080
+      ],
+      "size": [
+        590,
+        190
+      ]
+    },
+    {
+      "id": "candidate",
+      "type": "external",
+      "label": "Serial candidate CAS",
+      "sublabel": "Own PASS; one local CAS attempt",
+      "tag": "One selected Lane claim",
+      "pos": [
+        1620,
+        2080
+      ],
+      "size": [
+        600,
+        190
+      ]
+    },
+    {
+      "id": "accepted",
+      "type": "external",
+      "label": "Accepted root",
+      "sublabel": "Own root admission",
+      "tag": "Separate CAS",
+      "pos": [
+        2330,
+        2080
+      ],
+      "size": [
+        410,
+        190
+      ]
+    },
+    {
+      "id": "claim",
+      "type": "external",
+      "label": "Candidate result",
+      "sublabel": "Post-observe exact ref/object",
+      "tag": "Scoped result; no permission",
+      "pos": [
+        1620,
+        2420
+      ],
+      "size": [
+        600,
+        190
+      ]
+    },
+    {
+      "id": "retained",
+      "type": "external",
+      "label": "Retain, not integrate",
+      "sublabel": "All-drop: keep useful results",
+      "tag": "Positive/negative/inconclusive",
+      "pos": [
+        150,
+        2420
+      ],
+      "size": [
+        600,
+        190
+      ]
+    },
+    {
+      "id": "exit",
+      "type": "external",
+      "label": "Handoff / exit",
+      "sublabel": "Quiesce; keep value",
+      "tag": "Discharged, owned only",
+      "pos": [
+        2320,
+        2420
+      ],
+      "size": [
+        430,
+        190
+      ]
+    },
+    {
+      "id": "learning",
+      "type": "external",
+      "label": "Revisit inquiry",
+      "sublabel": "Findings challenge assumptions",
+      "tag": "No silent authority change",
+      "pos": [
+        900,
+        2420
+      ],
+      "size": [
+        570,
+        190
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "pass-a",
+      "from": "admission-a",
+      "to": "actor-a",
+      "label": "own PASS",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        500,
+        510
+      ]
+    },
+    {
+      "id": "execute-a",
+      "from": "actor-a",
+      "to": "lane-a",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default"
+    },
+    {
+      "id": "base-a",
+      "from": "base-a",
+      "to": "lane-a",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "lease-a",
+      "from": "lease-a",
+      "to": "lane-a",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed"
+    },
+    {
+      "id": "worktree-a",
+      "from": "lane-a",
+      "to": "worktree-a",
+      "label": "coordinates",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelDx": 40,
+      "labelDy": -113
+    },
+    {
+      "id": "proof-a",
+      "from": "lane-a",
+      "to": "proof-a",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default"
+    },
+    {
+      "id": "tree-prewrite-a",
+      "from": "worktree-a",
+      "to": "prewrite-a",
+      "label": "bind exact worktree",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        2180,
+        510
+      ]
+    },
+    {
+      "id": "offer-a",
+      "from": "lane-a",
+      "to": "selection",
+      "label": "offer results",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "variant": "default",
+      "via": [
+        [
+          1270,
+          770
+        ],
+        [
+          40,
+          770
+        ],
+        [
+          40,
+          2175
+        ]
+      ],
+      "labelAt": [
+        480,
+        850
+      ]
+    },
+    {
+      "id": "pass-b",
+      "from": "admission-b",
+      "to": "actor-b",
+      "label": "own PASS",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        500,
+        1030
+      ]
+    },
+    {
+      "id": "execute-b",
+      "from": "actor-b",
+      "to": "lane-b",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default"
+    },
+    {
+      "id": "base-b",
+      "from": "base-b",
+      "to": "lane-b",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "lease-b",
+      "from": "lease-b",
+      "to": "lane-b",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed"
+    },
+    {
+      "id": "worktree-b",
+      "from": "lane-b",
+      "to": "worktree-b",
+      "label": "coordinates",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelDx": 40,
+      "labelDy": -113
+    },
+    {
+      "id": "proof-b",
+      "from": "lane-b",
+      "to": "proof-b",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default"
+    },
+    {
+      "id": "tree-prewrite-b",
+      "from": "worktree-b",
+      "to": "prewrite-b",
+      "label": "bind exact worktree",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        2180,
+        1030
+      ]
+    },
+    {
+      "id": "offer-b",
+      "from": "lane-b",
+      "to": "selection",
+      "label": "offer results",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "via": [
+        [
+          1270,
+          1290
+        ],
+        [
+          95,
+          1290
+        ],
+        [
+          95,
+          2000
+        ],
+        [
+          475,
+          2000
+        ]
+      ],
+      "labelAt": [
+        480,
+        1370
+      ]
+    },
+    {
+      "id": "pass-c",
+      "from": "admission-c",
+      "to": "actor-c",
+      "label": "own PASS",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        500,
+        1550
+      ]
+    },
+    {
+      "id": "execute-c",
+      "from": "actor-c",
+      "to": "lane-c",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default"
+    },
+    {
+      "id": "base-c",
+      "from": "base-c",
+      "to": "lane-c",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default"
+    },
+    {
+      "id": "lease-c",
+      "from": "lease-c",
+      "to": "lane-c",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed"
+    },
+    {
+      "id": "worktree-c",
+      "from": "lane-c",
+      "to": "worktree-c",
+      "label": "coordinates",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelDx": 40,
+      "labelDy": -113
+    },
+    {
+      "id": "proof-c",
+      "from": "lane-c",
+      "to": "proof-c",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default"
+    },
+    {
+      "id": "tree-prewrite-c",
+      "from": "worktree-c",
+      "to": "prewrite-c",
+      "label": "bind exact worktree",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        2180,
+        1550
+      ]
+    },
+    {
+      "id": "offer-c",
+      "from": "lane-c",
+      "to": "selection",
+      "label": "offer results",
+      "fromSide": "left",
+      "toSide": "right",
+      "variant": "default",
+      "labelDx": 220,
+      "labelDy": 20
+    },
+    {
+      "id": "select-object",
+      "from": "selection",
+      "to": "proven-object",
+      "label": "prove selected combination",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelDx": 280,
+      "labelDy": -160
+    },
+    {
+      "id": "integrate-object",
+      "from": "proven-object",
+      "to": "candidate",
+      "label": "own admission",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        1540,
+        2020
+      ]
+    },
+    {
+      "id": "keep",
+      "from": "selection",
+      "to": "retained",
+      "label": "findings, not integration",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        760,
+        2350
+      ]
+    },
+    {
+      "id": "review",
+      "from": "candidate",
+      "to": "accepted",
+      "label": "same reviewed object",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "default",
+      "labelAt": [
+        2350,
+        2020
+      ]
+    },
+    {
+      "id": "attest",
+      "from": "candidate",
+      "to": "claim",
+      "label": "post-observe; attest",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "default",
+      "labelAt": [
+        2130,
+        2350
+      ]
+    },
+    {
+      "id": "account",
+      "from": "retained",
+      "to": "exit",
+      "label": "preserve unique value",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "variant": "dashed",
+      "via": [
+        [
+          450,
+          2710
+        ],
+        [
+          2535,
+          2710
+        ]
+      ],
+      "labelAt": [
+        1400,
+        2740
+      ]
+    },
+    {
+      "id": "retire-integrated",
+      "from": "claim",
+      "to": "exit",
+      "label": "result + fresh authority",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        2200,
+        2670
+      ]
+    },
+    {
+      "id": "learn",
+      "from": "retained",
+      "to": "learning",
+      "label": "revisit assumptions",
+      "fromSide": "right",
+      "toSide": "left",
+      "variant": "dashed",
+      "labelAt": [
+        1150,
+        2670
+      ]
+    }
+  ],
+  "boundaries": [],
+  "cards": [
+    {
+      "dot": "slate",
+      "title": "Independent preparation; selected provenance",
+      "items": [
+        "Worktrees prepare and prove independently from exact bases. Fresh prewrite binds actor, lane and current facts; a four-field Lease coordinates, never stores intent or permission.",
+        "Cooperation: multiple compatible contributions or synthesis. Competition: zero or one. Exploration: knowledge, including negative results. All-drop is valid; preserve value before retirement.",
+        "Combine compatible contributions, prove the selected object, then recheck and CAS the candidate ref. Record the effect; changed bases invalidate stale attempts and require fresh combination checks.",
+        "Distinct roles: work authors; candidate integrates; proposal reviews; dev accepts; main releases. Candidate proof and expected accepted state bind a separate CAS. Developer MR/PR or authorized maintainer closeout selects the same object. Retire proposal after dev acceptance and review closure, not main release.",
+        "Each selected contribution binds its own Base, current Lease, linked Worktree, Prewrite and lane proof. Visible alternatives are not jointly mandatory. The exact selected combination must be proved before candidate advancement.",
+        "Candidate inputs: Applicable authority; Compiled Commitment; Fresh observations; TransitionPlan; Proven lane candidate; Candidate integration state; Lane-bound proof claim.",
+        "Required claim selector: the one selected Lane claim whose exact transient Commitment, candidate base, current Lease, HEAD and proof apply."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Coordination grants no authority",
+      "items": [
+        "Subject, current policy, intent, facts and plan are conjunctive. Only PASS admits action. BLOCK or UNKNOWN does not execute; capability, evidence and coordination grant no permission.",
+        "One Git-common activation, no per-worktree authority. Preview adoption; use the locked toolchain for immutable runtime activation, state migration, hook rebinding and activation rollback. After activation, reclaim unused generations from fresh operational dependencies; deferred reclamation preserves successful activation and exact partial outcomes.",
+        "Prove exact candidates and combinations with falsifiable checks. Independent verification is optional unless risk or policy requires its separate trust domain. Local, independent and hosted claims stay distinct; a composite needs a responsible verifier and explicit rule. Evidence does not authorize effects."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Value survives declined integration",
+      "items": [
+        "Attestation is the sole durable semantic result, scoped by predicate, bindings, validity and verifier, never permission. Commitment, Facts and Plan are transient. Change relations and experiments are derived: no persistent workflow graph, compatibility residue, feedback ledger or memory-backed truth.",
+        "A new Agent continues from exact results with fresh authority. Stop writers, account for unique work, preserve useful findings, retire exact owned resources and remove discharged runtime projections.",
+        "Use outcomes and retained experiments to challenge goals, intent, implementation or assumptions. Return to research and accepted intent; observations cannot silently change standards or authority.",
+        "BLOCK prevents a future effect; UNKNOWN may describe an already attempted effect. Preserve reachable Git and necessary Attestations through actor or host loss. Re-observe uncertain outcomes, recompile and reauthorize before continuation; never replay blindly.",
+        "A Lease or process scan does not prove writers stopped. Unknown liveness, dirty content or unaccounted-for unique work prevents retirement. Preservation is not automatic semantic absorption."
+      ]
+    }
+  ]
+}

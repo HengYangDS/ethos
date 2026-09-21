@@ -1,0 +1,57 @@
+{
+  "sourceRepository": "ethos-terminal-architecture-archify",
+  "sourceCommit": "771572cf9fe27c6c2bab8005ac96177bbace7c98",
+  "scope": "Active rendering and source-binding functions only. Source reads use the successor integration; old builders, source replay and host lookup are not imported.",
+  "members": [
+    {
+      "source": "scripts/native-atlas.mjs",
+      "target": "reader.mjs",
+      "sourceSha256": "a1e08a3ed614416bd714206d475c0b2ee1d45539a02469199e328ac5f716e9ec"
+    },
+    {
+      "source": "scripts/native-semantic-passport.mjs",
+      "target": "passport.mjs",
+      "sourceSha256": "de75b62446b639801d4f06676b24e0df1db839b8885182498023fe5c7eb8c36b"
+    },
+    {
+      "source": "scripts/native-resource-comparison.mjs",
+      "target": "resource-comparison.mjs",
+      "sourceSha256": "a71df616029377ba3340f09b9d73482f993d9312b564d2996a2889124ee79108"
+    },
+    {
+      "source": "scripts/native-verification-details.mjs",
+      "target": "verification-details.mjs",
+      "sourceSha256": "fa57156f6ae0e370266d171c3479a28d9c967c139af27fa337a05619304d2d5b"
+    },
+    {
+      "source": "scripts/native-write-boundary.mjs",
+      "target": "write-boundary.mjs",
+      "sourceSha256": "8d80272fdd5a1db6e978241414d1ce634ccaf313c72494ebc7a5d888c56a35c6"
+    },
+    {
+      "source": "scripts/native-annotations.mjs",
+      "target": "annotations.mjs",
+      "sourceSha256": "bf1f5fd34dd55609dd91348b4d81484f8911d78e77555931a89eb4974628da13"
+    },
+    {
+      "source": "scripts/renderer-adapter.mjs",
+      "target": "typography.mjs",
+      "sourceSha256": "bba29b7702270483ce505da771ebd5ccf8bc2b0bf1290e97fbe6852d76d270df"
+    },
+    {
+      "source": "scripts/native-fonts.mjs",
+      "target": "fonts.mjs",
+      "sourceSha256": "de33bb8b6ab0ad57748aec7aae18459a578b1c14f39788a0c43f051c173203f4"
+    },
+    {
+      "source": "scripts/exact-binding-predicates.mjs",
+      "target": "predicates.mjs",
+      "sourceSha256": "6e4422ef8c5b1074479a5ae3040784e9ed19709a1c72c436814cfe9a069b4e0b"
+    },
+    {
+      "source": "scripts/build-native.mjs",
+      "target": "bindings.mjs",
+      "sourceSha256": "cb23f08550118ff4f231d703d2a14d82bcc2508c4b2175f7e30c41701f044a1c"
+    }
+  ]
+}

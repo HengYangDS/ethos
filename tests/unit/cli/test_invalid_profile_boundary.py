@@ -21,6 +21,7 @@ from ethos.cli import main
 from ethos.contracts.admission import root_command
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
+from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
@@ -44,7 +45,9 @@ def _invoke(monkeypatch, capsys, *args, exit_code=1, entrypoint=main):
     return json.loads(captured.err if protocol else captured.out)
 
 
-@pytest.mark.parametrize("operation", [inspect_repository, plan_repository, adopt_repository])
+@pytest.mark.parametrize(
+    "operation", [inspect_repository, plan_repository, adopt_repository, land_repository]
+)
 @pytest.mark.parametrize("code", ["git_executable_unavailable", GIT_PROCESS_TIMED_OUT])
 @pytest.mark.parametrize("keyword", [False, True])
 def test_application_native_failure_preserves_result(

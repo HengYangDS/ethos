@@ -1,0 +1,400 @@
+{
+  "sourceRevision": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+  "sourceDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+  "effectAuthority": false,
+  "semanticAcceptance": "UNVERIFIED",
+  "nodes": {
+    "inputs": [
+      "authorized_subject",
+      "authority_reference",
+      "git_substrate",
+      "publication_remote_observation",
+      "publication_remote"
+    ],
+    "expected": [
+      "publication_remote_observation"
+    ],
+    "admit": [
+      "effect_evaluation",
+      "effect_pass"
+    ],
+    "recheck": [
+      "publication_effect_recheck"
+    ],
+    "runner": [
+      "publication_admitted_runner"
+    ],
+    "cas": [
+      "publication_remote_cas"
+    ],
+    "observe": [
+      "publication_post_observation"
+    ],
+    "attest": [
+      "publication_effect_attestation"
+    ],
+    "refused": [
+      "effect_block",
+      "effect_unknown"
+    ],
+    "unknown": [
+      "outcome_unknown",
+      "executor_loss"
+    ],
+    "reobserve": [
+      "recovery_anchor"
+    ],
+    "recheck-refused": [
+      "publication_effect_recheck"
+    ],
+    "cas-rejected": [
+      "publication_remote_cas",
+      "publication_remote_observation"
+    ],
+    "conditions": [
+      "model_gap",
+      "model_promotion",
+      "recovery_anchor"
+    ]
+  },
+  "connections": {
+    "evaluate": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "pass": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "bind-prestate": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "admit-runner": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "apply": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "postobserve": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "attest-result": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "refuse": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "unknown-result": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "recover": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "recompile": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "resolve": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "freshness-refusal": [
+      "effect",
+      "authority",
+      "recovery"
+    ],
+    "cas-refusal": [
+      "effect",
+      "candidate",
+      "recovery"
+    ],
+    "rejected-reobserve": [
+      "recovery"
+    ],
+    "resolve-cause": [
+      "model",
+      "recovery"
+    ],
+    "fresh-inputs": [
+      "recovery",
+      "authority"
+    ]
+  },
+  "relations": {
+    "evaluate": {
+      "sourceRelations": [
+        "subject-authorizes-effect-evaluation",
+        "authority-binds-effect-evaluation"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "pass": {
+      "sourceRelations": [
+        "publication-pass-to-recheck"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "bind-prestate": {
+      "sourceRelations": [
+        "publication-state-binds-recheck"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "admit-runner": {
+      "sourceRelations": [
+        "publication-recheck-admits-runner"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "apply": {
+      "sourceRelations": [
+        "publication-runner-applies-cas"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "postobserve": {
+      "sourceRelations": [
+        "publication-cas-to-post-observation"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "attest-result": {
+      "sourceRelations": [
+        "publication-post-to-attestation"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "refuse": {
+      "sourceRelations": [
+        "effect-block-branch",
+        "effect-unknown-branch"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Exact local protocol or explicit source recovery grammar instance; no global permission."
+    },
+    "unknown-result": {
+      "sourceRelations": [
+        "post-to-outcome-unknown"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "The source recovery rule is instantiated for this exact resource; its source node identity is not a shared runtime result or permission.",
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "resource": "publication_remote"
+    },
+    "recover": {
+      "sourceRelations": [
+        "outcome-unknown-to-recovery"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "The source recovery rule is instantiated for this exact resource; its source node identity is not a shared runtime result or permission.",
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "resource": "publication_remote"
+    },
+    "recompile": {
+      "sourceRelations": [
+        "recovery-reobserves",
+        "facts-compile",
+        "compile-plan"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "The source recovery rule is instantiated for this exact resource; its source node identity is not a shared runtime result or permission.",
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "resource": "publication_remote"
+    },
+    "resolve": {
+      "sourceRelations": [
+        "promotion-to-compile",
+        "recovery-reobserves"
+      ],
+      "assertions": [
+        "effect",
+        "recovery"
+      ],
+      "explanation": "Conditional model repair or fresh observation returns to compilation and admission. Never a shortcut to a runner.",
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "resource": "publication_remote"
+    },
+    "freshness-refusal": {
+      "mode": "conditional-consequence-of-source-contract",
+      "sourceRelations": [],
+      "assertions": [
+        "effect",
+        "authority",
+        "recovery"
+      ],
+      "resource": "publication_remote",
+      "sourceContract": "publication_effect",
+      "effectAuthority": false,
+      "explanation": "A non-fresh check cannot admit the contract-bound runner. This conditional is inferred from the effect_time_freshness guard, not a new literal source edge."
+    },
+    "cas-refusal": {
+      "mode": "conditional-consequence-of-source-contract",
+      "sourceRelations": [],
+      "assertions": [
+        "effect",
+        "candidate",
+        "recovery"
+      ],
+      "resource": "publication_remote",
+      "sourceContract": "publication_effect",
+      "effectAuthority": false,
+      "explanation": "A definite expected-state rejection does not update this exact resource through this CAS. It neither proves global rollback nor describes an unobserved outcome. This conditional follows the exact-CAS contract."
+    },
+    "rejected-reobserve": {
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "sourceRelations": [
+        "recovery-reobserves"
+      ],
+      "assertions": [
+        "recovery"
+      ],
+      "resource": "publication_remote",
+      "sourceContract": "publication_effect",
+      "effectAuthority": false,
+      "explanation": "A known local rejection leads to fresh observation, not replay; previous effects on other resources remain separately accounted."
+    },
+    "resolve-cause": {
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "sourceRelations": [
+        "effect-block-to-model-gap",
+        "model-gap-to-promotion"
+      ],
+      "assertions": [
+        "model",
+        "recovery"
+      ],
+      "resource": "publication_remote",
+      "sourceContract": "publication_effect",
+      "effectAuthority": false,
+      "explanation": "Only a contradiction or model gap requires model promotion; ordinary missing facts require observation. The visible conditional does not force every refusal through model changes."
+    },
+    "fresh-inputs": {
+      "mode": "resource-local-instance-of-source-recovery-grammar",
+      "sourceRelations": [
+        "recovery-reobserves",
+        "facts-compile",
+        "compile-plan"
+      ],
+      "assertions": [
+        "recovery",
+        "authority"
+      ],
+      "resource": "publication_remote",
+      "sourceContract": "publication_effect",
+      "effectAuthority": false,
+      "explanation": "The refusal text already names resolution, observation and fresh evaluation; the return reaches complete inputs, never the old runner. No extra edge label is needed."
+    }
+  },
+  "scopes": [],
+  "cards": [
+    {
+      "index": 0,
+      "assertions": [
+        "publication"
+      ],
+      "sourceContract": "publication_effect"
+    },
+    {
+      "index": 1,
+      "assertions": [
+        "authority",
+        "evidence"
+      ],
+      "sourceGate": "publication_admission_gate"
+    },
+    {
+      "index": 2,
+      "assertions": [
+        "publication",
+        "authority",
+        "recovery"
+      ],
+      "sourceContract": "publication_effect"
+    },
+    {
+      "index": 3,
+      "assertions": [
+        "effect",
+        "recovery",
+        "model"
+      ],
+      "sourceContract": "publication_effect",
+      "mode": "explicit-source-contract-consequence",
+      "semanticAcceptance": "UNVERIFIED"
+    }
+  ],
+  "continuationPredicates": [
+    {
+      "node": "recheck-refused",
+      "field": "tag",
+      "target": "inputs",
+      "text": "Resolve; observe; evaluate afresh",
+      "sourceRelations": [
+        "recovery-reobserves",
+        "facts-compile",
+        "compile-plan"
+      ],
+      "effectAuthority": false
+    }
+  ]
+}

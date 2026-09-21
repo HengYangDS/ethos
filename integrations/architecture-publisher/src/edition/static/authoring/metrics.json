@@ -1,0 +1,5474 @@
+{
+  "schema": "architecture.text-metrics/v1",
+  "provenance": {
+    "method": "recorded",
+    "environment": "macOS CoreText historical measurement; not fresh runtime observation",
+    "fonts": [
+      "AvenirNext-Regular",
+      "AvenirNext-DemiBold",
+      "Georgia"
+    ]
+  },
+  "records": [
+    [
+      "[\"Problem\",12.5,\"400\"]",
+      {
+        "width": 47.8625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.600000000000001,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 45.612500000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research:\",12.5,\"400\"]",
+      {
+        "width": 103.27500000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.600000000000001,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 100.89999999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples\",12.5,\"400\"]",
+      {
+        "width": 161.02500000000006,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 159.28749999999997
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples test\",12.5,\"400\"]",
+      {
+        "width": 184.7750000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 183.40000000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples test scope,\",12.5,\"400\"]",
+      {
+        "width": 225.6750000000001,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 223.53750000000002,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Problem research: examples test scope, exceptions,\",12.5,\"400\"]",
+      {
+        "width": 293.59999999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 291.4625
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples test scope, exceptions, assumptions\",12.5,\"400\"]",
+      {
+        "width": 367.9,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 366.16249999999997
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples test scope, exceptions, assumptions and\",12.5,\"400\"]",
+      {
+        "width": 392.92499999999995,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 390.59999999999997
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples test scope, exceptions, assumptions and guarantees.\",12.5,\"400\"]",
+      {
+        "width": 463.2374999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 461.1124999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples test scope, exceptions, assumptions and guarantees. Compilation\",12.5,\"400\"]",
+      {
+        "width": 536.2624999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 534.0124999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples test scope, exceptions, assumptions and guarantees. Compilation is\",12.5,\"400\"]",
+      {
+        "width": 548.0624999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 546.325
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples test scope, exceptions, assumptions and guarantees. Compilation is not\",12.5,\"400\"]",
+      {
+        "width": 570.0499999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 568.675
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Problem research: examples test scope, exceptions, assumptions and guarantees. Compilation is not understanding.\",12.5,\"400\"]",
+      {
+        "width": 660.2624999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 658.1375
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All\",12.5,\"400\"]",
+      {
+        "width": 15.05,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.450000000000001,
+          "x": 0.125,
+          "y": 0,
+          "width": 13.775
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable\",12.5,\"400\"]",
+      {
+        "width": 78.18750000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 77.36250000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior\",12.5,\"400\"]",
+      {
+        "width": 109.01250000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 108.78750000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations:\",12.5,\"400\"]",
+      {
+        "width": 182.93750000000006,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 181.61250000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy\",12.5,\"400\"]",
+      {
+        "width": 249.22500000000005,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 248.90000000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy selects.\",12.5,\"400\"]",
+      {
+        "width": 294.36249999999995,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.125,
+          "width": 293.28749999999997,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy selects. Fresh\",12.5,\"400\"]",
+      {
+        "width": 327.87499999999994,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 326.6749999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy selects. Fresh Facts\",12.5,\"400\"]",
+      {
+        "width": 359.8624999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 359.17499999999995
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy selects. Fresh Facts →\",12.5,\"400\"]",
+      {
+        "width": 375.4875,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 374.08076171874995
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy selects. Fresh Facts → bounded\",12.5,\"400\"]",
+      {
+        "width": 431.8125,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 430.53749999999985
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy selects. Fresh Facts → bounded Plan\",12.5,\"400\"]",
+      {
+        "width": 459.27500000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 458.0749999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy selects. Fresh Facts → bounded Plan +\",12.5,\"400\"]",
+      {
+        "width": 470.725,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 469.62499999999983
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy selects. Fresh Facts → bounded Plan + proof\",12.5,\"400\"]",
+      {
+        "width": 505.02500000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 505.27499999999975
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All applicable prior Attestations: Plan/policy selects. Fresh Facts → bounded Plan + proof obligations.\",12.5,\"400\"]",
+      {
+        "width": 575.5625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 574.4874999999997
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Admit\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.625000000000002,
+          "x": -0.1,
+          "width": 35.3875,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 35.475,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Actor\",12.5,\"600\"]",
+      {
+        "width": 31.35,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": -0.1,
+          "width": 31.375,
+          "height": 9.025,
+          "y": -0.17500000000000002
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Lane\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.025,
+          "x": 0.9750000000000001,
+          "width": 26.1875,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 27.712500000000002,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Worktree\",12.5,\"600\"]",
+      {
+        "width": 53.98749999999999,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.07500000000000001,
+          "width": 53.3625,
+          "height": 9.625000000000002,
+          "y": -0.17500000000000002
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Prewrite\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.1125,
+          "x": 0.9750000000000001,
+          "width": 46.4,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 47.925000000000004,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Claim\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.55,
+          "width": 31.999999999999996,
+          "y": -0.225
+        },
+        "descent": 4.5749664306640625,
+        "width": 33.400000000000006,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Actor, Commitment, Plan, base, current Lease\",12.5,\"400\"]",
+      {
+        "width": 257.625,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.125,
+          "width": 256.80000000000007,
+          "height": 11.200000000000001,
+          "y": -1.75
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Exact Commitment/base/current Lease/HEAD/proof\",12.5,\"400\"]",
+      {
+        "width": 296.5125,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 295.7125,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Any action\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.9375,
+          "x": -0.1,
+          "width": 60.362500000000004,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 61.112500000000004,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Own PASS only; BLOCK / UNKNOWN stop\",12.5,\"400\"]",
+      {
+        "width": 242.35000000000005,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 240.95000000000007,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Cooperate\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.075000000000001,
+          "x": 0.55,
+          "width": 60.35000000000001,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 61.45,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Compatible many\",12.5,\"400\"]",
+      {
+        "width": 101.56249999999997,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 100.66250000000001,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"or synthesis\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.7000000000000001,
+          "width": 65.5375,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 66.8,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Compete\",12.5,\"600\"]",
+      {
+        "width": 53.81250000000001,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.55,
+          "width": 52.712500000000006,
+          "height": 12.075000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Zero or one\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9,
+          "x": 0.3875,
+          "width": 65.41250000000001,
+          "y": -0.15000000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 66.50000000000001,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Benefit,\",12.5,\"400\"]",
+      {
+        "width": 43.525000000000006,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.350000000000001,
+          "x": 1.175,
+          "y": -1.75,
+          "width": 41.3875
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Benefit, not\",12.5,\"400\"]",
+      {
+        "width": 65.1375,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.350000000000001,
+          "x": 1.175,
+          "y": -1.75,
+          "width": 63.7625
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Benefit, not delivery.\",12.5,\"400\"]",
+      {
+        "width": 116.30000000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 114.17500000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Benefit, not delivery. Bind\",12.5,\"400\"]",
+      {
+        "width": 145.35000000000002,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 143.025,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Benefit, not delivery. Bind deployed\",12.5,\"400\"]",
+      {
+        "width": 203.52500000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 201.20000000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Benefit, not delivery. Bind deployed identity,\",12.5,\"400\"]",
+      {
+        "width": 252.10000000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 249.96250000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Benefit, not delivery. Bind deployed identity, context,\",12.5,\"400\"]",
+      {
+        "width": 300.3,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 298.16249999999997
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Benefit, not delivery. Bind deployed identity, context, baseline\",12.5,\"400\"]",
+      {
+        "width": 351.07499999999993,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 349.1999999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Benefit, not delivery. Bind deployed identity, context, baseline and\",12.5,\"400\"]",
+      {
+        "width": 376.0999999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 373.77499999999986
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Benefit, not delivery. Bind deployed identity, context, baseline and time\",12.5,\"400\"]",
+      {
+        "width": 404.4999999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 402.62499999999983
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Benefit, not delivery. Bind deployed identity, context, baseline and time window.\",12.5,\"400\"]",
+      {
+        "width": 455.06249999999983,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 452.9374999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root,\",12.5,\"400\"]",
+      {
+        "width": 29.825000000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 10.6,
+          "x": 1.175,
+          "y": -1.75,
+          "width": 27.687500000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield,\",12.5,\"400\"]",
+      {
+        "width": 96.46250000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.350000000000001,
+          "x": 1.175,
+          "y": -1.75,
+          "width": 94.325
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield,\",12.5,\"400\"]",
+      {
+        "width": 163.97500000000005,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.350000000000001,
+          "x": 1.175,
+          "y": -1.75,
+          "width": 161.8375
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers:\",12.5,\"400\"]",
+      {
+        "width": 201.17500000000007,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.350000000000001,
+          "x": 1.175,
+          "y": -1.75,
+          "width": 198.8
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own\",12.5,\"400\"]",
+      {
+        "width": 228.52500000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.350000000000001,
+          "x": 1.175,
+          "y": -1.75,
+          "width": 226.275
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject,\",12.5,\"400\"]",
+      {
+        "width": 276.175,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 274.03749999999997
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject, current\",12.5,\"400\"]",
+      {
+        "width": 319.5874999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 318.21249999999986
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject, current policy,\",12.5,\"400\"]",
+      {
+        "width": 359.7124999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 357.5749999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject, current policy, Commitment,\",12.5,\"400\"]",
+      {
+        "width": 440.7749999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 438.6374999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject, current policy, Commitment, fresh\",12.5,\"400\"]",
+      {
+        "width": 471.4749999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 469.22499999999974
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject, current policy, Commitment, fresh Facts,\",12.5,\"400\"]",
+      {
+        "width": 506.7124999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 504.5749999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject, current policy, Commitment, fresh Facts, Plan,\",12.5,\"400\"]",
+      {
+        "width": 537.0499999999996,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 534.9124999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject, current policy, Commitment, fresh Facts, Plan, candidate,\",12.5,\"400\"]",
+      {
+        "width": 599.9499999999995,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 597.8124999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject, current policy, Commitment, fresh Facts, Plan, candidate, local\",12.5,\"400\"]",
+      {
+        "width": 629.5624999999994,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 627.2374999999997
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Root, Greenfield, Brownfield, Peers: own subject, current policy, Commitment, fresh Facts, Plan, candidate, local proof.\",12.5,\"400\"]",
+      {
+        "width": 667.1124999999995,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 664.9874999999998,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Local\",12.5,\"400\"]",
+      {
+        "width": 29.862499999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.600000000000001,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 27.5375
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Local PASS\",12.5,\"400\"]",
+      {
+        "width": 62.3375,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 1.175,
+          "y": -0.225,
+          "width": 60.41250000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Local PASS only.\",12.5,\"400\"]",
+      {
+        "width": 92.41250000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 90.28750000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Local PASS only. All\",12.5,\"400\"]",
+      {
+        "width": 109.98750000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 107.66250000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Local PASS only. All applicable\",12.5,\"400\"]",
+      {
+        "width": 173.12500000000006,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 171.25000000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Local PASS only. All applicable declared\",12.5,\"400\"]",
+      {
+        "width": 226.8250000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 224.50000000000009
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Local PASS only. All applicable declared proof-plane\",12.5,\"400\"]",
+      {
+        "width": 297.29999999999995,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 295.42500000000007
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Local PASS only. All applicable declared proof-plane claims:\",12.5,\"400\"]",
+      {
+        "width": 339.9625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 337.5875000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Local PASS only. All applicable declared proof-plane claims: exact\",12.5,\"400\"]",
+      {
+        "width": 373.09999999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 371.7250000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Local PASS only. All applicable declared proof-plane claims: exact subject/predicate/scope/bindings/validity/verifier.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "width": 659.7124999999999,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 661.8374999999995,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Repositories\",12.5,\"400\"]",
+      {
+        "width": 70.6625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.85,
+          "x": 1.175,
+          "y": -3,
+          "width": 68.925
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge\",12.5,\"400\"]",
+      {
+        "width": 107.20000000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 105.32500000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported\",12.5,\"400\"]",
+      {
+        "width": 163.4875,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 161.1625
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported grammar\",12.5,\"400\"]",
+      {
+        "width": 218.78750000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 217.5125
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported grammar +\",12.5,\"400\"]",
+      {
+        "width": 230.2375,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 228.0875
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported grammar + fresh\",12.5,\"400\"]",
+      {
+        "width": 261.3125000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 259.06250000000006
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported grammar + fresh local\",12.5,\"400\"]",
+      {
+        "width": 291.30000000000007,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 288.975
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported grammar + fresh local facts;\",12.5,\"400\"]",
+      {
+        "width": 324.30000000000007,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 321.925
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported grammar + fresh local facts; conformance\",12.5,\"400\"]",
+      {
+        "width": 402.77500000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 400.9
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported grammar + fresh local facts; conformance is\",12.5,\"400\"]",
+      {
+        "width": 414.57500000000005,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 412.8375
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported grammar + fresh local facts; conformance is not\",12.5,\"400\"]",
+      {
+        "width": 436.5625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 435.18749999999994
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Repositories judge imported grammar + fresh local facts; conformance is not permission.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "width": 503.68749999999994,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 505.8125,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Candidate\",12.5,\"600\"]",
+      {
+        "width": 59.99999999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.55,
+          "y": -0.225,
+          "width": 58.900000000000006
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Candidate ref\",12.5,\"600\"]",
+      {
+        "width": 78.675,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.55,
+          "width": 78.4,
+          "height": 9.825000000000001,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"All:\",12.5,\"400\"]",
+      {
+        "width": 18.8,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.525,
+          "x": 0.125,
+          "y": -0.07500000000000001,
+          "width": 17.475
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All: Proven\",12.5,\"400\"]",
+      {
+        "width": 61,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.600000000000001,
+          "x": 0.125,
+          "y": -0.15000000000000002,
+          "width": 59.800000000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All: Proven object\",12.5,\"400\"]",
+      {
+        "width": 100.22500000000004,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 99.90000000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All: Proven object +\",12.5,\"400\"]",
+      {
+        "width": 111.67500000000004,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 110.57500000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All: Proven object + state\",12.5,\"400\"]",
+      {
+        "width": 141.97500000000005,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 141.15000000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All: Proven object + state +\",12.5,\"400\"]",
+      {
+        "width": 153.42500000000004,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 152.32500000000005
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"All: Proven object + state + Commitment\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "width": 231.28750000000002,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 231.6125,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Policy/Facts/Plan;\",12.5,\"400\"]",
+      {
+        "width": 98.81250000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 96.43750000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Policy/Facts/Plan; one\",12.5,\"400\"]",
+      {
+        "width": 123.98750000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 122.11250000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Policy/Facts/Plan; one selected\",12.5,\"400\"]",
+      {
+        "width": 175.43750000000006,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 173.11250000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Policy/Facts/Plan; one selected Lane\",12.5,\"400\"]",
+      {
+        "width": 206.02500000000006,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 204.15000000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Policy/Facts/Plan; one selected Lane proof\",12.5,\"400\"]",
+      {
+        "width": 240.32500000000005,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 239.52500000000003,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Accepted\",12.5,\"600\"]",
+      {
+        "width": 55.462500000000006,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": -0.1,
+          "y": -3,
+          "width": 54.63750000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Accepted root\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": -0.1,
+          "width": 82.325,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 82.41250000000001,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Own\",12.5,\"400\"]",
+      {
+        "width": 27.212500000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.3,
+          "x": 0.7000000000000001,
+          "y": -0.225,
+          "width": 25.437500000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own state;\",12.5,\"400\"]",
+      {
+        "width": 61.2625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 10.825000000000001,
+          "x": 0.7000000000000001,
+          "y": -1.75,
+          "width": 59.362500000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own state; exact\",12.5,\"400\"]",
+      {
+        "width": 94.4,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 10.825000000000001,
+          "x": 0.7000000000000001,
+          "y": -1.75,
+          "width": 93.5
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own state; exact reviewed\",12.5,\"400\"]",
+      {
+        "width": 149.76250000000005,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.200000000000001,
+          "x": 0.7000000000000001,
+          "y": -1.75,
+          "width": 147.91250000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own state; exact reviewed object\",12.5,\"400\"]",
+      {
+        "width": 188.98750000000004,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 188.08750000000003,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Own PASS;\",12.5,\"400\"]",
+      {
+        "width": 63.4375,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 10.825000000000001,
+          "x": 0.7000000000000001,
+          "y": -1.75,
+          "width": 61.5375
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own PASS; local\",12.5,\"400\"]",
+      {
+        "width": 93.42500000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.200000000000001,
+          "x": 0.7000000000000001,
+          "y": -1.75,
+          "width": 91.575
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own PASS; local proof\",12.5,\"400\"]",
+      {
+        "width": 127.72500000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "y": -3,
+          "width": 127.40000000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own PASS; local proof +\",12.5,\"400\"]",
+      {
+        "width": 139.47500000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "y": -3,
+          "width": 137.80000000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own PASS; local proof + all\",12.5,\"400\"]",
+      {
+        "width": 155.57500000000005,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "y": -3,
+          "width": 153.72500000000005
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own PASS; local proof + all applicable\",12.5,\"400\"]",
+      {
+        "width": 218.7125000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "y": -3,
+          "width": 217.31250000000009
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own PASS; local proof + all applicable claims\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "width": 256.3625000000001,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 257.62500000000006,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Greenfield\",12.5,\"600\"]",
+      {
+        "width": 61.47500000000001,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.55,
+          "width": 60.00000000000001,
+          "height": 9.825000000000001,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Own founding\",12.5,\"400\"]",
+      {
+        "width": 82.43750000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "y": -3,
+          "width": 80.65000000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own founding state\",12.5,\"400\"]",
+      {
+        "width": 112.73750000000004,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "y": -3,
+          "width": 111.33750000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own founding state /\",12.5,\"400\"]",
+      {
+        "width": 120.48750000000004,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "y": -3,
+          "width": 119.72500000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own founding state / absence\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "width": 170.21250000000006,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 171.61250000000007,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Minimal\",12.5,\"400\"]",
+      {
+        "width": 45.449999999999996,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.600000000000001,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 43.125
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Minimal native\",12.5,\"400\"]",
+      {
+        "width": 82.72500000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.600000000000001,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 80.85000000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Minimal native Skills\",12.5,\"400\"]",
+      {
+        "width": 114.25000000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 1.175,
+          "y": -0.225,
+          "width": 112.51250000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Minimal native Skills scaffold\",12.5,\"400\"]",
+      {
+        "width": 161.75000000000003,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 159.425,
+          "height": 9.825000000000001,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Brownfield\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.775000000000002,
+          "x": 0.9750000000000001,
+          "width": 61.325,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 63.224999999999994,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Own inherited\",12.5,\"400\"]",
+      {
+        "width": 81.86250000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.7000000000000001,
+          "y": -0.225,
+          "width": 80.01250000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Own inherited state\",12.5,\"400\"]",
+      {
+        "width": 112.16250000000004,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 110.76250000000003,
+          "height": 9.675,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Keep\",12.5,\"400\"]",
+      {
+        "width": 29.7125,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.85,
+          "x": 1.175,
+          "y": -3,
+          "width": 27.8375
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Keep layout;\",12.5,\"400\"]",
+      {
+        "width": 71.375,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 69
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Keep layout; expose\",12.5,\"400\"]",
+      {
+        "width": 115.9,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 114.025
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Keep layout; expose conflicts\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "width": 164.12499999999997,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 165.86250000000004,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Peer\",12.5,\"600\"]",
+      {
+        "width": 25.712500000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.025,
+          "x": 0.9750000000000001,
+          "y": -0.17500000000000002,
+          "width": 24.662499999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Peer repos\",12.5,\"600\"]",
+      {
+        "width": 61.425000000000004,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.9750000000000001,
+          "width": 60.06250000000001,
+          "height": 11.85,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Own state; exchange\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.7000000000000001,
+          "width": 118.5625,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 119.9625,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"claims/artifacts/conformance;\",12.5,\"400\"]",
+      {
+        "width": 168.37500000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.350000000000001,
+          "x": 0.7000000000000001,
+          "y": -1.75,
+          "width": 166.47500000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"claims/artifacts/conformance; not\",12.5,\"400\"]",
+      {
+        "width": 190.3625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.350000000000001,
+          "x": 0.7000000000000001,
+          "y": -1.75,
+          "width": 189.46250000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"claims/artifacts/conformance; not permission\",12.5,\"400\"]",
+      {
+        "width": 256.36250000000007,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 254.58750000000003,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Remote\",12.5,\"600\"]",
+      {
+        "width": 45.06250000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.025,
+          "x": 0.9750000000000001,
+          "y": -0.17500000000000002,
+          "width": 43.5375
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Remote refs\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.775000000000002,
+          "x": 0.9750000000000001,
+          "width": 67.925,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 69.2875,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"trusted\",12.5,\"400\"]",
+      {
+        "width": 40.35,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.600000000000001,
+          "x": 0.05,
+          "y": -0.15000000000000002,
+          "width": 39.150000000000006
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"trusted OID\",12.5,\"400\"]",
+      {
+        "width": 66.8125,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.05,
+          "y": -0.225,
+          "width": 66.0625
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"trusted OID +\",12.5,\"400\"]",
+      {
+        "width": 78.2625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.05,
+          "y": -0.225,
+          "width": 77.2375
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"trusted OID + introduced\",12.5,\"400\"]",
+      {
+        "width": 144.23750000000004,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.05,
+          "y": -0.225,
+          "width": 143.03750000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"trusted OID + introduced range\",12.5,\"400\"]",
+      {
+        "width": 180.70000000000005,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.05,
+          "width": 179.95000000000002,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"0/1/many;\",12.5,\"400\"]",
+      {
+        "width": 58.57500000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.075000000000001,
+          "x": 0.7250000000000001,
+          "y": -3,
+          "width": 56.65000000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"0/1/many; same\",12.5,\"400\"]",
+      {
+        "width": 92.11250000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.075000000000001,
+          "x": 0.7250000000000001,
+          "y": -3,
+          "width": 90.68750000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"0/1/many; same OIDs;\",12.5,\"400\"]",
+      {
+        "width": 127.87500000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.075000000000001,
+          "x": 0.7250000000000001,
+          "y": -3,
+          "width": 125.95000000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"0/1/many; same OIDs; full\",12.5,\"400\"]",
+      {
+        "width": 148.25,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7250000000000001,
+          "y": -3,
+          "width": 146.375
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"0/1/many; same OIDs; full refs\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7250000000000001,
+          "width": 170.75,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 172.03750000000002,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Review:\",12.5,\"400\"]",
+      {
+        "width": 43.93750000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 41.562500000000014
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Review: no\",12.5,\"400\"]",
+      {
+        "width": 61.96250000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 60.08750000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Review: no completed-product\",12.5,\"400\"]",
+      {
+        "width": 176.61250000000004,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 175.23750000000004
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Review: no completed-product proof\",12.5,\"400\"]",
+      {
+        "width": 210.91250000000002,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 210.1125,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Accepted/release:\",12.5,\"400\"]",
+      {
+        "width": 104.81250000000001,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 103.48750000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Accepted/release: proof\",12.5,\"400\"]",
+      {
+        "width": 139.1125,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 139.3625
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Accepted/release: proof +\",12.5,\"400\"]",
+      {
+        "width": 150.8625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.125,
+          "y": -3,
+          "width": 149.76250000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Accepted/release: proof + closeout\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.125,
+          "width": 202.26250000000002,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 202.5875,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Per\",12.5,\"400\"]",
+      {
+        "width": 18,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 16.724999999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality\",12.5,\"400\"]",
+      {
+        "width": 102.775,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 101.40000000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim:\",12.5,\"400\"]",
+      {
+        "width": 139.88750000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 137.5125
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh\",12.5,\"400\"]",
+      {
+        "width": 170.96250000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 168.71250000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh trust/proof/policy/old\",12.5,\"400\"]",
+      {
+        "width": 297.32499999999993,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 295
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh trust/proof/policy/old refs.\",12.5,\"400\"]",
+      {
+        "width": 324.3624999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 322.23749999999995
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh trust/proof/policy/old refs. Peer-local\",12.5,\"400\"]",
+      {
+        "width": 382.8249999999998,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 380.4999999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh trust/proof/policy/old refs. Peer-local atomic\",12.5,\"400\"]",
+      {
+        "width": 424.5124999999998,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 423.1374999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh trust/proof/policy/old refs. Peer-local atomic set;\",12.5,\"400\"]",
+      {
+        "width": 448.0499999999998,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 445.67499999999984
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh trust/proof/policy/old refs. Peer-local atomic set; not\",12.5,\"400\"]",
+      {
+        "width": 470.03749999999974,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 468.6624999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh trust/proof/policy/old refs. Peer-local atomic set; not cross-peer.\",12.5,\"400\"]",
+      {
+        "width": 535.8124999999998,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 533.6874999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh trust/proof/policy/old refs. Peer-local atomic set; not cross-peer. Keep\",12.5,\"400\"]",
+      {
+        "width": 568.2749999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 566.3999999999996
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Per effect/equality claim: fresh trust/proof/policy/old refs. Peer-local atomic set; not cross-peer. Keep partial/UNKNOWN.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "width": 681.1749999999995,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 683.2999999999995,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Preview\",12.5,\"400\"]",
+      {
+        "width": 43.775,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 42.275000000000006
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native\",12.5,\"400\"]",
+      {
+        "width": 81.05000000000003,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9,
+          "x": 1.175,
+          "y": -0.15000000000000002,
+          "width": 79.17500000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations;\",12.5,\"400\"]",
+      {
+        "width": 301.9625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 299.58750000000003
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve\",12.5,\"400\"]",
+      {
+        "width": 354.8999999999999,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 353.025
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance.\",12.5,\"400\"]",
+      {
+        "width": 512.4874999999998,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 510.36249999999984
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent,\",12.5,\"400\"]",
+      {
+        "width": 585.7999999999998,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 583.6624999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual;\",12.5,\"400\"]",
+      {
+        "width": 636.2749999999997,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 633.8999999999999,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible\",12.5,\"400\"]",
+      {
+        "width": 695.5124999999996,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 693.6374999999997
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before\",12.5,\"400\"]",
+      {
+        "width": 736.4999999999995,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 734.6249999999997
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first\",12.5,\"400\"]",
+      {
+        "width": 760.4374999999994,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 759.0624999999994
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first effect.\",12.5,\"400\"]",
+      {
+        "width": 798.4749999999993,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 796.3499999999995
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first effect. Without\",12.5,\"400\"]",
+      {
+        "width": 846.4624999999994,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 845.0874999999994
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first effect. Without verified\",12.5,\"400\"]",
+      {
+        "width": 892.3749999999993,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 890.0499999999994
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first effect. Without verified OpenSpec:\",12.5,\"400\"]",
+      {
+        "width": 960.6124999999993,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 958.2374999999994
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first effect. Without verified OpenSpec: observe\",12.5,\"400\"]",
+      {
+        "width": 1009.7874999999992,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 1007.9124999999993
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first effect. Without verified OpenSpec: observe only.\",12.5,\"400\"]",
+      {
+        "width": 1039.8625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 1037.7374999999995
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first effect. Without verified OpenSpec: observe only. No\",12.5,\"400\"]",
+      {
+        "width": 1059.8,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 1057.9249999999995
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first effect. Without verified OpenSpec: observe only. No retroactive\",12.5,\"400\"]",
+      {
+        "width": 1123.4875000000004,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 1121.6125
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Preview native domain/layout/provider/observations; preserve customization/provenance. Idempotent, gradual; reversible before first effect. Without verified OpenSpec: observe only. No retroactive approval.\",12.5,\"400\"]",
+      {
+        "width": 1180.2500000000005,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "y": -3,
+          "width": 1178.125
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole\",12.5,\"400\"]",
+      {
+        "width": 24.987499999999997,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.625,
+          "y": -0.225,
+          "width": 23.662499999999998
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole durable\",12.5,\"400\"]",
+      {
+        "width": 72.625,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.625,
+          "y": -0.225,
+          "width": 71.3
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole durable semantic\",12.5,\"400\"]",
+      {
+        "width": 126.76250000000002,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.625,
+          "y": -0.225,
+          "width": 125.93750000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole durable semantic result:\",12.5,\"400\"]",
+      {
+        "width": 164.98750000000004,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.625,
+          "y": -0.225,
+          "width": 163.16250000000002
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole durable semantic result: Attestation;\",12.5,\"400\"]",
+      {
+        "width": 233.36250000000007,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.200000000000001,
+          "x": 0.625,
+          "y": -1.75,
+          "width": 231.53750000000005
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole durable semantic result: Attestation; no\",12.5,\"400\"]",
+      {
+        "width": 251.38750000000005,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.200000000000001,
+          "x": 0.625,
+          "y": -1.75,
+          "width": 250.06250000000006
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole durable semantic result: Attestation; no permission.\",12.5,\"400\"]",
+      {
+        "width": 320.63750000000005,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.625,
+          "y": -3,
+          "width": 319.06250000000006
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole durable semantic result: Attestation; no permission. Binds\",12.5,\"400\"]",
+      {
+        "width": 355.2375,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.625,
+          "y": -3,
+          "width": 354.05
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole durable semantic result: Attestation; no permission. Binds Commitment/pre/effect/post;\",12.5,\"400\"]",
+      {
+        "width": 527.1624999999998,
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.625,
+          "y": -3,
+          "width": 525.3374999999999
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Sole durable semantic result: Attestation; no permission. Binds Commitment/pre/effect/post; predicate/validity/verifier.\",12.5,\"400\"]",
+      {
+        "width": 676.0749999999995,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.625,
+          "width": 674.4999999999995,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"exceptions, assumptions\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 139.47500000000005,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 138.2125,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 11.700000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"exceptions, assumptions and\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 164.50000000000006,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 162.65000000000003,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"exceptions, assumptions and guarantees.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.7000000000000001,
+          "width": 233.16250000000005,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 234.81250000000009,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"exceptions, assumptions and guarantees. Compilation\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 307.8375000000001,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 306.0625,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"exceptions, assumptions and guarantees. Compilation is\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 319.6375000000001,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 318.375,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"exceptions, assumptions and guarantees. Compilation is not\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 341.62500000000006,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 340.72499999999997,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"exceptions, assumptions and guarantees. Compilation is not understanding.\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 431.8374999999999,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 430.18749999999983,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Fresh Facts\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.600000000000001,
+          "x": 1.175,
+          "width": 61.0125,
+          "y": -0.15000000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 62.75000000000001,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Fresh Facts →\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 78.375,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 75.91826171875,
+          "y": -0.15000000000000002,
+          "x": 1.175,
+          "height": 9.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Fresh Facts → bounded\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 134.7,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 132.37500000000003,
+          "y": -0.15000000000000002,
+          "x": 1.175,
+          "height": 9.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Fresh Facts → bounded Plan\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 162.16250000000002,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 159.91250000000002,
+          "y": -0.15000000000000002,
+          "x": 1.175,
+          "height": 9.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Fresh Facts → bounded Plan +\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 173.6125,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 171.4625,
+          "y": -0.15000000000000002,
+          "x": 1.175,
+          "height": 9.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Fresh Facts → bounded Plan + proof\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 207.91250000000002,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 207.11249999999998,
+          "y": -3,
+          "x": 1.175,
+          "height": 12.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Fresh Facts → bounded Plan + proof obligations.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "width": 276.32500000000005,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 278.45000000000005,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"deployed identity,\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.7000000000000001,
+          "width": 101.96250000000002,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 103.62500000000001,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"deployed identity, context,\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 151.82500000000007,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 150.16250000000005,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"deployed identity, context, baseline\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 202.6000000000001,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 201.20000000000007,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"deployed identity, context, baseline and\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 227.6250000000001,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 225.7750000000001,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"deployed identity, context, baseline and time\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 256.0250000000001,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 254.62500000000009,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"deployed identity, context, baseline and time window.\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 306.58750000000003,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 304.93750000000006,
+          "y": -3,
+          "x": 0.7000000000000001,
+          "height": 12.450000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 97.10000000000002,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 95.32500000000002,
+          "y": -0.15000000000000002,
+          "x": 1.075,
+          "height": 9.750000000000002
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 121.03750000000002,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 119.76250000000002,
+          "y": -0.15000000000000002,
+          "x": 1.075,
+          "height": 9.750000000000002
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first effect.\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 159.07500000000005,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 157.05000000000004,
+          "y": -0.15000000000000002,
+          "x": 1.075,
+          "height": 9.750000000000002
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first effect. Without\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 207.06250000000003,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 205.78750000000005,
+          "y": -0.15000000000000002,
+          "x": 1.075,
+          "height": 9.750000000000002
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first effect. Without verified\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 252.97500000000002,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 250.75000000000006,
+          "y": -0.15000000000000002,
+          "x": 1.075,
+          "height": 9.750000000000002
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first effect. Without verified OpenSpec:\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 321.2125,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 318.9375,
+          "y": -3,
+          "x": 1.075,
+          "height": 12.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first effect. Without verified OpenSpec: observe\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 370.38749999999993,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 368.61249999999995,
+          "y": -3,
+          "x": 1.075,
+          "height": 12.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first effect. Without verified OpenSpec: observe only.\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 400.4624999999999,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 398.4374999999999,
+          "y": -3,
+          "x": 1.075,
+          "height": 12.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first effect. Without verified OpenSpec: observe only. No\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 420.3999999999999,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 418.6249999999999,
+          "y": -3,
+          "x": 1.075,
+          "height": 12.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first effect. Without verified OpenSpec: observe only. No retroactive\",12.5,\"400\"]",
+      {
+        "descent": 4.5749664306640625,
+        "width": 484.0874999999998,
+        "height": 17.074966430664062,
+        "glyph": {
+          "width": 482.3124999999998,
+          "y": -3,
+          "x": 1.075,
+          "height": 12.600000000000001
+        },
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"reversible before first effect. Without verified OpenSpec: observe only. No retroactive approval.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.075,
+          "width": 538.8249999999998,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 540.8499999999996,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Compilation is\",12.5,\"400\"]",
+      {
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "width": 82.07499999999999,
+        "glyph": {
+          "width": 80.8125,
+          "height": 12.450000000000001,
+          "y": -3,
+          "x": 0.7000000000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Compilation is not\",12.5,\"400\"]",
+      {
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "width": 104.0625,
+        "glyph": {
+          "width": 103.16250000000001,
+          "height": 12.450000000000001,
+          "y": -3,
+          "x": 0.7000000000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"Compilation is not understanding.\",12.5,\"400\"]",
+      {
+        "width": 194.27500000000003,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 192.62500000000003,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"context, baseline\",12.5,\"400\"]",
+      {
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "width": 96.22500000000001,
+        "glyph": {
+          "width": 94.825,
+          "height": 11.200000000000001,
+          "y": -1.75,
+          "x": 0.7000000000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"context, baseline and\",12.5,\"400\"]",
+      {
+        "width": 121.25000000000001,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 119.4,
+          "height": 11.200000000000001,
+          "y": -1.75
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"context, baseline and time\",12.5,\"400\"]",
+      {
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "width": 149.65000000000003,
+        "glyph": {
+          "width": 148.25,
+          "height": 11.200000000000001,
+          "y": -1.75,
+          "x": 0.7000000000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"context, baseline and time window.\",12.5,\"400\"]",
+      {
+        "height": 17.074966430664062,
+        "ascent": 12.5,
+        "width": 200.2125,
+        "glyph": {
+          "width": 198.56249999999997,
+          "height": 11.200000000000001,
+          "y": -1.75,
+          "x": 0.7000000000000001
+        },
+        "descent": 4.5749664306640625
+      }
+    ],
+    [
+      "[\"time window.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.600000000000001,
+          "x": 0.05,
+          "width": 74.8375,
+          "y": -0.15000000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 75.8375,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"ETHOS · 问道\",18,\"600\"]",
+      {
+        "width": 109.8,
+        "descent": 6.587951660156249,
+        "glyph": {
+          "x": 1.404,
+          "width": 107.73000000000002,
+          "height": 16.938000000000002,
+          "y": -1.9619999999999997
+        },
+        "height": 25.66799032688141,
+        "ascent": 19.08003866672516
+      }
+    ],
+    [
+      "[\"Reliable repository evolution\",36,\"serif\"]",
+      {
+        "width": 458.75390625,
+        "descent": 7.892578125,
+        "glyph": {
+          "x": 1.72265625,
+          "width": 456.169921875,
+          "height": 35.015625,
+          "y": -7.8046875
+        },
+        "height": 40.904296875,
+        "ascent": 33.01171875
+      }
+    ],
+    [
+      "[\"Work authors · candidate integrates · proposal reviews · dev accepts · main releases\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.07500000000000001,
+          "width": 479.75000000000034,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 480.2125000000003,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Small trust kernel; no compatibility residue.\",12.5,\"400\"]",
+      {
+        "width": 245.58750000000006,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.625,
+          "width": 244.01250000000005,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Plan selects official/mature Skills/tools; people/Agents in session.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "width": 368.0249999999999,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 370.14999999999986,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Target architecture, not a claim of current implementation.\",12.5,\"400\"]",
+      {
+        "width": 329.92499999999984,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.15000000000000002,
+          "width": 328.825,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"MR/PR or authorized maintainer: same object.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "width": 258.93750000000006,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 261.06250000000006,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Retire proposal: dev acceptance + review closure; not main release.\",12.5,\"400\"]",
+      {
+        "width": 384.16249999999985,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 382.03749999999985,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Source acceptance / delivery / completion: distinct. Same active Change; archive after duties settle.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.625,
+          "width": 561.6249999999998,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 563.1999999999997,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Investigate\",19,\"serif\"]",
+      {
+        "width": 92.57861328125,
+        "descent": 4.16552734375,
+        "glyph": {
+          "x": 0.73291015625,
+          "width": 91.4560546875,
+          "height": 18.17431640625,
+          "y": -4.119140625
+        },
+        "height": 21.58837890625,
+        "ascent": 17.4228515625
+      }
+    ],
+    [
+      "[\"Accept meaning\",19,\"serif\"]",
+      {
+        "ascent": 17.4228515625,
+        "glyph": {
+          "height": 18.17431640625,
+          "x": -0.38037109375,
+          "width": 134.38232421875,
+          "y": -4.119140625
+        },
+        "descent": 4.16552734375,
+        "width": 134.373046875,
+        "height": 21.58837890625
+      }
+    ],
+    [
+      "[\"Compile\",18,\"serif\"]",
+      {
+        "ascent": 16.505859375,
+        "glyph": {
+          "height": 17.5078125,
+          "x": 0.685546875,
+          "width": 65.4697265625,
+          "y": -3.90234375
+        },
+        "descent": 3.9462890625,
+        "width": 66.5244140625,
+        "height": 20.4521484375
+      }
+    ],
+    [
+      "[\"Accept; supersede; pending verification; reject\",12.5,\"400\"]",
+      {
+        "width": 267.24999999999994,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.125,
+          "width": 266.925,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Accepted OpenSpec → Commitment.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.125,
+          "width": 215.88749999999996,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 216.9625,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Subject delegates to Actor: policy/intent/Facts/Plan.\",12.5,\"400\"]",
+      {
+        "width": 295.275,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.625,
+          "width": 293.7,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Parallel work\",22,\"serif\"]",
+      {
+        "ascent": 20.173828125,
+        "glyph": {
+          "height": 16.951171875,
+          "x": 0.9775390625,
+          "width": 127.5419921875,
+          "y": -0.322265625
+        },
+        "descent": 4.8232421875,
+        "width": 128.3046875,
+        "height": 24.9970703125
+      }
+    ],
+    [
+      "[\"Below: Base (ref/HEAD/tree) · Lease\",12.5,\"400\"]",
+      {
+        "width": 203.62500000000009,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 201.75000000000003,
+          "height": 11.587500000000002,
+          "y": -1.9875
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Facts\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9,
+          "x": 1.175,
+          "width": 27.125000000000004,
+          "y": -0.15000000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 28.862500000000004,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Select\",21,\"serif\"]",
+      {
+        "width": 54.87890625,
+        "descent": 4.60400390625,
+        "glyph": {
+          "x": 0.9638671875,
+          "width": 53.6484375,
+          "height": 16.17041015625,
+          "y": -0.29736328125
+        },
+        "height": 23.86083984375,
+        "ascent": 19.2568359375
+      }
+    ],
+    [
+      "[\"Prove object\",12.5,\"600\"]",
+      {
+        "width": 72.15,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.9750000000000001,
+          "width": 70.98750000000001,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Selected only\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.3125,
+          "width": 77.8,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 78.1125,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Base/prewrite\",12.5,\"400\"]",
+      {
+        "width": 79.37500000000003,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 77.50000000000001,
+          "height": 12.075000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Explore: knowledge only.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "width": 142.3375,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 144.46250000000006,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Negative/inconclusive too.\",12.5,\"400\"]",
+      {
+        "width": 151.7,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 149.575,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"All-drop: keep useful findings.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.125,
+          "width": 170.47500000000002,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 171.55000000000007,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Candidate · serial CAS\",20,\"serif\"]",
+      {
+        "width": 195.91796875,
+        "descent": 4.384765625,
+        "glyph": {
+          "x": 0.76171875,
+          "width": 194.375,
+          "height": 15.439453125,
+          "y": -0.322265625
+        },
+        "height": 22.724609375,
+        "ascent": 18.33984375
+      }
+    ],
+    [
+      "[\"CAS stales bases: refresh/prove/re-admit\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "width": 231.71250000000006,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 232.61250000000004,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Git ref / HEAD / tree\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.825000000000001,
+          "x": 0.7000000000000001,
+          "width": 112.83750000000002,
+          "y": -0.225
+        },
+        "descent": 4.5749664306640625,
+        "width": 114.23750000000003,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"All inputs\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": -0.1,
+          "width": 53.975,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 54.2625,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"PASS\",12.5,\"400\"]",
+      {
+        "width": 29.35,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 27.425,
+          "height": 9.3,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Observe\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.7000000000000001,
+          "width": 47.6375,
+          "y": -0.225
+        },
+        "descent": 4.5749664306640625,
+        "width": 49.0375,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Attestation\",12.5,\"400\"]",
+      {
+        "width": 61.72500000000001,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.125,
+          "width": 60.525,
+          "height": 9,
+          "y": -0.15000000000000002
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Accepted root\",20,\"serif\"]",
+      {
+        "ascent": 18.33984375,
+        "glyph": {
+          "height": 19.453125,
+          "x": -0.400390625,
+          "width": 122.36328125,
+          "y": -4.3359375
+        },
+        "descent": 4.384765625,
+        "width": 122.216796875,
+        "height": 22.724609375
+      }
+    ],
+    [
+      "[\"Separate acceptance\",12.5,\"400\"]",
+      {
+        "width": 119.5125,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.625,
+          "width": 118.18750000000001,
+          "height": 12.075000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Own PASS\",12.5,\"400\"]",
+      {
+        "width": 59.6875,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 58.2375,
+          "height": 9.3,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Guarded exit\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.7000000000000001,
+          "width": 73.4625,
+          "y": -0.225
+        },
+        "descent": 4.5749664306640625,
+        "width": 74.36250000000001,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Exact reviewed object\",12.5,\"400\"]",
+      {
+        "width": 124.92500000000004,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 123.55000000000003,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Actual use\",22,\"serif\"]",
+      {
+        "ascent": 20.173828125,
+        "glyph": {
+          "height": 16.908203125,
+          "x": -0.4404296875,
+          "width": 100.4716796875,
+          "y": -0.279296875
+        },
+        "descent": 4.8232421875,
+        "width": 100.482421875,
+        "height": 24.9970703125
+      }
+    ],
+    [
+      "[\"Use/findings challenge\",12.5,\"400\"]",
+      {
+        "width": 131.16250000000002,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.125,
+          "width": 129.33750000000003,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"goals/intent/code/assumptions.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.7000000000000001,
+          "width": 179.6625,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 181.3125,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"No silent authority/history edits.\",12.5,\"400\"]",
+      {
+        "width": 181.0625,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 178.93749999999997,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Can invalidate applicability.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.7000000000000001,
+          "width": 154.35000000000002,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 156.00000000000003,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Reopen inquiry\",14,\"600\"]",
+      {
+        "width": 98.686,
+        "descent": 5.12396240234375,
+        "glyph": {
+          "x": 1.092,
+          "width": 97.59400000000001,
+          "height": 13.37,
+          "y": -3.36
+        },
+        "height": 19.12396240234375,
+        "ascent": 14
+      }
+    ],
+    [
+      "[\"Per-resource effect protocol\",24,\"serif\"]",
+      {
+        "ascent": 22.0078125,
+        "glyph": {
+          "height": 23.35546875,
+          "x": 1.06640625,
+          "width": 292.23046875,
+          "y": -5.203125
+        },
+        "descent": 5.26171875,
+        "width": 293.90625,
+        "height": 27.26953125
+      }
+    ],
+    [
+      "[\"Each row: own gate/state/runner/CAS/result; no global rollback.\",12.5,\"400\"]",
+      {
+        "width": 364.5999999999998,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 362.47499999999985,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"All inputs; own PASS\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": -0.1,
+          "width": 118.7625,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 119.2625,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Recheck authority\",12.5,\"600\"]",
+      {
+        "width": 103.36249999999998,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.9750000000000001,
+          "width": 102.3875,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Single-use runner\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.3125,
+          "width": 101.06250000000003,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 101.45000000000002,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"CAS\",12.5,\"600\"]",
+      {
+        "width": 24.550000000000004,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.55,
+          "width": 23.4,
+          "height": 9.3,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Observe\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.55,
+          "width": 48.31250000000001,
+          "y": -0.225
+        },
+        "descent": 4.5749664306640625,
+        "width": 49.41250000000001,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Attest\",12.5,\"600\"]",
+      {
+        "width": 34.112500000000004,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": -0.1,
+          "width": 34.025000000000006,
+          "height": 9.025,
+          "y": -0.17500000000000002
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Expected state\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "width": 82.28750000000001,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 84.16250000000001,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"BLOCK: no run\",12.5,\"600\"]",
+      {
+        "width": 86.02500000000002,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.9750000000000001,
+          "width": 84.20000000000003,
+          "height": 9.3,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Stale: no runner\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.675,
+          "x": 0.3125,
+          "width": 91.36250000000001,
+          "y": -0.225
+        },
+        "descent": 4.5749664306640625,
+        "width": 91.75,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"CAS rejects mismatch\",12.5,\"600\"]",
+      {
+        "width": 124.27499999999999,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.55,
+          "width": 122.875,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Observe before retry\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.55,
+          "width": 120.1125,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 120.6625,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Uncertain attempt\",12.5,\"400\"]",
+      {
+        "width": 102.45000000000002,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.125,
+          "width": 101.12500000000001,
+          "height": 11.85,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"UNKNOWN\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.3,
+          "x": 1.125,
+          "width": 65.85,
+          "y": -0.225
+        },
+        "descent": 4.5749664306640625,
+        "width": 68.15,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Actor/session/host loss\",12.5,\"400\"]",
+      {
+        "width": 131.625,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.125,
+          "width": 130.9375,
+          "height": 9.675,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Recompile Plan\",12.5,\"400\"]",
+      {
+        "width": 88.2375,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 85.98750000000001,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Git object\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.55,
+          "width": 56.08750000000001,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 56.82500000000001,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"no permission\",12.5,\"400\"]",
+      {
+        "width": 80.9,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.075,
+          "width": 78.75,
+          "height": 11.700000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Local effects\",18,\"serif\"]",
+      {
+        "ascent": 16.505859375,
+        "glyph": {
+          "height": 13.8779296875,
+          "x": 0.861328125,
+          "width": 97.0400390625,
+          "y": -0.263671875
+        },
+        "descent": 3.9462890625,
+        "width": 98.578125,
+        "height": 20.4521484375
+      }
+    ],
+    [
+      "[\"Resource\",12.5,\"600\"]",
+      {
+        "width": 52.9375,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.9750000000000001,
+          "width": 51.4125,
+          "height": 9.025,
+          "y": -0.17500000000000002
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Local binding\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.9750000000000001,
+          "width": 76.37500000000001,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 78.25000000000001,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Constraints\",12.5,\"600\"]",
+      {
+        "width": 64.9375,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.55,
+          "width": 64,
+          "height": 9.3,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Subject + prior policy; request binds intent, not authority. Remotes: absent/unavailable/pending/divergent/UNKNOWN.\",12.5,\"400\"]",
+      {
+        "width": 681.2624999999996,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.625,
+          "width": 679.6874999999997,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Native owners\",18,\"serif\"]",
+      {
+        "width": 113.8095703125,
+        "descent": 3.9462890625,
+        "glyph": {
+          "x": 0.2109375,
+          "width": 112.921875,
+          "height": 13.5791015625,
+          "y": -0.263671875
+        },
+        "height": 20.4521484375,
+        "ascent": 16.505859375
+      }
+    ],
+    [
+      "[\"Interchangeable capabilities: roles; versioned interpretation; no authority/lifecycle ownership.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "width": 529.9624999999999,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 532.0874999999996,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"ETHOS repo: source + durable evidence\",12.5,\"600\"]",
+      {
+        "width": 232.05000000000007,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.9750000000000001,
+          "width": 230.52500000000003,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"One owner/current consumer; executable rules; bounded lifecycle.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "width": 380.1374999999998,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 381.78749999999985,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Transient Commitment · Facts · Plan\",12.5,\"600\"]",
+      {
+        "width": 204.54999999999998,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.05,
+          "width": 203.65,
+          "height": 9.675,
+          "y": -0.225
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"OpenSpec/Git carriers, not roots; no-spec/archive retain proof identity.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.7000000000000001,
+          "width": 400.48749999999984,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 402.1374999999998,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Skills/tools/generators/verifiers/observers\",12.5,\"600\"]",
+      {
+        "width": 242.75000000000017,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.3125,
+          "width": 242.05000000000013,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Small contracts: I/O, identity/version, permission, cancel/failure.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.625,
+          "width": 358.6999999999999,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 360.27499999999986,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Rebuildable CLI/JSON · SDK · CI/Forge\",12.5,\"600\"]",
+      {
+        "width": 225.28750000000005,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.9750000000000001,
+          "width": 223.76250000000005,
+          "height": 12.475,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"From native source/evidence; same verdict/gaps; optional MCP/A2A.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "width": 391.8875,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 394.01249999999993,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"OpenSpec intent + exact evidence\",12.5,\"600\"]",
+      {
+        "width": 199.31250000000003,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.55,
+          "width": 198.2125,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Derived experiments/relations; no workflow/feedback/memory truth.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 1.175,
+          "width": 390.31249999999994,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 392.43749999999994,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Candidate HEAD\",18,\"serif\"]",
+      {
+        "ascent": 16.505859375,
+        "glyph": {
+          "height": 13.8955078125,
+          "x": 0.685546875,
+          "width": 136.16015625,
+          "y": -0.2900390625
+        },
+        "descent": 3.9462890625,
+        "width": 137.5224609375,
+        "height": 20.4521484375
+      }
+    ],
+    [
+      "[\"Independent verifier\",12.5,\"600\"]",
+      {
+        "width": 118.63749999999997,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.9750000000000001,
+          "width": 117.58749999999999,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Receipt\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.9375,
+          "x": 0.9750000000000001,
+          "width": 42.5125,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 43.675000000000004,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Local claim\",12.5,\"400\"]",
+      {
+        "width": 63.224999999999994,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 60.97500000000001,
+          "height": 9.600000000000001,
+          "y": -0.15000000000000002
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Hosted: observe; no permission\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 1.175,
+          "width": 179.6875,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 181.9375,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Falsifiable; separate trust; optional unless risk/policy requires.\",12.5,\"400\"]",
+      {
+        "width": 349.13749999999993,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 347.01249999999993,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Optional: local/independent claim IDs + explicit rule.\",12.5,\"400\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.7000000000000001,
+          "width": 299.7125,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 301.36249999999995,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Responsible verifier → new composite claim. No scope gain.\",12.5,\"400\"]",
+      {
+        "width": 343.7,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 341.57499999999993,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Git-common\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.3,
+          "x": 0.55,
+          "width": 70.73750000000003,
+          "y": -0.225
+        },
+        "descent": 4.5749664306640625,
+        "width": 72.13750000000002,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"One runtime coordinates worktrees/Leases: lane/holder/generation/expiry; not intent or permission.\",12.5,\"400\"]",
+      {
+        "width": 570.6874999999995,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 569.0374999999998,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Every prewrite\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.9375,
+          "x": 0.9750000000000001,
+          "width": 82.4125,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 83.93749999999999,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Fresh root, branch role, actor, own four-field Lease, Git state, changed paths, official OpenSpec.\",12.5,\"400\"]",
+      {
+        "width": 538.7374999999996,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 536.6124999999998,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Tracked edit:\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.625000000000002,
+          "x": 0.05,
+          "width": 73.64999999999999,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 74.575,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"target path → repository root → context refresh → status → prewrite → write → post-write audit.\",12.5,\"400\"]",
+      {
+        "width": 545.3375,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.05,
+          "width": 544.3374999999997,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Artifacts\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.775000000000002,
+          "x": -0.1,
+          "width": 47.362500000000004,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 47.65,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Distinct origin/existence/placement/effect; native producer, exact staged bytes, surviving consumers.\",12.5,\"400\"]",
+      {
+        "width": 573.2749999999997,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 571.15,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Norms\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.025,
+          "x": 0.9750000000000001,
+          "width": 37.2375,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 38.599999999999994,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Code/tests/specs/config/docs/rules/Skills + temporary resources. Pure semantics; bounded effects.\",12.5,\"400\"]",
+      {
+        "width": 564.0624999999997,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 562.4124999999998,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Activation\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.1125,
+          "x": -0.1,
+          "width": 57.4375,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 58.1875,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Locked immutable runtime: migrate state, rebind hooks; verify every worktree. Failure: exact rollback.\",12.5,\"400\"]",
+      {
+        "width": 573.6999999999996,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 571.5749999999999,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Each removal\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.625000000000002,
+          "x": 0.9750000000000001,
+          "width": 76.0125,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 77.9125,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"After activation: reclaim unused generations; fresh operational dependencies + exact owned directory.\",12.5,\"400\"]",
+      {
+        "width": 583.1749999999996,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.125,
+          "width": 582.0999999999997,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"UNKNOWN\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.3,
+          "x": 0.9,
+          "width": 68.075,
+          "y": -0.225
+        },
+        "descent": 4.5749664306640625,
+        "width": 69.95,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Defers deletion; preserves activation/partial results. Historical observations are not executable leases.\",12.5,\"400\"]",
+      {
+        "width": 574.0999999999993,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 571.9749999999998,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Topology\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.450000000000001,
+          "x": 0.05,
+          "width": 54.300000000000004,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 54.35,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Policy: immutable package, not audited checkout. Selector fence is not global process isolation.\",12.5,\"400\"]",
+      {
+        "width": 542.7374999999997,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 540.6124999999998,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Report\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.85,
+          "x": 0.9750000000000001,
+          "width": 37.9125,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 39.075,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Activation report: hooks path/runtime; all worktrees checked/repaired; generations retained/removed.\",12.5,\"400\"]",
+      {
+        "width": 582.2874999999996,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.125,
+          "width": 581.2124999999996,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Every lane handoff / exit\",18,\"serif\"]",
+      {
+        "ascent": 16.505859375,
+        "glyph": {
+          "height": 17.5166015625,
+          "x": 0.755859375,
+          "width": 195.2138671875,
+          "y": -3.90234375
+        },
+        "descent": 3.9462890625,
+        "width": 196.1982421875,
+        "height": 20.4521484375
+      }
+    ],
+    [
+      "[\"Retire\",12.5,\"600\"]",
+      {
+        "width": 33.987500000000004,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.9750000000000001,
+          "width": 32.462500000000006,
+          "height": 9.1125,
+          "y": -0.17500000000000002
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Block\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.625000000000002,
+          "x": 0.9750000000000001,
+          "width": 31.012500000000003,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 31.950000000000003,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Gap/contradiction: affected effects/retirement\",12.5,\"400\"]",
+      {
+        "width": 261.925,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 261.0250000000001,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"If gap\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 12.600000000000001,
+          "x": 0.9750000000000001,
+          "width": 32.162499999999994,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 33.6875,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Counterexample; smallest model; recompile\",12.5,\"400\"]",
+      {
+        "width": 253.22500000000005,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 251.82500000000005,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Account\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.025,
+          "x": -0.1,
+          "width": 47.362500000000004,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 47.45,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Git/Attestations; unique work/results; loss-safe\",12.5,\"400\"]",
+      {
+        "width": 263.9125,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.7000000000000001,
+          "width": 262.51250000000005,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Quiesce\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.250000000000002,
+          "x": 0.4625,
+          "width": 46.2625,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 47.275000000000006,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"All writers; coordinate until disposal ends\",12.5,\"400\"]",
+      {
+        "width": 234.62500000000006,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 0.125,
+          "width": 233.93750000000003,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Require\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 11.9375,
+          "x": 0.9750000000000001,
+          "width": 43.3875,
+          "y": -3
+        },
+        "descent": 4.5749664306640625,
+        "width": 44.912499999999994,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Fresh authority; own exact preimage; duties met\",12.5,\"400\"]",
+      {
+        "width": 274.175,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 272.80000000000007,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Hold\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.625000000000002,
+          "x": 0.9750000000000001,
+          "width": 26.237500000000004,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 28.137500000000003,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Unknown liveness/drift blocks disposal\",12.5,\"400\"]",
+      {
+        "width": 220.56250000000006,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.125,
+          "width": 218.28750000000005,
+          "height": 12.600000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ],
+    [
+      "[\"Remove\",12.5,\"600\"]",
+      {
+        "ascent": 12.5,
+        "glyph": {
+          "height": 9.025,
+          "x": 0.9750000000000001,
+          "width": 45.7,
+          "y": -0.17500000000000002
+        },
+        "descent": 4.5749664306640625,
+        "width": 47.225,
+        "height": 17.074966430664062
+      }
+    ],
+    [
+      "[\"Discharged runtime/install projections\",12.5,\"400\"]",
+      {
+        "width": 217.61250000000004,
+        "descent": 4.5749664306640625,
+        "glyph": {
+          "x": 1.175,
+          "width": 215.875,
+          "height": 12.450000000000001,
+          "y": -3
+        },
+        "height": 17.074966430664062,
+        "ascent": 12.5
+      }
+    ]
+  ]
+}

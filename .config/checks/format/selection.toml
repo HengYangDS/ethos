@@ -319,11 +319,17 @@ yaml_allowed_roots = [
   "system/projections/",
   "tests/fixtures/",
   "distributions/npm/",
+  "integrations/architecture-publisher/",
 ], files = [
   "package.json",
   "package-lock.json",
 ] }
-".mjs" = { roots = ["distributions/npm/", "src/ethos/adapters/"] }
+".mjs" = { roots = [
+  "distributions/npm/",
+  "integrations/architecture-publisher/",
+  "src/ethos/adapters/",
+  "tests/architecture/",
+] }
 ".c4" = { roots = [".config/checks/architecture/models/"] }
 ".mmd" = { roots = ["docs/architecture/_generated/"] }
 ".svg" = { roots = ["assets/brand/"] }

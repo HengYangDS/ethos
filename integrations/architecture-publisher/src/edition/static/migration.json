@@ -1,0 +1,49 @@
+{
+  "sourceRepository": "ethos-terminal-architecture",
+  "sourceCommit": "458fe3937567f80372d7071fa3bd8428dcf7fbd1",
+  "scope": "Selected composition and pure geometry responsibilities, type erasure only before formatting. ETHOS glyph vocabulary and fixed poster layout remain edition-owned.",
+  "members": [
+    {
+      "source": "compiler/src/natural-overview.ts",
+      "sourceSha256": "25556f66382481fdc41e0303c056f15938aead8db0c0cd7b2f1de8c6c044fbdf",
+      "target": "editions/ethos/static/natural-overview.mjs",
+      "typeErasedSha256": "37b8a27d6ffb6390b02fdb739b4bd91cadd8a495d26f1f7e434360a51aa7af9e"
+    },
+    {
+      "source": "compiler/src/effect-matrix.ts",
+      "sourceSha256": "828e7edf0fe300161e0c01a421fc1b43441e01094b7068e67aa681c6cc72d206",
+      "target": "editions/ethos/static/effect-matrix.mjs",
+      "typeErasedSha256": "13d556f341efacd2e08d9bb316179f20fe4075d579aee240e6cee669c9a15aff"
+    },
+    {
+      "source": "compiler/src/trace-scene.ts",
+      "sourceSha256": "68ee88b06e0e88c39b5a76d42222c6b07851de7df410ce74f6b8ac025f12f39c",
+      "target": "editions/ethos/static/trace-scene.mjs",
+      "typeErasedSha256": "4a13fb2c4eee41a338591cc55b594bb066461b7f7775362bf481a5e6f4b8742b"
+    },
+    {
+      "source": "compiler/src/natural-semantics.ts",
+      "sourceSha256": "878fd75ff1df95646e8d1164142ce0de04b9a79ab2c3160eb40c33d66e0fde9b",
+      "target": "editions/ethos/static/natural-semantics.mjs",
+      "typeErasedSha256": "963b102a0a0118a3b49cb6ccec090d0c186f85724a8c916813467460517bddb9"
+    },
+    {
+      "source": "compiler/src/natural-separation.ts",
+      "sourceSha256": "e7f3d1573759d07bc31ffff18b6337899bfc6cf54bb0ba0213c1dd120f6e5203",
+      "target": "src/qualification/static/separation.mjs",
+      "typeErasedSha256": "d95d146f553f6f59a132b24ab5d8aba39d0d11222b31a04c7859413737cdc2f1"
+    },
+    {
+      "source": "compiler/src/visual-contract.ts",
+      "sourceSha256": "ae35755dfbdbde364f4396df26cefd82227473de3450cb85b054b0f00d2fa00d",
+      "target": "src/qualification/static/scene.mjs",
+      "typeErasedSha256": "a0814bb24e824076019098909d8a2d192b016b8fda5bf163a5e618827b978c84"
+    },
+    {
+      "source": "compiler/src/emitted-path.ts",
+      "sourceSha256": "8501aa28c4f97b30d5f493c001aa75cf5167b1cf2fabd570914fec5779ba0a1d",
+      "target": "src/qualification/static/emitted-path.mjs",
+      "typeErasedSha256": "dd9128774e0a158bf7a2118c981b700b4708364096d1523108f9c9b1acfabdd1"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "architecture.ethos-poster-input/v1",
+  "source": {
+    "commit": "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+    "manifestSha256": "58121ad168a314af94b55f557435ffb7d9828ca7c476411f18467731ae9d1db0",
+    "projectionDigest": "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8"
+  },
+  "metricsSha256": "c3361ad22e2262732852f31f0fa2daaa83757b086a82d365d232c941e5be7307",
+  "expected": {
+    "svgSha256": "87594199a5b3182860d6ed1a16b446082a2862cc52b8ed8c1731111f3e600bfa",
+    "sceneSha256": "fd25f6df9b1c22e495a50fe7dfa5c3251872891eba47c4eb952a54cdf44d89b2",
+    "labels": 180
+  },
+  "scope": "Selected terminal-design publication; not current ETHOS implementation or new visual acceptance"
+}

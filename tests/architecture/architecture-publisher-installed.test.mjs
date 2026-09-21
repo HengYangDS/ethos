@@ -277,18 +277,46 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
   const repository = await selectedPath("ETHOS_REPOSITORY", { directory: true });
   const git = await selectedPath("ETHOS_GIT");
   const python = await selectedPath("ETHOS_PYTHON");
+  const xcrun = await selectedPath("ETHOS_XCRUN");
+  const staticSansFont = await selectedPath("ETHOS_STATIC_SANS_FONT");
   const baseline = JSON.parse(
     await fs.readFile(
       path.join(SOURCE_ROOT, "integrations", "architecture-publisher", "migration-baseline.json"),
       "utf8",
     ),
   );
-  const { project, integrationRoot, adapter } = await installPackages(t);
+  const { project, coreRoot, integrationRoot, sourceApi, adapter } = await installPackages(t);
+  const svgApi = await import(
+    pathToFileURL(path.join(coreRoot, "renderers", "svg", "index.mjs")).href
+  );
+  const qualificationApi = await import(
+    pathToFileURL(path.join(coreRoot, "src", "qualification", "index.mjs")).href
+  );
   const atlas = await import(
     pathToFileURL(path.join(integrationRoot, "src", "edition", "atlas.mjs")).href
   );
   const evolutionApi = await import(
     pathToFileURL(path.join(integrationRoot, "src", "edition", "evolution.mjs")).href
+  );
+  const candidateApi = await import(
+    pathToFileURL(path.join(integrationRoot, "src", "edition", "candidate.mjs")).href
+  );
+  const posterApi = await import(
+    pathToFileURL(path.join(integrationRoot, "src", "edition", "poster.mjs")).href
+  );
+  const standaloneApi = await import(
+    pathToFileURL(path.join(integrationRoot, "src", "edition", "standalone.mjs")).href
+  );
+  const naturalOverviewApi = await import(
+    pathToFileURL(path.join(integrationRoot, "src", "edition", "static", "natural-overview.mjs"))
+      .href
+  );
+  const naturalSemanticsApi = await import(
+    pathToFileURL(path.join(integrationRoot, "src", "edition", "static", "natural-semantics.mjs"))
+      .href
+  );
+  const traceApi = await import(
+    pathToFileURL(path.join(integrationRoot, "src", "edition", "static", "trace-scene.mjs")).href
   );
   const importProjection = (identity, name) =>
     adapter.importEthosSource({
@@ -365,4 +393,214 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
   assert.equal(evolution.obligations.humanReview.length, 6);
   assert.equal(evolution.obligations.acceptance[0].action, "reaccept");
   assert.equal(evolution.obligations.publication[0].action, "replace");
+
+  const authoring = path.join(integrationRoot, "src", "edition", "refresh.json");
+  const prepared = await candidateApi.prepareEthosCandidate({
+    previous: {
+      sourceManifest: beforeImport.manifestPath,
+      sourceSha256: beforeImport.manifestSha256,
+      projectionDigest: baseline.ethos.editionSource.projectionDigest,
+      editionManifest,
+      editionSha256: sha256(await fs.readFile(editionManifest)),
+    },
+    source: {
+      sourceManifest: afterImport.manifestPath,
+      sourceSha256: afterImport.manifestSha256,
+      projectionDigest: baseline.ethos.acceptedProjection.projectionDigest,
+    },
+    authoring,
+    authoringSha256: sha256(await fs.readFile(authoring)),
+    output: path.join(project, "accepted-candidate"),
+  });
+  assert.equal(prepared.status, "prepared");
+  assert.equal(prepared.pages, 13);
+  assert.equal(prepared.semanticAcceptance, "not-performed");
+  assert.deepEqual(prepared.evolution.ethos.changed, evolution.ethos.changed);
+  assert.equal((await atlas.readEthosAtlasSelection(prepared.atlas)).pages.length, 13);
+
+  const renderedAtlas = await atlas.renderEthosAtlas({
+    ...prepared.atlas,
+    output: path.join(project, "accepted-atlas"),
+  });
+  assert.equal(renderedAtlas.pages.length, 13);
+  assert.equal(renderedAtlas.semanticAcceptance, "not-performed");
+  const standalone = await standaloneApi.renderStandaloneAtlas({
+    atlas: {
+      ...prepared.atlas,
+      outputManifest: path.join(renderedAtlas.output, "manifest.json"),
+      outputSha256: renderedAtlas.manifestSha256,
+    },
+    output: path.join(project, "ETHOS-architecture.html"),
+  });
+  assert.equal(standalone.pages, 13);
+  assert.equal(standalone.semanticAcceptance, "not-performed");
+
+  const posterManifest = path.join(
+    integrationRoot,
+    "src",
+    "edition",
+    "static",
+    "authoring",
+    "manifest.json",
+  );
+  const posterBundle = await sourceApi.readSourceBundle(
+    posterManifest,
+    sha256(await fs.readFile(posterManifest)),
+  );
+  const posterMembers = new Map(
+    posterBundle.members.map(({ path: memberPath, content }) => [memberPath, content]),
+  );
+  const posterEdition = JSON.parse(posterMembers.get("edition.json"));
+  posterEdition.schema = "architecture.ethos-poster-candidate/v1";
+  posterEdition.source = {
+    commit: baseline.ethos.acceptedProjection.commit,
+    projectionDigest: baseline.ethos.acceptedProjection.projectionDigest,
+    manifestSha256: afterImport.manifestSha256,
+  };
+  delete posterEdition.expected;
+  posterEdition.authoring = prepared.posterAuthoring;
+  const select = (args) => {
+    const result = spawnSync(xcrun, args, { encoding: "utf8", timeout: 30000 });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  const compiler = select(["--find", "swiftc"]);
+  const sdk = await fs.realpath(select(["--show-sdk-path"]));
+  const requests = [
+    ...prepared.posterAuthoring.carriers.edits.map(({ after: text }) => ({
+      text,
+      size: 12.5,
+      font: "400",
+    })),
+    {
+      text: [prepared.posterAuthoring.refresh.replay, prepared.posterAuthoring.refresh.merge].join(
+        " · ",
+      ),
+      size: 12.5,
+      font: "400",
+    },
+    { text: prepared.posterAuthoring.refresh.pending, size: 12.5, font: "400" },
+    { text: "Refresh", size: 12.5, font: "600" },
+    { text: "Pending", size: 12.5, font: "600" },
+  ].filter(
+    (request, index, all) =>
+      all.findIndex(
+        (candidate) =>
+          candidate.text === request.text &&
+          candidate.size === request.size &&
+          candidate.font === request.font,
+      ) === index,
+  );
+  const measured = await svgApi.measureCoreText({
+    compiler: { path: compiler, sha256: sha256(await fs.readFile(compiler)) },
+    sdk: {
+      path: sdk,
+      settingsSha256: sha256(await fs.readFile(path.join(sdk, "SDKSettings.json"))),
+    },
+    fonts: [
+      {
+        id: "400",
+        path: staticSansFont,
+        sha256: sha256(await fs.readFile(staticSansFont)),
+        postscript: "AvenirNext-Regular",
+        cascade: [],
+      },
+      {
+        id: "600",
+        path: staticSansFont,
+        sha256: sha256(await fs.readFile(staticSansFont)),
+        postscript: "AvenirNext-DemiBold",
+        cascade: [],
+      },
+    ],
+    requests,
+    output: path.join(project, "fresh-static-metrics"),
+  });
+  assert.equal(measured.freshMeasurement, "performed");
+  const acceptedMetrics = JSON.parse(posterMembers.get("metrics.json"));
+  const freshMetrics = JSON.parse(
+    await fs.readFile(path.join(project, "fresh-static-metrics", "metrics.json")),
+  );
+  const metricRecords = new Map([...acceptedMetrics.records, ...freshMetrics.records]);
+  const candidateMetrics = {
+    ...acceptedMetrics,
+    provenance: {
+      method: "recorded",
+      environment:
+        "Accepted historical metrics plus fresh CoreText measurements for this source-bound candidate.",
+      fonts: [...new Set([...acceptedMetrics.provenance.fonts, ...freshMetrics.provenance.fonts])],
+    },
+    records: [...metricRecords].sort(([left], [right]) => left.localeCompare(right)),
+  };
+  posterMembers.set("metrics.json", Buffer.from(`${JSON.stringify(candidateMetrics, null, 2)}\n`));
+  posterEdition.metricsSha256 = sha256(posterMembers.get("metrics.json"));
+  posterMembers.set("edition.json", Buffer.from(`${JSON.stringify(posterEdition, null, 2)}\n`));
+  const metricReader = svgApi.createMetricReader(candidateMetrics);
+  const quality = JSON.parse(afterSource.projection.documents.quality_contract);
+  const composition = naturalOverviewApi.composeNaturalOverview(
+    afterSource.projection,
+    metricReader.measure,
+    quality,
+    prepared.posterAuthoring,
+    afterSource.sourceDocuments,
+  );
+  const scene = traceApi.compileTraceScene(composition.document, metricReader.measure);
+  const svg = Buffer.from(traceApi.renderTraceSvg(scene));
+  const geometry = quality.hard_gates.geometry_each_scale;
+  const typography = quality.hard_gates.typography_and_accessibility;
+  const sourceScale = quality.scales.find(({ name }) => name === "source");
+  const qualification = {
+    sourceBindings: naturalSemanticsApi.auditNaturalSemantics(
+      composition,
+      afterSource.projection,
+      afterSource.sourceDocuments,
+    ),
+    separation: qualificationApi.auditNaturalSeparation(scene, composition.separation, quality),
+    geometry: qualificationApi.auditScene(scene, {
+      minimumFont: Math.max(
+        typography.effective_font_px_min_at_reference,
+        typography.source_font_px_min === undefined
+          ? 0
+          : (typography.source_font_px_min * scene.referenceWidth) / sourceScale.width,
+      ),
+      ownerClearance: geometry.inside_glyph_to_owner_inner_stroke_px_at_reference_min,
+      textClearance: geometry.text_to_nonowner_geometry_clearance_px_at_reference_min,
+      endpointTolerance: geometry.arrow_tip_error_px_max,
+      minimumTerminal: geometry.arrow_terminal_straight_run_px_at_reference_min,
+      widthGrowth: geometry.font_width_growth_fraction,
+      heightGrowth: geometry.font_height_growth_fraction,
+    }),
+    emittedEdges: qualificationApi.auditEmittedEdges(svg.toString(), scene, {
+      minimumTerminal: geometry.arrow_terminal_straight_run_px_at_reference_min,
+      endpointTolerance: geometry.arrow_tip_error_px_max,
+    }),
+    canvas: qualificationApi.auditCanvasEnvelope(scene, quality),
+  };
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.entries(qualification)
+        .filter(([, value]) => value.failures.length)
+        .map(([name, value]) => [name, value.failures]),
+    ),
+    {},
+  );
+  const writtenPoster = await sourceApi.writeSourceBundle(
+    path.join(project, "poster-edition"),
+    { id: "ethos:poster-authoring", revision: baseline.ethos.acceptedProjection.commit },
+    [...posterMembers].map(([memberPath, content]) => ({ path: memberPath, content })),
+  );
+  const poster = await posterApi.renderEthosPoster({
+    sourceManifest: afterImport.manifestPath,
+    sourceSha256: afterImport.manifestSha256,
+    projectionDigest: baseline.ethos.acceptedProjection.projectionDigest,
+    editionManifest: writtenPoster.manifestPath,
+    editionSha256: writtenPoster.manifestSha256,
+    output: path.join(project, "accepted-poster"),
+  });
+  assert.equal(poster.mode, "candidate");
+  assert.equal(poster.semanticAcceptance, "not-performed");
+  assert.equal(
+    Object.values(poster.checks).every(({ failures }) => failures.length === 0),
+    true,
+  );
 });

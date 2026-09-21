@@ -46,6 +46,7 @@ test("the integration is optional and imports only Publisher public contracts", 
   for (const source of moduleFiles(join(INTEGRATION, "src"))) {
     const content = readFileSync(source, "utf8");
     assert.equal(content.includes("/Users/"), false, relative(ROOT, source));
+    assert.doesNotMatch(content, /\bprocess\.(?:cwd|env)\b/, relative(ROOT, source));
     for (const match of content.matchAll(imports)) {
       assert.equal(
         match[1].startsWith(".") ||

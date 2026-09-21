@@ -10,6 +10,9 @@ export function auditNaturalSemantics(v, input, sourceDocuments = []) {
   const paths = [],
     routing = [],
     conditions = [];
+  const authoredMeaning = new Set(
+    (v.authoredCarriers?.meaning ?? []).map(({ kind, id }) => `${kind}:${id}`),
+  );
   if (v.authoredCarriers) {
     try {
       const carriers = Object.fromEntries(v.document.labels.map((l) => [l.id, l.text]));
@@ -76,7 +79,12 @@ export function auditNaturalSemantics(v, input, sourceDocuments = []) {
       ],
       [
         "thesis",
-        ["Plan selects", "official/mature", "Skills/tools", "people/Agents in session"],
+        [
+          "Plan selects",
+          authoredMeaning.has("node:skills") ? "versioned Skills/tools" : "official/mature",
+          "Skills/tools",
+          "people/Agents in session",
+        ],
         "actor-capability-use-visible",
       ],
       [
@@ -134,11 +142,13 @@ export function auditNaturalSemantics(v, input, sourceDocuments = []) {
       "Rebuildable CLI/JSON · SDK · CI/Forge"
     )
       failures.push("projection-rebuildability-scope");
-    if (
-      !v.document.labels
-        .find((l) => l.id === "responsibility-views-value")
-        ?.text.includes("From native source/evidence")
-    )
+    const projectionCopy = v.document.labels.find(
+      (l) => l.id === "responsibility-views-value",
+    )?.text;
+    const projectionTerms = authoredMeaning.has("assertion:projection")
+      ? ["context", "MCP", "A2A"]
+      : ["From native source/evidence"];
+    if (!projectionTerms.every((term) => projectionCopy?.includes(term)))
       failures.push("projection-native-source-visible");
     if (
       !v.document.labels
@@ -186,7 +196,7 @@ export function auditNaturalSemantics(v, input, sourceDocuments = []) {
       "cancel/failure",
       "no authority/lifecycle",
       "Plan selects",
-      "official/mature",
+      authoredMeaning.has("node:skills") ? "versioned Skills/tools" : "official/mature",
       "people/Agents in session",
       "Independent verifier",
     ])
@@ -399,8 +409,10 @@ export function auditNaturalSemantics(v, input, sourceDocuments = []) {
       )
     )
       failures.push("capability-ecosystem-visible");
-    if (visible("exit-discharge") !== "Remove Discharged runtime/install projections")
-      failures.push("exit-discharge-visible");
+    const expectedExit = authoredMeaning.has("node:adoption_exit")
+      ? "Remove Discharged native install/runtime projections"
+      : "Remove Discharged runtime/install projections";
+    if (visible("exit-discharge") !== expectedExit) failures.push("exit-discharge-visible");
     // A condition belongs to its operation row, not any nearby runtime text.
     // This also excludes the UNKNOWN subrow from per-removal requirements.
     const runtimeRow = (prefix) =>
@@ -949,17 +961,22 @@ export function auditNaturalSemantics(v, input, sourceDocuments = []) {
       .filter((l) => l.id.startsWith("verification-"))
       .map((l) => l.text)
       .join(" ");
-    for (const term of [
+    const verificationTerms = [
       ...(v.capabilityContract
         ? ["Independent verifier", "Hosted: observe; no permission", "separate trust"]
         : ["Separate trust identity", "never PASS"]),
-      v.capabilityContract
-        ? "optional unless risk/policy requires"
-        : "independent optional unless risk/policy requires",
+      ...(authoredMeaning.has("assertion:verification")
+        ? ["Action policy:", "disabled", "optional", "required"]
+        : [
+            v.capabilityContract
+              ? "optional unless risk/policy requires"
+              : "independent optional unless risk/policy requires",
+          ]),
       v.capabilityContract ? "Responsible verifier" : "responsible verifier",
       "claim IDs",
       "No scope gain",
-    ])
+    ];
+    for (const term of verificationTerms)
       if (!copy.includes(term)) failures.push("verification-boundary:" + term);
   }
   for (const [id, identities] of Object.entries(v.witnesses.marks)) {

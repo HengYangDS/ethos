@@ -18,6 +18,7 @@ from fastmcp.client.transports import StdioTransport
 
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
+from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
 
 
@@ -82,6 +83,7 @@ async def _call(
             "status": inspect_repository,
             "plan": plan_repository,
             "adopt": adopt_repository,
+            "land": land_repository,
         }[name]
         return operation(root, **arguments).to_dict()
     options: list[str] = []
@@ -113,7 +115,7 @@ async def _adoption(
     )
     async with Client(transport, timeout=30) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
-        assert set(tools) == {"status", "plan", "adopt"}
+        assert set(tools) == {"status", "plan", "adopt", "land"}
         for tool in tools.values():
             assert tool.input_schema.get("additionalProperties") is False
             assert not {"root", "actor"} & tool.input_schema.get("properties", {}).keys()
@@ -194,7 +196,7 @@ async def _observations(
     try:
         profile.write_text("not valid TOML [")
         before = profile.read_bytes(), profile.stat().st_ino, profile.stat().st_mtime_ns
-        for name in ("status", "plan", "adopt"):
+        for name in ("status", "plan", "adopt", "land"):
             refused = await _call("sdk", client, command, root, name, {}, env)
             assert refused["verdict"] == "block"
             code = "adoption_conflict" if name == "adopt" else "repository_profile_invalid"
@@ -228,7 +230,7 @@ async def _native_failure(
             try:
                 os.environ.clear()
                 os.environ.update(isolated)
-                for name in ("status", "plan", "adopt"):
+                for name in ("status", "plan", "adopt", "land"):
                     expected = await _call("sdk", client, command, root, name, {}, isolated)
                     assert expected["verdict"] == "block"
                     assert expected["required_gaps"] == ["git_executable_unavailable"]

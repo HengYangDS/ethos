@@ -39,6 +39,13 @@ the existing verdict, gaps, continuation and evidence boundaries.
 - **AND** a transport does not replace the known failure with a generic protocol error
 - **AND** adoption's authored-content conflicts retain their distinct operation-specific meaning
 
+#### Scenario: Integration is consumed outside the CLI
+
+- **WHEN** a bound SDK or MCP caller previews or applies integration
+- **THEN** it invokes the same candidate, accepted or release operation as the CLI
+- **AND** stale coordinates, missing authorization and required control verification retain their native refusal
+- **AND** successful effects retain exact CAS and post-observation evidence without CLI rendering
+
 ### Requirement: Installed MCP has bounded repository authority
 
 The installed product SHALL expose stdio MCP through FastMCP over the official SDK. Server

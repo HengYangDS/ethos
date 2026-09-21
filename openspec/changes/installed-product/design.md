@@ -143,8 +143,10 @@ CUE local acceptance does not imply hosted qualification or complete CI reports.
 
 ## Shared Application Boundary Evidence
 
-Status, planning and adoption composition belong to `ethos.domain.inspection`,
-`ethos.domain.plan` and `ethos.domain.adoption`. Their CLI handlers retain
+Status, planning, adoption and integration composition belong to `ethos.domain.inspection`,
+`ethos.domain.plan`, `ethos.domain.adoption` and `ethos.domain.land.operation`.
+The integration operation retains distinct candidate, accepted and release effects,
+trusted control replacement, exact coordinates and current admission. Their CLI handlers retain
 argument/root resolution and rendering only; MCP binds those same operations.
 Planning retains the existing intent, rule, gate and skill compilers. Known
 native and profile failures share one application result boundary without

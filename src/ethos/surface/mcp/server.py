@@ -18,6 +18,7 @@ from mcp.types import ToolAnnotations
 
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
+from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
 
 
@@ -73,6 +74,7 @@ def create_server(root: Path, *, timeout_seconds: float = 180.0) -> FastMCP:
         ("status", inspect_repository),
         ("plan", plan_repository),
         ("adopt", adopt_repository),
+        ("land", land_repository),
     ):
         server.add_tool(
             FunctionTool.from_function(

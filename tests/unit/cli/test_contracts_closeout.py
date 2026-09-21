@@ -11,8 +11,8 @@ import tomli_w
 import ethos.adapters.admission.evidence.external as evidence
 import ethos.adapters.repo.status.workspace as workspace
 import ethos.domain.land.closeout as closeout
+import ethos.domain.land.operation as land_commands
 import ethos.surface.cli.hook.commands as hook_commands
-import ethos.surface.cli.root.land as land_commands
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.attestation_set import record_attestations
@@ -37,6 +37,12 @@ if TYPE_CHECKING:
     from typing import Any
 
     from ethos.result import EthosResult
+
+
+def _land_candidate(repo: Path, head: str) -> None:
+    """Seed the exact fixture proof and exercise native candidate integration."""
+    seed_executed_proof(repo, head)
+    run_ethos("land", "--apply", "--authorize", "--expect-head", head, "--json", cwd=repo)
 
 
 def _closeout_repo(tmp_path: Path, *, changed: bool = False) -> tuple[Path, Path, str, str]:
@@ -95,16 +101,7 @@ def _archived_candidate(
         cwd=fixture.worktree,
     )
     archived_head = git(fixture.worktree, "rev-parse", "HEAD")
-    seed_executed_proof(fixture.worktree, archived_head)
-    run_ethos(
-        "land",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        archived_head,
-        "--json",
-        cwd=fixture.worktree,
-    )
+    _land_candidate(fixture.worktree, archived_head)
     return fixture.repository, fixture.candidate, accepted_head, archived_head
 
 
@@ -168,16 +165,7 @@ def test_source_acceptance_preserves_pending_delivery_until_official_archive(
     )
     archived = git(fixture.worktree, "rev-parse", "HEAD")
     assert not (fixture.worktree / tasks).exists()
-    seed_executed_proof(fixture.worktree, archived)
-    run_ethos(
-        "land",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        archived,
-        "--json",
-        cwd=fixture.worktree,
-    )
+    _land_candidate(fixture.worktree, archived)
     assert (
         _closeout(fixture.repository, "--apply", "--authorize", expect_head=head)["verdict"]
         == "pass"
@@ -191,31 +179,33 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, replace_gate: bool
 ) -> None:
     def prepare(worktree: Path) -> None:
-        if replace_gate:
-            profile = worktree / ".ethos/profile.toml"
-            declaration = tomllib.loads(profile.read_text())
-            declaration["proof"]["gates"][0]["command"] = ["python", "-c", "print('replacement')"]
-            profile.write_text(tomli_w.dumps(declaration))
+        profile = worktree / ".ethos/profile.toml"
+        declaration = tomllib.loads(profile.read_text())
+        declaration["proof"]["gates"][0]["command"] = ["python", "-c", "print('replacement')"]
+        profile.write_text(tomli_w.dumps(declaration))
 
     repo, candidate, accepted_head, candidate_head = _archived_candidate(
         tmp_path, monkeypatch, prepare=prepare if replace_gate else None
     )
     if replace_gate:
-        preview = _closeout(repo, expect_head=accepted_head)
+        preview = land_commands.land_repository(
+            repo, closeout=True, expect_head=accepted_head
+        ).to_dict()
+        assert preview == _closeout(repo, expect_head=accepted_head)
         assert preview["verdict"] == "pass"
         rejected = _closeout(
             repo, "--apply", "--authorize", expect_head=accepted_head, blocked=True
         )
         assert rejected["required_gaps"] == ["control_replacement_candidate_head_required"]
         assert git(repo, "rev-parse", "dev") == accepted_head
-    payload = _closeout(
+    payload = land_commands.land_repository(
         repo,
-        "--apply",
-        "--authorize",
-        "--candidate-head",
-        candidate_head,
+        closeout=True,
+        apply=True,
+        authorize=True,
+        candidate_head=candidate_head,
         expect_head=accepted_head,
-    )
+    ).to_dict()
     assert payload["state"] == "accepted_validated"
     resolution = payload["data"]["closeout_resolution"]
     coordinates = resolution["coordinates"]
@@ -461,10 +451,7 @@ def test_land_closeout_observes_completed_active_openspec_change(
         "- [x] Exercise fixture lifecycle\n",
         "complete source work",
     )
-    seed_executed_proof(fixture.worktree, head)
-    run_ethos(
-        "land", "--apply", "--authorize", "--expect-head", head, "--json", cwd=fixture.worktree
-    )
+    _land_candidate(fixture.worktree, head)
 
     payload = _closeout(fixture.repository)
     assert payload["verdict"] == "pass", payload

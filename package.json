@@ -7,6 +7,7 @@
   "scripts": {
     "ethos": "node distributions/npm/bin/ethos.mjs",
     "test:architecture-publisher": "node --test tests/architecture/architecture-publisher-integration.test.mjs",
+    "test:architecture-publisher:installed": "node --test tests/architecture/architecture-publisher-installed.test.mjs",
     "test:npm": "npm run test:architecture-publisher && npm pack --dry-run --workspace @agentic-workflow/ethos"
   },
   "dependencies": {

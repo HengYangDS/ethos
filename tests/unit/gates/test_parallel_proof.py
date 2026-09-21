@@ -165,20 +165,9 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> 
 @pytest.mark.parametrize(
     "readiness_gate",
     [
-        "repository-audit",
-        "ruff",
-        "schemas",
-        "config-quality",
-        "python-types",
-        "python-size",
-        "source-budget",
-        "architecture-projection",
-        "format-selection",
-        "module-layout",
-        "import-boundaries",
-        "docstrings",
-        "shell-lint",
-        "skills",
+        gate.id
+        for gate in load_gate_registry_declaration().proof_gates(full=True)
+        if gate.kind not in {"test", "package"} and "unit-architecture" not in gate.depends_on
     ],
 )
 def test_public_proof_stops_heavy_work_after_readiness_failure(
@@ -235,12 +224,11 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     assert len(checks) == len(nodes)
     tests = next(check for check in checks if check["action_id"] == "unit-architecture")
     assert tests["exit_code"] is None
-    assert tests["diagnostics"] == [
-        {
-            "kind": "gate_dependency",
-            "required_gaps": [f"gate_dependency_not_proven:{readiness_gate}"],
-        }
-    ]
+    assert len(tests["diagnostics"]) == 1
+    assert tests["diagnostics"][0]["kind"] == "gate_dependency"
+    assert (
+        f"gate_dependency_not_proven:{readiness_gate}" in tests["diagnostics"][0]["required_gaps"]
+    )
     assert registry["generated-artifacts"].providers == registry["repository-audit"].providers[1:]
     assert "unit-architecture" in registry["generated-artifacts"].depends_on
 

@@ -58,11 +58,11 @@ diagnostic, and allow the surviving gate owner to reclaim owned test scratch.
 
 ### Requirement: Verification preparation preserves its measured subject
 
-ETHOS SHALL validate declared carrier ownership before executing tests that
-consume it. Test preparation SHALL preserve the executing module's source
-identity so coverage remains attributable regardless of worker assignment.
-Existing generated-artifact drift SHALL block expensive checks before they
-start; the same owner SHALL still check post-execution drift.
+ETHOS SHALL complete required source-side checks before behavior tests or
+delivery, including carrier ownership, repository/product boundaries, docs,
+dependencies, formats and secrets. Test preparation SHALL preserve executing-module
+identity across workers so coverage remains attributable. Initial generated-artifact
+drift SHALL block expensive work; the same owner SHALL check post-execution drift again.
 
 #### Scenario: A native adapter has no admitted carrier home
 

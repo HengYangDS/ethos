@@ -24,9 +24,15 @@
       "exporterSha256": "f32780b5135523e209749e3f8651dbd152f63baa68329a270956586a5bfa6520",
       "ownerSha256": "158e26f07f1827c376c2fbf8116f84c0be8bcf2dae4972ee4c038cc2fa85918e"
     },
-    "acceptedProjection": {
+    "migrationAcceptedProjection": {
       "commit": "9a34b12ab1e30bab69ad8c28a15f657c903027c4",
       "projectionDigest": "36bae59c26be802222db569d5594216f059115bceab40dc17f20de72f1447b98",
+      "exporterSha256": "f32780b5135523e209749e3f8651dbd152f63baa68329a270956586a5bfa6520",
+      "ownerSha256": "4dcc6862f5b43bfe53ab1a3f9b80ef30aeb6ebd636226afa3f4876d37620a283"
+    },
+    "terminalAcceptedProjection": {
+      "commit": "06fb1949938a7145d5d0f01295dba090bffa5282",
+      "projectionDigest": "fa27a64c9ceda4f751ba47643e1709567ad349c82cd02331cc11360aa3339fbd",
       "exporterSha256": "f32780b5135523e209749e3f8651dbd152f63baa68329a270956586a5bfa6520",
       "ownerSha256": "4dcc6862f5b43bfe53ab1a3f9b80ef30aeb6ebd636226afa3f4876d37620a283"
     }

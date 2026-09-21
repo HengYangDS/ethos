@@ -330,7 +330,10 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
       output: path.join(project, name),
     });
   const beforeImport = await importProjection(baseline.ethos.editionSource, "edition-source");
-  const afterImport = await importProjection(baseline.ethos.acceptedProjection, "accepted-source");
+  const afterImport = await importProjection(
+    baseline.ethos.terminalAcceptedProjection,
+    "accepted-source",
+  );
   assert.equal(beforeImport.manifestSha256, baseline.ethos.editionSource.sourceManifestSha256);
   assert.equal(beforeImport.officialReplay, "performed");
   assert.equal(afterImport.officialReplay, "performed");
@@ -353,7 +356,7 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
   const afterSource = await adapter.readEthosSource(
     afterImport.manifestPath,
     afterImport.manifestSha256,
-    baseline.ethos.acceptedProjection.projectionDigest,
+    baseline.ethos.terminalAcceptedProjection.projectionDigest,
   );
   const beforeDependencies = evolutionApi.selectEthosEditionDependencies(
     beforeSelection.source.projection,
@@ -406,7 +409,7 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
     source: {
       sourceManifest: afterImport.manifestPath,
       sourceSha256: afterImport.manifestSha256,
-      projectionDigest: baseline.ethos.acceptedProjection.projectionDigest,
+      projectionDigest: baseline.ethos.terminalAcceptedProjection.projectionDigest,
     },
     authoring,
     authoringSha256: sha256(await fs.readFile(authoring)),
@@ -453,8 +456,8 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
   const posterEdition = JSON.parse(posterMembers.get("edition.json"));
   posterEdition.schema = "architecture.ethos-poster-candidate/v1";
   posterEdition.source = {
-    commit: baseline.ethos.acceptedProjection.commit,
-    projectionDigest: baseline.ethos.acceptedProjection.projectionDigest,
+    commit: baseline.ethos.terminalAcceptedProjection.commit,
+    projectionDigest: baseline.ethos.terminalAcceptedProjection.projectionDigest,
     manifestSha256: afterImport.manifestSha256,
   };
   delete posterEdition.expected;
@@ -586,13 +589,13 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
   );
   const writtenPoster = await sourceApi.writeSourceBundle(
     path.join(project, "poster-edition"),
-    { id: "ethos:poster-authoring", revision: baseline.ethos.acceptedProjection.commit },
+    { id: "ethos:poster-authoring", revision: baseline.ethos.terminalAcceptedProjection.commit },
     [...posterMembers].map(([memberPath, content]) => ({ path: memberPath, content })),
   );
   const poster = await posterApi.renderEthosPoster({
     sourceManifest: afterImport.manifestPath,
     sourceSha256: afterImport.manifestSha256,
-    projectionDigest: baseline.ethos.acceptedProjection.projectionDigest,
+    projectionDigest: baseline.ethos.terminalAcceptedProjection.projectionDigest,
     editionManifest: writtenPoster.manifestPath,
     editionSha256: writtenPoster.manifestSha256,
     output: path.join(project, "accepted-poster"),

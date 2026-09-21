@@ -147,7 +147,7 @@ def local_ci_owner_scripts(*, root: Path | None = None, command: str = "") -> li
 
 
 def publication_readiness(
-    *, branch: str, local_ok: bool, policy: BranchRolePolicy, **options: object
+    *, branch: str, head: str, local_ok: bool, policy: BranchRolePolicy, **options: object
 ) -> dict[str, object]:
     """Assemble local readiness and independent no-push remote observations."""
     local_ci_fallback = options.get("local_ci_fallback")
@@ -182,10 +182,18 @@ def publication_readiness(
         else "deferred"
     )
     evidence = fallback.get("evidence_status")
+    probe_action = (
+        f"ethos publish --ref refs/heads/{branch} --probe-remote --expect-head {head} --json"
+    )
     action = (
-        "remote tracking ref is synchronized; no push was performed"
+        probe_action
+        if any(
+            _object(item.get("availability")).get("state") == "not_probed"
+            for item in observations.values()
+        )
+        else "remote tracking ref is synchronized; no push was performed"
         if synchronized
-        else "run ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json"
+        else probe_action
         if available
         else str(evidence.get("next_action") or _fallback_action(fallback_command))
         if isinstance(evidence, dict)
@@ -433,6 +441,7 @@ def publication_readiness_result(
     )
     publication = publication_readiness(
         branch=str(branch),
+        head=current_head,
         local_ok=local_verdict == "pass",
         policy=policy,
         local_ci_fallback=local_ci_fallback,

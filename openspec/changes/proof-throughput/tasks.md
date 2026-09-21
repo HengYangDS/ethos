@@ -78,6 +78,7 @@
 - [x] 6.5 Remove proof-fixture hook-config mutation and project synthetic checks once from the exact plan while preserving independent issuance admission.
 - [x] 6.6 Share immutable bootstrap and scanner fixture code while isolating case state and qualifying identical two/four/eight-worker consumers.
 - [x] 6.7 Reuse immutable hosted preparation code with isolated case data and exact invocation observations.
+- [x] 6.8 Publish complete interruption markers atomically through one shared helper and preserve actual kill/recovery assertions across native consumers.
 
 ## 7. Hosted Execution and Publication
 

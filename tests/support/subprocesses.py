@@ -62,7 +62,9 @@ def pause_after_effect(
         result = native(*args, **kwargs)
         if matches(*args):
             assert getattr(result, "returncode", 0) == 0
-            marker.write_text(result if isinstance(result, str) else "native-effect-completed")
+            staging = marker.with_suffix(".pending")
+            staging.write_text(result if isinstance(result, str) else "native-effect-completed")
+            staging.replace(marker)
             sys.stdin.read(1)
         return result
 

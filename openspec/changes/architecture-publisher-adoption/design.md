@@ -93,3 +93,26 @@ independently reversible through its own Git history. A failed parity run change
 neither accepted source nor release artifacts. Missing Publisher packages,
 credentials, or remote access block only their dependent proof; ordinary ETHOS
 behavior remains available.
+
+## Acceptance and closeout
+
+Implementation tasks finish before the lifecycle effects they enable. A task
+cannot require this Change to be archived before archive admission, nor append
+an exact-proof result to the very source snapshot that result verifies.
+Completing the task list does not establish accepted integration or retirement.
+
+After the implementation snapshot is frozen, require the complete ETHOS proof
+graph on that exact HEAD. Follow fresh native admission for official OpenSpec
+archive, any required postarchive proof, and integration through `candidate/dev`
+into `dev`. Read back accepted source/tree and signatures, then perform normal
+landed retirement of the absorbed Lane with its unique history retained.
+The carrier Lane still supports other active Changes; close its Lease and retire
+it only when those obligations are complete. Never retire it merely because
+this integration package is ready.
+
+Closeout requires observed official archive, accepted integration, clean retained
+worktrees, valid signatures, closed retired-Lane Leases and no associated
+proposal or disposable residue. Native results and exact evidence own these
+facts; neither checked tasks nor package parity prove them. Preserve failures
+and unproved external limits. Do not add a second ledger, relax archive
+readiness or recognize special task wording to bypass these conditions.

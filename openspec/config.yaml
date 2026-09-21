@@ -21,8 +21,11 @@ rules:
     - Describe bounded actions and their completion checks using the official
       task checkboxes. Record progress here; reference existing evidence when
       needed instead of copying execution results or debugging narratives.
-    - Treat exact-current proof as an executable lifecycle precondition, not
-      a result to append to the source snapshot that the proof verifies.
+    - Separate implementation tasks from lifecycle preconditions and effects.
+      Keep exact-current proof outside the snapshot it verifies; a Change must
+      not require its own archive or Lane retirement as a completed task before
+      that effect is admitted. Preserve those obligations and their observable
+      postconditions in design; task completion does not prove closeout.
   design:
     - Record architecture, tradeoffs, authority boundaries, and migration risks
       for non-trivial changes.

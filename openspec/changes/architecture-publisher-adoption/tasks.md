@@ -15,7 +15,6 @@
 - [x] 3.2 Compare the source-owned package with Publisher migration staging over the same immutable inputs; record identical Candidate and sibling-media digests or an explicitly reviewed semantic successor.
 - [x] 3.3 Produce a compact digest-bound handoff for the Publisher Work Lane; after it removes the mutable central ETHOS package, verify the ETHOS repository remains the only mutable implementation owner.
 
-## 4. Acceptance and closeout
+## 4. Acceptance preparation
 
-- [ ] 4.1 Run focused integration checks and the complete ETHOS proof graph at one exact HEAD; retain raw evidence and state all unproved external limits.
-- [ ] 4.2 Land the Work Lane through `candidate/dev` into `dev`, archive this Change through the official OpenSpec lifecycle, and verify clean worktrees, valid signatures, closed Lease state, and no proposal residue.
+- [x] 4.1 Run focused public-package integration checks, retain raw evidence, and distinguish verified behavior from unproved external limits. Exact proof and lifecycle closeout remain the separate obligations in [design](design.md#acceptance-and-closeout).

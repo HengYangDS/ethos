@@ -85,6 +85,14 @@ be reported as complete installed-product acceptance.
 - **THEN** artifact construction is recorded separately
 - **AND** installed-product acceptance remains incomplete
 
+#### Scenario: Acceptance setup invokes official OpenSpec
+
+- **WHEN** an acceptance fixture archives a Change through official OpenSpec
+- **THEN** it uses the existing transport and exact archive-result validator
+- **AND** child telemetry and update checks are disabled without changing host preferences
+- **AND** its deadline does not exceed the transport bound
+- **AND** timeout output is diagnostic, not a completed archive or permission to continue
+
 ### Requirement: Homebrew is a delivered installation channel
 
 ETHOS SHALL support native Homebrew installation outside its source checkout.

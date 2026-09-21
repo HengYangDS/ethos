@@ -224,16 +224,23 @@ def config_contract_gaps(payload: dict[str, Any]) -> list[str]:
 
 
 def _run_official(
-    root: Path, command: tuple[str, ...], *, stdin: str | None = None
+    root: Path,
+    command: tuple[str, ...],
+    *,
+    stdin: str | None = None,
+    timeout: float = OPENSPEC_COMMAND_TIMEOUT_SECONDS,
 ) -> subprocess.CompletedProcess[str]:
     """Own native invocation, environment isolation and the bounded process lifetime."""
+    if not 0 < timeout <= OPENSPEC_COMMAND_TIMEOUT_SECONDS:
+        message = "openspec_command_timeout_invalid"
+        raise ValueError(message)
     return run_command(
         root,
         command,
         stdin=stdin,
         text=True,
         check=False,
-        timeout=OPENSPEC_COMMAND_TIMEOUT_SECONDS,
+        timeout=timeout,
         env={
             "PATH": os.environ.get("PATH", os.defpath),
             "PWD": str(root),
@@ -250,18 +257,22 @@ def run_json(
     root: Path,
     base_command: tuple[str, ...],
     args: tuple[str, ...],
+    *,
+    timeout: float = OPENSPEC_COMMAND_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     command = (*base_command, *args)
     try:
-        completed = _run_official(root, command)
+        completed = _run_official(root, command, timeout=timeout)
     except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout if isinstance(exc.stdout, str) else ""
-        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        stdout, stderr = (
+            stream.decode(errors="replace") if isinstance(stream, bytes) else stream or ""
+            for stream in (exc.stdout, exc.stderr)
+        )
         return {
             "command": list(command),
             "exit_code": 124,
             "stdout": stdout,
-            "stderr": stderr or "openspec command timed out after 60 seconds",
+            "stderr": stderr or f"openspec command timed out after {timeout:g} seconds",
             "json": {},
             "parse_error": "openspec_command_timeout",
         }

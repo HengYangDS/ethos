@@ -167,6 +167,13 @@ command-family or host-installation acceptance. The delivery tasks remain open. 
 preservation material remains until the restored content is committed and its
 unique semantics verified; it is not another source of product authority.
 
+Acceptance setup also consumes the existing OpenSpec transport and archive-result
+validator, rather than executing structured commands through a generic text runner.
+The transport owns child-only telemetry/update opt-out and process cleanup. Callers
+may tighten its 60-second bound; fixture archival retains its 20-second deadline.
+Timeout output remains diagnostic even when it contains complete-looking JSON;
+only completed, valid, exactly bound archive results permit setup to continue.
+
 ## Installed Entry Recovery
 
 The adopter feedback identifies two distinct failures: immutable materialization

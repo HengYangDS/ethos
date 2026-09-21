@@ -730,4 +730,66 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
     }),
     /Unsupported semantic delta requires authored mapping/,
   );
+
+  const handoffOutput = process.env.ARCHITECTURE_PUBLISHER_HANDOFF_OUTPUT;
+  if (handoffOutput) {
+    assert.equal(path.isAbsolute(handoffOutput), true);
+    const gitValue = (...args) => {
+      const result = spawnSync(git, ["-C", SOURCE_ROOT, ...args], { encoding: "utf8" });
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim();
+    };
+    const coreArchive = await selectedArchive("ARCHITECTURE_PUBLISHER_PACKAGE");
+    await fs.writeFile(
+      handoffOutput,
+      `${JSON.stringify(
+        {
+          schema: "ethos.architecture-publisher-handoff/v1",
+          publisher: {
+            commit: baseline.publisher.commit,
+            corePackageSha256: sha256(await fs.readFile(coreArchive)),
+            stagingPackageSha256: sha256(await fs.readFile(stagingArchive)),
+          },
+          ethos: {
+            commit: gitValue("rev-parse", "HEAD"),
+            integrationTree: gitValue("rev-parse", "HEAD:integrations/architecture-publisher"),
+            integrationPackageSha256: sha256(await fs.readFile(sourceOwnedArchive)),
+          },
+          acceptedParity: {
+            sourceManifestSha256: beforeImport.manifestSha256,
+            atlasManifestSha256: sourceOwnedAcceptedAtlas.manifestSha256,
+            standaloneSha256: sourceOwnedAcceptedStandalone.sha256,
+            posterSvgSha256: sourceOwnedAcceptedPoster.svg.sha256,
+            posterSceneSha256: sourceOwnedAcceptedPoster.sceneSha256,
+            posterManifestSha256: sourceOwnedAcceptedPoster.output.manifestSha256,
+          },
+          terminalCandidate: {
+            projectionDigest: baseline.ethos.terminalAcceptedProjection.projectionDigest,
+            sourceManifestSha256: afterImport.manifestSha256,
+            atlasManifestSha256: renderedAtlas.manifestSha256,
+            standaloneSha256: standalone.sha256,
+            posterSvgSha256: poster.svg.sha256,
+            posterSceneSha256: poster.sceneSha256,
+            posterManifestSha256: poster.output.manifestSha256,
+          },
+          semanticSuccessor: {
+            nodes: evolution.ethos.changed.nodes,
+            relations: evolution.ethos.changed.relations,
+            assertions: evolution.ethos.changed.assertions,
+            humanReviewPredicates: evolution.obligations.humanReview.length,
+            acceptance: evolution.obligations.acceptance[0].action,
+            publication: evolution.obligations.publication[0].action,
+          },
+          limits: [
+            "semantic acceptance not performed",
+            "browser acceptance not performed",
+            "human visual review not performed",
+            "raster publication not performed",
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+  }
 });

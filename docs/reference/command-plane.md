@@ -23,18 +23,18 @@ See also: [Quickstart](../guides/quickstart.md),
 
 ETHOS exposes exactly these public roots:
 
-| Root | Purpose | Read or effect boundary |
-| --- | --- | --- |
-| `ethos status --json` | Inspect repository facts, authority, gaps, coordination, and the next action. | Read-only projection; does not mint truth. |
-| `ethos plan --changed --json` | Compile the changed-scope TransitionPlan and required gates. | Read-only. |
-| `ethos prove --json` | Check proof readiness. | Read-only unless `--execute` is explicit. |
-| `ethos land --json` | Report landing readiness. | Effects require the command's explicit guarded options. |
-| `ethos publish --json` | Report local publication readiness. | Read-only. |
-| `ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json` | Derive an immutable exact-CAS request for one positively admitted branch or annotated release-tag ref from the exact local object and live declared peers. | Read-only; persists only content-addressed request evidence in Git private state. |
-| `ethos publish --ref <full-ref> --probe-remote --apply --authorize --expect-head <head> --json` | Derive and consume the same full-ref publication request. | Uses the same receipt-bound exact-CAS executor as explicit receipt apply. |
-| `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers. | Rechecks local trust, target obligations and refs before each peer effect; returns attested partial or unknown outcomes rather than implying cross-peer atomicity. |
-| `ethos adopt --root <repo> --json` | Plan adoption for one repository. | Applying requires explicit authorization and an expected head. |
-| `ethos mcp --root <repo>` | Serve MCP over stdio for one exact repository. | Tool calls retain native admission; launching the transport grants no authority. |
+| Root                                                                                                       | Purpose                                                                                                                                                    | Read or effect boundary                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ethos status --json`                                                                                      | Inspect repository facts, authority, gaps, coordination, and the next action.                                                                              | Read-only projection; does not mint truth.                                                                                                                         |
+| `ethos plan --changed --json`                                                                              | Compile the changed-scope TransitionPlan and required gates.                                                                                               | Read-only.                                                                                                                                                         |
+| `ethos prove --json`                                                                                       | Check proof readiness.                                                                                                                                     | Read-only unless `--execute` is explicit.                                                                                                                          |
+| `ethos land --json`                                                                                        | Report landing readiness.                                                                                                                                  | Effects require the command's explicit guarded options.                                                                                                            |
+| `ethos publish --json`                                                                                     | Report local publication readiness.                                                                                                                        | Read-only.                                                                                                                                                         |
+| `ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json`                                | Derive an immutable exact-CAS request for one positively admitted branch or annotated release-tag ref from the exact local object and live declared peers. | Read-only; persists only content-addressed request evidence in Git private state.                                                                                  |
+| `ethos publish --ref <full-ref> --probe-remote --apply --authorize --expect-head <head> --json`            | Derive and consume the same full-ref publication request.                                                                                                  | Uses the same receipt-bound exact-CAS executor as explicit receipt apply.                                                                                          |
+| `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers.                                                                             | Rechecks local trust, target obligations and refs before each peer effect; returns attested partial or unknown outcomes rather than implying cross-peer atomicity. |
+| `ethos adopt --root <repo> --json`                                                                         | Plan adoption for one repository.                                                                                                                          | Applying requires explicit authorization and an expected head.                                                                                                     |
+| `ethos mcp --root <repo>`                                                                                  | Serve MCP over stdio for one exact repository.                                                                                                             | Tool calls retain native admission; launching the transport grants no authority.                                                                                   |
 
 The workflow roots are `status`, `plan`, `prove`, `land`, `publish`, and
 `adopt`. The additional `mcp` root launches a transport, not a seventh lifecycle.
@@ -62,6 +62,15 @@ completed removals, retained resources, deferred paths and failure. The overall
 verdict remains `block` for incomplete repair. Follow the returned public
 `ethos hook install --json` continuation to re-observe and retry; do not undo the
 successful activation or delete historical receipts to free their old runtimes.
+
+To bind an already installed immutable product, use
+`ethos hook install --runtime <absolute-runtime-path> --root <repository> --json`.
+The selected runtime must match the invoking product and its exact wheel/lock.
+Multiple repositories can reference those same bytes while retaining independent
+selectors, hooks and mutable state. The command does not copy external runtime
+bytes or grant permission to delete the installation. An ordinary repair reuses
+a valid selection; an invalid external selector requires the explicit installed
+path again. Package-manager upgrade/uninstall qualification remains separate.
 
 These roots are capabilities, not a fixed lifecycle. `status` selects the sole
 current continuation; after an effect, the caller re-observes instead of

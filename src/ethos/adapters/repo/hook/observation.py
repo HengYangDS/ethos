@@ -22,6 +22,7 @@ from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
 from ethos.adapters.repo.runtime.selection import runtime_command
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.trust_anchor.verification import configured_commit_trust_anchor
 from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.profile import load_repository_profile
@@ -101,10 +102,14 @@ def hook_runtime_binding(
     expected_source_identity = _expected_source(repo, expected_build_identity)
     if selected_runtime is None:
         selected, selection_gap = _selected_runtime(common)
-    elif selected_runtime.root.parent != common / "ethos" / "runtime":
-        selected, selection_gap = None, "runtime_manifest"
     else:
-        selected, selection_gap = selected_runtime, ""
+        try:
+            matches = (runtime_root / "CURRENT").read_bytes() == runtime_selection_bytes(
+                common, selected_runtime.root
+            )
+        except (OSError, ValueError):
+            matches = False
+        selected, selection_gap = (selected_runtime, "") if matches else (None, "runtime_manifest")
     contract, contract_gap, observation = _hook_contract(selected)
     legacy_source = legacy_runtime_migration_source(common) if selected is None else None
     target_applicable = expected_build_identity is not None

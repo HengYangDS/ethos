@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sqlite3
 import sys
 from contextlib import closing
@@ -205,12 +206,20 @@ def test_hook_install_unreadable_declaration_preserves_rollback_and_public_json(
     assert result["next_action"] == f"ethos status --root {repo.as_posix()} --json"
 
 
+@pytest.mark.parametrize("external", [False, True])
 def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    external: bool,
 ) -> None:
     repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
-    selected = runtime_selection.activate_runtime(Path(git_common_dir(repo)), runtime.parent)
+    common = Path(git_common_dir(repo))
+    if external:
+        supply = tmp_path / "installed"
+        shutil.copytree(common / "ethos", supply)
+        runtime = supply / "runtime" / runtime.parent.name / "python"
+    selected = runtime_selection.activate_runtime(common, runtime.parent)
     monkeypatch.setattr(
         hook_activation,
         "expected_runtime_build",
@@ -223,7 +232,7 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
     )
 
     before = runtime_selection.runtime_file_inventory(selected.root)
-    first = install_hook_launchers(repo)
+    first = install_hook_launchers(repo, installed_runtime=runtime.parent if external else None)
     second = install_hook_launchers(repo)
 
     assert first["runtime_digest"] == second["runtime_digest"] == selected.digest
@@ -354,7 +363,9 @@ def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
         *,
         expected_build: BuildIdentity,
         build_source: Path | None = None,
+        installed_runtime: Path | None = None,
     ) -> Path:
+        assert installed_runtime is None
         del build_source
         materialized_with.append(expected_build)
         return venv

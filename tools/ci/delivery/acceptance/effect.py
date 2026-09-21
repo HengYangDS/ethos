@@ -460,6 +460,9 @@ def run(session: nox.Session) -> None:
             wheel,
             ROOT / "build/artifacts/native" / f"ethos-{build.distribution_version}.tar.gz",
         )
+        distribution["shared_supply"] = runtime_acceptance.prove_shared_supply(
+            Path(str(distribution["path"])), WORK, environment=package_environment
+        )
         if current_tracked_head(ROOT) != head:
             session.error(f"local install smoke HEAD moved from {head}")
         payload = package_acceptance_evidence(

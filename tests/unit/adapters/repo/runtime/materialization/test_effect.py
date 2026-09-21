@@ -41,16 +41,16 @@ def _environment(**changes: str):
 
 
 def _python_facts(home: Path) -> dict[str, str]:
-    executable = home / "bin/python"
+    environment = _environment()
     return {
-        "executable": executable.resolve().as_posix(),
-        "base_executable": executable.resolve().as_posix(),
-        "python_abi": "cpython-test",
-        "python_version": "3.14.7",
-        "python_implementation": "cpython",
-        "architecture": "test-architecture",
-        "prefix": home.as_posix(),
-        "base_prefix": home.as_posix(),
+        key: str(value)
+        for key, value in {
+            **environment._asdict(),
+            "executable": (home / "bin/python").resolve(),
+            "base_executable": (home / "bin/python").resolve(),
+            "prefix": home,
+            "base_prefix": home,
+        }.items()
     }
 
 
@@ -74,20 +74,14 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     observed: list[Path] = []
     inventory = runtime_materialization.runtime_file_inventory
-    monkeypatch.setattr(runtime_materialization, "materialize_python_image", materialize_python)
-    monkeypatch.setattr(
-        runtime_materialization,
-        "runtime_file_inventory",
-        lambda root: observed.append(root) or inventory(root),
-    )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "observe_python_facts",
-        lambda python: {
-            "prefix": python.parent.parent.resolve().as_posix(),
-            "base_prefix": python.parent.parent.resolve().as_posix(),
-        },
-    )
+    for name, implementation in {
+        "materialize_python_image": materialize_python,
+        "runtime_file_inventory": lambda root: observed.append(root) or inventory(root),
+        "observe_python_facts": lambda python: dict.fromkeys(
+            ("prefix", "base_prefix"), python.parent.parent.resolve().as_posix()
+        ),
+    }.items():
+        monkeypatch.setattr(runtime_materialization, name, implementation)
 
     command = Mock(return_value=subprocess.CompletedProcess([], 0, "0.2.0-alpha.5\n", ""))
     monkeypatch.setattr(runtime_materialization.subprocess, "run", command)

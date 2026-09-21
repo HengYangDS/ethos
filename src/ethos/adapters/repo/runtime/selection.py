@@ -1,4 +1,4 @@
-"""Select and invoke one immutable Git-common ETHOS runtime."""
+"""Select immutable installed supply without sharing repository state."""
 
 from __future__ import annotations
 
@@ -78,13 +78,35 @@ def _selected_runtime_root(common: Path) -> tuple[Path, str]:
     if selector.is_symlink():
         raise ValueError(_CURRENT_INVALID)
     try:
-        text = raw.decode("ascii")
+        parts = raw.decode("utf-8").removesuffix("\n").split("\n")
     except UnicodeError as error:
         raise ValueError(_CURRENT_INVALID) from error
-    digest = text.removesuffix("\n")
-    if raw != f"{digest}\n".encode() or not _valid_digest(digest):
+    if len(parts) not in {1, 2} or raw != ("\n".join(parts) + "\n").encode("utf-8"):
         raise ValueError(_CURRENT_INVALID)
+    digest = parts[0]
+    if not _valid_digest(digest):
+        raise ValueError(_CURRENT_INVALID)
+    if len(parts) == 2:
+        candidate = Path(parts[1])
+        if runtime_selection_bytes(common_root, candidate) != raw:
+            raise ValueError(_CURRENT_INVALID)
+        runtime_root = candidate.parent
     return runtime_root, digest
+
+
+def runtime_selection_bytes(common: Path, runtime: Path) -> bytes:
+    """Encode one exact local or externally installed runtime without granting authority."""
+    if (
+        not runtime.is_absolute()
+        or runtime != runtime.resolve()
+        or not _valid_digest(runtime.name)
+        or any(character in runtime.as_posix() for character in ("\r", "\n", "\0"))
+    ):
+        raise ValueError(_CURRENT_TARGET_INVALID)
+    location = (
+        "" if runtime.parent == common.resolve() / "ethos/runtime" else f"{runtime.as_posix()}\n"
+    )
+    return f"{runtime.name}\n{location}".encode()
 
 
 def activate_runtime(
@@ -96,11 +118,10 @@ def activate_runtime(
     """Validate ``runtime`` and atomically select its content-addressed identity."""
     common_root = common.resolve()
     runtime_root = common_root / "ethos" / "runtime"
-    if runtime.is_symlink():
+    if runtime_root.parent.is_symlink() or runtime_root.is_symlink() or runtime.is_symlink():
         raise ValueError(_CURRENT_TARGET_INVALID)
+    desired = runtime_selection_bytes(common_root, runtime)
     candidate = runtime.resolve()
-    if candidate.parent != runtime_root:
-        raise ValueError(_CURRENT_TARGET_INVALID)
     runtime_root.mkdir(parents=True, exist_ok=True)
     with _selection_lock(common_root):
         selected = require_selected_runtime(candidate)
@@ -110,7 +131,6 @@ def activate_runtime(
             else None
         )
         require_release_identity_attested(common_root, release)
-        desired = f"{selected.digest}\n".encode("ascii")
         current = _selector_bytes(runtime_root / _SELECTOR)
         if expected_current is not _UNSPECIFIED and current != expected_current:
             raise ValueError(_CURRENT_STALE)
@@ -285,7 +305,13 @@ def _require_release_runtime_closure_unique(
     if not is_release_build(candidate.build):
         return
     runtime_root = common / "ethos" / "runtime"
-    for path in runtime_root.iterdir():
+    paths = set(runtime_root.iterdir())
+    try:
+        selected_root, digest = _selected_runtime_root(common)
+        paths.add(selected_root / digest)
+    except ValueError:
+        pass
+    for path in sorted(paths):
         if path.name in {_SELECTOR, candidate.digest} or not _valid_digest(path.name):
             continue
         try:

@@ -18,6 +18,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
 
 
@@ -176,7 +177,6 @@ def _require_identities(
 
 def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationCleanup:
     """Retire only currently unused generations, conserving partial outcomes."""
-    expected = f"{runtime.name}\n".encode("ascii")
     selected = {hooks, runtime}
     identities: dict[Path, tuple[int, int, int, int]] = {}
     candidates: tuple[Path, ...] = ()
@@ -185,9 +185,12 @@ def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationC
     error = ""
     try:
         common = Path(git_common_dir(root)).resolve()
+        expected = runtime_selection_bytes(common, runtime)
         with runtime_selection_transaction(common, expected_current=expected):
             candidates = _generations(common)
-            identities = {path: _directory_identity(path) for path in candidates}
+            identities = {
+                path: _directory_identity(path) for path in sorted({*candidates, *selected})
+            }
             _require_identities(selected, identities)
         for path, identity in identities.items():
             if path in selected:

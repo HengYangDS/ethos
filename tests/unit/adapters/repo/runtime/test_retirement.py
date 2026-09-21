@@ -579,3 +579,19 @@ def test_generation_cleanup_reobserves_a_consumer_after_activation_validation(
     assert sentinel.read_bytes() == b"live executable"
     assert needed.as_posix() in result["generation_cleanup"]["retained"]
     assert needed.as_posix() not in result["generation_cleanup"]["removed"]
+
+
+def test_repository_cleanup_preserves_external_supply(tmp_path):
+    """Retire local copies without claiming deletion authority over installed bytes."""
+    repo, hooks, runtime = _tree(tmp_path)
+    external = tmp_path / "installed" / runtime.name
+    external.parent.mkdir()
+    runtime.rename(external)
+    common = Path(git_common_dir(repo))
+    (common / "ethos/runtime/CURRENT").write_text(f"{external.name}\n{external}\n")
+    original = (external / "selected").read_bytes()
+    result = retirement.retire_generations(repo, hooks=hooks, runtime=external)
+    assert result["state"] == "complete", result
+    assert str(external) in result["retained"]
+    assert result["removed"] == []
+    assert (external / "selected").read_bytes() == original

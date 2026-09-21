@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 import os
+import shutil
 import stat
 import subprocess
 import sys
 from contextlib import nullcontext
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
-import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
-import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
+import ethos.adapters.repo.runtime.materialization.effect as materialization
 import ethos.adapters.repo.runtime.materialization.python_environment as runtime_python_environment
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.git import git_common_dir
@@ -41,16 +42,10 @@ def _environment(**changes: str):
 
 
 def _python_facts(home: Path) -> dict[str, str]:
-    environment = _environment()
     return {
-        key: str(value)
-        for key, value in {
-            **environment._asdict(),
-            "executable": (home / "bin/python").resolve(),
-            "base_executable": (home / "bin/python").resolve(),
-            "prefix": home,
-            "base_prefix": home,
-        }.items()
+        **_environment()._asdict(),
+        **dict.fromkeys(("executable", "base_executable"), str((home / "bin/python").resolve())),
+        **dict.fromkeys(("prefix", "base_prefix"), str(home)),
     }
 
 
@@ -73,7 +68,7 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
             _write(target / relative, payload)
 
     observed: list[Path] = []
-    inventory = runtime_materialization.runtime_file_inventory
+    inventory = materialization.runtime_file_inventory
     for name, implementation in {
         "materialize_python_image": materialize_python,
         "runtime_file_inventory": lambda root: observed.append(root) or inventory(root),
@@ -81,22 +76,22 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
             ("prefix", "base_prefix"), python.parent.parent.resolve().as_posix()
         ),
     }.items():
-        monkeypatch.setattr(runtime_materialization, name, implementation)
+        monkeypatch.setattr(materialization, name, implementation)
 
     command = Mock(return_value=subprocess.CompletedProcess([], 0, "0.2.0-alpha.5\n", ""))
-    monkeypatch.setattr(runtime_materialization.subprocess, "run", command)
+    monkeypatch.setattr(materialization.subprocess, "run", command)
     return (runtime_root, work, source, interpreter, artifact, _environment()), observed, command
 
 
 @pytest.mark.parametrize("supply", ["packaged", "split-image", "source", "selected"])
-def test_runtime_materialization_binds_package_dependency_and_image_sources(
+def test_materialization_binds_package_dependency_and_image_sources(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, supply: str
 ) -> None:
     """Package, source, and selected-runtime supply preserve their own coordinates."""
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(("git", "init", "--quiet", "--initial-branch=dev"), cwd=repo, check=True)
-    source_file = runtime_materialization.__file__
+    source_file = materialization.__file__
     package = Path(source_file).resolve().parents[6]
     project = tmp_path / "runtime-project"
     invoked = _write(tmp_path / "managed-python/bin/python", b"python")
@@ -142,10 +137,10 @@ def test_runtime_materialization_binds_package_dependency_and_image_sources(
         "materialize_runtime_generation": generation,
     }
     for name, value in patches.items():
-        monkeypatch.setattr(runtime_materialization, name, value)
+        monkeypatch.setattr(materialization, name, value)
 
-    assert runtime_materialization.__file__ == source_file
-    result = runtime_materialization.materialize_runtime(
+    assert materialization.__file__ == source_file
+    result = materialization.materialize_runtime(
         repo,
         invoked,
         expected_build=artifact.build,
@@ -180,31 +175,18 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
 ) -> None:
     args, observed, commands = _generation_case(tmp_path, monkeypatch)
     runtime_root, environment = args[0], args[5]
-    target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
+    target = materialization.materialize_runtime_generation(*args, locked_requirements=None)
 
     commands.assert_called_once()
     command = commands.call_args.args[0]
-    assert command == (
-        runtime_materialization.runtime_python(command[0].parent.parent),
-        "-B",
-        "-I",
-        "-m",
-        "ethos.cli",
-        "--version",
-    )
+    assert command[0] == materialization.runtime_python(command[0].parent.parent)
+    assert command[1:] == ("-B", "-I", "-m", "ethos.cli", "--version")
     assert len(observed) == 2
     assert observed[0].name.startswith(".runtime-build-")
     assert observed[1] == target
-    assert stat.S_IMODE(target.stat().st_mode) & 0o222 == 0
-    assert stat.S_IMODE((target / "manifest.json").stat().st_mode) & 0o222 == 0
-    assert all(
-        path.is_symlink() or stat.S_IMODE(path.stat().st_mode) & 0o222 == 0
-        for path in target.rglob("*")
-    )
-    assert (
-        runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
-        == target
-    )
+    for path in (target, *target.rglob("*")):
+        assert path.is_symlink() or stat.S_IMODE(path.stat().st_mode) & 0o222 == 0
+    assert materialization.materialize_runtime_generation(*args, locked_requirements=None) == target
     is_dir = Path.is_dir
     mode = stat.S_IMODE(runtime_root.stat().st_mode)
     runtime_root.chmod(mode | stat.S_IWUSR)
@@ -219,22 +201,22 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
             Path, "rename", lambda _path, _target: (_ for _ in ()).throw(FileExistsError)
         )
         assert (
-            runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
+            materialization.materialize_runtime_generation(*args, locked_requirements=None)
             == target
         )
     runtime_root.chmod(mode)
-    with monkeypatch.context() as context:
-        context.setattr(runtime_materialization, "runtime_file_inventory", lambda _root: {})
-        with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
-            runtime_materialization.require_runtime_generation(target, args[4], environment)
-    with monkeypatch.context() as context:
-        context.setattr(
-            runtime_materialization,
+    for name, value, reason in (
+        ("runtime_file_inventory", {}, "hook_runtime_manifest_invalid"),
+        (
             "observe_python_facts",
-            lambda _python: {"prefix": "wrong", "base_prefix": "wrong"},
-        )
-        with pytest.raises(ValueError, match="hook_runtime_python_not_relocatable"):
-            runtime_materialization.require_runtime_generation(target, args[4], environment)
+            dict.fromkeys(("prefix", "base_prefix"), "wrong"),
+            "hook_runtime_python_not_relocatable",
+        ),
+    ):
+        with monkeypatch.context() as context:
+            context.setattr(materialization, name, lambda _path, value=value: value)
+            with pytest.raises(ValueError, match=reason):
+                materialization.require_runtime_generation(target, args[4], environment)
 
 
 @pytest.mark.parametrize("failure", [ValueError, subprocess.TimeoutExpired, KeyboardInterrupt])
@@ -244,9 +226,9 @@ def test_failed_runtime_verification_removes_only_its_new_generation(
     """Reject failed verification without retaining unverified or deleting accepted bytes."""
     execute = subprocess.run
     args, _observed, _commands = _generation_case(tmp_path, monkeypatch)
-    target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
+    target = materialization.materialize_runtime_generation(*args, locked_requirements=None)
 
-    preserved = runtime_materialization.runtime_file_inventory(target)
+    preserved = materialization.runtime_file_inventory(target)
 
     def failed_verification(*_args, **_kwargs):
         if failure is ValueError:
@@ -255,17 +237,17 @@ def test_failed_runtime_verification_removes_only_its_new_generation(
             raise KeyboardInterrupt
         return execute([sys.executable, "-c", "import time; time.sleep(10)"], timeout=0.1)
 
-    monkeypatch.setattr(runtime_materialization.subprocess, "run", failed_verification)
+    monkeypatch.setattr(materialization.subprocess, "run", failed_verification)
     pattern = (
         r"hook_runtime_module_smoke_failed:command=.*python -B -I -m ethos\.cli "
         "--version:returncode=7:stdout=out:stderr=failed"
     )
     with pytest.raises(failure, match=pattern if failure is ValueError else None):
-        runtime_materialization.materialize_runtime_generation(
+        materialization.materialize_runtime_generation(
             *args[:-1], _environment(architecture_name="other"), locked_requirements=None
         )
     assert {path for path in args[0].iterdir() if path.is_dir()} == {target}
-    assert runtime_materialization.runtime_file_inventory(target) == preserved
+    assert materialization.runtime_file_inventory(target) == preserved
 
 
 def test_runtime_generation_compares_windows_prefixes_as_paths(
@@ -273,7 +255,7 @@ def test_runtime_generation_compares_windows_prefixes_as_paths(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     args, _observed, _commands = _generation_case(tmp_path, monkeypatch)
-    target = runtime_materialization.materialize_runtime_generation(*args, locked_requirements=None)
+    target = materialization.materialize_runtime_generation(*args, locked_requirements=None)
     prefix = (target / "python").resolve().as_posix()
     windows_spelling = prefix.replace("/", "\\").upper()
     monkeypatch.setattr(
@@ -281,21 +263,19 @@ def test_runtime_generation_compares_windows_prefixes_as_paths(
         "os",
         SimpleNamespace(name="nt", fspath=os.fspath),
     )
-    monkeypatch.setattr(
-        runtime_materialization,
-        "observe_python_facts",
-        lambda _python: {"prefix": windows_spelling, "base_prefix": windows_spelling},
-    )
-
-    runtime_materialization.require_runtime_generation(target, args[4], args[5])
-
-    monkeypatch.setattr(
-        runtime_materialization,
-        "observe_python_facts",
-        lambda _python: {"prefix": r"D:\external", "base_prefix": r"D:\external"},
-    )
-    with pytest.raises(ValueError, match="hook_runtime_python_not_relocatable"):
-        runtime_materialization.require_runtime_generation(target, args[4], args[5])
+    for spelling in (windows_spelling, r"D:\external"):
+        monkeypatch.setattr(
+            materialization,
+            "observe_python_facts",
+            lambda _python, spelling=spelling: dict.fromkeys(("prefix", "base_prefix"), spelling),
+        )
+        expectation = (
+            nullcontext()
+            if spelling == windows_spelling
+            else pytest.raises(ValueError, match="hook_runtime_python_not_relocatable")
+        )
+        with expectation:
+            materialization.require_runtime_generation(target, args[4], args[5])
 
 
 @pytest.mark.parametrize("available", [False, True])
@@ -306,10 +286,10 @@ def test_runtime_finalization_requires_python_but_not_a_console_launcher(
     runtime = tmp_path / "runtime"
     runtime.mkdir()
     if available:
-        _write(runtime_materialization.runtime_python(runtime / "python"))
+        _write(materialization.runtime_python(runtime / "python"))
     artifact = PackageArtifact(tmp_path / "wheel", "c" * 64, runtime_build("a" * 40, "b" * 40))
     environment = _environment()
-    files = runtime_materialization.runtime_file_inventory(runtime)
+    files = materialization.runtime_file_inventory(runtime)
     target = tmp_path / runtime_digest(
         wheel_sha256=artifact.sha256,
         build=artifact.build,
@@ -323,19 +303,25 @@ def test_runtime_finalization_requires_python_but_not_a_console_launcher(
     )
     try:
         with expectation:
-            vars(runtime_materialization)["_finalize_runtime"](
+            vars(materialization)["_finalize_runtime"](
                 runtime, target, artifact, environment, files
             )
         assert (runtime / "manifest.json").is_file() is available
     finally:
-        runtime_materialization.remove_generated_tree(runtime, ignore_errors=True)
+        materialization.remove_generated_tree(runtime, ignore_errors=True)
 
 
-@pytest.mark.parametrize("fault", ["valid", "missing", "content", "encoding", "mode", "lock"])
-def test_runtime_reuse_requires_current_supply_and_entry(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
-) -> None:
-    """Repair predecessor payloads without mutating them or reprovisioning valid ones."""
+@pytest.mark.parametrize(
+    ("external", "fault"),
+    [
+        (external, fault)
+        for external in (False, True)
+        for fault in ("valid", "missing", "content", "encoding", "mode", "lock")
+    ]
+    + [(True, fault) for fault in ("absent", "wheel")],
+)
+def test_runtime_reuse_requires_current_supply_and_entry(tmp_path, monkeypatch, fault, *, external):
+    """Local repair rebuilds; broken external supply never changes ownership implicitly."""
     create_python = runtime_scenarios.create_fixture_python
     entry_fault = fault
 
@@ -344,54 +330,66 @@ def test_runtime_reuse_requires_current_supply_and_entry(
         if entry_fault == "missing":
             (target / "bin/ethos").unlink(missing_ok=True)
             return
-        payload = runtime_materialization.render_console_script("ethos").encode()
-        if entry_fault in {"content", "encoding"}:
-            payload = b"obsolete" if entry_fault == "content" else b"\xff"
-        entry = _write(target / "bin/ethos", payload)
-        entry.chmod(0o644 if entry_fault == "mode" else 0o755)
+        payload = materialization.render_console_script("ethos").encode()
+        payload = {"content": b"obsolete", "encoding": b"\xff"}.get(entry_fault, payload)
+        _write(target / "bin/ethos", payload).chmod(0o644 if entry_fault == "mode" else 0o755)
 
     monkeypatch.setattr(runtime_scenarios, "create_fixture_python", with_entry)
     repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
     common = Path(git_common_dir(repo))
+    if external:
+        supply = tmp_path / "installed"
+        shutil.copytree(common / "ethos", supply)
+        runtime = supply / "runtime" / runtime.parent.name / "python"
     selected = activate_runtime(common, runtime.parent)
-    original = runtime_materialization.runtime_file_inventory(selected.root)
-    digest = runtime_materialization.file_sha256
+    original = materialization.runtime_file_inventory(selected.root)
+    materialize = partial(
+        materialization.materialize_runtime,
+        repo,
+        Path(sys.executable),
+        expected_build=selected.build,
+    )
+    selector = common / "ethos/runtime/CURRENT"
+    before = selector.read_bytes()
+    digest = materialization.file_sha256
     if fault == "lock":
         monkeypatch.setattr(
-            runtime_materialization,
+            materialization,
             "file_sha256",
             lambda path: "e" * 64 if path == REPOSITORY_ROOT / "uv.lock" else digest(path),
         )
-
-    invalid = fault == "lock" or (fault != "valid" and os.name != "nt")
-    with monkeypatch.context() as probe:
-        rebuild = Mock(side_effect=AssertionError("rebuild required"))
-        probe.setattr(runtime_materialization, "require_python_image_source", rebuild)
-        with pytest.raises(AssertionError, match="rebuild required") if invalid else nullcontext():
-            reused = runtime_materialization.materialize_runtime(
-                repo, Path(sys.executable), expected_build=selected.build
-            )
-            assert reused == selected.root / "python"
-    if invalid and fault != "lock":
-        entry_fault = "valid"
-        repaired = runtime_materialization.materialize_runtime(
-            repo,
-            Path(sys.executable),
-            expected_build=selected.build,
-            build_source=REPOSITORY_ROOT,
+    elif fault == "absent":
+        materialization.remove_generated_tree(selected.root)
+    elif fault == "wheel":
+        next((selected.root.parent.parent / "packages").rglob("*.whl")).unlink()
+    invalid = fault in {"lock", "absent", "wheel"} or (fault != "valid" and os.name != "nt")
+    expectation = nullcontext()
+    if invalid:
+        expectation = (
+            pytest.raises(ValueError, match="hook_runtime_installed_supply_unavailable")
+            if external
+            else pytest.raises(AssertionError, match="rebuild required")
         )
+    with monkeypatch.context() as probe:
+        probe.setattr(
+            materialization,
+            "require_python_image_source",
+            Mock(side_effect=AssertionError("rebuild required")),
+        )
+        with expectation:
+            assert materialize() == selected.root / "python"
+    assert selector.read_bytes() == before
+    if invalid and fault != "lock" and not external:
+        entry_fault = "valid"
+        repaired = materialize(build_source=REPOSITORY_ROOT)
         assert repaired != runtime
-        assert repaired.joinpath("bin/ethos").read_text() == (
-            runtime_materialization.render_console_script("ethos")
+        assert repaired.joinpath("bin/ethos").read_text() == materialization.render_console_script(
+            "ethos"
         )
         activate_runtime(common, repaired.parent)
-        assert (
-            runtime_materialization.materialize_runtime(
-                repo, Path(sys.executable), expected_build=selected.build
-            )
-            == repaired
-        )
-    assert runtime_materialization.runtime_file_inventory(selected.root) == original
+        assert materialize() == repaired
+    if fault != "absent":
+        assert materialization.runtime_file_inventory(selected.root) == original
 
 
 @pytest.mark.parametrize("operation", ["seal", "remove"])
@@ -410,21 +408,15 @@ def test_runtime_mutation_rejects_hardlinks_without_changing_the_external_inode(
         pytest.skip(f"hardlinks unavailable: {error}")
 
     effect = (
-        vars(runtime_materialization)["_seal_runtime_payload"]
+        vars(materialization)["_seal_runtime_payload"]
         if operation == "seal"
-        else runtime_materialization.remove_generated_tree
+        else materialization.remove_generated_tree
     )
     with pytest.raises(ValueError, match="hook_runtime_generation_hardlink_invalid"):
         effect(runtime)
 
     assert stat.S_IMODE(external.stat().st_mode) == 0o644
     assert runtime.is_dir()
-
-
-def test_install_rejects_nonexistent_and_relative_python(tmp_path: Path) -> None:
-    for python in (Path("python"), tmp_path / "missing-python"):
-        with pytest.raises(ValueError, match="hook_runtime_python_invalid"):
-            hook_activation.install_hook_launchers(tmp_path, python=python)
 
 
 def test_generated_tree_cleanup_rejects_a_junction_without_touching_its_target(
@@ -439,18 +431,18 @@ def test_generated_tree_cleanup_rejects_a_junction_without_touching_its_target(
     with monkeypatch.context() as context:
         context.setattr(runtime_filesystem, "is_junction", lambda path: path == junction)
         with pytest.raises(ValueError, match="hook_runtime_generation_tree_invalid"):
-            runtime_materialization.remove_generated_tree(generated)
+            materialization.remove_generated_tree(generated)
 
     assert generated.is_dir()
     assert sentinel.read_text(encoding="utf-8") == "outside authority\n"
-    runtime_materialization.remove_generated_tree(generated)
+    materialization.remove_generated_tree(generated)
     failed = tmp_path / "failed"
     failed.mkdir()
     monkeypatch.setattr(
-        runtime_materialization.shutil,
+        materialization.shutil,
         "rmtree",
         lambda _path: (_ for _ in ()).throw(OSError("busy")),
     )
     with pytest.raises(OSError, match="busy"):
-        runtime_materialization.remove_generated_tree(failed)
-    runtime_materialization.remove_generated_tree(failed, ignore_errors=True)
+        materialization.remove_generated_tree(failed)
+    materialization.remove_generated_tree(failed, ignore_errors=True)

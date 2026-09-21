@@ -8,6 +8,7 @@ import platform
 import shlex
 import uuid
 from contextlib import contextmanager
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
@@ -60,11 +61,11 @@ def current_runtime(
     expected_build: BuildIdentity | None = None,
 ) -> SelectedRuntime:
     """Read and validate the canonical runtime selected by ``CURRENT``."""
-    runtime_root, digest = _selected_runtime_root(common)
-    return require_selected_runtime(runtime_root / digest, expected_build=expected_build)
+    return require_selected_runtime(selected_runtime_path(common), expected_build=expected_build)
 
 
-def _selected_runtime_root(common: Path) -> tuple[Path, str]:
+def selected_runtime_path(common: Path) -> Path:
+    """Read the exact selected location without claiming its payload is usable."""
     common_root = common.resolve()
     ethos_root = common_root / "ethos"
     runtime_root = ethos_root / "runtime"
@@ -91,7 +92,7 @@ def _selected_runtime_root(common: Path) -> tuple[Path, str]:
         if runtime_selection_bytes(common_root, candidate) != raw:
             raise ValueError(_CURRENT_INVALID)
         runtime_root = candidate.parent
-    return runtime_root, digest
+    return runtime_root / digest
 
 
 def runtime_selection_bytes(common: Path, runtime: Path) -> bytes:
@@ -178,8 +179,8 @@ def runtime_command(root: Path, *arguments: str) -> str:
 def legacy_runtime_migration_source(common: Path) -> tuple[str, str] | None:
     """Observe exact schema-v2 source coordinates without executing that runtime."""
     try:
-        runtime_root, digest = _selected_runtime_root(common)
-        runtime = runtime_root / digest
+        runtime = selected_runtime_path(common)
+        digest = runtime.name
         manifest = runtime / "manifest.json"
         if runtime.is_symlink() or manifest.is_symlink() or not manifest.is_file():
             return None
@@ -306,11 +307,8 @@ def _require_release_runtime_closure_unique(
         return
     runtime_root = common / "ethos" / "runtime"
     paths = set(runtime_root.iterdir())
-    try:
-        selected_root, digest = _selected_runtime_root(common)
-        paths.add(selected_root / digest)
-    except ValueError:
-        pass
+    with suppress(ValueError):
+        paths.add(selected_runtime_path(common))
     for path in sorted(paths):
         if path.name in {_SELECTOR, candidate.digest} or not _valid_digest(path.name):
             continue

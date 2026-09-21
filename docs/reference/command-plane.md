@@ -69,8 +69,10 @@ The selected runtime must match the invoking product and its exact wheel/lock.
 Multiple repositories can reference those same bytes while retaining independent
 selectors, hooks and mutable state. The command does not copy external runtime
 bytes or grant permission to delete the installation. An ordinary repair reuses
-a valid selection; an invalid external selector requires the explicit installed
-path again. Package-manager upgrade/uninstall qualification remains separate.
+a valid selection. Missing or damaged external supply never triggers a private
+runtime rebuild: restore the exact installation or explicitly rebind using
+`--runtime`. A damaged selector also requires explicit installation selection.
+Package-manager upgrade/uninstall qualification remains separate.
 
 These roots are capabilities, not a fixed lifecycle. `status` selects the sole
 current continuation; after an effect, the caller re-observes instead of

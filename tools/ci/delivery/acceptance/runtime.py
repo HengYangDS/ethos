@@ -233,6 +233,38 @@ def prove_repair(
     return {"state": "passed", "repair_command": repair}
 
 
+def _prove_external_supply_recovery(
+    prefix: tuple[str, ...], repo: Path, runtime: Path, *, environment: Mapping[str, str]
+) -> None:
+    """A missing wheel blocks private fallback and gives explicit installation recovery."""
+    packages = runtime.parent.parent / "packages"
+    preserved = packages.with_name("preserved-packages")
+    selector = Path(git_common_dir(repo)) / "ethos/runtime/CURRENT"
+    original = selector.read_bytes()
+    packages.rename(preserved)
+    try:
+        code, report, detail = invoke(
+            repo,
+            (*prefix, "hook", "install", "--root", str(repo), "--json"),
+            environment=environment,
+        )
+        recovery = shlex.split(str(report.get("next_action") or ""))
+        expected = f"hook_install_failed:hook_runtime_installed_supply_unavailable:{runtime}"
+        if (
+            not code
+            or report.get("required_gaps") != [expected]
+            or "--runtime" not in recovery
+            or str(runtime) not in recovery
+            or selector.read_bytes() != original
+            or any(path.is_dir() for path in selector.parent.iterdir())
+        ):
+            message = f"shared_supply_failure_not_preserved:{detail}"
+            raise RuntimeError(message)
+    finally:
+        preserved.rename(packages)
+    _activate(prefix, repo, environment=environment, installed_runtime=runtime)
+
+
 def prove_shared_supply(
     archive: Path,
     work: Path,
@@ -282,6 +314,7 @@ def prove_shared_supply(
             message = f"shared_repository_isolation_failed:{detail}"
             raise RuntimeError(message)
     _activate(prefix, repositories[0], environment=environment, installed_runtime=selected.root)
+    _prove_external_supply_recovery(prefix, repositories[0], selected.root, environment=environment)
     if selectors[0].read_bytes() != original or require_selected_runtime(selected.root) != selected:
         message = "shared_supply_recovery_or_integrity_failed"
         raise RuntimeError(message)
@@ -292,6 +325,7 @@ def prove_shared_supply(
         "shared_bytes": True,
         "independent_state": True,
         "damaged_selector_isolated": True,
+        "missing_supply_preserves_selection": True,
         "recovered": True,
         "package_manager_uninstall_qualified": False,
     }

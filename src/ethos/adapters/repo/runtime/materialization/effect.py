@@ -42,9 +42,9 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.materialization.python_image import materialize_python_image
 from ethos.adapters.repo.runtime.materialization.python_image import render_console_script
-from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 
@@ -136,11 +136,23 @@ def _reusable_runtime(
     expected_build: BuildIdentity,
     project: Path,
 ) -> Path | None:
+    common = Path(git_common_dir(repo)).resolve()
     try:
-        selected = current_runtime(Path(git_common_dir(repo)), expected_build=expected_build)
-        return selected.root if _runtime_supply_current(selected, project) else None
-    except (OSError, ValueError):
-        return None
+        candidate = selected_runtime_path(common)
+    except ValueError as error:
+        if str(error) == "hook_runtime_current_missing":
+            return None
+        raise
+    try:
+        selected = require_selected_runtime(candidate, expected_build=expected_build)
+        if _runtime_supply_current(selected, project):
+            return selected.root
+    except (OSError, ValueError) as error:
+        if candidate.parent != common / "ethos/runtime":
+            _fail(f"hook_runtime_installed_supply_unavailable:{candidate}", error)
+    if candidate.parent != common / "ethos/runtime":
+        _fail(f"hook_runtime_installed_supply_unavailable:{candidate}")
+    return None
 
 
 def _runtime_supply_current(selected: SelectedRuntime, project: Path) -> bool:

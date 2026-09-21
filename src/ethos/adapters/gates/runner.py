@@ -238,11 +238,26 @@ def run_gate_graph(
     if capacity < 1:
         message = "proof_node_capacity_invalid"
         raise ValueError(message)
-    TransitionPlan.closure(nodes)
+    ordered = TransitionPlan.closure(nodes)
     if not isinstance(runner, DryRunRunner):
         assert_provider_execution_source(root, tuple(gates[node.id] for node in nodes))
+    postexecution: set[str] = set()
+    execution_roots: set[str] = set()
+    for node in ordered:
+        if postexecution.intersection(node.depends_on):
+            postexecution.add(node.id)
+        elif gates[node.id].kind in {"test", "package"}:
+            postexecution.add(node.id)
+            execution_roots.add(node.id)
+    readiness = tuple(node.id for node in ordered if node.id not in postexecution)
+    scheduled = tuple(
+        node.model_copy(update={"depends_on": tuple(dict.fromkeys((*node.depends_on, *readiness)))})
+        if node.id in execution_roots
+        else node
+        for node in nodes
+    )
     writers = {node.id for node in nodes if gates[node.id].writes_files}
-    graph = TopologicalSorter({node.id: node.depends_on for node in nodes})
+    graph = TopologicalSorter({node.id: node.depends_on for node in scheduled})
     graph.prepare()
     ready: set[str] = set()
     results: dict[str, ActionRunResult] = {}
@@ -253,11 +268,13 @@ def run_gate_graph(
     with ThreadPoolExecutor(max_workers=limit) as executor:
         while graph.is_active():
             ready.update(graph.get_ready())
-            write_ready = next((node for node in nodes if node.id in ready & writers), None)
+            write_ready = next((node for node in scheduled if node.id in ready & writers), None)
             if write_ready is not None:
                 selected = () if running else (write_ready,)
             else:
-                selected = tuple(node for node in nodes if node.id in ready)[: limit - len(running)]
+                selected = tuple(node for node in scheduled if node.id in ready)[
+                    : limit - len(running)
+                ]
             for node in selected:
                 ready.remove(node.id)
                 if not parallel or node.id in writers or isinstance(runner, DryRunRunner):

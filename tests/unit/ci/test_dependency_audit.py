@@ -158,9 +158,10 @@ def test_registry_has_one_security_owner_without_making_offline_tests_online() -
     assert "python-vulnerabilities" not in registry
     assert "dependency-vulnerabilities" in registry
     assert "dependency-vulnerabilities" in {gate.id for gate in declaration.proof_gates(full=True)}
-    assert "dependency-vulnerabilities" not in {
-        gate.id for gate in declaration.proof_gates(("unit-architecture",))
-    }
+    for selected in ((), ("unit-architecture",)):
+        assert "dependency-vulnerabilities" not in {
+            gate.id for gate in declaration.proof_gates(selected)
+        }
     for gate_id in ("build", "local-install-smoke"):
         assert "dependency-vulnerabilities" in {
             gate.id for gate in declaration.proof_gates((gate_id,))

@@ -12,10 +12,24 @@ import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
 import ethos.adapters.mutation.lane_lifecycle.change_overlay as overlay
 import ethos.surface.cli.lane.commit_signer as commit_signer
 import ethos.surface.cli.lane.lifecycle as lifecycle
+from ethos.domain.land.closeout import land_next_action
 
 ARCHIVE_BRANCH = "work/feature"
 ARCHIVE_HEAD = "old-head"
 ARCHIVE_CHANGE = "fixture-change"
+
+
+@pytest.mark.parametrize("gap", ["proof_not_proven", "full_proof_required"])
+def test_transition_continuations_request_the_admitted_proof_floor(gap):
+    """Missing and insufficient proof must not lead through a knowingly weaker run."""
+    command = f"ethos prove --full --execute --expect-head {ARCHIVE_HEAD}"
+    actual = (
+        land_next_action(verdict="block", gaps=(gap,), current_head=ARCHIVE_HEAD),
+        archive.archive_preflight_report(ARCHIVE_BRANCH, ARCHIVE_HEAD, ARCHIVE_CHANGE, [gap])[
+            "next_action"
+        ],
+    )
+    assert actual == (f"{command} --json", f"{command} --change {ARCHIVE_CHANGE} --json")
 
 
 def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:

@@ -123,7 +123,7 @@
 ## 10. Native Quality Rules and Early Failure
 
 - [x] 10.1 Replace Ty prose parsing and execute both declared native shell checks.
-- [x] 10.2 Qualify the expanded cheap readiness closure before expensive behavior and delivery.
+- [x] 10.2 Qualify every selected source-side gate before expensive behavior and delivery; keep post-execution artifact checks downstream.
 - [x] 10.3 Restore native configuration discovery and reject missing or delegated explicit targets.
 - [ ] 10.4 Restore effective JavaScript semantic quality and native launcher behavior.
 - [x] 10.5 Reject invalid and non-Boolean CEL predicates at declaration loading and qualify existing consumers.

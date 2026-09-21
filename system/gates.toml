@@ -147,7 +147,37 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "unit-architecture"
 kind = "test"
-depends_on = ["repository-audit", "ruff", "schemas", "config-quality", "python-types", "python-size", "source-budget", "architecture-projection", "format-selection", "module-layout", "import-boundaries", "docstrings", "shell-lint", "skills"]
+depends_on = [
+  "repository-audit",
+  "repository-hygiene",
+  "docs-registry",
+  "product-boundary",
+  "schemas",
+  "skills",
+  "openspec",
+  "ruff",
+  "docstrings",
+  "module-layout",
+  "markdown-links",
+  "shell-lint",
+  "config-quality",
+  "github-workflow-syntax",
+  "python-size",
+  "source-budget",
+  "python-types",
+  "import-boundaries",
+  "dependency-hygiene",
+  "markdown-lint",
+  "javascript-lint",
+  "svg-format",
+  "asset-validation",
+  "ci-projection",
+  "format-selection",
+  "architecture-projection",
+  "prose",
+  "dependency-vulnerabilities",
+  "secrets",
+]
 command = ["{python}", "-m", "nox", "-s", "tests"]
 policy = "required"
 profile = "product-toolchain"

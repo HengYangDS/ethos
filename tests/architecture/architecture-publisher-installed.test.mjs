@@ -79,7 +79,7 @@ async function installPackages(
         HOME: home,
         npm_config_cache: cache,
         npm_config_offline: "true",
-        npm_config_registry: "http://127.0.0.1:9/",
+        npm_config_registry: "https://registry.invalid/",
         npm_config_update_notifier: "false",
       },
     },

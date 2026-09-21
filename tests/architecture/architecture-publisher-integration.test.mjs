@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -109,4 +109,33 @@ test("the optional package contains only its declared source-owned delivery", (t
     files.some((path) => path.startsWith("tests/")),
     false,
   );
+});
+
+test("the runtime identity closes over only the explicitly installed package", async () => {
+  const { readEthosExtensionRuntime } =
+    await import("../../integrations/architecture-publisher/src/runtime.mjs");
+  const first = await readEthosExtensionRuntime();
+  const second = await readEthosExtensionRuntime();
+
+  assert.deepEqual(second, first);
+  assert.deepEqual(
+    first.map(({ path }) => path),
+    first.map(({ path }) => path).toSorted(),
+  );
+  assert.equal(new Set(first.map(({ path }) => path)).size, first.length);
+  assert.equal(
+    first.some(({ path }) => path === "package.json"),
+    true,
+  );
+  assert.equal(
+    first.some(({ path }) => path === "src/runtime.mjs"),
+    true,
+  );
+  for (const member of first) {
+    assert.equal(isAbsolute(member.path), false);
+    assert.equal(member.path === "package.json" || member.path.startsWith("src/"), true);
+    assert.equal(member.file.startsWith(`${resolve(INTEGRATION)}/`), true);
+    assert.match(member.sha256, /^[0-9a-f]{64}$/);
+    assert.equal(Number.isSafeInteger(member.bytes) && member.bytes >= 0, true);
+  }
 });

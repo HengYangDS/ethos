@@ -5,11 +5,13 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import shutil
 import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
 
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.repository.release.identity import is_release_build
@@ -29,20 +31,39 @@ def package_runtime(
     if destination.is_symlink() or destination.resolve().is_relative_to(runtime.resolve()):
         message = "distribution_destination_invalid"
         raise ValueError(message)
+    disk_image = destination.suffix == ".dmg"
+    if disk_image and selected.platform != "darwin":
+        message = "distribution_disk_image_requires_macos"
+        raise ValueError(message)
+    if not disk_image and not destination.name.endswith(".tar.gz"):
+        message = "distribution_format_unsupported"
+        raise ValueError(message)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix=".ethos-distribution-", dir=destination.parent) as work:
-        archive_path = Path(work) / "product.tar.gz"
-        with (
-            archive_path.open("wb") as stream,
-            gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=0) as compressed,
-            tarfile.open(fileobj=compressed, mode="w") as archive,
-        ):
-            archive.add(runtime, arcname=f"ethos/runtime/{selected.digest}", filter=_metadata)
-            archive.add(
-                wheel,
-                arcname=f"ethos/packages/{selected.wheel_sha256}/{wheel.name}",
-                filter=_metadata,
-            )
+        archive_path = Path(work) / destination.name
+        if disk_image:
+            payload_root = Path(work) / "payload"
+            copied = payload_root / "ethos/runtime" / selected.digest
+            shutil.copytree(runtime, copied, symlinks=True)
+            package = payload_root / "ethos/packages" / selected.wheel_sha256 / wheel.name
+            package.parent.mkdir(parents=True)
+            shutil.copy2(wheel, package)
+            if require_selected_runtime(copied).digest != selected.digest:
+                message = "distribution_inputs_changed"
+                raise ValueError(message)
+            _disk_image(payload_root, archive_path)
+        else:
+            with (
+                archive_path.open("wb") as stream,
+                gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=0) as compressed,
+                tarfile.open(fileobj=compressed, mode="w") as archive,
+            ):
+                archive.add(runtime, arcname=f"ethos/runtime/{selected.digest}", filter=_metadata)
+                archive.add(
+                    wheel,
+                    arcname=f"ethos/packages/{selected.wheel_sha256}/{wheel.name}",
+                    filter=_metadata,
+                )
         if require_selected_runtime(runtime) != selected or wheel.read_bytes() != payload:
             message = "distribution_inputs_changed"
             raise ValueError(message)
@@ -64,6 +85,20 @@ def package_runtime(
         "architecture": selected.architecture,
         **selected.build.projection(),
     }
+
+
+def _disk_image(payload: Path, destination: Path) -> None:
+    """Create one native envelope without executing or re-signing its sealed payload."""
+    producer = ("/usr/sbin/diskutil", "image", "create", "from")
+    capability = run_command(payload, (*producer, "--help"), timeout=10)
+    if capability.returncode not in {0, 1}:
+        capability.check_returncode()
+    command = (
+        (*producer, "--format", "UDZO", "--volumeName", "ETHOS")
+        if capability.returncode == 0
+        else ("/usr/bin/hdiutil", "create", "-format", "UDZO", "-volname", "ETHOS", "-srcfolder")
+    )
+    run_command(payload, (*command, str(payload), str(destination)), check=True, timeout=180)
 
 
 def _metadata(info: tarfile.TarInfo) -> tarfile.TarInfo:

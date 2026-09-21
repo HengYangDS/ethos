@@ -198,6 +198,13 @@ authority or transfer another project's acceptance.
 - **AND** submitted and final envelope identities remain bound to the same sealed inner runtime
 - **AND** a portable archive or ad-hoc signature alone does not establish release qualification
 
+#### Scenario: Native media construction fails
+
+- **WHEN** the selected native image producer fails or exceeds its bounded execution time
+- **THEN** construction preserves the previous output and removes its owned temporary payload
+- **AND** it does not retry creation with a different producer or weaken payload identity checks
+- **AND** carrier construction alone does not authorize signing, acceptance or publication
+
 ### Requirement: Credential transitions preserve exact release evidence
 
 ETHOS SHALL distinguish code-signing identity, notarization authentication,

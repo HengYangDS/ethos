@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 import shlex
 import shutil
+import subprocess
 import tarfile
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -269,48 +271,75 @@ def test_host_console_obeys_repository_selection(tmp_path, monkeypatch, mode):
     args = ["hook", "install"] if mode == "install" else ["--version"]
     monkeypatch.setattr(cli.sys, "argv", ["ethos", *args, "--root", str(repo)])
     monkeypatch.setattr(os, "execv", lambda path, argv: calls.append((path, argv)))
-    if mode in {"broken", "tampered"}:
-        with pytest.raises(SystemExit, match="1"):
-            cli.console_main()
-        assert not calls
-    else:
+    blocked = mode in {"broken", "tampered"}
+    with pytest.raises(SystemExit, match="1") if blocked else nullcontext():
         cli.console_main()
-        if mode == "selected":
-            executable = str(runtime_filesystem.runtime_python(python))
-            assert calls == [
-                (
-                    executable,
-                    [executable, "-B", "-I", "-m", "ethos.cli", *args, "--root", str(repo)],
-                )
-            ]
-        else:
-            assert calls == ["local"]
+    expected = [] if blocked else ["local"]
+    if mode == "selected":
+        executable = str(runtime_filesystem.runtime_python(python))
+        expected = [
+            (executable, [executable, "-B", "-I", "-m", "ethos.cli", *args, "--root", str(repo)])
+        ]
+    assert calls == expected
 
 
-@pytest.mark.parametrize("drift", [False, True])
-def test_portable_archive_retains_exact_runtime_and_previous_output(tmp_path, monkeypatch, drift):
-    """A relocated archive preserves the image; mismatched inputs never replace output."""
+@pytest.mark.parametrize("producer", ["archive", "wheel", "diskutil", "hdiutil", "failed"])
+def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypatch, producer):
+    """One source-bound workload covers archive and native-envelope success and refusal."""
     repo, python = materialize_runtime_case(tmp_path, monkeypatch)
     selected = require_selected_runtime(python.parent)
     wheel = Path(git_common_dir(repo)) / "ethos/packages" / selected.wheel_sha256 / "ethos-test.whl"
-    destination = tmp_path / "ethos.tar.gz"
+    native = producer not in {"archive", "wheel"}
+    destination = tmp_path / ("ethos.dmg" if native else "ethos.tar.gz")
     destination.write_bytes(b"previous")
+    calls = []
+
+    def invoke(root, command, **options):
+        calls.append(command)
+        assert (
+            require_selected_runtime(root / "ethos/runtime" / selected.digest).digest
+            == selected.digest
+        )
+        assert 0 < options["timeout"] <= 180
+        if command[-1] == "--help":
+            return subprocess.CompletedProcess(command, int(producer == "hdiutil"))
+        assert command[0] == f"/usr/{'bin/hdiutil' if producer == 'hdiutil' else 'sbin/diskutil'}"
+        assert command[-2] == str(root)
+        assert options["check"]
+        if producer == "failed":
+            raise subprocess.CalledProcessError(1, command, stderr="creation failed")
+        Path(command[-1]).write_bytes(b"native image")
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(distribution, "run_command", invoke)
     with pytest.raises(ValueError, match="distribution_release_build_required"):
         distribution.package_runtime(
             selected.root, wheel, destination, download_url="https://example.invalid/ethos.tar.gz"
         )
     assert destination.read_bytes() == b"previous"
     assert not (tmp_path / "homebrew").exists()
-    if drift:
+    failure = {
+        "wheel": (ValueError, "distribution_wheel_mismatch"),
+        "failed": (subprocess.CalledProcessError, "exit status 1"),
+    }.get(producer)
+    if native and selected.platform != "darwin":
+        failure = (ValueError, "distribution_disk_image_requires_macos")
+    if producer == "wheel":
         wheel.write_bytes(b"changed")
-        with pytest.raises(ValueError, match="distribution_wheel_mismatch"):
-            distribution.package_runtime(selected.root, wheel, destination)
+    with pytest.raises(failure[0], match=failure[1]) if failure else nullcontext():
+        result = distribution.package_runtime(selected.root, wheel, destination)
+    assert not list(tmp_path.glob(".ethos-distribution-*"))
+    assert require_selected_runtime(selected.root) == selected
+    assert len(calls) == (2 if native and selected.platform == "darwin" else 0)
+    if failure:
         assert destination.read_bytes() == b"previous"
         return
-    result = distribution.package_runtime(selected.root, wheel, destination)
-    cask = Path(result["homebrew_cask"]).read_text()
+    cask = Path(str(result["homebrew_cask"])).read_text()
     assert all(token in cask for token in ('"/usr/bin/codesign"', '"=notarized"'))
     assert "spctl" not in cask
+    if native:
+        assert destination.read_bytes() == b"native image"
+        return
     assert distribution.package_runtime(selected.root, wheel, destination) == result
     with tarfile.open(destination) as archive:
         archive.extractall(tmp_path / "relocated", filter="tar")

@@ -10,8 +10,8 @@ from typing import cast
 from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.repo.commit.conservation import accepted_contribution
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -25,6 +25,8 @@ from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -43,7 +45,7 @@ def retire_absorbed_ref(
     confirm_irreversible: bool,
     apply: bool,
 ) -> dict[str, object]:
-    """Plan or execute one exact absorbed ancestor ref retirement."""
+    """Retire one exact unbound ref whose contribution is verifiably accepted."""
     repo = repository_root(root)
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
@@ -72,6 +74,11 @@ def retire_absorbed_ref(
         and not recovery_intent.get("gap")
         and recovery_intent.get("old_value") == expect_head
     )
+    contribution = (
+        accepted_contribution(repo, expect_head, accepted_head)
+        if expect_head and accepted_head
+        else {}
+    )
     gaps = [
         gap
         for failed, gap in (
@@ -87,18 +94,20 @@ def retire_absorbed_ref(
             (accepted_head and current_accepted != accepted_head, "accepted_head_mismatch"),
             (linked, "absorbed_ref_worktree_linked"),
             (lease_state != "missing", f"absorbed_ref_lease_{lease_state}"),
-            (
-                bool(expect_head and accepted_head)
-                and not is_ancestor(repo, expect_head, accepted_head),
-                "absorbed_ref_not_accepted_ancestor",
-            ),
             (apply and not authorize, "authorization_required"),
             (apply and not confirm_irreversible, "irreversible_confirmation_required"),
         )
         if failed
     ]
+    contribution_verdict = report_verdict(contribution)
+    verdict = reduce_verdicts("block" if gaps else "pass", contribution_verdict)
+    if expect_head and accepted_head and contribution_verdict != "pass":
+        gaps.append(
+            "absorbed_ref_conservation_unknown"
+            if contribution_verdict == "unknown"
+            else "absorbed_ref_not_accepted"
+        )
     required_gaps = list(dict.fromkeys(gaps))
-    verdict: Verdict = "pass" if not required_gaps else "block"
     effect = (
         GitEffect(
             updates={
@@ -135,6 +144,7 @@ def retire_absorbed_ref(
         "branch": branch,
         "head": expect_head,
         "accepted_head": accepted_head,
+        "contribution": contribution,
         "mutation": mutation,
         "required_gaps": required_gaps,
     }
@@ -205,7 +215,7 @@ def retire_absorbed_ref(
     )
     if drift:
         return admitted_report | {
-            "verdict": "block",
+            "verdict": "unknown" if drift == ["absorbed_ref_conservation_unknown"] else "block",
             "state": "blocked",
             "required_gaps": drift,
         }
@@ -430,6 +440,7 @@ def _effect_drift_gaps(
     """Re-observe every destructive precondition immediately before the ref CAS."""
     status = workspace_status(repo)
     worktrees = cast("list[dict[str, object]]", status["worktrees"])
+    conservation_verdict = report_verdict(accepted_contribution(repo, expect_head, accepted_head))
     return [
         gap
         for failed, gap in (
@@ -443,7 +454,12 @@ def _effect_drift_gaps(
                 observe_lease(state_database(repo), branch).state != "missing",
                 "absorbed_ref_lease_appeared",
             ),
-            (not is_ancestor(repo, expect_head, accepted_head), "absorbed_ref_ancestry_drift"),
+            (
+                conservation_verdict != "pass",
+                "absorbed_ref_conservation_unknown"
+                if conservation_verdict == "unknown"
+                else "absorbed_ref_conservation_drift",
+            ),
         )
         if failed
     ]

@@ -26,6 +26,8 @@ None.
 ### Modified Capabilities
 
 - `command-plane`: shared typed application operations and discoverable MCP transport.
+- `repository-governance`: shared accepted-contribution observation and separately
+  admitted local closure after remote proposal retirement.
 - `distribution`: independent installation and explicit repository version selection.
 
 ## Impact

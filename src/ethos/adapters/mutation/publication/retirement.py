@@ -10,44 +10,27 @@ from typing import cast
 from urllib.parse import urlsplit
 
 import ethos.adapters.process as process
+from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.mutation.publication.observation import observe_remote_ref
-from ethos.adapters.repo.commit.rewrite import refreshed_object_provenance
-from ethos.adapters.repo.commit.signature import repaired_object_provenance
+from ethos.adapters.repo.commit.conservation import accepted_contribution
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.configuration import release_config_from_text
 from ethos.repository.release.publication import publication_ref_role
 from ethos.repository.release.publication import publication_topology
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from pathlib import Path
-
-
-def _accepted_contribution(root: Path, old: str, accepted: str) -> dict[str, object]:
-    """Require ancestry or conserved native rewrite provenance, never patch-id."""
-    if is_ancestor(root, old, accepted):
-        return {"state": "ancestor", "old": old, "replacement": old}
-    repair = repaired_object_provenance(root, old=old, new=accepted)
-    if repair is not None:
-        mapping = cast("Mapping[str, str]", repair["mapping"])
-        return {
-            "state": "repaired",
-            "old": old,
-            "replacement": mapping[old],
-            "attestation_id": repair["attestation_id"],
-        }
-    return refreshed_object_provenance(root, old=old, new=accepted) or {
-        "state": "not_absorbed",
-        "old": old,
-    }
 
 
 def observe_proposal_review(
@@ -194,19 +177,18 @@ def _retirement_observations(
     accepted, accepted_branch, provider, repository = _retirement_context(root, target_ref, remote)
     zero = zero_oid(root)
     contribution = (
-        {"state": "already_absent", "replacement": zero}
+        {"verdict": "pass", "state": "already_absent", "replacement": zero}
         if old == zero
-        else _accepted_contribution(root, old, accepted)
+        else accepted_contribution(root, old, accepted)
     )
     result: dict[str, object] = {"accepted": accepted, "contribution": contribution}
-    conservation = contribution.get("conservation")
-    if isinstance(conservation, dict) and conservation.get("verdict") == "unknown":
+    if report_verdict(contribution) == "unknown":
         return {
             **result,
             "verdict": "unknown",
             "required_gaps": ["proposal_retirement_conservation_unknown"],
         }
-    if contribution["state"] == "not_absorbed":
+    if report_verdict(contribution) != "pass":
         return {**result, "verdict": "block", "required_gaps": ["proposal_retirement_not_accepted"]}
     peer = observe_remote_ref(root, remote, f"refs/heads/{accepted_branch}")
     result["peer_accepted"] = peer
@@ -243,6 +225,62 @@ def _retirement_observations(
         "review": review,
         "required_gaps": gaps,
         "next_action": review.get("next_action", ""),
+    }
+
+
+def _local_retirement(root: Path, target: str) -> dict[str, object]:
+    """Observe one exact ref before asking the local effect owner for admission."""
+    present = run_git(root, "show-ref", "--verify", "--quiet", target, check=False)
+    if present.returncode == 1:
+        return {"verdict": "pass", "state": "absent", "required_gaps": []}
+    if present.returncode:
+        message = "publication_local_ref_observation_unknown"
+        raise ValueError(message)
+    head = ref_head(root, target)
+    policy = load_branch_role_policy(root)
+    accepted = ref_head(root, policy.accepted_branch)
+    if not head or not accepted:
+        message = "publication_local_ref_observation_unknown"
+        raise ValueError(message)
+    return retire_absorbed_ref(
+        root=root,
+        branch=target.removeprefix("refs/heads/"),
+        expect_head=head,
+        accepted_head=accepted,
+        authorize=False,
+        confirm_irreversible=False,
+        apply=False,
+    )
+
+
+def proposal_retirement_followup(root: Path, target_refs: tuple[str, ...]) -> dict[str, object]:
+    """Observe local residue and delegate its next effect to the existing retirement owner."""
+    reports: dict[str, dict[str, object]] = {}
+    for target in sorted(set(target_refs)):
+        try:
+            reports[target] = _local_retirement(root, target)
+        except (OSError, RuntimeError, ValueError) as error:
+            reports[target] = {
+                "verdict": "unknown",
+                "state": "observation_unknown",
+                "required_gaps": ["publication_local_ref_observation_unknown"],
+                "diagnostic": str(error),
+                "next_action": shlex.join(
+                    ("ethos", "lane", "status", "--root", str(root), "--json")
+                ),
+            }
+    ordered = sorted(reports.values(), key=lambda item: report_verdict(item) != "pass")
+    return {
+        "verdict": reduce_verdicts(*(report_verdict(item) for item in ordered)),
+        "state": "complete" if all(item["state"] == "absent" for item in ordered) else "pending",
+        "local_refs": reports,
+        "required_gaps": list(
+            dict.fromkeys(gap for item in ordered for gap in string_sequence(item["required_gaps"]))
+        ),
+        "next_action": next(
+            (str(item["next_action"]) for item in ordered if item.get("next_action")), ""
+        ),
+        "user_decision_required": any(item.get("user_decision_required") for item in ordered),
     }
 
 

@@ -23,6 +23,7 @@ from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
 from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
+from ethos.domain.publication.operation import publish_repository
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.governed_repository import init_repo_with_candidate
@@ -46,7 +47,8 @@ def _invoke(monkeypatch, capsys, *args, exit_code=1, entrypoint=main):
 
 
 @pytest.mark.parametrize(
-    "operation", [inspect_repository, plan_repository, adopt_repository, land_repository]
+    "operation",
+    [inspect_repository, plan_repository, adopt_repository, land_repository, publish_repository],
 )
 @pytest.mark.parametrize("code", ["git_executable_unavailable", GIT_PROCESS_TIMED_OUT])
 @pytest.mark.parametrize("keyword", [False, True])

@@ -9,7 +9,6 @@ from typing import cast
 import pytest
 
 import ethos.adapters.mutation.lane_retirement.absorbed as absorbed_retirement
-import ethos.adapters.repo.git_effect_attestation as git_effect_attestation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git import current_tracked_head
@@ -27,10 +26,7 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from pathlib import Path
-
-    from ethos.contracts.plan import TransitionPlan
 
 
 def _absorbed_ref(tmp_path: Path) -> tuple[Path, str, str]:
@@ -90,8 +86,18 @@ def _raw_delete(repo: Path, branch: str, source: str) -> subprocess.CompletedPro
     )
 
 
-def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) -> None:
+@pytest.mark.parametrize("installed", [False, True])
+def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(
+    tmp_path: Path, *, installed: bool
+) -> None:
     repo, source, accepted = _absorbed_ref(tmp_path)
+    protected_before = {
+        branch: git(repo, "rev-parse", branch)
+        for branch in ("dev", "main", "candidate/dev")
+        if git(repo, "branch", "--list", branch)
+    }
+    if installed:
+        install_fixture_hook_runtime(repo)
     planned = _retire(repo, branch="work/absorbed", source=source, accepted=accepted, apply=False)
     assert (planned["verdict"], planned["state"], planned["required_gaps"]) == (
         "pass",
@@ -101,21 +107,16 @@ def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) ->
     transition = planned["data"]["transition"]
     assert transition["state"] == "git_effect_admitted"
     assert transition["effect"]["updates"] == {
-        "refs/heads/work/absorbed": {
-            "expected": source,
-            "desired": "0" * len(source),
-        }
+        "refs/heads/work/absorbed": {"expected": source, "desired": "0" * len(source)},
     }
     assert transition["plan_digest"]
     applied = _retire(repo, branch="work/absorbed", source=source, accepted=accepted)
-
     assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
         "pass",
         "retired_absorbed_ref",
         [],
     )
-    receipt = applied["data"]["retired"]
-    assert receipt == {
+    assert applied["data"]["retired"] == {
         "branch": "work/absorbed",
         "head": source,
         "accepted_head": accepted,
@@ -131,20 +132,22 @@ def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) ->
         transition["plan_digest"],
         transition["effect"],
     )
+    assert attested["policy"]["operation"] == "git.ref.compare-and-swap"
+    assert attested["policy"]["transition"] == "lane.retire"
+    assert attested["policy"]["retirement_kind"] == "absorbed-ref"
+    assert {
+        branch: git(repo, "rev-parse", branch) for branch in protected_before
+    } == protected_before
 
 
-def test_absorbed_ref_recovers_exact_already_applied_committed_intent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("valid_plan", [False, True])
+def test_absorbed_ref_recovery_requires_exact_committed_plan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, valid_plan: bool
 ) -> None:
     repo, source, accepted = _absorbed_ref(tmp_path)
     branch = "work/absorbed"
     effect = absorbed_retirement.GitEffect(
-        updates={
-            f"refs/heads/{branch}": GitRefUpdate(
-                expected=source,
-                desired="0" * len(source),
-            )
-        },
+        updates={f"refs/heads/{branch}": GitRefUpdate(expected=source, desired="0" * len(source))},
         assertions={"refs/heads/dev": accepted},
     )
     plan = compile_observed_git_effect(
@@ -174,134 +177,24 @@ def test_absorbed_ref_recovers_exact_already_applied_committed_intent(
         "ref_name": f"refs/heads/{branch}",
         "update": effect.updates[f"refs/heads/{branch}"],
         "operation": "lane.retire",
-        "plan_digest": plan.digest,
+        "plan_digest": plan.digest if valid_plan else "0" * 64,
     }
     write_ref_intent(**options)
     claim_ref_intent(**options, phase="prepared")
     git(repo, "update-ref", "-d", f"refs/heads/{branch}", source)
     claim_ref_intent(**options, phase="committed")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:retirement:recovery")
-
-    applied = _retire(repo, branch=branch, source=source, accepted=accepted)
-
-    assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
-        "pass",
-        "retired_absorbed_ref",
-        [],
-    )
-    assert applied["data"]["retired"]["ref_state"] == "absent"
-
-
-def test_absorbed_ref_recovery_rejects_mismatched_committed_plan(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, source, accepted = _absorbed_ref(tmp_path)
-    branch = "work/absorbed"
-    update = GitRefUpdate(expected=source, desired="0" * len(source))
-    write_ref_intent(
-        root=repo,
-        ref_name=f"refs/heads/{branch}",
-        update=update,
-        operation="lane.retire",
-        plan_digest="0" * 64,
-    )
-    claim_ref_intent(
-        root=repo,
-        ref_name=f"refs/heads/{branch}",
-        update=update,
-        operation="lane.retire",
-        phase="prepared",
-        plan_digest="0" * 64,
-    )
-    git(repo, "update-ref", "-d", f"refs/heads/{branch}", source)
-    claim_ref_intent(
-        root=repo,
-        ref_name=f"refs/heads/{branch}",
-        update=update,
-        operation="lane.retire",
-        phase="committed",
-        plan_digest="0" * 64,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:retirement:recovery")
-
-    blocked = _retire(repo, branch=branch, source=source, accepted=accepted, blocked=True)
-
-    assert blocked["required_gaps"] == ["git_effect_recovery_unproven"]
-    assert git(repo, "branch", "--list", branch) == ""
-
-
-def test_absorbed_ref_retires_through_installed_reference_transaction_hook(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, source, accepted = _absorbed_ref(tmp_path)
-    protected_before = {
-        branch: git(repo, "rev-parse", branch)
-        for branch in ("dev", "main", "candidate/dev")
-        if git(repo, "branch", "--list", branch)
-    }
-    install_fixture_hook_runtime(repo)
-    execute = absorbed_retirement.execute_git_effect
-    observed_policy: dict[str, object] = {}
-
-    def capture_policy(
-        root: Path,
-        plan: TransitionPlan,
-        *,
-        issuer: str,
-        environment: Mapping[str, str] | None = None,
-        detached_branch: str = "",
-    ) -> Attestation:
-        observed_policy.update(plan.policy)
-        return execute(
-            root,
-            plan,
-            issuer=issuer,
-            environment=environment,
-            detached_branch=detached_branch,
+    result = _retire(repo, branch=branch, source=source, accepted=accepted, blocked=not valid_plan)
+    if valid_plan:
+        assert (result["verdict"], result["state"], result["required_gaps"]) == (
+            "pass",
+            "retired_absorbed_ref",
+            [],
         )
-
-    monkeypatch.setattr(absorbed_retirement, "execute_git_effect", capture_policy)
-
-    applied = _retire(
-        repo,
-        branch="work/absorbed",
-        source=source,
-        accepted=accepted,
-    )
-
-    assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
-        "pass",
-        "retired_absorbed_ref",
-        [],
-    )
-    assert applied["data"]["retired"]["ref_state"] == "absent"
-    assert git(repo, "branch", "--list", "work/absorbed") == ""
-    assert observed_policy["operation"] == "git.ref.compare-and-swap"
-    assert observed_policy["transition"] == "lane.retire"
-    assert observed_policy["retirement_kind"] == "absorbed-ref"
-    assert {
-        branch: git(repo, "rev-parse", branch) for branch in protected_before
-    } == protected_before
-
-
-def test_installed_hook_compensates_retirement_when_attestation_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, source, accepted = _absorbed_ref(tmp_path)
-    branch = "work/absorbed"
-    install_fixture_hook_runtime(repo)
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:retirement:compensation")
-    monkeypatch.setattr(
-        git_effect_attestation,
-        "issue",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("attestation unavailable")),
-    )
-
-    blocked = _retire(repo, branch=branch, source=source, accepted=accepted, blocked=True)
-
-    assert blocked["required_gaps"] == ["attestation unavailable"]
-    assert git(repo, "rev-parse", branch) == source
+        assert result["data"]["retired"]["ref_state"] == "absent"
+    else:
+        assert result["required_gaps"] == ["git_effect_recovery_unproven"]
+    assert git(repo, "branch", "--list", branch) == ""
 
 
 def test_absorbed_ref_deletion_without_exact_retirement_intent_is_blocked(

@@ -143,8 +143,9 @@ CUE local acceptance does not imply hosted qualification or complete CI reports.
 
 ## Shared Application Boundary Evidence
 
-Status, planning, adoption and integration composition belong to `ethos.domain.inspection`,
-`ethos.domain.plan`, `ethos.domain.adoption` and `ethos.domain.land.operation`.
+Status, planning, adoption, integration and publication composition belong to
+`ethos.domain.inspection`, `ethos.domain.plan`, `ethos.domain.adoption`,
+`ethos.domain.land.operation` and `ethos.domain.publication.operation`.
 The integration operation retains distinct candidate, accepted and release effects,
 trusted control replacement, exact coordinates and current admission. Their CLI handlers retain
 argument/root resolution and rendering only; MCP binds those same operations.
@@ -154,6 +155,21 @@ reinterpreting operation-specific adoption conflicts. Existing lower-level admis
 repository and effect owners are
 unchanged; no command subprocess, second parser or alternate verdict implementation
 was added. Public source APIs require an explicit Path and return EthosResult.
+
+Publication observes confirmed remote effects separately from local proposal
+residue. A remote receipt never authorizes local deletion: pending local refs
+produce `retirement_pending` and the existing exact-root absorbed-ref retirement
+continuation. After that separately admitted effect, receipt replay observes full
+convergence without repeating completed peer effects. Missing, linked, leased or
+unknown local state retains its actual boundary and does not erase remote success.
+
+Remote retirement, local retirement and its compensation share the accepted
+contribution observer under `ethos.adapters.repo.commit.conservation`. Native
+ancestry, verified signature repair and conserved native refresh are the supported
+relationships; patch similarity is not evidence. Existing rewrite owners still
+validate provenance and native composition. Exact local/accepted OIDs, fresh
+pre-effect observation, topic role, absent Lease/worktree and native CAS remain
+independent requirements. Unknown conservation cannot become successful deletion.
 
 Repeated accepted closeout is an observation of current refs, affected worktrees
 and the original Git-backed effect, not a new identity-ref transaction. One

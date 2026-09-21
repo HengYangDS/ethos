@@ -6,15 +6,18 @@ from typing import cast
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.admission.control.replacement import control_replacement_report
+from ethos.adapters.mutation.accepted.promotion import current_acceptance
 from ethos.adapters.mutation.accepted.release import promote_release
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.landing import accepted_transition_policy
 from ethos.adapters.mutation.landing import apply_candidate_to_accepted
 from ethos.adapters.mutation.landing import apply_land_to_candidate
 from ethos.adapters.mutation.landing import candidate_transition_readiness
 from ethos.adapters.openspec.profile import active_change_progress_report
+from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -252,6 +255,21 @@ def _closeout_land_result(
         required_gaps=gaps,
     )
     update: dict[str, object] = {}
+    if verdict == "pass" and not apply and current_head == audited_candidate_head:
+        policy = accepted_transition_policy(repo, current_head)
+        update = (
+            current_acceptance(
+                root=repo,
+                policy=policy,
+                current_head=current_head,
+                candidate_head=audited_candidate_head,
+                status=integration_coordinates(repo, policy=policy),
+            )
+            or {}
+        )
+        if update:
+            gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
+            verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
     if verdict == "pass" and apply:
         control_replacement, fresh_control_gaps = _stable_control_replacement(
             repo=repo,

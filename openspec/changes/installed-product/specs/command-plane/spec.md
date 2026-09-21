@@ -46,6 +46,17 @@ the existing verdict, gaps, continuation and evidence boundaries.
 - **AND** stale coordinates, missing authorization and required control verification retain their native refusal
 - **AND** successful effects retain exact CAS and post-observation evidence without CLI rendering
 
+#### Scenario: A client observes or retries completed accepted closeout
+
+- **WHEN** the accepted and candidate refs, any required release mirror and their
+  affected worktrees already satisfy closeout
+- **THEN** preview and authorized retry report the same original effect identity
+  through the existing Attestation owner, without creating another ref effect
+- **AND** aligned bootstrap refs without an effect record remain an unattested
+  no-op, not fabricated proof of an earlier transition
+- **AND** ambiguous evidence or dirty affected worktrees cannot become successful
+  recovery; current authorization and coordinate admission still apply
+
 ### Requirement: Installed MCP has bounded repository authority
 
 The installed product SHALL expose stdio MCP through FastMCP over the official SDK. Server

@@ -45,9 +45,29 @@ def _land_candidate(repo: Path, head: str) -> None:
     run_ethos("land", "--apply", "--authorize", "--expect-head", head, "--json", cwd=repo)
 
 
-def _closeout_repo(tmp_path: Path, *, changed: bool = False) -> tuple[Path, Path, str, str]:
+def _archive_change(repo: Path, head: str, *, blocked: bool = False) -> dict[str, Any]:
+    """Exercise the same official archive transport for allowed and rejected fixture changes."""
+    runner = run_ethos_blocked if blocked else run_ethos
+    return runner(
+        "lane",
+        "archive-change",
+        "--change",
+        "fixture-change",
+        "--expect-head",
+        head,
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+
+def _closeout_repo(
+    tmp_path: Path, *, changed: bool = False, mirror: str = "independent"
+) -> tuple[Path, Path, str, str]:
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    adopt_and_commit(repo, release_mirror=mirror)
+    if mirror == "accepted_ff":
+        git(repo, "branch", "main")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     accepted_head = git(repo, "rev-parse", "HEAD")
     if changed:
@@ -89,17 +109,7 @@ def _archived_candidate(
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     seed_executed_proof(fixture.worktree, head)
-    run_ethos(
-        "lane",
-        "archive-change",
-        "--change",
-        "fixture-change",
-        "--expect-head",
-        head,
-        "--apply",
-        "--json",
-        cwd=fixture.worktree,
-    )
+    _archive_change(fixture.worktree, head)
     archived_head = git(fixture.worktree, "rev-parse", "HEAD")
     _land_candidate(fixture.worktree, archived_head)
     return fixture.repository, fixture.candidate, accepted_head, archived_head
@@ -117,17 +127,7 @@ def test_source_acceptance_preserves_pending_delivery_until_official_archive(
     accepted = git(fixture.repository, "rev-parse", "HEAD")
     seed_executed_proof(fixture.worktree, head)
 
-    archive = run_ethos_blocked(
-        "lane",
-        "archive-change",
-        "--change",
-        "fixture-change",
-        "--expect-head",
-        head,
-        "--apply",
-        "--json",
-        cwd=fixture.worktree,
-    )
+    archive = _archive_change(fixture.worktree, head, blocked=True)
     assert "openspec_change_incomplete:fixture-change" in archive["required_gaps"]
     assert git(fixture.worktree, "rev-parse", "HEAD") == head
     assert (fixture.worktree / tasks).read_text() == pending
@@ -152,17 +152,7 @@ def test_source_acceptance_preserves_pending_delivery_until_official_archive(
         fixture.worktree, tasks, pending.replace("[ ]", "[x]"), "record observed delivery"
     )
     seed_executed_proof(fixture.worktree, delivered)
-    run_ethos(
-        "lane",
-        "archive-change",
-        "--change",
-        "fixture-change",
-        "--expect-head",
-        delivered,
-        "--apply",
-        "--json",
-        cwd=fixture.worktree,
-    )
+    _archive_change(fixture.worktree, delivered)
     archived = git(fixture.worktree, "rev-parse", "HEAD")
     assert not (fixture.worktree / tasks).exists()
     _land_candidate(fixture.worktree, archived)
@@ -422,21 +412,39 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
     assert payload["data"]["repository_audit"]["root"] == candidate.as_posix()
 
 
-def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_proof(
+@pytest.mark.parametrize("mirror", ["independent", "accepted_ff"])
+@pytest.mark.parametrize("proven", [False, True])
+def test_current_closeout_preserves_proven_or_unattested_state(
     tmp_path: Path,
+    mirror: str,
+    *,
+    proven: bool,
 ) -> None:
-    repo, _candidate, accepted_head, _candidate_head = _closeout_repo(tmp_path)
-    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
-    assert payload["verdict"] == "pass"
-    assert payload["state"] == "accepted_current"
-    assert payload["required_gaps"] == []
-    assert payload["next_action"] == "ethos publish"
-    accepted_update = payload["data"]["accepted_update"]
-    assert accepted_update["state"] == "accepted_current"
-    assert accepted_update["head"] == accepted_head
-    assert accepted_update["previous_head"] == accepted_head
-    assert accepted_update["attestation"] == {}
-    assert git(repo, "rev-parse", "HEAD") == accepted_head
+    """Fresh preview and apply observe the original effect, not a new no-op transaction."""
+    repo, candidate, accepted, head = _closeout_repo(tmp_path, changed=proven, mirror=mirror)
+    effect = {}
+    if proven:
+        seed_executed_proof(candidate, head)
+        first = _closeout(repo, "--apply", "--authorize", expect_head=accepted)
+        effect = first["data"]["accepted_update"]["attestation"]
+    refs = git(repo, "show-ref")
+    for args in ((), ("--apply", "--authorize")):
+        result = _closeout(repo, *args, expect_head=head)
+        assert (result["verdict"], result["state"]) == ("pass", "accepted_current")
+        assert result["required_gaps"] == []
+        update = result["data"]["accepted_update"]
+        assert (update["state"], update["head"], update["previous_head"]) == (
+            "accepted_current",
+            head,
+            head,
+        )
+        assert update["attestation"] == effect
+        assert result["data"]["closeout_resolution"]["effect"]["attestation_id"] == effect.get(
+            "id", ""
+        )
+        assert result["next_action"] == "ethos publish"
+        assert git(repo, "show-ref") == refs
+        assert git(repo, "rev-parse", "HEAD") == head
 
 
 def test_land_closeout_observes_completed_active_openspec_change(

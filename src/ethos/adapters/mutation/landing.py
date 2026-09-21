@@ -27,7 +27,6 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.worktree_effects import sync_worktree
-from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
@@ -358,12 +357,7 @@ def apply_candidate_to_accepted(
 ) -> dict[str, object]:
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     try:
-        workspace = committed_file_text(root, current_head, ".ethos/workspace.toml")
-        policy = (
-            _accepted_transition_policy(workspace)
-            if workspace
-            else _default_accepted_transition_policy(root, current_head)
-        )
+        policy = accepted_transition_policy(root, current_head)
     except (TypeError, ValueError):
         return {
             "verdict": "block",
@@ -399,18 +393,14 @@ def apply_candidate_to_accepted(
             "remediation": remediation.remediation_for_gaps(gaps),
         }
     candidate_head = candidate_head or observed_candidate_head
-    if (
-        candidate_head == current_head
-        and policy.release_mirror != RELEASE_MIRROR_ACCEPTED_FF
-        and not has_changed_paths(root)
+    if current := accepted.current_acceptance(
+        root=root,
+        policy=policy,
+        current_head=current_head,
+        candidate_head=candidate_head,
+        status=status,
     ):
-        return {
-            **accepted.accepted_payload(policy, current_head),
-            "verdict": "pass",
-            "state": "accepted_current",
-            "candidate_head": candidate_head,
-            "attestation": {},
-        }
+        return current
     return accepted.promote_candidate(
         root=root,
         policy=policy,
@@ -421,13 +411,10 @@ def apply_candidate_to_accepted(
     )
 
 
-def _accepted_transition_policy(text: str) -> BranchRolePolicy:
-    """Parse the exact incumbent branch-role contract without compatibility."""
-    return strict_branch_role_policy_from_text(text)
-
-
-def _default_accepted_transition_policy(root: Path, head: str) -> BranchRolePolicy:
-    """Use defaults only when the accepted tree contains no workspace carrier."""
+def accepted_transition_policy(root: Path, head: str) -> BranchRolePolicy:
+    """Read the incumbent policy; use defaults only for a provably absent carrier."""
+    if workspace := committed_file_text(root, head, ".ethos/workspace.toml"):
+        return strict_branch_role_policy_from_text(workspace)
     present = run_git(
         root,
         "ls-tree",

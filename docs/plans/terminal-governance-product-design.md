@@ -5382,7 +5382,7 @@ credential, service or adopter was changed by this investigation.
 The source assessment, metadata design and reproduced owner defects are in
 [Documentation And Knowledge Interchange](../research/foundations/documentation.md).
 The [Docs Registry](../governance/docs-registry.md) owns current obligations;
-the [official Change](../../openspec/changes/proof-throughput/tasks.md#documentation-comprehension-and-research-delivery)
+the [official Change](../../openspec/changes/proof-throughput/tasks.md#12-documentation-comprehension-and-research-delivery)
 owns progress. Do not duplicate research or task state here.
 
 Order: repair native metadata parsing and human/machine contradiction gaps;

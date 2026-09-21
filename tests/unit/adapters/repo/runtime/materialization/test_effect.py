@@ -56,7 +56,7 @@ def _write(path: Path, payload: bytes = b"payload") -> Path:
 
 def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     runtime_root, source = tmp_path / "runtime", tmp_path / "source"
-    work, interpreter, wheel = runtime_root / ".work", tmp_path / "python", tmp_path / "ethos.whl"
+    interpreter, wheel = tmp_path / "python", tmp_path / "ethos.whl"
     source.mkdir()
     _write(interpreter, b"python")
     _write(wheel, b"wheel")
@@ -79,7 +79,7 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     command = Mock(return_value=subprocess.CompletedProcess([], 0, "0.2.0-alpha.5\n", ""))
     monkeypatch.setattr(materialization.subprocess, "run", command)
-    return (runtime_root, work, source, interpreter, artifact, _environment()), observed, command
+    return (runtime_root, source, interpreter, artifact, _environment()), observed, command
 
 
 @pytest.mark.parametrize("supply", ["packaged", "split-image", "source", "selected"])
@@ -110,7 +110,7 @@ def test_materialization_binds_package_dependency_and_image_sources(
         observed[key] = value
         return result
 
-    def generation(_root, _work, source, python, package_artifact, actual_environment, **kwargs):
+    def generation(_root, source, python, package_artifact, actual_environment, **kwargs):
         return record(
             "generation",
             (source, python, package_artifact, actual_environment, kwargs),
@@ -173,7 +173,7 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     args, observed, commands = _generation_case(tmp_path, monkeypatch)
-    runtime_root, environment = args[0], args[5]
+    runtime_root, environment = args[0], args[4]
     target = materialization.materialize_runtime_generation(*args, locked_requirements=None)
 
     commands.assert_called_once()
@@ -215,7 +215,7 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
         with monkeypatch.context() as context:
             context.setattr(materialization, name, lambda _path, value=value: value)
             verify = (
-                partial(materialization.require_runtime_identity, target, args[4], environment)
+                partial(materialization.require_runtime_identity, target, args[3], environment)
                 if name == "runtime_file_inventory"
                 else partial(materialization.require_runtime_execution, target)
             )

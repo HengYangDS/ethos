@@ -18,6 +18,10 @@ only measured throughput improvements and their correctness boundaries.
 4. Reduce repeated preparation and IPC through existing native mechanisms and
    explicit operation-local values. Do not replace native acceptance tests
    with mocks or share mutable repositories between cases.
+   Trace prerequisite and consumer relations before adding a layer. Remove
+   circular prerequisites, repeated judgments, unused parameters and pass-through
+   wrappers at their semantic owner; another facade is not simplification.
+   Keep a boundary only when it owns a distinct invariant, lifetime or effect.
 5. Keep immutable runtime inventory and corruption rejection. A faster source
    observation must include unstaged, staged, untracked, mode and index-flag
    changes and preserve the caller's index.

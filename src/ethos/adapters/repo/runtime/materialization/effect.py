@@ -117,7 +117,6 @@ def materialize_runtime(
         )
         target = materialize_runtime_generation(
             runtime_root,
-            work,
             project,
             interpreter,
             artifact,
@@ -176,7 +175,6 @@ def _runtime_supply_current(selected: SelectedRuntime, project: Path) -> bool:
 
 def materialize_runtime_generation(
     runtime_root: Path,
-    work: Path,
     source: Path,
     interpreter: Path,
     artifact: PackageArtifact,
@@ -186,7 +184,6 @@ def materialize_runtime_generation(
     python_facts: dict[str, str] | None = None,
     locked_requirements: Path | None,
 ) -> Path:
-    del work
     staging = runtime_root / f".runtime-build-{uuid.uuid4().hex}"
     try:
         materialize_python_image(
@@ -313,14 +310,11 @@ def require_runtime_identity(
     runtime: Path,
     artifact: PackageArtifact,
     environment: RuntimeEnvironment,
-    *,
-    expected_root: Path | None = None,
 ) -> None:
     """Verify exact sealed bytes and metadata without launching their interpreter."""
     manifest = load_runtime_manifest_bytes((runtime / "manifest.json").read_bytes())
-    digest = (expected_root or runtime).name
     if (
-        manifest.digest != digest
+        manifest.digest != runtime.name
         or manifest.wheel_sha256 != artifact.sha256
         or manifest.build != artifact.build
         or manifest.environment != environment

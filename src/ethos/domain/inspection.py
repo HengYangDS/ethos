@@ -11,7 +11,7 @@ from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
-from ethos.domain.execution import native_result
+from ethos.domain.execution import application_result
 from ethos.domain.land.closeout import closeout_command_from_status
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
@@ -24,7 +24,7 @@ def _count(value: object) -> int:
     return len(value) if isinstance(value, list | tuple) else 0
 
 
-@native_result("status")
+@application_result("status")
 def inspect_repository(root: Path) -> EthosResult:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
     repo = root.resolve()

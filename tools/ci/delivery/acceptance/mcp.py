@@ -18,6 +18,7 @@ from fastmcp.client.transports import StdioTransport
 
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
+from ethos.domain.plan import plan_repository
 
 
 def _run(
@@ -35,11 +36,11 @@ def _run(
     )
 
 
-def _initialize(root: Path, git: str, env: dict[str, str]) -> None:
-    root.mkdir()
-    for arguments in (
-        ("init", "--quiet", "--initial-branch=dev"),
+def _git(root: Path, git: str, env: dict[str, str], *arguments: str) -> None:
+    """Run fixture Git with one credential-free identity and isolated hook policy."""
+    result = _run(
         (
+            git,
             "-c",
             "user.name=ETHOS Conformance",
             "-c",
@@ -48,15 +49,18 @@ def _initialize(root: Path, git: str, env: dict[str, str]) -> None:
             "commit.gpgsign=false",
             "-c",
             "core.hooksPath=",
-            "commit",
-            "--allow-empty",
-            "--quiet",
-            "-m",
-            "initialize conformance",
+            *arguments,
         ),
-    ):
-        result = _run((git, *arguments), root, env)
-        assert result.returncode == 0, result.stderr
+        root,
+        env,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def _initialize(root: Path, git: str, env: dict[str, str]) -> None:
+    root.mkdir()
+    _git(root, git, env, "init", "--quiet", "--initial-branch=dev")
+    _git(root, git, env, "commit", "--allow-empty", "--quiet", "-m", "initialize conformance")
 
 
 async def _call(
@@ -74,7 +78,11 @@ async def _call(
         assert result.structured_content is not None
         return result.structured_content
     if surface == "sdk":
-        operation = inspect_repository if name == "status" else adopt_repository
+        operation = {
+            "status": inspect_repository,
+            "plan": plan_repository,
+            "adopt": adopt_repository,
+        }[name]
         return operation(root, **arguments).to_dict()
     options: list[str] = []
     for key, value in arguments.items():
@@ -94,6 +102,7 @@ async def _adoption(
     root: Path,
     foreign: Path,
     env: dict[str, str],
+    git: str,
 ) -> None:
     transport = StdioTransport(
         command[0],
@@ -104,7 +113,7 @@ async def _adoption(
     )
     async with Client(transport, timeout=30) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
-        assert set(tools) == {"status", "adopt"}
+        assert set(tools) == {"status", "plan", "adopt"}
         for tool in tools.values():
             assert tool.input_schema.get("additionalProperties") is False
             assert not {"root", "actor"} & tool.input_schema.get("properties", {}).keys()
@@ -114,7 +123,7 @@ async def _adoption(
             assert rejected.is_error
             assert not (root / ".ethos").exists()
             assert not (foreign / ".ethos").exists()
-        preview = adopt_repository(root).to_dict()
+        preview = await _call("sdk", client, command, root, "adopt", {}, env)
         for caller in ("cli", "mcp"):
             assert await _call(caller, client, command, root, "adopt", {}, env) == preview
         exact = {
@@ -128,7 +137,7 @@ async def _adoption(
             {"expect_head": "0" * 40},
             {"expect_plan_digest": "0" * 64},
         ):
-            denied = adopt_repository(root, **(exact | override)).to_dict()
+            denied = await _call("sdk", client, command, root, "adopt", exact | override, env)
             assert denied["verdict"] == "block"
             for caller in ("cli", "mcp"):
                 assert (
@@ -160,10 +169,41 @@ async def _adoption(
         assert (await client.call_tool("status")).structured_content == inspect_repository(
             root
         ).to_dict()
+        if surface == "mcp":
+            _git(root, git, env, "add", "--", *(str(p.relative_to(root)) for p in retained))
+            _git(root, git, env, "commit", "--quiet", "-m", "accept conformance adoption")
+            await _observations(client, command, root, env)
         assert all(
             hashlib.sha256(path.read_bytes()).hexdigest() == value
             for path, value in retained.items()
         )
+
+
+async def _observations(
+    client: Client, command: tuple[str, ...], root: Path, env: dict[str, str]
+) -> None:
+    """Compare successful planning and live profile failure once across all transports."""
+    planning = plan_repository(root, changed=True).to_dict()
+    assert (planning["verdict"], planning["state"]) == ("pass", "no_changes"), planning
+    for caller in ("cli", "mcp"):
+        assert (
+            await _call(caller, client, command, root, "plan", {"changed": True}, env) == planning
+        )
+    profile = root / ".ethos/profile.toml"
+    original = profile.read_bytes()
+    try:
+        profile.write_text("not valid TOML [")
+        before = profile.read_bytes(), profile.stat().st_ino, profile.stat().st_mtime_ns
+        for name in ("status", "plan", "adopt"):
+            refused = await _call("sdk", client, command, root, name, {}, env)
+            assert refused["verdict"] == "block"
+            code = "adoption_conflict" if name == "adopt" else "repository_profile_invalid"
+            assert refused["required_gaps"] == [f"{code}:.ethos/profile.toml"], refused
+            for caller in ("cli", "mcp"):
+                assert await _call(caller, client, command, root, name, {}, env) == refused
+        assert (profile.read_bytes(), profile.stat().st_ino, profile.stat().st_mtime_ns) == before
+    finally:
+        profile.write_bytes(original)
 
 
 async def _native_failure(
@@ -188,7 +228,7 @@ async def _native_failure(
             try:
                 os.environ.clear()
                 os.environ.update(isolated)
-                for name in ("status", "adopt"):
+                for name in ("status", "plan", "adopt"):
                     expected = await _call("sdk", client, command, root, name, {}, isolated)
                     assert expected["verdict"] == "block"
                     assert expected["required_gaps"] == ["git_executable_unavailable"]
@@ -230,7 +270,7 @@ def verify(command: tuple[str, ...], workspace: Path) -> dict[str, object]:
         for surface in ("cli", "sdk", "mcp"):
             root = base / surface
             _initialize(root, git, env)
-            asyncio.run(_adoption(surface, command, root, foreign, env))
+            asyncio.run(_adoption(surface, command, root, foreign, env, git))
         if os.name == "posix":
             asyncio.run(_native_failure(command, root, git, env))
         assert not (foreign / ".ethos").exists()
@@ -238,6 +278,8 @@ def verify(command: tuple[str, ...], workspace: Path) -> dict[str, object]:
     return {
         "state": "passed",
         "mutation_surfaces": ["cli", "sdk", "mcp"],
+        "planning_no_changes": "passed",
+        "profile_refusal": "passed",
         "native_git_loss": "passed" if os.name == "posix" else "not_qualified",
         "owned_work_removed": not Path(directory).exists(),
     }

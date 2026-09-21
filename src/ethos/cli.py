@@ -15,6 +15,7 @@ from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import root_command
+from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult
 from ethos.surface.cli.version import version_text
 
@@ -66,7 +67,7 @@ def main() -> None:
             root=_argument_root(argv),
         )
     except ValueError as exc:
-        if str(exc) == "repository_profile_invalid:.ethos/profile.toml":
+        if str(exc) == INVALID_PROFILE_ERROR:
             _emit_invalid_profile(command, argv)
         else:
             _emit_contract_failure(command, argv, exc)

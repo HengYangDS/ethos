@@ -38,12 +38,37 @@ ETHOS exposes exactly these public roots:
 
 The workflow roots are `status`, `plan`, `prove`, `land`, `publish`, and
 `adopt`. The additional `mcp` root launches a transport, not a seventh lifecycle.
-Its first tools are status and adoption over the same typed application owners;
+Its current tools are status, planning and adoption over the same typed application owners;
 it does not yet project every operation. Root and process actor bind at startup.
 Strict tool inputs cannot replace either binding. Diagnostics stay on stderr;
 stdout is reserved for the protocol. Cancellation and deadline expiry do not
 mean rollback: reobserve before retrying an effect. Synchronous work drains
 before a queued successor executes; this is not a hard filesystem timeout.
+
+## Shared SDK Operations
+
+`inspect_repository`, `plan_repository` and `adopt_repository` in
+`ethos.domain.inspection`, `ethos.domain.plan` and `ethos.domain.adoption`
+return typed `EthosResult` values without CLI rendering or changing the caller's
+working directory. Pass an explicit repository path:
+
+```python
+from pathlib import Path
+
+from ethos.domain.plan import plan_repository
+
+result = plan_repository(Path("/path/to/repository"), changed=True)
+print(result.to_json())
+```
+
+Planning reuses current intent resolution, authority, gates and skill activation;
+it does not authorize effects. Known native and profile failures retain their
+structured results across transports. Operation-specific refusals remain distinct:
+an invalid profile blocks observation, while adoption preserves conflicting
+authored content rather than overwriting it. Other command families do not yet
+have equivalent SDK and MCP surfaces.
+
+## Runtime Selection and Recovery
 
 `status.data.hook_runtime` is the single hook-runtime
 inspection surface. It reports installed and expected source commit/tree,

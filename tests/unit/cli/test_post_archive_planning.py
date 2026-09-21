@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from functools import partial
+from pathlib import Path
 
 import pytest
 
 import ethos.adapters.admission.current.resolution as resolution_adapter
+import ethos.domain.plan as planning_domain
 import ethos.surface.cli.root.planning as planning_cli
 from ethos.adapters.admission.current.resolution import current_scope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
@@ -14,14 +16,10 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from tests.support.semantic import commitment_fixture
 from tests.unit.admission.current.support import authority
 
-if TYPE_CHECKING:
-    from pathlib import Path
 
-
-def test_clean_changed_plan_closes_before_historical_intent_resolution(
-    monkeypatch, tmp_path: Path
-) -> None:
-    emitted = []
+@pytest.fixture
+def planning_case(monkeypatch, tmp_path):
+    """Reuse the same observation and result boundary for both public consumers."""
     status = {
         "head": "a" * 40,
         "branch": "dev",
@@ -31,78 +29,67 @@ def test_clean_changed_plan_closes_before_historical_intent_resolution(
         "candidate": {},
         "foreign_work_lanes": [],
     }
+    emitted = []
+    for name, operation in {
+        "repository_identity": lambda _repo: "repository:test",
+        "workspace_status_observation": lambda _repo: (status, None),
+        "closeout_command_from_status": lambda *_args: "",
+    }.items():
+        monkeypatch.setattr(planning_domain, name, operation)
+    monkeypatch.setattr(planning_cli, "emit", lambda result, **_kwargs: emitted.append(result))
 
+    def invoke_cli(**arguments):
+        planning_cli.plan(root=tmp_path, json_output=True, **arguments)
+        return emitted.pop()
+
+    return partial(planning_domain.plan_repository, tmp_path), invoke_cli
+
+
+def test_clean_changed_plan_closes_before_historical_intent_resolution(
+    monkeypatch, planning_case, capsys
+) -> None:
     def unexpected_resolution(*_args, **_kwargs):
         message = "an empty fresh changed set must not select historical intent"
         raise AssertionError(message)
 
-    monkeypatch.setattr(planning_cli, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(planning_cli, "repository_identity", lambda _repo: "repository:test")
-    monkeypatch.setattr(
-        planning_cli,
-        "workspace_status_observation",
-        lambda _repo: (status, None),
-    )
-    monkeypatch.setattr(planning_cli, "closeout_command_from_status", lambda *_args: "")
-    monkeypatch.setattr(planning_cli, "resolve_current_resolution", unexpected_resolution)
-    monkeypatch.setattr(planning_cli, "emit", lambda result, **_kwargs: emitted.append(result))
-
-    planning_cli.plan(changed=True, json_output=True)
-
-    [result] = emitted
-    assert result.verdict == "pass"
-    assert result.state == "no_changes"
-    assert result.summary == {
-        "changed": False,
-        "plan_node_count": 0,
-        "matched_rule_count": 0,
-        "required_gate_count": 0,
-        "required_skill_count": 0,
-    }
-    assert result.required_gaps == ()
-    assert result.next_action == ""
-    assert result.to_dict()["data"] == {
-        "changed_paths": [],
-        "selected_carrier": "",
-        "path_attributions": [],
-        "matched_rules": [],
-        "required_gates": [],
-    }
+    monkeypatch.setattr(planning_domain, "resolve_current_resolution", unexpected_resolution)
+    for operation in planning_case:
+        before = Path.cwd()
+        result = operation(changed=True)
+        assert Path.cwd() == before
+        assert not capsys.readouterr().out
+        assert result.verdict == "pass"
+        assert result.state == "no_changes"
+        assert result.summary == {
+            "changed": False,
+            "plan_node_count": 0,
+            "matched_rule_count": 0,
+            "required_gate_count": 0,
+            "required_skill_count": 0,
+        }
+        assert result.required_gaps == ()
+        assert result.next_action == ""
+        assert result.to_dict()["data"] == {
+            "changed_paths": [],
+            "selected_carrier": "",
+            "path_attributions": [],
+            "matched_rules": [],
+            "required_gates": [],
+        }
 
 
-@pytest.mark.parametrize(
-    ("changed", "change"),
-    [(False, None), (True, "explicit-change")],
-)
+@pytest.mark.parametrize(("changed", "change"), [(False, None), (True, "explicit-change")])
 def test_empty_scope_does_not_bypass_ordinary_or_explicit_planning(
-    monkeypatch, tmp_path: Path, *, changed: bool, change: str | None
+    monkeypatch, planning_case, *, changed: bool, change: str | None
 ) -> None:
-    status = {
-        "head": "a" * 40,
-        "branch": "dev",
-        "role": "accepted_root",
-        "dirty": False,
-        "changed_paths": [],
-        "candidate": {},
-        "foreign_work_lanes": [],
-    }
-
     def expected_resolution(*_args, **_kwargs):
         message = "current intent resolution reached"
         raise RuntimeError(message)
 
-    monkeypatch.setattr(planning_cli, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(planning_cli, "repository_identity", lambda _repo: "repository:test")
-    monkeypatch.setattr(
-        planning_cli,
-        "workspace_status_observation",
-        lambda _repo: (status, None),
-    )
-    monkeypatch.setattr(planning_cli, "closeout_command_from_status", lambda *_args: "")
-    monkeypatch.setattr(planning_cli, "resolve_current_resolution", expected_resolution)
-
-    with pytest.raises(RuntimeError, match="current intent resolution reached"):
-        planning_cli.plan(changed=changed, change=change, json_output=True)
+    monkeypatch.setattr(planning_domain, "resolve_current_resolution", expected_resolution)
+    for operation in planning_case:
+        with pytest.raises(RuntimeError, match="current intent resolution reached"):
+            operation(changed=changed, change=change)
 
 
 def test_post_archive_planning_uses_fresh_git_paths_not_an_archived_carrier() -> None:

@@ -106,7 +106,7 @@
 - [x] 8.7 Close contradictory proof results through shared execution-success semantics and real issuance regressions.
 - [x] 8.8 Reject mixed provider/source execution before all gates and qualify matching package, source and adopter paths.
 - [ ] 8.9 Reject incomplete hosted results and missing, malformed or contradictory test artifacts through the existing receipt owner.
-- [ ] 8.10 Verify complete per-property reports, cross-platform admission and warning propagation with native falsifying cases.
+- [ ] 8.10 Verify complete per-property reports, explicit product/test/tooling type-check scopes, cross-platform admission and warning propagation with native falsifying cases.
 
 ## 9. Startup and Structural Simplification
 

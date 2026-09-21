@@ -11,6 +11,7 @@ from cyclopts import Parameter
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.domain.execution import process_failure_result
+from ethos.domain.execution import profile_failure_result
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 
@@ -48,19 +49,8 @@ def emit(
 
 
 def emit_invalid_repository_profile(*, command: str, json_output: bool, enforce: bool) -> None:
-    """Emit the fail-closed envelope for an invalid repository profile."""
-    emit(
-        EthosResult(
-            command=command,
-            verdict="block",
-            state="gapped",
-            required_gaps=("repository_profile_invalid:.ethos/profile.toml",),
-            next_action="repair .ethos/profile.toml and rerun the command",
-            data={"error_boundary": "repository_profile_validation"},
-        ),
-        json_output=json_output,
-        enforce=enforce,
-    )
+    """Render the shared invalid-profile result with the requested CLI enforcement."""
+    emit(profile_failure_result(command), json_output=json_output, enforce=enforce)
 
 
 def emit_process_execution_failure(

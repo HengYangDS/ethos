@@ -21,6 +21,7 @@ from ethos.cli import main
 from ethos.contracts.admission import root_command
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
+from ethos.domain.plan import plan_repository
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.governed_repository import init_repo_with_candidate
@@ -43,7 +44,7 @@ def _invoke(monkeypatch, capsys, *args, exit_code=1, entrypoint=main):
     return json.loads(captured.err if protocol else captured.out)
 
 
-@pytest.mark.parametrize("operation", [inspect_repository, adopt_repository])
+@pytest.mark.parametrize("operation", [inspect_repository, plan_repository, adopt_repository])
 @pytest.mark.parametrize("code", ["git_executable_unavailable", GIT_PROCESS_TIMED_OUT])
 @pytest.mark.parametrize("keyword", [False, True])
 def test_application_native_failure_preserves_result(
@@ -105,12 +106,15 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> No
 @pytest.mark.parametrize(
     ("command", "extra_args", "exit_code", "repository"),
     [
-        ("status", (), None, True),
+        ("status", (), 0, True),
         ("plan", (), 0, True),
         *(
             (command, args, 1 if enforcing else 0 if command == "land" else None, False)
-            for command, args, enforcing in literal_case(
-                "cli.test_invalid_profile_boundary:parametrize:test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission:1"
+            for command, args, enforcing in cast(
+                "list[tuple[str, tuple[str, ...], bool]]",
+                literal_case(
+                    "cli.test_invalid_profile_boundary:parametrize:test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission:1"
+                ),
             )
         ),
     ],
@@ -138,6 +142,10 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
     assert payload["command"] == command
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
+    reader = {"status": inspect_repository, "plan": plan_repository}.get(command)
+    if reader is not None:
+        assert reader(root).to_dict() == payload
+        assert not capsys.readouterr().out
 
 
 @pytest.mark.parametrize(

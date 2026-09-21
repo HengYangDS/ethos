@@ -80,6 +80,19 @@ test("the migration baseline binds exact Publisher and ETHOS inputs", () => {
       projectionTree: "21da3725e51c6da0fa4a6380be7fec50c915e646",
       declarationBlob: "805d9974992eb4cce08d3ced67d14cc28347cfdb",
       declarationSha256: "401ea8938a4a847082c9d50f0cacf9cefe6aec3b9a6d8facf1b16d78e8e3ecc6",
+      editionSource: {
+        commit: "8f2e829fed3877c5375cd8636bea45bee583f6c4",
+        projectionDigest: "4ea40f421434106948f1e1d2d9ae5ee6c8b9868edc5538ff755876fd01d37ef8",
+        sourceManifestSha256: "58121ad168a314af94b55f557435ffb7d9828ca7c476411f18467731ae9d1db0",
+        exporterSha256: "f32780b5135523e209749e3f8651dbd152f63baa68329a270956586a5bfa6520",
+        ownerSha256: "158e26f07f1827c376c2fbf8116f84c0be8bcf2dae4972ee4c038cc2fa85918e",
+      },
+      acceptedProjection: {
+        commit: "9a34b12ab1e30bab69ad8c28a15f657c903027c4",
+        projectionDigest: "36bae59c26be802222db569d5594216f059115bceab40dc17f20de72f1447b98",
+        exporterSha256: "f32780b5135523e209749e3f8651dbd152f63baa68329a270956586a5bfa6520",
+        ownerSha256: "4dcc6862f5b43bfe53ab1a3f9b80ef30aeb6ebd636226afa3f4876d37620a283",
+      },
     },
     scope:
       "Exact migration inputs only; no generated artifact, acceptance, publication, or off-host recovery claim.",

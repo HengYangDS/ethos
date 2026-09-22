@@ -250,6 +250,28 @@ def _scheduled_nodes(
     )
 
 
+def _ready_checks(
+    nodes: tuple[PlanNode, ...],
+    gates: Mapping[str, Gate],
+    ready: set[str],
+    active: tuple[str, ...],
+    capacity: int,
+) -> tuple[PlanNode, ...]:
+    """Choose a bounded compatible ready set without introducing a global wave."""
+    selected: list[PlanNode] = []
+    candidates = sorted(
+        (node for node in nodes if node.id in ready),
+        key=lambda node: not gates[node.id].writes_files,
+    )
+    for node in candidates:
+        if len(selected) >= capacity:
+            break
+        occupied = (*active, *(item.id for item in selected))
+        if not any(gates[node.id].conflicts_with(gates[other]) for other in occupied):
+            selected.append(node)
+    return tuple(selected)
+
+
 def run_gate_graph(
     runner: DryRunRunner | LocalGateRunner,
     nodes: tuple[PlanNode, ...],
@@ -261,14 +283,13 @@ def run_gate_graph(
     on_schedule: Callable[[str], None] | None = None,
     on_result: Callable[[ActionRunResult], None] | None = None,
 ) -> tuple[ActionRunResult, ...]:
-    """Run ready checks once, isolate writers and return canonical plan order."""
+    """Run ready nonconflicting checks once and return canonical plan order."""
     if capacity < 1:
         message = "proof_node_capacity_invalid"
         raise ValueError(message)
     scheduled = _scheduled_nodes(nodes, gates)
     if not isinstance(runner, DryRunRunner):
         assert_provider_execution_source(root, tuple(gates[node.id] for node in nodes))
-    writers = {node.id for node in nodes if gates[node.id].writes_files}
     graph = TopologicalSorter({node.id: node.depends_on for node in scheduled})
     graph.prepare()
     ready: set[str] = set()
@@ -282,17 +303,13 @@ def run_gate_graph(
     with ThreadPoolExecutor(max_workers=limit) as executor:
         while graph.is_active():
             ready.update(graph.get_ready())
-            write_ready = next((node for node in scheduled if node.id in ready & writers), None)
-            if write_ready is not None:
-                selected = () if running else (write_ready,)
-            else:
-                selected = tuple(node for node in scheduled if node.id in ready)[
-                    : limit - len(running)
-                ]
+            selected = _ready_checks(
+                scheduled, gates, ready, tuple(running.values()), limit - len(running)
+            )
             for node in selected:
                 ready.remove(node.id)
                 scheduled_event(node.id)
-                if not parallel or node.id in writers or isinstance(runner, DryRunRunner):
+                if not parallel or isinstance(runner, DryRunRunner):
                     results[node.id] = _run_ready_gate(
                         runner, node, gates[node.id], results, root, epoch
                     )

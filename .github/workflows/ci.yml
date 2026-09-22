@@ -83,10 +83,10 @@ jobs:
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Admit pushed commit range
         if: github.event_name == 'push'
-        run: uv run --frozen --offline ethos hook commit-range --target-ref "${{ github.ref }}" --proposed-head "${{ github.sha }}" --remote-head "${{ github.event.before }}" --remote origin --root . --json
+        run: uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "${{ github.ref }}" --proposed-head "${{ github.sha }}" --remote-head "${{ github.event.before }}" --remote origin --root . --json
       - name: Admit pull request commit range
         if: github.event_name == 'pull_request'
-        run: uv run --frozen --offline ethos hook commit-range --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}" --proposed-head "${{ github.event.pull_request.head.sha }}" --remote-head "${{ github.event.pull_request.base.sha }}" --remote origin --root . --json
+        run: uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}" --proposed-head "${{ github.event.pull_request.head.sha }}" --remote-head "${{ github.event.pull_request.base.sha }}" --remote origin --root . --json
       - name: External links
         run: tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json
       - name: Hosted provider observation envelope

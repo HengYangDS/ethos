@@ -45,10 +45,9 @@ def _land_candidate(repo: Path, head: str) -> None:
     run_ethos("land", "--apply", "--authorize", "--expect-head", head, "--json", cwd=repo)
 
 
-def _archive_change(repo: Path, head: str, *, blocked: bool = False) -> dict[str, Any]:
-    """Exercise the same official archive transport for allowed and rejected fixture changes."""
-    runner = run_ethos_blocked if blocked else run_ethos
-    return runner(
+def _archive_change(repo: Path, head: str) -> dict[str, Any]:
+    """Exercise preflight refusal or a committed archive awaiting exact postimage proof."""
+    return run_ethos_blocked(
         "lane",
         "archive-change",
         "--change",
@@ -109,7 +108,8 @@ def _archived_candidate(
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     seed_executed_proof(fixture.worktree, head)
-    _archive_change(fixture.worktree, head)
+    archive = _archive_change(fixture.worktree, head)
+    assert archive["required_gaps"] == ["proof_not_proven"]
     archived_head = git(fixture.worktree, "rev-parse", "HEAD")
     _land_candidate(fixture.worktree, archived_head)
     return fixture.repository, fixture.candidate, accepted_head, archived_head
@@ -127,7 +127,7 @@ def test_source_acceptance_preserves_pending_delivery_until_official_archive(
     accepted = git(fixture.repository, "rev-parse", "HEAD")
     seed_executed_proof(fixture.worktree, head)
 
-    archive = _archive_change(fixture.worktree, head, blocked=True)
+    archive = _archive_change(fixture.worktree, head)
     assert "openspec_change_incomplete:fixture-change" in archive["required_gaps"]
     assert git(fixture.worktree, "rev-parse", "HEAD") == head
     assert (fixture.worktree / tasks).read_text() == pending
@@ -152,7 +152,8 @@ def test_source_acceptance_preserves_pending_delivery_until_official_archive(
         fixture.worktree, tasks, pending.replace("[ ]", "[x]"), "record observed delivery"
     )
     seed_executed_proof(fixture.worktree, delivered)
-    _archive_change(fixture.worktree, delivered)
+    archive = _archive_change(fixture.worktree, delivered)
+    assert archive["required_gaps"] == ["proof_not_proven"]
     archived = git(fixture.worktree, "rev-parse", "HEAD")
     assert not (fixture.worktree / tasks).exists()
     _land_candidate(fixture.worktree, archived)

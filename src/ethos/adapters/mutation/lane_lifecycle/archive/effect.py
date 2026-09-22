@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
@@ -9,7 +10,9 @@ from typing import Any
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_effect_outcome
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
+from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
+from ethos.adapters.mutation.remediation.guidance import proof_recovery_command
 from ethos.adapters.openspec.archive_projection import archive_projection_updates
 from ethos.adapters.openspec.archive_projection import refresh_archive_projections
 from ethos.adapters.openspec.governance import openspec_governance_report
@@ -330,6 +333,8 @@ def complete_archive(
         recognized = False
     post = openspec_governance_report(root, change=change, lifecycle=True)
     post_gaps = [str(gap) for gap in post.get("required_gaps", ())]
+    quality_gaps = [] if post_gaps else proof_gaps(root, head, change_id=change)
+    post_gaps.extend(quality_gaps)
     if post_gaps:
         return lifecycle_report(
             branch,
@@ -344,8 +349,12 @@ def complete_archive(
             attestation=attestation.model_dump(mode="json"),
             **lifecycle_effect_outcome(
                 kind="committed_residue",
-                next_action="ethos lane status --json",
-                user_decision_required=True,
+                next_action=(
+                    f"{proof_recovery_command(head, change=change)} --root {shlex.quote(str(root))}"
+                    if quality_gaps
+                    else "ethos lane status --json"
+                ),
+                user_decision_required=not bool(quality_gaps),
             ),
         )
     archive = result.get("json", {}).get("archive", {}) if result else {}

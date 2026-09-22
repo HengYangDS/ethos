@@ -329,6 +329,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
     source, graph_path, graph = _declare_archive_binding(root)
     head = lifecycle.head
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
+    monkeypatch.setattr(archive_effect, "proof_gaps", proof_gaps)
     seed_executed_proof(root, head)
     if mode.startswith("staged"):
         staged_archive = lifecycle.stage_official_archive()
@@ -338,7 +339,6 @@ def test_official_archive_closes_its_exact_source_binding_projection(
     before_work = git(root, "status", "--porcelain")
     before_graph = graph_path.read_bytes()
     _inject_archive_failure(monkeypatch, mode, root, head)
-    invoke = run_ethos_blocked if mode.endswith("failure") else run_ethos
     arguments = (
         "lane",
         "archive-change",
@@ -351,7 +351,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
         "--apply",
         "--json",
     )
-    report = invoke(*arguments, cwd=root)["data"]
+    report = run_ethos_blocked(*arguments, cwd=root)["data"]
 
     if mode.endswith("failure"):
         assert report["required_gaps"] == [
@@ -369,7 +369,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
         assert graph_path.read_bytes() == before_graph
         return
 
-    assert report["verdict"] == "pass", report
+    assert report["required_gaps"] == ["proof_not_proven"], report
     archived = root / report["archive_path"]
     assert "../../../../docs/reference.md" in (archived / "design.md").read_text()
     assert (
@@ -383,6 +383,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
     assert graph_path.relative_to(root).as_posix() in report["changed_paths"]
     assert git(root, "status", "--short") == ""
     archived_head = lifecycle.head
+    assert f"--expect-head {archived_head}" in report["next_action"]
     assert git(root, "rev-parse", "HEAD^") == head
     seed_executed_proof(root, archived_head)
     assert proof_gaps(root, archived_head) == []

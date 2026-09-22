@@ -16,6 +16,14 @@ Text reduction measures reading cost, not semantic completeness or product quali
 
 ## Decisions
 
+Archive effect evidence proves the ref and carrier transformation, not the
+quality of its resulting source. Completion therefore consumes the existing
+exact postimage proof owner after native OpenSpec validation. Missing or failed
+proof leaves an explicit committed repair boundary and points to that HEAD's
+existing full-proof command. Successful replay reuses the archive effect and
+proof without rerunning Git or gates. This adds no second verifier or automatic
+full run; precommit candidate verification and broader proof reuse remain open.
+
 Nontracked content, including ignored files, is not absorbed by Git ancestry.
 Retirement inventories its native Git footprints and rechecks them before the
 effect, including historical receipt recovery. Existing artifact lifecycle

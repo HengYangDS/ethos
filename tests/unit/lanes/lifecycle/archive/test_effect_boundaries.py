@@ -6,6 +6,7 @@ from datetime import UTC
 from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -56,31 +57,22 @@ def _plan(
     )
 
 
+@pytest.mark.parametrize("boundary", ["parent", "postimage"])
 def test_archive_plan_rejects_parent_and_postimage_drift(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
 ) -> None:
-    monkeypatch.setattr(archive_effect, "git_stdout", lambda *_args: "not-parent")
-
-    with pytest.raises(ValueError, match="openspec_archive_target_parent_mismatch"):
-        archive_effect.compile_archive_plan(
-            tmp_path,
-            "work/change",
-            "change",
-            "a" * 40,
-            "b" * 40,
-            {},
-            commitment=commitment_fixture(id="change:change"),
-        )
-
     monkeypatch.setattr(
         archive_effect,
         "git_stdout",
-        lambda _root, command, *_args: "a" * 40 if command == "rev-parse" else "x",
+        lambda _root, command, *_args: (
+            "not-parent" if boundary == "parent" else "a" * 40 if command == "rev-parse" else "x"
+        ),
     )
     monkeypatch.setattr(archive_effect, "current_tree", lambda *_args: "c" * 40)
     monkeypatch.setattr(archive_effect, "archive_postimage_scope_report", lambda *_a, **_k: None)
 
-    with pytest.raises(ValueError, match="openspec_archive_target_invalid"):
+    gap = "parent_mismatch" if boundary == "parent" else "invalid"
+    with pytest.raises(ValueError, match=f"openspec_archive_target_{gap}"):
         archive_effect.compile_archive_plan(
             tmp_path,
             "work/change",
@@ -298,7 +290,6 @@ def test_archive_effect_owns_durable_recovery_selection(
         archive_effect,
         "recover_plan",
         lambda _root, **kwargs: observed.update(recovery=kwargs) or plan,
-        raising=False,
     )
     monkeypatch.setattr(
         archive_effect,
@@ -323,21 +314,18 @@ def test_archive_effect_owns_durable_recovery_selection(
     assert observed["completion"] == {"apply": True}
 
 
-def test_archive_completion_rejects_plan_identity_and_required_facts(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="openspec_archive_plan_mismatch"):
-        archive_effect.complete_archive(
-            tmp_path, "work/other", "change", _plan(), "b" * 40, apply=False
-        )
-
-    invalid = _plan(archive_path="", changed_paths=[])
-    with pytest.raises(ValueError, match="openspec_archive_plan_facts_invalid"):
-        archive_effect.complete_archive(
-            tmp_path, "work/change", "change", invalid, "b" * 40, apply=False
-        )
+@pytest.mark.parametrize("fault", ["identity", "facts"])
+def test_archive_completion_rejects_plan_identity_and_required_facts(tmp_path: Path, fault) -> None:
+    branch = "work/other" if fault == "identity" else "work/change"
+    plan = _plan() if fault == "identity" else _plan(archive_path="", changed_paths=[])
+    gap = "mismatch" if fault == "identity" else "facts_invalid"
+    with pytest.raises(ValueError, match=f"openspec_archive_plan_{gap}"):
+        archive_effect.complete_archive(tmp_path, branch, "change", plan, "b" * 40, apply=False)
 
 
+@pytest.mark.parametrize("gap", ["openspec_invalid", "proof_not_proven"])
 def test_archive_completion_reports_recovery_and_governance_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gap: str
 ) -> None:
     plan = _plan()
     monkeypatch.setattr(archive_effect, "leases_by_branch", lambda _root: {})
@@ -351,22 +339,25 @@ def test_archive_completion_reports_recovery_and_governance_failure(
     monkeypatch.setattr(
         archive_effect,
         "execute_git_effect",
-        lambda *_args, **_kwargs: type(
-            "Attestation",
-            (),
-            {"model_dump": lambda *_args, **_kwargs: {"predicate": "effect:git-ref-update"}},
-        )(),
+        lambda *_args, **_kwargs: SimpleNamespace(
+            model_dump=lambda **_kwargs: {"predicate": "effect:git-ref-update"}
+        ),
     )
     monkeypatch.setattr(
         archive_effect,
         "openspec_governance_report",
-        lambda *_args, **_kwargs: {"required_gaps": ["openspec_invalid"]},
+        lambda *_args, **_kwargs: {"required_gaps": [gap] if gap == "openspec_invalid" else []},
     )
+    proof = Mock(return_value=[gap])
+    monkeypatch.setattr(archive_effect, "proof_gaps", proof, raising=False)
 
     blocked = archive_effect.complete_archive(
         tmp_path, "work/change", "change", plan, "b" * 40, apply=True
     )
     assert (blocked["state"], blocked["required_gaps"]) == (
         "repair_required",
-        ["openspec_invalid"],
+        [gap],
     )
+    if gap == "proof_not_proven":
+        proof.assert_called_once_with(tmp_path, "b" * 40, change_id="change")
+        assert f"--expect-head {'b' * 40}" in blocked["next_action"]

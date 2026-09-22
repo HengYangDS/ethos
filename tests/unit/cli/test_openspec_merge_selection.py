@@ -55,7 +55,7 @@ def _archive(root: Path, head: str, change: str) -> str:
     """Archive with real proof, then prove the resulting exact source."""
     _prove(root, head, "--change", change)
     report = archive_change(root=root, change=change, expect_head=head, apply=True)
-    assert report["verdict"] == "pass", report
+    assert report["required_gaps"] == ["proof_not_proven"], report
     archived = git(root, "rev-parse", "HEAD")
     _prove(root, archived, "--change", change)
     return archived
@@ -413,10 +413,10 @@ def test_process_intent_carries_product_work_through_native_integration(
     tasks = work / "openspec/changes/second-local/tasks.md"
     preserved = tasks.read_bytes()
     monkeypatch.setenv("ETHOS_CHANGE", "missing")
-    run_ethos(*arguments, cwd=work)
+    run_ethos_blocked(*arguments, cwd=work)
     assert not (work / "openspec/changes/fixture-change").exists()
     assert tasks.read_bytes() == preserved
-    assert run_ethos(*arguments, cwd=work)["verdict"] == "pass"
+    assert run_ethos_blocked(*arguments, cwd=work)["required_gaps"] == ["proof_not_proven"]
     monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
     head = _archive(work, git(work, "rev-parse", "HEAD"), "second-local")
     _prove(work, head, "--change", "fixture-change")

@@ -256,6 +256,26 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 
 ## ADDED Requirements
 
+### Requirement: Archive completion requires exact postimage quality
+
+Archive completion SHALL require native OpenSpec validity and the existing
+applicable proof for the actual resulting HEAD. Prearchive proof and Git effect
+evidence SHALL NOT establish postimage quality. Pending verification SHALL
+preserve and report the observed committed effect without claiming completion.
+
+#### Scenario: Archive changes an input consumed by a repository check
+
+- **WHEN** prearchive proof passes but the resulting source has no passing applicable proof
+- **THEN** archive reports a blocked committed repair boundary with the actual HEAD
+- **AND** its continuation selects that HEAD's existing proof command and repository root
+- **AND** stale, failed or unrelated proof cannot make archive completion pass
+
+#### Scenario: Exact postimage proof is available
+
+- **WHEN** native OpenSpec validity and exact postimage proof both pass
+- **THEN** archive completion passes using the original effect evidence
+- **AND** replay neither repeats Git effects nor reruns checks
+
 ### Requirement: Current prose preserves meaning without copied execution state
 
 ETHOS SHALL keep obligations, dependency order, task progress and observed

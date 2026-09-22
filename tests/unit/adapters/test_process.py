@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 import subprocess
 import sys
 
@@ -16,6 +15,7 @@ from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
+from tests.support.subprocesses import ready_descendant
 
 
 def _file_reference_payloads():
@@ -226,16 +226,14 @@ def test_command_failure_closes_owned_descendants(
     tmp_path, monkeypatch, failure, inherit_pipes, parent_exited
 ):
     """A ready descendant cannot retain its socket after the command is interrupted."""
-    communicate = subprocess.Popen.communicate
-    connection = None
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        listener.listen(1)
-        listener.settimeout(10)
-        child = (
-            f"import socket; s=socket.create_connection({listener.getsockname()!r},timeout=10); "
-            "s.settimeout(None); s.sendall(b'R'); s.recv(1)"
-        )
+
+    def after_ready(process, _options):
+        if parent_exited:
+            os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
+        if failure != "timeout":
+            raise KeyboardInterrupt
+
+    with ready_descendant(monkeypatch, after_ready) as (child, closed):
         parent = (
             "import subprocess,sys; print('started',flush=True); "
             f"subprocess.Popen([sys.executable,'-c',{child!r}],"
@@ -243,20 +241,6 @@ def test_command_failure_closes_owned_descendants(
             f"stderr={None if inherit_pipes else subprocess.DEVNULL})"
             + ("" if parent_exited else ".wait()")
         )
-
-        def after_ready(process, *args, **kwargs):
-            nonlocal connection
-            if connection is None:
-                connection, _ = listener.accept()
-                connection.settimeout(2)
-                assert connection.recv(1) == b"R"
-                if parent_exited:
-                    os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
-                if failure != "timeout":
-                    raise KeyboardInterrupt
-            return communicate(process, *args, **kwargs)
-
-        monkeypatch.setattr(subprocess.Popen, "communicate", after_ready)
 
         def execute():
             command = (sys.executable, "-c", parent)
@@ -266,14 +250,9 @@ def test_command_failure_closes_owned_descendants(
             node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
             return LocalGateRunner().run(node, gate, root=tmp_path)
 
-        try:
-            error = subprocess.TimeoutExpired if failure == "timeout" else KeyboardInterrupt
-            with pytest.raises(error) as raised:
-                execute()
-            if failure == "timeout":
-                assert raised.value.output == b"started\n"
-            assert connection is not None
-            assert connection.recv(1) == b""
-        finally:
-            if connection is not None:
-                connection.close()
+        error = subprocess.TimeoutExpired if failure == "timeout" else KeyboardInterrupt
+        with pytest.raises(error) as raised:
+            execute()
+        if failure == "timeout":
+            assert raised.value.output == b"started\n"
+        assert closed()

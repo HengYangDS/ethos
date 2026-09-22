@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import socket
 import subprocess
 import sys
 import time
+from contextlib import ExitStack
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -18,6 +21,32 @@ def completed(
 ) -> subprocess.CompletedProcess[str]:
     """Build a text-mode completed process with a stable synthetic command."""
     return subprocess.CompletedProcess([command], returncode, stdout, stderr)
+
+
+@contextmanager
+def ready_descendant(monkeypatch, before_communication):
+    """Observe a real child handshake before fault injection; close every probe handle."""
+    communicate = subprocess.Popen.communicate
+    connection = None
+    with ExitStack() as resources:
+        listener = resources.enter_context(socket.create_server(("127.0.0.1", 0)))
+        listener.settimeout(10)
+        child = (
+            f"import socket; s=socket.create_connection({listener.getsockname()!r},timeout=10); "
+            "s.settimeout(None); s.sendall(b'R'); s.recv(1)"
+        )
+
+        def after_ready(process, *args, **kwargs):
+            nonlocal connection
+            if connection is None:
+                connection = resources.enter_context(listener.accept()[0])
+                connection.settimeout(2)
+                assert connection.recv(1) == b"R"
+                before_communication(process, kwargs)
+            return communicate(process, *args, **kwargs)
+
+        monkeypatch.setattr(subprocess.Popen, "communicate", after_ready)
+        yield child, lambda: connection is not None and connection.recv(1) == b""
 
 
 def kill_after_marker(

@@ -85,7 +85,7 @@ ethos:verify:
     GIT_STRATEGY: clone
     ETHOS_TEST_WORKERS: "1"
   script:
-    - tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --frozen --offline python -B -I -m ethos.cli prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json
     - uv run --frozen --offline python -m nox -s hosted_observation
     - tools/ci/scripts/run-head-bound-proof.sh
   artifacts:

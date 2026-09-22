@@ -67,7 +67,7 @@
 - [x] 5.8 Verify retained native downloads across executable failure without weakening activation.
 - [x] 5.9 Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.
 - [x] 5.10 Share owned-output removal, preserve external referents and verify minimal permission effects.
-- [ ] 5.11 Resolve the observed GitLab native bootstrap timeout; retain failure output and qualify cold and warm hosted consumers without increasing the deadline.
+- [ ] 5.11 Close native bootstrap and tool transport timeouts; retain the failed attempt's output, reuse verified supply across disposable checkouts, and qualify cold and warm hosted consumers without increasing the deadline.
 
 ## 6. Native Test Isolation and Shared Preparation
 
@@ -84,7 +84,7 @@
 
 - [x] 7.1 Remove stale hosted defaults at the template and assert projection consistency.
 - [x] 7.2 Restore vendor runner resource policy through drained cutover and verify routing, old-process cleanup and new-job consumption.
-- [x] 7.3 Reject hosted supply preparation failure before proof while preserving native diagnostics and clearing prior reports.
+- [ ] 7.3 Requalify hosted supply failure after repairing lost timeout output; retain native diagnostics and clear prior reports before any proof.
 - [ ] 7.4 Consolidate hosted preparation and full execution with fail-closed required-check projections.
 - [ ] 7.5 Qualify and deliver the exact single-execution CI candidate.
 - [x] 7.6 Consolidate GitLab execution and replace privileged link supply with the official wheel.

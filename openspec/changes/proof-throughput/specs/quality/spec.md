@@ -145,7 +145,15 @@ Package execution SHALL still validate supply in its own current environment.
 
 - **WHEN** every required preparation succeeds
 - **THEN** verification executes against the requested exact source
+- **AND** a retained adopter runtime selector cannot redirect source CI to older code
 - **AND** the later package boundary retains its own executable validation
+
+#### Scenario: Native provisioning exceeds its execution deadline
+
+- **WHEN** a native tool emits partial output before its bounded preparation times out
+- **THEN** the supply entrypoint reports both available streams and the exact failed command
+- **AND** owned descendants terminate before preparation scratch is removed
+- **AND** a preceding successful tool cannot be mistaken for the failed attempt
 
 ### Requirement: Native read batching preserves official semantics
 
@@ -300,6 +308,14 @@ Every reuse SHALL revalidate the archive; retained bytes do not grant acceptance
 - **WHEN** its digest, member identity or member type is invalid
 - **THEN** the download is not retained as verified supply
 - **AND** cached corruption remains rejected before executable activation
+
+#### Scenario: A disposable checkout is replaced
+
+- **WHEN** a runner selects its declared project-scoped persistent tool cache
+- **THEN** replacement checkouts reuse matching verified supply without another download
+- **AND** concurrent preparation shares the existing lock and exact archive validation
+- **AND** corruption, unsafe paths and executable damage retain their normal admission checks
+- **AND** native bootstrap cache selection preserves the required version and host platform
 
 ### Requirement: Owned removal minimizes permission effects
 

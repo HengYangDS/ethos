@@ -101,6 +101,7 @@ github: {
 		}
 		quality: {
 			name: "quality gates"
+			env: ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR: "${{ runner.tool_cache }}/ethos/${{ github.repository }}/ci-tools"
 			"runs-on": ["self-hosted", "macOS", "ARM64", "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
@@ -135,7 +136,7 @@ github: {
 				// The registry owns gate order and package creation. Execute it once;
 				// independently required hosted checks below project this exact result.
 				name: "External links"
-				run:  "tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json"
+				run:  "tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json"
 			}, {
 				name: "Hosted provider observation envelope"
 				run:  "uv run --frozen --offline python -m nox -s hosted_observation"
@@ -215,7 +216,7 @@ gitlab: {
 		// Full history keeps Git-derived ancestry and evidence checks available.
 		GIT_DEPTH: "0"
 		// GitLab exposes /cache through a project-scoped runner cache volume.
-		// Actionlint verifies the cached archive SHA-256 before reuse.
+		// Native tool owners verify locked archive bytes before reuse.
 		ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR: "/cache/${CI_PROJECT_PATH_SLUG}/ci-tools"
 	}
 	cache: {
@@ -316,7 +317,7 @@ gitlab: {
 			ETHOS_TEST_WORKERS: "1"
 		}
 		script: [
-			"tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json",
+			"tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json",
 			"uv run --frozen --offline python -m nox -s hosted_observation",
 			"tools/ci/scripts/run-head-bound-proof.sh",
 		]

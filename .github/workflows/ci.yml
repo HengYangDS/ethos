@@ -60,6 +60,8 @@ jobs:
           if-no-files-found: error
   quality:
     name: quality gates
+    env:
+      ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR: ${{ runner.tool_cache }}/ethos/${{ github.repository }}/ci-tools
     runs-on:
       - self-hosted
       - macOS
@@ -88,7 +90,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}" --proposed-head "${{ github.event.pull_request.head.sha }}" --remote-head "${{ github.event.pull_request.base.sha }}" --remote origin --root . --json
       - name: External links
-        run: tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json
+        run: tools/ci/scripts/with-python-runtime.sh -- uv run --frozen --offline python -B -I -m ethos.cli prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json
       - name: Hosted provider observation envelope
         run: uv run --frozen --offline python -m nox -s hosted_observation
       - name: HEAD-bound hosted verification receipt

@@ -144,6 +144,15 @@ def _directory(path: Path) -> None:
         component.mkdir(exist_ok=True)
 
 
+def _cache_root(root: Path) -> Path:
+    """Select the declared persistent store independently of disposable checkouts."""
+    home = Path(
+        os.environ.get("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR")
+        or os.environ.get("ETHOS_CI_TOOL_CACHE_DIR", "build/runtime/tool-cache/ci-tools")
+    )
+    return home if home.is_absolute() else root / home
+
+
 def render_mise_installer(root: Path) -> str:
     """Project the native installer with one semantics-preserving lint normalization."""
     version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
@@ -206,7 +215,9 @@ def prepare_mise(root: Path) -> Path:
         verify(executable, exact=False)
         return executable
     content = validate_mise_installer(root)
-    home = root / "build/runtime/tool-cache/mise/bin"
+    home = (
+        _cache_root(root) / "mise" / version / f"{platform.system()}_{platform.machine()}" / "bin"
+    )
     _directory(home)
     executable = home / "mise"
     with FileLock(home / ".bootstrap.lock", timeout=30):
@@ -265,9 +276,7 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30) -> Path:
     """Converge one declared identity without privileged writes or duplicate effects."""
     root = root.resolve(strict=True)
     supply = NativeSupply.read(root, name)
-    home = Path(os.environ.get("ETHOS_CI_TOOL_CACHE_DIR", "build/runtime/tool-cache/ci-tools"))
-    home = home if home.is_absolute() else root / home
-    cache = home / name / supply.version / supply.platform
+    cache = _cache_root(root) / name / supply.version / supply.platform
     _directory(cache)
     lock = cache / ".prepare.lock"
     if lock.is_symlink() or (lock.exists() and not lock.is_file()):
@@ -346,6 +355,14 @@ def main() -> int:
         subprocess.SubprocessError,
         Timeout,
     ) as error:
+        if isinstance(error, subprocess.TimeoutExpired):
+            for output in (error.stdout, error.stderr):
+                if output:
+                    sys.stderr.write(
+                        output.decode("utf-8", errors="replace")
+                        if isinstance(output, bytes)
+                        else output
+                    )
         print(f"native_tool_supply_failed:{error}", file=sys.stderr)
         return 1
     print(os.pathsep.join(str(path) for path in paths))

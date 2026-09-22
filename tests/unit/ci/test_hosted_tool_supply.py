@@ -9,7 +9,6 @@ import os
 import platform
 import shlex
 import shutil
-import socket
 import subprocess
 import sys
 import tarfile
@@ -28,6 +27,7 @@ from tests.support.architecture import isolated_path
 from tests.support.architecture import write_reference_source
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.subprocesses import ready_descendant
 from tools.ci.toolchain.native import NativeSupply
 from tools.ci.toolchain.native import download
 from tools.ci.toolchain.native import prepare
@@ -37,6 +37,12 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+@pytest.fixture(autouse=True)
+def isolated_supply_cache(monkeypatch):
+    """Native fixtures never inherit the runner's persistent production cache."""
+    monkeypatch.delenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", raising=False)
 
 
 @pytest.mark.parametrize("case", ["valid", "inside", "unprotected", "missing"])
@@ -186,8 +192,8 @@ def test_python_bootstrap_supplies_platform_prerequisites(
 
 
 def _native_supply(
-    tmp_path: Path, tool: str, fault: str = "none"
-) -> tuple[Callable[[], subprocess.CompletedProcess[str]], Path, Path, bytes]:
+    tmp_path: Path, tool: str, fault: str = "none", *, persistent: bool = False
+) -> tuple[Callable[..., subprocess.CompletedProcess[str]], Path, Path, bytes]:
     """Run the real materializer with only the external download boundary controlled."""
     repo = tmp_path / "repo"
     scripts = dict.fromkeys(
@@ -242,7 +248,8 @@ def _native_supply(
             )
         )
     )
-    cache = repo / f"build/runtime/tool-cache/ci-tools/{tool}/{version}/{system}_{arch}"
+    home = tmp_path / "supply" if persistent else repo / "build/runtime/tool-cache/ci-tools"
+    cache = home / tool / version / f"{system}_{arch}"
     cache.mkdir(parents=True)
     executable = cache / tool
     executable.write_text("retained-but-untrusted")
@@ -252,11 +259,12 @@ def _native_supply(
         cache.symlink_to(retained, target_is_directory=True)
     env = isolated_path(tmp_path, scripts)
     env["ETHOS_CI_TOOL_CACHE_DIR"] = "build/runtime/tool-cache/ci-tools"
+    env["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] = str(home) if persistent else ""
 
     command = (sys.executable, "-B", str(ROOT / "tools/ci/toolchain/native.py"))
 
-    def invoke() -> subprocess.CompletedProcess[str]:
-        return run_command(repo, (*command, "--root", str(repo), tool), env=env, timeout=25)
+    def invoke(root: Path = repo) -> subprocess.CompletedProcess[str]:
+        return run_command(root, (*command, "--root", str(root), tool), env=env, timeout=25)
 
     return invoke, executable, package, body
 
@@ -291,10 +299,14 @@ def test_native_tool_supply_rejects_invalid_supply_without_replacement(tmp_path,
 
 
 @pytest.mark.parametrize("tool", ["scc", "gitleaks", "syft"])
-def test_native_supply_converges_concurrently_reuses_identity_and_repairs_damage(tmp_path, tool):
+@pytest.mark.parametrize("persistent", [False, True])
+def test_native_supply_converges_concurrently_reuses_identity_and_repairs_damage(
+    tmp_path, tool, persistent
+):
     """A poisoned ambient PATH cannot replace declared supply or require global install."""
-    invoke, executable, package, body = _native_supply(tmp_path, tool)
+    invoke, executable, package, body = _native_supply(tmp_path, tool, persistent=persistent)
     transfer = tmp_path / "transfer.log"
+    current_root = tmp_path / "repo"
     with ThreadPoolExecutor(max_workers=3) as pool:
         results = tuple(pool.map(lambda _: invoke(), range(3)))
     for result in results:
@@ -306,6 +318,13 @@ def test_native_supply_converges_concurrently_reuses_identity_and_repairs_damage
     assert (current.st_ino, current.st_mtime_ns) == (identity.st_ino, identity.st_mtime_ns)
     assert executable.read_bytes() == body
     assert transfer.read_text() == "download\n"
+    if persistent:
+        relocated = tmp_path / "fresh-checkout"
+        shutil.copytree(tmp_path / "repo", relocated)
+        shutil.rmtree(tmp_path / "repo")
+        assert invoke(relocated).returncode == 0
+        assert transfer.read_text() == "download\n"
+        current_root = relocated
     archive_digest = hashlib.sha256(package.read_bytes()).hexdigest()
     for damage in ("bytes", "mode", "symlink", "absent"):
         if damage == "bytes":
@@ -316,7 +335,7 @@ def test_native_supply_converges_concurrently_reuses_identity_and_repairs_damage
             executable.unlink()
             if damage == "symlink":
                 executable.symlink_to(package)
-        repaired = invoke()
+        repaired = invoke(current_root)
         assert repaired.returncode == 0, repaired.stderr
         assert not executable.is_symlink()
         assert os.access(executable, os.X_OK)
@@ -324,7 +343,7 @@ def test_native_supply_converges_concurrently_reuses_identity_and_repairs_damage
         assert hashlib.sha256(package.read_bytes()).hexdigest() == archive_digest
     (archive,) = executable.parent.glob("*.tar.gz")
     archive.write_bytes(b"corrupt cached archive")
-    rejected = invoke()
+    rejected = invoke(current_root)
     assert rejected.returncode != 0
     assert "archive_checksum_mismatch" in rejected.stderr
     assert executable.read_bytes() == body
@@ -370,41 +389,26 @@ def _bootstrap_source(root: Path, script: str, version: str = "2026.9.11") -> Pa
 @pytest.mark.parametrize("startup_delay", [0, 0.75])
 @pytest.mark.parametrize("boundary", ["download", "verify", "bootstrap"])
 def test_native_supply_timeout_drains_descendants_before_cleanup(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, startup_delay: float, boundary: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys, startup_delay: float, boundary: str
 ) -> None:
-    """Transport and executable observation own descendants until timeout cleanup."""
+    """Supply failure reports retain each native stream after draining owned children."""
     late = tmp_path / "late"
-    native_communicate = subprocess.Popen.communicate
-    connection = None
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        listener.listen(1)
-        listener.settimeout(10)
-        child = (
-            "import pathlib, socket; "
-            f"s = socket.create_connection({listener.getsockname()!r}, timeout=10); "
-            "s.settimeout(None); s.sendall(b'R'); s.recv(1); "
-            f"pathlib.Path({str(late)!r}).write_text('escaped')"
-        )
+
+    def after_ready(_process, options):
+        options["timeout"] = 0.5
+
+    with ready_descendant(monkeypatch, after_ready) as (handshake, closed):
+        child = handshake + f"; from pathlib import Path; Path({str(late)!r}).write_text('escaped')"
         executable = tmp_path / "tool"
         executable.write_text(
             f"#!{sys.executable}\nimport subprocess, sys, time\n"
             f"time.sleep({startup_delay})\n"
+            "print('partial-native-output', flush=True)\n"
+            "print('partial-native-error', file=sys.stderr, flush=True)\n"
             f"subprocess.Popen([sys.executable, '-c', {child!r}], "
             "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()\n"
         )
         executable.chmod(0o755)
-
-        def after_readiness(process, *args, **kwargs):
-            nonlocal connection
-            if kwargs.get("timeout") is not None and connection is None:
-                connection, _ = listener.accept()
-                connection.settimeout(2)
-                assert connection.recv(1) == b"R"
-                kwargs["timeout"] = 0.5
-            return native_communicate(process, *args, **kwargs)
-
-        monkeypatch.setattr(subprocess.Popen, "communicate", after_readiness)
 
         def execute():
             if boundary == "download":
@@ -415,19 +419,20 @@ def test_native_supply_timeout_drains_descendants_before_cleanup(
             monkeypatch.setattr(native.shutil, "which", lambda _name: None)
             return prepare_mise(tmp_path)
 
-        try:
-            with pytest.raises(subprocess.TimeoutExpired):
-                execute()
-            assert connection is not None
-            assert connection.recv(1) == b""
-        finally:
-            if connection is not None:
-                connection.close()
+        monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "scc"])
+        monkeypatch.setattr(native, "prepare", lambda *_args: execute())
+        assert native.main() == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "native_tool_supply_failed" in captured.err
+        assert "partial-native-output" in captured.err
+        assert "partial-native-error" in captured.err
+        assert closed()
     assert not late.exists()
     assert not list(tmp_path.rglob(".bootstrap-*"))
 
 
-@pytest.mark.parametrize("source", ["bootstrap", "operator", "cache"])
+@pytest.mark.parametrize("source", ["bootstrap", "operator", "cache", "persistent-cache"])
 @pytest.mark.parametrize(
     "fault", ["none", "failure", "wrong-version", "warning", "drift", "older", "newer", "preview"]
 )
@@ -454,7 +459,11 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     )
     if fault == "drift":
         installer.write_text("echo FORBIDDEN >UNAPPROVED\nexit 0\n")
-    target = tmp_path / "build/runtime/tool-cache/mise/bin/mise"
+    home = tmp_path / "build/runtime/tool-cache/ci-tools"
+    if source == "persistent-cache":
+        home, source = tmp_path / "supply", "cache"
+        monkeypatch.setenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", str(home))
+    target = home / "mise" / version / f"{platform.system()}_{platform.machine()}" / "bin/mise"
     target.parent.mkdir(parents=True)
     target.write_text("retained" if source == "bootstrap" else body)
     target.chmod(0o600 if source == "bootstrap" else 0o700)

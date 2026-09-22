@@ -21,7 +21,7 @@ supply_directory="$(python "${dir}/../toolchain/native.py" --root "$PWD" gitleak
 supply_status=$?
 proof_status=${supply_status}
 if [[ ${supply_status} -eq 0 ]]; then
-	PATH="${supply_directory}:${PATH}" uv run --frozen --offline ethos prove --host --execute --full --expect-head "${head}" --json >"${receipt}" 2>>"${stderr}"
+	PATH="${supply_directory}:${PATH}" uv run --frozen --offline python -B -I -m ethos.cli prove --host --execute --full --expect-head "${head}" --json >"${receipt}" 2>>"${stderr}"
 	proof_status=$?
 fi
 python3 - "${receipt}" "${head}" "$(git rev-parse HEAD)" "${proof_status}" "${supply_status}" <<'PY'

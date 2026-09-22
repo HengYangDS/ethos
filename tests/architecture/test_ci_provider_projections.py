@@ -53,7 +53,7 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
     arguments = shlex.split(command)
     assert arguments[:4] == ["uv", "run", "--frozen", "--offline"]
     invocation = arguments[4 : arguments.index("--target-ref")]
-    assert invocation[-2:] == ["hook", "commit-range"]
+    assert invocation == ["python", "-B", "-I", "-m", "ethos.cli", "hook", "commit-range"]
     invocation[0] = sys.executable if invocation[0] == "python" else invocation[0]
     assert run_command(ROOT, (*invocation, "--help"), timeout=10, env={"PATH": ""}).returncode == 0
     assert arguments[-3:] == ["--root", ".", "--json"]
@@ -63,6 +63,12 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
 
 
 def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None:
+    assert github["jobs"]["quality"]["env"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] == (
+        "${{ runner.tool_cache }}/ethos/${{ github.repository }}/ci-tools"
+    )
+    assert gitlab["variables"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] == (
+        "/cache/${CI_PROJECT_PATH_SLUG}/ci-tools"
+    )
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == 0
     jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
@@ -138,47 +144,31 @@ def test_required_github_checks_project_only_successful_execution(github, job, n
 
 def test_integration_events_transport_exact_commit_range_coordinates(github, gitlab) -> None:
     github_steps = {
-        step["name"]: step
-        for step in github["jobs"]["quality"]["steps"]
-        if isinstance(step, dict) and "name" in step
+        step["name"]: step for step in github["jobs"]["quality"]["steps"] if "name" in step
     }
-
-    assert [
-        (github_steps[name]["if"], _range_coordinates(github_steps[name]["run"]))
-        for name in ("Admit pushed commit range", "Admit pull request commit range")
-    ] == [
-        (
-            "github.event_name == 'push'",
-            ("${{ github.ref }}", "${{ github.sha }}", "${{ github.event.before }}", "origin"),
-        ),
-        (
-            "github.event_name == 'pull_request'",
-            (
-                "refs/heads/${{ github.event.pull_request.base.ref }}",
-                "${{ github.event.pull_request.head.sha }}",
-                "${{ github.event.pull_request.base.sha }}",
-                "origin",
-            ),
-        ),
-    ]
-
+    for event, name, fields in (
+        ("push", "Admit pushed commit range", ("ref", "sha", "event.before")),
+        ("pull_request", "Admit pull request commit range", ("base.ref", "head.sha", "base.sha")),
+    ):
+        prefix = "github" if event == "push" else "github.event.pull_request"
+        coordinates = [f"${{{{ {prefix}.{field} }}}}" for field in fields]
+        if event == "pull_request":
+            coordinates[0] = "refs/heads/" + coordinates[0]
+        assert github_steps[name]["if"] == f"github.event_name == '{event}'"
+        assert _range_coordinates(github_steps[name]["run"]) == (*coordinates, "origin")
     gitlab_job = gitlab["ethos:commit-policy"]
     assert gitlab_job["variables"] == {"GIT_STRATEGY": "clone"}
     rules = gitlab_job["rules"]
-    assert [tuple(rule.get("variables", {}).values()) for rule in rules] == [
-        ("refs/heads/${CI_COMMIT_BRANCH}", "${CI_COMMIT_SHA}", "${CI_COMMIT_BEFORE_SHA}"),
-        (
-            "refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}",
-            "${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA}",
-            "${CI_MERGE_REQUEST_TARGET_BRANCH_SHA}",
-        ),
-        (
-            "refs/heads/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}",
-            "${CI_COMMIT_SHA}",
-            "${CI_MERGE_REQUEST_DIFF_BASE_SHA}",
-        ),
-        (),
+    mr = "CI_MERGE_REQUEST"
+    fields = (
+        ("CI_COMMIT_BRANCH", "CI_COMMIT_SHA", "CI_COMMIT_BEFORE_SHA"),
+        (f"{mr}_TARGET_BRANCH_NAME", f"{mr}_SOURCE_BRANCH_SHA", f"{mr}_TARGET_BRANCH_SHA"),
+        (f"{mr}_TARGET_BRANCH_NAME", "CI_COMMIT_SHA", f"{mr}_DIFF_BASE_SHA"),
+    )
+    expected = [
+        (f"refs/heads/${{{ref}}}", f"${{{head}}}", f"${{{base}}}") for ref, head, base in fields
     ]
+    assert [tuple(rule.get("variables", {}).values()) for rule in rules] == [*expected, ()]
     assert rules[-1] == {"when": "never"}
     assert _range_coordinates(gitlab_job["script"][0]) == (
         "${ETHOS_COMMIT_TARGET_REF}",
@@ -186,7 +176,6 @@ def test_integration_events_transport_exact_commit_range_coordinates(github, git
         "${ETHOS_COMMIT_REMOTE_HEAD}",
         "origin",
     )
-
     provider_text = yaml.safe_dump({"github": github, "gitlab": gitlab})
     assert all(token not in provider_text for token in ("rev-list", "subject_pattern"))
 

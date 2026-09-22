@@ -2865,3 +2865,11 @@ latency. Existing commit-integrity receipts hold the exact inputs and outputs.
 Native capacity, eviction, changed-membership and corrupt-byte tests use the
 production budget, not private cache access or quality suppressions. Fixture
 extension preserves the existing canonical bytes and fixed-root examples.
+
+
+The source preflight caught the previous skills-document update's stale terminal
+graph binding before starting behavior tests or builds. Source review preserved
+all product entities, relations and maturity labels, clarified structural skill
+qualification versus demonstrated learning at the existing nodes, and refreshed
+the sole changed source digest. Required rendering remains renderer-owned;
+export success does not establish visible or behavioral qualification.

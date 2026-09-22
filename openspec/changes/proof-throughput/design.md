@@ -52,6 +52,12 @@ contracts, not filesystem permissions, an OS sandbox or proof of physical
 independence. They apply within one execution; native supply locks, Git CAS and
 effect-time admission keep their own boundaries.
 
+Strict readers must be deployed before declarations that require new fields.
+Reader support is first admitted with syntax understood by the incumbent hook;
+resource declarations activate only after the selected runtime can read them.
+The source runner's successful proof does not establish incumbent-reader
+compatibility. Each stage retains exact source identity and native hook admission.
+
 The initial declarations cover tests, wheel construction, installed
 acceptance and the wheel SBOM. They share immutable source and coordinated supply.
 Tests own test evidence, coverage and disposable fixtures; construction owns wheel

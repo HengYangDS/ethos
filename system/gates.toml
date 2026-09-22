@@ -174,7 +174,6 @@ evidence_class = "proof"
 trust_bearing = true
 tool_adapter = "pytest"
 writes_files = true
-resource_locks = { repository = "shared", supply = "shared", "evidence/tests" = "exclusive", "scratch/tests" = "exclusive" }
 network_policy = "offline"
 version_source = "locked-toolchain"
 
@@ -262,7 +261,6 @@ evidence_class = "proof"
 trust_bearing = true
 tool_adapter = "uv-build"
 writes_files = true
-resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "exclusive", "scratch/build" = "exclusive" }
 network_policy = "offline"
 version_source = "locked-toolchain"
 
@@ -280,7 +278,6 @@ evidence_class = "proof"
 trust_bearing = true
 tool_adapter = "uv-local-install-smoke"
 writes_files = true
-resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "shared", "artifacts/native" = "exclusive", "evidence/install" = "exclusive", "scratch/install" = "exclusive" }
 network_policy = "offline"
 version_source = "locked-toolchain"
 
@@ -623,7 +620,6 @@ evidence_class = "diagnostic"
 trust_bearing = true
 tool_adapter = "supply_chain"
 writes_files = true
-resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "shared", "evidence/release" = "exclusive" }
 network_policy = "required"
 version_source = "locked-toolchain"
 

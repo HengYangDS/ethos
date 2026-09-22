@@ -119,6 +119,13 @@ distinguishing case; an old assertion is changed only when accepted intent
 supersedes it, while stronger sibling obligations remain tested. Record this
 closure in normal test evidence, not a second dependency registry.
 
+Before qualifying a strict-carrier extension, resolve the selected immutable
+reader and run its read-only `prove --full --json` against the committed candidate.
+A source-runner proof does not demonstrate that incumbent hooks can read new
+fields. Deploy reader support before activating new syntax; do not edit an
+installed runtime, bypass hooks or repeat an unchanged full proof to resolve a
+reader mismatch.
+
 Retirement tests must distinguish a historical path mention from an executable
 dependency. Exercise a real live consumer and its exit, native lock contention,
 dependencies changing between effects, partial failure and fresh retry. Observe

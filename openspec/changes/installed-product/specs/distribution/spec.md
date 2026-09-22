@@ -233,21 +233,50 @@ SHALL use the operator's existing native store without secret copies in projects
 - **AND** provider revocation, local-profile deletion and recovery-material retirement remain separate effects
 - **AND** compromise follows immediate revocation and recovery rather than routine overlap
 
+### Requirement: Curated release notes follow Keep a Changelog
+
+ETHOS SHALL follow Keep a Changelog 1.1.0 for user-facing release notes.
+Release preparation SHALL verify an exact-version entry with a real release
+date, applicable change categories and verifiable history links. Upcoming
+changes SHALL remain under Unreleased until selected for explicit release;
+commit dumps SHALL NOT substitute for curated compatibility information.
+
+#### Scenario: A release is prepared from Unreleased changes
+
+- **WHEN** an exact accepted source is selected for explicit release
+- **THEN** its version entry uses YYYY-MM-DD and meaningful Added, Changed, Deprecated, Removed, Fixed or Security sections
+- **AND** missing, duplicate, mismatched or malformed target entries block that release
+- **AND** ordinary source acceptance may retain Unreleased notes without claiming publication
+
+#### Scenario: Historical release evidence is unavailable
+
+- **WHEN** an earlier entry lacks a verifiable tag or publication record
+- **THEN** the uncertainty remains explicit and historical content is preserved
+- **AND** no tag, date or release claim is invented to make the changelog appear complete
+
 ## MODIFIED Requirements
 
 ### Requirement: Product version has one repository authority
 
-ETHOS SHALL keep one tracked SemVer next product-release target and derive
-publishable versions and manifest projections from it. Unpublished source
-iterations MAY share that target. Once an explicit release identity is accepted,
-changed released semantics SHALL require a greater product version; source and
-artifact digests SHALL NOT replace that release boundary.
+ETHOS SHALL derive product-release projections from one tracked SemVer 2.0.0
+target. Unpublished source iterations MAY share it. Public CLI, SDK, MCP,
+configuration and persisted-state compatibility SHALL determine increments.
+Once an explicit release identity is accepted, changed released semantics SHALL
+require a greater version. Source and artifact digests SHALL NOT replace that
+release boundary.
 
 #### Scenario: Repository manifests are inspected
 
 - **WHEN** Python, root workspace, and launcher package metadata are compared
 - **THEN** they resolve to the one product-version authority
 - **AND** no manifest retains an independently editable product-version literal
+
+#### Scenario: A stable public contract changes
+
+- **WHEN** a stable release changes its documented public contract
+- **THEN** incompatible changes require a major increment, compatible additions or deprecations a minor increment, and compatible fixes a patch increment
+- **AND** notes identify compatibility impact and any required migration
+- **AND** version syntax, commit subjects and passing tests alone do not prove the chosen increment is correct
 
 #### Scenario: Unpublished source iterations share a release target
 

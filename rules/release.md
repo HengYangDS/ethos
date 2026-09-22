@@ -2,18 +2,21 @@
 
 Purpose: define release and version-bump discipline.
 
-| Field | Rule |
-| --- | --- |
+| Field     | Rule                                                                                                                                                      |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Authority | [Release Governance](../docs/governance/release-governance.md), [Terminal Governance Product Design](../docs/plans/terminal-governance-product-design.md) |
-| Trigger | Version bump, changelog update, tag plan, distribution change, or publish readiness claim. |
-| Action | Update all declared version and release carriers through the release workflow. |
-| Evidence | Release evidence manifest, docs-code consistency checks, SBOM or attestation when in scope. |
-| Stop | Version, changelog, docs examples, package metadata, or release evidence disagree. |
+| Trigger   | Version bump, changelog update, tag plan, distribution change, or publish readiness claim.                                                                |
+| Action    | Update all declared version and release carriers through the release workflow.                                                                            |
+| Evidence  | Release evidence manifest, docs-code consistency checks, SBOM or attestation when in scope.                                                               |
+| Stop      | Version, changelog, docs examples, package metadata, or release evidence disagree.                                                                        |
 
 ## Rules
 
 - Release is a governed workflow, not a shell alias.
-- Version carriers must be updated from one declared release configuration.
+- Derive version carriers from `VERSION`; apply the compatibility and curated
+  changelog rules in [Release Governance](../docs/governance/release-governance.md#semantic-versioning-and-changelog).
+- SemVer and Keep a Changelog are release obligations, not claims established
+  by version parsing, a changelog file, or Conventional Commit subjects alone.
 - Distribution adapters remain thin and must not duplicate product semantics.
 - Publish readiness must separate local readiness from remote publication.
 - Remote Git object publication must use the exact locally created and signed

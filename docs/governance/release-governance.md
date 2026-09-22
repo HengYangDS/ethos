@@ -26,6 +26,49 @@ locally admitted product versions. It is neither a commit log nor evidence of a
 Git tag, Forge release, package-registry publication, or hosted CI result. Each
 of those remains an independently verified projection.
 
+## Semantic Versioning and Changelog
+
+ETHOS follows [Semantic Versioning 2.0.0][semver] and
+[Keep a Changelog 1.1.0][keep-a-changelog]. The public compatibility surface is
+the documented CLI arguments, exit codes and structured output, SDK contracts,
+MCP tools/resources, configuration, and persisted repository-state contracts.
+Private implementation details are not a second public API.
+
+After 1.0.0, incompatible public changes require a major increment;
+backward-compatible additions or deprecations require a minor increment;
+backward-compatible fixes require a patch increment. Reset subordinate components
+as SemVer specifies. Before 1.0.0, the API is explicitly unstable; breaking
+changes must still be identified with their migration path. ETHOS uses a minor
+increment for an incompatible 0.y.z release line, and numbered prereleases for
+iterations toward its explicitly declared target. Unpublished source iterations
+do not each require a product-version bump.
+
+ETHOS release spellings are X.Y.Z with optional -alpha.N, -beta.N or -rc.N.
+This is an interoperable product-release profile, not the complete SemVer grammar:
+other SemVer prerelease identifiers are not thereby invalid under the standard.
+Python's PEP 440 spelling is a projection. Source hashes identify development
+builds, not chronological release precedence or stable-channel eligibility.
+
+Keep upcoming user-visible changes under Unreleased; at release preparation,
+curate them into one exact-version entry with its actual YYYY-MM-DD release date,
+newest first. Use nonempty Added, Changed, Deprecated, Removed, Fixed and Security
+sections as applicable. Explain compatibility impact and migration, rather than
+dump commit subjects. Version and section links must resolve to real history;
+do not invent tags, dates, publication or comparisons to fill missing evidence.
+
+Release admission must bind the exact committed version, curated release entry,
+signed tag and artifact identities. Reject missing or duplicate target entries,
+invalid dates/categories, version disagreement and reuse of released identities
+for changed content. Structural validation cannot establish semantic completeness:
+review changes to the public contract and their compatibility evidence before
+selecting the increment. Historical notes may be corrected transparently, but
+released packages, tags and recorded evidence remain immutable.
+
+[semver]: https://semver.org/spec/v2.0.0.html
+[keep-a-changelog]: https://keepachangelog.com/en/1.1.0/
+
+## Release Surfaces and Evidence
+
 Required product release surfaces are `README.md`, `LICENSE`,
 `CONTRIBUTING.md`, `CHANGELOG.md`, and `.ethos/release.toml`. Hosted forge and
 CI files are profile surfaces declared under `.ethos/release.toml`. The

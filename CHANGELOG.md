@@ -2,8 +2,13 @@
 
 All notable ETHOS changes are recorded here.
 
-The format follows Keep a Changelog, and commit subjects follow Conventional
-Commits.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and product versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Commit subjects follow Conventional Commits; they do not replace curated release notes.
+
+Historical entries preserve recorded changes and dates; they do not by themselves
+prove a tag, published package or hosted release. Release evidence and unresolved
+historical bindings are governed by [Release Governance](docs/governance/release-governance.md).
 
 ## [Unreleased]
 

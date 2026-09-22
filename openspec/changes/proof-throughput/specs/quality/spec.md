@@ -1,5 +1,29 @@
 ## ADDED Requirements
 
+### Requirement: Object coordinates share one typed native observation
+
+ETHOS SHALL derive object identity and type from the same validated native batch
+row. Commit and tag consumers SHALL reuse that observation rather than resolve
+the same object again. Peeling SHALL bind the observed object ID, not a mutable
+ref. Later reads, signature trust and effect authorization SHALL remain fresh.
+
+#### Scenario: A selected tag moves during observation
+
+- **WHEN** the tag ref changes after its initial native row is read
+- **THEN** peeling and tree observation retain the originally selected object
+- **AND** a later invocation observes the changed ref rather than a cached verdict
+
+#### Scenario: Native object evidence is incomplete
+
+- **WHEN** a query is absent, dangling, malformed or of the wrong object kind
+- **THEN** existing absence, observation-failure and kind distinctions remain enforced
+- **AND** SHA-1 and SHA-256 follow the same typed batch owner
+
+#### Scenario: Native revision syntax exceeds the batch framing
+
+- **WHEN** a valid revision expression contains whitespace
+- **THEN** Git resolves it before the typed batch without a replacement revision parser
+
 ### Requirement: Resolved rule identity has one active definition
 
 ETHOS SHALL admit at most one definition and version for each rule id in a

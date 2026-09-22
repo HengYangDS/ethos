@@ -69,7 +69,15 @@ def test_batched_effect_observation_preserves_native_queries(tmp_path, monkeypat
     head = git(repo, "rev-parse", "HEAD")
     missing = "refs/heads/next"
     effect = GitEffect(updates={missing: GitRefUpdate(expected="0" * len(head), desired=head)})
-    calls = Mock(wraps=objects.run_git)
+    native = objects.run_git
+
+    def observed_read(root, *args, **kwargs):
+        result = native(root, *args, **kwargs)
+        if kwargs.get("stdin", "").startswith("refs/tags/coordinate-tag "):
+            git(repo, "update-ref", "refs/tags/coordinate-tag", tree)
+        return result
+
+    calls = Mock(side_effect=observed_read)
     monkeypatch.setattr(objects, "run_git", calls)
     assert observe_git_effect(repo, effect)["refs"] == {missing: "0" * len(head)}
     assert calls.call_count == 2
@@ -80,6 +88,24 @@ def test_batched_effect_observation_preserves_native_queries(tmp_path, monkeypat
     }
     assert calls.call_count == 3
     assert objects.resolve_revisions(repo, ()) == {}
+    git(repo, "tag", "-a", "coordinate-tag", head, "-m", "coordinate binding")
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+    for revision, kind, reads in (
+        (head, "commit", 1),
+        ("HEAD^{/i[n ]it}", "commit", 2),
+        ("refs/tags/coordinate-tag", "annotated-tag", 2),
+    ):
+        calls.reset_mock()
+        observed = objects.observe_git_object(repo, revision, kind)
+        assert (observed["peeled_commit"], observed["tree_oid"]) == (head, tree)
+        assert calls.call_count == reads
+    assert objects.observe_git_object(repo, "refs/tags/coordinate-tag", "annotated-tag")[
+        "required_gaps"
+    ] == ["git_object_kind_mismatch"]
+    calls.reset_mock()
+    assert objects.observe_commit(repo, "HEAD^{/i[n ]it}")["object_oid"] == head
+    assert calls.call_count == 4
+    assert objects.observe_commit(repo, "HEAD^{/absent message}")["state"] == "unavailable"
     (repo / ".git" / missing).write_text("a" * len(head) + "\n")
     with pytest.raises(ValueError, match="git_revision_batch_invalid"):
         objects.resolve_revisions(repo, (missing,))

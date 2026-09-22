@@ -1122,6 +1122,22 @@ cached across effects. Response cardinality, type, OID spelling and ordinal
 binding are validated; transport failure is not interpreted as absence. The
 HEAD read remains explicit, and this batch is not an atomic Git snapshot.
 
+Commit and signed-object observation also consume that typed native row. The
+shared resolver retains object kind instead of discarding it and spawning a
+second process to recover the same fact. Remove the scalar resolve/type helpers.
+Peeling uses the selected immutable OID even if its ref moves; later invocations
+observe the new ref. Tree readability, current trust inputs and effect admission
+remain separate. Missing rows still require native absence confirmation.
+Native revision expressions containing whitespace are resolved by Git before
+entering the ordinal-framed batch; the transport must not narrow Git's syntax.
+No revision parser or persistent observation cache is added.
+
+The current release-path profile reduced Git calls from 1,919 to 1,848 and
+elapsed time from 31.061 to 28.833 seconds with the same assertions. These are
+single profiled runs without coverage, not a full-proof speedup or a sustained
+latency claim. Exact-source profiles and the native reduced-work regressions
+remain in the existing commit-integrity evidence root.
+
 Attestation validation resolves the exact immutable repository identity once
 instead of repeating the same resolver inside its postcondition check. It still
 checks current refs, trees, time, canonical evidence and authority separately.

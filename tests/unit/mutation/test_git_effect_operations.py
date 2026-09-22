@@ -3,48 +3,24 @@
 from __future__ import annotations
 
 import subprocess
-from datetime import UTC
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.repo.git_effects as git_effects
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Facts
+from tests.support.git_effect import fixture
+from tests.support.git_effect import plan as effect_plan
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import write_test_profile
-from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-
-def _cas_plan(repo: Path, old: str, new: str):
-    effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
-    facts = Facts(
-        repository=f"repository:{repo.name}",
-        head=old,
-        tree=git(repo, "rev-parse", f"{old}^{{tree}}"),
-        observed_at=datetime(2026, 8, 10, tzinfo=UTC),
-        values={"refs": {"refs/heads/dev": old}, "assertions": {}},
-    )
-    authority = commitment_fixture(
-        id="authority:test:git-effect", acceptance=("acceptance:fixture",)
-    )
-    return effect, compile_git_effect_plan(
-        authority,
-        facts,
-        prior_attestations={},
-        policy={"operation": "git.ref.compare-and-swap", "effect_digest": effect.digest()},
-        effect=effect,
-    )
 
 
 def test_stage_effects_reject_missing_paths_stale_heads_and_git_failures(
@@ -275,42 +251,23 @@ def test_accepted_effect_rejects_missing_candidate_or_unbound_runtime_before_cas
     tmp_path: Path, *, missing_candidate: bool
 ) -> None:
     """A carried plan cannot replace fresh candidate and hook binding checks."""
-    repo = init_git_repo(tmp_path / "repo")
-    write_test_profile(repo)
-    git(repo, "add", ".ethos/profile.toml")
-    git(repo, "commit", "-m", "test: declare repository")
-    old = git(repo, "rev-parse", "HEAD")
-    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "test: candidate")
+    case = fixture(tmp_path)
+    repo, old, new = case.repo, case.old, case.new
     candidate = tmp_path / "candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", str(candidate), new)
     effect = GitEffect(
         updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)},
         assertions={"refs/heads/candidate/dev": new},
     )
-    facts = Facts(
-        repository=f"repository:{repo.name}",
-        head=old,
-        tree=git(repo, "rev-parse", "HEAD^{tree}"),
-        observed_at=datetime.now(UTC),
-        values={
-            "refs": {"refs/heads/dev": old},
-            "assertions": {"refs/heads/candidate/dev": new},
-            "candidate_worktree_path": str(
-                tmp_path / "missing" if missing_candidate else candidate
-            ),
-        },
-    )
-    plan = compile_git_effect_plan(
+    plan = compile_observed_git_effect(
+        repo,
         None,
-        facts,
-        prior_attestations={},
-        policy={
-            "operation": "git.ref.compare-and-swap",
-            "transition": "candidate.accept",
-            "candidate_branch": "candidate/dev",
-            "effect_digest": effect.digest(),
+        effect,
+        head=old,
+        policy={"operation": "candidate.accept", "candidate_branch": "candidate/dev"},
+        values={
+            "candidate_worktree_path": str(tmp_path / "missing" if missing_candidate else candidate)
         },
-        effect=effect,
     )
     expected = "binding_stale" if missing_candidate else "hook_invalid"
 
@@ -325,13 +282,9 @@ def test_accepted_effect_rejects_missing_candidate_or_unbound_runtime_before_cas
 def test_exact_ref_cas_compensates_a_failed_postcondition(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    write_test_profile(repo)
-    git(repo, "add", ".ethos/profile.toml")
-    git(repo, "commit", "-m", "declare repository identity")
-    old = git(repo, "rev-parse", "HEAD")
-    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
-    effect, plan = _cas_plan(repo, old, new)
+    case = fixture(tmp_path)
+    repo, old, new, effect = case.repo, case.old, case.new, case.effect
+    plan = effect_plan(repo, effect)
     observe = git_effects.observe_git_effect
     injected = False
 

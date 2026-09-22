@@ -12,12 +12,12 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
+from tests.support.semantic import attestation_fixture
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -75,27 +75,16 @@ def proof_plan(case: Any, value: GitEffect | None = None) -> TransitionPlan:
     value = value or case.effect
     desired = next(iter(value.updates.values())).desired
     policy = {"operation": "git.ref.compare-and-swap", "effect_digest": value.digest()}
-    proof = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "proof:execution",
-            "verifier": ISSUER,
-            "subject": f"git:commit:{desired}",
-            "issued_at": datetime(2026, 8, 1, tzinfo=UTC),
-            "valid_from": datetime(2026, 8, 1, tzinfo=UTC),
-            "valid_until": None,
-            "verdict": "pass",
-            "payload": {"kind": "proof:execution", "body": {"head": desired}},
-            "relations": (),
-            "advisories": (),
-            "evidence_refs": (),
-            "commitment_digest": "a" * 64,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": canonical_json_digest(policy),
-            "effect_digest": None,
-            "mints_authority": False,
-        }
+    proof = attestation_fixture(
+        predicate="proof:execution",
+        verifier=ISSUER,
+        subject=f"git:commit:{desired}",
+        issued_at=datetime(2026, 8, 1, tzinfo=UTC),
+        valid_from=datetime(2026, 8, 1, tzinfo=UTC),
+        commitment_digest="a" * 64,
+        policy_digest=canonical_json_digest(policy),
+        payload_kind="proof:execution",
+        payload_body={"head": desired},
     )
     return plan(
         case.repo,

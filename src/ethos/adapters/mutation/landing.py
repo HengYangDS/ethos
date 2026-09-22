@@ -22,6 +22,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
 from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -38,7 +39,6 @@ from ethos.contracts.verdict import report_verdict
 if TYPE_CHECKING:
     from ethos.contracts.admission import AdmissionDecision
     from ethos.contracts.semantic import Attestation
-    from ethos.contracts.semantic import Commitment
 
 
 def apply_land_to_candidate(
@@ -47,6 +47,8 @@ def apply_land_to_candidate(
     authorized: bool,
     expect_head: str | None,
     admitted_decision: AdmissionDecision | None = None,
+    identity_transition: bool = False,
+    candidate_head: str | None = None,
 ) -> dict[str, object]:
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     decision = admitted_decision or evaluate_mutation(
@@ -65,7 +67,12 @@ def apply_land_to_candidate(
             remediation=remediation.remediation_for_gaps(decision.required_gaps),
         )
     try:
-        blocked, transition = _candidate_plan(root)
+        blocked, transition = _candidate_plan(
+            root,
+            identity_transition=identity_transition,
+            expected_candidate_head=candidate_head,
+            admitted_decision=decision,
+        )
     except (TypeError, ValueError) as error:
         gap = _candidate_admission_gap(error)
         return _blocked(
@@ -144,10 +151,23 @@ def apply_land_to_candidate(
     }
 
 
-def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, object]:
+def candidate_transition_readiness(
+    *,
+    root: Path,
+    status=None,
+    identity_transition: bool = False,
+    candidate_head: str | None = None,
+    admitted_decision: AdmissionDecision | None = None,
+) -> dict[str, object]:
     """Compile and admit the exact candidate CAS without performing its effect."""
     try:
-        blocked, transition = _candidate_plan(root, status=status)
+        blocked, transition = _candidate_plan(
+            root,
+            status=status,
+            identity_transition=identity_transition,
+            expected_candidate_head=candidate_head,
+            admitted_decision=admitted_decision,
+        )
     except (TypeError, ValueError) as error:
         policy = load_branch_role_policy(root)
         current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
@@ -182,21 +202,58 @@ def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, obje
         )
     return {
         **base_report,
-        "state": "candidate_transition_admitted",
+        "state": (
+            "candidate_materialization_pending"
+            if base_report["state"] == "candidate_materialization_pending"
+            else "candidate_transition_admitted"
+        ),
         "effect": plan.effect,
         "plan_digest": plan.digest,
+        "transition_plan": plan.model_dump(mode="json"),
         "cas_attempts": 0,
     }
 
 
-def _candidate_plan(root: Path, *, status=None):
+def _candidate_plan(
+    root: Path,
+    *,
+    status=None,
+    identity_transition: bool = False,
+    expected_candidate_head: str | None = None,
+    admitted_decision: AdmissionDecision | None = None,
+):
     policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     base_report = candidate_base_report(root=root, status=status)
+    if (
+        base_report.get("required_gaps") == ["candidate_worktree_dirty"]
+        and admitted_decision is not None
+        and admitted_decision.verdict == "pass"
+        and (previous := admitted_decision.subject.expected_state.get("candidate_preimage"))
+    ):
+        path = Path(str(base_report["path"]))
+        if not worktree_sync_gap(
+            root, (path,), policy.candidate_branch, current_head, str(previous), current_head
+        ):
+            base_report = {
+                **base_report,
+                "verdict": "pass",
+                "state": "candidate_materialization_pending",
+                "candidate_head": str(previous),
+                "required_gaps": [],
+            }
     if report_verdict(base_report) != "pass":
         return base_report, None
     candidate_path = Path(str(base_report["path"]))
     candidate_head = str(base_report["candidate_head"])
+    if identity_transition:
+        if expected_candidate_head is None:
+            message = "repository_identity_transition_target_head_required"
+            raise ValueError(message)
+        if candidate_head not in {expected_candidate_head, current_head}:
+            message = "repository_identity_transition_target_head_changed"
+            raise ValueError(message)
+        candidate_head = expected_candidate_head
     proof = proof_attestation(candidate_path, current_head)
     if proof is None:
         return (
@@ -217,19 +274,26 @@ def _candidate_plan(root: Path, *, status=None):
     plan = (
         None
         if candidate_head == current_head
-        else _candidate_transition_plan(
-            root=root,
-            authority=authority,
-            effect=_candidate_effect(
+        else compile_observed_git_effect(
+            root,
+            authority,
+            _candidate_effect(
                 policy=policy,
                 branch=branch,
                 current_head=current_head,
                 candidate_head=candidate_head,
             ),
             head=current_head,
-            lease=lease,
             prior_attestations={"proof": proof.model_dump(mode="json")},
-            policy=policy,
+            policy={
+                "operation": "candidate.integrate",
+                "candidate_branch": policy.candidate_branch,
+            },
+            values={
+                "operation": "candidate.integrate",
+                "lease_generation": lease_generation(lease),
+            },
+            identity_transition=identity_transition,
         )
     )
     return None, (policy, base_report, candidate_path, candidate_head, plan)
@@ -306,36 +370,6 @@ def execute_candidate_plan(root: Path, plan: TransitionPlan, *, issuer: str) -> 
     return execute_git_effect(root, plan, issuer=issuer)
 
 
-def _candidate_transition_plan(
-    *,
-    root: Path,
-    authority: Commitment,
-    effect: GitEffect,
-    head: str,
-    lease: dict[str, object],
-    prior_attestations: dict[str, object],
-    policy: BranchRolePolicy,
-) -> TransitionPlan:
-    if not prior_attestations.get("proof"):
-        message = "candidate_prior_proof_missing"
-        raise ValueError(message)
-    return compile_observed_git_effect(
-        root,
-        authority,
-        effect,
-        head=head,
-        prior_attestations=prior_attestations,
-        policy={
-            "operation": "candidate.integrate",
-            "candidate_branch": policy.candidate_branch,
-        },
-        values={
-            "operation": "candidate.integrate",
-            "lease_generation": lease_generation(lease),
-        },
-    )
-
-
 def _blocked(policy, head, gaps, *, state="blocked", verdict="block", **extra):
     return dict(
         verdict=verdict,
@@ -347,13 +381,16 @@ def _blocked(policy, head, gaps, *, state="blocked", verdict="block", **extra):
     )
 
 
-def apply_candidate_to_accepted(
+def candidate_to_accepted(
     *,
     root: Path,
     authorized: bool,
     expect_head: str | None,
     candidate_head: str | None = None,
     control_replacement_receipt: dict[str, object] | None = None,
+    apply: bool = True,
+    identity_transition: bool = False,
+    completed_effect: Attestation | None = None,
 ) -> dict[str, object]:
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     try:
@@ -367,11 +404,12 @@ def apply_candidate_to_accepted(
             "required_gaps": ["accepted_policy_unavailable"],
         }
     decision = evaluate_closeout_mutation(
-        apply=True,
+        apply=apply,
         authorized=authorized,
         expect_head=expect_head,
         root=root,
         current_head=current_head,
+        completed_effect=completed_effect,
     )
     if decision.verdict != "pass":
         return {
@@ -399,7 +437,16 @@ def apply_candidate_to_accepted(
         current_head=current_head,
         candidate_head=candidate_head,
         status=status,
+        expected_head=expect_head,
     ):
+        if apply and current.get("state") == "accepted_materialization_pending":
+            return accepted.recover_current_acceptance(
+                root=root,
+                policy=policy,
+                current_head=current_head,
+                status=status,
+                current=current,
+            )
         return current
     return accepted.promote_candidate(
         root=root,
@@ -408,6 +455,8 @@ def apply_candidate_to_accepted(
         candidate_head=candidate_head,
         status=status,
         control_replacement_receipt=control_replacement_receipt,
+        apply=apply,
+        identity_transition=identity_transition,
     )
 
 

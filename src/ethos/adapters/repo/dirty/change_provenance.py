@@ -18,6 +18,8 @@ from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.repo.git import run_git
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from collections.abc import Mapping
     from pathlib import Path
 
 
@@ -281,9 +283,9 @@ def dirty_provenance(
         output = git_stdout_checked(
             root, "status", "--porcelain", f"--untracked-files={untracked_files}"
         )
-    except (OSError, subprocess.CalledProcessError) as exc:
+        entries = _dirty_entries(output)
+    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         return _unavailable_dirty_provenance(exc)
-    entries = [_dirty_entry(line) for line in output.splitlines() if line]
     summary = {
         "tracked": sum(1 for entry in entries if entry["kind"] == "tracked"),
         "untracked": sum(1 for entry in entries if entry["kind"] == "untracked"),
@@ -298,6 +300,49 @@ def dirty_provenance(
         "summary": summary,
         "temporary_probes": _temporary_probe_summary(root, entries),
     }
+
+
+def working_content_changed(
+    root: Path,
+    *,
+    untracked_files: Literal["no", "all"] = "no",
+    ignore_submodules: bool = False,
+    environment: Mapping[str, str] | None = None,
+    runner: Callable[..., Any] = run_git,
+) -> bool | None:
+    """Compare actual worktree content with the index without refreshing index bytes."""
+    completed = runner(
+        root,
+        "status",
+        "--porcelain",
+        f"--untracked-files={untracked_files}",
+        f"--ignore-submodules={'all' if ignore_submodules else 'none'}",
+        check=False,
+        env={**(environment or {}), "GIT_OPTIONAL_LOCKS": "0"},
+    )
+    if completed.returncode:
+        return None
+    try:
+        entries = _dirty_entries(completed.stdout)
+    except ValueError:
+        return None
+    return any(entry["worktree"] != " " or entry["kind"] == "conflicted" for entry in entries)
+
+
+def _dirty_entries(output: str) -> list[dict[str, str]]:
+    """Decode the existing porcelain vocabulary; malformed observations are unavailable."""
+    lines = [line for line in output.splitlines() if line]
+    if any(
+        len(line) < 4
+        or line[2] != " "
+        or line[:2] == "  "
+        or not set(line[:2]) <= set(" MADRCUT?!")
+        or (set(line[:2]) & set("?!") and line[:2] not in {"??", "!!"})
+        for line in lines
+    ):
+        message = "git_status_porcelain_invalid"
+        raise ValueError(message)
+    return [_dirty_entry(line) for line in lines]
 
 
 def _unavailable_dirty_provenance(exc: BaseException) -> dict[str, object]:

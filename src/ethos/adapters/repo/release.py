@@ -33,7 +33,13 @@ def require_release(condition: object, gap: str) -> None:
 
 
 def release_selection_command(
-    root: Path, *, head: str, previous: str, tag: str = "", apply: bool = False
+    root: Path,
+    *,
+    head: str,
+    previous: str,
+    tag: str = "",
+    apply: bool = False,
+    identity_transition: bool = False,
 ) -> str:
     """Render one exact release selection; a hook requests preview, never authority."""
     return shlex.join(
@@ -46,6 +52,7 @@ def release_selection_command(
             "--release-head",
             previous,
             *(("--tag", tag) if tag else ()),
+            *(("--identity-transition",) if identity_transition else ()),
             *(("--apply", "--authorize") if apply else ()),
             "--root",
             str(root),

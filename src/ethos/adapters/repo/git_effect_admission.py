@@ -5,13 +5,19 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
+from typing import cast
 
+from ethos.adapters.mutation.proof_admission import proof_attestation
+from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_observation import observe_git_effect
+from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.contracts.semantic import Attestation
 from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
@@ -27,6 +33,68 @@ def require_effect_permission(effect: GitEffect, plan: TransitionPlan) -> None:
         return
     message = "git_effect_permission_denied"
     raise ValueError(message)
+
+
+def admit_git_effect_state(
+    root: Path,
+    plan: TransitionPlan,
+    effect: GitEffect,
+    *,
+    environment: Mapping[str, str] | None,
+    detached_branch: str,
+) -> tuple[dict[str, object], bool, str]:
+    """Return one fully admitted current observation shared by preview, apply and recovery."""
+    observed = observe_git_effect(root, effect, environment=environment)
+    refs = cast("dict[str, str]", observed["refs"])
+    expected = {name: update.expected for name, update in effect.updates.items()}
+    desired = {name: update.desired for name, update in effect.updates.items()}
+    recovering = refs == desired
+    if observed["assertions"] != effect.assertions:
+        message = "git_effect_cas_mismatch"
+        raise ValueError(message)
+    if recovering:
+        require_lease_generation(root, plan, detached_branch=detached_branch)
+        _require_identity_proof(root, plan)
+        repository = (
+            resolve_git_effect_repository(
+                root, effect, observed, environment=environment, plan=plan
+            )
+            if "repository_identity_transitions" in plan.policy
+            else ""
+        )
+        return observed, True, repository
+    require_plan_prestate(root, plan, effect, detached_branch=detached_branch)
+    _require_identity_proof(root, plan)
+    repository = resolve_git_effect_repository(
+        root,
+        effect,
+        observed,
+        environment=environment,
+        plan=plan,
+        allow_absent_prestate=plan.policy.get("repository_prestate") == "absent",
+    )
+    if refs != expected:
+        message = "git_effect_cas_mismatch"
+        raise ValueError(message)
+    return observed, False, repository
+
+
+def _require_identity_proof(root: Path, plan: TransitionPlan) -> None:
+    """Keep fresh transition authorization separate from immutable result validation."""
+    if "repository_identity_transitions" not in plan.policy:
+        return
+    proof = Attestation.model_validate(mutable_json(plan.prior_attestations.get("proof")))
+    head = str(proof.payload.body["plan"]["facts"]["head"])
+    admitted, gaps = proof_attestation(
+        root,
+        head,
+        repository_transition=True,
+        store=proof_artifact_root(root),
+        attestation_id=proof.id,
+    )
+    if admitted is None or gaps or admitted.canonical_json() != proof.canonical_json():
+        message = "repository_identity_transition_proof_invalid"
+        raise ValueError(message)
 
 
 def _is_exact_effect_authority(effect: GitEffect, plan: TransitionPlan) -> bool:

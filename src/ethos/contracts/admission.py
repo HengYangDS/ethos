@@ -7,6 +7,7 @@ identity directory, capability grant, or reusable authorization token.
 import os
 from typing import Annotated
 from typing import Any
+from typing import Literal
 from typing import Self
 from typing import cast
 
@@ -112,6 +113,32 @@ class MutationSubject(BaseModel):
     action: str = Field(min_length=1)
     resource: str = Field(min_length=1)
     expected_state: JsonObject = Field(default_factory=dict, validate_default=True)
+
+
+class RepositoryIdentityTransition(BaseModel):
+    """One explicit identity edge bound to a native ref program and object database."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    operation: Literal["repository.identity-transition"] = "repository.identity-transition"
+    target_ref: str = Field(min_length=1)
+    expected_head: str = Field(min_length=1)
+    expected_tree: str = Field(min_length=1)
+    desired_head: str = Field(min_length=1)
+    desired_tree: str = Field(min_length=1)
+    old_identity: str = Field(min_length=1)
+    new_identity: str = Field(min_length=1)
+    common_directory: FilesystemPath
+    common_device: int
+    common_inode: int
+
+    @model_validator(mode="after")
+    def require_distinct_identities(self) -> Self:
+        """Identity equivalence must never be inferred from storage continuity."""
+        if self.old_identity == self.new_identity:
+            message = "repository_identity_transition_not_required"
+            raise ValueError(message)
+        return self
 
 
 class DecisionBasis(BaseModel):

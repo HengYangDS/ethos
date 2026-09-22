@@ -54,8 +54,9 @@ compiles typed policy predicates before runtime evaluation. Neither owns accepte
 intent, effects or reusable authorization. Delete superseded template and parser
 paths as their replacements become qualified, not by silently dropping checks.
 
-Complete the current CUE/CEL and CI admission closure, then deliver the independent
-CLI and MCP product path without waiting for unrelated global cleanup. Separate
+Continue independent CLI/MCP delivery alongside the remaining CI admission
+qualification, without repeating the accepted CUE/CEL cutover or waiting for
+unrelated global cleanup. Separate
 host product installation from repository binding: reuse immutable package supply
 across repositories, retain exact repository-selected identities and local Git
 facts, and migrate existing common-dir runtimes only after rollback and live-user
@@ -63,6 +64,14 @@ safety are proven. CLI and MCP invoke one application owner with explicit reposi
 actor, input, cancellation and result boundaries. MCP must have a real client
 round trip; an internal Python module or packaged wheel alone is not installed
 product acceptance. A daemon is not a prerequisite for local stdio operation.
+
+The next adopter-blocking application slice is an explicit repository identity
+transition, owned by installed-product task 1.6 and its existing design. Preserve
+ordinary cross-identity refusal and one-shot authority per exact ref effect,
+while permitting independently authorized later integration stages. Do not retain
+obsolete product names through aliases or bypass native effects. Measure slow
+installed publication/recovery separately from proof: confirmed remote effects
+with a late acknowledgment require observation, not repeated pushes.
 
 Deliver the new projection compiler capability before activating CUE declarations
 that the installed predecessor cannot interpret. Keep source/runtime admission

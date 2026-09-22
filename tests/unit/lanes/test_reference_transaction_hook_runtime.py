@@ -10,6 +10,8 @@ import sys
 from contextlib import closing
 from typing import TYPE_CHECKING
 
+import pytest
+
 from ethos.adapters.admission.current.authority import resolve_current_authority
 from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -25,8 +27,6 @@ from tests.support.governed_repository import render_branch_policy
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 
 def _unavailable_runtime_repo(tmp_path: Path):
@@ -68,6 +68,48 @@ def _unavailable_runtime_repo(tmp_path: Path):
     g("branch", "work/x")
     g("config", "core.hooksPath", hooks.as_posix())
     return g, hooks, {**os.environ, "PATH": "/usr/bin:/bin"}
+
+
+def _install_policy_only_hook(hooks: Path) -> None:
+    """Exercise native policy admission independently of package availability."""
+    driver = hooks / "reference_transaction_driver.py"
+    driver.write_text(
+        """from pathlib import Path
+import sys
+
+import ethos.adapters.repo.hook.admission as runtime
+from ethos.adapters.repo.hook.protocol import execute_hook
+
+runtime.current_runtime = lambda _common: object()
+raise SystemExit(
+    execute_hook(
+        Path.cwd(),
+        "reference-transaction",
+        tuple(sys.argv[1:]),
+        stdin=sys.stdin,
+    )
+)
+""",
+        encoding="utf-8",
+    )
+    hook = hooks / "reference-transaction"
+    hook.write_text(
+        f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+
+
+def _checkout_state(root: Path, run) -> dict[str, object]:
+    """Observe the same complete checkout boundary before and after a rejected effect."""
+    return {
+        "symbolic_head": run("symbolic-ref", "-q", "HEAD").stdout,
+        "head": run("rev-parse", "HEAD").stdout,
+        "index_tree": run("write-tree").stdout,
+        "status": run("status", "--porcelain=v1", "-z").stdout,
+        "tracked": (root / "a").read_bytes(),
+        "work_only": (root / "work-only").exists(),
+    }
 
 
 def test_reference_transaction_hook_fails_closed_on_governed_branches(tmp_path: Path) -> None:
@@ -112,35 +154,13 @@ def test_reference_transaction_hook_fails_closed_on_governed_branches(tmp_path: 
     assert g("rev-parse", "dev").stdout.strip() == dev_head
 
 
-def test_rejected_accepted_merge_preserves_head_index_and_worktree(tmp_path: Path) -> None:
-    """A rejected raw merge must not pollute the accepted checkout."""
+@pytest.mark.parametrize("operation", ["merge", "checkout"])
+def test_rejected_ref_effect_preserves_head_index_and_worktree(
+    tmp_path: Path, operation: str
+) -> None:
+    """Rejected raw integration and branch creation preserve the complete checkout."""
     g, hooks, no_binary = _unavailable_runtime_repo(tmp_path)
-    driver = hooks / "reference_transaction_driver.py"
-    driver.write_text(
-        """from pathlib import Path
-import sys
-
-import ethos.adapters.repo.hook.admission as runtime
-from ethos.adapters.repo.hook.protocol import execute_hook
-
-runtime.current_runtime = lambda _common: object()
-raise SystemExit(
-    execute_hook(
-        Path.cwd(),
-        "reference-transaction",
-        tuple(sys.argv[1:]),
-        stdin=sys.stdin,
-    )
-)
-""",
-        encoding="utf-8",
-    )
-    hook = hooks / "reference-transaction"
-    hook.write_text(
-        f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
-        encoding="utf-8",
-    )
-    hook.chmod(0o755)
+    _install_policy_only_hook(hooks)
     g("config", "core.hooksPath", "")
     assert g("checkout", "work/x").returncode == 0
     (tmp_path / "a").write_text("2", encoding="utf-8")
@@ -149,87 +169,17 @@ raise SystemExit(
     assert g("commit", "-m", "work change").returncode == 0
     assert g("checkout", "dev").returncode == 0
     g("config", "core.hooksPath", hooks.as_posix())
-    before = {
-        "symbolic_head": g("symbolic-ref", "-q", "HEAD").stdout,
-        "head": g("rev-parse", "HEAD").stdout,
-        "index_tree": g("write-tree").stdout,
-        "status": g("status", "--porcelain=v1", "-z").stdout,
-        "tracked": (tmp_path / "a").read_bytes(),
-        "work_only": (tmp_path / "work-only").exists(),
-    }
-
-    blocked = g("merge", "--ff-only", "work/x", env=no_binary)
-
+    before = _checkout_state(tmp_path, g)
+    command = (
+        ("merge", "--ff-only", "work/x")
+        if operation == "merge"
+        else ("checkout", "-b", "work/unleased", g("rev-parse", "work/x").stdout.strip())
+    )
+    blocked = g(*command, env=no_binary)
     assert blocked.returncode != 0
-    assert {
-        "symbolic_head": g("symbolic-ref", "-q", "HEAD").stdout,
-        "head": g("rev-parse", "HEAD").stdout,
-        "index_tree": g("write-tree").stdout,
-        "status": g("status", "--porcelain=v1", "-z").stdout,
-        "tracked": (tmp_path / "a").read_bytes(),
-        "work_only": (tmp_path / "work-only").exists(),
-    } == before
-
-
-def test_rejected_work_lane_creation_preserves_head_index_and_worktree(tmp_path: Path) -> None:
-    """A rejected raw work-branch checkout must restore the source checkout."""
-    g, hooks, no_binary = _unavailable_runtime_repo(tmp_path)
-    driver = hooks / "reference_transaction_driver.py"
-    driver.write_text(
-        """from pathlib import Path
-import sys
-
-import ethos.adapters.repo.hook.admission as runtime
-from ethos.adapters.repo.hook.protocol import execute_hook
-
-runtime.current_runtime = lambda _common: object()
-raise SystemExit(
-    execute_hook(
-        Path.cwd(),
-        "reference-transaction",
-        tuple(sys.argv[1:]),
-        stdin=sys.stdin,
-    )
-)
-""",
-        encoding="utf-8",
-    )
-    hook = hooks / "reference-transaction"
-    hook.write_text(
-        f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
-        encoding="utf-8",
-    )
-    hook.chmod(0o755)
-    g("config", "core.hooksPath", "")
-    assert g("checkout", "work/x").returncode == 0
-    (tmp_path / "a").write_text("2", encoding="utf-8")
-    (tmp_path / "work-only").write_text("work\n", encoding="utf-8")
-    assert g("add", ".").returncode == 0
-    assert g("commit", "-m", "work change").returncode == 0
-    target = g("rev-parse", "HEAD").stdout.strip()
-    assert g("checkout", "dev").returncode == 0
-    g("config", "core.hooksPath", hooks.as_posix())
-    before = {
-        "symbolic_head": g("symbolic-ref", "-q", "HEAD").stdout,
-        "head": g("rev-parse", "HEAD").stdout,
-        "index_tree": g("write-tree").stdout,
-        "status": g("status", "--porcelain=v1", "-z").stdout,
-        "tracked": (tmp_path / "a").read_bytes(),
-        "work_only": (tmp_path / "work-only").exists(),
-    }
-
-    blocked = g("checkout", "-b", "work/unleased", target, env=no_binary)
-
-    assert blocked.returncode != 0
-    assert g("show-ref", "--verify", "refs/heads/work/unleased").returncode != 0
-    assert {
-        "symbolic_head": g("symbolic-ref", "-q", "HEAD").stdout,
-        "head": g("rev-parse", "HEAD").stdout,
-        "index_tree": g("write-tree").stdout,
-        "status": g("status", "--porcelain=v1", "-z").stdout,
-        "tracked": (tmp_path / "a").read_bytes(),
-        "work_only": (tmp_path / "work-only").exists(),
-    } == before
+    if operation == "checkout":
+        assert g("show-ref", "--verify", "refs/heads/work/unleased").returncode != 0
+    assert _checkout_state(tmp_path, g) == before
 
 
 def test_checkout_compensation_refuses_non_exact_index_overlay(tmp_path: Path) -> None:
@@ -276,32 +226,7 @@ def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(
     )
     hooks = repo / ".git/test-hooks"
     hooks.mkdir(exist_ok=True)
-    driver = hooks / "reference_transaction_driver.py"
-    driver.write_text(
-        """from pathlib import Path
-import sys
-
-import ethos.adapters.repo.hook.admission as runtime
-from ethos.adapters.repo.hook.protocol import execute_hook
-
-runtime.current_runtime = lambda _common: object()
-raise SystemExit(
-    execute_hook(
-        Path.cwd(),
-        "reference-transaction",
-        tuple(sys.argv[1:]),
-        stdin=sys.stdin,
-    )
-)
-""",
-        encoding="utf-8",
-    )
-    hook = hooks / "reference-transaction"
-    hook.write_text(
-        f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
-        encoding="utf-8",
-    )
-    hook.chmod(0o755)
+    _install_policy_only_hook(hooks)
     git(lane, "config", "core.hooksPath", hooks.as_posix())
     before = leases_by_branch(lane)[branch]
     (lane / "ordinary.txt").write_text("ordinary\n", encoding="utf-8")

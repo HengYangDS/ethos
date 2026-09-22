@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
 import pytest
 
 from ethos.adapters.repo.config_effects import set_local_config
+from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.repo.worktree_effects import attach_worktree
 from ethos.adapters.repo.worktree_effects import remove_worktree
@@ -17,29 +20,54 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 
-def test_add_worktree_recognizes_exact_terminal_state(tmp_path) -> None:
+def test_worktree_preimage_uses_content_not_index_stat_cache(tmp_path: Path) -> None:
+    """Restored bytes are clean even when cached stat data differs; readers keep the index."""
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")
+    path = repo / "README.md"
+    original = path.read_bytes()
+    os.utime(path, (1, 1))
+    git(repo, "add", "README.md")
+    path.write_text("temporary user change\n")
+    git(repo, "status", "--porcelain")
+    path.write_bytes(original)
+    index = repo / git(repo, "rev-parse", "--git-path", "index")
+    before = index.read_bytes()
+    assert run_git(repo, "diff-files", "--quiet", check=False).returncode == 1
+    assert worktree_sync_gap(repo, (repo,), "dev", head, head, head) == ""
+    assert index.read_bytes() == before
+    path.write_text("real user change\n")
+    assert worktree_sync_gap(repo, (repo,), "dev", head, head, head) == "worktree_dirty"
+    assert index.read_bytes() == before
+
+
+@pytest.mark.parametrize("attach", [False, True], ids=["created", "attached"])
+def test_worktree_creation_and_attachment_recognize_exact_terminal_state(tmp_path, attach) -> None:
+    """Both native creation paths preserve one exact, replayable worktree binding."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = adopt_and_commit(repo)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
-
-    applied = add_worktree(repo, target, head=head, branch="linked")
-    recognized = add_worktree(repo, target, head=head, branch="linked")
-
+    if attach:
+        git(repo, "worktree", "add", "--detach", target.as_posix(), head)
+    operation = attach_worktree if attach else add_worktree
+    applied = operation(repo, target, head=head, branch="linked")
+    recognized = operation(repo, target, head=head, branch="linked")
     assert applied.payload.body["result"]["state"] == "applied"
     assert recognized.payload.body["result"]["state"] == "recognized"
     assert recognized.payload.body["output"]["head"] == head
     assert recognized.payload.body["output"]["branch"] == "linked"
     assert recognized.predicate == "effect:git-worktree"
-    assert recognized.payload.body["command"] == ("git", "worktree", "add")
+    assert recognized.payload.body["command"] == (
+        ("git", "switch") if attach else ("git", "worktree", "add")
+    )
     assert recognized.effect_digest
+    assert git(target, "branch", "--show-current") == "linked"
 
 
 def test_add_worktree_rejects_path_bound_to_other_head(tmp_path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
+    head = adopt_and_commit(repo)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
     add_worktree(repo, target, head=head, branch="linked")
@@ -51,8 +79,7 @@ def test_add_worktree_rejects_path_bound_to_other_head(tmp_path) -> None:
 @pytest.mark.parametrize("content_absent", [False, True])
 def test_remove_worktree_recognizes_absent_terminal_state(tmp_path, content_absent) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
+    head = adopt_and_commit(repo)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
     add_worktree(repo, target, head=head, branch="linked")
@@ -80,8 +107,7 @@ def test_remove_worktree_recognizes_absent_terminal_state(tmp_path, content_abse
 )
 def test_absent_worktree_deregistration_rejects_drift(tmp_path, drift, after_admission):
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
+    head = adopt_and_commit(repo)
     target = tmp_path / "linked"
     git(repo, "worktree", "add", "-b", "linked", str(target), head)
     admin = Path(git(target, "rev-parse", "--absolute-git-dir"))
@@ -134,8 +160,7 @@ def test_remove_historical_worktree_uses_control_repository_identity(tmp_path) -
 
 def test_remove_worktree_rejects_inexact_binding(tmp_path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
+    head = adopt_and_commit(repo)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
     add_worktree(repo, target, head=head, branch="linked")
@@ -147,8 +172,7 @@ def test_remove_worktree_rejects_inexact_binding(tmp_path) -> None:
 @pytest.mark.parametrize("dangling", [False, True])
 def test_remove_worktree_rejects_link_root_before_resolving(tmp_path, dangling) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
+    head = adopt_and_commit(repo)
     target = tmp_path / "linked"
     git(repo, "worktree", "add", "-b", "linked", target.as_posix(), head)
     alias = tmp_path / "alias"
@@ -166,8 +190,7 @@ def test_remove_worktree_rejects_link_root_before_resolving(tmp_path, dangling) 
 
 def test_sync_worktree_attests_exact_index_and_terminal_recognition(tmp_path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    previous = git(repo, "rev-parse", "HEAD")
+    previous = adopt_and_commit(repo)
     (repo / "README.md").write_text("# changed\n", encoding="utf-8")
     git(repo, "add", "README.md")
     git(repo, "commit", "-m", "change")
@@ -185,24 +208,6 @@ def test_sync_worktree_attests_exact_index_and_terminal_recognition(tmp_path) ->
     assert recognized.payload.body["command"] == ("git", "read-tree", "-u", "-m")
     assert recognized.payload.body["output"]["head"] == head
     assert recognized.payload.body["freshness"]["head"] == head
-
-
-def test_attach_worktree_attests_switch_and_terminal_recognition(tmp_path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
-    target = tmp_path / "linked"
-    git(repo, "branch", "linked", head)
-    git(repo, "worktree", "add", "--detach", target.as_posix(), head)
-
-    applied = attach_worktree(repo, target, branch="linked", head=head)
-    recognized = attach_worktree(repo, target, branch="linked", head=head)
-
-    assert applied.payload.body["result"]["state"] == "applied"
-    assert recognized.payload.body["result"]["state"] == "recognized"
-    assert recognized.predicate == "effect:git-worktree"
-    assert recognized.payload.body["command"] == ("git", "switch")
-    assert git(target, "branch", "--show-current") == "linked"
 
 
 def test_local_config_attests_apply_and_terminal_recognition(tmp_path) -> None:

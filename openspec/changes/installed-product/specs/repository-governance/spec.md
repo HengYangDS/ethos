@@ -70,3 +70,61 @@ active Change presence, or a historical authoring Lease.
 - **AND** topic role, current accepted OID, no linked worktree, no Lease and exact CAS still apply
 - **AND** missing, invalid or nonconserving evidence blocks deletion; unavailable conservation remains UNKNOWN
 - **AND** failed local effect evidence preserves or compensates the exact original ref
+
+## ADDED Requirements
+
+### Requirement: Explicit repository identity transition
+
+ETHOS SHALL permit a typed, explicitly authorized repository identity transition
+through existing GitEffect, TransitionPlan, Attestation and CAS owners. Each
+authorization SHALL bind one target ref, exact pre/post commits and trees,
+old/new identities, one object database, accepted intent/proof, actor and current
+Lease generation. Ordinary cross-identity CAS SHALL remain rejected.
+
+#### Scenario: Identity changes progress through independently authorized stages
+
+- **WHEN** a proven new-identity work lane explicitly integrates into an old-identity candidate
+- **THEN** only the exact admitted target ref transitions and its result uses the new identity
+- **AND** accepted and release refs may transition later under separate fresh authorizations
+- **AND** unrelated refs are not changed to manufacture a global singleton identity
+
+#### Scenario: Missing or contradictory authority cannot cross identities
+
+- **WHEN** the semantic operation is unsupported or database identity, ancestry, target coordinates, intent/proof, actor or Lease generation is missing, stale or contradictory
+- **THEN** admission preserves all refs and reports the owning refusal
+- **AND** a shared object database does not make different profiles equivalent
+
+#### Scenario: A completed authorization is not consumed twice
+
+- **WHEN** the same exact transition is replayed after completion
+- **THEN** recovery observes the original effect and result without repeating its mutation
+- **AND** the original exact coordinates resolve to the original Attestation while invented coordinates remain rejected
+- **AND** a later target-ref transition requires its own authorization
+- **AND** partial or unknown execution is observed before any further effect
+
+#### Scenario: Ref completion leaves checkout materialization pending
+
+- **WHEN** the exact ref transition succeeds but its linked checkout synchronization fails
+- **THEN** preview reports pending materialization rather than completed acceptance
+- **AND** authorized recovery validates the original result and synchronizes only the admitted preimage without repeating the ref effect
+- **AND** missing authorization, stale coordination and unrelated user edits remain rejected
+- **AND** restored original content remains admissible despite stale stat metadata, without refreshing index bytes during observation
+
+#### Scenario: Renaming does not retain an obsolete current product identity
+
+- **WHEN** a target has completed its admitted old-to-new identity transition
+- **THEN** its current results use the new identity without aliases or compatibility mappings
+- **AND** old revisions remain historical or not-yet-transitioned stage inputs
+- **AND** no temporary profile rollback or history rewrite is required
+
+#### Scenario: A ref program contains both migration and new publication refs
+
+- **WHEN** an admitted branch identity transition also creates a signed tag or follows a declared accepted-mirror policy
+- **THEN** only existing branches whose identities change receive identity edges
+- **AND** new tags and unchanged-identity refs remain in the same exact ref program without invented pre-identities
+
+#### Scenario: Preview preserves the selected transition
+
+- **WHEN** an identity transition is previewed before applying it
+- **THEN** no ref changes and its continuation retains the exact root, source, target and explicit identity mode
+- **AND** a future signed tag is distinguished from the branch scope already admitted by that preview

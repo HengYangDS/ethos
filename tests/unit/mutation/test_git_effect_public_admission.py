@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pytest
@@ -12,9 +10,7 @@ import ethos.adapters.repo.git_effect_admission as admission
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.plan import TransitionPlan
-from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Facts
+from tests.support.git_effect import plan
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
@@ -56,36 +52,6 @@ def test_observed_effect_compiler_promotes_semantic_policy_to_exact_cas_authorit
     admission.require_effect_permission(effect, carried)
 
 
-def _plan(
-    root: Path,
-    effect: GitEffect,
-    *,
-    values: dict[str, object] | None = None,
-    policy: dict[str, object] | None = None,
-) -> TransitionPlan:
-    facts = Facts(
-        repository=f"repository:{root.name}",
-        head=git(root, "rev-parse", "HEAD"),
-        tree=git(root, "rev-parse", "HEAD^{tree}"),
-        observed_at=datetime(2026, 8, 10, tzinfo=UTC),
-        values={
-            "refs": {ref: update.expected for ref, update in effect.updates.items()},
-            "assertions": effect.assertions,
-            **(values or {}),
-        },
-    )
-    authority = commitment_fixture(
-        id="authority:test:git-effect", acceptance=("acceptance:fixture",)
-    )
-    return compile_git_effect_plan(
-        authority,
-        facts,
-        prior_attestations={},
-        policy=policy or {"operation": "test.apply"},
-        effect=effect,
-    )
-
-
 def _generation(branch: str, *, generation: int = 4) -> dict[str, object]:
     return {
         "lane_ref": branch,
@@ -108,7 +74,7 @@ def test_raw_semantic_operation_never_authorizes_an_effect(tmp_path: Path) -> No
     branch = "work/example"
     generation = _generation(branch)
     effect = GitEffect(updates={f"refs/heads/{branch}": GitRefUpdate(expected=old, desired=new)})
-    carried = _plan(
+    carried = plan(
         root,
         effect,
         values={"lease_generation": generation},
@@ -133,7 +99,7 @@ def test_recovery_accepts_the_same_minimal_lease_generation(
     }
     generation = admission.lease_generation(current)
     effect = GitEffect(updates={f"refs/heads/{branch}": GitRefUpdate(expected=old, desired=new)})
-    carried = _plan(
+    carried = plan(
         root,
         effect,
         values={"lease_generation": generation},
@@ -160,7 +126,7 @@ def test_plan_prestate_rejects_each_observed_authority_drift(
         updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)},
         assertions={"refs/heads/source": head},
     )
-    carried = _plan(root, effect)
+    carried = plan(root, effect)
     monkeypatch.setattr(admission, "require_lease_generation", lambda *_args, **_kwargs: None)
     if drift == "refs":
         effect = GitEffect(
@@ -208,7 +174,7 @@ def test_lease_generation_binds_actor_branch_and_detached_execution(
         "lease_state": "valid",
     }
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)})
-    carried = _plan(
+    carried = plan(
         root,
         effect,
         values={"lease_generation": generation},
@@ -227,27 +193,6 @@ def test_lease_generation_binds_actor_branch_and_detached_execution(
             admission.require_lease_generation(root, carried, detached_branch=detached)
     else:
         admission.require_lease_generation(root, carried, detached_branch=detached)
-
-
-def test_lease_generation_rejects_wrong_actor_before_effect(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    head = git(root, "rev-parse", "HEAD")
-    branch = "work/example"
-    generation = _generation(branch)
-    observed = generation | {
-        "lane_ref": branch,
-        "lease_state": "valid",
-    }
-    effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)})
-    carried = _plan(root, effect, values={"lease_generation": generation})
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
-    monkeypatch.setattr(admission, "leases_by_branch", lambda *_args, **_kwargs: {branch: observed})
-    monkeypatch.setattr(admission, "lease_generation", lambda _lease: generation)
-
-    with pytest.raises(ValueError, match="lease_actor_mismatch"):
-        admission.require_lease_generation(root, carried)
 
 
 @pytest.mark.parametrize(
@@ -279,7 +224,7 @@ def test_expired_lease_generation_rejects_operations_without_retirement_evidence
     generation = _generation(branch)
     observed = generation | {"lease_state": "expired"}
     effect = GitEffect(updates={f"refs/heads/{branch}": GitRefUpdate(expected=head, desired=ZERO)})
-    carried = _plan(
+    carried = plan(
         root,
         effect,
         values={
@@ -313,7 +258,7 @@ def test_expired_retirement_admits_only_exact_owned_ref_deletion(
     updates = {f"refs/heads/{'work/other' if fault == 'foreign-ref' else branch}": update}
     if fault == "multiple-refs":
         updates["refs/heads/work/other"] = update
-    carried = _plan(
+    carried = plan(
         root,
         GitEffect(updates=updates),
         values={

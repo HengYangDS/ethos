@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ethos.adapters.repo.dirty.change_provenance import working_content_changed
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -21,30 +22,16 @@ def ref_worktree_paths(worktrees: list[dict[str, object]], branch: str) -> tuple
 
 def _worktree_content_gap(path: Path, previous: str) -> str:
     indexed_diff = run_git(path, "diff-index", "--cached", "--quiet", previous, "--", check=False)
-    worktree_diff = run_git(
+    changed = working_content_changed(
         path,
-        "diff-files",
-        "--quiet",
-        "--ignore-submodules",
-        "--",
-        check=False,
+        untracked_files="all",
+        ignore_submodules=True,
     )
-    untracked = run_git(
-        path,
-        "ls-files",
-        "--others",
-        "--exclude-standard",
-        "-z",
-        check=False,
-        text=False,
-    )
-    if any(command.returncode not in {0, 1} for command in (indexed_diff, worktree_diff)) or (
-        untracked.returncode
-    ):
+    if indexed_diff.returncode not in {0, 1} or changed is None:
         return "worktree_status_unreadable"
     if indexed_diff.returncode:
         return "worktree_index_mismatch"
-    return "worktree_dirty" if worktree_diff.returncode or untracked.stdout else ""
+    return "worktree_dirty" if changed else ""
 
 
 def worktree_sync_gap(

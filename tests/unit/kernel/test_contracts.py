@@ -293,29 +293,10 @@ def test_attestation_requires_closed_verdict_and_at_least_one_binding() -> None:
     with pytest.raises(ValidationError):
         Attestation.model_validate(payload)
 
+    payload = attestation.model_dump(mode="json", exclude={"id"})
+    payload["commitment_digest"] = None
     with pytest.raises(ValueError, match="attestation_binding_missing"):
-        Attestation.issue(
-            {
-                "schema_version": 2,
-                "predicate": "observation:repository",
-                "verifier": "agent:local:task:one",
-                "subject": "change:terminal-kernel",
-                "issued_at": _ISSUED_AT,
-                "valid_from": None,
-                "valid_until": None,
-                "verdict": "pass",
-                "payload": {"kind": "observation:repository", "body": {"state": "observed"}},
-                "relations": (),
-                "advisories": (),
-                "evidence_refs": (),
-                "commitment_digest": None,
-                "facts_digest": None,
-                "plan_digest": None,
-                "policy_digest": None,
-                "effect_digest": None,
-                "mints_authority": False,
-            }
-        )
+        Attestation.issue(payload)
 
 
 def test_semantic_values_are_immutable_and_digest_bound() -> None:

@@ -28,7 +28,9 @@ class WorkLaneFixture(NamedTuple):
     worktree: Path
 
 
-def start_adopted_candidate(tmp_path: Path) -> tuple[Path, Path]:
+def start_adopted_candidate(
+    tmp_path: Path, *, release_mirror: str = "independent"
+) -> tuple[Path, Path]:
     """Create an adopted accepted root and its candidate worktree.
 
     The generic fixture owns Git, profile, and OpenSpec facts. Package-runtime
@@ -37,7 +39,7 @@ def start_adopted_candidate(tmp_path: Path) -> tuple[Path, Path]:
     runtime image.
     """
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    adopt_and_commit(repo, release_mirror=release_mirror)
     commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
@@ -50,9 +52,10 @@ def prepared_work_lane(
     *,
     name: str = "feature",
     holder_ref: str = "agent:test:case:agent-test",
+    release_mirror: str = "independent",
 ) -> WorkLaneFixture:
     """Prepare isolated native state; public start is exercised by its own acceptance."""
-    repo, candidate = start_adopted_candidate(tmp_path)
+    repo, candidate = start_adopted_candidate(tmp_path, release_mirror=release_mirror)
     worktree = create_change_source_lane(
         repo,
         tmp_path / f"repo-work-{name}",
@@ -338,7 +341,7 @@ def write_role_policy(
     commit_fixture(repo, "configure branch roles")
 
 
-def adopt_and_commit(repo: Path, *, release_mirror: str = "independent") -> None:
+def adopt_and_commit(repo: Path, *, release_mirror: str = "independent") -> str:
     plan = adoption_plan(repo, apply=True)
     assert plan["applied"] is True
     (repo / ".ethos" / "workspace.toml").write_text(
@@ -356,7 +359,7 @@ def adopt_and_commit(repo: Path, *, release_mirror: str = "independent") -> None
     _enable_openspec_profile(repo)
     write_publication_topology(repo)
     _write_openspec_baseline(repo)
-    commit_fixture(repo, "adopt ethos governance")
+    return commit_fixture(repo, "adopt ethos governance")
 
 
 def render_branch_policy(

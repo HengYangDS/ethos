@@ -123,7 +123,7 @@
 - [ ] 9.9 Remove dependency cycles, unnecessary conversion round trips and duplicate contracts at their semantic owners; compare mature native substitutes with the same falsifiers, preserve necessary trust boundaries, prove reduced work and retire replaced paths without a parallel registry.
   - [x] 9.9.1 Derive common and product release protection from configured branch roles; preserve malformed/conflicting declaration and trusted-prior-policy rejection, qualify the reader, then retire redundant self-profile branch declarations.
   - [x] 9.9.2 Reject conflicting active rule identities at the typed contract, compiler and plan-selection boundary without choosing a winner or emitting partial executable policy.
-  - [ ] 9.9.3 Unify native object identity/type observation, remove scalar duplicate readers, and qualify moved-ref, malformed/missing-object and SHA-1/SHA-256 consumers through reduced-work evidence, exact proof and installed runtime.
+  - [x] 9.9.3 Unify native object identity/type observation, remove scalar duplicate readers, and qualify moved-ref, malformed/missing-object and SHA-1/SHA-256 consumers through reduced-work evidence, exact proof and installed runtime.
 
 ## 10. Native Quality Rules and Early Failure
 
@@ -157,7 +157,8 @@
 - [ ] 12.1 Organize foundation research by semantic question; verify every original argument, source and incoming link is preserved without duplicating authority.
 - [ ] 12.2 Repair native metadata parsing and typed relationships; replay quoted-scalar, duplicate-key, delimiter, dangling-owner and human/machine contradiction cases through the public report.
 - [ ] 12.3 Derive human and agent navigation from one source; verify semantic hierarchy, reader orientation, prerequisites, section links, rename closure and independently understandable topics.
-- [ ] 12.4 Calibrate document metrics against human and agent retrieval; reject cosmetic wrapping, hidden content and fragmented or duplicated meaning.
+  - [x] 12.3.1 Settle the terminal plan's current-entry observations into existing history retrieval; preserve open obligations and dependency order without copying task status or dropping source evidence.
+- [ ] 12.4 Calibrate document and token costs against human and agent retrieval and verified outcomes; preserve functionality, performance and effectiveness, and reject cosmetic wrapping, hidden content and fragmented or duplicated meaning.
 - [ ] 12.5 Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.
 - [ ] 12.6 Settle source research into its topic owner and execute the existing framework comparisons; report adoption or rejection from actual replacement evidence.
 

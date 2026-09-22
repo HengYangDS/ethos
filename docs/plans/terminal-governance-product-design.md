@@ -38,457 +38,112 @@ are then deleted.
 
 ## Current Convergence Boundary
 
-The active priority is a usable independent product with complete quality
-assurance, not a historical CI job count or a repository-embedded implementation.
-The sole owned work lane is work/20260915-commit-integrity. Exact current source,
-runtime and hosted acceptance come from fresh observations, not this plan.
+Deliver a usable independent product with complete assurance. Current source,
+runtime, ownership and hosted state come from fresh ETHOS observations, not
+coordinates or success claims copied into this plan.
 
-Continue the language-neutral quality baseline through the existing resolver:
-versioned obligations, irreducible profile deltas and native adapters. Branch
-protection derives from the branch-role owner without copied declarations.
-Close rule-identity ambiguity before composing carrier/native-discovery
-applicability, evidence contracts and bounded waivers. Preserve provenance
-integrity and generated build inputs; directory names and language suffixes
-alone do not determine obligations. Cross-language adopter journeys must prove
-the same underlying semantics, not identical tools or self-profile thresholds.
+This entry owns dependency order. Progress belongs to the existing
+[quality and throughput tasks](../../openspec/changes/proof-throughput/tasks.md)
+and [installed-product tasks](../../openspec/changes/installed-product/tasks.md).
+Completed incidents remain regression boundaries, not a queue to replay.
 
-The existing [proof-throughput design](../../openspec/changes/proof-throughput/design.md#quality-assurance-architecture-redesign)
-owns the bounded quality repair; its [official tasks](../../openspec/changes/proof-throughput/tasks.md)
-own progress. mise supplies the single native developer/CI tool selection and
-platform lock; uv/npm retain language dependency locks. Replace existing native
-downloaders and environment discovery at their consumers, without introducing a
-second task graph or requiring adopters to adopt ETHOS's development tools.
-CUE compiles shared CI declarations into Forge projections; CEL
-compiles typed policy predicates before runtime evaluation. Neither owns accepted
-intent, effects or reusable authorization. Delete superseded template and parser
-paths as their replacements become qualified, not by silently dropping checks.
+### Immediate Dependencies
 
-Continue independent CLI/MCP delivery alongside the remaining CI admission
-qualification, without repeating the accepted CUE/CEL cutover or waiting for
-unrelated global cleanup. Separate
-host product installation from repository binding: reuse immutable package supply
-across repositories, retain exact repository-selected identities and local Git
-facts, and migrate existing common-dir runtimes only after rollback and live-user
-safety are proven. CLI and MCP invoke one application owner with explicit repository,
-actor, input, cancellation and result boundaries. MCP must have a real client
-round trip; an internal Python module or packaged wheel alone is not installed
-product acceptance. A daemon is not a prerequisite for local stdio operation.
+1. **Unify quality meaning before extending policy.** Compose versioned
+   obligations, irreducible profile deltas, carrier applicability, evidence
+   contracts and bounded waivers through one resolver. Branch protection follows
+   configured roles. Preserve provenance integrity and generated build inputs;
+   names and suffixes alone cannot exempt implementation. Cross-language
+   adopters share obligations, not ETHOS-specific tools or thresholds.
+2. **Deliver the independent product alongside CI qualification.** CLI, SDK and
+   MCP share application operations with explicit repository, actor, input,
+   cancellation and result boundaries. Test an installed client round trip;
+   importability and wheel creation are insufficient. Local stdio needs no
+   daemon. Separate shared immutable host supply from exact repository selection,
+   local state and toolchains; prove retained-state upgrade, rollback and
+   live-consumer-safe migration before retiring locators or generations.
+3. **Complete supply and hosted admission without circular prerequisites.**
+   Install a successor's compiler capability before activating declarations its
+   predecessor cannot interpret. Candidate checks use the locked source CLI;
+   an unavailable successor cannot be its own installation prerequisite.
+   mise owns native tool selection and platform locks; uv/npm own language
+   dependency locks. CUE projects shared CI declarations and CEL validates typed
+   predicates; neither owns intent or reusable authorization. Retire replaced
+   installers, templates and parsers after consumer qualification. Resolve
+   dependency conflicts through supported supply or an obligation-preserving
+   replacement before release, not an override or indefinite waiting.
+4. **Close the remaining assurance and recovery boundaries.** Cover product,
+   tests and tooling types, semantic CI partitions, native warnings, complete
+   reports and mandatory Forge admission. Source-only green is not whole-repo
+   assurance. Retain current proof selection for prepared requests, authoring
+   retirement, postarchive links/deletions, replay, compensation and native tag
+   identity. Fix new adopter counterexamples at their owner without rewriting
+   archived intent, copying adopter implementations or reopening foreign lanes.
+5. **Continue feedback and the complete product route.** Apply the
+   [recursive feedback contract](../governance/product-design-contract.md#recursive-domain-feedback)
+   to use, methods, governing models, purpose and the feedback mechanism itself.
+   Qualify self-hosting and adopted business domains separately; rules or Skills
+   do not prove native enforcement. Keep the complete
+   [P0–P7 dependency route](#remaining-dependencies-and-delivery-order), including
+   actual-use outcomes and ecosystem conformance.
 
-Continue feedback closure through the existing proof-throughput task 13 and
-P0--P7 route. Apply Model Promotion across use, methods, governing models and
-purpose, including the feedback mechanism itself. The product contract owns
-these semantics; native enforcement must not be inferred from rules or Skills.
-Qualify ETHOS self-hosting and adopted repositories under their own business
-meaning, evidence and authority. Keep source acceptance, delivery and actual
-business outcomes distinct. Close new adopter counterexamples at their owning
-boundary, rather than broadening archived intent or adding local bypasses.
+### Verification And Iteration Cost
 
-Deliver the new projection compiler capability before activating CUE declarations
-that the installed predecessor cannot interpret. Keep source/runtime admission
-separate; an unavailable successor cannot be its own installation prerequisite.
-Native mise supply, CUE compiler capability, CEL declaration checks and the
-provider/source execution guard are accepted at `6f14655e73a0`. Its source-bound
-35-gate proof passed in 706.18 seconds with 4,088 passing tests, one skip and
-95.01 percent combined coverage; the installed runtime matches its source/tree.
-The CUE declaration/consumer cutover subsequently removed the two YAML templates;
-exact local proof and installed parity are recorded by the existing official
-task. Do not repeat that completed source cutover or infer hosted acceptance from
-it. Continue independent product delivery while remaining suppliers, hosted
-qualification and semantic CI/report obligations stay open rather than becoming
-indefinite prerequisites. Candidate checks execute through the
-locked source CLI; acceptance and installation retain current effect admission.
+- Start with a distinguishing counterexample and dependency-resolved cheap
+  checks; a gate name does not establish cost. Generated-artifacts depends on
+  full Python execution. Broaden consumers after focused success, then freeze
+  inputs for one necessary exact-source proof and delivery readback.
+- Reduce repeated observations, source construction, serialization, process
+  startup and fixture preparation at their owner. Share immutable preparation,
+  not mutable case state. Cache pure computations under complete inputs; reread
+  membership and corruption-sensitive bytes, and recheck every effect's refs,
+  Lease, trust and authorization.
+- Measure cold, warm and cache-cleared equivalence, calls/bytes, critical-path
+  time and resource bounds. Do not add overlapping intervals. Include
+  preparation and cleanup, disclose external provisioning, and distinguish a
+  microbenchmark from full proof, delivery or cold-host acceptance.
+- Follow the [accepted throughput criteria](../../openspec/changes/proof-throughput/specs/quality/spec.md#requirement-complete-verification-throughput-preserves-assurance):
+  the temporary reference bound is 900 seconds; 600 seconds remains a
+  nonblocking optimization direction. Two workers are a comparison baseline,
+  not a ceiling. Use faster concurrency only after equivalent-case isolation
+  and outcome checks, without retries inside proof or relaxed deadlines.
+- Numeric quality limits belong to
+  [aggregate ownership](../../.config/checks/format/selection.toml),
+  [file policy](../../.ethos/rules.toml) and
+  [coverage policy](../../.config/checks/coverage/policy.toml).
+  Superseded goal snapshots cannot override them. Tests assert required behavior,
+  not framework absence or a universal uv/virtual-environment layout.
+- Measure task-relevant context and tokens per verified outcome alongside
+  latency and maintenance cost. Preserve obligations, functionality, performance
+  and effectiveness; remove duplicate explanations and references to stale
+  state. Dense formatting, hidden content and omitted acceptance are not savings.
 
-The typing gate currently covers product source only. The same-tool accepted
-baseline comparison found 423 diagnostics versus 419 in the candidate, all in
-tests/tools and with no new diagnostic signatures. Close these at report/fixture
-type owners and extend the existing gate scope; do not suppress diagnostics or
-treat source-only green as whole-repository assurance.
+### Delivery, History And Resource Boundaries
 
-Semantic CI partitions, native warning handling, complete reports and mandatory
-Forge admission remain required. Verify cold/warm results and negative cases before
-reusing evidence. Preserve independent product/test ceilings of 50,000 ELOC,
-500 ELOC per Python file, 95 percent combined coverage and the 900-second reference
-proof bound. No second roadmap, broker restoration or adopter mutation is required.
+Local source, installed product, remote publication, hosted execution and
+business outcomes are separate claims. Attributed adopter receipts are not an
+independent replay. Historical identity correction does not require permanent
+single-contributor policy. Use observed connection metadata; do not infer API
+coordinates or credentials from SSH transport.
 
-Release continuity is delivered: repository proof remains applicable after
-authoring retirement; distinct valid execution contexts do not contradict
-accepted meaning; a prepared request requires its own still-admitted proof.
-Native CAS failures preserve process evidence and fresh ref observation;
-unknown completion retains recovery intent. Existing `release-continuity-`
-receipts bind the 202-case focused matrix, exact full proof and delivery.
-The independent adopter owner then completed release and recovery without
-rerunning proof, replacing the original request or re-signing the original tag.
-Its `formal-release-recovery.json` and `workline-a-completion.json` were read
-and hash-verified: 1,171 members restored, 21 files installed, repeated recovery
-already installed, unmanaged content preserved and owned scratch removed.
-These are attributed owner execution results, not this task's independent replay;
-the completion receipt qualifies older candidate boilerplate in recovery output.
+Cold CI for a history-repair transition needs original objects and native repair
+evidence. Objects alone cannot replace that evidence, and later forward-push
+green cannot retroactively qualify the exceptional transition. Unknown effects
+retain their recovery intent; observe before retrying or re-signing.
 
-The delivered supply declaration selects Syft 1.52.0 and hosted preflight now
-rejects scanner, budget or SBOM preparation before expensive proof. Native
-diagnostics, stale-report invalidation and exact-source verification share the
-existing wrapper and supply owners. The final 67-case check and 29 cheap gates
-ran together in 20.047 seconds; full proof and installation then passed.
-Existing `supply-preflight-` receipts bind the source, installed identity,
-four peer refs and removal of the old runtime and owned scratch.
+Owner loss, escaping descendants, Windows containment and sustained resource
+bounds remain explicit acceptance work. Protect healthy concurrent work and
+foreign/unknown roots; preserve link/junction, exclusive-inode and permission
+boundaries. Avoid needless executable creation without disabling host security;
+a newly installed executable must still run successfully. A failed historical
+startup, later green run or successful retirement preview is not root-cause or
+cleanup completion.
 
-The delivered fixture repair shares immutable hosted preparation code while
-isolating each case's data, logs and repository state. Its proof transport
-records invocation before validation: success executes once; preparation failure
-never invokes proof. Native dispatch, deadlines and all failure outcomes remain
-covered. The 104-case matrix and 29 cheap gates preceded the full delivery above.
-Existing `native-startup-` evidence retains the earlier failed source proof;
-later green does not establish a universal cause for native startup delays.
-
-The current bounded cleanup repair gives runtime and test-output deletion one
-filesystem owner. It prepares each actual directory once, changes only missing
-permissions and leaves POSIX regular-file modes untouched. Native link/junction
-handling, runtime exclusive-inode checks and observable failures remain intact.
-The final 322-case runtime/test-gate/delivery family and 29 cheap gates passed
-together in 35.051 seconds; code hashes still match. Python 3.12.14 and 3.14.7
-each passed ten root/nested permission cases on the final implementation.
-Product/test ELOC are 45,663/49,997 against independent 50,000 limits.
-
-The callback-retry prototype was rejected after comparison: directory preparation
-was similarly fast with less mechanism. A 5,000-file sealed-tree comparison
-measured 0.220--0.224 seconds for directory-only cleanup; earlier full-file
-permission repair took 0.395--0.487 seconds. Those microbenchmarks exclude creation
-and do not demonstrate a whole-proof gain. New-source proof and installation,
-native Windows, supervisor loss and sustained resource bounds remain unproved.
-Existing `owned-cleanup-` receipts retain exact inputs, failures and owned cleanup.
-
-An independent adopter reports archive relocation changed valid Change-relative
-links into wrong targets: active `../../../docs/...` was retained after moving
-under `openspec/changes/archive/`. Its archived repair restored link resolution.
-This is attributed evidence, not yet replayed on the current accepted runtime.
-After this atomic cleanup delivery, verify the current archive owner with root
-and nested-spec links, validate target semantics in the proposed postimage before
-commit and preserve compensation on failure. Keep the historical-release/current
-HEAD mismatch rejection; do not copy an adopter link rewriter or reopen its lane.
-
-Matched native experiments distinguish fresh-file execution from reused identity:
-fresh scripts took 0.403--0.783 seconds, repeated identity 0.004--0.010 seconds,
-and explicit shell interpretation 0.003--0.004 seconds. Copied native executables
-showed the same first-use difference. Native system logs name the exact
-experimental files in security scans, and sampling places delay before script
-body execution. This supports avoiding needless executable creation, not disabling
-host protection or claiming the old CI failure has a fully identified OS cause.
-The historical failure-window query returned no matching records. Actual supply
-installation must still execute and validate its newly produced binary.
-All experiment-owned files/processes were removed; the first probe's attempted
-copy of protected system file flags failed and is retained as failed evidence.
-
-A bounded descriptor-owner experiment preserves real binary input/output and
-exit status, closes registered command groups after caller loss and leaves a
-healthy concurrent command untouched. Owner-control EOF also closes its groups.
-The 0.547-second experiment removed all owned processes and temporary files.
-It is not product containment: independent supervisor death, unregistered escape,
-protocol hardening and native Windows remain unproved. Existing
-`lifetime-fd-owner-probe` receipts retain that boundary; no service, persistent
-state or production broker was introduced.
-
-The existing GitHub runner now uses its vendor template's Interactive resource
-policy. Native routing-label removal drained the active job without cancellation;
-idle local and remote observations preceded service replacement. The original
-labels and every other service field were preserved, the old listener was removed,
-and the new listener consumed a job. The initial cleanup comparison incorrectly
-included parent PID, which changes on reparenting; corrected cleanup bound PID,
-start time and executable and proved old-instance absence. Evidence is retained
-under the existing `throughput-runner-qos-` receipts, not another state store.
-
-The same-56-case comparison measured 94.233 seconds under Background versus
-39.597/34.438 seconds normally. A later native sample found the completed test
-owner spending most samples in unlink/rmdir during scratch cleanup; its owned
-basetemp subsequently disappeared. Neither observation proves all startup
-failures or resource-lifetime defects resolved. Current hosted results are
-reported above rather than inherited from earlier queued runs. Preserve those
-distinct acceptance boundaries and finish startup/recovery and measured
-remaining-cost obligations before Change closure.
-
-The earlier version-observation repair preserves the ten-second deadline and
-verified-archive protections. Its exact full proof at `2422bc029` failed one
-bootstrap prerequisite timeout with 3,832 passes and one skip. The succeeding
-immutable-fixture repair passed the same 120 native cases at two/four/eight
-workers without deadline relaxation and reached the accepted checkpoint above.
-GitLab dev/main passed at `16e346b69`; GitHub dev failed 22 supply/receipt startup
-cases. These observations reject a universal QoS explanation. No source-budget
-or coverage floor is relaxed, and no new process framework is introduced.
-
-The old proposal was retired on both peers through exact receipt-bound deletion
-after accepted conservation and native open-review queries. Both refs and local
-remote-tracking refs are absent. Their API coordinates use supported local Git
-connection metadata, not tracked private addresses or inferred SSH endpoints.
-The sole work lane remains necessary for the active Change's recovery obligations;
-its exact-equal retirement preview passes but is not executed or called complete.
-
-Historical correction is delivered: 40 selected author fields and 37 committer
-fields were repaired without changing other source content, messages, dates or
-ordered parents. Both peers received corrected history at `0d115856` before
-this successor. All 40 selected commits plus that HEAD were checked individually
-against GitHub and GitLab identity/signature APIs. GitLab's temporary maintainer
-force-push window was restored exactly; GitHub rules were unchanged. Native
-reconciliation observed both peers already applied after transport timeout,
-without repeating the push. Verified recovery material remains preserved.
-No permanent single-author restriction was introduced.
-
-The architecture owner reports native installation from `40bc6ff4`, successful
-receipt-bound retirement and API/ls-remote absence of the old proposal. Its
-accepted source is `3963abbf931484b170996e538dce58d945981e8e`.
-These attributed observations close the reported refresh-retirement blocker,
-not an independent adopter replay by this task. ETHOS implementation did not
-modify adopter repositories.
-
-The current official Change is `proof-throughput`. The preceding
-`release-promotion` source archive and implementation are now included in
-accepted/runtime/peer delivery at `d13291c1d`; real release-selection use remains
-a separate acceptance claim. The active throughput Change retains honest open
-startup, supervisor-loss and further measured-reduction obligations.
-
-The September 17 implementation has passed 62 targeted release/publication and
-shared native-kill recovery cases. The eleven inexpensive dependency-resolved
-checks passed, including strict OpenSpec with no warnings. Signing ACK loss,
-exact inverse compensation, actor-bound replay, native tag identity and honest
-accepted-content reporting are covered; this is not committed full proof or
-installed-product acceptance. Native signed-object, timeout and kill fixtures
-now share their existing owners. Committed product/test ELOC are 45,246/50,000;
-no budget or coverage floor changed.
-
-Exact source proof at `46015a513f3868369a4cf120adda98765bc650af` failed after
-1,923.14 seconds: 3,759 passed, two failed and one skipped. The protected-tag
-hook fixture retained a pre-enforcement expectation; the native supply fixture's
-shell executable timed out during version observation. Dependent coverage,
-build and installation gates did not execute. Owned basetemp was removed.
-The corrected hook matrix rejects the tag without policy and observes runtime
-once. It derives exit status from the expected gap instead of duplicating both
-columns. All 98 hook/protocol/supply cases pass in 48.17 seconds; the unchanged
-supply case takes 3.76 seconds. This does not identify or fix the earlier startup
-timeout. Eleven affected public gates pass; product/test ELOC are 45,246/49,999.
-The failed proof and JUnit/coverage outputs remain preserved by exact source.
-Another frozen full proof is required; no archive, acceptance or publication
-occurred. Preserve the timeout as an unresolved P5 observation, without raising
-deadlines, retrying individual failed cases inside proof or weakening admission.
-
-Current peer CI observations differ. GitLab pipelines 7109/7110 passed for
-`40bc6ff4`. GitHub run 35184595384 has successful quality/source verification
-and macOS/Linux conformance, but Windows Python 3.12/3.13/3.14 conformance
-failed. Job 105083827365 identifies `merge_metadata_changed` while starting
-the package-only native merge; missing smoke upload is its downstream symptom.
-The readback and native job log are in the existing commit-integrity evidence
-root. Fixed CPython 3.12.12/3.14.7 sources show path stat copies birthtime into
-ctime while fstat retains change time. The isolated stable-representation probe
-reproduces rejection without file mutation; it is not native Windows acceptance.
-The subsequent `4afaeb849` repair and all nine native jobs now pass, as recorded
-below. Keep the older failed run as evidence, not a current repair instruction.
-
-Hosted history-repair reconstruction is a separate verified gap. The first
-corrected-history GitLab push lacked the old object in its cold checkout.
-An isolated public CLI probe showed that old objects alone still rescan
-historical subjects; adding original native repair evidence restores the
-forward-only range. Cases and cleanup are in `hosted-history-materials-probe.json`.
-Repair provider input materialization/evidence transport at existing owners;
-never substitute HEAD, skip policy or introduce a grandfather list. New
-forward-push CI does not retroactively prove this exceptional transition.
-
-Canonical postarchive repair and refresh-aware retirement are accepted. Generic
-local-verification receipt ownership, cold-CI materials and independent release
-selection remain separate obligations. Existing commit-integrity receipts hold
-execution evidence; plan prose is not proof or a runtime status database.
-
-The September 18 continuation closes archive reference preservation before the
-remaining P5 resource and startup work. Exact Git/native probes reproduced
-unchanged relative links resolving under a different directory after archive.
-The existing projection owner now derives destination edits and official
-canonical output; source deletions and transient effect paths retain proof
-attribution. Root/nested/canonical public journeys, replay and compensation pass
-in the focused family. The exact full proof and source/package/runtime delivery
-subsequently passed at 7f81088fe; the Change itself is not archived. Its tasks
-retain the remaining acceptance and recovery obligations.
-
-Stable-supply metadata was read from PyPI, npm, official GitHub releases and the
-Node index. Compatible source/lock/CI upgrades proceed together. Filelock 4.0.0
-is blocked by virtualenv's declared less-than-4 dependency; its resolution is
-open, not an authorized constraint bypass. Node 26.9.0 hosted supply and the
-latest published 24.19.0 Python wheel have distinct execution claims.
-
-The bounded quality-transport committee reviewed five independent lenses and
-cross-examined each recommendation; its disposition is in the active
-proof-throughput design under Quality Transport And Supply Review. No broad
-Nox retirement, dual-environment migration, constraint override or new runner
-was admitted. Compatible supply is containment, not latest-stable completion.
-Keep the upstream conflict open until supported supply or a capability-preserving
-dependency-graph replacement qualifies; decide before the next release acceptance
-rather than treating waiting as delivery. Prioritize measured operation-local
-runtime-observation reuse, then capability-specific setup and lifecycle costs.
-Tests must express preserved behavior rather than prescribe framework absence
-or universal uv/.venv layout. Raw review evidence stays in the existing
-commit-integrity evidence root, not a second roadmap or policy authority.
-
-The September 19 readback selects accepted source
-7060a5f0ec8ae57f46ef7647e7b3675898bde7c4. Its exact 35-gate full proof passed
-in 765.522 seconds with 3,873 passed, one skipped and 95.000502-percent combined
-coverage. Installed source/tree and both peers' dev/main refs match. Current
-hosted jobs remain pending/running; predecessor 013e13226 completed all four
-successfully. Earlier GitHub dev 35349488427 timed out in native bootstrap;
-later success does not establish that earlier failure's cause.
-
-The completed status repair shares one current runtime observation inside the
-call while later calls detect corruption. Five handler pairs preserve results,
-reducing inventories from two to one. The delivered capability repair removes
-unrelated Node-supply initialization from native listing and Python lint, while
-required missing or changed supply remains rejected. Six fresh-process pairs
-preserve discovery interfaces and reduce imports from 482 to 146, with median
-times 0.224650 and 0.027287 seconds. Neither local measurement proves overall
-proof improvement. Exact batch receipts retain acceptance and cleanup boundaries.
-
-The new bounded continuation repair follows the compensated second-Change
-creation incident recorded in archive-links-creation-compensation.json.
-Current resolution now uses the exact requested existing Change root for
-official-artifact prewrite; official graph, Lease, runtime and staged checks
-remain authoritative. Native public prewrite, pre-tool, creation and commit
-passed targeted execution. Mixed ordinary work remains unresolved, returns
-official list inspection and exposes its required choice instead of status
-recursion. Existing merge/archive provenance tests remain part of acceptance.
-Exact full proof and successor delivery are still required for this candidate.
-No persistent selector, additional Work Lane or parallel roadmap is introduced.
-
-The September 19 user adjustment sets a temporary complete-proof threshold of
-900 seconds, superseding the earlier 1,200-second stage. P5 continues to evaluate
-the 600-second direction from measured remaining work, but that direction no
-longer blocks otherwise qualified delivery and is not declared infeasible.
-Both retain unchanged gates and at least 95-percent
-combined coverage, including preparation and cleanup rather than selected tests.
-Report cold computation and warm runs separately; disclose external provisioning
-outside the command. The latest concurrency instruction permits measured faster
-worker counts: two is a comparison baseline, not a ceiling. The same 192 native
-cases pass at two/four/eight workers in 109.781/62.616/47.710 seconds including
-cleanup; the next complete proof uses eight. The four/eight runs have identical
-case identifiers and matching product and selected-test bytes. Continue eliminating repeated work in parallel
-with concurrency qualification, and keep worker-loss recovery independently open.
-
-The next bounded repair changes native test scheduling, not concurrency or
-coverage. Worksteal's preassigned queues continue draining after worker loss;
-the no-restart setting alone does not provide prompt failure. Native load with
-small batches preserves all 196 cases in the related eight-worker comparison
-(10.945 versus 11.700 seconds) while the fault probe limits queued drain. This
-is not a healthy-workload speed claim or supervisor-loss recovery. Exact full
-proof and delivery remain required; the active Change is not archived. Evidence
-uses the existing `throughput-scheduler-*` receipts, not another progress owner.
-
-The complete source proof at `26405d4d8` passed all 35 gates in 2,171.66 seconds:
-3,761 tests passed and one skipped. Pytest took 1,925.09 seconds (88.6 percent),
-leaving 246.57 seconds for all other stages. Nox reports approximately three
-minutes for installed-product acceptance, but no exact phase timeline exists
-yet. The ten slowest modules contribute 1,835.55 seconds of summed case time;
-this concurrent total is not wall time or an additive saving estimate.
-
-One release-path cProfile sample found 1,610 subprocess calls, including 536
-rev-parse calls, twenty source-identity rebuilds, and five update-ref calls
-totalling 16.98 seconds including hooks. Fixture creation took 24.46 seconds of
-the 36.31-second profiled case. A separate Git Trace2 sample attributed 19.03
-seconds to an initial preparing hook; ordinary protocol-import probes completed
-within a one-second observation window. Startup delay is not yet causally
-resolved. These profiles include instrumentation cost and cannot be extrapolated
-as full-suite savings. Immutable evidence remains in the existing evidence root.
-
-The official `proof-throughput` Change first addresses the shared native
-observation and startup paths used by slow lifecycle cases, then installed
-acceptance and measured duplicate work across gates. Reuse pure computation
-only under exact inputs; retain fresh effect-time ref, Lease and trust checks.
-Its design owns the measured layer/family/module breakdown and priority order;
-raw observations remain in `throughput-baseline-breakdown.json` under the
-existing ignored evidence root. CLI, lane and mutation cases account for 74.1
-percent of summed test time. The two-worker occupancy ratio is 98.9 percent,
-so reduced work per case takes priority over scheduling changes. The first two
-repairs reduce one representative native release from 1,610 to 1,491 subprocess
-calls without caching mutable authority. Gate timing now follows existing
-results into CLI and proof artifacts; legacy unmeasured phases remain unknown.
-Neither these work reductions nor variable single-case elapsed times satisfy
-the ten-minute full-proof criterion. Resolve source observation and native
-startup, then measure installed acceptance before the next full timed run.
-Release promotion was officially archived at `21ac0cd4` with source proof and
-zero warnings; its postarchive proof, acceptance, runtime activation and peer
-publication remain outstanding. Do not report that capability delivered yet.
-
-First reduce failure latency with the smallest distinguishing test and cheap
-dependency-resolved checks. The generated-artifacts gate depends on the full
-unit-architecture suite and is not a cheap preliminary check. Resolve gate
-dependencies before invocation; a gate name does not establish its cost. Run broader consumers only after that test passes;
-freeze every source input before the necessary full proof. Then optimize the
-measured repeated boundaries: a read-only exact accepted proof query made four
-policy resolutions, two for each floor; cold profiling located most time in
-canonical validation of the complete Attestation set. Preserve current membership
-and corruption detection while removing redundant decoding/serialization at their
-owner. Measure cold, warm and cache-cleared equality, actual calls/bytes and
-resource bounds; a cache or faster fixture alone is not product acceptance.
-Keep this two-worker observation as a baseline; adopt faster qualified concurrency
-without relaxing coverage, skipping related consumers or claiming unmeasured
-whole-cycle acceleration.
-
-The current proof query now compiles each floor once per invocation: four policy
-resolutions become two, with fresh queries still rebuilding both. The same
-accepted Attestation was returned without gaps; one unprofiled observation fell
-from 5.964 to 4.880 seconds, not a controlled benchmark or full-cycle guarantee.
-The final 87-case proof/source/selection matrix passes, including actual
-prearchive, postarchive and new-lane proof on one inherited source. Its
-source and postarchive exact full proofs, installation and acceptance are now
-complete; these do not imply proposal-retirement or global product completion.
-
-Existing receipts under `build/evidence/quality/commit-integrity/` own the raw
-observations, including `intent-selection-proof-query-profile.txt`. Current
-Change tasks own implementation progress. Full terminal convergence remains
-open across the P0–P7 route below.
-
-The exact eight-worker proof at `4afaeb849` passes all 35 gates in 614.301
-seconds, including document preflight, Python execution, wheel build, installed
-acceptance, SBOM and owned cleanup. JUnit reports 3,825 passed and one skipped;
-combined coverage is 95.084517 percent. This is a warm locked-environment result,
-not cold host provisioning or whole-delivery elapsed time. It meets the initial
-1,200-second target, not the subsequent 600-second direction. Test execution is
-431.191 seconds and installed acceptance 153.207 seconds; overlapping gate
-intervals are not additive. Candidate/dev and both published proposal refs match
-that exact object. Accepted dev/main and the selected runtime remain at `40bc6ff4`.
-Proposal publication is not accepted or installed delivery.
-
-The preceding failed proof at `db99bb7a` exposed a carrier placement mismatch
-and coverage attribution contamination. Both are repaired: native JavaScript
-adapters have a semantic carrier home; format readiness precedes its dependent
-tests; supply fixtures retain the executing module origin. Same-worker replay
-and the complete covered proof establish the latter, without configuration
-changes or focused-data merging. Evidence remains under the existing
-`throughput-source-stable-`, `throughput-materialization-` and
-`throughput-carrier-preflight-` prefixes.
-
-The native merge reader now compares before/after metadata within each channel
-and binds the pathname to its open handle by file identity. This removes the
-verified Windows ctime representation conflict while preserving replacement,
-nonregular-file, content-change and handle-cleanup rejection. GitHub run
-35301534646 passes all nine macOS/Linux/Windows and Python 3.12/3.13/3.14 native
-jobs; their package-only smoke artifacts bind `4afaeb849` and report native merge
-success. GitLab pipeline 7364 passes for the same source. GitHub source verification
-subsequently failed: 3,823 passed, two fixture startup timeouts and one skip in
-3,979.389 seconds. The failures precede manifest-drift and deferred-cleanup
-assertions. A focused covered replay passes but does not explain the OS delay. Exact receipts and downloaded native artifacts remain in the existing
-commit-integrity evidence root.
-
-The GitHub verify template still overrode qualified source defaults with two
-workers and the old signal timeout. The bounded repair removes that duplicate
-configuration at its template and generated projection; nine projection tests
-pass. The distinct GitLab container keeps its resource override until measured.
-This repair is delivered at `d13291c1d`; successor hosted runs remain separate.
-The exception trace also exposed unaccepted runtime generations retained after
-verification timeout or caller cancellation. The current owner repair removes
-only the newly created failed generation and preserves the prior bytes; RED/GREEN
-evidence is under `throughput-runtime-finalize-`. It still needs full proof.
-The exact `f6b0dd664` worker-loss probe reproduces a surviving descendant; its temporary root
-was removed. That separate lifetime requirement remains open, including Windows
-containment. Neither native merge success nor full proof settles owner loss.
-
-One 500-ELOC ceiling applies to every Python file, including tests and surfaces.
-Product and test totals have independent 50,000 ceilings; combined coverage stays
-at least 95 percent. [Format selection](../../.config/checks/format/selection.toml)
-owns aggregate accounting and [.ethos/rules.toml](../../.ethos/rules.toml) owns
-file limits. Old goal snapshots, 38,300/45,000 totals and role-specific 800 limits
-are superseded. Structural consolidation is not aggregate compression.
+Historical run counts, versions, benchmark traces, publication observations and
+retired schedules are available through the existing
+[history retrieval owner](../history/README.md#terminal-plan-observations).
+They do not override active tasks or current observations. Retire exact owned
+scratch after its evidence is settled; do not create another plan or log archive.
 
 ### Local Residue And Semantic Organization
 

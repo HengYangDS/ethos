@@ -44,3 +44,17 @@ These are dated records, not the latest candidate or current proof. Historical
 labels do not close unfinished obligations. Current product meaning belongs
 to the product contract and official specifications; exact Git facts and
 selected Attestations establish current implementation and proof.
+
+## Terminal Plan Observations
+
+The execution narrative formerly mixed into the terminal plan's current entry
+remains in Git at `0b39a8209e3416de9fe46ee1cd1ff5c06b723c11`, blob
+`9a6f352c06c9b5813750c59e46e4c2a693b46d69`:
+
+```bash
+git show 0b39a8209e3416de9fe46ee1cd1ff5c06b723c11:docs/plans/terminal-governance-product-design.md
+```
+
+Use it for dated observations and discarded schedules, not current status.
+Still-valid obligations remain in the product contract, active OpenSpec and
+the terminal plan. This reference adds no workspace history copy or task ledger.

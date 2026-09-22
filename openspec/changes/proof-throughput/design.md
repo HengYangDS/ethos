@@ -2,8 +2,17 @@
 
 Raw baseline, JUnit, cProfile and native Git Trace2 observations live in the
 existing ignored `build/evidence/quality/commit-integrity/` evidence root.
-The canonical terminal plan owns the wider P5 sequence. This Change implements
-only measured throughput improvements and their correctness boundaries.
+The canonical terminal plan owns the wider convergence sequence. This Change
+closes measured throughput, assurance and documentation-owner gaps through
+existing native owners.
+
+Documentation settlement first covers the terminal plan's Current Convergence
+Boundary, ending before Local Residue And Semantic Organization, at source
+`0b39a8209e3416de9fe46ee1cd1ff5c06b723c11`. Keep dependencies and open obligations
+in the plan, progress in official tasks, and results in existing evidence and
+Git history. The existing History README supplies exact retrieval; no archived
+copy or second ledger is added. Other plan sections remain outside this batch.
+Text reduction measures reading cost, not semantic completeness or product quality.
 
 ## Decisions
 

@@ -243,7 +243,7 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
     class Runner:
         def run(self, node, _gate, **_context):
             if case == "pass" and node.id == "unit-architecture":
-                assert not _gate.resource_locks or installed.wait(timeout=2)
+                assert installed.wait(timeout=2)
             if node.id == "local-install-smoke":
                 installed.set()
             observed.append(node.id)

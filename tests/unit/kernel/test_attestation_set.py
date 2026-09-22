@@ -440,8 +440,7 @@ def test_attestation_set_reuses_validation_but_not_selected_membership(
 ) -> None:
     """Identical bytes decode once while changed and missing refs stay observable."""
     repo = init_git_repo(tmp_path / "repo")
-    one = _attestation(3_001, payload_bytes=payload_bytes)
-    two = _attestation(3_002 + payload_bytes)
+    one, two = _attestation(3_001, payload_bytes=payload_bytes), _attestation(3_002 + payload_bytes)
     first = attestation_set.record_attestations(repo, (one,))
     validate = Mock(wraps=Attestation.model_validate_json)
     monkeypatch.setattr(Attestation, "model_validate_json", validate)

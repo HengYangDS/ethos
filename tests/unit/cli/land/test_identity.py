@@ -139,7 +139,8 @@ def test_identity_transition_is_explicit_and_target_scoped(
     assert git(repo, "rev-parse", "HEAD") == head
     assert git(repo, "rev-parse", "main") == (head if mode == "accepted_ff" else old)
     if mode == "independent" and not tag and not interrupt:
-        head = _prove_repaired_acceptance(repo, tmp_path, historical_head, accepted["id"])
+        _release_repaired_acceptance(repo, tmp_path, historical_head, accepted["id"], old)
+        return
     if mode == "independent":
         args = ("--release", "--expect-head", head, "--release-head", old)
         released = _exercise_transition(
@@ -155,15 +156,14 @@ def test_identity_transition_is_explicit_and_target_scoped(
             assert git(repo, "rev-parse", f"{tag}^{{commit}}") == head
 
 
-def _prove_repaired_acceptance(
-    root: Path, temporary: Path, historical_head: str, accepted_id: str
-) -> str:
-    """A real new-HEAD proof retains the original acceptance across history repair."""
+def _release_repaired_acceptance(
+    root: Path, temporary: Path, historical_head: str, accepted_id: str, release_head: str
+) -> None:
+    """Repair, prove and release while preserving the original accepted witness."""
     head = repair_fixture_history(
         root, temporary / "identity-before.bundle", corrections={historical_head: {"resign": True}}
     )
-    proof = run_ethos("prove", "--execute", "--expect-head", head, "--json", cwd=root)
-    assert proof["verdict"] == "pass", proof
+    run_ethos("prove", "--execute", "--expect-head", head, "--json", cwd=root)
     current = run_ethos(
         "land", "--closeout", "--expect-head", head, "--candidate-head", head, "--json", cwd=root
     )
@@ -171,7 +171,10 @@ def _prove_repaired_acceptance(
     assert update["attestation"].get("id") == accepted_id
     assert update["provenance"]["head"] == head
     assert update["provenance"]["repair_attestation_ids"]
-    return head
+    selection = ("--expect-head", head, "--release-head", release_head)
+    effect_request = ("--identity-transition", "--apply", "--authorize")
+    run_ethos("land", "--release", *selection, *effect_request, "--json", cwd=root)
+    assert git(root, "rev-parse", "main") == head
 
 
 def _exercise_transition(

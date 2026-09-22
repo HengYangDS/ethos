@@ -106,40 +106,42 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
         raise ValueError(_MANIFEST_INVALID)
     root = runtime.resolve()
     records: dict[str, str] = {}
-    for parent, directories, files in os.walk(runtime, followlinks=False):
-        base = Path(parent)
-        relative_parts = base.relative_to(runtime).parts
-        directories.sort()
-        files.sort()
-        for name in (*directories, *files):
-            path = base / name
-            relative = "/".join((*relative_parts, name))
-            if "__pycache__" in path.parts or path.suffix == ".pyc":
-                _raise_manifest_invalid()
-            if runtime_filesystem.is_junction(path):
-                _raise_manifest_invalid()
-            if path == runtime / "manifest.json" or (path.is_dir() and not path.is_symlink()):
-                continue
-            try:
-                mode = stat.S_IMODE(path.lstat().st_mode)
-                digest = _inventory_entry_digest(path, root=root, mode=mode)
-            except (OSError, RuntimeError, UnicodeError, ValueError) as error:
-                raise ValueError(_MANIFEST_INVALID) from error
-            records[relative] = digest
+    pending = [(runtime, "")]
+    try:
+        while pending:
+            parent, prefix = pending.pop()
+            with os.scandir(parent) as entries:
+                for entry in entries:
+                    path = Path(entry.path)
+                    relative = prefix + entry.name
+                    if "__pycache__" in path.parts or path.suffix == ".pyc":
+                        _raise_manifest_invalid()
+                    if runtime_filesystem.is_junction(path):
+                        _raise_manifest_invalid()
+                    if relative == "manifest.json":
+                        continue
+                    mode = entry.stat(follow_symlinks=False).st_mode
+                    if stat.S_ISDIR(mode):
+                        pending.append((path, relative + "/"))
+                    else:
+                        records[relative] = _inventory_entry_digest(path, root=root, mode=mode)
+    except (OSError, RuntimeError, UnicodeError, ValueError) as error:
+        raise ValueError(_MANIFEST_INVALID) from error
     return dict(sorted(records.items()))
 
 
 def _inventory_entry_digest(path: Path, *, root: Path, mode: int) -> str:
-    if path.is_symlink():
+    permissions = stat.S_IMODE(mode)
+    if stat.S_ISLNK(mode):
         target = path.readlink()
         if target.is_absolute():
             _raise_manifest_invalid()
         path.resolve(strict=True).relative_to(root)
-        payload = b"symlink\0" + f"{mode:o}\0".encode() + target.as_posix().encode()
+        payload = b"symlink\0" + f"{permissions:o}\0".encode() + target.as_posix().encode()
         return hashlib.sha256(payload).hexdigest()
-    if not path.is_file():
+    if not stat.S_ISREG(mode):
         _raise_manifest_invalid()
-    hasher = hashlib.sha256(b"file\0" + f"{mode:o}\0".encode())
+    hasher = hashlib.sha256(b"file\0" + f"{permissions:o}\0".encode())
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             hasher.update(chunk)

@@ -45,6 +45,14 @@ line and branch coverage and every existing behavioral acceptance obligation.
 - **AND** corruption blocks readiness and restoring valid bytes permits recovery
 - **AND** mutation effects still obtain their own fresh admission
 
+#### Scenario: Runtime inventory reduces duplicate work without omitting content
+
+- **WHEN** runtime integrity observes the current filesystem
+- **THEN** one traversal reuses entry metadata while hashing every regular file and internal link
+- **AND** unreadable subtrees, unsupported entries and escaping links reject the observation
+- **AND** valid inventories preserve exact content and permission identities across traversal order
+- **AND** later observations detect changed bytes without cached readiness
+
 ### Requirement: Test failure bounds pending verification work
 
 Parallel verification SHALL bound per-worker queued work independently of suite

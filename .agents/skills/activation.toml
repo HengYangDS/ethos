@@ -24,7 +24,7 @@ subject = "repository-governance"
 operation = "govern"
 authority = "primary"
 lifecycle = "active"
-subjects = ["repository-governance", "ethos", "adoption", "changed-scope"]
+subjects = ["repository-governance", "ethos", "adoption", "changed-scope", "feedback-loop"]
 path_globs = [
   "AGENTS.md",
   "CONTRIBUTING.md",
@@ -37,8 +37,8 @@ path_globs = [
   "rules/**",
   "schemas/**",
 ]
-intent_tokens = ["ethos", "governance", "proof", "adoption", "skills"]
-pre_reads = ["AGENTS.md", "docs/governance/skills.md"]
+intent_tokens = ["ethos", "governance", "proof", "adoption", "skills", "feedback", "recurrence"]
+pre_reads = ["AGENTS.md", "rules/agents.md", "docs/governance/skills.md"]
 during_rules = [
   "treat skills as projections over repository truth",
   "use ETHOS command JSON as machine evidence",

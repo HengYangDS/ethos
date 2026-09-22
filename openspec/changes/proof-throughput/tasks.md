@@ -154,3 +154,10 @@
 - [ ] 12.4 Calibrate document metrics against human and agent retrieval; reject cosmetic wrapping, hidden content and fragmented or duplicated meaning.
 - [ ] 12.5 Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.
 - [ ] 12.6 Settle source research into its topic owner and execute the existing framework comparisons; report adoption or rejection from actual replacement evidence.
+
+## 13. Feedback-Driven Improvement Closure
+
+- [x] 13.1 Define source scope, disposition, unique ownership and evidence boundaries in the existing rules and official acceptance specification; remove contradictory guidance without a second feedback ledger.
+- [ ] 13.2 Bind declared feedback obligations to existing acceptance and verification owners; reject note-only, missing, stale and contradictory closure evidence through native public counterexamples.
+- [x] 13.3 Wire feedback planning to canonical skill context; verify package integrity, trigger/non-trigger behavior and compiled pre-reads while keeping host loading and changed agent behavior distinct.
+- [ ] 13.4 Close the measured publication-provenance and post-history-repair adopter failures through the existing owner, distinguishing regressions, exact proof and installed consumer observations; use the results to correct the owning procedures rather than merely record a retrospective.

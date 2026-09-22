@@ -197,6 +197,51 @@ their native subject layout under the portable Docs Registry contract.
 
 ## ADDED Requirements
 
+### Requirement: Accepted feedback closes through demonstrated improvement
+
+ETHOS SHALL preserve each accepted feedback obligation's declared source scope,
+responsible owner and acceptance conditions in official OpenSpec. Closure SHALL
+require a demonstrated improvement, current evidence of prior satisfaction, or
+an explicitly justified supersession or rejection. Missing evidence SHALL remain
+open. A note, checkbox, extra artifact or larger skill SHALL NOT establish closure.
+
+#### Scenario: A local example expresses a global obligation
+
+- **WHEN** accepted feedback uses one defect to require a repository-wide principle
+- **THEN** a bounded repair preserves the wider obligation and its remaining gaps
+- **AND** closing the example does not close unverified sibling consumers
+
+#### Scenario: A proposed resolution contains only prose
+
+- **WHEN** feedback requires changed behavior but the candidate supplies only a retrospective or unchecked claim
+- **THEN** the existing acceptance owner refuses closure for missing execution evidence
+- **AND** neither additional headings nor task completion flags satisfy that obligation
+
+#### Scenario: A mechanism has been changed and verified
+
+- **WHEN** the responsible implementation or native policy changes and its distinguishing counterexample passes
+- **THEN** evidence binds the candidate, applicable policy, environment and actual consumer
+- **AND** required installation, publication or use observations remain separate conditions
+- **AND** stale, contradictory or unrelated evidence cannot close the obligation
+
+#### Scenario: A failure recurs despite an existing safeguard
+
+- **WHEN** the same failure recurs after a claimed correction
+- **THEN** closure reopens the failed safeguard's owner and examines why its prior check or guidance was ineffective
+- **AND** the replacement removes the disproved path rather than adding another equivalent workaround
+
+#### Scenario: A feedback procedure is selected during planning
+
+- **WHEN** the current planning subject is feedback closure
+- **THEN** the existing skill compiler selects repository governance and its canonical feedback rule
+- **AND** package integrity and routing evidence do not claim host loading or successful agent behavior
+
+#### Scenario: Feedback is already satisfied or contradicted by current facts
+
+- **WHEN** current evidence establishes prior satisfaction or a justified rejection
+- **THEN** the resolution preserves that evidence and its source scope without forcing unnecessary edits
+- **AND** structural validation does not certify unrecorded conversation or complete intent understanding
+
 ### Requirement: Publication continuation requests only missing observations
 
 Locally ready publication with an unprobed configured peer SHALL select exact

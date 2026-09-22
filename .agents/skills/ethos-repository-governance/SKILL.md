@@ -1,6 +1,6 @@
 ---
 name: ethos-repository-governance
-description: Use when governing a repository with ETHOS commands, evidence, and adoption profiles.
+description: Use when governing repository truth, Work Lanes, proof, adoption, or closing accepted feedback and recurring failures.
 ---
 
 # ETHOS Repository Governance
@@ -8,7 +8,7 @@ description: Use when governing a repository with ETHOS commands, evidence, and 
 ## When to Use
 
 Use this skill when governing repository truth, authority boundaries, proof,
-Work Lanes, OpenSpec consumption, or adoption profiles.
+Work Lanes, OpenSpec consumption, adoption profiles, or feedback-driven improvement.
 
 ## Workflow
 
@@ -32,6 +32,10 @@ Work Lanes, OpenSpec consumption, or adoption profiles.
 6. Keep source, tests, schemas, docs, official OpenSpec, Attestations, and fresh
    command observations above skill projections. Commitment is transient
    compilation, not another truth store.
+7. For feedback and recurrence, follow [Feedback Closure](../../../rules/agents.md#feedback-closure).
+   Preserve global scope while closing bounded work. Select the failed owner,
+   distinguish real improvement from a note or checkbox, remove superseded
+   guidance, and keep unverified obligations open in the existing Change.
 
 ## Evidence
 

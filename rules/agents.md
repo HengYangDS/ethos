@@ -41,9 +41,8 @@ Purpose: define how agents load repository truth and avoid stale context.
 - Use repo-local skills from `.agents/skills/` when activation matches.
 - Use official external skills as method packs; do not vendor their runtime
   instructions into repository truth.
-- Repeated failures must improve the narrow existing owner: product behavior and
-  its regression test, an executable rule, or an already-admitted reusable
-  skill. Do not create a skill solely to restate product truth.
+- Apply the feedback closure below to repeated failures and accepted guidance.
+  A bounded implementation does not narrow a global requirement.
 - Before prose writes, select the existing semantic owner and lifetime from the
   Product Design Contract. Distinguish obligations, rationale, observations, and
   completion claims; update their owner or reference exact evidence rather
@@ -69,3 +68,35 @@ Purpose: define how agents load repository truth and avoid stale context.
 - Before creating, moving, renaming, splitting, importing, or deleting Python,
   read `rules/module_layout.md` and run the module-layout owner gate. Do not use
   file count, directory width, or ELOC as authority for a semantic boundary.
+
+## Feedback Closure
+
+Learning changes an effective owner and demonstrates the resulting behavior;
+an acknowledgement, retrospective, checkbox or added document is not closure.
+
+1. Preserve the source's scope and distinct obligations in the existing official
+   Change. An example may illustrate a global rule; do not replace that rule
+   with the example or silently discard obligations outside the current batch.
+2. Resolve each obligation as an implemented improvement, an already-satisfied
+   requirement with current evidence, a justified supersession or rejection,
+   or an explicitly open gap. An unverified claim stays open.
+3. Diagnose the failed assumption and responsible producer, consumer and trust
+   boundary. On recurrence, test why the existing rule, skill, check or recovery
+   failed; do not add the same local workaround again.
+4. Change the unique owner: executable behavior or native policy for decidable
+   constraints, rules for stable boundaries, skills for reusable procedure, and
+   docs for explanation or decisions. Other carriers reference that owner.
+   Updating every layer or creating a new skill is not inherently necessary.
+5. Define the observation that distinguishes the former failure from the
+   intended result. Exercise the actual consumer, including relevant denial,
+   unknown and recovery paths. Bind evidence to the tested source, policy,
+   environment and effect; retain limitations and remove replaced bypasses.
+6. Close only the demonstrated scope in official tasks. Missing or contradictory
+   evidence reopens the affected acceptance. Installation, host activation,
+   publication and use remain separate claims when the requirement includes them.
+
+Skills guide these decisions; their presence does not enforce them. Machine
+checks must consume explicit accepted obligations and real execution evidence,
+not infer improvement from prose headings, file counts or test totals. Unrecorded
+conversation and the adequacy of an interpretation cannot be certified by a
+structural gate. Do not create a feedback database or second progress ledger.

@@ -2803,3 +2803,33 @@ failed now passes unchanged. The tracked scan observed 414 YAML files, including
 those current bytes. Other raw style findings belong to their declared producer,
 not a mandate to reformat history or generated CUE/OpenSpec output. Peer entries
 in the authored pre-commit collection use consistent compact spacing.
+
+## Feedback-Driven Improvement Closure
+
+Use the existing intent, verification and closure owners, not a feedback database,
+another lifecycle or a required retrospective document. Official OpenSpec holds
+the accepted obligation and task state. `rules/agents.md` holds the reusable
+closure discipline; skills route the operation to it. Decidable constraints
+belong in native policy or implementation. Documentation explains their rationale
+without copying the policy or maintaining another progress snapshot.
+
+Distinguish declaring an obligation, routing a procedure, executing a check and
+demonstrating improvement. A structural skill PASS proves neither that an agent
+loaded the instructions nor that behavior changed. Bind declared feedback
+acceptance to distinguishing execution evidence through the current compiler
+and proof owner; missing, stale or contradictory evidence must deny closure.
+Do not approximate semantic improvement with headings, file counts or test totals.
+
+Global feedback retains its scope when implementation proceeds in bounded slices.
+Already-satisfied and rejected interpretations require current evidence rather
+than forced churn. A recurrence reopens the failed safeguard and requires review
+of its producer, consumers, input assumptions and evidence applicability.
+
+Use the measured publication acknowledgement loss and the real adopter's
+post-history-repair closeout as concrete falsifiers. They converge on accepted
+effect provenance selection: preserve valid repair relationships and fresh
+effect authorization while avoiding canonical decoding of unrelated history.
+Recovery must observe completed peer effects without repeating pushes. Profile
+the owning operation, separate CPU work from network waits, and derive caller
+deadlines from the complete operation rather than one child timeout. A larger
+timeout alone is not a throughput or recovery repair.

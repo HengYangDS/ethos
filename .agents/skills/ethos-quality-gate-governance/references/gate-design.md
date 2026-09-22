@@ -110,7 +110,10 @@ ledger, lesson catalog, alternate rule registry or a copied adopter gate.
 
 Select focused verification from the changed semantic owner and every consumer
 of its inputs, outputs and invariants, not just touched files or similarly named
-test directories. Include return-value and parameterized contract tests across
+test directories. Pair symbol references with scoped literal searches for dynamic
+imports, string-named patches and command dispatch. A transport migration must
+move its failure injection and prove the replacement was exercised; a mock on an
+unused path is not evidence. Include return-value and parameterized tests across
 package boundaries. Before full proof, account for each direct consumer and its
 distinguishing case; an old assertion is changed only when accepted intent
 supersedes it, while stronger sibling obligations remain tested. Record this

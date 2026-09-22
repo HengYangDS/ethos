@@ -416,6 +416,14 @@ obligation, dependency and source binding. Compatible evidence MAY be reused
 without repeating checks; aggregate-only forwarding SHALL NOT substitute for
 actual execution or required artifact validation.
 
+#### Scenario: GitHub execution is independent of workstation runners
+
+- **WHEN** GitHub executes the selected quality workflow
+- **THEN** its jobs select GitHub-hosted runners without workstation labels or inherited-hook overrides
+- **AND** local emulation derives its platform mapping from the selected workflow job
+- **AND** ephemeral hosted tool storage is not presented as cross-job persistence
+- **AND** GitLab retains its separately declared persistent supply boundary
+
 #### Scenario: Complete partitioned execution succeeds
 
 - **WHEN** every required partition executes successfully against the selected source and policy

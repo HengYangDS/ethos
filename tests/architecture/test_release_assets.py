@@ -25,6 +25,7 @@ import tools.ci.sessions as ci_sessions
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
+from tests.support.architecture import isolated_path
 from tests.support.runtime_scenarios import empty_node_package_supply
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.dependency_hygiene import declaration_gaps
@@ -329,23 +330,17 @@ def test_test_environment_freezes_locked_supply_as_absolute_paths(
     monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(tmp_path / "other-supply"))
     for method in ("_prepare", "_cleanup", "_stable_head"):
         monkeypatch.setattr(gate, method, lambda: None)
-    observed: dict[str, str | None] = {}
-    commands = []
-
-    class Session:
-        @staticmethod
-        def run(*_command: str, **kwargs: object) -> None:
-            observed.update(cast("dict[str, str | None]", kwargs["env"]))
-            commands.append(_command)
-
-    gate.run_tests(cast("nox.Session", Session()))
+    session = Mock()
+    gate.run_tests(session)
+    command, options = session.run.call_args
+    observed = options["env"]
 
     assert observed["UV_CACHE_DIR"] == str(root / "build/runtime/tool-cache/uv")
     assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == str(supply)
 
-    assert {"--dist=load", "--maxschedchunk=1"} <= set(commands[0])
-    assert ("-n" in commands[0]) is (workers == 8)
-    assert set(python_test_gate.TARGETS) <= set(commands[0])
+    assert {"--dist=load", "--maxschedchunk=1"} <= set(command)
+    assert ("-n" in command) is (workers == 8)
+    assert set(python_test_gate.TARGETS) <= set(command)
 
 
 def test_project_capability_supply_revalidates_each_operation(tmp_path, monkeypatch) -> None:
@@ -384,30 +379,22 @@ def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monk
     )
 
 
-def _write_fake_executable(path: Path, body: str) -> None:
-    path.write_text(body, encoding="utf-8")
-    path.chmod(path.stat().st_mode | stat.S_IXUSR)
-
-
 def _run_node_compatibility(tmp_path: Path, requested_version: str, active_version: str):
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
     npm_log = tmp_path / "npm.log"
-    _write_fake_executable(
-        fake_bin / "node",
-        "#!/bin/sh\nprintf 'v%s\\n' \"${FAKE_NODE_VERSION}\"\n",
-    )
-    _write_fake_executable(
-        fake_bin / "npm",
-        '#!/bin/sh\nprintf \'%s|engine=%s\\n\' "$*" "${npm_config_engine_strict:-}" '
-        '>> "${FAKE_NPM_LOG}"\n',
-    )
-    env = os.environ | {
-        "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+    env = isolated_path(
+        tmp_path,
+        {
+            "node": "#!/bin/sh\nprintf 'v%s\\n' \"${FAKE_NODE_VERSION}\"\n",
+            "npm": '#!/bin/sh\nprintf \'%s|engine=%s\\n\' "$*" "${npm_config_engine_strict:-}" '
+            '>> "${FAKE_NPM_LOG}"\n',
+        },
+    ) | {
         "NODE_VERSION": requested_version,
         "FAKE_NODE_VERSION": active_version,
         "FAKE_NPM_LOG": str(npm_log),
     }
+    bin_path, *_ = env["PATH"].split(os.pathsep)
+    env["PATH"] = os.pathsep.join((bin_path, os.environ["PATH"]))
     result = subprocess.run(
         ["/bin/bash", "tools/ci/scripts/run-node-compatibility.sh"],
         cwd=ROOT,

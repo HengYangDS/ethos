@@ -17,6 +17,7 @@ command plane.
 | Detached CI ref observation | `ethos hook ref-update --target-ref <full-ref> --proposed-head <oid> --remote-head <old-oid> --remote <name> --json` | Shared role, introduced-range and intent observation; not repository proof |
 | Historical attribution/signature correction | `ethos lane repair-signature --root <accepted-root> --expect-head <old-oid> --json` | Exact selection, recoverable original bundle, native object validation and selected-ref CAS; see the command reference for historical request fields |
 | Repo-local skills | `skills` proof gate | Proof result |
+| Feedback and recurring failures | [Feedback Closure](../../../../rules/agents.md#feedback-closure), existing official Change | Effective owner change and distinguishing execution evidence; package validation alone is insufficient |
 
 Repository source, tests, schemas, docs, official OpenSpec, and Attestations
 remain above this map. Commitment is compiled transiently. The map routes work;

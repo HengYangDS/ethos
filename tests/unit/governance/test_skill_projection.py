@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 from typing import Any
 from typing import cast
@@ -56,6 +57,11 @@ def test_activation_registry_contains_only_current_contract_semantics() -> None:
         }
         & record.keys()
     )
+    path = Path(__file__).resolve().parents[3] / ".agents/skills/activation.toml"
+    live = normalize_skill_activation(tomllib.loads(path.read_text()), source=str(path))
+    feedback = compile_skill_activation(live, operation="plan", subjects=("feedback-loop",))
+    assert [skill.id for skill in feedback.skills] == ["ethos-repository-governance"]
+    assert "rules/agents.md" in feedback.context.pre_reads
 
 
 def test_skill_registry_schema_rejects_an_unowned_digest_projection() -> None:

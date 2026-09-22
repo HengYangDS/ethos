@@ -60,3 +60,23 @@ pre-reads, rules, and post-checks needed for that node.
 Host-native files are projections unless their host owns an official native
 artifact. Repository source, tests, schemas, docs, OpenSpec, effective
 Commitments, Attestations, and current command JSON remain authoritative.
+
+## Learning And Behavioral Qualification
+
+[Feedback Closure](../../rules/agents.md#feedback-closure) owns the execution
+discipline. OpenSpec owns accepted obligations and progress; native policy and
+implementation own enforceable behavior; a skill supplies reusable procedure.
+Documentation explains the choice without copying a second rule or task ledger.
+
+The `skills` gate establishes package, schema, routing and declared relationship
+integrity. It does not prove that an agent loaded the projection, understood the
+source, followed it or improved an outcome. A skill change needs a representative
+trigger, a non-trigger or conflicting case, and a replay of the behavior it is
+intended to change. Record those observations in existing verification evidence.
+Do not call a structural PASS, a longer skill or a larger portfolio learned behavior.
+
+Repair missed triggers and ineffective guidance at their existing owner; remove
+superseded instructions and retire overlap only after consumer review. A new
+skill is justified by an otherwise uncovered reusable procedure, not by the
+arrival of another feedback message. Host loading and installed projection
+qualification remain distinct from source-side package validation.

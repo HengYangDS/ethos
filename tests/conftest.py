@@ -1,6 +1,6 @@
 """Shared pytest fixtures for the ETHOS test suite.
 
-The autouse Git fixture gives the suite a HERMETIC identity: many tests shell out
+The autouse process fixture gives the suite a HERMETIC identity: many tests shell out
 to `git commit` in throwaway repos, which fails when the runner has no global
 user.name/user.email (the case in CI's clean container — the dominant cause of
 "passes locally, red in CI"). Binding GIT_AUTHOR_*/GIT_COMMITTER_* per test makes
@@ -11,7 +11,8 @@ temporary test repositories never inherit developer-global hooks such as
 pre-commit. Repository-local config remains authoritative so hook tests exercise
 the same `core.hooksPath` semantics as production. The fixture also disables
 fsmonitor so temporary test repositories never depend on a host-local filesystem
-monitor.
+monitor. Native OpenSpec telemetry and update checks are disabled for raw process
+probes as well as the public adapter, so background requests cannot delay exit.
 """
 
 from __future__ import annotations
@@ -49,14 +50,13 @@ def _governance_executable_supply(tmp_path_factory: pytest.TempPathFactory):
 
 
 @pytest.fixture(autouse=True)
-def _hermetic_git_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Bind deterministic commit identity without overriding repository policy."""
+def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Bind deterministic identity and offline native probes without replacing repo policy."""
     git_template = tmp_path / "empty-git-template"
     git_template.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("GIT_AUTHOR_NAME", "ETHOS Test")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "test@example.invalid")
-    monkeypatch.setenv("GIT_COMMITTER_NAME", "ETHOS Test")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "test@example.invalid")
+    for role in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{role}_NAME", "ETHOS Test")
+        monkeypatch.setenv(f"GIT_{role}_EMAIL", "test@example.invalid")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     count = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
@@ -78,5 +78,7 @@ def _hermetic_git_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
         monkeypatch.setenv(f"GIT_CONFIG_KEY_{index}", key)
         monkeypatch.setenv(f"GIT_CONFIG_VALUE_{index}", value)
     monkeypatch.setenv("GIT_TERMINAL_PROMPT", "0")
+    monkeypatch.setenv("OPENSPEC_TELEMETRY", "0")
+    monkeypatch.setenv("OPENSPEC_NO_UPDATE_CHECK", "1")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)

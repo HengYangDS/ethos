@@ -71,7 +71,7 @@ def python_references(
         elif isinstance(node, ast.ImportFrom) and node.module:
             imports.add(node.module.split(".")[0])
         elif isinstance(node, ast.Call):
-            executables.update(_call_executables(node, npm_scripts))
+            executables.update(_call_executables(node, npm_scripts, imports))
             owner = node.func.value if isinstance(node.func, ast.Attribute) else None
             name = node.func.attr if isinstance(node.func, ast.Attribute) else ""
             value = _string(node.args[0]) if node.args else ""
@@ -87,7 +87,9 @@ def python_references(
                 and isinstance(node.value, ast.List | ast.Tuple)
             ):
                 executables.update(
-                    command_executables(_literal_command_tokens(node.value), npm_scripts)
+                    command_executables(
+                        _literal_command_tokens(node.value), npm_scripts, module_imports=imports
+                    )
                 )
     return imports, executables, inputs
 
@@ -102,7 +104,9 @@ def _is_environment_read(owner: ast.AST | None, name: str) -> bool:
     )
 
 
-def _call_executables(node: ast.Call, npm_scripts: dict[str, set[str]]) -> set[str]:
+def _call_executables(
+    node: ast.Call, npm_scripts: dict[str, set[str]], module_imports: set[str]
+) -> set[str]:
     name = node.func.id if isinstance(node.func, ast.Name) else ""
     attribute = node.func.attr if isinstance(node.func, ast.Attribute) else ""
     owner = (
@@ -111,7 +115,9 @@ def _call_executables(node: ast.Call, npm_scripts: dict[str, set[str]]) -> set[s
         else ""
     )
     if node.args and (owner == "subprocess" and attribute in _SUBPROCESS_CALLS):
-        return command_executables(_literal_command_tokens(node.args[0]), npm_scripts)
+        return command_executables(
+            _literal_command_tokens(node.args[0]), npm_scripts, module_imports=module_imports
+        )
     if node.args and owner == "shutil" and attribute == "which":
         return {_string(node.args[0])} - {""}
     if (

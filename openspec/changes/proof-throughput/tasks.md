@@ -93,7 +93,7 @@
 - [ ] 7.9 Qualify the rootless dual-provider successor through exact proof, installed runtime and hosted observation.
 - [x] 7.10 Compile shared CI declarations through native CUE and remove independent template authority; exact local proof and installed parity passed.
 - [ ] 7.11 Qualify both CUE-generated Forge projections through current hosted runs.
-  - [ ] 7.11.1 Qualify compatible operator mise supply and native PowerShell environment isolation through exact source and runtime delivery.
+  - [x] 7.11.1 Qualify compatible operator mise supply and native PowerShell environment isolation through exact source and runtime delivery.
   - [ ] 7.11.2 Observe the corrected hosted matrix; keep the bootstrap transport failure in 5.11 distinct from version admission and ACL conformance.
 - [ ] 7.12 Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 

@@ -503,11 +503,37 @@ executables on failure, retain native diagnostics, and remove owned scratch.
 - **AND** unapproved version diagnostics prevent publication
 - **AND** verified cache reuse preserves identity without repeating downloads
 
+### Requirement: Native adoption preserves declared byte identity
+
+Adoption SHALL bind its write plan to exact UTF-8 bytes independently of host
+newline translation. Retained authored bindings SHALL preserve their original
+bytes and matching digest. New writes and compensation SHALL share the existing
+atomic writer, without claiming multi-file crash atomicity.
+
+#### Scenario: Native text mode would translate line endings
+
+- **WHEN** an admitted adoption writes new bindings on a platform with CRLF text mode
+- **THEN** actual file digests equal the declared write-plan digests
+- **AND** CLI, SDK and MCP retain the same exact-byte acceptance
+
+#### Scenario: Authored bindings use a different newline convention
+
+- **WHEN** valid existing bindings contain LF, CRLF or CR bytes
+- **THEN** adoption keeps those bytes and reports their exact digests
+- **AND** a later binding-write failure restores any earlier empty binding or removes its new file
+
 ### Requirement: Native compilers preserve exact policy and projection inputs
 
 CUE compilation SHALL consume the declared exact input closure and independently
 compare generated outputs. CEL predicate declarations SHALL compile to Boolean
 expressions. Candidate-supplied observations SHALL NOT certify candidate output.
+
+#### Scenario: An interpreter loads a module rather than another executable
+
+- **WHEN** a declared command invokes a Python module, directly or through a native wrapper
+- **THEN** observation retains the interpreter executable and the module's import dependency separately
+- **AND** an undeclared import is rejected without an executable-name exception
+- **AND** module-like arguments after a script, code or terminating option do not invent imports
 
 #### Scenario: Candidate projection bytes agree with a forged local copy
 
@@ -549,6 +575,11 @@ repository implementation bindings remain valid.
 - **AND** packaged-only adopter providers do not inherit a source-checkout requirement
 - **AND** current effect admission and trusted-prior control replacement remain separate
 
+#### Scenario: A reused CI checkout retains an older installed runtime
+
+- **WHEN** a Forge job validates the checked-out source's integration range
+- **THEN** its declared Python module executes the source implementation directly
+- **AND** the installed product dispatcher still honors ordinary adopter runtime selection
 
 ### Requirement: Canonical decoding reuse preserves fresh observation
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shlex
+
 import pytest
 
 from ethos.repository.policy.references.commands import CommandVocabulary
@@ -11,6 +13,7 @@ from ethos.repository.policy.references.commands import normalize_command
 from ethos.repository.policy.references.commands import shebang_executable
 from ethos.repository.policy.references.commands import shell_commands
 from ethos.repository.policy.references.commands import shell_executables
+from ethos.repository.policy.references.observation import product_references_from_files
 
 
 def test_reference_commands_canonical_wrappers_and_scripts() -> None:
@@ -88,16 +91,26 @@ def test_command_vocabulary_is_reused_across_identity_checks() -> None:
 
 
 @pytest.mark.parametrize(
-    ("tokens", "expected"),
+    ("tokens", "expected", "modules"),
     [
-        (("env", "--chdir", "/tmp", "python", "-m", "pytest"), {"python", "pytest"}),
-        (("env", "--chdir=/tmp", "python", "-m", "pytest"), {"python", "pytest"}),
-        (("env", "-u", "HOME", "--", "uvx", "ruff@0.9", "check"), {"uvx", "ruff"}),
-        (("npx", "@scope/tool@2", "run"), {"npx", "tool"}),
-        (("uvx", "package@1/bin/tool", "check"), {"uvx", "package"}),
+        (("env", "--chdir", "/tmp", "python", "-m", "pytest"), {"python"}, {"pytest"}),
+        (("env", "--chdir=/tmp", "python", "-m", "pytest"), {"python"}, {"pytest"}),
+        (("env", "-u", "HOME", "--", "uvx", "ruff@0.9", "check"), {"uvx", "ruff"}, set()),
+        (("npx", "@scope/tool@2", "run"), {"npx", "tool"}, set()),
+        (("uvx", "package@1/bin/tool", "check"), {"uvx", "package"}, set()),
+        (("python", "-B", "-I", "-m", "ethos.cli"), {"python"}, {"ethos"}),
+        (("python", "-m", "foreign.module"), {"python"}, {"foreign"}),
+        (("python", "-cpass", "-m", "not_imported"), {"python"}, set()),
+        (("python", "script.py", "-m", "not_imported"), {"python"}, set()),
+        (("python", "-X", "dev", "-m", "pytest"), {"python"}, {"pytest"}),
+        (("python", "-mpytest"), {"python"}, {"pytest"}),
+        (("python", "--version", "-m", "not_imported"), {"python"}, set()),
+        (("python", "-m"), {"python"}, set()),
     ],
 )
 def test_reference_commands_canonical_environment_and_package_boundaries(
-    tokens: tuple[str, ...], expected: set[str]
+    tokens: tuple[str, ...], expected: set[str], modules: set[str]
 ) -> None:
-    assert command_executables(tokens, {}) == expected
+    observed = product_references_from_files({"tools/run.sh": shlex.join(tokens)})
+    assert observed["executable"] == expected
+    assert observed["import"] == modules

@@ -274,7 +274,11 @@ def _text_carrier_references(
     if carrier == "yaml":
         return _yaml_references(path, text, npm_scripts, observed)
     if carrier == "shell":
-        observed["executable"].update(command_references.shell_executables(text, npm_scripts))
+        observed["executable"].update(
+            command_references.shell_executables(
+                text, npm_scripts, module_imports=observed["import"]
+            )
+        )
     elif carrier == "markdown":
         return markdown_observation.markdown_references(
             path,
@@ -382,7 +386,9 @@ def package_json_references(
     for command in payload.get("scripts", {}).values():
         if isinstance(command, str):
             observed["executable"].update(
-                command_references.shell_executables(command, npm_scripts)
+                command_references.shell_executables(
+                    command, npm_scripts, module_imports=observed["import"]
+                )
             )
 
 
@@ -458,7 +464,9 @@ def _configuration_reference(
         for command in commands:
             if isinstance(command, str):
                 observed["executable"].update(
-                    command_references.shell_executables(command, npm_scripts)
+                    command_references.shell_executables(
+                        command, npm_scripts, module_imports=observed["import"]
+                    )
                 )
     elif key == "image" and isinstance(item, str) and item:
         observed["reference"].add("docker")

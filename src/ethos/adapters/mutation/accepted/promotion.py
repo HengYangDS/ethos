@@ -9,9 +9,9 @@ from typing import cast
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import admit_git_effect
@@ -53,17 +53,22 @@ def current_acceptance(
     ):
         return None
     try:
-        recorded = accepted_closeout_attestation(
+        recorded = accepted_provenance(
             root,
             accepted_ref=f"refs/heads/{policy.accepted_branch}",
             candidate_ref=f"refs/heads/{policy.candidate_branch}",
-            candidate_head=candidate_head,
+            head=candidate_head,
         )
-        plan = recorded[0] if recorded else None
+        plan = recorded.plan if recorded else None
         effect = git_effect_from_plan(plan) if plan else None
         previous = effect.updates.get(f"refs/heads/{policy.accepted_branch}") if effect else None
-        previous_head = previous.expected if previous else current_head
-        if expected_head is not None and expected_head not in {current_head, previous_head}:
+        original_previous = previous.expected if previous else current_head
+        previous_head = recorded.previous_head if recorded else current_head
+        if expected_head is not None and expected_head not in {
+            current_head,
+            previous_head,
+            original_previous,
+        }:
             return None
         pending = _materialization_pending(root, policy, status, current_head, effect)
     except ValueError as error:
@@ -74,9 +79,14 @@ def current_acceptance(
         "state": "accepted_materialization_pending" if pending else "accepted_current",
         "candidate_head": candidate_head,
         "previous_head": (
-            previous_head if pending or expected_head == previous_head else current_head
+            original_previous
+            if expected_head == original_previous
+            else previous_head
+            if pending or expected_head == previous_head
+            else current_head
         ),
-        "attestation": recorded[1].model_dump(mode="json") if recorded else {},
+        "attestation": recorded.attestation.model_dump(mode="json") if recorded else {},
+        "provenance": recorded.projection() if recorded else {},
     }
 
 

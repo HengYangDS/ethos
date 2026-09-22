@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 from datetime import UTC
 from datetime import datetime
 from typing import cast
@@ -31,10 +30,12 @@ from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
+from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import seed_executed_proof
 from tests.support.semantic import attestation_fixture
 from tests.support.signature import configure_signer
 from tests.support.signature import killed_signature_repair
+from tests.support.signature import repair_fixture_history
 from tests.support.signature import signature_repository
 
 
@@ -153,37 +154,13 @@ def _archive_verification_lane(tmp_path):
         workspace.read_text() + '\n[commit_policy]\nsubject_pattern = ".+"\n'
         'signing_required = true\nsigning_format = "ssh"\n'
     )
-    profile = repo / ".ethos/profile.toml"
-    profile.write_text(
-        profile.read_text()
-        .replace(
-            '["sample", "test"]',
-            json.dumps(
-                [
-                    sys.executable,
-                    "-c",
-                    (
-                        "from pathlib import Path; "
-                        "assert not Path('openspec/changes/fixture-change').exists(); "
-                        "print('archived source checked')"
-                    ),
-                ]
-            ),
-        )
-        .replace(
-            '["sample", "typecheck"]',
-            json.dumps(
-                [
-                    sys.executable,
-                    "-c",
-                    (
-                        "import tomllib; from pathlib import Path; "
-                        "tomllib.loads(Path('.ethos/profile.toml').read_text()); "
-                        "print('profile parsed')"
-                    ),
-                ]
-            ),
-        )
+    declare_native_proof_checks(
+        repo,
+        test="from pathlib import Path; "
+        "assert not Path('openspec/changes/fixture-change').exists(); "
+        "print('archived source checked')",
+        typecheck="import tomllib; from pathlib import Path; "
+        "tomllib.loads(Path('.ethos/profile.toml').read_text()); print('profile parsed')",
     )
     baseline = commit_fixture(repo, "configure archive verification baseline")
     git(candidate, "reset", "--hard", baseline)
@@ -243,25 +220,15 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
         "--json",
         cwd=repo,
     )
-    bundle = tmp_path / "original.bundle"
-    git(repo, "bundle", "create", str(bundle), "refs/heads/dev")
-    result = repair.repair_signature(
-        root=repo,
-        expect_head=old,
+    repaired_head = repair_fixture_history(
+        repo,
+        tmp_path / "original.bundle",
         corrections={head: {"resign": True}},
-        reason="Repair signature",
-        backup=bundle,
-        apply=True,
-        authorized=True,
     )
-    assert result["verdict"] == "pass", json.dumps(result, indent=2)
-    repaired_head = result["head"]
     if continuation == "repeated":
-        second_bundle = tmp_path / "second.bundle"
-        git(repo, "bundle", "create", str(second_bundle), "refs/heads/dev")
-        second = repair.repair_signature(
-            root=repo,
-            expect_head=repaired_head,
+        repaired_head = repair_fixture_history(
+            repo,
+            tmp_path / "second.bundle",
             corrections={
                 repaired_head: {
                     "author": {
@@ -270,13 +237,7 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
                     }
                 }
             },
-            reason="Correct archived attribution",
-            backup=second_bundle,
-            apply=True,
-            authorized=True,
         )
-        assert second["verdict"] == "pass", second
-        repaired_head = second["head"]
     if continuation != "immediate":
         tree = git(repo, "rev-parse", f"{repaired_head}^{{tree}}")
         descendant = git(
@@ -314,20 +275,9 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
 
 def test_history_repair_ref_observation_uses_exact_completed_effect(tmp_path):
     repo, old, _candidate = signature_repository(tmp_path, coupled=True)
-    bundle = tmp_path / "original.bundle"
-    git(repo, "bundle", "create", str(bundle), "refs/heads/dev")
-    result = repair.repair_signature(
-        root=repo,
-        expect_head=old,
-        corrections={old: {"resign": True}},
-        reason="Repair signature",
-        backup=bundle,
-        apply=True,
-        authorized=True,
+    new = repair_fixture_history(
+        repo, tmp_path / "original.bundle", corrections={old: {"resign": True}}
     )
-    assert result["verdict"] == "pass", result
-    new = result["head"]
-    assert isinstance(new, str)
     observed = ref_update_admission_report(
         repo,
         target_ref="refs/heads/dev",

@@ -27,8 +27,10 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import prepared_work_lane
+from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import seed_executed_proof
 from tests.support.signature import configure_signer
+from tests.support.signature import repair_fixture_history
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -63,6 +65,7 @@ def test_identity_transition_is_explicit_and_target_scoped(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     fixture = prepared_work_lane(tmp_path, release_mirror=mode)
     work, repo = fixture.worktree, fixture.repository
+    historical_head = git(work, "rev-parse", "HEAD")
     configure_signer(work, tmp_path)
     git(work, "config", "commit.gpgsign", "true")
     old = git(repo, "rev-parse", "HEAD")
@@ -74,11 +77,23 @@ def test_identity_transition_is_explicit_and_target_scoped(
     tasks = work / "openspec/changes/fixture-change/tasks.md"
     tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
     (work / "VERSION").write_text("1.2.3\n")
+    workspace = work / ".ethos/workspace.toml"
+    workspace.write_text(
+        workspace.read_text() + '\n[commit_policy]\nsubject_pattern = ".+"\n'
+        'signing_required = true\nsigning_format = "ssh"\n'
+    )
     release = work / ".ethos/release.toml"
     release.write_text(
         '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n' + release.read_text()
     )
-    git(work, "add", tasks.relative_to(work).as_posix(), "VERSION", ".ethos/release.toml")
+    git(work, "add", tasks.relative_to(work).as_posix(), "VERSION", ".ethos")
+    declare_native_proof_checks(
+        work,
+        test="from pathlib import Path; assert Path('VERSION').read_text() == '1.2.3\\n'",
+        typecheck="import tomllib; from pathlib import Path; "
+        "assert tomllib.loads(Path('.ethos/profile.toml').read_text())"
+        "['profile_id'] == 'renamed-product'",
+    )
     profile = work / ".ethos/profile.toml"
     old_profile = tomllib.loads(profile.read_text())["profile_id"]
     head = commit_fixture_file(
@@ -123,6 +138,8 @@ def test_identity_transition_is_explicit_and_target_scoped(
     assert accepted["id"] != candidate["id"]
     assert git(repo, "rev-parse", "HEAD") == head
     assert git(repo, "rev-parse", "main") == (head if mode == "accepted_ff" else old)
+    if mode == "independent" and not tag and not interrupt:
+        head = _prove_repaired_acceptance(repo, tmp_path, historical_head, accepted["id"])
     if mode == "independent":
         args = ("--release", "--expect-head", head, "--release-head", old)
         released = _exercise_transition(
@@ -136,6 +153,25 @@ def test_identity_transition_is_explicit_and_target_scoped(
         assert released["id"] != accepted["id"]
         if tag:
             assert git(repo, "rev-parse", f"{tag}^{{commit}}") == head
+
+
+def _prove_repaired_acceptance(
+    root: Path, temporary: Path, historical_head: str, accepted_id: str
+) -> str:
+    """A real new-HEAD proof retains the original acceptance across history repair."""
+    head = repair_fixture_history(
+        root, temporary / "identity-before.bundle", corrections={historical_head: {"resign": True}}
+    )
+    proof = run_ethos("prove", "--execute", "--expect-head", head, "--json", cwd=root)
+    assert proof["verdict"] == "pass", proof
+    current = run_ethos(
+        "land", "--closeout", "--expect-head", head, "--candidate-head", head, "--json", cwd=root
+    )
+    update = current["data"]["accepted_update"]
+    assert update["attestation"].get("id") == accepted_id
+    assert update["provenance"]["head"] == head
+    assert update["provenance"]["repair_attestation_ids"]
+    return head
 
 
 def _exercise_transition(

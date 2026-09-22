@@ -2833,3 +2833,35 @@ Recovery must observe completed peer effects without repeating pushes. Profile
 the owning operation, separate CPU work from network waits, and derive caller
 deadlines from the complete operation rather than one child timeout. A larger
 timeout alone is not a throughput or recovery repair.
+
+
+### Accepted provenance and bounded decoding reuse
+
+Resolve current acceptance through the original fully validated Git-effect
+Attestation and completed, exact-ref history-repair relations. Coordinate
+preselection avoids decoding unrelated plans but cannot admit a candidate.
+Preserve original evidence and project current coordinates separately; equal
+source trees alone cannot establish acceptance. Ambiguous or cyclic provenance
+fails closed. Current effect authorization remains independent of historical
+proof: its execution branch, proof branch hint or sole valid owned Lease selects
+fresh authority, never a historical record alone.
+
+Canonical member decoding is a pure computation keyed by exact bytes. Replace
+the old per-record 64 KiB exclusion and count-bounded cache with cachetools LRU
+reuse bounded by 64 MiB of retained serialized input. This is not an exact RSS
+limit: decoded objects and container overhead are additional. Oversized members
+still validate without retention; concurrent identical computation is coalesced.
+Every read still observes current Git membership and bytes, and every effect
+still validates authorization. Cache loss or eviction may change work, not verdict.
+Promote the already locked cachetools dependency to direct ownership; do not add
+another cache engine, selector, provenance record or lifecycle.
+
+
+The real 1,704-member set retained the same acceptance and plan identities.
+Its original query took 9.27 seconds, coordinate preselection alone took 4.50,
+and the byte-budgeted implementation took 5.49 cold and 0.23/0.22 seconds warm.
+These diagnostic runs were not counterbalanced and do not qualify whole-publication
+latency. Existing commit-integrity receipts hold the exact inputs and outputs.
+Native capacity, eviction, changed-membership and corrupt-byte tests use the
+production budget, not private cache access or quality suppressions. Fixture
+extension preserves the existing canonical bytes and fixed-root examples.

@@ -5,7 +5,6 @@ from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
 
-import ethos.adapters.mutation.accepted.signature as repair
 import ethos.adapters.repo.commit.signature as signature_observation
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
@@ -19,6 +18,7 @@ from tests.support.governed_repository import write_publication_topology
 from tests.support.governed_repository import write_script_gate_policy
 from tests.support.proof import seed_executed_proof
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
+from tests.support.signature import repair_fixture_history
 from tests.support.signature import signature_repository
 from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.support import apply_receipt
@@ -30,19 +30,9 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
     """An unchanged proposal ref can still name a verified accepted contribution."""
     repo, old, _candidate = signature_repository(tmp_path, coupled=True)
     git(repo, "branch", "proposal/old-signature", old)
-    bundle = tmp_path / "original.bundle"
-    git(repo, "bundle", "create", str(bundle), "refs/heads/dev")
-    result = repair.repair_signature(
-        root=repo,
-        expect_head=old,
-        corrections={old: {"resign": True}},
-        reason="Correct historical signature",
-        backup=bundle,
-        apply=True,
-        authorized=True,
+    replacement = repair_fixture_history(
+        repo, tmp_path / "original.bundle", corrections={old: {"resign": True}}
     )
-    assert result["verdict"] == "pass", result
-    replacement = str(result["head"])
     assert git(repo, "rev-parse", "proposal/old-signature") == old
     relation = signature_observation.repaired_object_provenance(repo, old=old, new=replacement)
     assert relation is not None
@@ -100,19 +90,9 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
 def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_path: Path) -> None:
     """Range, protected-ref and peer effects agree without bypassing acceptance."""
     repo, old, candidate = signature_repository(tmp_path, coupled=True)
-    bundle = tmp_path / "original.bundle"
-    git(repo, "bundle", "create", str(bundle), "refs/heads/dev")
-    repaired = repair.repair_signature(
-        root=repo,
-        expect_head=old,
-        corrections={old: {"resign": True}},
-        reason="Correct historical signature",
-        backup=bundle,
-        apply=True,
-        authorized=True,
+    replacement = repair_fixture_history(
+        repo, tmp_path / "original.bundle", corrections={old: {"resign": True}}
     )
-    assert repaired["verdict"] == "pass", repaired
-    replacement = str(repaired["head"])
     write_publication_topology(candidate)
     write_script_gate_policy(candidate)
     profile = candidate / ".ethos/profile.toml"

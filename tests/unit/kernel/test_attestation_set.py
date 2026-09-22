@@ -24,14 +24,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _attestation(ordinal: int) -> Attestation:
+def _attestation(ordinal: int, *, payload_bytes: int = 0) -> Attestation:
+    occurrence = {"ordinal": ordinal, "source": "test"}
+    if payload_bytes:
+        occurrence["text"] = "x" * payload_bytes
     return attestation_fixture(
         predicate="observation:repository",
         verifier="agent:test:attestation-set",
         subject=f"input:occurrence:{ordinal}",
         issued_at=datetime(2026, 8, 14, tzinfo=UTC),
         payload_kind="input:feedback",
-        payload_body={"occurrence": {"ordinal": ordinal, "source": "test"}},
+        payload_body={"occurrence": occurrence},
         evidence_refs=(f"evidence:test:{ordinal}",),
     )
 
@@ -431,12 +434,14 @@ def test_attestation_set_write_has_constant_native_process_cost(
     )
 
 
+@pytest.mark.parametrize("payload_bytes", [0, 131_072])
 def test_attestation_set_reuses_validation_but_not_selected_membership(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, payload_bytes: int
 ) -> None:
     """Identical bytes decode once while changed and missing refs stay observable."""
     repo = init_git_repo(tmp_path / "repo")
-    one, two = _attestation(3_001), _attestation(3_002)
+    one = _attestation(3_001, payload_bytes=payload_bytes)
+    two = _attestation(3_002 + payload_bytes)
     first = attestation_set.record_attestations(repo, (one,))
     validate = Mock(wraps=Attestation.model_validate_json)
     monkeypatch.setattr(Attestation, "model_validate_json", validate)
@@ -513,9 +518,7 @@ def test_attestation_set_oversized_member_does_not_consume_reuse_capacity(
 ) -> None:
     """A large valid member stays admissible without retaining its bytes or value."""
     repo = init_git_repo(tmp_path / "repo")
-    payload = _attestation(3_007).model_dump(mode="python", exclude={"id"})
-    payload["payload"] = {"kind": "input:feedback", "body": {"text": "x" * 65_536}}
-    large = Attestation.issue(payload)
+    large = _attestation(3_007, payload_bytes=64 * 1024 * 1024)
     attestation_set.record_attestations(repo, (large,))
     validate = Mock(wraps=Attestation.model_validate_json)
     monkeypatch.setattr(Attestation, "model_validate_json", validate)
@@ -530,7 +533,12 @@ def test_attestation_set_eviction_changes_work_not_membership_or_meaning(
 ) -> None:
     """Reading more than the reuse capacity evicts old bytes without losing evidence."""
     repo = init_git_repo(tmp_path / "repo")
-    records = tuple(sorted((_attestation(n) for n in range(4_000, 6_050)), key=lambda x: x.id))
+    records = tuple(
+        sorted(
+            (_attestation(n, payload_bytes=33 * 1024 * 1024) for n in (4_000, 4_001)),
+            key=lambda x: x.id,
+        )
+    )
     first = records[0]
     first_root = attestation_set.record_attestations(repo, (first,))["root"]
     assert attestation_set.read_attestation_set(repo)[1] == (first,)

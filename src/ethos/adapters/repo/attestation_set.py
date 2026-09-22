@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import tempfile
-from functools import lru_cache
 from pathlib import Path
 from pathlib import PurePosixPath
+from threading import Condition
+
+from cachetools import LRUCache
+from cachetools import cached
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -17,13 +20,16 @@ _MEMBER_ROOT = "evidence/attestations"
 _AUTHOR = "ETHOS Attestation Set <attestations@example.invalid> 0 +0000"
 _COMMIT_MESSAGE = "ETHOS Attestation Set\n"
 _MAX_CAS_ATTEMPTS = 16
-_MAX_REUSED_MEMBER_BYTES = 64 * 1024
+_MEMBER_REUSE_BYTES = 64 * 1024 * 1024
 
 
-@lru_cache(maxsize=2048)
-def _validated_member(raw: bytes) -> Attestation:
+@cached(
+    cache=LRUCache(maxsize=_MEMBER_REUSE_BYTES, getsizeof=lambda value: len(value[0])),
+    condition=Condition(),
+)
+def _validated_member(raw: bytes) -> tuple[bytes, Attestation]:
     """Reuse pure canonical validation, never membership or current authority."""
-    return Attestation.model_validate_json(raw)
+    return raw, Attestation.model_validate_json(raw)
 
 
 def _attestation_member_path(identity: str) -> str:
@@ -130,11 +136,7 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
     attestations: list[Attestation] = []
     for (_object_id, path), raw in zip(files, raw_members, strict=True):
         try:
-            attestation = (
-                _validated_member(raw)
-                if len(raw) <= _MAX_REUSED_MEMBER_BYTES
-                else Attestation.model_validate_json(raw)
-            )
+            _, attestation = _validated_member(raw)
         except ValueError as error:
             message = f"attestation_set_member_invalid:{path}"
             raise ValueError(message) from error

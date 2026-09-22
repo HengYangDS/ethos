@@ -16,7 +16,7 @@ import ethos.surface.cli.hook.commands as hook_commands
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.attestation_set import record_attestations
-from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
+from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.contracts.semantic import Attestation
@@ -232,11 +232,11 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     )
 
     with pytest.raises(ValueError, match="accepted_closeout_effect_ambiguous"):
-        accepted_closeout_attestation(
+        accepted_provenance(
             repo,
             accepted_ref="refs/heads/dev",
             candidate_ref="refs/heads/candidate/dev",
-            candidate_head=candidate_head,
+            head=candidate_head,
         )
 
 

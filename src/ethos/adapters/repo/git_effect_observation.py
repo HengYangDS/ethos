@@ -187,11 +187,21 @@ def _observe_identity_transition(
     generation = string_mapping(
         string_mapping(proof_plan.facts.get("values")).get("lease_generation")
     )
-    branch = str(generation.get("lane_ref") or "")
-    lease = leases_by_branch(root).get(branch, {})
-    if lease.get("lease_state") != "valid" or not os.environ.get("ETHOS_ACTOR", "").strip():
+    actor = os.environ.get("ETHOS_ACTOR", "").strip()
+    owned = {
+        branch: lease
+        for branch, lease in leases_by_branch(root).items()
+        if actor and lease.get("lease_state") == "valid" and lease.get("holder_ref") == actor
+    }
+    branch = current_branch(root)
+    if branch not in owned:
+        branch = str(generation.get("lane_ref") or "")
+    if branch not in owned and len(owned) == 1:
+        branch = next(iter(owned))
+    if branch not in owned:
         message = "repository_identity_transition_live_authority_required"
         raise ValueError(message)
+    lease = owned[branch]
     common, stat = _identity_database(root, environment)
     revisions = {
         revision

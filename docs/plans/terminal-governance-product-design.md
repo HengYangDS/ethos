@@ -65,13 +65,14 @@ actor, input, cancellation and result boundaries. MCP must have a real client
 round trip; an internal Python module or packaged wheel alone is not installed
 product acceptance. A daemon is not a prerequisite for local stdio operation.
 
-The next adopter-blocking application slice is an explicit repository identity
-transition, owned by installed-product task 1.6 and its existing design. Preserve
-ordinary cross-identity refusal and one-shot authority per exact ref effect,
-while permitting independently authorized later integration stages. Do not retain
-obsolete product names through aliases or bypass native effects. Measure slow
-installed publication/recovery separately from proof: confirmed remote effects
-with a late acknowledgment require observation, not repeated pushes.
+Continue feedback closure through the existing proof-throughput task 13 and
+P0--P7 route. Apply Model Promotion across use, methods, governing models and
+purpose, including the feedback mechanism itself. The product contract owns
+these semantics; native enforcement must not be inferred from rules or Skills.
+Qualify ETHOS self-hosting and adopted repositories under their own business
+meaning, evidence and authority. Keep source acceptance, delivery and actual
+business outcomes distinct. Close new adopter counterexamples at their owning
+boundary, rather than broadening archived intent or adding local bypasses.
 
 Deliver the new projection compiler capability before activating CUE declarations
 that the installed predecessor cannot interpret. Keep source/runtime admission

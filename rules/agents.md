@@ -81,8 +81,11 @@ an acknowledgement, retrospective, checkbox or added document is not closure.
    requirement with current evidence, a justified supersession or rejection,
    or an explicitly open gap. An unverified claim stays open.
 3. Diagnose the failed assumption and responsible producer, consumer and trust
-   boundary. On recurrence, test why the existing rule, skill, check or recovery
-   failed; do not add the same local workaround again.
+   boundary in the target repository's own domain. Distinguish an implementation
+   failure from an inadequate method, governing model or problem framing through
+   [Recursive Domain Feedback](../docs/governance/product-design-contract.md#recursive-domain-feedback).
+   On recurrence, test the safeguard and feedback mechanism themselves; do not
+   repeat a disproved local workaround or silently weaken the success criterion.
 4. Change the unique owner: executable behavior or native policy for decidable
    constraints, rules for stable boundaries, skills for reusable procedure, and
    docs for explanation or decisions. Other carriers reference that owner.

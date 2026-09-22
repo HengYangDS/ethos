@@ -2813,6 +2813,21 @@ closure discipline; skills route the operation to it. Decidable constraints
 belong in native policy or implementation. Documentation explains their rationale
 without copying the policy or maintaining another progress snapshot.
 
+Apply this closure to each repository's own business semantics, not only ETHOS
+self-development. The product contract owns recursive feedback across use,
+methods, governing models and purpose. These lenses select the failing owner;
+they do not introduce persistent layer objects. Reuse current source, outcome,
+Attestation and admission contracts; technical green cannot substitute for an
+unobserved business result. Domain observers propose evidence, not permissions.
+
+An adopter's post-archive test repair exposed an authority classification error
+in the proposed workaround and a real recovery-guidance gap. Changing tests from
+active or archived planning prose to current canonical business owners is fresh
+authored correction, not an archive-output projection. Preserve the exact archive
+scope. Its owning scope report must request fresh official intent rather than
+another equivalent patch when reference checks already pass. This improves the
+feedback action without minting permission or recreating the archived Change.
+
 Distinguish declaring an obligation, routing a procedure, executing a check and
 demonstrating improvement. A structural skill PASS proves neither that an agent
 loaded the instructions nor that behavior changed. Bind declared feedback

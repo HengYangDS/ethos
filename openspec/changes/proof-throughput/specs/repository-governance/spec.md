@@ -242,6 +242,52 @@ open. A note, checkbox, extra artifact or larger skill SHALL NOT establish closu
 - **THEN** the resolution preserves that evidence and its source scope without forcing unnecessary edits
 - **AND** structural validation does not certify unrecorded conversation or complete intent understanding
 
+### Requirement: Feedback preserves each repository's domain authority
+
+ETHOS SHALL support feedback closure for self-hosting and adopted repositories
+under their own accepted business meaning. The repository SHALL own goals,
+constraints, success criteria and authorized judgments. Shared mechanisms and
+capability adapters SHALL NOT replace those meanings with ETHOS-specific metrics
+or imply business success from technical verification alone.
+
+#### Scenario: Technical checks pass while a required business outcome fails
+
+- **WHEN** a selected domain obligation has failed, missing or stale outcome evidence
+- **THEN** its completion claim remains open despite green technical checks
+- **AND** independently admissible source work can continue without claiming that outcome
+
+#### Scenario: Different domains use the same protocol
+
+- **WHEN** two adopters declare different business meanings and evidence providers
+- **THEN** each is evaluated against its own accepted criteria through the shared owner
+- **AND** neither acquires another repository's business policy, private context or authority
+
+#### Scenario: A fresh authored correction follows an archived Change
+
+- **WHEN** patch checks pass but requested paths are outside the attested archive effect's scope
+- **THEN** admission remains blocked and directs the actor to fresh official intent
+- **AND** it does not request another equivalent patch or expand historical write permission
+
+### Requirement: Feedback can revise its governing model
+
+Feedback SHALL distinguish implementation failure from inadequate methods,
+governing models or problem framing. A demonstrated model gap SHALL select the
+smallest sufficient Model Promotion, recompile dependent meanings, migrate
+consumers and retire replaced mechanisms. Changes to goals or standards SHALL
+require authorized intent alignment rather than outcome-driven relaxation.
+
+#### Scenario: Local repairs do not resolve the contradiction
+
+- **WHEN** valid counterexamples expose a missing distinction in the current model
+- **THEN** the owning model is reconsidered before another equivalent local patch
+- **AND** acceptance exercises the counterexample and preserved valid behavior after migration
+
+#### Scenario: The feedback safeguard itself produces false closure
+
+- **WHEN** its observations, interpretation or judgment contradict actual outcomes
+- **THEN** the affected closure and safeguard are reopened for correction
+- **AND** a note, new abstraction name or lower threshold cannot establish improvement
+
 ### Requirement: Publication continuation requests only missing observations
 
 Locally ready publication with an unprobed configured peer SHALL select exact

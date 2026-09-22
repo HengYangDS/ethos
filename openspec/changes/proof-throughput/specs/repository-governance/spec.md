@@ -197,6 +197,27 @@ their native subject layout under the portable Docs Registry contract.
 
 ## ADDED Requirements
 
+### Requirement: Current prose preserves meaning without copied execution state
+
+ETHOS SHALL keep obligations, dependency order, task progress and observed
+results at their existing semantic owners. Current entrypoints SHALL expose the
+relevant route without requiring historical narratives. Reducing text or token
+cost SHALL NOT remove valid constraints, functionality, performance or acceptance.
+
+#### Scenario: Completed observations leave the current plan entry
+
+- **WHEN** historical execution detail is removed from a current entrypoint
+- **THEN** exact source bytes remain recoverable through the existing history owner
+- **AND** every still-valid obligation remains in its current owner or explicitly open
+- **AND** task status and dated results are referenced rather than copied into another ledger
+
+#### Scenario: A reader needs the next useful action
+
+- **WHEN** a person or agent reads the current convergence entry
+- **THEN** it reaches the existing task and authority owners without loading historical results
+- **AND** local, installed, hosted and actual-use claims remain distinct
+- **AND** measured text or token reduction alone does not prove semantic preservation
+
 ### Requirement: Accepted feedback closes through demonstrated improvement
 
 ETHOS SHALL preserve each accepted feedback obligation's declared source scope,

@@ -122,6 +122,7 @@
 - [x] 9.8 Qualify and deliver the exact demand-driven capability candidate.
 - [ ] 9.9 Remove dependency cycles, unnecessary conversion round trips and duplicate contracts at their semantic owners; compare mature native substitutes with the same falsifiers, preserve necessary trust boundaries, prove reduced work and retire replaced paths without a parallel registry.
   - [x] 9.9.1 Derive common and product release protection from configured branch roles; preserve malformed/conflicting declaration and trusted-prior-policy rejection, qualify the reader, then retire redundant self-profile branch declarations.
+  - [x] 9.9.2 Reject conflicting active rule identities at the typed contract, compiler and plan-selection boundary without choosing a winner or emitting partial executable policy.
 
 ## 10. Native Quality Rules and Early Failure
 
@@ -147,6 +148,7 @@
 - [x] 11.7 Qualify native mise configuration and lock relocation through supply, CUE and installed-runtime consumers.
 - [ ] 11.8 Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
 - [ ] 11.9 Verify declaration-to-consumer wiring with disconnected, misbound and unavailable-capability cases through public entrypoints; preserve adverse results through receipt and admission.
+  - [ ] 11.9.1 Qualify carrier-role and native-discovery applicability, including frozen provenance, generated build inputs, explicit selection, missing discovery and unauthorized relabeling; preserve integrity obligations without language or directory-name exceptions.
 - [x] 11.10 Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
 
 ## 12. Documentation Comprehension and Research Delivery

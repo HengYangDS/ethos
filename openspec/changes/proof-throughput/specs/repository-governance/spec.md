@@ -210,6 +210,21 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 - **AND** executing it rechecks all current admission and exact-effect conditions
 - **AND** an explicitly supplied expected HEAD is preserved, never silently replaced
 
+#### Scenario: Nontracked content requires an explicit disposition
+
+- **WHEN** a linked worktree contains nontracked content, including ignored evidence
+- **THEN** automatic retirement preserves the worktree, refs, Lease and content
+- **AND** the preview reports its native footprints and existing lifecycle labels
+- **AND** neither Git ignore rules nor a lifecycle label authorize deletion
+- **AND** continuation requests existing exact content review before separately authorized disposal
+- **AND** required custody is preserved outside the retiring resource before disposal
+
+#### Scenario: Nontracked content appears after planning
+
+- **WHEN** ignored content appears before an unreviewed retirement effect or receipt recovery
+- **THEN** fresh effect admission refuses deletion and selects a new content review
+- **AND** a reviewed receipt still refuses changed content, foreign ownership and active consumers
+
 #### Scenario: Exact Lease observation changed after planning
 
 - **WHEN** a planned live or expired Lease differs in lane ref, holder ref,

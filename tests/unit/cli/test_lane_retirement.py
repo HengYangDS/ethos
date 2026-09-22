@@ -41,7 +41,8 @@ def test_retirement_help_exposes_recovery_inputs(command, options):
 
 
 @pytest.mark.parametrize(
-    "boundary", ["current", "pre_adoption", "dirty", "foreign_lease", "stale_head", "locked"]
+    "boundary",
+    ["current", "pre_adoption", "dirty", "ignored", "foreign_lease", "stale_head", "locked"],
 )
 def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
     tmp_path: Path, boundary: str
@@ -55,8 +56,11 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
     branch = "topic/absorbed"
     worktree = tmp_path / "absorbed"
     git(repo, "worktree", "add", "-b", branch, worktree.as_posix(), source)
-    if boundary == "dirty":
+    if boundary in {"dirty", "ignored"}:
         (worktree / "unique.txt").write_text("unabsorbed work\n", encoding="utf-8")
+        if boundary == "ignored":
+            (repo / ".git/info").mkdir(exist_ok=True)
+            (repo / ".git/info/exclude").write_text("unique.txt\n")
     elif boundary == "foreign_lease":
         acquire_lease(
             state_database(repo),
@@ -91,14 +95,19 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
     blocked = run_ethos_blocked(*args, "--expect-head", expected_head, "--apply", cwd=repo)
     expected = {
         "dirty": "work_lane_dirty",
+        "ignored": "retirement_content_review_required",
         "foreign_lease": "foreign_work_lane_retire_authority_required",
         "stale_head": "expect_head_mismatch",
     }
     if boundary in expected:
         assert expected[boundary] in blocked["required_gaps"]
+    if boundary == "ignored":
+        assert blocked["data"]["lanes"][0]["unreviewed_content"] == {"unique.txt": "unclassified"}
+        reviewed = run_ethos(*shlex.split(blocked["next_action"])[1:], cwd=repo)
+        assert reviewed["data"]["request"]["reviewed_content"]["entries"]["unique.txt"]
     assert worktree.is_dir()
     assert git(repo, "rev-parse", branch) == source
-    if boundary == "dirty":
+    if boundary in {"dirty", "ignored"}:
         assert (worktree / "unique.txt").read_text(encoding="utf-8") == "unabsorbed work\n"
     if boundary == "foreign_lease":
         assert observe_lease(state_database(repo), branch).state == "valid"

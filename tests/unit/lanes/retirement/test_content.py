@@ -357,13 +357,7 @@ def test_reviewed_absorbed_content_derives_exact_public_receipt(
     assert before == (git(repo, "show-ref"), git(lane, "diff", "--cached"), target.read_bytes())
 
     target.write_text("unreviewed replacement\n")
-    rejected = operation.execute_retirement_operation(
-        root=repo,
-        receipt_path=receipt["path"],
-        receipt_sha256=receipt["sha256"],
-        authorized=True,
-        apply=True,
-    )
+    rejected = apply_retirement_receipt(repo, receipt)
     assert rejected["verdict"] == "block"
     assert rejected["required_gaps"] == ["retirement_content_drift"]
     assert target.read_text() == "unreviewed replacement\n"
@@ -413,7 +407,8 @@ def test_reviewed_derivation_rejects_unsafe_target_before_inventory(
         (case, False)
         for case in ("ignored", "process-scan", "git-admission", "actor", "lease", "accepted")
     ]
-    + [(case, True) for case in ("ignored", "process-scan", "actor", "accepted")],
+    + [(case, True) for case in ("ignored", "process-scan", "actor", "accepted")]
+    + [("unreviewed", False)],
 )
 def test_retirement_rechecks_after_native_worktree_observation(
     divergent_lane, monkeypatch, drift, detached
@@ -423,12 +418,10 @@ def test_retirement_rechecks_after_native_worktree_observation(
         git(lane, "switch", "--detach")
     (repo / ".git/info").mkdir(exist_ok=True)
     (repo / ".git/info/exclude").write_text("residual.txt\n")
-    derived = derive_abandonment(repo, review_content=True, path=lane if detached else None)
+    reviewed = drift != "unreviewed"
+    derived = derive_abandonment(repo, review_content=reviewed, path=lane if detached else None)
     assert derived["verdict"] == "pass", derived
     receipt = derived["receipt"]
-    assert isinstance(receipt, dict)
-    assert isinstance(receipt["path"], str)
-    assert isinstance(receipt["sha256"], str)
     request = operation.load_operation(repo, receipt["path"], receipt["sha256"])
     native_observation = worktree_effects.worktree_record
     original_bytes = (lane / "abandoned.txt").read_bytes()
@@ -446,7 +439,7 @@ def test_retirement_rechecks_after_native_worktree_observation(
                 return observed
 
             monkeypatch.setattr(operation, observer, observe_then_write)
-        elif drift == "ignored":
+        elif drift in {"ignored", "unreviewed"}:
             (lane / "residual.txt").write_text("new unreviewed ignored data\n")
         elif drift == "actor":
             monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:foreign")
@@ -464,13 +457,15 @@ def test_retirement_rechecks_after_native_worktree_observation(
     assert git(repo, "rev-parse", "refs/heads/work/abandon") == request.head
     assert result["verdict"] == "block", result
     assert result["required_gaps"] == [
-        "retirement_content_drift"
+        "retirement_content_review_required"
+        if drift == "unreviewed"
+        else "retirement_content_drift"
         if drift in {"ignored", "process-scan", "git-admission"}
         else "foreign_work_lane_retire_authority_required"
         if drift == "actor"
         else "retirement_operation_state_drift"
     ]
-    if drift in {"ignored", "process-scan", "git-admission"}:
+    if drift in {"ignored", "unreviewed", "process-scan", "git-admission"}:
         assert (lane / "residual.txt").read_text() == "new unreviewed ignored data\n"
 
 

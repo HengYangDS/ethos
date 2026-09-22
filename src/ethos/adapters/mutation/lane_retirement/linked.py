@@ -17,6 +17,7 @@ from ethos.adapters.mutation.lane_retirement.linked_admission import retirement_
 from ethos.adapters.mutation.lane_retirement.linked_admission import superseded_gaps
 from ethos.adapters.mutation.lane_retirement.linked_effect import compile_retirement_operation
 from ethos.adapters.mutation.lane_retirement.operation import apply_operation
+from ethos.adapters.mutation.lane_retirement.operation import content_review_command
 from ethos.adapters.mutation.lane_retirement.operation import persist_operation
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -232,6 +233,11 @@ def _continuation(
             report={"required_gaps": []},
             authority=authority,
         )
+    if gaps == ("retirement_content_review_required",) and request.branch:
+        return {
+            "next_action": content_review_command(repo, request.branch),
+            "user_decision_required": True,
+        }
     if gaps:
         return {
             "next_action": f"ethos lane status --root {shlex.quote(repo.as_posix())} --json",

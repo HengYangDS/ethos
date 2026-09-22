@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -12,10 +13,6 @@ import ethos.adapters.mutation.lane_retirement.linked_admission as linked_admiss
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.retirement import LinkedRetirementRequest
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 SOURCE = "work/source"
 SUCCESSOR = "work/successor"
@@ -55,13 +52,15 @@ def _stub_retirement(
     current_branch: str = "",
     verified_refs: set[str] | None = None,
     stub_holder_gaps: bool = True,
-) -> None:
+) -> Mock:
     lane_map = lanes or {}
+    content_observer = Mock(return_value={})
     refs = verified_refs if verified_refs is not None else {str(row["branch"]) for row in worktrees}
     monkeypatch.setattr(linked, "repository_root", lambda root: root)
     monkeypatch.setattr(linked, "workspace_status", lambda _repo: {"worktrees": worktrees})
     monkeypatch.setattr(linked, "load_branch_role_policy", lambda _repo: BranchRolePolicy())
     monkeypatch.setattr(linked, "leases_by_branch", lambda _repo: {})
+    monkeypatch.setattr(linked_admission, "unreviewed_content", content_observer)
     monkeypatch.setattr(effects, "control_root", lambda *_args: None)
     monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:holder")
     if stub_holder_gaps:
@@ -85,6 +84,7 @@ def _stub_retirement(
         return None
 
     monkeypatch.setattr(effects, "output", output)
+    return content_observer
 
 
 @pytest.mark.parametrize(
@@ -241,7 +241,7 @@ def test_superseded_public_successor_filters_only_missing_source_lease(
         lease_state="valid",
     )
     successor = _lane(branch=SUCCESSOR, head=SUCCESSOR_HEAD)
-    _stub_retirement(
+    content_observer = _stub_retirement(
         monkeypatch,
         worktrees=[_worktree(), _worktree(SUCCESSOR, SUCCESSOR_HEAD)],
         lanes={SOURCE: source, SUCCESSOR: successor},
@@ -259,8 +259,8 @@ def test_superseded_public_successor_filters_only_missing_source_lease(
         ),
     )
 
-    gaps = report["required_gaps"]
-    assert isinstance(gaps, list)
+    content_observer.assert_called_once_with(Path(str(source["path"])))
+    gaps = set(report["required_gaps"])
     assert f"work_lane_missing_lease:{SOURCE}" not in gaps
     assert {"work_lane_dirty", "retirement_source_lease_present"} <= set(gaps)
 

@@ -101,7 +101,7 @@ github: {
 		}
 		quality: {
 			name: "quality gates"
-			env: ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR: "${{ runner.tool_cache }}/ethos/${{ github.repository }}/ci-tools"
+			steps: [...{env: ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR: "${{ runner.tool_cache }}/ethos/${{ github.repository }}/ci-tools"}]
 			"runs-on": ["self-hosted", "macOS", "ARM64", "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"

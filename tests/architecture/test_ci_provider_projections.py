@@ -63,15 +63,15 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
 
 
 def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None:
-    assert github["jobs"]["quality"]["env"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] == (
-        "${{ runner.tool_cache }}/ethos/${{ github.repository }}/ci-tools"
-    )
     assert gitlab["variables"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] == (
         "/cache/${CI_PROJECT_PATH_SLUG}/ci-tools"
     )
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
-    assert check_templates(json_output=False) == 0
+    assert check_templates(json_output=False) == owner.check_workflow() == 0
     jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
+    assert {
+        step["env"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] for step in jobs["quality"]["steps"]
+    } == {"${{ runner.tool_cache }}/ethos/${{ github.repository }}/ci-tools"}
     steps = [step for job in jobs.values() for step in job["steps"]]
     commands = [step.get("run", "") for step in steps]
     assert commands.count("tools/ci/scripts/bootstrap-python.sh") == 1

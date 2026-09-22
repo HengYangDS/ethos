@@ -3,7 +3,7 @@ import { readFileSync, writeSync } from "node:fs";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
-const [entry, timeout] = process.argv.slice(2);
+const [entry, timeout, expectedVersion] = process.argv.slice(2);
 const duration = Number(timeout) * 1000;
 if (!Number.isFinite(duration) || duration <= 0) {
   throw new Error("openspec_batch_deadline_invalid");
@@ -13,6 +13,10 @@ const pause = new Int32Array(new SharedArrayBuffer(4));
 const { program } = await import(
   pathToFileURL(createRequire(pathToFileURL(entry)).resolve("@fission-ai/openspec")).href
 );
+if (program.version() !== expectedVersion) {
+  writeSync(2, "openspec_effective_version_mismatch\n");
+  process.exit(1);
+}
 const commands = JSON.parse(readFileSync(0, "utf8"));
 let active;
 

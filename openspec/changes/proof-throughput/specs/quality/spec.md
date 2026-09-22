@@ -170,6 +170,14 @@ OpenSpec package without copying its command parser or caching mutable results.
 Every result SHALL bind its ordered input, native exit status and output.
 Incomplete transport SHALL preserve failure evidence without claiming execution.
 
+#### Scenario: A read requires current executable verification
+
+- **WHEN** the existing batch owner resolves the locked official tool for a read
+- **THEN** the same native process verifies the imported official program version before parsing commands
+- **AND** metadata drift, missing tools and version mismatch refuse the read without a second parser or cached verdict
+- **AND** archived or preobserved intent that executes no read retains standalone executable verification
+- **AND** later observations read current inputs again and each effect retains fresh admission
+
 #### Scenario: An official command exits before the batch ends
 
 - **WHEN** the native program exits during one read

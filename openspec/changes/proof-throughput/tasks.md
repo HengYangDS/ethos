@@ -160,4 +160,6 @@
 - [x] 13.1 Define source scope, disposition, unique ownership and evidence boundaries in the existing rules and official acceptance specification; remove contradictory guidance without a second feedback ledger.
 - [ ] 13.2 Bind declared feedback obligations to existing acceptance and verification owners; reject note-only, missing, stale and contradictory closure evidence through native public counterexamples.
 - [x] 13.3 Wire feedback planning to canonical skill context; verify package integrity, trigger/non-trigger behavior and compiled pre-reads while keeping host loading and changed agent behavior distinct.
-- [ ] 13.4 Close the measured publication-provenance and post-history-repair adopter failures through the existing owner, distinguishing regressions, exact proof and installed consumer observations; use the results to correct the owning procedures rather than merely record a retrospective.
+- [ ] 13.4 Close publication provenance and post-history-repair delivery through its existing owner.
+  - [x] 13.4.1 Preserve original acceptance through validated repair relations; exercise native repair, new-source proof and release, plus fresh membership and bounded decoding counterexamples.
+  - [ ] 13.4.2 Qualify and install the exact candidate, observe complete publication performance, and obtain the adopter-owned consumer result; keep these separate from source and focused-test success.

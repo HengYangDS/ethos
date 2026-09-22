@@ -521,3 +521,18 @@ repository implementation bindings remain valid.
 - **THEN** ordinary gate execution remains available
 - **AND** packaged-only adopter providers do not inherit a source-checkout requirement
 - **AND** current effect admission and trusted-prior control replacement remain separate
+
+
+### Requirement: Canonical decoding reuse preserves fresh observation
+
+Attestation decoding reuse SHALL be keyed by exact bytes and bounded by total
+retained input bytes. Large valid members SHALL remain reusable within that
+budget. Oversized or evicted members SHALL still validate. Current membership,
+source, Lease and effect authorization SHALL NOT be cached as permission.
+
+#### Scenario: Warm and evicted reads select the same meaning
+
+- **WHEN** the same valid bytes are read cold, warm or after eviction
+- **THEN** the reader returns the same validated meaning without repeated warm decoding
+- **AND** changed or deleted refs remain observable on every read
+- **AND** corrupt replacement bytes cannot inherit an earlier valid member identity

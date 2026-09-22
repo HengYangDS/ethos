@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.adapters.repo.attestation_set as attestation_set
+import ethos.adapters.repo.commit.provenance as provenance
 import ethos.adapters.repo.git_effect_attestation as attest
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git_effect_attestation import records
@@ -215,6 +216,9 @@ def test_validated_plan_selection_requires_unique_evidence(tmp_path, monkeypatch
         "ref",
         "head",
         "assertion",
+        "updates",
+        "repair-ref",
+        "repair-cycle",
     ],
 )
 def test_accepted_closeout_selects_only_valid_exact_candidate_effect(tmp_path, monkeypatch, mode):
@@ -224,17 +228,18 @@ def test_accepted_closeout_selects_only_valid_exact_candidate_effect(tmp_path, m
     record = _record(effect, plan, before, after)
     if mode == "predicate":
         record = reissue_attestation(record, predicate="proof:execution")
-    elif mode in {"plan", "invalid"}:
-        record = reissue_attestation(
-            record,
-            payload={
-                "kind": record.payload.kind,
-                "body": {
-                    **record.payload.body,
-                    **({"plan": {}} if mode == "plan" else {"command": ["git"]}),
-                },
-            },
-        )
+    elif mode in {"plan", "invalid", "updates"}:
+        deltas = {
+            "plan": {"plan": {}},
+            "invalid": {"command": ["git"]},
+            "updates": {"plan": plan.model_dump(mode="json") | {"effect": {"updates": []}}},
+        }
+        body = dict(record.payload.body) | deltas[mode]
+        record = reissue_attestation(record, payload={"kind": record.payload.kind, "body": body})
+    if mode.startswith("repair-"):
+        ref = "refs/heads/other" if mode == "repair-ref" else "refs/heads/dev"
+        repair = {"old": before["head"], "refs": {ref: before["head"]}}
+        monkeypatch.setattr(provenance, "completed_signature_repair", Mock(return_value=repair))
     if mode in {"ambiguous", "store"}:
 
         def read(_root):
@@ -243,31 +248,36 @@ def test_accepted_closeout_selects_only_valid_exact_candidate_effect(tmp_path, m
                 raise ValueError(message)
             return {}, (record, record)
 
-        monkeypatch.setattr(attest, "read_attestation_set", read)
+        monkeypatch.setattr(provenance, "read_attestation_set", read)
     else:
         record_attestations(repo, (record,))
 
-    validated = Mock(wraps=attest.validate)
-    monkeypatch.setattr(attest, "validate", validated)
+    decoded = Mock(wraps=attest.plan_from_attestation)
+    monkeypatch.setattr(provenance, "plan_from_attestation", decoded)
 
     def select():
-        return attest.accepted_closeout_attestation(
+        return provenance.accepted_provenance(
             repo,
             accepted_ref="refs/heads/other" if mode == "ref" else "refs/heads/dev",
             candidate_ref="refs/heads/other" if mode == "assertion" else "refs/heads/candidate/dev",
-            candidate_head=before["head"] if mode == "head" else after["head"],
+            head=before["head"]
+            if mode in {"head", "repair-ref", "repair-cycle"}
+            else after["head"],
         )
 
-    if mode in {"ambiguous", "store"}:
+    if mode in {"ambiguous", "store", "repair-cycle"}:
         with pytest.raises(
             ValueError,
-            match="accepted_closeout_effect_" + ("ambiguous" if mode == "ambiguous" else "invalid"),
+            match="accepted_closeout_effect_" + ("invalid" if mode == "store" else "ambiguous"),
         ):
             select()
     else:
-        assert select() == ((plan, record) if mode == "exact" else None)
+        selected = select()
+        assert ((selected.plan, selected.attestation) if selected else None) == (
+            (plan, record) if mode == "exact" else None
+        )
     if mode in {"predicate", "plan", "transition", "ref", "head", "assertion"}:
-        validated.assert_not_called()
+        assert decoded.call_count == 0
 
 
 @pytest.mark.parametrize(

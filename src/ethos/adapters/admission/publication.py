@@ -14,16 +14,15 @@ from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.publication.retirement import proposal_retirement_report
 from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
+from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.commit.signature import completed_signature_repair
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.release import accepted_delivery_report
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
-from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
@@ -483,11 +482,11 @@ def _accepted_closeout_baseline(
         return {}, [], "", ""
     accepted_ref = f"refs/heads/{policy.accepted_branch}"
     try:
-        closeout = accepted_closeout_attestation(
+        closeout = accepted_provenance(
             repo,
             accepted_ref=accepted_ref,
             candidate_ref=f"refs/heads/{policy.candidate_branch}",
-            candidate_head=proof_head,
+            head=proof_head,
         )
     except ValueError as error:
         return {}, [str(error)], "", ""
@@ -508,8 +507,8 @@ def _accepted_closeout_baseline(
                 "",
             )
         return {}, ["accepted_closeout_effect_not_attested"], "", ""
-    plan, attestation = closeout
-    accepted_before = git_effect_from_plan(plan).updates[accepted_ref].expected
+    plan, attestation = closeout.plan, closeout.attestation
+    accepted_before = closeout.previous_head
     projection = {
         "attestation_id": attestation.id,
         "plan_digest": plan.digest,
@@ -517,6 +516,7 @@ def _accepted_closeout_baseline(
         "accepted_before": accepted_before,
         "remote_head": remote_head,
         "candidate_head": proof_head,
+        "provenance": closeout.projection(),
     }
     return (
         (projection, [], "", "")

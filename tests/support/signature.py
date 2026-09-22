@@ -14,6 +14,7 @@ from tests.support.governed_repository import render_branch_policy
 from tests.support.subprocesses import kill_after_marker
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
 
@@ -41,6 +42,24 @@ def configure_signer(repo: Path, tmp_path: Path) -> None:
         ("gpg.ssh.allowedSignersFile", str(anchor)),
     ):
         git(repo, "config", name, value)
+
+
+def repair_fixture_history(root: Path, backup: Path, *, corrections: Mapping[str, object]) -> str:
+    """Execute one positive native history repair with a verified original bundle."""
+    git(root, "bundle", "create", str(backup), "refs/heads/dev")
+    result = repair.repair_signature(
+        root=root,
+        expect_head=git(root, "rev-parse", "HEAD"),
+        corrections=corrections,
+        reason="Repair selected test history",
+        backup=backup,
+        apply=True,
+        authorized=True,
+    )
+    assert result["verdict"] == "pass", result
+    head = result["head"]
+    assert isinstance(head, str)
+    return head
 
 
 def signature_repository(tmp_path: Path, *, coupled: bool = False) -> tuple[Path, str, Path]:

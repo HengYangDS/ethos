@@ -409,3 +409,24 @@ SHALL not be mistaken for authored directory entrypoints.
 - **AND** semantic hierarchy and meaningful links preserve progressive detail
   without fragmenting one cohesive explanation or duplicating authority
 - **AND** a move repairs affected links without changing subject identity
+
+
+### Requirement: Accepted history repair preserves original acceptance provenance
+
+Accepted-source consumers SHALL resolve original acceptance through validated
+completed history-repair relations for the exact accepted ref. They SHALL retain
+the original Attestation and distinguish its coordinates from current source
+coordinates. Equal trees alone SHALL NOT establish acceptance or authority.
+
+#### Scenario: A repaired accepted source is proved and released
+
+- **WHEN** governed history repair replaces an accepted commit and a new exact-source proof succeeds
+- **THEN** closeout and release retain the original accepted-effect Attestation
+- **AND** validated repair relations explain the current source coordinates
+- **AND** current actor-owned Lease admission is independent of the proof's original execution root
+
+#### Scenario: Related bytes do not prove current authority
+
+- **WHEN** repair provenance is absent, ambiguous, cyclic or does not select the accepted ref
+- **THEN** acceptance is not inferred from matching trees or a historical identity
+- **AND** unrelated plans are not decoded as potential authority for that source

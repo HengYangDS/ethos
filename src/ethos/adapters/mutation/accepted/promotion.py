@@ -60,8 +60,8 @@ def current_acceptance(
             candidate_head=candidate_head,
         )
         plan = recorded[0] if recorded else None
-        effect = git_effect_from_plan(plan) if plan else GitEffect(updates={})
-        previous = effect.updates.get(f"refs/heads/{policy.accepted_branch}")
+        effect = git_effect_from_plan(plan) if plan else None
+        previous = effect.updates.get(f"refs/heads/{policy.accepted_branch}") if effect else None
         previous_head = previous.expected if previous else current_head
         if expected_head is not None and expected_head not in {current_head, previous_head}:
             return None
@@ -73,13 +73,19 @@ def current_acceptance(
         "verdict": "pass",
         "state": "accepted_materialization_pending" if pending else "accepted_current",
         "candidate_head": candidate_head,
-        "previous_head": previous_head,
+        "previous_head": (
+            previous_head if pending or expected_head == previous_head else current_head
+        ),
         "attestation": recorded[1].model_dump(mode="json") if recorded else {},
     }
 
 
 def _materialization_pending(
-    root: Path, policy: BranchRolePolicy, status: dict[str, object], head: str, effect: GitEffect
+    root: Path,
+    policy: BranchRolePolicy,
+    status: dict[str, object],
+    head: str,
+    effect: GitEffect | None,
 ) -> bool:
     """Accept only terminal bytes or the exact preimage of a recorded ref update."""
     scopes = [(policy.accepted_branch, (root,), "accepted")]
@@ -99,7 +105,7 @@ def _materialization_pending(
         terminal_gap = worktree_sync_gap(root, paths, branch, head, head, head)
         if not terminal_gap:
             continue
-        update = effect.updates.get(f"refs/heads/{branch}")
+        update = effect.updates.get(f"refs/heads/{branch}") if effect else None
         gap = (
             worktree_sync_gap(root, paths, branch, head, update.expected, head)
             if update

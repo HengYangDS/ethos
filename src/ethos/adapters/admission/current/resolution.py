@@ -136,6 +136,9 @@ class CurrentResolution:
             "uncovered_paths": list(uncovered),
             "required_gaps": list(gaps),
             "advisory_gaps": [],
+            "next_action": "openspec new change <name>"
+            if uncovered and self.scope.archive_authority
+            else "",
         }
 
 

@@ -4,7 +4,7 @@ role: explanation
 state: active
 relations:
   projects:
-    - product-design-contract.md#semantic-kernel
+    - product-design-contract.md#recursive-domain-feedback
 ---
 
 # Learning And Change Relations
@@ -38,3 +38,30 @@ mutate task state, or make archive bytes current.
 A research statement or dependency relation is not proof by itself. An accepted
 result remains bound to the compiled Commitment, exact HEAD, TransitionPlan,
 evidence, and Attestation verdict.
+
+## Recursive Feedback In Each Repository
+
+The [product contract](product-design-contract.md#recursive-domain-feedback)
+owns this capability. Self-hosted quality improvement and adopted-domain
+improvement follow the same protocol without sharing business authority.
+
+| Lens | Question | Existing carrier to revise |
+| --- | --- | --- |
+| Actual use | Does the delivered result satisfy the repository's real need? | Domain-owned intent, outcome evidence and user-facing behavior. |
+| Methods | Are implementation, tools and procedures effective and economical? | Implementation, native configuration and applicable Skills. |
+| Governing models | Do the abstraction, rules and acceptance model preserve necessary distinctions? | The owning model and its executable consumers. |
+| Purpose and assumptions | Are the problem framing and success criteria still justified? | Authorized intent alignment and the repository's product contract. |
+
+A failed implementation is not automatically a model gap. Repeated failure,
+incompatible constraints or technically green but ineffective outcomes require
+checking that distinction before another local patch. A justified promotion
+changes the smallest sufficient upper boundary, migrates its consumers and
+verifies both the distinguishing counterexample and retained valid behavior.
+The same scrutiny applies to feedback collection, interpretation and judgment.
+
+Domain Skills and observers provide business-specific expertise and evidence.
+They do not own goals, completion or repository permissions. Missing or stale
+business observations leave that outcome claim open; they need not prevent an
+independently admissible source change. A domain failure can propose a shared
+ETHOS repair without copying a local parser, metric set or business model into
+other repositories. No additional learning ledger is required.

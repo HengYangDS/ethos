@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "36e44a6aad7632ec3d05892fb1225cdff3060718e98dc02fd747c79d191dccff"
+      "sha256": "dc6f5ca392e374faffa25217844ff60a06309c60b8a206dc37875a9520a65782"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -189,7 +189,7 @@
     "learning_relations": {
       "path": "docs/governance/evolution-campaign.md",
       "authority": "current OpenSpec-native research and derived relation semantics",
-      "sha256": "de5333f10a56d47de7090022ef7f3730d0287b9333dd508a7dfd02845a3e3302"
+      "sha256": "768710381f548c2816b7f2b9f30c27e8f88a790c86b6f37e03e3e820a674d4ec"
     }
   },
   "nodes": {
@@ -1581,9 +1581,10 @@
       "required_visible": true,
       "evidence": [
         "product_contract",
-        "skills"
+        "skills",
+        "learning_relations"
       ],
-      "semantics": "Actual-use observations and retained experimental knowledge challenge goals, intent, implementation or assumptions and propose fresh intent; they do not grant authority or silently rewrite acceptance. Closure requires demonstrated owner-level improvement or currently evidenced prior satisfaction, supersession or rejection; notes, checkboxes and structural package validation do not establish improvement."
+      "semantics": "Actual-use observations and retained experimental knowledge challenge goals, intent, implementation or assumptions and propose fresh intent; they do not grant authority or silently rewrite acceptance. Closure requires demonstrated owner-level improvement or currently evidenced prior satisfaction, supersession or rejection; notes, checkboxes and structural package validation do not establish improvement. The same loop serves ETHOS and adopted repositories under their own business meaning. Evidence may challenge use, methods, governing models or purpose, including the feedback mechanism itself; revised standards require authorized alignment."
     },
     "adoption_exit": {
       "kind": "recovery",

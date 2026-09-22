@@ -181,7 +181,8 @@ def test_current_resolution_recovers_exact_archive_effect(
         assert (resolution.verdict, resolution.commitment) == ("block", None)
         return
     assert resolution.commitment == commitment
-    assert resolution.scope.paths == observed_paths
+    report = resolution.scope_report(resolution.scope.paths)
+    assert report["next_action"] == "openspec new change <name>"
     assert resolution.scope.archive_authority == archive_authority
     assert resolution.openspec["verdict"] == "pass"
     assert resolution.openspec["required_gaps"] == []

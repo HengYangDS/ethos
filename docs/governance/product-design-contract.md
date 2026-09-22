@@ -213,12 +213,35 @@ state.
 ### Model Promotion
 
 A `contradiction` or `model_gap` means that valid input cannot be reconciled or
-represented losslessly. It must block effects and retirement. Preserve the
+represented losslessly. It blocks effects and retirement that depend on the
+unresolved meaning or authority, not independently admissible work. Preserve the
 conflicting scenarios and evidence, promote the smallest affected model
 boundary, recompile dependent plans and projections, verify coverage, then
 absorb or retire the residue. Do not add an exception, alias, fallback, shim,
 or parallel truth. `model_promotion_required` is the explicit blocking outcome
 while that work remains open.
+
+### Recursive Domain Feedback
+
+Feedback is a product capability for every adopted repository in its own business
+semantics; ETHOS self-hosting is one instance. The repository owns its goals,
+domain models, constraints, success criteria and authorized judgments. ETHOS
+connects their sources, accepted intent, effects, evidence and revision without
+substituting its own development metrics for business success.
+
+Feedback can correct actual use, methods, governing models, or the understanding
+of purpose and assumptions. Evidence can challenge an upper layer, whose revised
+meaning must then be recompiled through dependent layers. These are analytical
+lenses, not four new entities or workflows. Model Promotion may replace existing
+abstractions destructively while preserving required meaning and retiring their
+superseded consumers. Revised goals or standards require authorized intent
+alignment, not silent relaxation to make a result pass.
+
+The feedback mechanism itself remains subject to correction. Closure requires
+applicable evidence for its declared claim: technical verification, delivery and
+business outcomes remain distinct. Cross-repository learning may propose shared
+mechanism improvements, but does not transfer another repository's authority or
+private business context.
 
 ## Invalid-State Taxonomy
 

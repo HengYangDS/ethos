@@ -158,7 +158,10 @@
 ## 13. Feedback-Driven Improvement Closure
 
 - [x] 13.1 Define source scope, disposition, unique ownership and evidence boundaries in the existing rules and official acceptance specification; remove contradictory guidance without a second feedback ledger.
-- [ ] 13.2 Bind declared feedback obligations to existing acceptance and verification owners; reject note-only, missing, stale and contradictory closure evidence through native public counterexamples.
+- [ ] 13.2 Enforce declared feedback closure through existing acceptance and verification owners.
+  - [ ] 13.2.1 Reject note-only, missing, stale and contradictory closure evidence while preserving independently admissible source work.
+  - [ ] 13.2.2 Exercise model-gap escalation, dependent migration, superseded-path retirement and correction of ineffective feedback safeguards.
+  - [ ] 13.2.3 Qualify self-hosting and distinct adopted business domains without sharing their goals, metrics or authority.
 - [x] 13.3 Wire feedback planning to canonical skill context; verify package integrity, trigger/non-trigger behavior and compiled pre-reads while keeping host loading and changed agent behavior distinct.
 - [ ] 13.4 Close publication provenance and post-history-repair delivery through its existing owner.
   - [x] 13.4.1 Preserve original acceptance through validated repair relations; exercise native repair, new-source proof and release, plus fresh membership and bounded decoding counterexamples.

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -41,6 +43,7 @@ from ethos.surface.cli.root_binding import resolve_root
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.adapters.gates.runner import ActionRunResult
     from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
 KNOWN_PROOF_SCOPES = frozenset(
@@ -166,6 +169,31 @@ def _proof_context(
     return current_head, audit, resolution, openspec_lifecycle
 
 
+def _gate_progress(
+    plan: TransitionPlan, action_id: str, result: ActionRunResult | None = None
+) -> None:
+    """Flush diagnostic execution events without turning them into proof evidence."""
+    event: dict[str, object] = {
+        "event": "gate_scheduled" if result is None else "gate_completed",
+        "head": plan.facts["head"],
+        "plan_digest": plan.digest,
+        "action_id": action_id,
+        "satisfies_repository_proof": False,
+    }
+    if result is not None:
+        event.update(
+            verdict=result.verdict,
+            exit_code=result.exit_code,
+            started_after_seconds=result.started_after_seconds,
+            duration_seconds=result.duration_seconds,
+            diagnostics=list(result.diagnostics),
+        )
+        if result.verdict != "pass":
+            event.update(stdout=result.stdout, stderr=result.stderr)
+    sys.stderr.write(json.dumps(event, sort_keys=True, default=str) + "\n")
+    sys.stderr.flush()
+
+
 def run_plan_checks(
     *,
     repo: Path,
@@ -188,7 +216,16 @@ def run_plan_checks(
     runner = LocalGateRunner() if execute else DryRunRunner()
     node_capacity = capacity or max(1, os.cpu_count() or 1)
     results = run_gate_graph(
-        runner, plan.nodes, gates_by_id, root=repo, capacity=node_capacity, parallel=execute
+        runner,
+        plan.nodes,
+        gates_by_id,
+        root=repo,
+        capacity=node_capacity,
+        parallel=execute,
+        on_schedule=(lambda action_id: _gate_progress(plan, action_id)) if execute else None,
+        on_result=(lambda result: _gate_progress(plan, result.action_id, result))
+        if execute
+        else None,
     )
     checks: list[dict[str, object]] = []
     for run_result in results:

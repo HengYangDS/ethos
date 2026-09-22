@@ -29,6 +29,14 @@ line and branch coverage and every existing behavioral acceptance obligation.
 - **AND** that optimization direction does not block otherwise qualified delivery
 - **AND** neither infeasibility nor completion is inferred from local speedups
 
+#### Scenario: A later gate prevents whole-proof completion
+
+- **WHEN** an executing proof has completed checks before a later gate fails or stalls
+- **THEN** its existing diagnostic stream has already flushed their outcomes and timings
+- **AND** events bind the exact source and plan while distinguishing scheduling from execution
+- **AND** events never claim repository proof, replace the final result or pollute JSON stdout
+- **AND** dry-run projection emits no executed-progress events
+
 #### Scenario: Status reuses one observation but never stale runtime currentness
 
 - **WHEN** public status projects workspace binding and hook readiness

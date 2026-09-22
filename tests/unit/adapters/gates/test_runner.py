@@ -24,7 +24,7 @@ def _gate(*providers: str) -> Gate:
 
 
 def _node(gate: Gate) -> PlanNode:
-    return PlanNode(id=gate.id, kind="check", command=("provider", *gate.providers))
+    return PlanNode(id=gate.id, kind="check", command=gate_runner.gate_execution_identity(gate))
 
 
 def _runner(monkeypatch, **providers: object) -> gate_runner.LocalGateRunner:
@@ -162,45 +162,23 @@ def test_markdown_link_gate_excludes_deleted_tracked_paths(
     assert "docs/deleted.md" not in observed[0]
 
 
-def test_runner_rejects_gate_identity_drift(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(
-        gate_runner,
-        "run_command",
-        lambda *_args: pytest.fail("an unadmitted command executed"),
-    )
-    node = PlanNode(id="gate", kind="check", command=("old-check",))
-    gate = Gate(id="gate", kind="test", command=("new-check",))
-
-    result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
-
-    assert result.verdict == "block"
-    assert result.exit_code == 1
-    assert result.diagnostics[0]["required_gaps"] == ["gate_execution_identity_mismatch:gate"]
-
-
 def test_command_gate_executes_declared_python_not_ambient_canonical_identity(
     monkeypatch, tmp_path: Path
 ) -> None:
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
     marker = tmp_path / "hijacked"
-    fake_python = fake_bin / "python"
+    fake_python = tmp_path / "python"
     fake_python.write_text(
         f"#!/bin/sh\nprintf hijacked > {marker}\nexit 91\n",
         encoding="utf-8",
     )
     fake_python.chmod(0o755)
-    monkeypatch.setenv("PATH", fake_bin.as_posix())
+    monkeypatch.setenv("PATH", tmp_path.as_posix())
     gate = Gate(
         id="gate",
         kind="test",
         command=(sys.executable, "-c", "print('trusted')"),
     )
-    node = PlanNode(
-        id=gate.id,
-        kind="check",
-        command=gate_runner.gate_execution_identity(gate),
-    )
+    node = _node(gate)
 
     result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
 

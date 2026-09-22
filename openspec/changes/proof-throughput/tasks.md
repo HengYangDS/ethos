@@ -38,6 +38,8 @@
 - [x] 3.9 Reproduce and close official batch large-output backpressure through the existing transport.
 - [x] 3.10 Route specification validation through the existing locked official owner and shared result interpretation.
 - [x] 3.11 Route unprobed publication peers to exact remote observation without repeating local verification or treating cached tracking as live evidence.
+- [x] 3.12 Bind landed-retirement continuation to the observed target HEAD; execute the returned public command and preserve stale, dirty, foreign and locked refusal.
+- [ ] 3.13 Qualify and deliver the retirement-continuation repair through exact proof and installed-runtime replay.
 
 ## 4. Archive and Integration Integrity
 
@@ -54,6 +56,7 @@
 - [x] 4.11 Preserve validated source deletions and archive effect paths through public proof/replay.
 - [x] 4.12 Reject unsupported reference kinds and malformed transport; qualify package entry aliases and native archive execution.
 - [x] 4.13 Complete exact full proof and source/package/runtime delivery for archive preservation.
+- [ ] 4.14 Reproduce post-archive native formatting and sibling-reference drift; qualify the actual generated tree before successful archive completion without weakening repository gates.
 
 ## 5. Process Lifetimes and Resource Recovery
 
@@ -68,6 +71,7 @@
 - [x] 5.9 Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.
 - [x] 5.10 Share owned-output removal, preserve external referents and verify minimal permission effects.
 - [ ] 5.11 Close native bootstrap identity wiring and tool transport timeouts; retain the failed attempt's output, reuse verified supply across disposable checkouts, and qualify cold and warm hosted consumers without increasing the deadline.
+- [ ] 5.12 Reproduce ignored durable-custody loss at retirement; consume existing artifact declarations to distinguish retained, active, foreign, unknown and proved disposable resources before deletion.
 
 ## 6. Native Test Isolation and Shared Preparation
 
@@ -96,6 +100,7 @@
   - [x] 7.11.1 Qualify compatible operator mise supply and native PowerShell environment isolation through exact source and runtime delivery.
   - [ ] 7.11.2 Qualify the GitHub-hosted-only matrix and source-derived emulator mapping; retire dedicated-runner and inherited-hook projections, keep GitLab persistent supply separate, and distinguish the bootstrap transport failure in 5.11 from version admission and ACL conformance.
 - [ ] 7.12 Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
+- [ ] 7.13 Qualify runner capacity and dependent-pipeline observation with bounded acquire, terminal readback and original-state restoration; distinguish paused, offline and tag mismatch without repository-specific VM control.
 
 ## 8. Trusted Verification and Result Admission
 

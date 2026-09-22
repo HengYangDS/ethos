@@ -72,8 +72,6 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
         "landed",
         "--branch",
         branch,
-        "--expect-head",
-        "0" * 40 if boundary == "stale_head" else source,
         "--root",
         repo.as_posix(),
         "--authorize",
@@ -82,13 +80,15 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
     if boundary in {"current", "pre_adoption"}:
         planned = run_ethos(*args, cwd=repo)
         assert (planned["verdict"], planned["required_gaps"]) == ("pass", [])
-        assert run_ethos(*args, "--apply", cwd=repo)["verdict"] == "pass"
+        applied = run_ethos(*shlex.split(planned["next_action"])[1:], cwd=repo)
+        assert applied["verdict"] == "pass"
         assert not worktree.exists()
         assert git(repo, "branch", "--list", branch) == ""
         assert git(repo, "rev-parse", "dev") == accepted
         assert observe_lease(state_database(repo), branch).state == "missing"
         return
-    blocked = run_ethos_blocked(*args, "--apply", cwd=repo)
+    expected_head = "0" * 40 if boundary == "stale_head" else source
+    blocked = run_ethos_blocked(*args, "--expect-head", expected_head, "--apply", cwd=repo)
     expected = {
         "dirty": "work_lane_dirty",
         "foreign_lease": "foreign_work_lane_retire_authority_required",

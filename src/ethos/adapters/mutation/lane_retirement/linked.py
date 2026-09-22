@@ -243,10 +243,13 @@ def _continuation(
             "user_decision_required": False,
         }
     parts = ["ethos", "lane", "retire", mode]
+    expected_head = request.expect_head
+    if mode == "landed" and request.branch and not expected_head:
+        expected_head = str(authority.get("head") or "")
     for option, value in (
         ("--branch", request.branch),
         ("--path", request.path if mode == "superseded" else None),
-        ("--expect-head", request.expect_head),
+        ("--expect-head", expected_head),
         ("--absorbed-by", request.absorbed_by if mode == "superseded" else None),
         ("--reason", request.reason if mode == "superseded" else None),
     ):

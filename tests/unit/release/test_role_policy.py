@@ -33,15 +33,6 @@ def test_present_invalid_release_is_not_absent(tmp_path: Path, source: str) -> N
         configuration.release_config(tmp_path)
 
 
-def test_missing_release_adds_no_generic_constraint(tmp_path: Path) -> None:
-    """Minimal adopters do not inherit ETHOS release packaging requirements."""
-    assert configuration.release_config(tmp_path) == {}
-    report = configuration.release_role_policy_report(tmp_path)
-    assert report["verdict"] == "pass"
-    assert report["required_gaps"] == []
-    assert report["protected_refs"] == {}
-
-
 @pytest.mark.parametrize(
     ("branches", "expected"),
     [
@@ -59,17 +50,33 @@ def test_generic_release_role_membership(
     report = configuration.release_role_policy_report(tmp_path)
     assert report["required_gaps"] == expected
     assert report["verdict"] == ("block" if expected else "pass")
+    assert report["protected_refs"]["branches"] == ["main", "dev"]
     assert "version" not in report
 
 
-def test_generic_roles_follow_configured_names(tmp_path: Path) -> None:
-    """Role policy, rather than conventional names, owns protected branches."""
-    _release(tmp_path, '[protected_refs]\nbranches = ["integration", "stable"]\n')
+@pytest.mark.parametrize(
+    "source",
+    [
+        None,
+        "[protected_refs]\ntags = []\n",
+        '[protected_refs]\nbranches = ["integration", "stable"]\n',
+    ],
+)
+def test_generic_roles_follow_configured_names(tmp_path: Path, source: str | None) -> None:
+    """Absent or redundant release carriers never own branch protection or packaging."""
+    (tmp_path / ".ethos").mkdir()
+    if source is not None:
+        _release(tmp_path, source)
     (tmp_path / ".ethos/workspace.toml").write_text(
         '[branch_roles]\nrelease_branch = "stable"\naccepted_branch = "integration"\n',
         encoding="utf-8",
     )
-    assert configuration.release_role_policy_report(tmp_path)["verdict"] == "pass"
+    report = configuration.release_role_policy_report(tmp_path)
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    assert report["protected_refs"] == {"branches": ["stable", "integration"], "tags": []}
+    assert source is not None or configuration.release_config(tmp_path) == {}
+    assert "version" not in report
 
 
 def test_product_report_preserves_generic_invalid_gap(tmp_path: Path) -> None:

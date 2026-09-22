@@ -2250,6 +2250,22 @@ are settled under policy, required artifacts are present and consistent, and the
 selected platform obligations hold. Authorization remains separate. A pipeline
 can observe source quality without minting repository mutation authority.
 
+### Resolved Release Role Projections
+
+`BranchRolePolicy.protected_branches` owns branch membership and ordering.
+The common release report projects those effective roles; the product report
+consumes that projection rather than requiring a duplicate declaration.
+Raw release declarations remain distinguishable from resolved protection.
+Absent optional release configuration adds no packaging obligation. Malformed
+configuration and conflicting copied branches remain nonpassing, including
+when publication reads a trusted prior Git tree. Tags retain their release owner.
+
+Deploy the corrected reader before removing the self-profile's copied branches.
+Existing copied declarations may assert consistency but cannot change roles.
+Retire the self-profile copy after native reader qualification; do not alter
+adopter repositories or mistake this repair for the whole versioned, language-neutral
+quality baseline, evidence/waiver contract or ecosystem conformance.
+
 ### Complete Bounded Inventory
 
 The inventory covers active source, tests, tools, native configurations, official

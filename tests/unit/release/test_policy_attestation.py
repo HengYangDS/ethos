@@ -453,28 +453,14 @@ def test_release_topology_rejects_invalid_declared_paths(
     assert gap in publication_topology(tmp_path, _config(**updates))["required_gaps"]
 
 
-def test_release_policy_uses_configured_branch_roles_for_protected_refs(tmp_path: Path) -> None:
-    release = """[release]
-version_source = "pyproject.toml"
-tag_pattern = "v{version}"
-artifact_glob = "dist/*"
-
-[protected_refs]
-branches = ["release", "integration"]
-tags = ["v*"]
-
-[host_profile]
-provider = "gitlab"
-
-[host_profile.surfaces]
-ci = ".gitlab-ci.yml"
-merge_request_template = ".gitlab/merge_request_templates/default.md"
-issue_template = ".gitlab/issue_templates/task.md"
-
-[attestation]
-formats = ["spdx-2.3-json"]
-signing = "provider-native"
-"""
+@pytest.mark.parametrize("declared", [False, True])
+def test_release_policy_uses_configured_branch_roles_for_protected_refs(
+    tmp_path: Path, *, declared: bool
+) -> None:
+    """Role projection needs neither copied branches nor unrelated release metadata."""
+    release = _PROTECTED_REFS.replace('["main", "dev"]', '["release", "integration"]')
+    if not declared:
+        release = release.replace('branches = ["release", "integration"]\n', "")
     workspace = """[branch_roles]
 release_branch = "release"
 accepted_branch = "integration"
@@ -482,14 +468,7 @@ candidate_branch = "stage/integration"
 work_branch_prefix = "lane/"
 proposal_branch_prefix = "review/"
 """
-    root = _root(
-        tmp_path,
-        release,
-        workspace,
-        ".gitlab-ci.yml",
-        ".gitlab/merge_request_templates/default.md",
-        ".gitlab/issue_templates/task.md",
-    )
+    root = _root(tmp_path, release + "\n" + _HOST_SURFACES, workspace, ".gitlab-ci.yml")
     report = release_policy_report(root)
     assert "protected_branches_policy_missing" not in report["required_gaps"]
     assert report["protected_refs"]["branches"] == ["release", "integration"]

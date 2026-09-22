@@ -43,6 +43,13 @@ assurance, not a historical CI job count or a repository-embedded implementation
 The sole owned work lane is work/20260915-commit-integrity. Exact current source,
 runtime and hosted acceptance come from fresh observations, not this plan.
 
+Continue the language-neutral quality baseline through the existing resolver:
+versioned obligations, irreducible profile deltas and native adapters. First
+unify release protection under the branch-role owner and retire copied declarations.
+Stable rule identities, applicability, evidence contracts, bounded waivers and
+cross-language adopter journeys remain distinct obligations; the branch repair
+alone does not complete that baseline.
+
 The existing [proof-throughput design](../../openspec/changes/proof-throughput/design.md#quality-assurance-architecture-redesign)
 owns the bounded quality repair; its [official tasks](../../openspec/changes/proof-throughput/tasks.md)
 own progress. mise supplies the single native developer/CI tool selection and

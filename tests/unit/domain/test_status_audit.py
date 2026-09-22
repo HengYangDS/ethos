@@ -55,18 +55,20 @@ def _adopter(root: Path, *, registry: bool) -> Path:
 
 @pytest.mark.parametrize("registry", [False, True])
 @pytest.mark.parametrize("shared", [False, True])
-@pytest.mark.parametrize("condition", ["valid", "role", "release", "openspec", "commit"])
+@pytest.mark.parametrize("condition", ["valid", "derived", "role", "release", "openspec", "commit"])
 def test_common_adopter_audit_is_representation_independent(
     tmp_path: Path, monkeypatch, condition: str, *, registry: bool, shared: bool
 ) -> None:
     """Real generic observations never inherit product layout or skip obligations."""
     repo = _adopter(tmp_path / "node", registry=registry)
-    if condition in {"valid", "role", "release"}:
+    if condition in {"valid", "derived", "role", "release"}:
         source = (
             "[invalid"
             if condition == "release"
             else '[protected_refs]\nbranches = ["dev"]\n'
             if condition == "role"
+            else "[protected_refs]\ntags = []\n"
+            if condition == "derived"
             else '[protected_refs]\nbranches = ["dev", "main"]\n'
         )
         (repo / ".ethos/release.toml").write_text(source, encoding="utf-8")
@@ -80,10 +82,13 @@ def test_common_adopter_audit_is_representation_independent(
     if shared:
         monkeypatch.setattr(status, "openspec_shape_report", lambda _: pytest.fail("second read"))
     report = status.audit_for_root(repo, openspec=observation)
-    assert report["verdict"] == ("pass" if condition == "valid" else "block"), report
+    valid = condition in {"valid", "derived"}
+    assert report["verdict"] == ("pass" if valid else "block"), report
     assert "docs" not in report
     assert "schemas" not in report
-    if condition != "valid":
+    if valid:
+        assert report["release_policy"]["protected_refs"]["branches"] == ["main", "dev"]
+    else:
         fragment = {
             "role": "protected_branches_policy_missing",
             "release": "release_config_invalid",
@@ -99,5 +104,6 @@ def test_common_audit_does_not_require_optional_product_capabilities(tmp_path: P
     (repo / ".ethos/profile.toml").write_text('profile_id = "minimal"\n', encoding="utf-8")
     report = status.audit_for_root(repo)
     assert report["verdict"] == "pass", report
-    assert report["release_policy"]["protected_refs"] == {}
+    assert report["release_policy"]["declaration"] == {}
+    assert report["release_policy"]["protected_refs"] == {"branches": ["main", "dev"], "tags": []}
     assert report["openspec"]["state"] == "not_applicable"

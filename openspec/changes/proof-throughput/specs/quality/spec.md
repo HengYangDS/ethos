@@ -1,5 +1,37 @@
 ## ADDED Requirements
 
+### Requirement: Resolved rule identity has one active definition
+
+ETHOS SHALL admit at most one definition and version for each rule id in a
+resolved RuleSet. A repository delta SHALL NOT shadow an active baseline identity.
+Conflicts SHALL reach compilation and plan selection as explicit gaps, without
+selecting a winner or returning a partial executable rule set.
+
+#### Scenario: Duplicate identity is not composition
+
+- **WHEN** active definitions repeat an id, even with identical contents or different versions
+- **THEN** the typed contract rejects the set and the compiler reports the conflicting id
+- **AND** rule selection returns the gap instead of executable selections
+
+#### Scenario: Distinct rules retain shared execution
+
+- **WHEN** distinct applicable rule identities require the same native gate
+- **THEN** both rule meanings remain visible while existing gate deduplication is preserved
+
+### Requirement: Quality applicability preserves carrier and native semantics
+
+ETHOS SHALL resolve applicable quality obligations from accepted carrier facts
+and native tool selection, not extensions alone. Frozen provenance SHALL retain
+integrity obligations; generation SHALL NOT exempt actual build inputs.
+Unknown required discovery SHALL NOT become empty successful coverage.
+
+#### Scenario: Native discovery and explicit selection have different scopes
+
+- **WHEN** native package discovery excludes a frozen source snapshot
+- **THEN** the snapshot retains its provenance obligations rather than live-package checks
+- **AND** explicit native selection is evaluated under its own declared scope
+- **AND** relabeling implementation as evidence cannot silently remove hard obligations
+
 ### Requirement: Release protection projects configured branch roles
 
 ETHOS SHALL derive protected branch membership from the configured branch-role

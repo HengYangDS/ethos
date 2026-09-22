@@ -2266,6 +2266,38 @@ Retire the self-profile copy after native reader qualification; do not alter
 adopter repositories or mistake this repair for the whole versioned, language-neutral
 quality baseline, evidence/waiver contract or ecosystem conformance.
 
+### Versioned Obligations And Native Carrier Boundaries
+
+Extend the existing Rule/Profile/Gate/Attestation owners rather than build a
+second rules platform. The kernel owns semantic invariants and admission;
+versioned capabilities select applicable obligations; repository deltas supply
+irreducible choices. Native tools own execution facts. Independent verification
+remains risk/profile-selected, not an unconditional external broker.
+
+| Boundary | Existing owner and remaining work |
+| --- | --- |
+| Identity | Rule already carries id/version/owner/evidence and hardness metadata. RuleSet must reject duplicate active identities; repository deltas cannot shadow a baseline id. Structural JSON Schema validity is not that semantic check. |
+| Capability composition | The current profile resolver admits generic/python/strict labels. Composable versioned capabilities and native repository-gate mappings still need conformance; do not call the current labels the completed baseline. |
+| Carrier applicability | Gate asset classes and format ownership exist, but extension selection does not prove native build scope. Connect one resolved obligation model to carrier facts and native selection without another classifier authority. |
+| Evidence and waiver | Existing evidence requirements and non-waivable markers are not a complete waiver implementation. Reuse Attestation/authority validity for owner, reason, scope, expiry and evidence; absent or invalid required evidence cannot authorize a waiver. |
+| Repository choices | Python 3.12 support, 95-percent coverage, Nox and uv are self-profile choices. Common obligations concern supported versions, explicit floors, locked supply and reproducible evidence, not those particular values. |
+| Failure and continuation | Keep current facts, native failures, normalized evidence, applicable verification and one admission result in the existing chain. No parallel lifecycle, task ledger or graph authority is introduced. |
+
+The native Go 1.27.1 probe uses an isolated module and offline owned caches.
+Default discovery/build includes live and generated packages but excludes the
+sample snapshot directories. Explicit package/file selection of the snapshot
+produces its type error; introducing a type error in a generated live package
+also fails the default build. These observed scopes are not a universal
+underscore exclusion, a Go scanner to copy, or proof of ETHOS adopter conformance.
+The source of these execution rules is the selected tool's `go help packages`
+and `go help build`, not the source filename.
+
+First close the reproduced active-rule identity ambiguity at RuleSet and its
+compiler consumer. Then use the existing carrier/gate owners for the native
+selection vertical, including provenance integrity, explicit inputs, generated
+implementation, unavailable discovery and unauthorized relabeling. The native
+probe and rule-identity repair do not close the remaining rows of this table.
+
 ### Complete Bounded Inventory
 
 The inventory covers active source, tests, tools, native configurations, official

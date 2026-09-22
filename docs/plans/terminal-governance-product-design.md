@@ -44,11 +44,13 @@ The sole owned work lane is work/20260915-commit-integrity. Exact current source
 runtime and hosted acceptance come from fresh observations, not this plan.
 
 Continue the language-neutral quality baseline through the existing resolver:
-versioned obligations, irreducible profile deltas and native adapters. First
-unify release protection under the branch-role owner and retire copied declarations.
-Stable rule identities, applicability, evidence contracts, bounded waivers and
-cross-language adopter journeys remain distinct obligations; the branch repair
-alone does not complete that baseline.
+versioned obligations, irreducible profile deltas and native adapters. Branch
+protection derives from the branch-role owner without copied declarations.
+Close rule-identity ambiguity before composing carrier/native-discovery
+applicability, evidence contracts and bounded waivers. Preserve provenance
+integrity and generated build inputs; directory names and language suffixes
+alone do not determine obligations. Cross-language adopter journeys must prove
+the same underlying semantics, not identical tools or self-profile thresholds.
 
 The existing [proof-throughput design](../../openspec/changes/proof-throughput/design.md#quality-assurance-architecture-redesign)
 owns the bounded quality repair; its [official tasks](../../openspec/changes/proof-throughput/tasks.md)

@@ -1,11 +1,13 @@
 """Strict portable rule and rule-set contracts."""
 
 import operator
+from collections import Counter
 from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import field_validator
 
 from ethos.contracts.value import FrozenTuple
 
@@ -37,3 +39,14 @@ class RuleSet(_RuleModel):
     id: str = Field(min_length=1)
     profile_layers: FrozenTuple[str]
     rules: FrozenTuple[Rule]
+
+    @field_validator("rules")
+    @classmethod
+    def require_unique_rule_identity(cls, rules: tuple[Rule, ...]) -> tuple[Rule, ...]:
+        """Resolve each active identity to one definition, never an implicit winner."""
+        counts = Counter(rule.id for rule in rules)
+        conflicts = sorted(identity for identity, count in counts.items() if count > 1)
+        if conflicts:
+            message = "rule_identity_conflict:" + ",".join(conflicts)
+            raise ValueError(message)
+        return rules

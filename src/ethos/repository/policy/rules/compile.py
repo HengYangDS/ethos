@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import cast
 
+from pydantic import ValidationError
+
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
 from ethos.repository.policy.gates import resolve_gate_policy
@@ -176,11 +178,17 @@ def compile_rules(root: Path) -> dict[str, object]:
         if gate_id not in gate_definitions_by_id
     ]
     compile_gaps = [*profile_gaps, *rule_gaps, *gate_gaps]
-    rule_set = RuleSet(
-        id="ethos-rules",
-        profile_layers=tuple(profile_stack),
-        rules=tuple(sorted(rules, key=lambda rule: rule.id)),
-    )
+    try:
+        rule_set = RuleSet(
+            id="ethos-rules",
+            profile_layers=tuple(profile_stack),
+            rules=tuple(sorted(rules, key=lambda rule: rule.id)),
+        )
+    except ValidationError as error:
+        compile_gaps.extend(
+            str(detail.get("ctx", {}).get("error", detail["msg"])) for detail in error.errors()
+        )
+        rule_set = RuleSet(id="ethos-rules", profile_layers=tuple(profile_stack), rules=())
     rule_set_payload = rule_set.model_dump(mode="json")
     source_refs = ["product:starter-rules"]
     if rules_path(root).exists():

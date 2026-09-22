@@ -2864,6 +2864,13 @@ the native ACL fixture, as the trust-anchor adapter already does. Exercise actua
 child execution and unchanged parent state; do not replace native ACL tests with
 mock success. An intentionally short timeout belongs only to the timeout case.
 
+Use native pytest `--maxfail=1` for ordinary assertion failures as well as the
+existing no-restart worker-loss boundary. Native `--failed-first` uses disposable
+history only for ordering: every successful attempt still executes the complete
+declared collection. Empty and warm caches must preserve the same verdict and
+workload. Keep native observer root, deadline and environment obligations in the
+real subprocess consumer test rather than an additional full-kwargs mock test.
+
 The GitLab installer timeout is a separate unresolved failure. A controlled probe
 in the exact cached runner image reached the GitHub asset but received HTTP 403
 from the alternative CDN. The committed wrapper executed the verified binary
@@ -2873,7 +2880,6 @@ a full cold install or reproduce the hosted environment; retain that distinction
 
 Primary references: [mise minimum version](https://mise.jdx.dev/configuration.html#minimum-version)
 and [PowerShell module-path construction](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath).
-
 
 ### Accepted provenance and bounded decoding reuse
 

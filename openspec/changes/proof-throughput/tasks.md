@@ -61,7 +61,7 @@
 - [x] 5.2 Route command gates through the process owner and verify native cancellation and failure reporting.
 - [x] 5.3 Distinguish process creation from communication and cleanup failures at the process owner.
 - [x] 5.4 Resolve exited-group cancellation races without suppressing live-group cleanup failures.
-- [x] 5.5 Bound native worker-loss scheduling through the actual gate and compare healthy workload results.
+- [x] 5.5 Bound worker-loss and assertion-failure scheduling through the native gate; verify complete healthy workloads with warm and empty failure-order caches.
 - [ ] 5.6 Close supervisor-loss and Windows descendant recovery with native regressions.
 - [x] 5.7 Remove newly exposed runtime generations after failed verification or caller cancellation.
 - [x] 5.8 Verify retained native downloads across executable failure without weakening activation.

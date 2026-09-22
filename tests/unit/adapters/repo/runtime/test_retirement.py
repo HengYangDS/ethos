@@ -314,24 +314,6 @@ def test_unknown_operational_observation_defers_cleanup(
     assert (candidate / "payload").read_text() == "b" * 64
 
 
-@pytest.mark.parametrize("platform", ["nt", "posix"])
-def test_process_observation_keeps_native_selection_and_a_deadline(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, platform: str
-) -> None:
-    expected = ("/native/observer", platform)
-    calls = []
-    monkeypatch.setattr(retirement, "process_listing_command", lambda **_kwargs: expected)
-
-    def observe(root, command, **kwargs):
-        calls.append((root, command, kwargs))
-        return subprocess.CompletedProcess(command, 0, "consumer\n", "")
-
-    monkeypatch.setattr(retirement, "run_command", observe)
-
-    assert retirement.process_commands(tmp_path, platform_name=platform) == "consumer\n"
-    assert calls == [(tmp_path, expected, {"timeout": 10, "remove_env_prefixes": ("GIT_",)})]
-
-
 def test_retirement_waits_boundedly_for_a_real_native_selector_lock(tmp_path: Path) -> None:
     """Native contention defers deletion and a fresh retry uses the same lock inode."""
     repo, hooks, runtime = _tree(tmp_path)

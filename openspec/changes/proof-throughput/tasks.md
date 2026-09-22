@@ -121,7 +121,7 @@
 - [x] 9.7 Compare exact discovery interfaces and imported work against the committed baseline.
 - [x] 9.8 Qualify and deliver the exact demand-driven capability candidate.
 - [ ] 9.9 Remove dependency cycles, unnecessary conversion round trips and duplicate contracts at their semantic owners; compare mature native substitutes with the same falsifiers, preserve necessary trust boundaries, prove reduced work and retire replaced paths without a parallel registry.
-  - [ ] 9.9.1 Derive common and product release protection from configured branch roles; preserve malformed/conflicting declaration and trusted-prior-policy rejection, qualify the reader, then retire redundant self-profile branch declarations.
+  - [x] 9.9.1 Derive common and product release protection from configured branch roles; preserve malformed/conflicting declaration and trusted-prior-policy rejection, qualify the reader, then retire redundant self-profile branch declarations.
 
 ## 10. Native Quality Rules and Early Failure
 

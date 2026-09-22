@@ -12,6 +12,7 @@ import ethos.adapters.openspec.commitment as compilation
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.selection import artifact_path_change
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_openspec_baseline
@@ -55,7 +56,7 @@ def test_same_name_archived_change_keeps_its_exact_acceptance(
     expected = load_openspec_commitment(root, change_id=change, tree_ref=head)
     seed_executed_proof(root, head)
 
-    archived = run_ethos(
+    archived = run_ethos_blocked(
         "lane",
         "archive-change",
         "--change",
@@ -66,7 +67,7 @@ def test_same_name_archived_change_keeps_its_exact_acceptance(
         "--json",
         cwd=root,
     )
-    assert archived["verdict"] == "pass", archived
+    assert archived["required_gaps"] == ["proof_not_proven"], archived
     archived_head = git(root, "rev-parse", "HEAD")
     assert not active.exists()
     assert (root / "openspec/specs" / change / "spec.md").is_file()

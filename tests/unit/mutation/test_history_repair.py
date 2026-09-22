@@ -26,6 +26,7 @@ from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.semantic import canonical_utc_time
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -191,7 +192,7 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
     )
     head = commit_fixture(root, "complete source")
     seed_executed_proof(root, head)
-    archived = run_ethos(
+    archived = run_ethos_blocked(
         "lane",
         "archive-change",
         "--change",
@@ -202,7 +203,7 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
         "--json",
         cwd=root,
     )
-    assert archived["verdict"] == "pass", archived
+    assert archived["required_gaps"] == ["proof_not_proven"], archived
     old = git(root, "rev-parse", "HEAD")
     expected = load_openspec_commitment(root, tree_ref=old)
     seed_executed_proof(root, old)

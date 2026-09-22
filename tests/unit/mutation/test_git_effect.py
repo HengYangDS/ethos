@@ -298,11 +298,8 @@ def test_stale_lease_recovery_and_detached_matrix(
     )
 
 
-def test_only_exact_effect_authority_is_admitted(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_only_exact_effect_authority_is_admitted(tmp_path: Path) -> None:
     case = fixture(tmp_path)
-    monkeypatch.setattr(runtime, "_admit_git_effect", lambda *_args, **_kwargs: None)
     admit_git_effect(case.repo, plan(case.repo, case.effect))
     reject(
         "git_effect_permission_denied",
@@ -312,6 +309,7 @@ def test_only_exact_effect_authority_is_admitted(
             issuer=ISSUER,
         ),
     )
+    assert git(case.repo, "rev-parse", "refs/heads/dev") == case.old
 
 
 @pytest.mark.parametrize("kind", ["commitment", "facts", "policy", "effect", "prestate"])

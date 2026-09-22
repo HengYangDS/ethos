@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import tomllib
-from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -266,9 +265,9 @@ def _assert_identity_operation_scope(root: Path, payload: dict[str, Any]) -> Non
     plan = TransitionPlan.model_validate(payload)
     commitment = load_openspec_commitment(root, tree_ref=plan.facts["head"])
 
-    def rebuild(value: dict[str, Any]) -> TransitionPlan:
+    def rebuild(value: dict[str, Any], intent=commitment) -> TransitionPlan:
         return compile_git_effect_plan(
-            commitment,
+            intent,
             Facts.model_validate(
                 {**value["facts"], "observed_at": datetime.now(UTC)}, strict=False
             ),
@@ -293,7 +292,7 @@ def _assert_identity_operation_scope(root: Path, payload: dict[str, Any]) -> Non
         "common_device": edge["common_device"] + 1,
         "common_inode": edge["common_inode"] + 1,
     }.items():
-        altered = deepcopy(payload)
+        altered = plan.model_dump(mode="json")
         altered["policy"]["repository_identity_transitions"][0][field] = replacement
         reason = "scope" if field == "target_ref" else "binding"
         with pytest.raises(ValueError, match=f"repository_identity_transition_{reason}_mismatch"):
@@ -316,14 +315,23 @@ def _assert_identity_operation_scope(root: Path, payload: dict[str, Any]) -> Non
             "repository_identity_transition_authority_mismatch",
         ),
         (("prior_attestations", "proof"), None, "Attestation"),
+        (
+            ("policy", "repository_identity_transitions"),
+            [],
+            "repository_identity_transition_invalid",
+        ),
     ):
-        altered = deepcopy(payload)
+        altered = plan.model_dump(mode="json")
         target = altered
         for key in path[:-1]:
             target = target[key]
         target[path[-1]] = replacement
         with pytest.raises(ValueError, match=reason):
             admit_git_effect(root, rebuild(altered))
+    with pytest.raises(ValueError, match="repository_identity_transition_authority_mismatch"):
+        admit_git_effect(
+            root, rebuild(payload, commitment.model_copy(update={"acceptance": ("unaccepted",)}))
+        )
     with pytest.MonkeyPatch.context() as context:
         context.setenv("ETHOS_ACTOR", "agent:test:case:other")
         with pytest.raises(ValueError, match="lease_actor_mismatch"):
@@ -338,26 +346,34 @@ def _assert_identity_operation_scope(root: Path, payload: dict[str, Any]) -> Non
         )
         with pytest.raises(ValueError, match="git_effect_lease_generation_stale"):
             admit_git_effect(root, plan)
-    altered = deepcopy(payload)
     orphan = git(root, "commit-tree", edge["expected_tree"], "-m", "unrelated identity history")
-    altered["effect"]["updates"][edge["target_ref"]]["expected"] = orphan
-    altered["policy"]["effect_digest"] = GitEffect.model_validate(altered["effect"]).digest()
-    altered["facts"]["values"]["refs"][edge["target_ref"]] = orphan
-    altered["policy"]["repository_identity_transitions"][0]["expected_head"] = orphan
-    with pytest.raises(ValueError, match="repository_identity_transition_binding_mismatch"):
-        admit_git_effect(root, rebuild(altered))
+    for previous in (edge["desired_head"], orphan):
+        altered = plan.model_dump(mode="json")
+        altered["effect"]["updates"][edge["target_ref"]]["expected"] = previous
+        altered["policy"]["effect_digest"] = GitEffect.model_validate(altered["effect"]).digest()
+        altered["facts"]["values"]["refs"][edge["target_ref"]] = previous
+        altered["policy"]["repository_identity_transitions"][0]["expected_head"] = previous
+        reason = "binding" if previous == orphan else "scope"
+        with pytest.raises(ValueError, match=f"repository_identity_transition_{reason}_mismatch"):
+            admit_git_effect(root, rebuild(altered))
     foreign = root.parent / "foreign.git"
     git(root, "clone", "--mirror", "--no-hardlinks", root.as_posix(), foreign.as_posix())
     with pytest.raises(ValueError, match="repository_identity_transition_database_mismatch"):
         admit_git_effect(root, plan, environment={"GIT_DIR": foreign.as_posix()})
-    with pytest.raises(ValueError, match="repository_identity_transition_operation_unsupported"):
-        compile_observed_git_effect(
-            root,
-            None,
-            git_effect_from_plan(plan),
-            head=plan.facts["head"],
-            policy={"operation": "lane.retire"},
-            prior_attestations=plan.prior_attestations,
-            identity_transition=True,
-        )
+    with pytest.MonkeyPatch.context() as context:
+        context.delenv("ETHOS_ACTOR")
+        for operation, reason in {
+            "lane.retire": "operation_unsupported",
+            "candidate.integrate": "live_authority_required",
+        }.items():
+            with pytest.raises(ValueError, match=f"repository_identity_transition_{reason}"):
+                compile_observed_git_effect(
+                    root,
+                    None,
+                    git_effect_from_plan(plan),
+                    head=plan.facts["head"],
+                    policy={"operation": operation},
+                    prior_attestations=plan.prior_attestations,
+                    identity_transition=True,
+                )
     assert git(root, "show-ref") == before

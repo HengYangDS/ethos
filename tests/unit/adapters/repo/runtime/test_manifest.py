@@ -233,32 +233,27 @@ def test_runtime_inventory_rejects_non_closed_symlinks(tmp_path: Path, kind: str
         runtime_file_inventory(runtime)
 
 
-def test_runtime_inventory_rejects_a_junction_without_reading_its_target(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("kind", ["junction", "cache", "bytecode", "unreadable"])
+def test_runtime_inventory_rejects_unverifiable_subtrees_without_changing_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str
 ) -> None:
-    runtime = tmp_path / "runtime"
-    junction = runtime / "junction"
-    junction.mkdir(parents=True)
-    sentinel = junction / "sentinel"
-    sentinel.write_text("outside authority\n", encoding="utf-8")
+    subtree = tmp_path / ("__pycache__" if kind == "cache" else "subtree")
+    subtree.mkdir()
+    sentinel = subtree / ("payload.pyc" if kind == "bytecode" else "payload")
+    sentinel.write_bytes(b"retained content")
     monkeypatch.setattr(
         runtime_filesystem,
         "is_junction",
-        lambda path: path == junction,
+        lambda path: kind == "junction" and path == subtree,
     )
+    scandir = os.scandir
 
+    def readable(path):
+        if kind == "unreadable" and Path(path) == subtree:
+            raise PermissionError
+        return scandir(path)
+
+    monkeypatch.setattr(os, "scandir", readable)
     with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
-        runtime_file_inventory(runtime)
-
-    assert sentinel.read_text(encoding="utf-8") == "outside authority\n"
-
-
-def test_runtime_inventory_rejects_bytecode_and_cache_residue(tmp_path: Path) -> None:
-    runtime = tmp_path / "runtime"
-    cache = runtime / "python/lib/python3.14/site-packages/ethos/__pycache__"
-    cache.mkdir(parents=True)
-    (cache / "module.cpython-314.pyc").write_bytes(b"bytecode")
-
-    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
-        runtime_file_inventory(runtime)
+        runtime_file_inventory(tmp_path)
+    assert sentinel.read_bytes() == b"retained content"

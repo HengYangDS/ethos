@@ -19,14 +19,12 @@ MISE_CONFIG = ".config/mise/config.toml"
 MISE_LOCK = ".config/mise/mise.lock"
 
 
-def mise_executable(root: Path) -> Path:
-    """Resolve native mise without installing or changing the operator's tool owner."""
-    installed = shutil.which("mise")
-    candidate = Path(installed) if installed else root / "build/runtime/tool-cache/mise/bin/mise"
-    if not candidate.is_file() or not os.access(candidate, os.X_OK):
+def mise_executable() -> Path:
+    """Resolve only the operator-selected native mise executable."""
+    if not (installed := shutil.which("mise")):
         message = "mise_unavailable:run tools/ci/scripts/bootstrap-python.sh"
         raise ValueError(message)
-    return candidate
+    return Path(installed).resolve()
 
 
 def run_mise(
@@ -34,6 +32,7 @@ def run_mise(
     arguments: tuple[str, ...],
     *,
     files: Mapping[str, str] | None = None,
+    executable: Path | None = None,
     timeout: float = 15,
 ) -> subprocess.CompletedProcess[str]:
     """Run native mise over exact inputs with no project hooks or ambient config."""
@@ -62,7 +61,7 @@ def run_mise(
         }
         return run_command(
             isolated,
-            (str(mise_executable(root)), *arguments),
+            (str(executable or mise_executable()), *arguments),
             timeout=timeout,
             remove_env_prefixes=("MISE_",),
             env=environment,

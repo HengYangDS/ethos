@@ -67,7 +67,7 @@
 - [x] 5.8 Verify retained native downloads across executable failure without weakening activation.
 - [x] 5.9 Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.
 - [x] 5.10 Share owned-output removal, preserve external referents and verify minimal permission effects.
-- [ ] 5.11 Close native bootstrap and tool transport timeouts; retain the failed attempt's output, reuse verified supply across disposable checkouts, and qualify cold and warm hosted consumers without increasing the deadline.
+- [ ] 5.11 Close native bootstrap identity wiring and tool transport timeouts; retain the failed attempt's output, reuse verified supply across disposable checkouts, and qualify cold and warm hosted consumers without increasing the deadline.
 
 ## 6. Native Test Isolation and Shared Preparation
 

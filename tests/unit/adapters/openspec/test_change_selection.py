@@ -78,8 +78,8 @@ def test_same_name_archived_change_keeps_its_exact_acceptance(
     assert typed["exit_code"] != 0
 
     if consumer == "compilation":
-        projection = Mock(wraps=official.run_json)
-        monkeypatch.setattr(official, "run_json", projection)
+        projection = Mock(wraps=official.run_json_batch)
+        monkeypatch.setattr(official, "run_json_batch", projection)
         restored = load_openspec_commitment(
             root, change_id=change, tree_ref=archived_head, expected_digest=expected.digest()
         )
@@ -92,7 +92,7 @@ def test_same_name_archived_change_keeps_its_exact_acceptance(
         git(root, "checkout", head, "--", f"openspec/changes/{change}")
         reopened = commit_fixture(root, "reopen same-name Change")
         assert load_openspec_commitment(root, change_id=change, tree_ref=reopened) == expected
-        assert projection.call_args.args[2][:1] == ("show",)
+        assert projection.call_args.args[2][0][:1] == ("show",)
         return
 
     seed_executed_proof(root, archived_head)
@@ -144,10 +144,10 @@ def test_invalid_successful_change_projection_cannot_fall_back_to_history(
     commit_openspec_baseline(root)
 
     def show(_root, _command, args):
-        assert args == ("show", "contracts", "--type", "change", "--json")
-        return {"exit_code": 0, "parse_error": "", "json": payload}
+        assert args == (("show", "contracts", "--type", "change", "--json"),)
+        return ({"exit_code": 0, "parse_error": "", "json": payload},)
 
-    monkeypatch.setattr(official, "run_json", show)
+    monkeypatch.setattr(official, "run_json_batch", show)
     monkeypatch.setattr(
         compilation,
         "attested_archive_transition",

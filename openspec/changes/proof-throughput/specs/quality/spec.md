@@ -469,6 +469,19 @@ executables on failure, retain native diagnostics, and remove owned scratch.
 - **AND** only a successfully verified executable is published
 - **AND** preparation of locked gate tools completes before gate execution
 
+#### Scenario: Operator-managed mise is newer than the declared minimum
+
+- **WHEN** an existing stable operator executable meets the native minimum version
+- **THEN** preparation reuses it without installing or replacing another executable
+- **AND** staged bootstrap supply still requires its exact declared version
+- **AND** older, prerelease, malformed or warning-bearing observations cannot pass
+
+#### Scenario: Native Windows observation inherits another PowerShell's modules
+
+- **WHEN** ACL or process observation starts native Windows PowerShell through an intermediate process
+- **THEN** its child environment excludes the inherited module search path
+- **AND** the parent environment, native error and timeout boundaries remain intact
+
 #### Scenario: Native preparation fails or is interrupted
 
 - **WHEN** download, archive validation, executable validation or execution times out or fails

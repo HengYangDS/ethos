@@ -172,7 +172,7 @@ def completed_lifecycle(
     *,
     holder: str = HOLDER,
 ) -> OpenSpecLifecycle:
-    """Create one completed lane and admit its exact HEAD for archive proof."""
+    """Bind prearchive proof exactly; isolate postimage quality in lifecycle-only tests."""
     fixture = prepared_work_lane(tmp_path, holder_ref=holder)
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     tasks = fixture.worktree / "openspec/changes/fixture-change/tasks.md"
@@ -183,10 +183,13 @@ def completed_lifecycle(
         completed,
         "complete fixture change",
     )
+
     monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.archive.command.proof_gaps",
+        archive,
+        "proof_gaps",
         lambda _root, candidate, **_kwargs: [] if candidate == head else ["proof_not_proven"],
     )
+    monkeypatch.setattr(archive_effect, "proof_gaps", lambda *_args, **_kwargs: [])
     return OpenSpecLifecycle(*fixture, head)
 
 

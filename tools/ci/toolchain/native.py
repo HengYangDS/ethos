@@ -20,6 +20,7 @@ from urllib.parse import urlsplit
 
 from filelock import FileLock
 from filelock import Timeout
+from packaging.version import Version
 
 from ethos.adapters.process import run_command
 from ethos.adapters.toolchain.mise import MISE_CONFIG
@@ -185,19 +186,24 @@ def prepare_mise(root: Path) -> Path:
     root = root.resolve(strict=True)
     version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
 
-    def verify(executable: Path) -> None:
+    def verify(executable: Path, *, exact: bool = True) -> None:
         observed = run_command(
             root, (str(executable), "--version"), timeout=15, check=True, env={"MISE_SAFE": "1"}
         )
-        if observed.stderr or (
-            not observed.stdout.startswith(f"{version} ") and observed.stdout.strip() != version
-        ):
-            message = f"mise_version_mismatch:{version}"
+        if observed.stderr:
+            message = f"mise_version_observation_failed:{executable}:{observed.stderr.strip()}"
+            raise ValueError(message)
+        actual, required = Version(observed.stdout.strip().partition(" ")[0]), Version(version)
+        if actual.is_prerelease or (actual != required if exact else actual < required):
+            message = (
+                f"mise_version_mismatch:{executable}:"
+                f"required={'==' if exact else '>='}{required}:observed={actual}"
+            )
             raise ValueError(message)
 
     if installed := shutil.which("mise"):
         executable = Path(installed)
-        verify(executable)
+        verify(executable, exact=False)
         return executable
     content = validate_mise_installer(root)
     home = root / "build/runtime/tool-cache/mise/bin"

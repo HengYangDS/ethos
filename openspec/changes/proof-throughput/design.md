@@ -2849,6 +2849,31 @@ the owning operation, separate CPU work from network waits, and derive caller
 deadlines from the complete operation rather than one child timeout. A larger
 timeout alone is not a throughput or recovery repair.
 
+## Native CI Readiness Boundaries
+
+The native mise configuration owns a minimum, not an exact operator installation.
+Reuse compatible stable operator supply; keep the generated bootstrap and its
+staged or retained executable pinned to their exact identity. Use the existing
+Packaging version comparator, not another version parser. Native stderr remains
+an explicit failed observation rather than being silently discarded.
+
+Windows PowerShell reached through an intermediate process must not inherit
+PowerShell 7's module search path. The existing process environment owner already
+supports case-insensitive removal. Apply it to runtime process observation and
+the native ACL fixture, as the trust-anchor adapter already does. Exercise actual
+child execution and unchanged parent state; do not replace native ACL tests with
+mock success. An intentionally short timeout belongs only to the timeout case.
+
+The GitLab installer timeout is a separate unresolved failure. A controlled probe
+in the exact cached runner image reached the GitHub asset but received HTTP 403
+from the alternative CDN. The committed wrapper executed the verified binary
+successfully under all three tested filenames. Neither a filename change nor
+switching endpoints is therefore a supported repair. These probes do not qualify
+a full cold install or reproduce the hosted environment; retain that distinction.
+
+Primary references: [mise minimum version](https://mise.jdx.dev/configuration.html#minimum-version)
+and [PowerShell module-path construction](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath).
+
 
 ### Accepted provenance and bounded decoding reuse
 

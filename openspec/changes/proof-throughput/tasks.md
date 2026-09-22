@@ -67,7 +67,7 @@
 - [x] 5.8 Verify retained native downloads across executable failure without weakening activation.
 - [x] 5.9 Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.
 - [x] 5.10 Share owned-output removal, preserve external referents and verify minimal permission effects.
-- [ ] 5.11 Resolve or explicitly retain the native bootstrap timeout with distinguishing evidence.
+- [ ] 5.11 Resolve the observed GitLab native bootstrap timeout; retain failure output and qualify cold and warm hosted consumers without increasing the deadline.
 
 ## 6. Native Test Isolation and Shared Preparation
 
@@ -93,6 +93,8 @@
 - [ ] 7.9 Qualify the rootless dual-provider successor through exact proof, installed runtime and hosted observation.
 - [x] 7.10 Compile shared CI declarations through native CUE and remove independent template authority; exact local proof and installed parity passed.
 - [ ] 7.11 Qualify both CUE-generated Forge projections through current hosted runs.
+  - [ ] 7.11.1 Qualify compatible operator mise supply and native PowerShell environment isolation through exact source and runtime delivery.
+  - [ ] 7.11.2 Observe the corrected hosted matrix; keep the bootstrap transport failure in 5.11 distinct from version admission and ACL conformance.
 - [ ] 7.12 Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 
 ## 8. Trusted Verification and Result Admission

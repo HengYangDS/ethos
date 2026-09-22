@@ -67,7 +67,9 @@ def _digest(value: str) -> bool:
 def process_commands(root: Path, *, platform_name: str | None = None) -> str:
     """Observe native running commands within a bounded, fail-closed boundary."""
     command = process_listing_command(platform_name=platform_name)
-    completed = run_command(root, command, timeout=10, remove_env_prefixes=("GIT_",))
+    completed = run_command(
+        root, command, timeout=10, remove_env=("PSModulePath",), remove_env_prefixes=("GIT_",)
+    )
     if completed.returncode or completed.stderr:
         _fail("hook_runtime_consumers_unknown")
     return completed.stdout

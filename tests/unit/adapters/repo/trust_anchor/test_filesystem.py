@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
@@ -24,9 +23,10 @@ if TYPE_CHECKING:
 def _fake_powershell(tmp_path: Path, payload: dict[str, object]) -> Path:
     executable = tmp_path / "System32/WindowsPowerShell/v1.0/powershell.exe"
     executable.parent.mkdir(parents=True)
-    executable.write_text(
-        f"#!/bin/sh\nprintf '%s\\n' '{json.dumps(payload, separators=(',', ':'))}'\n",
-        encoding="utf-8",
+    executable.write_bytes(
+        f"#!/bin/sh\nprintf '%s\\n' '{json.dumps(payload, separators=(',', ':'))}'\n".encode(
+            "ascii"
+        )
     )
     executable.chmod(0o755)
     return executable
@@ -102,32 +102,29 @@ def test_windows_observation_failure_is_not_an_unprotected_acl(tmp_path, monkeyp
 def test_windows_protection_preserves_native_result_and_environment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_exit: int | None
 ) -> None:
-    _fake_powershell(tmp_path, {})
+    executable = _fake_powershell(tmp_path, {})
+    body = {
+        0: "exit 0",
+        5: "echo 'Set-Acl: Access is denied.' >&2; exit 5",
+        None: "exec /bin/sleep 1",
+    }[native_exit]
+    executable.write_text('#!/bin/sh\n[ -z "${PSMODULEPATH+x}" ] || exit 91\n' + body + "\n")
     monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
-    target = tmp_path / "trust"
-    target.mkdir()
-    observed: dict[str, object] = {}
-
-    def capture_run_command(*_args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        observed.update(kwargs)
-        if native_exit is None:
-            raise subprocess.TimeoutExpired(("powershell.exe",), 30)
-        return subprocess.CompletedProcess(
-            ("powershell.exe",),
-            native_exit,
-            "",
-            "Set-Acl: Access is denied.\n" if native_exit else "",
+    monkeypatch.setenv("PSMODULEPATH", "foreign-powershell-modules")
+    if native_exit is None:
+        monkeypatch.setattr(
+            trust_anchor_filesystem,
+            "run_command",
+            lambda *args, **kwargs: run_command(*args, **(kwargs | {"timeout": 0.2})),
         )
-
-    monkeypatch.setattr(trust_anchor_filesystem, "run_command", capture_run_command)
     reason = "timeout" if native_exit is None else "exit_code=5:stderr=Set-Acl: Access is denied\\."
     with (
         pytest.raises(OSError, match=f"git_object_trust_anchor_protection_failed:{reason}")
         if native_exit != 0
         else nullcontext()
     ):
-        protect_for_current_identity(target, platform_name="nt")
-    assert observed["remove_env"] == ("PSModulePath",)
+        protect_for_current_identity(_anchor(tmp_path), platform_name="nt")
+    assert os.environ["PSMODULEPATH"] == "foreign-powershell-modules"
 
 
 def test_posix_protection_preserves_directory_traversal(tmp_path: Path) -> None:
@@ -172,7 +169,8 @@ def test_windows_native_acl_protection_rejects_foreign_writer(
             ),
         ),
         check=True,
-        env={**os.environ, "ETHOS_TRUST_ANCHOR_PATH": str(anchor)},
+        env={"ETHOS_TRUST_ANCHOR_PATH": str(anchor)},
+        remove_env=("PSModulePath",),
     )
 
     assert not protected_from_untrusted_write(anchor)

@@ -164,7 +164,7 @@
     "skills": {
       "path": "docs/governance/skills.md",
       "authority": "current skill projection boundary",
-      "sha256": "281cfa31913274c0b80e042fd5269c7a68e71a1ebe7ecb87657d59bdde7cf592"
+      "sha256": "0803b9b8cbe1d0c49268f400f9407a7eb6a7d6d40b0d6fb375020fa21eb8d77c"
     },
     "independent_verification": {
       "path": "docs/governance/independent-verification-adoption.md",
@@ -335,7 +335,7 @@
         "product_contract",
         "skills"
       ],
-      "semantics": "Replaceable domain capabilities make the full research-to-outcome path usable. One portfolio owner validates original activation, packages, routing, composition and retirement before projection. Skills never own acceptance, authority, progress or lifecycle state. Installed, version-matched guidance discovers current target context without requiring the ETHOS checkout or duplicating lifecycle decisions."
+      "semantics": "Replaceable domain capabilities make the full research-to-outcome path usable. One portfolio owner validates original activation, packages, routing, composition and retirement before projection. Skills never own acceptance, authority, progress or lifecycle state. Installed, version-matched guidance discovers current target context without requiring the ETHOS checkout or duplicating lifecycle decisions. Package integrity and routing do not prove host loading, correct agent behavior or improved outcomes; these require distinct observations."
     },
     "owner_native_tools": {
       "kind": "capability",
@@ -1580,9 +1580,10 @@
       "maturity": "terminal",
       "required_visible": true,
       "evidence": [
-        "product_contract"
+        "product_contract",
+        "skills"
       ],
-      "semantics": "Actual-use observations and retained experimental knowledge challenge goals, intent, implementation or assumptions and propose fresh intent; they do not grant authority or silently rewrite acceptance."
+      "semantics": "Actual-use observations and retained experimental knowledge challenge goals, intent, implementation or assumptions and propose fresh intent; they do not grant authority or silently rewrite acceptance. Closure requires demonstrated owner-level improvement or currently evidenced prior satisfaction, supersession or rejection; notes, checkboxes and structural package validation do not establish improvement."
     },
     "adoption_exit": {
       "kind": "recovery",

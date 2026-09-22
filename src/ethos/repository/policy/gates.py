@@ -277,10 +277,8 @@ def gate_execution_identity(gate: Gate) -> tuple[str, ...]:
 
 
 def gate_policy_fields(gate: Gate, sources: tuple[tuple[str, str], ...] = ()) -> dict[str, object]:
-    payload = gate.model_dump(
-        mode="json",
-        exclude={"command", "providers"},
-    )
+    payload = gate.to_dict()
+    payload.pop("command" if gate.command else "providers")
     payload["execution_identity"] = list(gate_execution_identity(gate))
     payload["sources"] = [{"path": path, "sha256": digest} for path, digest in sources]
     return payload

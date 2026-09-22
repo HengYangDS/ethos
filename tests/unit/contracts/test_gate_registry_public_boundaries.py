@@ -12,13 +12,14 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
+from ethos.repository.policy.gates import gate_policy_fields
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _gate(gate_id: str, *, depends_on: tuple[str, ...] = ()) -> Gate:
-    return Gate(id=gate_id, kind="test", command=(gate_id,), depends_on=depends_on)
+def _gate(gate_id: str, **attributes: object) -> Gate:
+    return Gate(id=gate_id, kind="test", command=(gate_id,), **attributes)
 
 
 def _declaration(
@@ -60,6 +61,36 @@ def test_gate_registry_canonical_projection_and_proof_closure() -> None:
 def test_gate_executor_malformed_shapes_fail_closed(gate: Gate) -> None:
     with pytest.raises(ValidationError, match="gate executor invalid"):
         Gate.model_validate(gate.model_dump())
+
+
+@pytest.mark.parametrize(
+    ("locks", "writer", "valid"),
+    [
+        ({"source": "shared"}, False, True),
+        ({"source": "exclusive"}, True, True),
+        ({"*": "exclusive"}, True, True),
+        ({}, False, True),
+        ({}, True, False),
+        ({"source": "shared"}, True, False),
+        ({"source": "invalid"}, False, False),
+        ({"source/../other": "exclusive"}, True, False),
+        ({"/source": "exclusive"}, True, False),
+    ],
+)
+def test_resource_claims_are_validated_frozen_and_symmetric(locks, writer, valid):
+    values = {"writes_files": writer, "resource_locks": locks}
+    if not valid:
+        with pytest.raises(ValidationError):
+            _gate("resource", **values)
+        return
+    gate = _gate("resource", **values)
+    reader = _gate("reader", resource_locks={"source/child": "shared"})
+    assert gate.conflicts_with(reader) == reader.conflicts_with(gate) == writer
+    assert gate_policy_fields(gate)["resource_locks"] == locks
+    locks["changed"] = "shared"
+    assert "changed" not in gate.resource_locks
+    with pytest.raises(TypeError):
+        gate.resource_locks["changed"] = "shared"
 
 
 @pytest.mark.parametrize(

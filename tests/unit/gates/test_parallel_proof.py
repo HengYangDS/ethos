@@ -49,7 +49,7 @@ def _proof_plan(repo, nodes, policy=None):
     )
 
 
-def _graph(dependencies, *, writer="", **attributes):
+def _graph(dependencies, *, writer="", resource_locks=None, **attributes):
     """Compile each test's explicit topology into consistent node and gate declarations."""
     nodes = tuple(
         PlanNode(id=name, kind="check", command=(name,), depends_on=parents)
@@ -61,52 +61,11 @@ def _graph(dependencies, *, writer="", **attributes):
             kind="test",
             command=node.command,
             writes_files=node.id == writer,
+            resource_locks=(resource_locks or {}).get(node.id),
             **attributes,
         )
         for node in nodes
     }
-
-
-@pytest.mark.parametrize("parallel", [False, True])
-@pytest.mark.parametrize("capacity", [1, 2, 4])
-@pytest.mark.parametrize("writer_ready", [False, True])
-def test_graph_capacity_writer_exclusion_and_result_order(
-    tmp_path, parallel, capacity, writer_ready
-):
-    """Observed overlap, not a proposed wave, determines scheduling safety."""
-    lock = threading.Lock()
-    active = set()
-    counts = []
-    executed = []
-    nodes, gates = _graph(
-        {"a": (), "b": (), "write": () if writer_ready else ("a",), "c": ("write",), "d": ("b",)},
-        writer="write",
-    )
-
-    class Runner(gate_runner.LocalGateRunner):
-        def run(self, node, gate, *, root):
-            assert gate.id == node.id
-            assert root == tmp_path
-            with lock:
-                assert "write" not in active
-                assert node.id != "write" or not active
-                active.add(node.id)
-                counts.append(len(active))
-                executed.append(node.id)
-            with lock:
-                active.remove(node.id)
-            return ActionRunResult(node.id, node.command, "pass", 0)
-
-    results = gate_runner.run_gate_graph(
-        Runner(), nodes, gates, root=tmp_path, capacity=capacity, parallel=parallel
-    )
-    assert max(counts) <= (capacity if parallel else 1)
-    assert sorted(executed) == sorted(gates)
-    assert executed[0] == "write" if writer_ready else executed.index("a") < executed.index("write")
-    assert executed.index("write") < executed.index("c")
-    assert executed.index("b") < executed.index("d")
-    assert [result.action_id for result in results] == [node.id for node in nodes]
-    assert all(result.verdict == "pass" for result in results)
 
 
 @pytest.mark.parametrize("mode", ["parallel", "interrupted", "dry-run"])
@@ -123,8 +82,7 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
     barrier = threading.Barrier(2)
 
     class Runner:
-        def run(self, node, _gate, *, root: Path):
-            root.resolve(strict=True)
+        def run(self, node, _gate, **_context):
             if mode == "parallel":
                 barrier.wait(timeout=2)
             if mode == "interrupted" and node.id == "b":
@@ -182,29 +140,40 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
         assert check["duration_seconds"] >= 0
 
 
-def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> None:
+@pytest.mark.parametrize("writer", [False, True])
+@pytest.mark.parametrize(
+    ("parallel", "capacity"), [(False, 1), (False, 4), (True, 1), (True, 2), (True, 4)]
+)
+def test_ready_child_does_not_wait_for_unrelated_slow_reader(
+    tmp_path: Path, writer, parallel, capacity
+) -> None:
     """An independent slow reader must not create a global wave barrier."""
     started = threading.Barrier(2)
     child_started = threading.Event()
-    observations = []
-    nodes, gates = _graph({"fast": (), "slow": (), "child": ("fast",)})
+    concurrent = parallel and capacity > 1
+    nodes, gates = _graph(
+        {"fast": (), "slow": (), "child": ("fast",)},
+        writer="child" if writer else "",
+        resource_locks={
+            name: {"source": "shared"}
+            | ({"output": "exclusive"} if writer and name == "child" else {})
+            for name in ("fast", "slow", "child")
+        },
+    )
 
     class Runner(gate_runner.LocalGateRunner):
-        def run(self, node, gate, *, root):
-            assert gate.id == node.id
-            assert root == tmp_path
-            if node.id in {"fast", "slow"}:
+        def run(self, node, _gate, **_context):
+            if concurrent and node.id in {"fast", "slow"}:
                 started.wait(timeout=2)
-            if node.id == "slow":
-                observations.append(child_started.wait(timeout=1))
+            if concurrent and node.id == "slow":
+                assert child_started.wait(timeout=1)
             if node.id == "child":
                 child_started.set()
             return ActionRunResult(node.id, node.command, "pass", 0)
 
     results = gate_runner.run_gate_graph(
-        Runner(), nodes, gates, root=tmp_path, capacity=2, parallel=True
+        Runner(), nodes, gates, root=tmp_path, capacity=capacity, parallel=parallel
     )
-    assert observations == [True]
     assert [result.action_id for result in results] == [node.id for node in nodes]
 
 
@@ -274,40 +243,34 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     assert registry["generated-artifacts"].depends_on == (postexecution_dependency,)
 
 
-def test_ready_writer_waits_for_running_reader_and_precedes_queued_reader(tmp_path, monkeypatch):
+@pytest.mark.parametrize("domain", [None, "source/child", "source"])
+def test_conflicting_writer_waits_without_blocking_compatible_readers(tmp_path, domain):
     """Writer exclusion is tested while a reader is provably still active."""
     started = threading.Barrier(2)
     release = threading.Event()
     order = []
     nodes, gates = _graph(
-        {"fast": (), "slow": (), "writer": ("fast",), "queued": ("fast",)}, writer="writer"
+        {"fast": (), "slow": (), "writer": ("fast",), "queued": ("fast",)},
+        writer="writer",
+        resource_locks=(
+            {"writer": {domain: "exclusive"}}
+            | {name: {"source/child": "shared"} for name in ("fast", "slow", "queued")}
+            if domain
+            else None
+        ),
     )
 
     class Runner(gate_runner.LocalGateRunner):
-        def run(self, node, gate, *, root):
-            assert root == tmp_path
-            assert gate.id == node.id
+        def run(self, node, _gate, **_context):
             if node.id in {"fast", "slow"}:
                 started.wait(timeout=2)
             if node.id == "slow":
                 assert release.wait(timeout=2)
             order.append(node.id)
+            if node.id == "queued":
+                release.set()
             return ActionRunResult(node.id, node.command, "pass", 0)
 
-    wait = gate_runner.wait
-
-    def observe_drain(futures, **kwargs):
-        if len(futures) == 1:
-            release.set()
-        return wait(futures, **kwargs)
-
-    monkeypatch.setattr(gate_runner, "wait", observe_drain)
-    try:
-        result = gate_runner.run_gate_graph(
-            Runner(), nodes, gates, root=tmp_path, capacity=2, parallel=True
-        )
-    finally:
-        release.set()
+    gate_runner.run_gate_graph(Runner(), nodes, gates, root=tmp_path, capacity=2, parallel=True)
     assert order.index("slow") < order.index("writer")
-    assert order.index("writer") < order.index("queued")
-    assert len(result) == len(nodes)
+    assert order.index("queued") < order.index("writer")

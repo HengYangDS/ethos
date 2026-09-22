@@ -1,8 +1,10 @@
 """Typed declaration contract for ETHOS gate registries."""
 
+import re
 import tomllib
 from importlib import resources
 from pathlib import Path
+from typing import Literal
 from typing import Self
 
 from pydantic import BaseModel
@@ -12,6 +14,7 @@ from pydantic import model_validator
 
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.value import FrozenMapping
 from ethos.contracts.value import FrozenTuple
 
 DECLARATION_PATH = Path("system/gates.toml")
@@ -23,6 +26,8 @@ _UNAVAILABLE_GATE_DEPENDENCY = "unavailable gate dependency"
 _FULL_MISSING_DEFAULT = "full proof set missing default"
 _UNKNOWN_PROOF_GATE = "unknown proof gate"
 _DUPLICATE_PROOF_GATE = "duplicate proof gate"
+_GATE_RESOURCES_INVALID = "gate resources invalid"
+_RESOURCE_NAME = re.compile(r"^(?:\*|[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$")
 
 
 def bind_gate_command(command: tuple[str, ...], python_executable: str) -> tuple[str, ...]:
@@ -50,6 +55,10 @@ class Gate(BaseModel):
     trust_bearing: bool = False
     tool_adapter: str = "ethos"
     writes_files: bool = False
+    resource_locks: FrozenMapping[Literal["shared", "exclusive"]] | None = Field(
+        default=None,
+        json_schema_extra={"propertyNames": {"pattern": _RESOURCE_NAME.pattern}},
+    )
     network_policy: str = "offline"
     version_source: str = "product"
 
@@ -65,13 +74,42 @@ class Gate(BaseModel):
             for reference in self.providers
         ):
             raise ValueError(_GATE_EXECUTOR_INVALID)
+        if self.resource_locks is not None and (
+            any(_RESOURCE_NAME.fullmatch(name) is None for name in self.resource_locks)
+            or (self.writes_files and "exclusive" not in self.resource_locks.values())
+        ):
+            raise ValueError(_GATE_RESOURCES_INVALID)
         return self
+
+    def conflicts_with(self, other: Self) -> bool:
+        """Compare complete exclusion domains; unknown writers retain global exclusion."""
+        left, right = (
+            gate.resource_locks
+            if gate.resource_locks is not None
+            else {"*": "exclusive" if gate.writes_files else "shared"}
+            for gate in (self, other)
+        )
+        if left.get("*") == "exclusive" or right.get("*") == "exclusive":
+            return True
+        return any(
+            "exclusive" in (first_mode, second_mode)
+            and (
+                first == "*"
+                or second == "*"
+                or first == second
+                or first.startswith(second + "/")
+                or second.startswith(first + "/")
+            )
+            for first, first_mode in left.items()
+            for second, second_mode in right.items()
+        )
 
     def to_dict(self) -> dict[str, object]:
         """Project the descriptor to the stable public quality-gate shape."""
         payload = self.model_dump(
             mode="json",
             exclude={"command", "providers"},
+            exclude_none=True,
         )
         payload["command" if self.command else "providers"] = list(self.command or self.providers)
         return payload

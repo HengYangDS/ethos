@@ -53,6 +53,41 @@ line and branch coverage and every existing behavioral acceptance obligation.
 - **AND** valid inventories preserve exact content and permission identities across traversal order
 - **AND** later observations detect changed bytes without cached readiness
 
+### Requirement: Resource coordination preserves complete proof
+
+Gate execution SHALL compose dependencies with declared shared and exclusive
+resource-domain claims. Unknown access SHALL retain conservative coordination.
+Resource claims SHALL NOT grant mutation authority or assert filesystem sandboxing.
+
+#### Scenario: Independent required checks overlap
+
+- **WHEN** selected source readiness passes and ready gates have compatible resource claims
+- **THEN** the shared executor may run them concurrently within its capacity
+- **AND** exact artifact consumers still wait for their producer
+- **AND** results remain in canonical plan order without duplicate execution
+
+#### Scenario: A writer conflicts with an active consumer
+
+- **WHEN** exclusive access overlaps an active resource or its ancestor domain
+- **THEN** those gates do not overlap
+- **AND** an unspecified writer retains global exclusion
+- **AND** a waiting writer does not prevent other compatible ready work from progressing
+
+#### Scenario: Construction does not establish quality acceptance
+
+- **WHEN** a package check succeeds but a required test or coverage check fails
+- **THEN** complete proof remains blocked
+- **AND** construction need not wait for unrelated test output it does not consume
+- **AND** every selected source preflight and final proof obligation remains required
+
+#### Scenario: Native resource claims require bounded qualification
+
+- **WHEN** a gate declares complete resource coordination domains
+- **THEN** its native owner accounts for source, outputs, scratch and shared supply
+- **AND** the declaration is bound into proof policy and checked with overlap and conflict cases
+- **AND** the real combined workload verifies artifact identities, source stability and cleanup
+- **AND** invocation-local coordination does not replace native cross-process locks or fresh effect admission
+
 ### Requirement: Test failure bounds pending verification work
 
 Parallel verification SHALL bound per-worker queued work independently of suite

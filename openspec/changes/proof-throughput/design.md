@@ -42,6 +42,34 @@ only measured throughput improvements and their correctness boundaries.
    artifacts without timing remain readable; negative, non-finite and nonnumeric
    durations are invalid. Timing is diagnostic and never admission authority.
 
+## Resource-Aware Execution
+
+The shared Gate contract carries optional `resource_locks`: complete named
+exclusion domains with shared or exclusive access. Hierarchical overlap conflicts
+when either side is exclusive; `*` denotes global access. Omission retains the
+existing conservative reader/writer behavior. These are cooperative execution
+contracts, not filesystem permissions, an OS sandbox or proof of physical
+independence. They apply within one execution; native supply locks, Git CAS and
+effect-time admission keep their own boundaries.
+
+The initial declarations cover tests, wheel construction, installed
+acceptance and the wheel SBOM. They share immutable source and coordinated supply.
+Tests own test evidence, coverage and disposable fixtures; construction owns wheel
+publication and its staging; installation owns its disposable adopter, native
+archive and evidence; SBOM generation owns release evidence. Wheel consumers wait
+for construction. Existing native supply owners retain their internal locking.
+Changing an adapter's footprint requires revisiting these source-bound claims;
+domain spelling alone never establishes independence.
+
+The existing selected-preflight compiler still places all source readiness before
+behavior and construction. Coverage remains dependent on tests, but package
+construction no longer waits for test output it does not consume. Complete proof
+still conjunctively requires every selected quality result. Ready compatible work
+may pass a blocked writer; the finite DAG and canonical result ordering remain.
+Barrier-based tests observe real overlap and exclusion rather than rely on an
+immediate fake runner's counter. Full native execution must verify unchanged
+source, artifact identities, retained failure semantics and owned cleanup.
+
 ## Measured Baseline And Priority
 
 ### Active Acceptance Target

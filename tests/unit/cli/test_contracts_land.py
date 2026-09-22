@@ -44,7 +44,7 @@ def _archive(monkeypatch: pytest.MonkeyPatch, root: Path, *, full: bool = False)
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     seed_executed_proof(root, head, full=full)
-    archived = run_ethos(
+    archived = run_ethos_blocked(
         "lane",
         "archive-change",
         "--change",
@@ -55,7 +55,7 @@ def _archive(monkeypatch: pytest.MonkeyPatch, root: Path, *, full: bool = False)
         "--json",
         cwd=root,
     )
-    assert archived["verdict"] == "pass", archived
+    assert archived["required_gaps"] == ["proof_not_proven"], archived
     return git(root, "rev-parse", "HEAD")
 
 

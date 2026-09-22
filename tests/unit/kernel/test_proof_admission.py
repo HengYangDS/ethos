@@ -23,7 +23,7 @@ from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.value import frozen_tuple
 from ethos.contracts.value import mutable_json
-from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import prepared_work_lane
@@ -124,8 +124,7 @@ def test_repository_proof_cannot_replace_lane_generation_proof(tmp_path, monkeyp
     persist_proof_attestation(fixture.worktree, authoring)
     assert proof_gaps(fixture.worktree, head) == []
     assert authoring.facts_digest != record.facts_digest
-    selected = min((record, authoring), key=lambda item: item.id)
-    assert repository_query() == (selected, [])
+    assert repository_query() == (min((record, authoring), key=lambda item: item.id), [])
     assert repository_query(attestation_id=record.id) == (record, [])
     missing = None, ["proof_attestation_selection_missing"]
     assert repository_query(attestation_id="0" * 64) == missing
@@ -161,7 +160,7 @@ def _archive_bound_work_proof(
         "complete source work",
     )
     persist_proof_attestation(fixture.worktree, _issue(fixture.worktree, head))
-    run_ethos(
+    archived = run_ethos_blocked(
         "lane",
         "archive-change",
         "--change",
@@ -172,6 +171,7 @@ def _archive_bound_work_proof(
         "--json",
         cwd=fixture.worktree,
     )
+    assert archived["required_gaps"] == ["proof_not_proven"], archived
     head = git(fixture.worktree, "rev-parse", "HEAD")
     source = current_proof_plan(fixture.worktree, expected_head=head)
     plan = (

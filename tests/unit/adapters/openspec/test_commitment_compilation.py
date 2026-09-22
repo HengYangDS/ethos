@@ -7,6 +7,7 @@ import shutil
 from contextlib import nullcontext
 from functools import partial
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 from pydantic import ValidationError
@@ -50,7 +51,13 @@ def compilation_root(tmp_path, monkeypatch):
     root = init_git_repo(tmp_path / "repo")
     monkeypatch.setattr(compilation, "openspec_profile_enabled", lambda *_a, **_k: True)
     monkeypatch.setattr(compilation, "_openspec_projection", lambda *_a: nullcontext(root))
-    monkeypatch.setattr(compilation.openspec_cli, "openspec_base_command", lambda: ("openspec",))
+
+    def batch(projection, command, commands):
+        return tuple(
+            compilation.openspec_cli.run_json(projection, command, args) for args in commands
+        )
+
+    monkeypatch.setattr(compilation.openspec_cli, "run_json_batch", batch)
     return root
 
 
@@ -257,12 +264,13 @@ def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_comp
 
     monkeypatch.setattr(compilation, "openspec_profile_enabled", lambda *_a, **_k: True)
     calls: list[tuple[str, ...]] = []
-    run_json = compilation.openspec_cli.run_json
-    monkeypatch.setattr(
-        compilation.openspec_cli,
-        "run_json",
-        lambda root, command, args: (calls.append(args), run_json(root, command, args))[1],
-    )
+    run_batch = compilation.openspec_cli.run_json_batch
+
+    def observe(root, command, commands):
+        calls.extend(commands)
+        return run_batch(root, command, commands)
+
+    monkeypatch.setattr(compilation.openspec_cli, "run_json_batch", observe)
 
     planned = compilation.load_openspec_commitment(tmp_path)
 
@@ -287,6 +295,7 @@ def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_comp
     progressed = compilation.load_openspec_commitment(tmp_path)
 
     assert progressed == planned
+    assert calls
     assert all(args[:2] != ("instructions", "apply") for args in calls)
     head = commit_fixture(tmp_path, "declare spec-free acceptance")
     assert (
@@ -301,26 +310,23 @@ def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_comp
 
 
 @pytest.mark.parametrize(
-    ("profile_state", "command", "changes", "change_id", "error"),
+    ("profile_state", "changes", "change_id", "error"),
     [
-        ("disabled", ("openspec",), (), None, "openspec_profile_not_enabled"),
-        ("enabled", None, (), None, "openspec_official_cli_missing"),
-        ("enabled", ("openspec",), (), None, "openspec_active_change_missing"),
+        ("disabled", (), None, "openspec_profile_not_enabled"),
+        ("enabled", (), None, "openspec_active_change_missing"),
         (
             "enabled",
-            ("openspec",),
             ("one", "two"),
             None,
             "openspec_active_change_ambiguous:one,two",
         ),
-        ("enabled", ("openspec",), (), "archive/bad", "openspec_change_required"),
+        ("enabled", (), "archive/bad", "openspec_change_required"),
     ],
 )
 def test_load_commitment_rejects_missing_or_ambiguous_authority(
     compilation_root: Path,
     monkeypatch: pytest.MonkeyPatch,
     profile_state: str,
-    command: tuple[str, ...] | None,
     changes: tuple[str, ...],
     change_id: str | None,
     error: str,
@@ -331,7 +337,6 @@ def test_load_commitment_rejects_missing_or_ambiguous_authority(
         "openspec_profile_enabled",
         lambda *_a, **_k: profile_state == "enabled",
     )
-    monkeypatch.setattr(compilation.openspec_cli, "openspec_base_command", lambda: command)
     monkeypatch.setattr(
         compilation.openspec_cli,
         "run_json",
@@ -341,32 +346,33 @@ def test_load_commitment_rejects_missing_or_ambiguous_authority(
             "json": {"changes": [{"name": name, "status": "in-progress"} for name in changes]},
         },
     )
-    monkeypatch.setattr(compilation, "_archived_commitment", lambda *_a, **_k: None)
 
     with pytest.raises(ValueError, match=error):
         compilation.load_openspec_commitment(compilation_root, change_id=change_id)
 
 
-def test_load_commitment_uses_exact_attested_archive_when_official_show_is_absent(
-    compilation_root: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("command", "tree_ref"),
+    [(("openspec",), "a" * 40), (("openspec",), "HEAD"), (None, "HEAD")],
+)
+def test_load_commitment_preserves_archive_fallback_and_tool_requirement(
+    compilation_root: Path, monkeypatch: pytest.MonkeyPatch, command, tree_ref
 ) -> None:
     archived = commitment_fixture(id="change:archived")
-
-    monkeypatch.setattr(
-        compilation.openspec_cli,
-        "run_json",
-        lambda *_a, **_k: {"exit_code": 1, "parse_error": "", "json": {}},
-    )
+    show = Mock(return_value={"exit_code": 1, "parse_error": "", "json": {}})
+    monkeypatch.setattr(compilation.openspec_cli, "run_json", show)
+    monkeypatch.setattr(compilation.openspec_cli, "openspec_base_command", lambda: command)
     monkeypatch.setattr(
         compilation,
         "attested_archive_transition",
         lambda *_a, **_k: (archived, {"attestation_id": "archive"}),
     )
 
-    loaded = compilation.load_openspec_commitment(
-        compilation_root,
-        change_id="archived",
-        tree_ref="a" * 40,
-    )
-
-    assert loaded == archived
+    with nullcontext() if command else pytest.raises(ValueError, match="official_cli_missing"):
+        loaded = compilation.load_openspec_commitment(
+            compilation_root,
+            change_id="archived",
+            tree_ref=tree_ref,
+        )
+        assert loaded == archived
+    assert show.call_count == (tree_ref != "HEAD")

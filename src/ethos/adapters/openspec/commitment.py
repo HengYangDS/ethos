@@ -287,24 +287,25 @@ def load_openspec_commitment(
         msg = "openspec_profile_not_enabled"
         raise ValueError(msg)
     change_id = requested_change(change_id)
-    command = official_command or openspec_cli.openspec_base_command()
-    if command is None:
+    command = official_command
+    archived = _archived_commitment(
+        repo,
+        tree_ref=tree_ref,
+        change_id=change_id,
+        expected_digest=expected_digest,
+        require_absent=True,
+        attestations=attestations,
+    )
+    if (archived is not None or official_projection is not None) and (
+        command := command or openspec_cli.openspec_base_command()
+    ) is None:
         msg = "openspec_official_cli_missing"
         raise ValueError(msg)
-    if (
-        archived := _archived_commitment(
-            repo,
-            tree_ref=tree_ref,
-            change_id=change_id,
-            expected_digest=expected_digest,
-            require_absent=True,
-            attestations=attestations,
-        )
-    ) is not None:
+    if archived is not None:
         return archived
     with _openspec_projection(repo, tree_ref) as projection:
         if change_id is None:
-            listed = openspec_cli.run_json(projection, command, ("list", "--json"))
+            (listed,) = openspec_cli.run_json_batch(projection, command, (("list", "--json"),))
             rows = listed.get("json", {}).get("changes", [])
             selected = selected_change(rows, None, root=repo, tree_ref=tree_ref)
             gaps = (
@@ -333,9 +334,9 @@ def load_openspec_commitment(
         result = (
             official_projection
             if tree_ref is None and official_projection is not None
-            else openspec_cli.run_json(
-                projection, command, ("show", change_id, "--type", "change", "--json")
-            )
+            else openspec_cli.run_json_batch(
+                projection, command, (("show", change_id, "--type", "change", "--json"),)
+            )[0]
         )
         if result.get("exit_code") != 0 or result.get("parse_error"):
             archived = _archived_commitment(
@@ -361,7 +362,7 @@ def load_openspec_commitment(
 
 def _projected_commitment(
     projection: Path,
-    command: tuple[str, ...],
+    command: tuple[str, ...] | None,
     change: str,
     payload: object,
     *,
@@ -372,9 +373,9 @@ def _projected_commitment(
     if not _spec_free_deltas(deltas):
         return commitment_from_projection(change, payload)
     if status is None:
-        status = openspec_cli.run_json(
-            projection, command, ("status", "--change", change, "--json")
-        ).get("json")
+        status = openspec_cli.run_json_batch(
+            projection, command, (("status", "--change", change, "--json"),)
+        )[0].get("json")
     return commitment_from_projection(
         change,
         payload,

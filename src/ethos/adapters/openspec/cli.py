@@ -75,6 +75,11 @@ _SOURCE_NODE = _packaged_node()
 
 def openspec_base_command() -> tuple[str, ...] | None:
     """Return only the source-locked or package-bundled OpenSpec command."""
+    return _base_command(execution_probe=True)
+
+
+def _base_command(*, execution_probe: bool) -> tuple[str, ...] | None:
+    """Resolve one locked command; a read batch probes its imported program itself."""
     source_runtime = _source_runtime()
     source_entry = source_runtime[1] if source_runtime is not None else None
     source = (
@@ -82,13 +87,27 @@ def openspec_base_command() -> tuple[str, ...] | None:
         if _SOURCE_NODE and source_entry is not None and source_entry.is_file()
         else None
     )
-    if source and _verify_official_cli(source, source_runtime=source_runtime)["verdict"] == "pass":
+    if (
+        source
+        and _verify_official_cli(
+            source, source_runtime=source_runtime, execution_probe=execution_probe
+        )["verdict"]
+        == "pass"
+    ):
         return source
     node = _packaged_node()
     bundled = (node, _DISTRIBUTION_ENTRY.as_posix()) if node else None
     if bundled is not None and not _DISTRIBUTION_ENTRY.is_file():
         bundled = None
-    return bundled if bundled and verify_official_cli(bundled)["verdict"] == "pass" else None
+    return (
+        bundled
+        if bundled
+        and _verify_official_cli(
+            bundled, source_runtime=source_runtime, execution_probe=execution_probe
+        )["verdict"]
+        == "pass"
+        else None
+    )
 
 
 def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
@@ -100,6 +119,7 @@ def _verify_official_cli(
     command: tuple[str, ...],
     *,
     source_runtime: tuple[Path, Path] | None,
+    execution_probe: bool = True,
 ) -> dict[str, object]:
     gaps: list[str] = []
     entry = Path(command[1]).resolve() if len(command) == _SOURCE_COMMAND_LENGTH else Path()
@@ -156,14 +176,10 @@ def _verify_official_cli(
         checks = ((False, "openspec_entry_mismatch"),)
     gaps.extend(gap for valid, gap in checks if not valid)
     version = ""
-    if not gaps:
-        completed = run_command(
+    if not gaps and execution_probe:
+        completed = _run_official(
             _SOURCE_ROOT if source_entry else _DISTRIBUTION_MODULES.parent,
             (*command, "--version"),
-            text=True,
-            check=False,
-            timeout=OPENSPEC_COMMAND_TIMEOUT_SECONDS,
-            remove_env_prefixes=("GIT_",),
         )
         version = completed.stdout.strip()
         if completed.returncode or version != OFFICIAL_VERSION:
@@ -350,7 +366,7 @@ def _batch_rows(output: str, commands: tuple[tuple[str, ...], ...]) -> list[dict
 
 
 def run_json_batch(
-    root: Path, base_command: tuple[str, ...], commands: tuple[tuple[str, ...], ...]
+    root: Path, base_command: tuple[str, ...] | None, commands: tuple[tuple[str, ...], ...]
 ) -> tuple[dict[str, Any], ...]:
     """Execute native reads once per batch; preserve exact ordered execution evidence."""
     if not commands:
@@ -358,14 +374,20 @@ def run_json_batch(
     if not all(_read_only_arguments(args) for args in commands):
         message = "openspec_batch_read_only_required"
         raise ValueError(message)
-    if len(base_command) != _SOURCE_COMMAND_LENGTH:
-        message = "openspec_batch_entry_invalid"
+    base_command = _base_command(execution_probe=False) if base_command is None else base_command
+    if base_command is None or len(base_command) != _SOURCE_COMMAND_LENGTH:
+        message = (
+            "openspec_official_cli_missing"
+            if base_command is None
+            else "openspec_batch_entry_invalid"
+        )
         raise ValueError(message)
     transport = (
         base_command[0],
         str(Path(__file__).with_name("batch.mjs")),
         base_command[1],
         str(OPENSPEC_COMMAND_TIMEOUT_SECONDS),
+        OFFICIAL_VERSION,
     )
     gap = ""
     try:
@@ -377,6 +399,8 @@ def run_json_batch(
             for value in (error.stdout, error.stderr)
         )
         code, gap = 124, "openspec_command_timeout"
+    if stderr.strip() == "openspec_effective_version_mismatch":
+        raise ValueError(stderr.strip())
     try:
         rows = _batch_rows(output, commands)
     except (ValueError, TypeError):

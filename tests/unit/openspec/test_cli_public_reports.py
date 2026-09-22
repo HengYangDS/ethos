@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -23,11 +22,10 @@ def test_source_cli_consumes_the_single_resolved_node_package_supply(
     tmp_path,
     reported,
 ) -> None:
-    source = tmp_path / "source"
+    source = tmp_path
     supply = tmp_path / "prepared/node_modules"
     package = supply / "@fission-ai/openspec/package.json"
     entry = package.parent / "bin/openspec.js"
-    source.mkdir()
     entry.parent.mkdir(parents=True)
     (source / "package.json").write_text("{}\n", encoding="utf-8")
     (source / "package-lock.json").write_text(
@@ -133,15 +131,13 @@ def test_run_json_rejects_hostile_inherited_shell_locations(tmp_path, monkeypatc
         "OPENSPEC_TELEMETRY": "1",
         "OPENSPEC_NO_UPDATE_CHECK": "0",
     }
-    probe = tmp_path / "environment.py"
-    probe.write_text(
-        "import json, os\n"
-        f"print(json.dumps({{key: os.environ.get(key) for key in {(*hostile, 'TZ')!r}}}))\n",
-        encoding="utf-8",
+    program = (
+        "import json, os; "
+        f"print(json.dumps({{key: os.environ.get(key) for key in {(*hostile, 'TZ')!r}}}))"
     )
     for name, value in hostile.items():
         monkeypatch.setenv(name, value)
-    report = cli.run_json(tmp_path, (sys.executable, probe.as_posix()), ())
+    report = cli.run_json(tmp_path, (sys.executable, "-c", program), ())
     assert report["exit_code"] == 0
     assert report["json"] == {
         "PWD": tmp_path.as_posix(),
@@ -159,18 +155,14 @@ def test_official_cli_public_resolution_and_report_fail_closed(monkeypatch, tmp_
     monkeypatch.setattr(cli, "_SOURCE_NODE", None)
     monkeypatch.setattr(cli, "_DISTRIBUTION_ENTRY", entry)
     monkeypatch.setattr(cli, "_packaged_node", lambda: "/node")
-    verify = cli.verify_official_cli
-    monkeypatch.setattr(
-        cli,
-        "verify_official_cli",
-        lambda _command, **_kwargs: {"verdict": "block"},
-    )
     assert cli.openspec_base_command() is None
 
     monkeypatch.setattr(cli, "_packaged_node", lambda: None)
     assert cli.openspec_base_command() is None
+    with pytest.raises(ValueError, match="openspec_official_cli_missing"):
+        cli.run_json_batch(tmp_path, None, (("list", "--json"),))
 
-    report = verify(("node", "untrusted-entry.js"))
+    report = cli.verify_official_cli(("node", "untrusted-entry.js"))
     assert (report["verdict"], report["required_gaps"]) == (
         "block",
         ["openspec_entry_mismatch"],
@@ -289,7 +281,7 @@ def test_archive_result_accepts_only_the_exact_repository_archive(
 
 @pytest.mark.parametrize("task_count", [1, 10_000])
 def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tail(
-    tmp_path, task_count
+    tmp_path, task_count, monkeypatch
 ):
     """The transport invokes the official program, not a second command parser."""
     root = init_git_repo(tmp_path / "repo")
@@ -310,9 +302,13 @@ def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tai
         ("list", "--json"),
     )
     expected = [cli.run_json(root, base, args) for args in commands[:-1]]
-    actual = cli.run_json_batch(root, base, commands)
+    native = Mock(wraps=cli.run_command)
+    monkeypatch.setattr(cli, "run_command", native)
+    actual = cli.run_json_batch(root, None, commands)
+    assert native.call_count == 1
     if task_count > 1 and os.name == "posix":
-        transport = (base[0], str(Path(cli.__file__).with_name("batch.mjs")), base[1], "0.5")
+        transport = list(actual[0]["transport"]["command"])
+        transport[3] = "0.5"
         with subprocess.Popen(
             transport,
             cwd=root,
@@ -320,9 +316,6 @@ def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tai
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         ) as child:
-            assert child.stdin is not None
-            assert child.stdout is not None
-            assert child.stderr is not None
             try:
                 child.stdin.write(json.dumps([commands[2]]).encode())
                 child.stdin.close()
@@ -339,9 +332,13 @@ def test_official_batch_preserves_native_output_order_failure_and_unexecuted_tai
         assert new["transport"]["input_index"] == index
     assert actual[-1]["parse_error"] == "openspec_batch_interrupted"
     assert actual[-1]["json"] == {}
+    monkeypatch.setattr(cli, "OFFICIAL_VERSION", "mismatched")
+    with pytest.raises(ValueError, match="openspec_effective_version_mismatch"):
+        cli.run_json_batch(root, base, commands[:1])
     assert cli.run_json_batch(root, base, ()) == ()
-    with pytest.raises(ValueError, match="openspec_batch_entry_invalid"):
-        cli.run_json_batch(root, ("openspec",), commands)
+    for invalid in ((), ("openspec",)):
+        with pytest.raises(ValueError, match="openspec_batch_entry_invalid"):
+            cli.run_json_batch(root, invalid, commands)
     with pytest.raises(ValueError, match="openspec_batch_read_only_required"):
         cli.run_json_batch(root, base, (("archive", "fixture-change", "--yes", "--json"),))
 

@@ -2873,3 +2873,14 @@ all product entities, relations and maturity labels, clarified structural skill
 qualification versus demonstrated learning at the existing nodes, and refreshed
 the sole changed source digest. Required rendering remains renderer-owned;
 export success does not establish visible or behavioral qualification.
+
+
+One full native attempt lost the identity-history worker and stopped before
+completing the suite. No ordinary assertion or macOS crash report established
+the exit cause, so deadlock and timeout remain unproved. The same seven cases
+passed under native coverage with four workers. The new history-repair journey
+now exercises its actual release directly instead of repeating the generic
+refusal, preview and replay matrix already covered by sibling cases. A covered
+16-worker identity/release replay passes all 48 cases, with the repaired journey
+at 87.65 seconds. The native 120-second case timeout, no-worker-restart rule,
+coverage collection and full-proof requirement remain unchanged.

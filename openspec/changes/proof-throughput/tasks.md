@@ -39,7 +39,7 @@
 - [x] 3.10 Route specification validation through the existing locked official owner and shared result interpretation.
 - [x] 3.11 Route unprobed publication peers to exact remote observation without repeating local verification or treating cached tracking as live evidence.
 - [x] 3.12 Bind landed-retirement continuation to the observed target HEAD; execute the returned public command and preserve stale, dirty, foreign and locked refusal.
-- [ ] 3.13 Qualify and deliver the retirement-continuation repair through exact proof and installed-runtime replay.
+- [x] 3.13 Qualify and deliver the retirement-continuation repair through exact proof and installed-runtime replay.
 
 ## 4. Archive and Integration Integrity
 

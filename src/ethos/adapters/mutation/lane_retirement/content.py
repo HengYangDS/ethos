@@ -12,10 +12,29 @@ from typing import cast
 
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.filesystem import is_junction
+from ethos.contracts.artifacts.topology import artifact_origin
+from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 
 
 def _fail(reason: str) -> None:
     raise ValueError(reason)
+
+
+def unreviewed_content(root: Path) -> dict[str, str]:
+    """Observe nontracked footprints; lifecycle labels never authorize disposal."""
+    observed = run_git(
+        root, "ls-files", "--others", "--directory", "--no-empty-directory", "-z", check=False
+    )
+    if observed.returncode:
+        _fail("retirement_content_observation_unavailable")
+    if not observed.stdout:
+        return {}
+    declaration = load_generated_artifact_topology_declaration()
+    return {
+        path: artifact_origin(path.rstrip("/"), declaration)
+        for path in observed.stdout.split("\0")
+        if path
+    }
 
 
 def _identity(value: os.stat_result) -> list[str]:

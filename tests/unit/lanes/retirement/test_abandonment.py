@@ -158,7 +158,7 @@ def test_retirement_observes_replaced_or_locked_root_as_drift(divergent_lane, fa
         ("absorbed", "lane_abandonment_divergence_required"),
         ("descendant", "lane_abandonment_divergence_required"),
         ("ambiguous", "lane_abandonment_worktree_ambiguous"),
-        ("dirty", "lane_abandonment_worktree_not_clean"),
+        ("dirty", "retirement_content_review_required"),
         ("lease", "work_lane_lease_missing"),
         ("actor", "invocation_actor_missing"),
         ("foreign", "foreign_work_lane_retire_authority_required"),
@@ -493,13 +493,7 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
         operation, "delete_operation_ref", lambda *_args: (_ for _ in ()).throw(failure)
     )
 
-    partial = operation.execute_retirement_operation(
-        root=repo,
-        receipt_path=str(receipt["path"]),
-        receipt_sha256=str(receipt["sha256"]),
-        apply=True,
-        authorized=True,
-    )
+    partial = apply_retirement_receipt(repo, receipt)
 
     assert written == [(), ("remove_worktree",), ("remove_worktree",)]
     assert partial["required_gaps"] == ["git_process_spawn_failed"]

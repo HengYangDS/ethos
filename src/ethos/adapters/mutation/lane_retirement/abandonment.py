@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
+from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.linked_effect import compile_retirement_operation
+from ethos.adapters.mutation.lane_retirement.operation import content_review_command
 from ethos.adapters.mutation.lane_retirement.operation import persist_operation
 from ethos.adapters.mutation.lane_retirement.operation import retirement_failure
 from ethos.adapters.repo.git import current_tree
@@ -28,14 +30,15 @@ def _fail(reason: str) -> None:
     raise ValueError(reason)
 
 
-def _blocked(branch: str, error: Exception) -> dict[str, object]:
+def _blocked(root: Path, branch: str, error: Exception) -> dict[str, object]:
+    review_required = str(error) == "retirement_content_review_required"
     return {
         "verdict": "block",
         "state": "blocked",
         "branch": branch,
         **retirement_failure(error),
-        "next_action": "",
-        "user_decision_required": False,
+        "next_action": content_review_command(root, branch) if review_required else "",
+        "user_decision_required": review_required,
     }
 
 
@@ -57,8 +60,8 @@ def _selected_worktree(
         _fail("retirement_content_unsafe")
     if matches[0].get("locked") == "true":
         _fail("retirement_worktree_locked")
-    if not review_content and effects.has_changed_paths(selected):
-        _fail("lane_abandonment_worktree_not_clean")
+    if not review_content and (effects.has_changed_paths(selected) or unreviewed_content(selected)):
+        _fail("retirement_content_review_required")
     if path:
         record = worktree_record(root, selected)
         if "detached" not in record or "branch" in record:
@@ -137,7 +140,7 @@ def derive_lane_abandonment(
         )
         receipt = persist_operation(Path(request.control_root), request)
     except (OSError, RuntimeError, TypeError, ValueError) as error:
-        return _blocked(branch, error)
+        return _blocked(root, branch, error)
     return {
         "verdict": "pass",
         "state": "derived",

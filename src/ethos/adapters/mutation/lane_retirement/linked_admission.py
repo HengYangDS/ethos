@@ -8,6 +8,7 @@ from typing import Literal
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
+from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -56,6 +57,15 @@ def retirement_target(
         )
         for item in candidates
     ]
+    for lane in lanes:
+        gaps = string_sequence(lane["required_gaps"])
+        try:
+            lane["unreviewed_content"] = unreviewed_content(Path(str(lane["path"])))
+            if lane["unreviewed_content"]:
+                gaps.append("retirement_content_review_required")
+        except (OSError, RuntimeError, ValueError):
+            gaps.append("retirement_content_observation_unavailable")
+        lane.update(required_gaps=gaps, retire_ready=not gaps)
     if lanes or mode == "landed":
         return lanes, lanes[0] if lanes else {}
     lane = _unbound_retirement_target(

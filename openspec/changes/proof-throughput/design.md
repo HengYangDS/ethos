@@ -16,6 +16,17 @@ Text reduction measures reading cost, not semantic completeness or product quali
 
 ## Decisions
 
+Nontracked content, including ignored files, is not absorbed by Git ancestry.
+Retirement inventories its native Git footprints and rechecks them before the
+effect, including historical receipt recovery. Existing artifact lifecycle
+labels explain the inventory; they do not establish ownership, reproducibility
+or permission to discard. Nonempty footprints select existing exact content
+review, not another runtime or cleanup registry. Required custody must be
+preserved before the separately authorized reviewed disposal; drift, active
+consumers and foreign ownership retain their existing refusal boundaries.
+This does not create an OS exclusion boundary against uncoordinated same-user
+filesystem writers or turn an artifact class into proof of durable custody.
+
 1. Measure complete elapsed time separately from summed concurrent case time
    and nested cumulative function time. Missing phase instrumentation remains
    unknown, not an invented allocation.

@@ -17,6 +17,7 @@ from filelock import FileLock
 from filelock import Timeout
 
 from ethos.adapters.mutation.lane_retirement.content import remove_reviewed_content
+from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.content import verify_reviewed_content
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import process_file_identities
@@ -267,8 +268,15 @@ def _git_plan(request: RetirementOperation) -> TransitionPlan:
     return TransitionPlan.model_validate(mutable_json(request.git_plan))
 
 
-def _admit_reviewed_content(root: Path, request: RetirementOperation) -> None:
+def _admit_content(root: Path, request: RetirementOperation) -> None:
+    """Require either no nontracked content or the exact reviewed destructive preimage."""
     expected = request.reviewed_content
+    if not expected:
+        if os.path.lexists(request.worktree_path) and unreviewed_content(
+            Path(request.worktree_path)
+        ):
+            _fail("retirement_content_review_required")
+        return
     nodes = (expected["root"], expected["index"], *expected["entries"].values())
     identities = {(int(node["identity"][0]), int(node["identity"][1])) for node in nodes}
     if identities & process_file_identities(root):
@@ -314,8 +322,8 @@ def preflight_operation(root: Path, request: RetirementOperation) -> RetirementP
     progress = reduce_progress(request, observe_operation(root, request))
     if "delete_ref" in progress.remaining_effects:
         admit_git_effect(execution_root, _git_plan(request))
-    if request.reviewed_content and "remove_worktree" in progress.remaining_effects:
-        _admit_reviewed_content(control, request)
+    if "remove_worktree" in progress.remaining_effects:
+        _admit_content(control, request)
     return progress
 
 
@@ -372,6 +380,28 @@ def revoke_operation_lease(root: Path, request: RetirementOperation) -> None:
         connection.commit()
 
 
+def content_review_command(root: Path, branch: str) -> str:
+    """Request an exact content review, without authorizing its eventual disposal."""
+    return shlex.join(
+        [
+            "ethos",
+            "lane",
+            "retire",
+            "abandon",
+            "--branch",
+            branch,
+            "--review-content",
+            "--reason-code",
+            "content-review",
+            "--reason",
+            "Review nontracked content and preserve required custody before disposal",
+            "--root",
+            root.as_posix(),
+            "--json",
+        ]
+    )
+
+
 def _recovery_command(root: Path, receipt: Mapping[str, object]) -> str:
     return (
         f"ethos lane retire recover --receipt {shlex.quote(str(receipt.get('path') or ''))} "
@@ -404,7 +434,9 @@ def _report(
         "receipt": dict(request_receipt),
         "required_gaps": ["lane_retirement_partial"] if partial else [],
         "next_action": (
-            _recovery_command(root, request_receipt)
+            content_review_command(root, request.branch)
+            if failure and failure.get("required_gaps") == ["retirement_content_review_required"]
+            else _recovery_command(root, request_receipt)
             if progress is None or progress.remaining_effects
             else f"ethos status --root {root.as_posix()} --json"
         ),

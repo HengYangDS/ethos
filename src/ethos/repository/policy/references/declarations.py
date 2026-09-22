@@ -108,7 +108,11 @@ def _declared_gates(
     selected_scripts: set[str] = set()
     for gate in _table_items(payload.get("gates")):
         command = bind_gate_command(tuple(_string_items(gate.get("command"))), "python")
-        owned["executable"].update(command_references.command_executables(command, npm_scripts))
+        owned["executable"].update(
+            command_references.command_executables(
+                command, npm_scripts, module_imports=owned["import"]
+            )
+        )
         selected_scripts.update(
             token for token in command if token in files and token.endswith(".sh")
         )
@@ -128,7 +132,9 @@ def _declare_selected_scripts(
         if path in visited or (text := files.get(path)) is None:
             continue
         visited.add(path)
-        owned["executable"].update(command_references.shell_executables(text, npm_scripts))
+        owned["executable"].update(
+            command_references.shell_executables(text, npm_scripts, module_imports=owned["import"])
+        )
         if text.startswith("#!") and (
             executable := command_references.shebang_executable(text.splitlines()[0])
         ):

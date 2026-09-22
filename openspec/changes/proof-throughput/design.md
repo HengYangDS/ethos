@@ -2871,6 +2871,27 @@ declared collection. Empty and warm caches must preserve the same verdict and
 workload. Keep native observer root, deadline and environment obligations in the
 real subprocess consumer test rather than an additional full-kwargs mock test.
 
+Adoption content digests bind exact UTF-8 bytes, not platform-normalized text.
+Decode existing bytes without newline translation and write planned bytes through
+the existing atomic writer, including compensation. A kept CRLF or CR binding
+retains its original bytes and matching digest; new bindings do not inherit the
+host text-mode newline policy. Shared CLI/SDK/MCP conformance identifies the exact
+mismatching path and retains the byte-equality requirement on every platform.
+
+Hosted source verification invokes the selected environment's Python module,
+not the installed product dispatcher. The latter correctly follows an adopter's
+runtime selector and can select a retained generation in a reused CI checkout.
+Compile the explicit source invocation once in CUE for both Forge range checks;
+do not remove runner state or weaken normal installed-product selection.
+
+The reference observer must distinguish a Python module from an OS executable.
+Reuse its existing import category and one command traversal across shell,
+Python, Markdown, package scripts and configuration carriers. Interpreter module
+options stop at a script, code argument or terminating option. An undeclared
+import remains adverse; do not authorize a module by inventing a console alias.
+Qualify and install this control-owner correction before admitting the pending
+source-invocation projection with the previously selected runtime.
+
 The GitLab installer timeout is a separate unresolved failure. A controlled probe
 in the exact cached runner image reached the GitHub asset but received HTTP 403
 from the alternative CDN. The committed wrapper executed the verified binary

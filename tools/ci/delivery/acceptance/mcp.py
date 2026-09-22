@@ -159,10 +159,8 @@ async def _adoption(
         retained = {
             root / item["path"]: item["content_sha256"] for item in preview["data"]["write_plan"]
         }
-        assert all(
-            hashlib.sha256(path.read_bytes()).hexdigest() == value
-            for path, value in retained.items()
-        )
+        for path, value in retained.items():
+            assert hashlib.sha256(path.read_bytes()).hexdigest() == value, str(path)
         before = {path: (path.stat().st_ino, path.stat().st_mtime_ns) for path in retained}
         for caller in ("sdk", "cli", "mcp"):
             stale = await _call(caller, client, command, root, "adopt", exact, env)
@@ -177,10 +175,8 @@ async def _adoption(
             _git(root, git, env, "add", "--", *(str(p.relative_to(root)) for p in retained))
             _git(root, git, env, "commit", "--quiet", "-m", "accept conformance adoption")
             await _observations(client, command, root, env)
-        assert all(
-            hashlib.sha256(path.read_bytes()).hexdigest() == value
-            for path, value in retained.items()
-        )
+        for path, value in retained.items():
+            assert hashlib.sha256(path.read_bytes()).hexdigest() == value, str(path)
 
 
 async def _observations(

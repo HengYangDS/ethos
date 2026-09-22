@@ -108,7 +108,9 @@ def _update_fence_references(
         if language == "console"
         else token.content
     )
-    observed["executable"].update(command_references.shell_executables(shell, npm_scripts))
+    observed["executable"].update(
+        command_references.shell_executables(shell, npm_scripts, module_imports=observed["import"])
+    )
     observed["command"].update(
         command_references.shell_commands(
             shell,
@@ -187,7 +189,11 @@ def _record_inline_command(
         require_declared=require_declared,
     ):
         observed["command"].add(command)
-        observed["executable"].update(command_references.command_executables(tokens, npm_scripts))
+        observed["executable"].update(
+            command_references.command_executables(
+                tokens, npm_scripts, module_imports=observed["import"]
+            )
+        )
 
 
 def _requires_declared_commands(path: str) -> bool:

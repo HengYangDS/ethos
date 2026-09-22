@@ -29,6 +29,7 @@ def adoption_plan(
     expect_plan_digest: str | None = None,
 ) -> dict[str, object]:
     current_profile = _current_binding(root, root / PROFILE_PATH)
+    current_openspec = _current_binding(root, root / OPENSPEC_CONFIG_PATH)
     existing_profile = load_repository_profile(root)
     profile_id = (
         existing_profile.declaration.profile_id
@@ -45,9 +46,8 @@ def adoption_plan(
         PROFILE_PATH: current_profile[0]
         if isinstance(current_profile[0], str) and _existing_profile_is_valid(root, current_profile)
         else profile,
-        OPENSPEC_CONFIG_PATH: _current_binding(root, root / OPENSPEC_CONFIG_PATH)[0] or openspec,
+        OPENSPEC_CONFIG_PATH: current_openspec[0] or openspec,
     }
-    current_openspec = _current_binding(root, root / OPENSPEC_CONFIG_PATH)
     bindings = {
         PROFILE_PATH: (*current_profile, contents[PROFILE_PATH]),
         OPENSPEC_CONFIG_PATH: (*current_openspec, contents[OPENSPEC_CONFIG_PATH]),
@@ -148,7 +148,7 @@ def _current_binding(root: Path, target: Path) -> tuple[str | None, bool, bool]:
     try:
         mode = target.lstat().st_mode
         if stat.S_ISREG(mode):
-            return target.read_text(encoding="utf-8"), True, True
+            return target.read_bytes().decode("utf-8"), True, True
     except FileNotFoundError:
         return None, False, True
     except (OSError, UnicodeDecodeError):
@@ -168,7 +168,7 @@ def _apply_bindings(bindings: list[tuple[Path, str, str | None]]) -> None:
             if previous is None:
                 target.unlink(missing_ok=True)
             else:
-                target.write_text(previous, encoding="utf-8")
+                _write_atomic(target, previous)
         raise
 
 
@@ -176,8 +176,8 @@ def _write_atomic(target: Path, content: str) -> None:
     descriptor, temporary_name = tempfile.mkstemp(prefix=".profile-", dir=target.parent)
     temporary_path = Path(temporary_name)
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as temporary:
-            temporary.write(content)
+        with os.fdopen(descriptor, "wb") as temporary:
+            temporary.write(content.encode("utf-8"))
         temporary_path.replace(target)
     except BaseException:
         temporary_path.unlink(missing_ok=True)

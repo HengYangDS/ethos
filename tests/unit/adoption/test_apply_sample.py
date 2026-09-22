@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shlex
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -19,26 +20,41 @@ from tests.support.governed_repository import init_git_repo
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_adopt_apply_writes_profile_and_official_openspec_config(tmp_path: Path) -> None:
-    result = adoption_plan(tmp_path, apply=True)
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+@pytest.mark.parametrize("empty", [False, True])
+def test_adopt_apply_writes_profile_and_official_openspec_config(
+    tmp_path: Path, monkeypatch, newline, empty
+) -> None:
+    """Declared byte identities survive native newline policy and repeated adoption."""
+    native_open = os.fdopen
 
+    def open_native(descriptor, mode="r", **options):
+        if "b" not in mode:
+            options.setdefault("newline", newline)
+        return native_open(descriptor, mode, **options)
+
+    monkeypatch.setattr(os, "fdopen", open_native)
+    if empty:
+        (tmp_path / ".ethos").mkdir()
+        (tmp_path / ".ethos/profile.toml").touch()
+    result = adoption_plan(tmp_path, apply=True)
+    assert result["write_plan"][0]["action"] == ("write_empty" if empty else "create")
+    for row in result["write_plan"]:
+        assert sha256((tmp_path / row["path"]).read_bytes()).hexdigest() == row["content_sha256"]
+    assert {row["action"] for row in adoption_plan(tmp_path, apply=True)["write_plan"]} == {
+        "keep_existing"
+    }
     profile = load_repository_profile(tmp_path)
     assert result["applied"] is True
-    assert result["planned_files"] == [
-        ".ethos/profile.toml",
-        "openspec/config.yaml",
-    ]
-    assert profile.exists
+    assert result["planned_files"] == [".ethos/profile.toml", "openspec/config.yaml"]
     assert profile.state == "valid"
     assert profile.declaration is not None
     assert profile.declaration.profile_id == tmp_path.name
     assert profile.declaration.openspec.material_paths == ("**",)
     assert resolve_gate_policy(tmp_path).gate_ids == ()
     assert resolve_gate_policy(tmp_path).registry == {}
-    assert sorted(path.as_posix() for path in tmp_path.rglob("*") if path.is_file()) == [
-        (tmp_path / ".ethos/profile.toml").as_posix(),
-        (tmp_path / "openspec/config.yaml").as_posix(),
-    ]
+    files = [p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file()]
+    assert sorted(files) == result["planned_files"]
     assert result["repository_id"] == f"repository:{tmp_path.name}"
 
 
@@ -69,18 +85,12 @@ def test_profile_native_gate_owner_replaces_packaged_gates(tmp_path: Path) -> No
         }
         for name, kind, command, dimension, evidence in cases
     ]
-    profile.write_text(
-        profile.read_text()
-        + tomli_w.dumps(
-            {
-                "proof": {
-                    "code_correctness_gates": [row[0] for row in cases],
-                    "code_correctness_map": {row[3]: row[0] for row in cases},
-                    "gates": gates,
-                }
-            }
-        )
-    )
+    proof = {
+        "code_correctness_gates": [row[0] for row in cases],
+        "code_correctness_map": {row[3]: row[0] for row in cases},
+        "gates": gates,
+    }
+    profile.write_text(profile.read_text() + tomli_w.dumps({"proof": proof}))
 
     assert set(resolve_gate_policy(tmp_path).registry) == {"sample-tests", "sample-static"}
 
@@ -102,19 +112,7 @@ def test_adoption_repository_identity_does_not_depend_on_checkout_path(tmp_path:
     assert adoption_plan(first)["repository_id"] == adoption_plan(second)["repository_id"]
 
 
-def test_apply_is_idempotent_and_replaces_an_empty_binding(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text("", encoding="utf-8")
-
-    first = adoption_plan(tmp_path, apply=True)
-    second = adoption_plan(tmp_path, apply=True)
-
-    assert first["write_plan"][0]["action"] == "write_empty"
-    assert second["write_plan"][0]["action"] == "keep_existing"
-    assert profile.read_text(encoding="utf-8")
-
-
+@pytest.mark.parametrize("newline", ["\n", "\r\n", "\r"])
 @pytest.mark.parametrize(
     ("relative", "content"),
     [
@@ -130,20 +128,20 @@ def test_apply_is_idempotent_and_replaces_an_empty_binding(tmp_path: Path) -> No
         ),
     ],
 )
-def test_adoption_preserves_existing_authored_surfaces(tmp_path, relative, content):
+def test_adoption_preserves_existing_authored_surfaces(tmp_path, relative, content, newline):
     """Neither bootstrap bindings nor unrelated authored surfaces are overwritten."""
     target = tmp_path / relative
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content)
+    content = content.replace("\n", newline).encode()
+    target.write_bytes(content)
     result = adoption_plan(tmp_path, apply=True)
     assert result["applied"] is True
     assert result["required_gaps"] == []
-    assert target.read_text() == content
-    if relative == "openspec/config.yaml":
-        assert (
-            next(row["action"] for row in result["write_plan"] if row["path"] == relative)
-            == "keep_existing"
-        )
+    assert target.read_bytes() == content
+    if relative in result["planned_files"]:
+        row = next(row for row in result["write_plan"] if row["path"] == relative)
+        assert row["action"] == "keep_existing"
+        assert row["content_sha256"] == sha256(content).hexdigest()
 
 
 @pytest.mark.parametrize("parent_link", [False, True])
@@ -165,56 +163,46 @@ def test_adopt_rejects_symlinked_binding_without_touching_target(tmp_path, paren
     assert (profile.parent if parent_link else profile).is_symlink()
 
 
-def test_adopt_rejects_non_regular_profile_targets(tmp_path: Path) -> None:
+@pytest.mark.parametrize("kind", ["directory", "fifo"])
+def test_adopt_rejects_non_regular_profile_targets(tmp_path: Path, kind) -> None:
     profile = tmp_path / ".ethos" / "profile.toml"
-    profile.mkdir(parents=True)
-
-    directory_result = adoption_plan(tmp_path, apply=True)
-
-    assert directory_result["applied"] is False
-    assert directory_result["required_gaps"] == ["adoption_conflict:.ethos/profile.toml"]
-
-    profile.rmdir()
-    os.mkfifo(profile)
-    special_result = adoption_plan(tmp_path, apply=True)
-
-    assert special_result["applied"] is False
-    assert special_result["required_gaps"] == ["adoption_conflict:.ethos/profile.toml"]
+    profile.parent.mkdir()
+    profile.mkdir() if kind == "directory" else os.mkfifo(profile)
+    result = adoption_plan(tmp_path, apply=True)
+    assert result["applied"] is False
+    assert result["required_gaps"] == ["adoption_conflict:.ethos/profile.toml"]
 
 
-def test_adopt_rejects_unreadable_parent_or_profile(tmp_path: Path, monkeypatch) -> None:
+@pytest.mark.parametrize("operation", ["resolve", "lstat"])
+def test_adopt_rejects_unreadable_parent_or_profile(tmp_path: Path, monkeypatch, operation) -> None:
     target = tmp_path / ".ethos" / "profile.toml"
     target.parent.mkdir()
     target.write_text("", encoding="utf-8")
-    original_resolve = Path.resolve
-    original_lstat = Path.lstat
+    native = getattr(Path, operation)
 
-    def broken_resolve(path: Path, *args, **kwargs) -> Path:
-        if path == target.parent:
+    def unreadable(path: Path, *args, **kwargs):
+        if path == (target.parent if operation == "resolve" else target):
             raise OSError
-        return original_resolve(path, *args, **kwargs)
+        return native(path, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "resolve", broken_resolve)
-    assert adoption_plan(tmp_path, apply=True)["applied"] is False
-    monkeypatch.setattr(Path, "resolve", original_resolve)
-
-    def broken_lstat(path: Path):
-        if path == target:
-            raise OSError
-        return original_lstat(path)
-
-    monkeypatch.setattr(Path, "lstat", broken_lstat)
+    monkeypatch.setattr(Path, operation, unreadable)
     assert adoption_plan(tmp_path, apply=True)["applied"] is False
 
 
-def test_atomic_profile_write_cleans_temporary_file_on_failure(tmp_path: Path, monkeypatch) -> None:
+@pytest.mark.parametrize("second", [False, True])
+@pytest.mark.parametrize("empty", [False, True])
+def test_atomic_profile_write_cleans_temporary_file_on_failure(
+    tmp_path, monkeypatch, second, empty
+):
     target = tmp_path / ".ethos" / "profile.toml"
     target.parent.mkdir()
+    if empty:
+        target.touch()
     original_replace = Path.replace
     message = "replace failed"
 
     def fail_replace(path: Path, destination: Path) -> Path:
-        if destination == target:
+        if destination == (tmp_path / "openspec/config.yaml" if second else target):
             raise OSError(message)
         return original_replace(path, destination)
 
@@ -223,7 +211,8 @@ def test_atomic_profile_write_cleans_temporary_file_on_failure(tmp_path: Path, m
     with pytest.raises(OSError, match="replace failed"):
         adoption_plan(tmp_path, apply=True)
 
-    assert list(target.parent.glob(".profile-*")) == []
+    assert not list(tmp_path.rglob(".profile-*"))
+    assert target.read_bytes() == b"" if empty else not target.exists()
 
 
 @pytest.mark.parametrize("condition", ["valid", "denied", "stale", "digest", "conflict", "preview"])

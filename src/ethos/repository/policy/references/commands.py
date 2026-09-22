@@ -55,8 +55,10 @@ def _split_command(command: str) -> tuple[str, ...]:
         return ()
 
 
-def shell_executables(text: str, npm_scripts: dict[str, set[str]]) -> set[str]:
-    """Extract executable identities from shell command lines."""
+def shell_executables(
+    text: str, npm_scripts: dict[str, set[str]], *, module_imports: set[str] | None = None
+) -> set[str]:
+    """Extract native executables and optionally collect Python module dependencies."""
     functions = {
         match.group(1)
         for line in text.splitlines()
@@ -65,7 +67,7 @@ def shell_executables(text: str, npm_scripts: dict[str, set[str]]) -> set[str]:
     executables = set()
     for line in _shell_candidate_lines(text):
         for tokens in _shell_command_segments(line):
-            values = command_executables(tokens, npm_scripts)
+            values = command_executables(tokens, npm_scripts, module_imports=module_imports)
             executables.update(value for value in values if value not in functions)
     return executables
 
@@ -142,15 +144,20 @@ def command_executables(
     npm_scripts: dict[str, set[str]],
     *,
     trail: frozenset[str] = frozenset(),
+    module_imports: set[str] | None = None,
 ) -> set[str]:
-    """Extract an executable and any wrapped child executable identities."""
+    """Separate OS executable identities from interpreter-loaded Python imports."""
     command = _command_tokens(tokens)
     if not command or not (executable := _executable_identity(command[0])):
         return set()
     executables = {executable}
+    if (module := _python_module(command, executable)) and module_imports is not None:
+        module_imports.add(module.partition(".")[0])
     child = _wrapped_command_tokens(command, executable)
     if child:
-        executables.update(command_executables(child, npm_scripts, trail=trail))
+        executables.update(
+            command_executables(child, npm_scripts, trail=trail, module_imports=module_imports)
+        )
     if executable == "npm" and (script := _npm_script_name(command)) and script not in trail:
         for value in npm_scripts.get(script, set()):
             try:
@@ -158,7 +165,12 @@ def command_executables(
             except ValueError:
                 continue
             executables.update(
-                command_executables(script_tokens, npm_scripts, trail=trail | {script})
+                command_executables(
+                    script_tokens,
+                    npm_scripts,
+                    trail=trail | {script},
+                    module_imports=module_imports,
+                )
             )
     return executables
 
@@ -202,6 +214,26 @@ def _env_command_start(tokens: tuple[str, ...], index: int) -> int:
     return index
 
 
+def _python_module(tokens: tuple[str, ...], executable: str) -> str:
+    if not re.fullmatch(r"python(?:\d+(?:\.\d+)*)?", executable):
+        return ""
+    index = 1
+    while index < len(tokens):
+        option = tokens[index]
+        if option == "-m":
+            return tokens[index + 1] if index + 1 < len(tokens) else ""
+        if option.startswith("-m"):
+            return option[2:]
+        if (
+            not option.startswith("-")
+            or option.startswith("-c")
+            or option in {"--", "-h", "--help", "-V", "--version"}
+        ):
+            return ""
+        index += 2 if option in {"-W", "-X", "--check-hash-based-pycs"} else 1
+    return ""
+
+
 def _wrapped_command_tokens(tokens: tuple[str, ...], executable: str) -> tuple[str, ...]:
     if executable == "uv":
         run_index = next(
@@ -212,11 +244,6 @@ def _wrapped_command_tokens(tokens: tuple[str, ...], executable: str) -> tuple[s
             if run_index >= 0
             else ()
         )
-    if executable in {"python", "python3"} or re.fullmatch(r"python\d+(?:\.\d+)*", executable):
-        module_index = next(
-            (index for index, argument in enumerate(tokens[1:], 1) if argument == "-m"), -1
-        )
-        return tokens[module_index + 1 : module_index + 2] if module_index >= 0 else ()
     if executable in {"npx", "uvx"}:
         value_options = _NPX_OPTIONS_WITH_VALUE if executable == "npx" else _UVX_OPTIONS_WITH_VALUE
         child = _tokens_after_options(tokens[1:], value_options)

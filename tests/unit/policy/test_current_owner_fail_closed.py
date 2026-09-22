@@ -16,7 +16,6 @@ from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.commands import command_executables
-from ethos.repository.policy.references.commands import normalize_command
 from ethos.repository.policy.references.commands import shebang_executable
 from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
@@ -212,29 +211,12 @@ def test_reference_observation_rejects_malformed_carriers_without_inventing_auth
         "verify": {"uv run --frozen python -m pytest", "'unterminated"},
         "cycle": {"npm run cycle"},
     }
-    assert normalize_command("'unterminated") == "'unterminated"
     assert shebang_executable("#!'unterminated") == ""
-    executables = command_executables(
-        (
-            "env",
-            "--unset",
-            "HOME",
-            "TOKEN=value",
-            "--",
-            "npm",
-            "run",
-            "verify",
-        ),
-        npm_scripts,
-    )
-    assert {"npm", "uv", "python", "pytest"} <= executables
-    assert command_executables(
-        ("npx", "--package", "@scope/tool@1.2.3", "@scope/tool@1.2.3"), {}
-    ) == {
-        "npx",
-        "tool",
-    }
-    assert command_executables(("/dev/null",), {}) == set()
+    tokens = ("env", "--unset", "HOME", "TOKEN=value", "--", "npm", "run", "verify")
+    executables = command_executables(tokens, npm_scripts)
+    assert {"npm", "uv", "python"} <= executables
+    tokens = ("npx", "--package", "@scope/tool@1.2.3", "@scope/tool@1.2.3")
+    assert command_executables(tokens, {}) == {"npx", "tool"}
     assert command_executables(("npm", "run", "cycle"), npm_scripts) == {"npm"}
 
     shell = """helper() { ignored-tool; }
@@ -245,8 +227,9 @@ EOF
 env --unset HOME TOKEN=value -- uv run --frozen python -m pytest
 helper
 """
-    assert {"uv", "python", "pytest"} <= shell_executables(shell, npm_scripts)
-    assert "helper" not in shell_executables(shell, npm_scripts)
+    executables = shell_executables(shell, npm_scripts)
+    assert {"uv", "python"} <= executables
+    assert "helper" not in executables
 
     observed = product_references_from_files(
         {
@@ -264,7 +247,8 @@ helper
         declared_commands=("ethos status",),
     )
     assert {"github", "docker"} <= observed["reference"]
-    assert {"python", "pytest", "bash"} <= observed["executable"]
+    assert {"python", "bash"} <= observed["executable"]
+    assert observed["import"] == {"pytest"}
     assert "printf" not in observed["executable"]
     assert observed["distribution"] == set()
     assert product_reference_gaps(

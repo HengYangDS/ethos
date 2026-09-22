@@ -37,11 +37,13 @@ line and branch coverage and every existing behavioral acceptance obligation.
 - **AND** corruption blocks readiness and restoring valid bytes permits recovery
 - **AND** mutation effects still obtain their own fresh admission
 
-### Requirement: Worker failure bounds pending verification work
+### Requirement: Test failure bounds pending verification work
 
 Parallel verification SHALL bound per-worker queued work independently of suite
-size. A crashed worker SHALL fail the attempt without replay, retain its native
-diagnostic, and allow the surviving gate owner to reclaim owned test scratch.
+size. Worker loss or an ordinary assertion failure SHALL stop pending work,
+retain its native diagnostic, and allow the surviving gate owner to reclaim
+owned scratch without replay. Native failure history MAY prioritize cases but
+SHALL NOT narrow the required collection or authorize success.
 
 #### Scenario: Native worker exits with a large pending collection
 
@@ -55,6 +57,18 @@ diagnostic, and allow the surviving gate owner to reclaim owned test scratch.
 - **WHEN** the same declared collection runs without worker loss
 - **THEN** every collected case executes exactly once and the gate succeeds
 - **AND** equivalent-workload timing remains separate from failure latency
+
+#### Scenario: An ordinary assertion fails with pending cases
+
+- **WHEN** a test assertion fails before the declared collection finishes
+- **THEN** workers drain only their bounded in-flight assignment
+- **AND** the gate records no success and removes owned scratch
+
+#### Scenario: Failure ordering is warm or absent
+
+- **WHEN** native pytest failure history identifies a previously failing case
+- **THEN** that case is scheduled before later ordinary work
+- **AND** successful warm and empty-cache attempts each execute the complete collection once
 
 ### Requirement: Verification preparation preserves its measured subject
 

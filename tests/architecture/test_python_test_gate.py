@@ -24,17 +24,24 @@ import os
 import subprocess
 
 
-@pytest.mark.parametrize("crash", [False, True])
-def test_parallel_python_test_gate_does_not_replay_a_crashed_worker(
-    tmp_path: Path, monkeypatch, *, crash: bool
+@pytest.mark.parametrize("failure", ["none", "cached", "crash", "assertion"])
+def test_parallel_python_test_gate_bounds_failed_attempt_without_replay(
+    tmp_path: Path, monkeypatch, failure: str
 ) -> None:
-    """Native gate scheduling bounds queued work after an unreplayed worker loss."""
+    """The native owner stops failed work, preserves success coverage and reclaims scratch."""
     gate = _test_gate(tmp_path, workers=2)
+    failed = failure not in {"none", "cached"}
+    cache = tmp_path / "cache"
+    if failure == "cached":
+        (cache / "v/cache").mkdir(parents=True)
+        (cache / "v/cache/lastfailed").write_text('{"test_queue.py::test_worker_loss[79]": true}')
     (tmp_path / "conftest.py").write_text(
         "from pathlib import Path\ndef pytest_testnodedown(node, error):\n"
         "    if error: Path(__file__).with_name('failed').touch()\n"
+        "def pytest_runtest_logreport(report):\n"
+        "    if report.failed: Path(__file__).with_name('failed').touch()\n"
     )
-    test = tmp_path / "test_worker_loss.py"
+    test = tmp_path / "test_queue.py"
     test.write_text(
         f"""import os, time
 from pathlib import Path
@@ -42,10 +49,11 @@ import pytest
 
 @pytest.mark.parametrize("index", range(80))
 def test_worker_loss(index):
-    with (Path(__file__).parent / f"executed-{{index}}").open("a") as stream:
+    with (Path(__file__).parent / f"case-{{index}}").open("a") as stream:
         stream.write("after\\n" if Path(__file__).with_name("failed").exists() else "before\\n")
-    if index == 0 and {crash!r}:
+    if index == 0 and {failure!r} == 'crash':
         os._exit(86)
+    assert index != 0 or {failure!r} != 'assertion'
     time.sleep(0.05)
 """,
         encoding="utf-8",
@@ -58,7 +66,7 @@ def test_worker_loss(index):
     def execute(*command: str, env, **_kwargs) -> None:
         result = run_command(
             tmp_path,
-            (*command, "--no-cov"),
+            (*command, "--no-cov", "-o", f"cache_dir={cache}"),
             timeout=30,
             env={key: value for key, value in env.items() if value is not None},
             remove_env=tuple(key for key, value in env.items() if value is None),
@@ -70,18 +78,19 @@ def test_worker_loss(index):
     try:
         gate.run_tests(cast("nox.Session", SimpleNamespace(run=execute)))
     except subprocess.CalledProcessError:
-        assert crash
+        assert failed
     assert len(observed) == 1
     result = observed[0]
-    assert (result.returncode != 0) is crash, result.stdout + result.stderr
-    executed = list(tmp_path.glob("executed-*"))
-    observations = [path.read_text().strip() for path in executed]
+    assert (result.returncode != 0) is failed, result.stdout + result.stderr
+    observations = [path.read_text().strip() for path in tmp_path.glob("case-*")]
     assert set(observations) <= {"before", "after"}
-    assert (tmp_path / "executed-0").read_text() == "before\n"
-    assert observations.count("after") <= 3 if crash else len(executed) == 80, observations
-    assert gate.head_file.exists() is not crash
+    assert (tmp_path / "case-0").read_text() == "before\n"
+    assert observations.count("after") <= 3 if failed else len(observations) == 80, observations
+    assert gate.head_file.exists() is not failed
     assert not gate.s.basetemp.exists()
-    if crash:
+    if failure == "cached":
+        assert (tmp_path / "case-79").stat().st_mtime_ns < (tmp_path / "case-40").stat().st_mtime_ns
+    if failure == "crash":
         for fragment in ("worker 'gw", "crashed while running", "::test_worker_loss[0]"):
             assert fragment in result.stdout + result.stderr
 

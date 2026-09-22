@@ -44,8 +44,8 @@ def zero_oid(root: Path) -> str:
 
 def observe_commit(root: Path, revision: str = "HEAD") -> dict[str, object]:
     """Return immutable identity, subject, and signature facts for one commit."""
-    object_oid = _resolve(root, revision)
-    if not object_oid or _type(root, object_oid) != "commit":
+    object_oid, actual_type = _object_identity(root, revision)
+    if not object_oid or actual_type != "commit":
         gap = f"commit_observation_unavailable:{revision}"
         return {
             "verdict": "block",
@@ -110,13 +110,17 @@ def observe_commit(root: Path, revision: str = "HEAD") -> dict[str, object]:
 
 def observe_git_object(root: Path, revision: str, kind: GitObjectKind) -> dict[str, object]:
     """Return exact identity and trusted-signature facts for one local Git object."""
-    object_oid = _resolve(root, revision)
-    actual_type = _type(root, object_oid) if object_oid else ""
+    object_oid, actual_type = _object_identity(root, revision)
     expected_type = "tag" if kind == "annotated-tag" else "commit"
     if actual_type != expected_type:
         return _observation(revision, kind, object_oid, required_gaps=["git_object_kind_mismatch"])
-    peeled_commit = _resolve(root, f"{object_oid}^{{}}") if kind == "annotated-tag" else object_oid
-    if _type(root, peeled_commit) != "commit":
+    peeled_revision = f"{object_oid}^{{}}"
+    peeled_commit, peeled_type = (
+        _resolve_objects(root, (peeled_revision,))[peeled_revision]
+        if kind == "annotated-tag"
+        else (object_oid, actual_type)
+    )
+    if peeled_type != "commit":
         return _observation(
             revision,
             kind,
@@ -285,16 +289,6 @@ def commit_trust_setup_action(
     )
 
 
-def _resolve(root: Path, revision: str) -> str:
-    completed = run_git(root, "rev-parse", "--verify", revision, check=False)
-    return completed.stdout.strip() if completed.returncode == 0 else ""
-
-
-def _type(root: Path, object_oid: str) -> str:
-    completed = run_git(root, "cat-file", "-t", object_oid, check=False)
-    return completed.stdout.strip() if completed.returncode == 0 else ""
-
-
 def _configured_signer(root: Path) -> tuple[str, str, list[str]]:
     configured = run_git(
         root, "config", "--path", "--get", "user.signingkey", check=False
@@ -443,6 +437,28 @@ def resolve_revisions(
     repo: Path, revisions: tuple[str, ...], *, environment: Mapping[str, str] | None = None
 ) -> dict[str, str]:
     """Resolve one ordered native batch, separating missing objects from failed observation."""
+    return {
+        revision: object_oid
+        for revision, (object_oid, _kind) in _resolve_objects(
+            repo, revisions, environment=environment
+        ).items()
+    }
+
+
+def _object_identity(root: Path, revision: str) -> tuple[str, str]:
+    """Preserve native revision syntax outside the batch protocol's whitespace framing."""
+    if any(character.isspace() for character in revision):
+        selected = run_git(root, "rev-parse", "--verify", "--end-of-options", revision, check=False)
+        if selected.returncode:
+            return "", ""
+        revision = selected.stdout.strip()
+    return _resolve_objects(root, (revision,))[revision]
+
+
+def _resolve_objects(
+    repo: Path, revisions: tuple[str, ...], *, environment: Mapping[str, str] | None = None
+) -> dict[str, tuple[str, str]]:
+    """Bind object identity and type in one fresh native observation per ordered query."""
     queries = tuple(dict.fromkeys(revisions))
     gap = "git_revision_batch_invalid"
     if any(any(character.isspace() or character == "\0" for character in item) for item in queries):
@@ -475,7 +491,7 @@ def resolve_revisions(
             )
             if absent.returncode != 1 or absent.stdout or absent.stderr:
                 raise ValueError(gap)
-            resolved[revision] = ""
+            resolved[revision] = ("", "")
             continue
         fields = row.split(" ")
         if (
@@ -485,5 +501,5 @@ def resolve_revisions(
             or fields[2] != str(index)
         ):
             raise ValueError(gap)
-        resolved[revision] = fields[0]
+        resolved[revision] = (fields[0], fields[1])
     return resolved

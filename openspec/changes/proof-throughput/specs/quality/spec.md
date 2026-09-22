@@ -506,6 +506,7 @@ executables on failure, retain native diagnostics, and remove owned scratch.
 - **THEN** the version-bound official installer runs in owned staged storage with a deadline
 - **AND** only a successfully verified executable is published
 - **AND** preparation of locked gate tools completes before gate execution
+- **AND** every same-invocation consumer uses that exact prepared executable without rediscovering PATH or an obsolete cache directory
 
 #### Scenario: Operator-managed mise is newer than the declared minimum
 

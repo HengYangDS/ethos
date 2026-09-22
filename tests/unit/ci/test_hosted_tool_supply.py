@@ -9,12 +9,13 @@ import os
 import platform
 import shlex
 import shutil
-import subprocess
 import sys
 import tarfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
+from unittest.mock import call
 
 import pytest
 from filelock import FileLock
@@ -29,11 +30,9 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.subprocesses import ready_descendant
 from tools.ci.toolchain.native import NativeSupply
-from tools.ci.toolchain.native import download
-from tools.ci.toolchain.native import prepare
-from tools.ci.toolchain.native import prepare_mise
 
 if TYPE_CHECKING:
+    import subprocess
     from collections.abc import Callable
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -358,7 +357,7 @@ def test_native_supply_rejects_unsupported_targets_before_creating_cache(
     monkeypatch.setattr(platform, "system", lambda: system)
     monkeypatch.setattr(platform, "machine", lambda: machine)
     with pytest.raises(ValueError, match="native_tool_platform_unsupported"):
-        prepare(tmp_path, "gitleaks")
+        native.prepare(tmp_path, "gitleaks")
     assert not (tmp_path / "build").exists()
 
 
@@ -366,7 +365,7 @@ def test_native_supply_lock_timeout_preserves_prior_bytes_and_creates_no_scratch
     """A contending caller has a bounded wait, not permission to bypass the writer."""
     _invoke, executable, _package, _body = _native_supply(tmp_path, "scc")
     with FileLock(executable.parent / ".prepare.lock"), pytest.raises(Timeout):
-        prepare(tmp_path / "repo", "scc", lock_timeout=0.01)
+        native.prepare(tmp_path / "repo", "scc", lock_timeout=0.01)
     assert executable.read_text() == "retained-but-untrusted"
     assert not list(executable.parent.glob(".prepare-*"))
     assert not (tmp_path / "transfer.log").exists()
@@ -375,6 +374,7 @@ def test_native_supply_lock_timeout_preserves_prior_bytes_and_creates_no_scratch
 def _bootstrap_source(root: Path, script: str, version: str = "2026.9.11") -> Path:
     """Materialize one locked native input; each caller owns its mutable fixture."""
     write_reference_source(root, ".config/mise/config.toml", f'min_version = "{version}"')
+    write_reference_source(root, ".config/mise/mise.lock", "lockfile_version = 2")
     installer = root / ".config/ci/mise-install.sh"
     write_reference_source(root, ".config/ci/mise-install.sh", script)
     write_reference_source(
@@ -412,15 +412,15 @@ def test_native_supply_timeout_drains_descendants_before_cleanup(
 
         def execute():
             if boundary == "download":
-                return download((str(executable),), root=tmp_path, timeout=0.5)
+                return native.download((str(executable),), root=tmp_path, timeout=0.5)
             if boundary == "verify":
                 return NativeSupply.read(ROOT, "scc").verify(executable)
             _bootstrap_source(tmp_path, f"exec {shlex.quote(str(executable))}\n")
             monkeypatch.setattr(native.shutil, "which", lambda _name: None)
-            return prepare_mise(tmp_path)
+            return native.prepare_mise(tmp_path)
 
         monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "scc"])
-        monkeypatch.setattr(native, "prepare", lambda *_args: execute())
+        monkeypatch.setattr(native, "prepare", lambda *_args, **_kwargs: execute())
         assert native.main() == 1
         captured = capsys.readouterr()
         assert captured.out == ""
@@ -476,13 +476,13 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
         or (source == "operator" and fault in {"newer", "failure", "drift"})
         or (source == "cache" and fault == "failure")
     )
-    if accepted:
-        assert prepare_mise(tmp_path) == target
-        assert target.read_text() == body
-    else:
-        with pytest.raises((ValueError, subprocess.CalledProcessError)):
-            prepare_mise(tmp_path)
-        assert target.read_bytes() == before
+    prepared = Mock(return_value=target.parent)
+    monkeypatch.setattr(native, "prepare", prepared)
+    monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise", "scc"])
+    assert native.main() == (0 if accepted else 1)
+    expected = [call(tmp_path, "scc", mise=target)] if accepted else []
+    assert prepared.call_args_list == expected
+    assert target.read_bytes() == (body.encode() if accepted else before)
     assert not list(target.parent.glob(".bootstrap-*"))
 
     assert not (tmp_path / "UNAPPROVED").exists()

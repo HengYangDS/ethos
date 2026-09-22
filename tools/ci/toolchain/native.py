@@ -158,7 +158,7 @@ def render_mise_installer(root: Path) -> str:
     version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
     generated = run_command(
         root,
-        (str(mise_executable(root)), "generate", "install-script", "--version", version),
+        (str(mise_executable()), "generate", "install-script", "--version", version),
         timeout=30,
         check=True,
     ).stdout
@@ -272,7 +272,7 @@ def download(command: tuple[str, ...], *, root: Path, timeout: float = 180) -> N
     result.check_returncode()
 
 
-def prepare(root: Path, name: str, *, lock_timeout: float = 30) -> Path:
+def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | None = None) -> Path:
     """Converge one declared identity without privileged writes or duplicate effects."""
     root = root.resolve(strict=True)
     supply = NativeSupply.read(root, name)
@@ -294,7 +294,7 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30) -> Path:
                     target_config.parent.mkdir(parents=True, exist_ok=True)
                     target_config.write_bytes((root / source).read_bytes())
                 download(
-                    (str(mise_executable(root)), "install", "--locked", supply.backend),
+                    (str(mise or mise_executable()), "install", "--locked", supply.backend),
                     root=isolated,
                 )
                 candidates = list((isolated / "data/downloads").rglob(supply.archive))
@@ -333,17 +333,20 @@ def main() -> int:
         if arguments.render_installer:
             sys.stdout.write(render_mise_installer(arguments.root))
             return 0
-        paths = []
-        if arguments.mise:
-            paths.append(prepare_mise(arguments.root).parent)
+        mise = prepare_mise(arguments.root) if arguments.mise else None
+        paths = [mise.parent] if mise is not None else []
+        if mise is not None:
             result = run_mise(
                 arguments.root,
                 ("install", "--locked", "cue", "github:rhysd/actionlint"),
+                executable=mise,
                 timeout=180,
             )
             sys.stderr.write(result.stdout + result.stderr)
             result.check_returncode()
-        paths.extend(prepare(arguments.root, tool) for tool in dict.fromkeys(arguments.tools))
+        paths.extend(
+            prepare(arguments.root, tool, mise=mise) for tool in dict.fromkeys(arguments.tools)
+        )
         if not paths:
             parser.error("select --mise or at least one tool")
     except (

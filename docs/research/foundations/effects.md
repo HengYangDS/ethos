@@ -84,6 +84,36 @@ A durable engine becomes justified by measured long-lived external coordination,
 not as a cure for an ambiguous model. Attempt, effect, durable result and ACK must
 remain distinguishable whether implemented directly or through a framework.
 
+### Native Windows Security Metadata
+
+On September 22, exact source `d5008a29e` failed Windows 3.12 and 3.14
+package conformance at
+`git_object_trust_anchor_observation_unavailable:timeout`. Completed GitHub
+jobs `106740192755` and `106740192850` locate the failure in shell-backed ACL
+observation during installed full-ref publication. This proves an unavailable
+observation, not an unsafe ACL or the precise reason PowerShell stopped responding.
+
+The selected replacement direction is the existing native security boundary,
+using [pywin32 b312's Win32 wrappers][pywin32-security] rather than another shell
+retry or hand-written ctypes structures. The locked Windows package closure
+already includes pywin32. Its documented [read][windows-security-read] and
+[write][windows-security-write] APIs return or consume native security descriptors.
+Make the platform dependency explicit through native requirement parsing; the
+current custom lower-bound regular expression cannot represent environment
+markers. Do not add a parallel dependency grammar or permission-policy owner.
+
+Preserve effective caller identity, owner and mutating-ACE checks, protected DACLs,
+unchanged content, native failures and cancellation. Missing, malformed or
+unsupported observations cannot become successful protection. Thread impersonation,
+generic write rights and null DACLs need distinguishing cases; reading metadata
+does not grant authority to change it. PowerShell remains with any independently
+necessary process-observation owner, not as an ACL fallback.
+
+This direction is not an implemented or qualified Windows repair. Complete native
+safe/unsafe/error cases and the installed publication path in the existing
+proof-throughput conformance work. Local macOS proof and source inspection do not
+establish Windows behavior.
+
 ## Sources
 
 Links identify inspected documents, not blanket endorsements. Source-level and
@@ -98,3 +128,7 @@ marketing claims were not used as evidence of comparative performance.
 [xstate]: https://github.com/statelyai/docs/blob/54827bcf6591935ae1dc13484eafca88d3b4cf7a/content/docs/persistence.mdx
 [anyio-mechanism]: https://github.com/agronholm/anyio/blob/4e72d8667818d4a972a549cd910a4e4340c504a0/docs/cancellation.rst
 [temporal]: https://github.com/temporalio/sdk-python/blob/ab25ed693f7ec77589346e66c98db299a8c9c9fe/README.md
+
+[pywin32-security]: https://github.com/mhammond/pywin32/blob/2a277cb5552756c2b4d42b524dc36d25e0bb6354/win32/src/win32security.i
+[windows-security-read]: https://mhammond.github.io/pywin32/win32security__GetNamedSecurityInfo_meth.html
+[windows-security-write]: https://mhammond.github.io/pywin32/win32security__SetNamedSecurityInfo_meth.html

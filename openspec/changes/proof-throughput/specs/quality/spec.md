@@ -1,5 +1,24 @@
 ## ADDED Requirements
 
+### Requirement: Release protection projects configured branch roles
+
+ETHOS SHALL derive protected branch membership from the configured branch-role
+policy for common and product release observations. Raw release declarations
+SHALL remain distinct from resolved protection; missing optional declarations
+SHALL NOT add product-packaging obligations.
+
+#### Scenario: No copied branch declaration is needed
+
+- **WHEN** a repository supplies configured roles and omits release branch copies
+- **THEN** common and product observations project the same protected branches
+- **AND** inline and registry-backed quality profiles preserve that meaning
+
+#### Scenario: Copied or malformed policy cannot override roles
+
+- **WHEN** release policy is malformed or its copied branches contradict the roles
+- **THEN** observation and trusted-prior-policy publication admission reject it
+- **AND** copied branch order cannot change the role-derived projection
+
 ### Requirement: Complete verification throughput preserves assurance
 
 ETHOS SHALL use 900 seconds as the temporary complete-proof acceptance threshold

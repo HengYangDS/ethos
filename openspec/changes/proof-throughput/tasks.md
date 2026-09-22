@@ -8,7 +8,7 @@
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [ ] 1.9 Restore and requalify complete proof within the temporary 900-second threshold; preserve completed-gate diagnostics on timeout, eliminate measured repeated work, and retain unchanged quality budgets.
+- [x] 1.9 Restore and requalify complete proof within the temporary 900-second threshold; preserve completed-gate diagnostics on timeout, eliminate measured repeated work, and retain unchanged quality budgets.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
@@ -121,6 +121,7 @@
 - [x] 9.7 Compare exact discovery interfaces and imported work against the committed baseline.
 - [x] 9.8 Qualify and deliver the exact demand-driven capability candidate.
 - [ ] 9.9 Remove dependency cycles, unnecessary conversion round trips and duplicate contracts at their semantic owners; compare mature native substitutes with the same falsifiers, preserve necessary trust boundaries, prove reduced work and retire replaced paths without a parallel registry.
+  - [ ] 9.9.1 Derive common and product release protection from configured branch roles; preserve malformed/conflicting declaration and trusted-prior-policy rejection, qualify the reader, then retire redundant self-profile branch declarations.
 
 ## 10. Native Quality Rules and Early Failure
 

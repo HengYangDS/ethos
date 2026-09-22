@@ -86,16 +86,22 @@ def release_role_policy_gaps(config: dict[str, Any], policy: BranchRolePolicy) -
 def release_role_policy_report(root: Path) -> dict[str, Any]:
     """Observe common release obligations independently of product packaging."""
     config: dict[str, Any] = {}
+    protected_refs: dict[str, Any] = {}
     try:
         config = release_config(root)
-        gaps = release_role_policy_gaps(config, load_branch_role_policy(root))
+        policy = load_branch_role_policy(root)
+        gaps = release_role_policy_gaps(config, policy)
+        protected_refs = {
+            "branches": list(policy.protected_branches),
+            "tags": list(config.get("protected_refs", {}).get("tags", [])),
+        }
     except (OSError, UnicodeError, ValueError) as error:
         gaps = [str(error)]
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "required_gaps": gaps,
         "declaration": config,
-        "protected_refs": config.get("protected_refs", {}),
+        "protected_refs": protected_refs,
         "next_action": (
             f"repair {root / '.ethos/release.toml'} against configured branch roles" if gaps else ""
         ),
@@ -163,7 +169,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     config = role_report["declaration"]
     missing_files = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
     version = version_manifest(root)
-    protected_refs = config.get("protected_refs", {})
+    protected_refs = role_report["protected_refs"]
     host_profile = _host_profile(config)
     publication = publication_topology(root, config)
     attestation = config.get("attestation", {})
@@ -172,8 +178,6 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     gaps.extend(version["required_gaps"])
     if not version["all_package_versions_match"]:
         gaps.append("package_version_mismatch")
-    if "branches" not in protected_refs:
-        gaps.append("protected_branches_policy_missing")
     if protected_refs.get("tags") != ["v*"]:
         gaps.append("protected_tags_policy_missing")
     provider = str(host_profile["provider"])
@@ -190,10 +194,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
         "required_gaps": gaps,
         "version": version,
         "required_files": list(REQUIRED_RELEASE_FILES),
-        "protected_refs": {
-            "branches": list(protected_refs.get("branches", [])),
-            "tags": list(protected_refs.get("tags", [])),
-        },
+        "protected_refs": protected_refs,
         "host_profile": host_profile,
         "publication_topology": publication,
         "attestation": {

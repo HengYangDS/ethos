@@ -20,28 +20,42 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-@pytest.mark.parametrize("boundary", ["nonzero", "missing", "denied"])
+@pytest.mark.parametrize("boundary", ["nonzero", "missing", "denied", "identity"])
 def test_command_runner_surfaces_missing_command_and_nonzero_exit(
     tmp_path: Path, boundary: str
 ) -> None:
+    marker = tmp_path / "executed"
+    native = (
+        sys.executable,
+        "-c",
+        (
+            f"from pathlib import Path; Path({str(marker)!r}).touch(); "
+            "import sys; print('output'); print('failure',file=sys.stderr); sys.exit(7)"
+        ),
+    )
     command = {
         "missing": (str(tmp_path / "missing-tool"),),
         "denied": (str(tmp_path),),
-        "nonzero": (
-            sys.executable,
-            "-c",
-            "import sys; print('output'); print('failure',file=sys.stderr); sys.exit(7)",
-        ),
-    }[boundary]
+    }.get(boundary, native)
     gate = Gate(id="gate", kind="test", command=command)
-    node = PlanNode(id=gate.id, kind="check", command=gate_runner.gate_execution_identity(gate))
+    identity = (
+        ("old-check",) if boundary == "identity" else gate_runner.gate_execution_identity(gate)
+    )
+    node = PlanNode(id=gate.id, kind="check", command=identity)
     if boundary == "denied":
         with pytest.raises(gate_runner.ProcessExecutionError) as failure:
             gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
         assert isinstance(failure.value.__cause__, PermissionError)
         return
     result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
-    assert (result.verdict, result.exit_code) == ("block", 127 if boundary == "missing" else 7)
+    assert (result.verdict, result.exit_code) == (
+        "block",
+        {"missing": 127, "identity": 1}.get(boundary, 7),
+    )
+    assert marker.exists() == (boundary == "nonzero")
+    if boundary == "identity":
+        assert result.diagnostics[0]["required_gaps"] == ["gate_execution_identity_mismatch:gate"]
+        return
     if boundary == "missing":
         assert result.diagnostics[0]["required_gaps"] == [f"missing_command:{command[0]}"]
         assert result.diagnostics[0]["cwd"] == str(tmp_path)
@@ -122,36 +136,6 @@ def test_gate_graph_rejects_invalid_plan_before_execution(tmp_path, case, messag
             capacity=0 if case == "capacity" else 1,
             parallel=True,
         )
-
-
-def test_gate_graph_prioritizes_exclusive_writer_and_returns_input_order(tmp_path: Path) -> None:
-    nodes = tuple(
-        PlanNode(id=name, kind="check", command=(name,)) for name in ("read-a", "writer", "read-b")
-    )
-    gates = {
-        node.id: Gate(
-            id=node.id, kind="test", command=node.command, writes_files=node.id == "writer"
-        )
-        for node in nodes
-    }
-    observed = []
-
-    class Runner(gate_runner.LocalGateRunner):
-        def run(self, node, gate, *, root):
-            assert root == tmp_path
-            assert gate.id == node.id
-            observed.append(node.id)
-            return gate_runner.ActionRunResult(node.id, node.command, "pass", 0)
-
-    results = gate_runner.run_gate_graph(
-        Runner(), nodes, gates, root=tmp_path, capacity=2, parallel=True
-    )
-    assert observed[0] == "writer"
-    assert tuple(result.action_id for result in results) == tuple(node.id for node in nodes)
-    assert (
-        gate_runner.DryRunRunner().run(nodes[0], gates["read-a"], root=tmp_path).verdict
-        == "unknown"
-    )
 
 
 @pytest.mark.parametrize(

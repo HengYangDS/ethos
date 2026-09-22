@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import threading
 from datetime import UTC
 from datetime import datetime
@@ -48,30 +49,39 @@ def _proof_plan(repo, nodes, policy=None):
     )
 
 
+def _graph(dependencies, *, writer="", **attributes):
+    """Compile each test's explicit topology into consistent node and gate declarations."""
+    nodes = tuple(
+        PlanNode(id=name, kind="check", command=(name,), depends_on=parents)
+        for name, parents in dependencies.items()
+    )
+    return nodes, {
+        node.id: Gate(
+            id=node.id,
+            kind="test",
+            command=node.command,
+            writes_files=node.id == writer,
+            **attributes,
+        )
+        for node in nodes
+    }
+
+
 @pytest.mark.parametrize("parallel", [False, True])
 @pytest.mark.parametrize("capacity", [1, 2, 4])
-def test_graph_capacity_writer_exclusion_and_result_order(tmp_path, parallel, capacity):
+@pytest.mark.parametrize("writer_ready", [False, True])
+def test_graph_capacity_writer_exclusion_and_result_order(
+    tmp_path, parallel, capacity, writer_ready
+):
     """Observed overlap, not a proposed wave, determines scheduling safety."""
     lock = threading.Lock()
     active = set()
     counts = []
     executed = []
-    nodes = tuple(
-        PlanNode(id=name, kind="check", command=(name,), depends_on=dependencies)
-        for name, dependencies in (
-            ("a", ()),
-            ("b", ()),
-            ("write", ("a",)),
-            ("c", ("write",)),
-            ("d", ("b",)),
-        )
+    nodes, gates = _graph(
+        {"a": (), "b": (), "write": () if writer_ready else ("a",), "c": ("write",), "d": ("b",)},
+        writer="write",
     )
-    gates = {
-        node.id: Gate(
-            id=node.id, kind="test", command=node.command, writes_files=node.id == "write"
-        )
-        for node in nodes
-    }
 
     class Runner(gate_runner.LocalGateRunner):
         def run(self, node, gate, *, root):
@@ -91,36 +101,35 @@ def test_graph_capacity_writer_exclusion_and_result_order(tmp_path, parallel, ca
         Runner(), nodes, gates, root=tmp_path, capacity=capacity, parallel=parallel
     )
     assert max(counts) <= (capacity if parallel else 1)
-    assert set(executed) == {node.id for node in nodes}
-    assert len(executed) == len(set(executed))
-    assert executed.index("a") < executed.index("write") < executed.index("c")
+    assert sorted(executed) == sorted(gates)
+    assert executed[0] == "write" if writer_ready else executed.index("a") < executed.index("write")
+    assert executed.index("write") < executed.index("c")
     assert executed.index("b") < executed.index("d")
     assert [result.action_id for result in results] == [node.id for node in nodes]
     assert all(result.verdict == "pass" for result in results)
 
 
+@pytest.mark.parametrize("mode", ["parallel", "interrupted", "dry-run"])
 def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys, mode: str
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    nodes = tuple(PlanNode(id=node_id, kind="check", command=(node_id,)) for node_id in ("a", "b"))
+    nodes, registry = _graph(
+        {"a": (), "b": ("a",) if mode == "interrupted" else ()},
+        execution_mode="subprocess",
+        trust_bearing=True,
+    )
     plan = _proof_plan(repo, nodes)
-    registry = {
-        node.id: Gate(
-            id=node.id,
-            kind="test",
-            command=node.command,
-            execution_mode="subprocess",
-            trust_bearing=True,
-        )
-        for node in nodes
-    }
     barrier = threading.Barrier(2)
 
     class Runner:
         def run(self, node, _gate, *, root: Path):
             root.resolve(strict=True)
-            barrier.wait(timeout=2)
+            if mode == "parallel":
+                barrier.wait(timeout=2)
+            if mode == "interrupted" and node.id == "b":
+                message = "late gate did not complete"
+                raise TimeoutError(message)
             return ActionRunResult(node.id, node.command, "pass", 0)
 
     monkeypatch.setattr(
@@ -128,10 +137,46 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
     )
     monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
 
-    checks, passed = proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
+    if mode == "interrupted":
+        with pytest.raises(TimeoutError, match="late gate"):
+            proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
+    else:
+        checks, passed = proof_cli.run_plan_checks(
+            repo=repo, plan=plan, execute=mode != "dry-run", capacity=2
+        )
+        assert passed is True
+        assert [check["action_id"] for check in checks] == ["a", "b"]
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    events = [json.loads(line) for line in captured.err.splitlines()]
+    if mode == "dry-run":
+        assert not events
+        assert all(check["verdict"] == "unknown" for check in checks)
+        assert all(check["duration_seconds"] is None for check in checks)
+        return
+    assert all(
+        event["head"] == plan.facts["head"]
+        and event["plan_digest"] == plan.digest
+        and event["satisfies_repository_proof"] is False
+        for event in events
+    )
+    finished = [event for event in events if event["event"] == "gate_completed"]
+    assert {event["action_id"] for event in finished} == (
+        {"a"} if mode == "interrupted" else {"a", "b"}
+    )
+    assert {event["action_id"] for event in events if event["event"] == "gate_scheduled"} == {
+        "a",
+        "b",
+    }
+    assert all(event["verdict"] == "pass" and event["duration_seconds"] >= 0 for event in finished)
+    if mode == "interrupted":
+        assert [event["event"] for event in events] == [
+            "gate_scheduled",
+            "gate_completed",
+            "gate_scheduled",
+        ]
+        return
 
-    assert passed is True
-    assert [check["action_id"] for check in checks] == ["a", "b"]
     for check in checks:
         assert check["started_after_seconds"] >= 0
         assert check["duration_seconds"] >= 0
@@ -142,12 +187,7 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(tmp_path: Path) -> 
     started = threading.Barrier(2)
     child_started = threading.Event()
     observations = []
-    nodes = (
-        PlanNode(id="fast", kind="check", command=("fast",)),
-        PlanNode(id="slow", kind="check", command=("slow",)),
-        PlanNode(id="child", kind="check", command=("child",), depends_on=("fast",)),
-    )
-    gates = {node.id: Gate(id=node.id, kind="test", command=node.command) for node in nodes}
+    nodes, gates = _graph({"fast": (), "slow": (), "child": ("fast",)})
 
     class Runner(gate_runner.LocalGateRunner):
         def run(self, node, gate, *, root):
@@ -195,8 +235,9 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
         else gate
         for gate in declaration.proof_gates(full=True)
     )
-    registry = {gate.id: gate for gate in selected}
+    declaration = declaration.model_copy(update={"gates": selected})
     policy = ResolvedGatePolicy(declaration, None, selected)
+    registry = policy.registry
     nodes = policy.nodes
     plan = _proof_plan(repo, nodes, policy)
     executed = []
@@ -238,18 +279,9 @@ def test_ready_writer_waits_for_running_reader_and_precedes_queued_reader(tmp_pa
     started = threading.Barrier(2)
     release = threading.Event()
     order = []
-    nodes = (
-        PlanNode(id="fast", kind="check", command=("fast",)),
-        PlanNode(id="slow", kind="check", command=("slow",)),
-        PlanNode(id="writer", kind="check", command=("writer",), depends_on=("fast",)),
-        PlanNode(id="queued", kind="check", command=("queued",), depends_on=("fast",)),
+    nodes, gates = _graph(
+        {"fast": (), "slow": (), "writer": ("fast",), "queued": ("fast",)}, writer="writer"
     )
-    gates = {
-        node.id: Gate(
-            id=node.id, kind="test", command=node.command, writes_files=node.id == "writer"
-        )
-        for node in nodes
-    }
 
     class Runner(gate_runner.LocalGateRunner):
         def run(self, node, gate, *, root):

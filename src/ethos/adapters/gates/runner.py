@@ -41,6 +41,8 @@ from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.gates import source_paths_for_gate
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ethos.contracts.gates import Gate
     from ethos.contracts.plan import PlanNode
 
@@ -256,6 +258,8 @@ def run_gate_graph(
     root: Path,
     capacity: int,
     parallel: bool,
+    on_schedule: Callable[[str], None] | None = None,
+    on_result: Callable[[ActionRunResult], None] | None = None,
 ) -> tuple[ActionRunResult, ...]:
     """Run ready checks once, isolate writers and return canonical plan order."""
     if capacity < 1:
@@ -272,6 +276,8 @@ def run_gate_graph(
     running = {}
     limit = capacity if parallel else 1
     epoch = monotonic()
+    scheduled_event = on_schedule or (lambda _action_id: None)
+    completed_event = on_result or (lambda _result: None)
 
     with ThreadPoolExecutor(max_workers=limit) as executor:
         while graph.is_active():
@@ -285,10 +291,12 @@ def run_gate_graph(
                 ]
             for node in selected:
                 ready.remove(node.id)
+                scheduled_event(node.id)
                 if not parallel or node.id in writers or isinstance(runner, DryRunRunner):
                     results[node.id] = _run_ready_gate(
                         runner, node, gates[node.id], results, root, epoch
                     )
+                    completed_event(results[node.id])
                     graph.done(node.id)
                 else:
                     running[
@@ -303,6 +311,7 @@ def run_gate_graph(
                 for future in completed:
                     node_id = running.pop(future)
                     results[node_id] = future.result()
+                    completed_event(results[node_id])
                     graph.done(node_id)
     return tuple(results[node.id] for node in nodes)
 

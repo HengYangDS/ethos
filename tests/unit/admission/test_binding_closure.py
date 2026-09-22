@@ -222,7 +222,8 @@ def test_gate_interpreter_binding_preserves_declared_module_ownership() -> None:
         ),
     }
     owned = native_owned_references_from_files(files)
-    assert {"python", "nox"} <= owned["executable"]
+    assert owned["executable"] == {"python"}
+    assert owned["import"] == {"nox"}
 
 
 def test_native_owner_closure_does_not_promote_observed_consumers(tmp_path: Path) -> None:

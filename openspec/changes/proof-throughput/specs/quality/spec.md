@@ -586,7 +586,6 @@ expressions. Candidate-supplied observations SHALL NOT certify candidate output.
 - **THEN** the existing projection gate rejects the drift
 - **AND** the documented lexical normalization and native shell formatting remain deterministic
 
-
 ### Requirement: Provider execution preserves the bound implementation
 
 A proof binding repository provider source SHALL execute that source or a package

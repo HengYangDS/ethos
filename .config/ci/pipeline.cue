@@ -18,6 +18,7 @@ _inputs: {
 _gateIDs: [for gate in _inputs.gate_registry.gates {gate.id}]
 let githubView = github
 let gitlabView = gitlab
+let sourceCLI = "uv run --frozen --offline python -B -I -m ethos.cli"
 
 compiled: {
 	checks: {
@@ -124,11 +125,11 @@ github: {
 			}, {
 				name: "Admit pushed commit range"
 				if:   "github.event_name == 'push'"
-				run:  "uv run --frozen --offline ethos hook commit-range --target-ref \"${{ github.ref }}\" --proposed-head \"${{ github.sha }}\" --remote-head \"${{ github.event.before }}\" --remote origin --root . --json"
+				run:  "\(sourceCLI) hook commit-range --target-ref \"${{ github.ref }}\" --proposed-head \"${{ github.sha }}\" --remote-head \"${{ github.event.before }}\" --remote origin --root . --json"
 			}, {
 				name: "Admit pull request commit range"
 				if:   "github.event_name == 'pull_request'"
-				run:  "uv run --frozen --offline ethos hook commit-range --target-ref \"refs/heads/${{ github.event.pull_request.base.ref }}\" --proposed-head \"${{ github.event.pull_request.head.sha }}\" --remote-head \"${{ github.event.pull_request.base.sha }}\" --remote origin --root . --json"
+				run:  "\(sourceCLI) hook commit-range --target-ref \"refs/heads/${{ github.event.pull_request.base.ref }}\" --proposed-head \"${{ github.event.pull_request.head.sha }}\" --remote-head \"${{ github.event.pull_request.base.sha }}\" --remote origin --root . --json"
 			}, {
 
 				// The registry owns gate order and package creation. Execute it once;
@@ -278,7 +279,7 @@ gitlab: {
 		}, {
 			when: "never"
 		}]
-		script: ["uv run --frozen --offline ethos hook commit-range --target-ref \"${ETHOS_COMMIT_TARGET_REF}\" --proposed-head \"${ETHOS_COMMIT_PROPOSED_HEAD}\" --remote-head \"${ETHOS_COMMIT_REMOTE_HEAD}\" --remote origin --root . --json"]
+		script: ["\(sourceCLI) hook commit-range --target-ref \"${ETHOS_COMMIT_TARGET_REF}\" --proposed-head \"${ETHOS_COMMIT_PROPOSED_HEAD}\" --remote-head \"${ETHOS_COMMIT_REMOTE_HEAD}\" --remote origin --root . --json"]
 	}
 	"ethos:host-conformance": {
 		image: "ghcr.io/astral-sh/uv:0.12.16-python3.14-trixie-slim@sha256:768543c09cfe47d3d08c3cbfffadead2029a96d19c3c05285c8b6c6f637aa3a8"

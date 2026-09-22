@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import shutil
+import sys
 import tomllib
 from pathlib import Path
 
@@ -50,10 +51,13 @@ def gitlab():
 
 def _range_coordinates(command: str) -> tuple[str, ...]:
     arguments = shlex.split(command)
-    assert arguments[:6] == ["uv", "run", "--frozen", "--offline", "ethos", "hook"]
-    assert arguments[6] == "commit-range"
+    assert arguments[:4] == ["uv", "run", "--frozen", "--offline"]
+    invocation = arguments[4 : arguments.index("--target-ref")]
+    assert invocation[-2:] == ["hook", "commit-range"]
+    invocation[0] = sys.executable if invocation[0] == "python" else invocation[0]
+    assert run_command(ROOT, (*invocation, "--help"), timeout=10, env={"PATH": ""}).returncode == 0
     assert arguments[-3:] == ["--root", ".", "--json"]
-    options = arguments[7:-3]
+    options = arguments[arguments.index("--target-ref") : -3]
     assert options[::2] == ["--target-ref", "--proposed-head", "--remote-head", "--remote"]
     return tuple(options[1::2])
 
@@ -184,8 +188,7 @@ def test_integration_events_transport_exact_commit_range_coordinates(github, git
     )
 
     provider_text = yaml.safe_dump({"github": github, "gitlab": gitlab})
-    assert "rev-list" not in provider_text
-    assert "subject_pattern" not in provider_text
+    assert all(token not in provider_text for token in ("rev-list", "subject_pattern"))
 
 
 def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github, gitlab):

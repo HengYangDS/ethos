@@ -6,7 +6,6 @@ import json
 import os
 import re
 import shlex
-import shutil
 import sys
 import tomllib
 from pathlib import Path
@@ -20,6 +19,8 @@ from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import observe_projections
+from tests.support.architecture import isolated_path
+from tests.support.architecture import write_reference_source
 from tools.ci.ci_projection import check_templates
 from tools.ci.ci_projection import compile_providers
 from tools.ci.ci_projection import projection_entries
@@ -54,8 +55,10 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
     assert arguments[:4] == ["uv", "run", "--frozen", "--offline"]
     invocation = arguments[4 : arguments.index("--target-ref")]
     assert invocation == ["python", "-B", "-I", "-m", "ethos.cli", "hook", "commit-range"]
-    invocation[0] = sys.executable if invocation[0] == "python" else invocation[0]
-    assert run_command(ROOT, (*invocation, "--help"), timeout=10, env={"PATH": ""}).returncode == 0
+    probe = run_command(
+        ROOT, (sys.executable, *invocation[1:], "--help"), timeout=10, env={"PATH": ""}
+    )
+    assert probe.returncode == 0
     assert arguments[-3:] == ["--root", ".", "--json"]
     options = arguments[arguments.index("--target-ref") : -3]
     assert options[::2] == ["--target-ref", "--proposed-head", "--remote-head", "--remote"]
@@ -69,10 +72,13 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == owner.check_workflow() == 0
     jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
-    assert {
-        step["env"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] for step in jobs["quality"]["steps"]
-    } == {"${{ runner.tool_cache }}/ethos/${{ github.repository }}/ci-tools"}
+    assert jobs["quality"]["runs-on"] == "macos-latest"
     steps = [step for job in jobs.values() for step in job["steps"]]
+    assert all("self-hosted" not in str(job.get("runs-on", "")) for job in github["jobs"].values())
+    assert not any(
+        {"GIT_CONFIG_COUNT", "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"}.intersection(step.get("env", {}))
+        for step in steps
+    )
     commands = [step.get("run", "") for step in steps]
     assert commands.count("tools/ci/scripts/bootstrap-python.sh") == 1
     assert commands.count("tools/ci/scripts/run-head-bound-proof.sh") == 1
@@ -413,8 +419,7 @@ def test_workflow_gate_uses_locked_native_tool_without_ambient_fallback(
 ):
     """Run the real gate over a tiny workflow with a hostile ambient actionlint."""
     for path in (".config/mise/config.toml", ".config/mise/mise.lock"):
-        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(ROOT / path, tmp_path / path)
+        write_reference_source(tmp_path, path, (ROOT / path).read_text())
     workflow = tmp_path / ".github/workflows/ci.yml"
     workflow.parent.mkdir(parents=True)
     workflow.write_text(
@@ -428,12 +433,8 @@ def test_workflow_gate_uses_locked_native_tool_without_ambient_fallback(
     elif fault == "version-drift":
         config = tmp_path / ".config/mise/config.toml"
         config.write_text(config.read_text().replace('"1.7.12"', '"0.0.0"'))
-    bins = tmp_path / "bin"
-    bins.mkdir()
-    trap = bins / "actionlint"
-    trap.write_text("#!/bin/sh\ntouch AMBIENT_EXECUTED\nexit 0\n")
-    trap.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{bins}{os.pathsep}{os.environ['PATH']}")
+    trap = isolated_path(tmp_path, {"actionlint": "#!/bin/sh\ntouch AMBIENT_EXECUTED\nexit 0\n"})
+    monkeypatch.setenv("PATH", trap["PATH"] + os.pathsep + os.environ["PATH"])
     before = workflow.read_bytes()
     assert (owner.check_workflow(tmp_path) == 0) is (fault == "none")
     assert workflow.read_bytes() == before

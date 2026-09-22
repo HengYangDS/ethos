@@ -100,19 +100,10 @@ github: {
 			}]
 		}
 		quality: {
-			name: "quality gates"
-			steps: [...{env: ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR: "${{ runner.tool_cache }}/ethos/${{ github.repository }}/ci-tools"}]
-			"runs-on": ["self-hosted", "macOS", "ARM64", "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
+			name:      "quality gates"
+			"runs-on": "macos-latest"
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-				env: {
-					// The macOS host globally arms ETHOS ref-transaction hooks. Checkout must
-					// establish the immutable CI ref before this job can configure its own
-					// governed checkout, so disable only that inherited hook for this action.
-					GIT_CONFIG_COUNT:   "1"
-					GIT_CONFIG_KEY_0:   "core.hooksPath"
-					GIT_CONFIG_VALUE_0: "/dev/null"
-				}
 				with: "fetch-depth": 0
 			}, {
 				uses: "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"

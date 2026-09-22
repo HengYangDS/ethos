@@ -19,6 +19,7 @@ from typing import Annotated
 from typing import Any
 from typing import Literal
 
+import yaml
 from cyclopts import App
 from cyclopts import Parameter
 
@@ -233,13 +234,15 @@ def _emulator_command(
             paths["projected_file"],
         ]
         if mode == "run":
+            workflow = yaml.safe_load((ROOT / paths["projected_file"]).read_text())
+            runner = workflow["jobs"][emulation["emulator_job"]]["runs-on"]
             return [
                 *command,
                 "-j",
                 str(emulation["emulator_job"]),
                 "--bind",
                 "--platform",
-                f"self-hosted={emulation['emulator_image']}",
+                f"{runner}={emulation['emulator_image']}",
             ]
         return [*command, "--list"]
     command = [tool]
@@ -378,9 +381,9 @@ def emulator_evidence(
         except RuntimeError as exc:
             issue = str(exc)
             materialization["issue"] = issue
-    command = _emulator_command(provider, paths, emulation, mode, state_dir=state_dir)
-    _prepare_emulator_state(provider, state_dir)
     try:
+        command = _emulator_command(provider, paths, emulation, mode, state_dir=state_dir)
+        _prepare_emulator_state(provider, state_dir)
         run = (
             _run_result(1, ok=False, stderr=issue)
             if issue

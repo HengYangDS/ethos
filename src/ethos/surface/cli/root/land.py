@@ -24,6 +24,7 @@ class _LandOptions:
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     candidate_head: Annotated[str | None, Parameter(name="--candidate-head")] = None
     closeout: bool = False
+    identity_transition: bool = False
     release: bool = False
     release_head: Annotated[str, Parameter(name="--release-head")] = ""
     tag: str = ""

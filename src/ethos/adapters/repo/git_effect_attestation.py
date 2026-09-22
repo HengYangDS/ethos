@@ -186,13 +186,15 @@ def validate(
         raise ValueError(_STALE)
     repository = (
         str(plan.facts.get("repository") or "")
-        if state == "recovered"
+        if state == "recovered" and "repository_identity_transitions" not in plan.policy
         else resolve_git_effect_repository(
             root,
             effect,
             before,
             environment=environment,
             allow_absent_prestate=plan.policy.get("repository_prestate") == "absent",
+            plan=plan,
+            current_scope=current_postconditions,
         )
     )
     evidence = (

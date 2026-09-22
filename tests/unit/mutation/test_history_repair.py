@@ -8,6 +8,7 @@ import subprocess
 import sys
 from datetime import UTC
 from datetime import datetime
+from typing import cast
 
 import pytest
 
@@ -23,7 +24,6 @@ from ethos.adapters.repo.commit.signature import signature_plan
 from ethos.adapters.repo.git_effect_attestation import issue as issue_git_effect
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.contracts.plan import git_effect_from_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.semantic import canonical_utc_time
 from tests.support.ethos_cli_runner import run_ethos
@@ -32,6 +32,7 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.proof import seed_executed_proof
+from tests.support.semantic import attestation_fixture
 from tests.support.signature import configure_signer
 from tests.support.signature import killed_signature_repair
 from tests.support.signature import signature_repository
@@ -454,35 +455,23 @@ def test_completed_provenance_cannot_reissue_invented_source_coordinates(tmp_pat
     plan = signature_plan(repo, coordinates, new)
     now = datetime.now(UTC)
     digest = canonical_json_digest(coordinates)
-    result = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": repair.RESULT,
-            "verifier": coordinates["actor"],
-            "subject": f"signature-repair:{digest}",
-            "issued_at": now,
-            "valid_from": now,
-            "valid_until": None,
-            "verdict": "pass",
-            "mints_authority": False,
-            "payload": {
-                "kind": repair.RESULT,
-                "body": {
-                    "coordinates": coordinates,
-                    "replacement": new,
-                    "plan": plan.model_dump(mode="json"),
-                    "plan_digest": plan.digest,
-                },
-            },
-            "relations": (),
-            "advisories": (),
-            "evidence_refs": (f"git:{old}",),
-            "commitment_digest": None,
-            "facts_digest": digest,
+    result = attestation_fixture(
+        predicate=repair.RESULT,
+        verifier=cast("str", coordinates["actor"]),
+        subject=f"signature-repair:{digest}",
+        issued_at=now,
+        valid_from=now,
+        evidence_refs=(f"git:{old}",),
+        facts_digest=digest,
+        plan_digest=plan.digest,
+        policy_digest=cast("str", coordinates["policy_sha256"]),
+        payload_kind=repair.RESULT,
+        payload_body={
+            "coordinates": coordinates,
+            "replacement": new,
+            "plan": plan.model_dump(mode="json"),
             "plan_digest": plan.digest,
-            "policy_digest": coordinates["policy_sha256"],
-            "effect_digest": None,
-        }
+        },
     )
     effect = git_effect_from_plan(plan)
     before = observe_git_effect(repo, effect)

@@ -405,7 +405,7 @@ def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPa
     landed = _land(worktree, head)
     assert landed["verdict"] == "pass", landed
     assert git(candidate, "rev-parse", "HEAD") == head
-    report = landing_mutation.apply_candidate_to_accepted(
+    report = landing_mutation.candidate_to_accepted(
         root=repo, authorized=True, expect_head=accepted
     )
     assert report["verdict"] == "pass", report
@@ -433,7 +433,7 @@ def _assert_declared_closeout_policy(
         git(repo, "commit", "-m", "record incomplete branch roles")
         accepted = git(repo, "rev-parse", "HEAD")
         git(candidate, "reset", "--hard", accepted)
-        report = landing_mutation.apply_candidate_to_accepted(
+        report = landing_mutation.candidate_to_accepted(
             root=repo, authorized=True, expect_head=accepted
         )
         assert report["verdict"] == "block"
@@ -468,7 +468,7 @@ def _assert_declared_closeout_policy(
     landed = _land(worktree, head)
     assert landed["verdict"] == "pass", landed
     assert git(candidate, "rev-parse", "HEAD") == head
-    report = landing_mutation.apply_candidate_to_accepted(
+    report = landing_mutation.candidate_to_accepted(
         root=repo, authorized=True, expect_head=accepted
     )
     assert report["verdict"] == "pass", report

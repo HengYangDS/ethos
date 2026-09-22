@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.repo.dirty.change_provenance import working_content_changed
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
@@ -166,13 +167,13 @@ def restore_rejected_checkout_projection(
     current_head = runner(root, "rev-parse", "HEAD", check=False, env=environment).stdout.strip()
     target_tree = current_tree(root, target_head, environment=environment)
     indexed = runner(root, "write-tree", check=False, env=environment)
-    dirty = runner(root, "diff-files", "--quiet", check=False, env=environment)
+    dirty = working_content_changed(root, environment=environment, runner=runner)
     if (
         not current_head
         or not target_tree
         or indexed.returncode
         or indexed.stdout.strip() != target_tree
-        or dirty.returncode
+        or dirty is not False
     ):
         return False
     restored = runner(
@@ -187,11 +188,11 @@ def restore_rejected_checkout_projection(
     if restored.returncode:
         return False
     indexed = runner(root, "write-tree", check=False, env=environment)
-    dirty = runner(root, "diff-files", "--quiet", check=False, env=environment)
+    dirty = working_content_changed(root, environment=environment, runner=runner)
     return (
         not indexed.returncode
         and indexed.stdout.strip() == current_tree(root, current_head, environment=environment)
-        and not dirty.returncode
+        and dirty is False
     )
 
 
@@ -215,12 +216,12 @@ def attach_worktree(
         _require_binding(record, target=target, branch=branch, head=head)
         return _attestation(root, "recognized", effect, record, record, environment)
     indexed = runner(target, "write-tree", check=False, env=environment)
-    dirty = runner(target, "diff-files", "--quiet", check=False, env=environment)
+    dirty = working_content_changed(target, environment=environment, runner=runner)
     if (
         "detached" not in record
         or indexed.returncode
         or indexed.stdout.strip() != current_tree(root, head, environment=environment)
-        or dirty.returncode
+        or dirty is not False
     ):
         _fail("worktree_effect_binding_stale")
     completed = runner(target, "switch", branch, check=False, env=environment)

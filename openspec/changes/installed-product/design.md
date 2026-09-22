@@ -200,6 +200,63 @@ may tighten its 60-second bound; fixture archival retains its 20-second deadline
 Timeout output remains diagnostic even when it contains complete-looking JSON;
 only completed, valid, exactly bound archive results permit setup to continue.
 
+### Repository Identity Transition Boundary
+
+Ordinary repository identity resolution reads each effect's HEAD, expected,
+desired and asserted revisions and requires one profile-bound identity. Both
+Git-effect admission and Attestation validation consume that rule. It is the
+correct ordinary-CAS boundary; a profile rename must not weaken it implicitly.
+
+An explicit typed transition must distinguish object-database continuity from
+old/new profile identities, product/path names and historical commit identity.
+Use the existing TransitionPlan, GitEffect, Attestation and CAS owners. Bind exact
+commits/trees, old/new identities, linear ancestry, each target ref's expected and
+desired heads, accepted intent and proof, actor and current Lease generation.
+One-shot means one effect authorization, not one globally permitted repository
+rename. A new-identity work lane may integrate into an old-identity candidate,
+followed by separately authorized accepted and release transitions. Do not require
+one identity across all governing or historical refs, silently expand a target
+set, or treat a shared object database as identity equivalence.
+
+Each completed target transition uses the new identity for its result. Old-ID
+revisions remain historical or not-yet-transitioned stage inputs, not aliases or
+obsolete names required in the renamed product's current surfaces. No temporary
+profile rollback, compatibility table or history rewrite is permitted. Recovery
+observes the original effect and result before any retry; replay may report
+completion but cannot consume that authorization for a second effect. A later
+target transition requires its own fresh authorization and exact coordinates.
+Acceptance must falsify stale/ref races, foreign object databases, non-ancestry,
+forged relationships, missing proof, wrong actor, partial execution and repeated
+consumption. Official task 1.6 owns this implementation and its native acceptance;
+task 4.2 owns exact-source proof and installed delivery qualification.
+
+The identity edge is narrower than the complete ref program: a newly created
+signed tag has no old repository identity, while an accepted mirror can contain
+two independently described branch edges in one declared atomic effect. Keep
+new tags and unchanged-identity refs in that original program without fabricating
+migration edges. Identity transitions refine integration and release operations;
+they do not authorize unrelated ref mutation.
+
+Preview preserves the selected root, source, target and identity mode in its
+continuation. Tag preview admits the branch scope and declares that the future
+signed object is not yet an exact effect. Replaying a completed accepted request
+recognizes its original expected/desired coordinates and Attestation; that
+observation cannot authorize another ref movement or accept invented coordinates.
+
+Ref completion and checkout materialization are distinct postconditions. An
+integration request whose ref CAS completed but whose linked checkout retains the
+exact preimage remains pending, not current. Recovery validates the original ref
+result, freshly admits the remaining file effect and uses the existing worktree
+synchronization owner. It preserves the original ref Attestation and refuses
+unrelated user edits rather than granting blanket dirty-worktree permission.
+The mutation admission owner binds that preimage; execution rechecks it and the
+application projection does not independently reinterpret the same dirty flag.
+
+Content admission compares actual bytes with the index without refreshing index
+bytes. A stale Git stat cache is not content drift; unavailable or malformed
+observation is not cleanliness. Candidate, accepted and release consumers share
+that observation boundary instead of accumulating separate recovery heuristics.
+
 ## Installed Entry Recovery
 
 The adopter feedback identifies two distinct failures: immutable materialization

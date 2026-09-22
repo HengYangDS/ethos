@@ -20,11 +20,10 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_admission import admit_git_effect_state
 from ethos.adapters.repo.git_effect_admission import require_effect_permission
 from ethos.adapters.repo.git_effect_admission import require_lease_generation
-from ethos.adapters.repo.git_effect_admission import require_plan_prestate
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
-from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -210,7 +209,7 @@ def execute_git_effect(
         intents = _claim_effect_intents(root, plan, effect, phase="recover", missing_ok=True)
         _clear_claimed_intents(root, intents)
         return attestation
-    observed, recovering, repository = _admit_git_effect(
+    observed, recovering, repository = admit_git_effect_state(
         root,
         plan,
         effect,
@@ -236,7 +235,7 @@ def execute_git_effect(
             plan=plan,
             issuer=issuer,
             evidence=(
-                repository if not recovering else str(plan.facts.get("repository") or ""),
+                repository or str(plan.facts.get("repository") or ""),
                 "recovered" if recovering else "applied",
                 observed,
                 after,
@@ -279,7 +278,9 @@ def admit_git_effect(
     """Validate the exact Git effect plan without claiming intents or mutating refs."""
     effect = git_effect_from_plan(plan)
     require_effect_permission(effect, plan)
-    _admit_git_effect(root, plan, effect, environment=environment, detached_branch=detached_branch)
+    admit_git_effect_state(
+        root, plan, effect, environment=environment, detached_branch=detached_branch
+    )
 
 
 def _run_effect_program(
@@ -348,49 +349,6 @@ def _require_effect_postcondition(
         message = "git_effect_postcondition_failed"
         raise ValueError(message)
     return observed
-
-
-def _admit_git_effect(
-    root: Path,
-    plan: TransitionPlan,
-    effect: GitEffect,
-    *,
-    environment: Mapping[str, str] | None,
-    detached_branch: str,
-) -> tuple[dict[str, object], bool, str]:
-    """Return one fully admitted current observation shared by dry-run and apply."""
-    observed = observe_git_effect(root, effect, environment=environment)
-    refs = cast("dict[str, str]", observed["refs"])
-    expected = {name: update.expected for name, update in effect.updates.items()}
-    desired = {name: update.desired for name, update in effect.updates.items()}
-    recovering = refs == desired
-    if observed["assertions"] != effect.assertions:
-        message = "git_effect_cas_mismatch"
-        raise ValueError(message)
-    if recovering:
-        require_lease_generation(
-            root,
-            plan,
-            detached_branch=detached_branch,
-        )
-        return observed, True, ""
-    require_plan_prestate(
-        root,
-        plan,
-        effect,
-        detached_branch=detached_branch,
-    )
-    repository = resolve_git_effect_repository(
-        root,
-        effect,
-        observed,
-        environment=environment,
-        allow_absent_prestate=plan.policy.get("repository_prestate") == "absent",
-    )
-    if refs != expected:
-        message = "git_effect_cas_mismatch"
-        raise ValueError(message)
-    return observed, False, repository
 
 
 def _claim_effect_intents(

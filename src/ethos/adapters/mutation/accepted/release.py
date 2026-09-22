@@ -23,6 +23,7 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
@@ -55,17 +56,19 @@ class _Selection:
     previous: str
     tag: str
     branch: str
+    identity_transition: bool = False
 
     @property
     def ref(self) -> str:
         return f"refs/heads/{self.branch}"
 
-    def request(self) -> dict[str, str]:
+    def request(self) -> dict[str, str | bool]:
         return {
             "head": self.head,
             "previous": self.previous,
             "tag": self.tag,
             "release_ref": self.ref,
+            **({"identity_transition": True} if self.identity_transition else {}),
         }
 
     @property
@@ -82,10 +85,17 @@ class _Selection:
 
     def command(self) -> str:
         return release_selection_command(
-            self.root, head=self.head, previous=self.previous, tag=self.tag, apply=True
+            self.root,
+            head=self.head,
+            previous=self.previous,
+            tag=self.tag,
+            apply=True,
+            identity_transition=self.identity_transition,
         )
 
-    def effect(self, accepted_ref: str, tag_oid: str = "") -> GitEffect:
+    def effect(
+        self, accepted_ref: str, tag_oid: str = "", *, include_tag: bool = True
+    ) -> GitEffect:
         """Assert aligned branches; reserve updates for actual state changes."""
         assertions = {accepted_ref: self.head}
         updates = {}
@@ -93,7 +103,7 @@ class _Selection:
             assertions[self.ref] = self.head
         else:
             updates[self.ref] = GitRefUpdate(expected=self.previous, desired=self.head)
-        if self.tag:
+        if self.tag and include_tag:
             updates[f"refs/tags/{self.tag}"] = GitRefUpdate(
                 expected=zero_oid(self.root), desired=tag_oid
             )
@@ -139,7 +149,17 @@ def _observe(selection: _Selection, *, apply: bool, authorized: bool, plan: Tran
         gap = worktree_sync_gap(root, paths, selection.branch, head, head, head)
     require_release(not gap, "release_" + gap)
     version = release_tag_policy(root, head, selection.tag) if selection.tag else {}
-    return accepted, proof, observed, paths, version
+    preview = None
+    if not apply and (plan is not None or selection.previous != head):
+        assert proof is not None
+        preview = plan or _compile_plan(
+            selection,
+            selection.effect(f"refs/heads/{policy.accepted_branch}", include_tag=False),
+            accepted,
+            proof,
+        )
+        admit_git_effect(root, preview)
+    return accepted, proof, observed, paths, version, preview
 
 
 def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
@@ -206,6 +226,7 @@ def _compile_plan(
             "accepted_effect": accepted["accepted_effect"],
         },
         values={"release_request": selection.request(), "root": selection.root.as_posix()},
+        identity_transition=selection.identity_transition,
     )
 
 
@@ -276,18 +297,31 @@ def promote_release(
     tag: str = "",
     apply: bool = False,
     authorized: bool = False,
+    identity_transition: bool = False,
 ) -> dict[str, object]:
     """Select an independent release or tag already aligned accepted-mirror content."""
-    selection = _Selection(root, head, previous, tag, load_branch_role_policy(root).release_branch)
+    selection = _Selection(
+        root,
+        head,
+        previous,
+        tag,
+        load_branch_role_policy(root).release_branch,
+        identity_transition=identity_transition,
+    )
     data: dict[str, object] = {"source": head, "previous": previous, "tag": tag}
     try:
         plan = _existing_plan(selection)
-        accepted, proof, observed, paths, version = _observe(
+        accepted, proof, observed, paths, version, preview = _observe(
             selection, apply=apply, authorized=authorized, plan=plan
         )
         data.update(
             accepted=accepted, version=version, release_ref=selection.ref, observed=observed
         )
+        if preview is not None:
+            data.update(
+                transition_plan=preview.model_dump(mode="json"),
+                preview_scope="branch-and-existing-effects" if plan else "branch-only",
+            )
         require_release(
             plan is not None or observed != head or previous == head,
             "release_effect_evidence_missing",
@@ -302,7 +336,7 @@ def promote_release(
             lock.parent.mkdir(parents=True, exist_ok=True)
             with FileLock(lock, timeout=0, mode=0o600, preserve_lock_file=True):
                 plan = _existing_plan(selection)
-                accepted, proof, _, paths, _ = _observe(
+                accepted, proof, _, paths, _, _ = _observe(
                     selection, apply=True, authorized=True, plan=plan
                 )
                 assert proof is not None

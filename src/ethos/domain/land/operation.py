@@ -1,6 +1,5 @@
 """Transport-independent candidate, accepted and release integration operations."""
 
-from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
 
@@ -12,9 +11,8 @@ from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.landing import accepted_transition_policy
-from ethos.adapters.mutation.landing import apply_candidate_to_accepted
 from ethos.adapters.mutation.landing import apply_land_to_candidate
+from ethos.adapters.mutation.landing import candidate_to_accepted
 from ethos.adapters.mutation.landing import candidate_transition_readiness
 from ethos.adapters.openspec.profile import active_change_progress_report
 from ethos.adapters.repo.status.workspace import integration_coordinates
@@ -22,6 +20,7 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.semantic import Attestation
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -32,7 +31,6 @@ from ethos.domain.land.closeout import closeout_bootstrap_package
 from ethos.domain.land.closeout import closeout_resolution
 from ethos.domain.land.closeout import land_next_action
 from ethos.domain.land.closeout import repository_audit_after_admission
-from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
@@ -57,7 +55,9 @@ def _closeout_result(
     verdict: Verdict,
     control_replacement: dict[str, object],
     receipt_path: Path | None,
+    identity_transition: bool = False,
 ) -> EthosResult:
+    pending = update.get("state") == "accepted_materialization_pending"
     resolution = closeout_resolution(
         repo=repo,
         accepted_head=accepted_head,
@@ -71,6 +71,7 @@ def _closeout_result(
         gaps=gaps,
         apply=apply,
         receipt_path=receipt_path,
+        identity_transition=identity_transition,
     )
     mutation_next_action = resolution.next_action
     policy = load_branch_role_policy(repo)
@@ -99,7 +100,7 @@ def _closeout_result(
         policy_ref=f"commitment:{command}-admission",
         required_gaps=gaps,
         why=(
-            ("candidate_already_current",)
+            ("accepted_materialization_pending" if pending else "candidate_already_current",)
             if verdict == "pass" and candidate_head == accepted_head
             else ()
         ),
@@ -109,7 +110,9 @@ def _closeout_result(
         command="land",
         verdict=verdict,
         state=(
-            "accepted_current"
+            "accepted_materialization_pending"
+            if verdict == "pass" and pending
+            else "accepted_current"
             if verdict == "pass" and candidate_head == accepted_head
             else "ready_to_closeout"
             if verdict == "pass" and not apply
@@ -150,27 +153,6 @@ def _closeout_result(
     )
 
 
-def _land_expected_state(
-    *,
-    repo: Path,
-    current_head: str,
-    status_payload: Mapping[str, object],
-    closeout_support: Mapping[str, object],
-) -> dict[str, object]:
-    policy = load_branch_role_policy(repo)
-    candidate = string_mapping(status_payload.get("candidate"))
-    return {
-        "root": repo.resolve().as_posix(),
-        "source_ref": f"refs/heads/{status_payload.get('branch', '')}",
-        "source_head": current_head,
-        "target_ref": f"refs/heads/{policy.candidate_branch}",
-        "target_head": str(candidate.get("head") or ""),
-        "holder_ref": str(closeout_support.get("holder_ref") or ""),
-        "lease_generation": integer(closeout_support.get("lease_generation")),
-        "lease_expires_at": str(closeout_support.get("lease_expires_at") or ""),
-    }
-
-
 def _observed_candidate_head(repo: Path, current_head: str) -> str:
     """Reobserve the candidate object without collecting unrelated workspace state."""
     return git.ref_head(repo, load_branch_role_policy(repo).candidate_branch) or current_head
@@ -206,17 +188,39 @@ def _closeout_land_result(
     candidate_head: str | None,
     current_head: str,
     independent_verification_receipt: Path | None,
+    identity_transition: bool = False,
 ) -> EthosResult:
     """Evaluate candidate-to-accepted closeout as one semantic transition."""
+    audited_candidate_head = _observed_candidate_head(repo, current_head)
+    update: dict[str, object] = {}
+    if current_head == audited_candidate_head:
+        policy = load_branch_role_policy(repo)
+        update = (
+            current_acceptance(
+                root=repo,
+                policy=policy,
+                current_head=current_head,
+                candidate_head=audited_candidate_head,
+                expected_head=expect_head,
+                status=integration_coordinates(repo, policy=policy),
+            )
+            or {}
+        )
+    completed = update.get("state") == "accepted_current"
+    completed_effect = (
+        Attestation.model_validate(update["attestation"])
+        if update.get("state") == "accepted_materialization_pending"
+        else None
+    )
     decision = evaluate_closeout_mutation(
         apply=apply,
         authorized=authorize,
-        expect_head=expect_head,
+        expect_head=current_head if completed else expect_head,
         root=repo,
         current_head=current_head,
+        completed_effect=completed_effect,
     )
     audit_root = closeout_audit_root(repo, decision)
-    audited_candidate_head = _observed_candidate_head(repo, current_head)
     if candidate_head is not None and candidate_head != audited_candidate_head:
         decision = admission_decision(
             subject=decision.subject,
@@ -243,6 +247,7 @@ def _closeout_land_result(
         control_gaps += ("control_replacement_candidate_head_required",)
     gaps = (
         tuple(string_sequence(audit.get("required_gaps")))
+        + tuple(string_sequence(update.get("required_gaps")))
         + decision.required_gaps
         + tuple(string_sequence(lifecycle.get("required_gaps")))
         + control_gaps
@@ -254,22 +259,6 @@ def _closeout_land_result(
         report_verdict(control_replacement),
         required_gaps=gaps,
     )
-    update: dict[str, object] = {}
-    if verdict == "pass" and not apply and current_head == audited_candidate_head:
-        policy = accepted_transition_policy(repo, current_head)
-        update = (
-            current_acceptance(
-                root=repo,
-                policy=policy,
-                current_head=current_head,
-                candidate_head=audited_candidate_head,
-                status=integration_coordinates(repo, policy=policy),
-            )
-            or {}
-        )
-        if update:
-            gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
-            verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
     if verdict == "pass" and apply:
         control_replacement, fresh_control_gaps = _stable_control_replacement(
             repo=repo,
@@ -284,8 +273,8 @@ def _closeout_land_result(
             report_verdict(control_replacement),
             required_gaps=gaps,
         )
-    if verdict == "pass" and apply:
-        update = apply_candidate_to_accepted(
+    if verdict == "pass" and not completed:
+        update = candidate_to_accepted(
             root=repo,
             authorized=authorize,
             expect_head=expect_head,
@@ -293,6 +282,9 @@ def _closeout_land_result(
             control_replacement_receipt=string_mapping(
                 string_mapping(control_replacement.get("independent_verification")).get("receipt")
             ),
+            apply=apply,
+            identity_transition=identity_transition,
+            completed_effect=completed_effect,
         )
         gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
@@ -312,6 +304,7 @@ def _closeout_land_result(
         verdict=verdict,
         control_replacement=control_replacement,
         receipt_path=independent_verification_receipt,
+        identity_transition=identity_transition,
     )
 
 
@@ -323,14 +316,13 @@ def _candidate_land_result(
     authorize: bool,
     expect_head: str | None,
     current_head: str,
+    identity_transition: bool = False,
+    candidate_head: str | None = None,
 ) -> EthosResult:
     """Evaluate work-lane integration into the configured candidate role."""
     governance = repository_context(repo)
     status_payload = workspace_status(repo, include_foreign_path_scope=False)
     closeout_support = string_mapping(status_payload.get("closeout_support"))
-    closeout_gaps: tuple[str, ...] = ()
-    if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
-        closeout_gaps = tuple(string_sequence(closeout_support.get("required_gaps")))
     decision = evaluate_mutation(
         command=command,
         apply=apply,
@@ -346,7 +338,6 @@ def _candidate_land_result(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))
             + decision.required_gaps
-            + closeout_gaps
             + tuple(string_sequence(lifecycle.get("required_gaps")))
         )
     )
@@ -363,11 +354,19 @@ def _candidate_land_result(
             authorized=authorize,
             expect_head=expect_head,
             admitted_decision=decision,
+            identity_transition=identity_transition,
+            candidate_head=candidate_head,
         )
         gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
     elif verdict == "pass":
-        update = candidate_transition_readiness(root=repo, status=status_payload)
+        update = candidate_transition_readiness(
+            root=repo,
+            status=status_payload,
+            identity_transition=identity_transition,
+            candidate_head=candidate_head,
+            admitted_decision=decision,
+        )
         gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
     state = (
@@ -379,19 +378,20 @@ def _candidate_land_result(
         if verdict == "unknown"
         else str(update.get("state") or "landed")
     )
-    mutation_next_action = land_next_action(verdict=verdict, gaps=gaps, current_head=current_head)
-    expected_state = _land_expected_state(
-        repo=repo,
+    if verdict == "pass" and update.get("state") == "candidate_materialization_pending":
+        state = "candidate_materialization_pending"
+    mutation_next_action = land_next_action(
+        verdict=verdict,
+        gaps=gaps,
         current_head=current_head,
-        status_payload=status_payload,
-        closeout_support=closeout_support,
+        apply=apply,
+        root=repo,
+        identity_transition=identity_transition,
+        candidate_head=candidate_head,
     )
+    expected_state = decision.subject.expected_state
     final_decision = admission_decision(
-        subject=MutationSubject(
-            action="candidate.integrate",
-            resource=f"refs/heads/{load_branch_role_policy(repo).candidate_branch}",
-            expected_state=expected_state,
-        ),
+        subject=decision.subject,
         verdict=verdict,
         basis=DecisionBasis(
             enforcement_boundary="local_process_guard",
@@ -438,6 +438,7 @@ def land_repository(
     expect_head: str | None = None,
     candidate_head: str | None = None,
     closeout: bool = False,
+    identity_transition: bool = False,
     release: bool = False,
     release_head: str = "",
     tag: str = "",
@@ -464,6 +465,7 @@ def land_repository(
                 tag=tag,
                 apply=apply,
                 authorized=authorize,
+                identity_transition=identity_transition,
             )
         )
         return EthosResult(
@@ -486,6 +488,7 @@ def land_repository(
             candidate_head=candidate_head,
             current_head=current_head,
             independent_verification_receipt=independent_verification_receipt,
+            identity_transition=identity_transition,
         )
         if closeout
         else _candidate_land_result(
@@ -495,5 +498,7 @@ def land_repository(
             authorize=authorize,
             expect_head=expect_head,
             current_head=current_head,
+            identity_transition=identity_transition,
+            candidate_head=candidate_head,
         )
     )

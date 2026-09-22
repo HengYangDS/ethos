@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from types import SimpleNamespace
 
 import pytest
@@ -19,8 +20,7 @@ from tests.support.governed_repository import init_git_repo
 
 def _repository(tmp_path):
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    return repo, git(repo, "rev-parse", "HEAD")
+    return repo, adopt_and_commit(repo)
 
 
 def test_add_worktree_rejects_path_collision_before_git_effect(tmp_path) -> None:
@@ -57,18 +57,11 @@ def test_remove_worktree_rejects_unowned_existing_path(tmp_path) -> None:
     assert target.is_dir()
 
 
-@pytest.mark.parametrize(
-    ("operation", "stderr", "gap"),
-    [
-        ("add", "add denied", "add denied"),
-        ("remove", "remove denied", "remove denied"),
-        ("sync", "sync denied", "sync denied"),
-        ("attach", "attach denied", "attach denied"),
-    ],
-)
+@pytest.mark.parametrize("operation", ["add", "remove", "sync", "attach"])
 def test_worktree_effect_surfaces_git_failure_without_terminal_claim(
-    tmp_path, operation: str, stderr: str, gap: str
+    tmp_path, operation: str
 ) -> None:
+    stderr = f"{operation} denied"
     repo, head = _repository(tmp_path)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
@@ -93,21 +86,13 @@ def test_worktree_effect_surfaces_git_failure_without_terminal_claim(
             return SimpleNamespace(returncode=1, stdout="", stderr=stderr)
         return run_git(root, *arguments, **kwargs)
 
-    effects = {
-        "add": lambda: add_worktree(repo, target, head=head, branch="linked", runner=runner),
-        "remove": lambda: remove_worktree(repo, target, head=head, branch="linked", runner=runner),
-        "sync": lambda: sync_worktree(
-            repo,
-            target,
-            branch="linked",
-            previous=previous,
-            head=head,
-            runner=runner,
-        ),
-        "attach": lambda: attach_worktree(repo, target, branch="linked", head=head, runner=runner),
-    }
-    with pytest.raises(ValueError, match=rf"^{gap}$"):
-        effects[operation]()
+    effect = (
+        partial(sync_worktree, previous=previous)
+        if operation == "sync"
+        else {"add": add_worktree, "remove": remove_worktree, "attach": attach_worktree}[operation]
+    )
+    with pytest.raises(ValueError, match=rf"^{stderr}$"):
+        effect(repo, target, head=head, branch="linked", runner=runner)
 
     assert target.exists() is (operation != "add")
 

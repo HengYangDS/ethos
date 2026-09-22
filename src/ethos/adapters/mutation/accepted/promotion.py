@@ -12,43 +12,46 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import accepted_closeout_attestation
+from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_ref_worktrees import ref_worktree_paths
 from ethos.adapters.repo.git_ref_worktrees import sync_linked_ref_worktree
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
-from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import git_effect_from_plan
+from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.contracts.branch.roles import BranchRolePolicy
-    from ethos.contracts.semantic import Attestation
     from ethos.contracts.value import JsonObject
 
 
-def current_acceptance(*, root, policy, current_head, candidate_head, status):
-    """Observe completed refs and their original effect without minting another transition."""
-    if current_head != candidate_head or has_changed_paths(root):
+def current_acceptance(
+    *,
+    root: Path,
+    policy: BranchRolePolicy,
+    current_head: str,
+    candidate_head: str,
+    status: dict[str, object],
+    expected_head: str | None = None,
+) -> dict[str, object] | None:
+    """Recognize an attested ref effect separately from its worktree materialization."""
+    if current_head != candidate_head:
         return None
-    if policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF:
-        release_head = run_git(root, "rev-parse", policy.release_branch, check=False).stdout.strip()
-        if release_head != candidate_head:
-            return None
-        if gap := worktree_sync_gap(
-            root,
-            ref_worktree_paths(status.get("worktrees", []), policy.release_branch),
-            policy.release_branch,
-            release_head,
-            release_head,
-            candidate_head,
-        ):
-            return _accepted_block(policy, current_head, [f"release_mirror_{gap}"])
+    if (
+        policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
+        and run_git(root, "rev-parse", policy.release_branch, check=False).stdout.strip()
+        != candidate_head
+    ):
+        return None
     try:
         recorded = accepted_closeout_attestation(
             root,
@@ -56,15 +59,88 @@ def current_acceptance(*, root, policy, current_head, candidate_head, status):
             candidate_ref=f"refs/heads/{policy.candidate_branch}",
             candidate_head=candidate_head,
         )
+        plan = recorded[0] if recorded else None
+        effect = git_effect_from_plan(plan) if plan else GitEffect(updates={})
+        previous = effect.updates.get(f"refs/heads/{policy.accepted_branch}")
+        previous_head = previous.expected if previous else current_head
+        if expected_head is not None and expected_head not in {current_head, previous_head}:
+            return None
+        pending = _materialization_pending(root, policy, status, current_head, effect)
     except ValueError as error:
         return _accepted_block(policy, current_head, [str(error)])
     return {
         **accepted_payload(policy, current_head),
         "verdict": "pass",
-        "state": "accepted_current",
+        "state": "accepted_materialization_pending" if pending else "accepted_current",
         "candidate_head": candidate_head,
+        "previous_head": previous_head,
         "attestation": recorded[1].model_dump(mode="json") if recorded else {},
     }
+
+
+def _materialization_pending(
+    root: Path, policy: BranchRolePolicy, status: dict[str, object], head: str, effect: GitEffect
+) -> bool:
+    """Accept only terminal bytes or the exact preimage of a recorded ref update."""
+    scopes = [(policy.accepted_branch, (root,), "accepted")]
+    if policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF:
+        scopes.append(
+            (
+                policy.release_branch,
+                ref_worktree_paths(
+                    cast("list[dict[str, object]]", status.get("worktrees", [])),
+                    policy.release_branch,
+                ),
+                "release_mirror",
+            )
+        )
+    pending = False
+    for branch, paths, prefix in scopes:
+        terminal_gap = worktree_sync_gap(root, paths, branch, head, head, head)
+        if not terminal_gap:
+            continue
+        update = effect.updates.get(f"refs/heads/{branch}")
+        gap = (
+            worktree_sync_gap(root, paths, branch, head, update.expected, head)
+            if update
+            else terminal_gap
+        )
+        if gap:
+            message = f"{prefix}_{gap}"
+            raise ValueError(message)
+        pending = True
+    return pending
+
+
+def recover_current_acceptance(
+    *,
+    root: Path,
+    policy: BranchRolePolicy,
+    current_head: str,
+    status: dict[str, object],
+    current: dict[str, object],
+) -> dict[str, object]:
+    """Freshly admit remaining file effects without repeating the recorded ref CAS."""
+    attestation = Attestation.model_validate(current["attestation"])
+    plan = plan_from_attestation(attestation)
+    try:
+        admit_git_effect(root, plan)
+    except ValueError as error:
+        return _accepted_block(policy, current_head, [str(error)])
+    effect = git_effect_from_plan(plan)
+    release = effect.updates.get(f"refs/heads/{policy.release_branch}")
+    result = _synchronize_promotion(
+        root,
+        status.get("worktrees", []),
+        policy,
+        effect.updates[f"refs/heads/{policy.accepted_branch}"].expected,
+        current_head,
+        release.expected if release else None,
+        attestation,
+    )
+    if result["verdict"] == "pass":
+        result["state"] = "accepted_current"
+    return result
 
 
 def promote_candidate(
@@ -75,6 +151,8 @@ def promote_candidate(
     candidate_head,
     status,
     control_replacement_receipt=None,
+    apply=True,
+    identity_transition=False,
 ):
     blocker, proof = _promotion_blocker(
         root=root,
@@ -84,7 +162,7 @@ def promote_candidate(
     )
     if blocker:
         return blocker
-    return _apply_candidate_promotion(
+    return _candidate_promotion(
         root=root,
         policy=policy,
         status=status,
@@ -92,10 +170,12 @@ def promote_candidate(
         candidate_head=candidate_head,
         proof=cast("Attestation", proof),
         control_replacement_receipt=control_replacement_receipt,
+        apply=apply,
+        identity_transition=identity_transition,
     )
 
 
-def _apply_candidate_promotion(
+def _candidate_promotion(
     *,
     root,
     policy,
@@ -104,6 +184,8 @@ def _apply_candidate_promotion(
     candidate_head,
     proof,
     control_replacement_receipt,
+    apply,
+    identity_transition,
 ):
     worktrees = cast("list[dict[str, object]]", status.get("worktrees", []))
     candidate = cast("dict[str, object]", status.get("candidate", {}))
@@ -115,8 +197,8 @@ def _apply_candidate_promotion(
             ["candidate_worktree_binding_stale"],
             candidate_head=candidate_head,
         )
-    sweep_stale_ref_intents(root)
-    transition_error = ""
+    if apply:
+        sweep_stale_ref_intents(root)
     try:
         prior_attestations = {
             "proof": proof.model_dump(mode="json"),
@@ -165,16 +247,25 @@ def _apply_candidate_promotion(
             head=current_head,
             candidate_worktree_path=candidate_worktree_path,
             prior_attestations=prior_attestations,
+            identity_transition=identity_transition,
         )
+        if not apply:
+            admit_git_effect(root, plan)
+            return {
+                **accepted_payload(policy, current_head),
+                "verdict": "pass",
+                "state": "ready_to_closeout",
+                "candidate_head": candidate_head,
+                "transition_plan": plan.model_dump(mode="json"),
+                "required_gaps": [],
+            }
     except (TypeError, ValueError) as error:
-        transition_error = str(error)
-    if transition_error:
         return _accepted_block(
             policy,
             current_head,
             ["accepted_transition_invalid"],
             candidate_head=candidate_head,
-            stderr=transition_error,
+            stderr=str(error),
         )
     try:
         attestation = execute_git_effect(
@@ -195,6 +286,15 @@ def _apply_candidate_promotion(
             if error.observation.get("outcome") != "unchanged":
                 report.update(verdict="unknown", state="partial_transition")
         return report
+    return _synchronize_promotion(
+        root, worktrees, policy, current_head, candidate_head, release_old, attestation
+    )
+
+
+def _synchronize_promotion(
+    root, worktrees, policy, current_head, candidate_head, release_old, attestation
+):
+    """Reconcile accepted and mirrored checkouts after the single admitted ref effect."""
     mirror_result = (
         sync_linked_ref_worktree(
             root,
@@ -264,6 +364,7 @@ def _accepted_transition_plan(
     head: str,
     candidate_worktree_path: str,
     prior_attestations: JsonObject,
+    identity_transition: bool = False,
 ) -> TransitionPlan:
     effect_policy = {
         "operation": "candidate.accept",
@@ -280,6 +381,7 @@ def _accepted_transition_plan(
         prior_attestations=prior_attestations,
         policy=effect_policy,
         values={"candidate_worktree_path": candidate_worktree_path},
+        identity_transition=identity_transition,
     )
 
 

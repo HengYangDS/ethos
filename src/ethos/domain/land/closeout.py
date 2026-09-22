@@ -7,6 +7,7 @@ closeout live in sibling semantic modules.
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -87,6 +88,7 @@ def closeout_apply_command(
     candidate_head: str,
     receipt_path: Path | None = None,
     status: dict[str, object] | None = None,
+    identity_transition: bool = False,
 ) -> str:
     """Render the sole exact public accepted-closeout command."""
     worktrees = (
@@ -100,9 +102,10 @@ def closeout_apply_command(
         if receipt_path is not None
         else ""
     )
+    identity = " --identity-transition" if identity_transition else ""
     return (
         "ethos land --closeout --apply --authorize "
-        f"--expect-head {accepted_head} --candidate-head {candidate_head}{receipt} "
+        f"--expect-head {accepted_head} --candidate-head {candidate_head}{receipt}{identity} "
         f"--root {accepted_root.as_posix()} --json"
     )
 
@@ -143,6 +146,7 @@ def closeout_resolution(
     gaps: tuple[str, ...],
     apply: bool,
     receipt_path: Path | None = None,
+    identity_transition: bool = False,
 ) -> CloseoutResolution:
     """Resolve one exact closeout subject, proof, effect, and continuation."""
     policy = load_branch_role_policy(repo)
@@ -181,9 +185,14 @@ def closeout_resolution(
     else:
         next_action = closeout_apply_command(
             repo,
-            accepted_head=accepted_head,
+            accepted_head=(
+                str(update["previous_head"])
+                if update.get("state") == "accepted_materialization_pending"
+                else accepted_head
+            ),
             candidate_head=candidate_head,
             receipt_path=receipt_path,
+            identity_transition=identity_transition,
         )
     return CloseoutResolution(
         coordinates=coordinates,
@@ -344,8 +353,27 @@ def land_next_action(
     verdict: Verdict,
     gaps: tuple[str, ...],
     current_head: str,
+    apply: bool = True,
+    root: Path | None = None,
+    identity_transition: bool = False,
+    candidate_head: str | None = None,
 ) -> str:
     """Derive the recommended next command after a land attempt."""
+    if verdict == "pass" and not apply:
+        return shlex.join(
+            (
+                "ethos",
+                "land",
+                "--apply",
+                "--authorize",
+                "--expect-head",
+                current_head,
+                *(("--root", str(root)) if root is not None else ()),
+                *(("--candidate-head", candidate_head) if candidate_head else ()),
+                *(("--identity-transition",) if identity_transition else ()),
+                "--json",
+            )
+        )
     if verdict == "pass":
         return "ethos publish"
     if "protected_root_mutation" in gaps:

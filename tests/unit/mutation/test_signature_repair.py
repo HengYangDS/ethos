@@ -33,6 +33,7 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
+from tests.support.semantic import attestation_fixture
 from tests.support.signature import interrupted_signature
 from tests.support.signature import signature_repository
 
@@ -360,32 +361,15 @@ def test_repair_malformed_evidence_is_a_structured_rejection(tmp_path, monkeypat
     record_attestations(
         repo,
         (
-            Attestation.issue(
-                {
-                    "schema_version": 2,
-                    "predicate": "observation:signature-repair-attempt",
-                    "verifier": "fixture",
-                    "subject": "signature-repair:malformed",
-                    "issued_at": now,
-                    "valid_from": now,
-                    "valid_until": None,
-                    "verdict": "pass",
-                    "payload": {
-                        "kind": "observation:signature-repair-attempt",
-                        "body": {
-                            "coordinates": coordinates,
-                        },
-                    },
-                    "relations": (),
-                    "advisories": (),
-                    "evidence_refs": (),
-                    "commitment_digest": None,
-                    "facts_digest": "0" * 64,
-                    "plan_digest": None,
-                    "policy_digest": None,
-                    "effect_digest": None,
-                    "mints_authority": False,
-                }
+            attestation_fixture(
+                predicate="observation:signature-repair-attempt",
+                verifier="fixture",
+                subject="signature-repair:malformed",
+                issued_at=now,
+                valid_from=now,
+                facts_digest="0" * 64,
+                payload_kind="observation:signature-repair-attempt",
+                payload_body={"coordinates": coordinates},
             ),
         ),
     )

@@ -7,6 +7,7 @@ import os
 from contextlib import nullcontext
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
@@ -16,6 +17,7 @@ from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 from ethos.adapters.repo.trust_anchor.verification import trust_anchor
+from tools.ci.delivery.acceptance.effect import _independent_host_environment
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -156,7 +158,9 @@ def test_windows_native_acl_protection_rejects_foreign_writer(
     protect_for_current_identity(anchor.parent)
     protect_for_current_identity(anchor)
 
-    assert protected_from_untrusted_write(anchor)
+    isolated, _git = _independent_host_environment()
+    with patch.dict(os.environ, isolated, clear=True):
+        assert protected_from_untrusted_write(anchor)
 
     run_command(
         anchor.parent,
@@ -180,4 +184,5 @@ def test_windows_native_acl_protection_rejects_foreign_writer(
         remove_env=("PSModulePath",),
     )
 
-    assert not protected_from_untrusted_write(anchor)
+    with patch.dict(os.environ, isolated, clear=True):
+        assert not protected_from_untrusted_write(anchor)

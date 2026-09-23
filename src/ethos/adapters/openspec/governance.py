@@ -90,7 +90,7 @@ def openspec_governance_report(
             required_gaps=active_identifier_gaps,
         )
     request = OpenSpecRequest(change, lifecycle, changed_paths, require_workspace)
-    base_command = openspec_cli.openspec_base_command()
+    base_command = openspec_cli.openspec_base_command(execution_probe=False)
     return _openspec_governance_report(
         root,
         request=request,

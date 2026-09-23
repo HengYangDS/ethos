@@ -73,9 +73,9 @@ def _packaged_node() -> str | None:
 _SOURCE_NODE = _packaged_node()
 
 
-def openspec_base_command() -> tuple[str, ...] | None:
-    """Return only the source-locked or package-bundled OpenSpec command."""
-    return _base_command(execution_probe=True)
+def openspec_base_command(*, execution_probe: bool = True) -> tuple[str, ...] | None:
+    """Resolve locked supply; self-verifying transports may own the execution probe."""
+    return _base_command(execution_probe=execution_probe)
 
 
 def _base_command(*, execution_probe: bool) -> tuple[str, ...] | None:

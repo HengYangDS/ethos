@@ -594,6 +594,12 @@ actual execution or required artifact validation.
 - **AND** the required repository proof and its JUnit, coverage, wheel and SBOM artifacts execute independently
 - **AND** a failing upstream site is not presented as a valid link or a repository proof failure
 
+#### Scenario: Offline supply does not disable online assurance
+
+- **WHEN** a hosted image prepares locked tool dependencies from its digest-bound cache
+- **THEN** bootstrap performs no external fetch and leaves no job-wide offline flag
+- **AND** network-required vulnerability checks may query their declared upstream and fail closed if unavailable
+
 #### Scenario: A required result cannot establish success
 
 - **WHEN** a result or required upload fails, is cancelled, skipped, missing, malformed or UNKNOWN

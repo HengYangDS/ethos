@@ -101,7 +101,6 @@ github: {
 					git clone --local --no-hardlinks --no-checkout . "$smoke_root/repo"
 					git -C "$smoke_root/repo" checkout --detach "${{ github.sha }}"
 					smoke_command=(docker create --name "$smoke_name" --network none)
-					smoke_command+=(--env UV_OFFLINE=true --env NPM_CONFIG_OFFLINE=true --env UV_NO_BUILD_ISOLATION=1)
 					smoke_command+=(--env CI_PROJECT_DIR=/workspace --env ETHOS_CI_SUPPLY_MANIFEST=/opt/ethos-supply/input.sha256)
 					smoke_command+=(--env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/workspace)
 					smoke_command+=(--entrypoint /workspace/tools/ci/scripts/bootstrap-python.sh "$image" -- /bin/bash -lc "test \\$EUID -eq 65534 && uv run --frozen --offline python -B -I -m ethos.cli --version")
@@ -285,9 +284,6 @@ gitlab: {
 		UV_PYTHON_INSTALL_DIR:    "/opt/ethos-supply/python"
 		NPM_CONFIG_CACHE:         "/opt/ethos-supply/npm-cache"
 		ETHOS_CI_SUPPLY_MANIFEST: "/opt/ethos-supply/input.sha256"
-		UV_OFFLINE:               "true"
-		UV_NO_BUILD_ISOLATION:    "1"
-		NPM_CONFIG_OFFLINE:       "true"
 	}
 
 	// Auto-retry every job on infrastructure failures only (image-pull timeouts to
@@ -425,7 +421,7 @@ gitlab: {
 		// releases installed from nodejs.org; see the runtime policy and installer.
 		image: gitlabImage
 		script: [
-			"source tools/ci/scripts/bootstrap-python.sh",
+			"tools/ci/scripts/bootstrap-python.sh",
 			"tools/ci/scripts/install-node.sh",
 			"tools/ci/scripts/run-node-compatibility.sh",
 		]

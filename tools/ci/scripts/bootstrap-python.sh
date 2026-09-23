@@ -39,6 +39,8 @@ if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then
 		echo 'ci_supply_input_mismatch' >&2
 		exit 2
 	fi
+	# Constrain only supply preparation; the subsequent quality gates may need network.
+	export UV_OFFLINE=true NPM_CONFIG_OFFLINE=true UV_NO_BUILD_ISOLATION=1
 fi
 
 case "${host_os}" in

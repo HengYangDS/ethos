@@ -334,9 +334,13 @@ def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypa
     if failure:
         assert destination.read_bytes() == b"previous"
         return
-    cask = Path(str(result["homebrew_cask"])).read_text()
-    assert all(token in cask for token in ('"/usr/bin/codesign"', '"=notarized"'))
-    assert "spctl" not in cask
+    if selected.platform == "windows":
+        assert result["homebrew_cask"] is None
+        assert not (tmp_path / "homebrew").exists()
+    else:
+        cask = Path(str(result["homebrew_cask"])).read_text()
+        assert all(token in cask for token in ('"/usr/bin/codesign"', '"=notarized"'))
+        assert "spctl" not in cask
     if native:
         assert destination.read_bytes() == b"native image"
         return

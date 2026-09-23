@@ -189,7 +189,7 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
 
     monkeypatch.setattr(
         effect,
-        "_independent_host_environment",
+        "independent_host_environment",
         lambda: ({"PATH": "/native"}, "/native/git"),
     )
 
